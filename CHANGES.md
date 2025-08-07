@@ -180,6 +180,7 @@
 * [Python] Prism runner now auto-enabled for some Python pipelines using the direct runner ([#34921](https://github.com/apache/beam/pull/34921)).
 * [YAML] WriteToTFRecord and ReadFromTFRecord Beam YAML support
 * Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration ([#34495](https://github.com/apache/beam/pull/34495)).
+* [Python] Adding GCP Spanner Change Stream support for Python (apache_beam.io.gcp.spanner). ([#24103] https://github.com/apache/beam/issues/24103).
 
 ## Breaking Changes
 
