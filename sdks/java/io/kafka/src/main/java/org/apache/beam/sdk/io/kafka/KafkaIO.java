@@ -1099,37 +1099,37 @@ public class KafkaIO {
     }
 
     /**
-     * Hints to the runner that it can relax exactly-once processing guarantees, allowing duplicates
-     * in at-least-once processing mode of Kafka inputs.
+     * <p>Hints to the runner that it can relax exactly-once processing guarantees, allowing
+     * duplicates in at-least-once processing mode of Kafka inputs.
      *
-     * Must be used with {@link KafkaIO#withRedistribute()}.
+     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
      *
-     * Not compatible with {@link KafkaIO#withOffsetDeduplication()}.
+     * <p>Not compatible with {@link KafkaIO#withOffsetDeduplication()}.
      */
     public Read<K, V> withAllowDuplicates(Boolean allowDuplicates) {
       return toBuilder().setAllowDuplicates(allowDuplicates).build();
     }
 
     /**
-     * Redistributes Kafka messages into a distinct number of keys for processing in subsequent
+     * <p>Redistributes Kafka messages into a distinct number of keys for processing in subsequent
      * steps.
      *
-     * Specifying an explicit number of keys is generally receommended over redistributing
+     * <p>Specifying an explicit number of keys is generally receommended over redistributing
      * into an unbounded key space.
      *
-     * Must be used with {@link KafkaIO#withRedistribute()}.
+     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
      */
     public Read<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
       return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
     }
 
     /**
-     * Hints to the runner to optimize the redistribute by minimizing the amount of data required
+     * <p>Hints to the runner to optimize the redistribute by minimizing the amount of data required
      * for persistence as part of the redistribute operation.
      *
-     * Must be used with {@link KafkaIO#withRedistribute()}.
+     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
      *
-     * Not compatible with {@link KafkaIO#withAllowDuplicates()}.
+     * <p>Not compatible with {@link KafkaIO#withAllowDuplicates()}.
      */
     public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
       return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
