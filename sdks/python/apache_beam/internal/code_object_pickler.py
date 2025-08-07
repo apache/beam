@@ -200,7 +200,6 @@ def _search_function(callable: Callable, node: Any, qual_name_parts: list[str]):
   if (hasattr(callable, '__code__')
       and hasattr(node, '__code__')
       and node.__code__ == callable.__code__):
-  if node.__code__ == callable.__code__:
     if len(qual_name_parts) > 1:
       raise ValueError('Qual name parts too long')
     return '__code__'
