@@ -68,7 +68,7 @@ jobs:
         # These tests will only execute on ubuntu-latest (GitHub-hosted).
         # Context: https://github.com/apache/beam/pull/35585
         # Temporary removed the ubuntu-latest env till resolving deps issues.
-        os: [[self-hosted, ubuntu-20.04, highmem22]]
+        os: [[self-hosted, ubuntu-20.04, highmem22], [ubuntu-latest]]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
