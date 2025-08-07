@@ -273,7 +273,7 @@ class ServiceAccountManager:
             bool: True if the key exists, False otherwise.
         """
         keys = self._get_service_account_keys(account_id)
-        return any(key.name.endswith(key_id) for key in keys)
+        return any(key.name.split('/')[-1] == key_id for key in keys)
     
     def create_service_account_key(self, account_id: str) -> types.ServiceAccountKey:
         """
@@ -381,66 +381,6 @@ class ServiceAccountManager:
 
         self.logger.info(f"Deleted service account key: {key_id} for account: {account_id}")
 
-
-    def delete_oldest_service_account_keys(self, account_id: str, max_keys: int = 2) -> List[types.ServiceAccountKey]:
-        """
-        Deletes the oldest keys for the specified service account, keeping at least max_keys.
-        Always ensures that at least 1 key remains to prevent service account from becoming unusable.
-
-        Args:
-            account_id (str): The unique identifier or email of the service account.
-            max_keys (int): The maximum number of keys to keep. Defaults to 2.
-        
-        Returns:
-            List[types.ServiceAccountKey]: A list of service account keys that were deleted.
-        """
-        keys = self._get_service_account_keys(account_id)
-        if not keys:
-            self.logger.info(f"No keys found for service account: {account_id}")
-            return []
-        
-        # Sort keys by creation time (oldest first)
-        keys.sort(key=lambda k: k.valid_after_time)
-        
-        # Ensure we never delete all keys - always keep at least 1
-        min_keys_to_keep = max(1, max_keys)
-        
-        # If the number of keys is less than or equal to the number we want to keep, do not delete any keys
-        if len(keys) <= min_keys_to_keep:
-            self.logger.info(f"Service account {account_id} has {len(keys)} keys, keeping all (minimum: {min_keys_to_keep}).")
-            return []
-        
-        self.logger.info(f"Service account {account_id} has {len(keys)} keys, will delete {len(keys) - min_keys_to_keep} oldest keys.")
-        
-        deleted_keys = []
-        failed_deletions = []
-        while len(keys) > min_keys_to_keep:
-            oldest_key = keys.pop(0)
-            key_id = oldest_key.name.split('/')[-1]
-            
-            # Double-check: never delete if it would leave the account with no keys
-            current_keys = self._get_service_account_keys(account_id)
-            if len(current_keys) <= 1:
-                self.logger.warning(f"Skipping deletion of key {key_id} - would leave service account {account_id} with no keys.")
-                break
-                
-            try:
-                self.delete_service_account_key(account_id, key_id)
-                deleted_keys.append(oldest_key)
-                self.logger.info(f"Deleted oldest service account key: {oldest_key.name} for account: {account_id}")
-            except (exceptions.NotFound, exceptions.FailedPrecondition) as e:
-                self.logger.warning(f"Could not delete key {oldest_key.name}: {e}. Continuing with other keys.")
-                failed_deletions.append(oldest_key)
-            except Exception as e:
-                self.logger.error(f"Unexpected error deleting key {oldest_key.name}: {e}. Stopping deletion process.")
-                break
-
-        if failed_deletions:
-            self.logger.info(f"Failed to delete {len(failed_deletions)} keys for service account: {account_id}")
-
-        return deleted_keys
-
-    
     def test_service_account_key(self, key_data: bytes) -> bool:
         """
         Tests if a service account key is valid by attempting to authenticate and make an API call.

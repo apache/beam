@@ -16,6 +16,7 @@
 import os
 import logging
 import unittest
+import time
 from unittest import mock
 from service_account import ServiceAccountManager
 from google.cloud.iam_admin_v1 import types
@@ -407,95 +408,6 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         
         self.mock_iam_client.delete_service_account_key.assert_called_once()
 
-    def test_delete_oldest_service_account_keys_no_keys(self):
-        """Test deleting oldest keys when no keys exist."""
-        mock_response = mock.MagicMock()
-        mock_response.keys = []
-        self.mock_iam_client.list_service_account_keys.return_value = mock_response
-        
-        result = self.manager.delete_oldest_service_account_keys(self.test_account_id)
-        
-        self.assertEqual(result, [])
-        self.mock_iam_client.list_service_account_keys.assert_called_once()
-
-    def test_delete_oldest_service_account_keys_within_limit(self):
-        """Test deleting oldest keys when key count is within limit."""
-        mock_keys = []
-        for i, key_id in enumerate(["key1", "key2"]):
-            key = mock.MagicMock()
-            key.name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com/keys/{key_id}"
-            # Create comparable timestamps
-            timestamp = mock.MagicMock()
-            timestamp.__lt__ = lambda self, other, idx=i: idx < getattr(other, '_idx', 0)
-            timestamp._idx = i
-            key.valid_after_time = timestamp
-            mock_keys.append(key)
-        
-        mock_response = mock.MagicMock()
-        mock_response.keys = mock_keys
-        self.mock_iam_client.list_service_account_keys.return_value = mock_response
-        
-        result = self.manager.delete_oldest_service_account_keys(self.test_account_id, max_keys=2)
-        
-        self.assertEqual(result, [])
-        self.mock_iam_client.list_service_account_keys.assert_called_once()
-
-    def test_delete_oldest_service_account_keys_success(self):
-        """Test successfully deleting oldest keys."""
-        # Create mock keys with mock timestamps
-        mock_keys = []
-        for i in range(5):
-            key = mock.MagicMock()
-            key.name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com/keys/key{i}"
-            # Create comparable timestamps
-            timestamp = mock.MagicMock()
-            timestamp.__lt__ = lambda self, other, idx=i: idx < getattr(other, '_idx', 0)
-            timestamp._idx = i
-            key.valid_after_time = timestamp
-            mock_keys.append(key)
-        
-        mock_response = mock.MagicMock()
-        mock_response.keys = mock_keys
-        self.mock_iam_client.list_service_account_keys.return_value = mock_response
-        
-        with mock.patch.object(self.manager, '_service_account_key_exists', return_value=False):
-            result = self.manager.delete_oldest_service_account_keys(self.test_account_id, max_keys=2)
-        
-        # Should delete 3 oldest keys (5 - 2 = 3)
-        self.assertEqual(len(result), 3)
-        # Verify delete was called for each oldest key
-        self.assertEqual(self.mock_iam_client.delete_service_account_key.call_count, 3)
-
-    def test_delete_oldest_service_account_keys_with_failures(self):
-        """Test deleting oldest keys with some deletion failures."""
-        mock_keys = []
-        for i in range(4):
-            key = mock.MagicMock()
-            key.name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com/keys/key{i}"
-            # Create comparable timestamps
-            timestamp = mock.MagicMock()
-            timestamp.__lt__ = lambda self, other, idx=i: idx < getattr(other, '_idx', 0)
-            timestamp._idx = i
-            key.valid_after_time = timestamp
-            mock_keys.append(key)
-        
-        mock_response = mock.MagicMock()
-        mock_response.keys = mock_keys
-        self.mock_iam_client.list_service_account_keys.return_value = mock_response
-        
-        # Mock first deletion to fail, second to succeed
-        self.mock_iam_client.delete_service_account_key.side_effect = [
-            exceptions.NotFound("Key not found"),
-            None  # Success
-        ]
-        
-        with mock.patch.object(self.manager, '_service_account_key_exists', return_value=False):
-            result = self.manager.delete_oldest_service_account_keys(self.test_account_id, max_keys=2)
-        
-        # Should return only the successfully deleted key
-        self.assertEqual(len(result), 1)
-        self.assertEqual(self.mock_iam_client.delete_service_account_key.call_count, 2)
-
     @mock.patch('service_account.time.sleep')
     def test_test_service_account_key_retry_success(self, mock_sleep):
         """Test service account key testing with retry logic success."""
@@ -596,10 +508,8 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.project_id = os.environ['GOOGLE_CLOUD_PROJECT']
-        # Create a logger for integration tests
-        import logging
         self.logger = logging.getLogger(__name__)
-        self.manager = ServiceAccountManager(self.project_id, self.logger)
+        self.manager = ServiceAccountManager(self.project_id, self.logger, 5)
 
     def tearDown(self):
         """Tear down test fixtures."""
@@ -607,7 +517,7 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
         try:
             accounts = self.manager._get_service_accounts()
             for account in accounts:
-                if account.email.startswith("integration-test-account-"):
+                if account.email.startswith("test-account-"):
                     try:
                         self.manager.delete_service_account(account.email)
                     except Exception as e:
@@ -617,15 +527,20 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
 
     def test_full_service_account_lifecycle(self):
         """Test creating and deleting a service account."""
-        account_id = "integration-test-account-" + str(os.getpid())
-        display_name = "Integration Test Account"
+        account_id = "test-account-" + str(os.getpid())
+        display_name = "Test Account"
 
         # Create service account
         account = self.manager.create_service_account(account_id, display_name)
         service_account_email = account.email
         self.assertEqual(account.display_name, display_name)
 
-        # Verify service account exists - with delayed check
+        # Wait until service account is created (with retries)
+        for i in range(5):
+            if service_account_email in [a.email for a in self.manager._get_service_accounts()]:
+                break
+            time.sleep(i ** 2)  # Exponential backoff
+        # Verify service account exists
         self.assertIn(service_account_email, [a.email for a in self.manager._get_service_accounts()])
 
         # Create a key for the service account
@@ -642,28 +557,14 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
         # Delete the service account key
         self.manager.delete_service_account_key(service_account_email, key.name.split('/')[-1])
 
-        # Add multiple keys to the service account
-        keys = []
-        for _ in range(5):
-            key = self.manager.create_service_account_key(service_account_email)
-            # Test the key (retry logic handles propagation delay)
-            key_valid = self.manager.test_service_account_key(key.private_key_data)
-            self.assertTrue(key_valid)
-            keys.append(key)
+        # Create a new key to ensure we have multiple keys
+        new_key = self.manager.create_service_account_key(service_account_email)
+        new_key_valid = self.manager.test_service_account_key(new_key.private_key_data)
+        self.assertTrue(new_key_valid)
 
-        # Delete oldest keys
-        deleted_keys = self.manager.delete_oldest_service_account_keys(service_account_email, max_keys=2)
-        self.assertIsNotNone(deleted_keys)
-        self.assertEqual(len(deleted_keys), 3) # Should delete only the oldest keys
-        # The first two keys should not be valid anymore
-        for i in range(3):
-            key_valid = self.manager.test_service_account_key(deleted_keys[i].private_key_data)
-            self.assertFalse(key_valid)
-
-        # The 3 remaining keys should still be valid
-        for key in keys[3:]:
-            key_valid = self.manager.test_service_account_key(key.private_key_data)
-            self.assertTrue(key_valid)
+        # Verify that we have 2 keys now
+        all_keys = self.manager._get_service_account_keys(service_account_email)
+        self.assertEqual(len(all_keys), 2)  # 1 old key + 1 new key
 
         # Disable the service account
         self.manager.disable_service_account(service_account_email)
@@ -678,6 +579,10 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
         # Verify service account is enabled
         account = self.manager.get_service_account(service_account_email)
         self.assertFalse(account.disabled)
+
+        # Test again the key after enabling the service account
+        key_valid = self.manager.test_service_account_key(new_key.private_key_data)
+        self.assertTrue(key_valid)
 
         # Delete the service account
         self.manager.delete_service_account(service_account_email)
