@@ -102,22 +102,7 @@ class IcebergTable extends SchemaBaseBeamTable {
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filter, List<String> fieldNames) {
 
-    Map<String, Object> readConfig = new HashMap<>(getBaseConfig());
-
-    if (!(filter instanceof DefaultTableFilter)) {
-      IcebergFilter icebergFilter = (IcebergFilter) filter;
-      if (!icebergFilter.getSupported().isEmpty()) {
-        String expression = generateFilterExpression(getSchema(), icebergFilter.getSupported());
-        if (!expression.isEmpty()) {
-          LOG.info("Pushing down the following filter: {}", expression);
-          readConfig.put("filter", expression);
-        }
-      }
-    }
-
-    if (!fieldNames.isEmpty()) {
-      readConfig.put("keep", fieldNames);
-    }
+    Map<String, Object> readConfig = getPushdownConfig(filter, fieldNames);
 
     return begin
         .apply("Read Iceberg with push-down", Managed.read(Managed.ICEBERG).withConfig(readConfig))
@@ -139,7 +124,7 @@ class IcebergTable extends SchemaBaseBeamTable {
     return PCollection.IsBounded.BOUNDED;
   }
 
-  private Map<String, Object> getBaseConfig() {
+  protected Map<String, Object> getBaseConfig() {
     ImmutableMap.Builder<String, Object> managedConfigBuilder = ImmutableMap.builder();
     managedConfigBuilder.put("table", tableIdentifier);
     @Nullable String name = catalogConfig.getCatalogName();
@@ -157,7 +142,27 @@ class IcebergTable extends SchemaBaseBeamTable {
     return managedConfigBuilder.build();
   }
 
-  private String generateFilterExpression(Schema schema, List<RexNode> supported) {
+  protected Map<String, Object> getPushdownConfig(@Nullable BeamSqlTableFilter filter, @Nullable List<String> fieldNames) {
+    ImmutableMap.Builder<String, Object> managedConfigBuilder = ImmutableMap.builder();
+    managedConfigBuilder.putAll(getBaseConfig());
+
+    if (filter != null && !(filter instanceof DefaultTableFilter)) {
+      IcebergFilter icebergFilter = (IcebergFilter) filter;
+      if (!icebergFilter.getSupported().isEmpty()) {
+        String expression = generateFilterExpression(getSchema(), icebergFilter.getSupported());
+        if (!expression.isEmpty()) {
+          LOG.info("Pushing down the following filter: {}", expression);
+          managedConfigBuilder.put("filter", expression);
+        }
+      }
+    }
+    if (fieldNames != null && !fieldNames.isEmpty()) {
+      managedConfigBuilder.put("keep", fieldNames);
+    }
+    return managedConfigBuilder.build();
+  }
+
+  protected String generateFilterExpression(Schema schema, List<RexNode> supported) {
     final IntFunction<SqlNode> field =
         i -> new SqlIdentifier(schema.getField(i).getName(), SqlParserPos.ZERO);
 
