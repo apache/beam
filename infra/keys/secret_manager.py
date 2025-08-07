@@ -18,7 +18,7 @@ import logging
 import time
 from datetime import datetime, timezone, timedelta
 from google.cloud import secretmanager
-from typing import List, Union
+from typing import List, Union, Tuple, Dict
 
 # What the "created_by" label is set to for secrets created by this service.
 SECRET_MANAGER_LABEL = "beam-infra-secret-manager"
@@ -34,23 +34,21 @@ class SecretManager:
 
     project_id: str # The GCP project ID where secrets are managed
     rotation_interval: int # The interval (in days) at which to rotate secrets
-    max_versions_to_keep: int # The maximum number of secret versions to keep
+    grace_period: int # The grace period (in days) before a secret is considered for rotation
     max_retries: int # The maximum number of retries for API calls
     client: secretmanager.SecretManagerServiceClient # GCP Secret Manager client
     logger: Union[logging.Logger, logging.LoggerAdapter] # Logger for logging messages
-    secret_ids: List[str] # List of secret IDs managed by this service
 
-    def __init__(self, project_id: str, logger: logging.Logger, rotation_interval: int = 30, max_versions_to_keep: int = 5, max_retries: int = 3) -> None:
+    def __init__(self, project_id: str, logger: logging.Logger, rotation_interval: int = 30, grace_period: int = 7, max_retries: int = 3) -> None:
         self.project_id = project_id
         self.rotation_interval = rotation_interval
-        self.max_versions_to_keep = max_versions_to_keep
+        self.grace_period = grace_period
         self.max_retries = max_retries
         self.client = secretmanager.SecretManagerServiceClient()
         self.logger = SecretManagerLoggerAdapter(logger, {})
         self.logger.info(f"Initialized SecretManager for project '{self.project_id}'")
-        self.secret_ids = self._get_secrets_ids()
 
-    def _get_secrets_ids(self) -> List[str]:
+    def _get_secret_ids(self) -> List[str]:
         """
         Retrieves the list of secrets from the Secret Manager and populates the `secrets_ids` list.
         This method filters secrets based on a specific label indicating they were created by this service.
@@ -74,7 +72,7 @@ class SecretManager:
 
     def _secret_exists(self, secret_id: str) -> bool:
         """
-        Checks if a secret with the given ID exists in the Secret Manager GCP.
+        Checks if a secret with the given ID exists.
 
         Args:
             secret_id (str): The ID of the secret to check.
@@ -84,17 +82,33 @@ class SecretManager:
         self.logger.debug(f"Checking if secret '{secret_id}' exists")
         try:
             name = self.client.secret_path(self.project_id, secret_id)
-            secret = self.client.get_secret(request={"name": name})
-
-            if "created_by" in secret.labels and secret.labels["created_by"] == SECRET_MANAGER_LABEL:
-                self.logger.debug(f"Secret '{secret_id}' exists and is managed by {SECRET_MANAGER_LABEL}")
-                return True
-            else:
-                self.logger.debug(f"Secret '{secret_id}' exists but is not managed by {SECRET_MANAGER_LABEL}")
-                return False
+            self.client.get_secret(request={"name": name})
+            self.logger.debug(f"Secret '{secret_id}' exists")
+            return True
         except Exception as e:
             self.logger.debug(f"Secret '{secret_id}' does not exist: {e}")
             return False
+
+    def _secret_is_managed(self, secret_id: str) -> bool:
+        """
+        Checks if a secret with the given ID exists and is managed by this service.
+
+        Args:
+            secret_id (str): The ID of the secret to check.
+        Returns:
+            bool: True if the secret is managed by this service, False otherwise.
+        """
+        self.logger.debug(f"Checking if secret '{secret_id}' exists and is managed by {SECRET_MANAGER_LABEL}")
+        if not self._secret_exists(secret_id):
+            self.logger.debug(f"Secret '{secret_id}' does not exist, cannot be managed")
+            return False
+
+        name = self.client.secret_path(self.project_id, secret_id)
+        secret = self.client.get_secret(request={"name": name})
+
+        is_managed = "created_by" in secret.labels and secret.labels["created_by"] == SECRET_MANAGER_LABEL
+        self.logger.debug(f"Secret '{secret_id}' is managed by {SECRET_MANAGER_LABEL}: {is_managed}")
+        return is_managed
 
     def create_secret(self, secret_id: str) -> str:
         """
@@ -108,7 +122,7 @@ class SecretManager:
         Returns:
             str: The secret path of the newly created secret.
         """
-        if secret_id in self.secret_ids:
+        if self._secret_is_managed(secret_id):
             self.logger.debug(f"Secret '{secret_id}' already exists, returning existing secret path")
             name = self.client.secret_path(self.project_id, secret_id)
             return name
@@ -126,25 +140,32 @@ class SecretManager:
                         "created_by": SECRET_MANAGER_LABEL,
                         "created_at": datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S"),
                         "rotation_interval_days": str(self.rotation_interval),
+                        "grace_period_days": str(self.grace_period),
                         "last_version_created_at": datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S"),
                     }
                 }
             }
         )
 
+        # created_by : This label is used to identify secrets created by this service.
+        # created_at : This label stores the timestamp when the secret was created.
+        # rotation_interval_days : This label specifies the rotation interval for the secret.
+        # grace_period_days : This label specifies the grace period for the secret.
+        # last_version_created_at : This label stores the timestamp when the last version of the secret was created, this
+        #   helps with the rotation and grace period calculations.
+
         # Wait for the secret to be created
         self.logger.debug(f"Waiting for secret '{secret_id}' to be created")
         delay = 1
         for _ in range(self.max_retries):
-            if self._secret_exists(secret_id):
+            if self._secret_is_managed(secret_id):
                 self.logger.debug(f"Secret '{secret_id}' is now available")
-                self.secret_ids.append(secret_id)
                 break
             self.logger.debug(f"Secret '{secret_id}' not found, retrying in {delay} seconds")
             time.sleep(delay)
             delay *= 2
         else:
-            error_msg = f"Failed to create secret '{secret_id}' after {self.max_retries} retries."
+            error_msg = f"Could not verify creation of secret '{secret_id}' after {self.max_retries} retries."
             self.logger.error(error_msg)
             raise RuntimeError(error_msg)
 
@@ -162,14 +183,14 @@ class SecretManager:
         """
         self.logger.info(f"Retrieving secret '{secret_id}'")
 
-        if secret_id not in self.secret_ids:
-            self.logger.debug(f"Secret '{secret_id}' not in cached secrets, checking existence")
-            if not self._secret_exists(secret_id):
-                self.logger.error(f"Secret '{secret_id}' does not exist")
-                raise ValueError(f"Secret {secret_id} does not exist. Please create it first.")
-            else:
-                self.logger.debug(f"Secret '{secret_id}' exists but is not in cached secrets, updating cache")
-                self.secret_ids.append(secret_id)
+        if not self._secret_exists(secret_id):
+            error_msg = f"Secret {secret_id} does not exist. Please create it first."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} is not managed by this service."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
 
         name = self.client.secret_path(self.project_id, secret_id)
         return self.client.get_secret(request={"name": name})
@@ -181,8 +202,8 @@ class SecretManager:
         Args:
             secret_id (str): The ID of the secret to delete.
         """
-        if not self._secret_exists(secret_id):
-            self.logger.debug(f"Secret '{secret_id}' does not exist, nothing to delete")
+        if not self._secret_is_managed(secret_id):
+            self.logger.debug(f"Secret '{secret_id}' is not managed by this service, cannot delete")
             return
 
         self.logger.info(f"Deleting secret '{secret_id}' and all its versions")
@@ -195,15 +216,12 @@ class SecretManager:
         for _ in range(self.max_retries):
             if not self._secret_exists(secret_id):
                 self.logger.debug(f"Secret '{secret_id}' is now deleted")
-                if secret_id in self.secret_ids:
-                    self.logger.debug(f"Removing '{secret_id}' from cached secrets")
-                    self.secret_ids.remove(secret_id)
                 break
             self.logger.debug(f"Secret '{secret_id}' still exists, retrying in {delay} seconds")
             time.sleep(delay)
             delay *= 2
         else:
-            error_msg = f"Failed to delete secret '{secret_id}' after {self.max_retries} retries."
+            error_msg = f"Could not verify deletion of secret '{secret_id}' after {self.max_retries} retries."
             self.logger.error(error_msg)
             raise RuntimeError(error_msg)
 
@@ -222,8 +240,8 @@ class SecretManager:
         """
         self.logger.debug(f"Checking if access for secret '{secret_id}' differs from allowed users: {allowed_users}")
 
-        if not self._secret_exists(secret_id):
-            self.logger.debug(f"Secret '{secret_id}' does not exist, cannot check access")
+        if not self._secret_is_managed(secret_id):
+            self.logger.debug(f"Secret '{secret_id}' is not managed by this service, cannot check access")
             return True
         
         accessor_role = "roles/secretmanager.secretAccessor"
@@ -259,8 +277,8 @@ class SecretManager:
         """
         self.logger.debug(f"Updating access for secret '{secret_id}' to allow users: {allowed_users}")
 
-        if not self._secret_exists(secret_id):
-            error_msg = f"Secret {secret_id} does not exist. Please create it first."
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} is not managed by this service, cannot update access."
             self.logger.error(error_msg)
             raise ValueError(error_msg)
         
@@ -305,29 +323,14 @@ class SecretManager:
         """
         self.logger.debug(f"Retrieving versions for secret '{secret_id}'")
 
-        if not self._secret_exists(secret_id):
-            self.logger.debug(f"Secret '{secret_id}' does not exist, cannot retrieve versions")
+        if not self._secret_is_managed(secret_id):
+            self.logger.debug(f"Secret '{secret_id}' is not managed by this service, cannot retrieve versions")
             return []
 
         parent = self.client.secret_path(self.project_id, secret_id)
         versions = list(self.client.list_secret_versions(request={"parent": parent}))
         self.logger.debug(f"Found {len(versions)} versions for secret '{secret_id}'")
         return versions
-
-    def _get_enabled_secret_versions(self, secret_id: str) -> List[secretmanager.SecretVersion]:
-        """
-        Retrieves all enabled versions of a secret.
-
-        Args:
-            secret_id (str): The ID of the secret to list enabled versions for.
-        Returns:
-            List[secretmanager.SecretVersion]: A list of enabled secret versions.
-        """
-        self.logger.debug(f"Retrieving enabled versions for secret '{secret_id}'")
-        versions = self._get_secret_versions(secret_id)
-        enabled_versions = [version for version in versions if version.state == secretmanager.SecretVersion.State.ENABLED]
-        self.logger.debug(f"Found {len(enabled_versions)} enabled versions for secret '{secret_id}'")
-        return enabled_versions
 
     def _secret_version_exists(self, secret_id: str, version_id: str) -> bool:
         """
@@ -340,8 +343,8 @@ class SecretManager:
             bool: True if the version exists, False otherwise.
         """
         self.logger.debug(f"Checking if version '{version_id}' exists for secret '{secret_id}'")
-        if not self._secret_exists(secret_id):
-            self.logger.debug(f"Secret '{secret_id}' does not exist, version cannot exist")
+        if not self._secret_is_managed(secret_id):
+            self.logger.debug(f"Secret '{secret_id}' is not managed by this service, cannot check version existence")
             return False
         
         versions = self._get_secret_versions(secret_id)
@@ -360,8 +363,8 @@ class SecretManager:
             bool: True if the version is enabled, False otherwise.
         """
         self.logger.debug(f"Checking if version '{version_id}' of secret '{secret_id}' is enabled")
-        if not self._secret_exists(secret_id):
-            self.logger.debug(f"Secret '{secret_id}' does not exist, version cannot be enabled")
+        if not self._secret_is_managed(secret_id):
+            self.logger.debug(f"Secret '{secret_id}' is not managed by this service, version cannot be enabled")
             return False
         
         versions = self._get_secret_versions(secret_id)
@@ -373,28 +376,30 @@ class SecretManager:
         self.logger.debug(f"Version '{version_id}' does not exist for secret '{secret_id}'")
         return False
     
-    def _purge_old_secret_versions(self, secret_id: str) -> None:
+    def _secret_version_is_destroyed(self, secret_id: str, version_id: str) -> bool:
         """
-        Purges old secret versions that are not enabled and exceed the maximum allowed versions.
-
+        Checks if a specific version of a secret is destroyed.
+        
         Args:
-            secret_id (str): The ID of the secret to purge old versions from.
+            secret_id (str): The ID of the secret to check.
+            version_id (str): The ID of the version to check.
+        Returns:
+            bool: True if the version is destroyed, False otherwise.
         """
-        self.logger.debug(f"Purging old versions for secret '{secret_id}'")
+        self.logger.debug(f"Checking if version '{version_id}' of secret '{secret_id}' is destroyed")
+        if not self._secret_is_managed(secret_id):
+            self.logger.debug(f"Secret '{secret_id}' is not managed by this service, version cannot be destroyed")
+            return False
+        
         versions = self._get_secret_versions(secret_id)
-        enabled_versions = [v for v in versions if v.state == secretmanager.SecretVersion.State.ENABLED]
+        for version in versions:
+            if version.name.split("/")[-1] == version_id:
+                is_destroyed = version.state == secretmanager.SecretVersion.State.DESTROYED
+                self.logger.debug(f"Version '{version_id}' is destroyed: {is_destroyed}")
+                return is_destroyed
+        self.logger.debug(f"Version '{version_id}' does not exist for secret '{secret_id}'")
+        return False
 
-        if len(enabled_versions) > self.max_versions_to_keep:
-            versions_to_purge = enabled_versions[:len(enabled_versions) - self.max_versions_to_keep]
-            self.logger.debug(f"Found {len(versions_to_purge)} versions to purge for secret '{secret_id}'")
-            for version in versions_to_purge:
-                version_id = version.name.split("/")[-1]
-                self.logger.debug(f"Disabling version '{version_id}' of secret '{secret_id}'")
-                self.disable_secret_version(secret_id, version_id=version_id)
-        else:
-            self.logger.debug(f"No versions to purge for secret '{secret_id}', current count: {len(enabled_versions)}")
-
-    
     def _get_latest_secret_version_id(self, secret_id: str) -> str:
         """
         Retrieves the latest enabled version of a secret.
@@ -405,6 +410,10 @@ class SecretManager:
             str: The name of the latest secret version.
         """
         self.logger.debug(f"Retrieving latest enabled version of secret '{secret_id}'")
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} does not exist or is not managed by this service, cannot retrieve latest version."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
 
         for version in self._get_secret_versions(secret_id):
             if version.state == secretmanager.SecretVersion.State.ENABLED:
@@ -415,26 +424,6 @@ class SecretManager:
         self.logger.error(error_msg)
         raise ValueError(error_msg)
     
-    def _get_oldest_secret_version_id(self, secret_id: str) -> str:
-        """
-        Retrieves the oldest version of a secret.
-
-        Args:
-            secret_id (str): The ID of the secret to retrieve the oldest version for.
-        Returns:
-            str: The name of the oldest secret version.
-        """
-
-        self.logger.debug(f"Retrieving oldest version of secret '{secret_id}'")
-        for version in reversed(self._get_secret_versions(secret_id)):
-            if version.state == secretmanager.SecretVersion.State.ENABLED:
-                version_id = version.name.split("/")[-1]
-                self.logger.debug(f"Found oldest enabled version '{version_id}' for secret '{secret_id}'")
-                return version_id
-        error_msg = f"No enabled versions found for secret {secret_id}."
-        self.logger.error(error_msg)
-        raise ValueError(error_msg)
-
     def _is_key_rotation_due(self, secret_id: str) -> bool:
         """
         Checks if the key rotation is due based on the last version created timestamp.
@@ -445,27 +434,28 @@ class SecretManager:
             bool: True if the key rotation is due, False otherwise.
         """
         self.logger.debug(f"Checking if key rotation is due for secret '{secret_id}'")
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} does not exist or is not managed by this service, cannot check rotation."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+
         secret = self.get_secret(secret_id)
-        last_version_created_at = secret.labels.get("last_version_created_at")
-        
-        if not last_version_created_at:
-            self.logger.debug(f"No last version created timestamp found for secret '{secret_id}'")
-            return False
-        
+        last_version_created_at = secret.labels["last_version_created_at"]
         last_version_date = datetime.strptime(last_version_created_at, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
         due_date = last_version_date + timedelta(days=self.rotation_interval)
         
         is_due = datetime.now(timezone.utc) >= due_date
         self.logger.debug(f"Key rotation due for secret '{secret_id}': {is_due}")
         return is_due
-
-    def add_secret_version(self, secret_id: str, payload: Union[bytes, str]) -> str:
+    
+    def add_secret_version(self, secret_id: str, data_id: str, payload: Union[bytes, str]) -> str:
         """
-        Adds a new version to the specified secret with the given payload.
-        If the secret does not exist, it will be created first.
+        Adds a new version to the specified secret with the given data ID and payload.
+        If the secret does not exist, it will be created first. All previous versions will be disabled.
 
         Args:
             secret_id (str): The ID of the secret to which the version will be added.
+            data_id (str): The ID of the data to be stored in the new version.
             payload (bytes): The secret data to be stored in the new version.
         Returns:
             str: The name of the newly created secret version.
@@ -473,12 +463,20 @@ class SecretManager:
         self.logger.info(f"Adding new version to secret '{secret_id}'")
 
         secret_path = self.create_secret(secret_id)
-        payload_bytes = payload.encode('utf-8') if isinstance(payload, str) else payload
 
-        if not isinstance(payload_bytes, bytes):
+        if not isinstance(payload, (bytes, str)):
             error_msg = "Payload must be a bytes object or a string that can be encoded to bytes."
             self.logger.error(error_msg)
             raise TypeError(error_msg)
+        
+        # Join data_id and payload to form the payload
+        if isinstance(payload, str):
+            payload = f"{data_id}:{payload}"
+        else:
+            payload = f"{data_id}:{payload.decode('utf-8')}" if isinstance(payload, bytes) else payload
+
+        # Ensure payload is bytes
+        payload_bytes = payload.encode('utf-8') if isinstance(payload, str) else payload
 
         crc32c = google_crc32c.Checksum()
         crc32c.update(payload_bytes)
@@ -495,9 +493,6 @@ class SecretManager:
         )
 
         version_id = response.name.split("/")[-1]
-
-        # Purge old versions if necessary
-        self._purge_old_secret_versions(secret_id)
 
         # Update the last version created timestamp
         self.logger.debug(f"Updating last version created timestamp for secret '{secret_id}'")
@@ -519,38 +514,37 @@ class SecretManager:
             time.sleep(delay)
             delay *= 2
         else:
-            error_msg = f"Failed to add version '{version_id}' to secret '{secret_id}' after {self.max_retries} retries."
+            error_msg = f"Could not verify creation of secret version '{version_id}' after {self.max_retries} retries."
             self.logger.error(error_msg)
             raise RuntimeError(error_msg)
+
+        # Disable all the previous versions except the newly created one
+        for ver in self._get_secret_versions(secret_id):
+            if ver.name != response.name and ver.state == secretmanager.SecretVersion.State.ENABLED:
+                self.logger.debug(f"Disabling previous version '{ver.name}' of secret '{secret_id}'")
+                self.disable_secret_version(secret_id, ver.name.split("/")[-1])
 
         self.logger.info(f"Successfully added version '{version_id}' to secret '{secret_id}'")
         return response.name
 
-    def get_secret_version(self, secret_id: str, version_id: str = "latest") -> bytes:
+    def get_latest_secret_version(self, secret_id: str) -> Tuple[str, bytes]:
         """
-        Retrieves the specified version of a secret. If version_id is "latest" or not provided,
-        it retrieves the latest enabled secret version.
+        Retrieves the latest enabled version of a secret.
 
         Args:
             secret_id (str): The ID of the secret from which to retrieve the version.
-            version_id (str): The version ID to retrieve. Defaults to "latest", "oldest" can also be used.
-        Returns:
-            bytes: The payload of the specified secret version.
-        """
-        self.logger.info(f"Retrieving version '{version_id}' of secret '{secret_id}'")
 
-        if secret_id not in self.secret_ids:
-            error_msg = f"Secret {secret_id} does not exist. Please create it first."
+        Returns:
+            Tuple[str, bytes]: A tuple containing the data ID and the payload of the latest secret version.
+        """
+        self.logger.info(f"Retrieving latest version of secret '{secret_id}'")
+
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} does not exist or is not managed by this service, cannot retrieve latest version."
             self.logger.error(error_msg)
             raise ValueError(error_msg)
 
-        if version_id == "latest":
-            version_id = self._get_latest_secret_version_id(secret_id)
-            self.logger.debug(f"Using latest version '{version_id}' for secret '{secret_id}'")
-        elif version_id == "oldest":
-            version_id = self._get_oldest_secret_version_id(secret_id)
-            self.logger.debug(f"Using oldest version '{version_id}' for secret '{secret_id}'")
-
+        version_id = self._get_latest_secret_version_id(secret_id)
         name = f"projects/{self.project_id}/secrets/{secret_id}/versions/{version_id}"
 
         self.logger.debug(f"Accessing secret version '{version_id}' of secret '{secret_id}'")
@@ -565,28 +559,76 @@ class SecretManager:
             raise ValueError(error_msg)
 
         self.logger.info(f"Successfully retrieved version '{version_id}' of secret '{secret_id}'")
-        return response.payload.data
 
-    def disable_secret_version(self, secret_id: str, version_id: str = "oldest") -> None:
+        data_str = response.payload.data.decode('utf-8')
+        data_id, payload = data_str.split(":", 1)
+        return data_id, payload.encode('utf-8')
+
+    def enable_secret_version(self, secret_id: str, version_id: str) -> None:
+        """
+        Enables a specific version of a secret.
+
+        Args:
+            secret_id (str): The ID of the secret from which to enable the version.
+            version_id (str): The version ID to enable.
+        """
+        self.logger.info(f"Enabling version '{version_id}' of secret '{secret_id}'")
+
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} does not exist or is not managed by this service, cannot enable version."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        self.logger.debug(f"Verifying version '{version_id}' exists for secret '{secret_id}'")
+        version_exists = any(
+            version.name.split("/")[-1] == version_id and version.state == secretmanager.SecretVersion.State.DISABLED
+            for version in self._get_secret_versions(secret_id)
+        )
+        if not version_exists:
+            error_msg = f"Version {version_id} does not exist or is not disabled for secret {secret_id}."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        name = f"projects/{self.project_id}/secrets/{secret_id}/versions/{version_id}"
+        self.logger.debug(f"Enabling version '{version_id}' of secret '{secret_id}'")
+        response = self.client.enable_secret_version(request={"name": name})
+
+        if response.name.split("/")[-1] != version_id or response.state != secretmanager.SecretVersion.State.ENABLED:
+            error_msg = f"Failed to enable secret version {version_id} for secret {secret_id}."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # Wait for the version to be enabled
+        self.logger.debug(f"Waiting for version '{version_id}' of secret '{secret_id}' to be enabled")
+        delay = 1
+        for _ in range(self.max_retries):
+            if self._secret_version_is_enabled(secret_id, version_id):
+                self.logger.debug(f"Version '{version_id}' of secret '{secret_id}' is now enabled")
+                break
+            self.logger.debug(f"Version '{version_id}' of secret '{secret_id}' still disabled, retrying in {delay} seconds")
+            time.sleep(delay)
+            delay *= 2
+        else:
+            error_msg = f"Could not verify enabling of version '{version_id}' of secret '{secret_id}' after {self.max_retries} retries."
+            self.logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        self.logger.info(f"Successfully enabled version '{version_id}' of secret '{secret_id}'")
+
+    def disable_secret_version(self, secret_id: str, version_id: str) -> None:
         """
         Disables a specific version of a secret.
 
         Args:
             secret_id (str): The ID of the secret from which to delete the version.
-            version_id (str): The version ID to delete. Defaults to "oldest", "latest" can also be used.
+            version_id (str): The version ID to delete.
         """
         self.logger.info(f"Disabling version '{version_id}' of secret '{secret_id}'")
 
-        if secret_id not in self.secret_ids:
-            self.logger.warning(f"Attempt to disable version of non-existent secret '{secret_id}'")
-            return
-
-        if version_id == "latest":
-            version_id = self._get_latest_secret_version_id(secret_id)
-            self.logger.debug(f"Using latest version '{version_id}' for secret '{secret_id}'")
-        elif version_id == "oldest":
-            version_id = self._get_oldest_secret_version_id(secret_id)
-            self.logger.debug(f"Using oldest version '{version_id}' for secret '{secret_id}'")
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} does not exist or is not managed by this service, cannot disable version."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
 
         self.logger.debug(f"Verifying version '{version_id}' exists for secret '{secret_id}'")
 
@@ -619,36 +661,127 @@ class SecretManager:
             time.sleep(delay)
             delay *= 2
         else:
-            error_msg = f"Failed to disable version '{version_id}' of secret '{secret_id}' after {self.max_retries} retries."
+            error_msg = f"Could not verify disabling of version '{version_id}' of secret '{secret_id}' after {self.max_retries} retries."
             self.logger.error(error_msg)
             raise RuntimeError(error_msg)
 
         self.logger.info(f"Successfully disabled version '{version_id}' of secret '{secret_id}'")
 
-    def rotate_secret(self, secret_id: str, new_version_payload: Union[bytes, str]) -> None:
+    def destroy_secret_version(self, secret_id: str, version_id: str) -> str:
         """
-        Rotates the specified secret by creating a new version of it and disabling the oldest enabled version.
+        Destroys a specific version of a secret.
 
         Args:
-            secret_id (str): The ID of the secret to rotate.
-            new_version_payload (bytes|str): The payload for the new secret version.
+            secret_id (str): The ID of the secret from which to delete the version.
+            version_id (str): The version ID to delete.
+        Returns:
+            str: The data ID of the destroyed version.
         """
-        if secret_id not in self.secret_ids:
-            error_msg = f"Secret {secret_id} does not exist. Please create it first."
+        self.logger.info(f"Destroying version '{version_id}' of secret '{secret_id}'")
+
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} does not exist or is not managed by this service, cannot destroy version."
             self.logger.error(error_msg)
             raise ValueError(error_msg)
 
-        self.logger.info(f"Starting rotation for secret '{secret_id}'")
-        try:
-            self.logger.debug(f"Adding new version to secret '{secret_id}'")
-            new_version = self.add_secret_version(secret_id, new_version_payload)
+        self.logger.debug(f"Verifying version '{version_id}' exists for secret '{secret_id}'")
 
-            enabled_versions = self._get_enabled_secret_versions(secret_id)
-            if len(enabled_versions) > 1:
-                self.logger.debug(f"Disabling oldest version of secret '{secret_id}'")
-                self.disable_secret_version(secret_id, version_id="oldest")
-            self.logger.info(f"Successfully rotated secret '{secret_id}'. New version: {new_version.split('/')[-1]}")
-        except Exception as e:
-            self.logger.error(f"Failed to rotate secret '{secret_id}': {str(e)}")
-            raise
+        version_exists = any(
+            version.name.split("/")[-1] == version_id
+            for version in self._get_secret_versions(secret_id)
+        )
+        if not version_exists:
+            error_msg = f"Version {version_id} does not exist for secret {secret_id}."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # Enable the version before destroying it to get the data ID
+        if not self._secret_version_is_enabled(secret_id, version_id):
+            self.logger.debug(f"Version '{version_id}' of secret '{secret_id}' is not enabled, enabling it before destruction")
+            self.enable_secret_version(secret_id, version_id)
+        
+        # Get the data ID from the specific version we're about to destroy
+        name = f"projects/{self.project_id}/secrets/{secret_id}/versions/{version_id}"
+        response = self.client.access_secret_version(request={"name": name})
+        data_str = response.payload.data.decode('utf-8')
+        data_id, _ = data_str.split(":", 1)
+        self.logger.debug(f"Data ID for version '{version_id}' of secret '{secret_id}': {data_id}")
+    
+        # Now destroy the version
+        self.logger.debug(f"Destroying version '{version_id}' of secret '{secret_id}'")
+        response = self.client.destroy_secret_version(request={"name": name})
 
+        if response.name.split("/")[-1] != version_id or response.state != secretmanager.SecretVersion.State.DESTROYED:
+            error_msg = f"Failed to destroy secret version {version_id} for secret {secret_id}."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # Wait for the version to be destroyed
+        self.logger.debug(f"Waiting for version '{version_id}' of secret '{secret_id}' to be destroyed")
+        delay = 1
+        for _ in range(self.max_retries):
+            if self._secret_version_is_destroyed(secret_id, version_id):
+                self.logger.debug(f"Version '{version_id}' of secret '{secret_id}' is now destroyed")
+                break
+            self.logger.debug(f"Version '{version_id}' of secret '{secret_id}' still not destroyed, retrying in {delay} seconds")
+            time.sleep(delay)
+            delay *= 2
+        else:
+            error_msg = f"Could not verify destruction of version '{version_id}' of secret '{secret_id}' after {self.max_retries} retries."
+            self.logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        self.logger.info(f"Successfully destroyed version '{version_id}' of secret '{secret_id}'")
+        return data_id
+
+    def purge_disabled_secret_versions(self, secret_id: str) -> List[str]:
+        """
+        Purges (destroys) all disabled versions of a secret that are older than the grace period.
+        To determine if a version is older than the grace period, it checks the creation time of each version,
+        if the latest version was created more than the grace period ago, it will purge the disabled versions.
+
+        Args:
+            secret_id (str): The ID of the secret for which to purge disabled versions.
+        Returns:
+            List[str]: A list of data IDs of the destroyed versions.
+        """
+        self.logger.info(f"Purging disabled versions of secret '{secret_id}'")
+
+        if not self._secret_is_managed(secret_id):
+            error_msg = f"Secret {secret_id} does not exist or is not managed by this service, cannot purge versions."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        data_ids = []
+
+        for version in self._get_secret_versions(secret_id):
+            if version.state == secretmanager.SecretVersion.State.DISABLED:
+                version_id = version.name.split("/")[-1]
+                create_time = datetime.fromtimestamp(version.create_time.timestamp(), tz=timezone.utc)  # type: ignore
+                if create_time < datetime.now(timezone.utc) - timedelta(days=self.grace_period):
+                    self.logger.debug(f"Destroying disabled version '{version_id}' of secret '{secret_id}'")
+                    data_ids.append(self.destroy_secret_version(secret_id, version_id))
+                else:
+                    self.logger.debug(f"Skipping version '{version_id}' of secret '{secret_id}' as it is within the grace period")
+
+        return data_ids
+
+    def cron(self) -> Dict[str, List[str]]:
+        """
+        Performs periodic maintenance tasks:
+        - Purges disabled secret versions that are older than the grace period.
+
+        Returns:
+            Dict[str, List[str]]: A dictionary with secret IDs as keys and lists of destroyed data IDs as values.
+        """
+        self.logger.info("Starting periodic maintenance tasks (cron)")
+        destroyed_secret_ids = {}
+
+        for secret_id in self._get_secret_ids():
+            self.logger.debug(f"Processing secret '{secret_id}' for maintenance")
+            purged_data_ids = self.purge_disabled_secret_versions(secret_id)
+            if purged_data_ids:
+                self.logger.info(f"Purged disabled versions of secret '{secret_id}': {purged_data_ids}")
+                destroyed_secret_ids[secret_id] = purged_data_ids
+
+        return destroyed_secret_ids
