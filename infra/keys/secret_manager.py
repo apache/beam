@@ -20,6 +20,9 @@ from datetime import datetime, timezone, timedelta
 from google.cloud import secretmanager
 from typing import List, Union
 
+# What the "created_by" label is set to for secrets created by this service.
+SECRET_MANAGER_LABEL = "beam-infra-secret-manager"
+
 class SecretManagerLoggerAdapter(logging.LoggerAdapter):
     """Logger adapter that adds a prefix to all log messages."""
     
@@ -56,18 +59,18 @@ class SecretManager:
             List[str]: A list of secret IDs that were created by this service.
         """
         self.logger.debug(f"Retrieving secrets with the label from project '{self.project_id}'")
-        secrets_ids = []
+        secret_ids = []
 
         try:
             for secret in self.client.list_secrets(request={"parent": f"projects/{self.project_id}"}):
                 secret_id = secret.name.split("/")[-1]
-                if "created_by" in secret.labels and secret.labels["created_by"] == "secretmanager-service":
-                    secrets_ids.append(secret_id)
+                if "created_by" in secret.labels and secret.labels["created_by"] == SECRET_MANAGER_LABEL:
+                    secret_ids.append(secret_id)
         except Exception as e:
             self.logger.error(f"Error retrieving secrets: {e}")
 
-        self.logger.debug(f"Found {len(secrets_ids)} secrets created by secretmanager-service in project '{self.project_id}'")
-        return secrets_ids
+        self.logger.debug(f"Found {len(secret_ids)} secrets created by {SECRET_MANAGER_LABEL} in project '{self.project_id}'")
+        return secret_ids
 
     def _secret_exists(self, secret_id: str) -> bool:
         """
@@ -83,11 +86,11 @@ class SecretManager:
             name = self.client.secret_path(self.project_id, secret_id)
             secret = self.client.get_secret(request={"name": name})
 
-            if "created_by" in secret.labels and secret.labels["created_by"] == "secretmanager-service":
-                self.logger.debug(f"Secret '{secret_id}' exists and is managed by secretmanager-service")
+            if "created_by" in secret.labels and secret.labels["created_by"] == SECRET_MANAGER_LABEL:
+                self.logger.debug(f"Secret '{secret_id}' exists and is managed by {SECRET_MANAGER_LABEL}")
                 return True
             else:
-                self.logger.debug(f"Secret '{secret_id}' exists but is not managed by secretmanager-service")
+                self.logger.debug(f"Secret '{secret_id}' exists but is not managed by {SECRET_MANAGER_LABEL}")
                 return False
         except Exception as e:
             self.logger.debug(f"Secret '{secret_id}' does not exist: {e}")
@@ -120,7 +123,7 @@ class SecretManager:
                         "automatic": {}
                     },
                     "labels": {
-                        "created_by": "secretmanager-service",
+                        "created_by": SECRET_MANAGER_LABEL,
                         "created_at": datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S"),
                         "rotation_interval_days": str(self.rotation_interval),
                         "last_version_created_at": datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S"),
