@@ -75,7 +75,7 @@ public class BigtableReadSchemaTransformProvider
       Schema.builder()
           .addByteArrayField("key")
           .addStringField("family_name")
-          .addByteField("column_qualifier")
+          .addByteArrayField("column_qualifier")
           .addArrayField("cells", Schema.FieldType.row(CELL_SCHEMA))
           .build();
 
@@ -210,16 +210,16 @@ public class BigtableReadSchemaTransformProvider
 
       if (Boolean.FALSE.equals(configuration.getFlatten())) {
         // Non-flattening logic (original behavior): one output row per Bigtable row.
-        Map<String, Map<ByteString, List<Row>>> families = new HashMap<>();
+        Map<String, Map<String, List<Row>>> families = new HashMap<>();
         for (Family fam : bigtableRow.getFamiliesList()) {
-          Map<ByteString, List<Row>> columns = new HashMap<>();
+          Map<String, List<Row>> columns = new HashMap<>();
           for (Column col : fam.getColumnsList()) {
 
             List<Cell> bigTableCells = col.getCellsList();
 
             List<Row> cells = convertCells(bigTableCells);
 
-            columns.put(col.getQualifier(), cells);
+            columns.put(col.getQualifier().toStringUtf8(), cells);
           }
           families.put(fam.getName(), columns);
         }
@@ -250,7 +250,7 @@ public class BigtableReadSchemaTransformProvider
                 Row.withSchema(FLATTENED_ROW_SCHEMA)
                     .withFieldValue("key", key)
                     .withFieldValue("family_name", familyName)
-                    .withFieldValue("column_qualifier", qualifierName)
+                    .withFieldValue("column_qualifier", qualifierName.toByteArray())
                     .withFieldValue("cells", cells)
                     .build();
             out.output(flattenedRow);
