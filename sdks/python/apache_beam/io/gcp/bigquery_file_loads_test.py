@@ -884,7 +884,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     # For now we don't care about the return value.
     mock_insert_copy_job.return_value = None
 
-    with TestPipeline('DirectRunner') as p:
+    # Pin to FnApiRunner for now to make mocks act appropriately.
+    # TODO(https://github.com/apache/beam/issues/34549)
+    with TestPipeline('FnApiRunner') as p:
       _ = (
           p
           | beam.Create([

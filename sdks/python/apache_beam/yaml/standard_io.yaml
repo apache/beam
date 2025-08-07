@@ -169,6 +169,7 @@
         path: 'path'
         delimiter: 'sep'
         comment: 'comment'
+        filename_column: 'filename_column'
       'WriteToCsv':
         path: 'path'
         delimiter: 'sep'
