@@ -40,6 +40,8 @@ on:
           beam_site_pr: create the documentation update PR against apache/beam-site.
           --
           prism: build and upload the artifacts to the release for this tag
+          --
+          managed_io_docs_pr: create the managed-io.md update PR against apache/beam.
         required: true
         default: |
            {java_artifacts: "no",
@@ -47,7 +49,8 @@ on:
             docker_artifacts: "no",
             python_artifacts: "no",
             beam_site_pr: "no",
-            prism: "no"}
+            prism: "no",
+            managed_io_docs_pr: "no"}
 
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
