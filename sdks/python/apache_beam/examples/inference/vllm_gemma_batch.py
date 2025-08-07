@@ -43,51 +43,48 @@ class GemmaVLLMOptions(PipelineOptions):
 
 
 class FormatOutput(beam.DoFn):
-    def process(self, element):
-        prompt = element.example
-        comp = element.inference
+  def process(self, element):
+    prompt = element.example
+    comp = element.inference
 
-        if hasattr(comp, 'choices'):
-            completion = comp.choices[0].text
-        # fallback to a single .text field
-        elif hasattr(comp, 'text'):
-            completion = comp.text
-        # final fallback
-        else:
-            completion = str(comp)
+    if hasattr(comp, 'choices'):
+      completion = comp.choices[0].text
+    # fallback to a single .text field
+    elif hasattr(comp, 'text'):
+      completion = comp.text
+    # final fallback
+    else:
+      completion = str(comp)
 
-        yield {
-            'prompt': prompt,
-            'completion': completion
-        }
+    yield {'prompt': prompt, 'completion': completion}
 
 
 class GcsVLLMCompletionsModelHandler(VLLMCompletionsModelHandler):
-    def __init__(self, model_name, vllm_server_kwargs=None):
-        super().__init__(model_name, vllm_server_kwargs)
-        self._local_model_dir = None
+  def __init__(self, model_name, vllm_server_kwargs=None):
+    super().__init__(model_name, vllm_server_kwargs)
+    self._local_model_dir = None
 
-    def _download_gcs_directory(self, gcs_path: str, local_path: str):
-        logging.info(f"Downloading model from {gcs_path} to {local_path}…")
-        matches = FileSystems.match([os.path.join(gcs_path, "**")])[0].metadata_list
-        for md in matches:
-            rel = os.path.relpath(md.path, gcs_path)
-            dst = os.path.join(local_path, rel)
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            with FileSystems.open(md.path) as src, open(dst, "wb") as dstf:
-                dstf.write(src.read())
-        logging.info("Download complete.")
+  def _download_gcs_directory(self, gcs_path: str, local_path: str):
+    logging.info(f"Downloading model from {gcs_path} to {local_path}…")
+    matches = FileSystems.match([os.path.join(gcs_path, "**")])[0].metadata_list
+    for md in matches:
+      rel = os.path.relpath(md.path, gcs_path)
+      dst = os.path.join(local_path, rel)
+      os.makedirs(os.path.dirname(dst), exist_ok=True)
+      with FileSystems.open(md.path) as src, open(dst, "wb") as dstf:
+        dstf.write(src.read())
+    logging.info("Download complete.")
 
-    def load_model(self) -> _VLLMModelServer:
-        uri = self._model_name
-        if uri.startswith("gs://"):
-            self._local_model_dir = tempfile.mkdtemp(prefix="vllm_model_")
-            self._download_gcs_directory(uri, self._local_model_dir)
-            logging.info(f"Loading vLLM from local dir {self._local_model_dir}")
-            return _VLLMModelServer(self._local_model_dir, self._vllm_server_kwargs)
-        else:
-            logging.info(f"Loading vLLM from HF hub: {uri}")
-            return super().load_model()
+  def load_model(self) -> _VLLMModelServer:
+    uri = self._model_name
+    if uri.startswith("gs://"):
+      self._local_model_dir = tempfile.mkdtemp(prefix="vllm_model_")
+      self._download_gcs_directory(uri, self._local_model_dir)
+      logging.info(f"Loading vLLM from local dir {self._local_model_dir}")
+      return _VLLMModelServer(self._local_model_dir, self._vllm_server_kwargs)
+    else:
+      logging.info(f"Loading vLLM from HF hub: {uri}")
+      return super().load_model()
 
 
 def run(argv=None, save_main_session=True, test_pipeline=None):
@@ -98,27 +95,24 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
   opts.view_as(SetupOptions).save_main_session = save_main_session
 
   logging.info(f"Pipeline starting with model path: {gem.model_gcs_path}")
-  handler = GcsVLLMCompletionsModelHandler(model_name='gs://apache-beam-ml/models/gemma-2b-it')
+  handler = GcsVLLMCompletionsModelHandler(model_name=gem.model_gcs_path)
 
   with (test_pipeline or beam.Pipeline(options=opts)) as p:
     (
-      p
-      | "Read"           >> beam.io.ReadFromText("gs://apache-beam-ml/testing/inputs/sentences_50k.txt")
-      | "InferBatch"     >> RunInference(handler, inference_batch_size=32)
-      | "FormatForBQ"    >> beam.ParDo(FormatOutput())
-      | "WriteToBQ"      >> beam.io.WriteToBigQuery(
-                              "apache-beam-testing.beam_run_inference.result_gemma_vllm_batch",
-                              schema="prompt:STRING,completion:STRING",
-                              write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-                              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                              method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
-                          )
-    )
+        p
+        | "Read" >> beam.io.ReadFromText(gem.input_file)
+        | "InferBatch" >> RunInference(handler, inference_batch_size=32)
+        | "FormatForBQ" >> beam.ParDo(FormatOutput())
+        | "WriteToBQ" >> beam.io.WriteToBigQuery(
+            gem.output_table,
+            schema="prompt:STRING,completion:STRING",
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
+        ))
   return p.result
 
 
 if __name__ == "__main__":
-    import multiprocessing as mp
-    mp.set_start_method("spawn", force=True)
-    logging.getLogger().setLevel(logging.INFO)
-    run()
+  logging.getLogger().setLevel(logging.INFO)
+  run()
