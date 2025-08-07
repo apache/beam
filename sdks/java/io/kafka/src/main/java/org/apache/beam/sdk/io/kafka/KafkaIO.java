@@ -1101,8 +1101,8 @@ public class KafkaIO {
     }
 
     /**
-     * <p>Hints to the runner that it can relax exactly-once processing guarantees, allowing
-     * duplicates in at-least-once processing mode of Kafka inputs.
+     * Hints to the runner that it can relax exactly-once processing guarantees, allowing duplicates
+     * in at-least-once processing mode of Kafka inputs.
      *
      * <p>Must be used with {@link KafkaIO#withRedistribute()}.
      *
@@ -1116,11 +1116,11 @@ public class KafkaIO {
     }
 
     /**
-     * <p>Redistributes Kafka messages into a distinct number of keys for processing in subsequent
+     * Redistributes Kafka messages into a distinct number of keys for processing in subsequent
      * steps.
      *
-     * <p>Specifying an explicit number of keys is generally recommended over redistributing
-     * into an unbounded key space.
+     * <p>Specifying an explicit number of keys is generally recommended over redistributing into an
+     * unbounded key space.
      *
      * <p>Must be used with {@link KafkaIO#withRedistribute()}.
      *
@@ -1132,7 +1132,7 @@ public class KafkaIO {
     }
 
     /**
-     * <p>Hints to the runner to optimize the redistribute by minimizing the amount of data required
+     * Hints to the runner to optimize the redistribute by minimizing the amount of data required
      * for persistence as part of the redistribute operation.
      *
      * <p>Must be used with {@link KafkaIO#withRedistribute()}.
