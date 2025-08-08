@@ -126,7 +126,8 @@ class BigQueryReadSplitTest(unittest.TestCase):
   @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
   def test_setup_temporary_dataset_with_string_temp_dataset(
       self, mock_bq_wrapper):
-    """Test _setup_temporary_dataset with string temp_dataset uses pipeline project."""
+    """Test _setup_temporary_dataset with string temp_dataset uses pipeline
+    project."""
     split = bigquery_read_internal._BigQueryReadSplit(
         options=self.options, temp_dataset='temp_dataset_id')
 
@@ -160,7 +161,8 @@ class BigQueryReadSplitTest(unittest.TestCase):
     # Call finish_bundle
     split.finish_bundle()
 
-    # Verify that clean_up_temporary_dataset was called with the pipeline project
+    # Verify that clean_up_temporary_dataset was called with the pipeline
+    # project
     mock_bq.clean_up_temporary_dataset.assert_called_once_with('test-project')
 
 
