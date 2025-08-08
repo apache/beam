@@ -21,16 +21,21 @@ import unittest
 from unittest import mock
 
 from apache_beam.io.gcp import bigquery_read_internal
-from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import StaticValueProvider
+
+try:
+  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
+except ImportError:
+  DatasetReference = None
 
 
 class BigQueryReadSplitTest(unittest.TestCase):
   """Tests for _BigQueryReadSplit DoFn."""
   def setUp(self):
+    if DatasetReference is None:
+      self.skipTest('BigQuery dependencies are not installed')
     self.options = PipelineOptions()
     self.gcp_options = self.options.view_as(GoogleCloudOptions)
     self.gcp_options.project = 'test-project'
