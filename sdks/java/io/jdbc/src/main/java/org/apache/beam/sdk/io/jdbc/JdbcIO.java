@@ -1709,6 +1709,15 @@ public class JdbcIO {
         try {
           connection = validSource.getConnection();
           this.connection = connection;
+
+          // PostgreSQL requires autocommit to be disabled to enable cursor streaming
+          // see https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
+          // This option is configurable as Informix will error
+          // if calling setAutoCommit on a non-logged database
+          if (disableAutoCommit) {
+            LOG.info("Autocommit has been disabled");
+            connection.setAutoCommit(false);
+          }
         } finally {
           connectionLock.unlock();
         }
@@ -1739,14 +1748,6 @@ public class JdbcIO {
     public void processElement(ProcessContext context) throws Exception {
       // Only acquire the connection if we need to perform a read.
       Connection connection = getConnection();
-      // PostgreSQL requires autocommit to be disabled to enable cursor streaming
-      // see https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
-      // This option is configurable as Informix will error
-      // if calling setAutoCommit on a non-logged database
-      if (disableAutoCommit) {
-        LOG.info("Autocommit has been disabled");
-        connection.setAutoCommit(false);
-      }
       try (PreparedStatement statement =
           connection.prepareStatement(
               query.get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
