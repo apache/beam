@@ -355,6 +355,10 @@ public class JdbcIO {
    * Like {@link #read}, but executes multiple instances of the query substituting each element of a
    * {@link PCollection} as query parameters.
    *
+   * <p>The substitution is configured via {@link ReadAll#withParameterSetter}. Substitutions
+   * allowed by the JDBC API's {@link PreparedStatement} are supported. In particular, this does not
+   * support parameterizing the table name to read from a different table for each input element.
+   *
    * @param <ParameterT> Type of the data representing query parameters.
    * @param <OutputT> Type of the data to be read.
    */
@@ -1175,6 +1179,18 @@ public class JdbcIO {
       return toBuilder().setQuery(query).build();
     }
 
+    /**
+     * Sets the {@link PreparedStatementSetter} to set the parameters of the query for each input
+     * element.
+     *
+     * <p>For example,
+     *
+     * <pre>{@code
+     * JdbcIO.<String, Row>readAll()
+     *     .withQuery("select * from table where field = ?")
+     *     .withParameterSetter((element, preparedStatement) -> preparedStatement.setString(1, element))
+     * }</pre>
+     */
     public ReadAll<ParameterT, OutputT> withParameterSetter(
         PreparedStatementSetter<ParameterT> parameterSetter) {
       checkArgumentNotNull(
@@ -1830,8 +1846,8 @@ public class JdbcIO {
   }
 
   /**
-   * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
-   * used to setParameters into the database.
+   * An interface used by the JdbcIO {@link ReadAll} and {@link Write} to set the parameters of the
+   * {@link PreparedStatement} used to setParameters into the database.
    */
   @FunctionalInterface
   public interface PreparedStatementSetter<T> extends Serializable {
