@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -32,10 +33,28 @@ class FakeWindmillGrpcService
   private final ErrorCollector errorCollector;
 
   @GuardedBy("this")
-  private boolean failOnNewStreams = false;
+  private boolean noMoreStreamsExpected = false;
+
+  @GuardedBy("this")
+  private int failedStreamConnectsRemaining = 0;
 
   public FakeWindmillGrpcService(ErrorCollector errorCollector) {
     this.errorCollector = errorCollector;
+  }
+
+  @SuppressWarnings("BusyWait")
+  public void failConnectionsAndWait(int failNextStreamConnections) throws InterruptedException {
+    synchronized (this) {
+      failedStreamConnectsRemaining = failNextStreamConnections;
+    }
+    while (true) {
+      Thread.sleep(2);
+      synchronized (this) {
+        if (failedStreamConnectsRemaining <= 0) {
+          break;
+        }
+      }
+    }
   }
 
   public static class StreamInfo<RequestT, ResponseT> {
@@ -63,6 +82,17 @@ class FakeWindmillGrpcService
 
     @Override
     public void onNext(RequestT request) {
+      if (streamInfo.onDone.isDone()) {
+        try {
+          if (streamInfo.onDone.get() == null) {
+            throw new IllegalStateException("Stream already half-closed.");
+          } else {
+            throw new IllegalStateException("Stream already closed with error.");
+          }
+        } catch (InterruptedException | ExecutionException e) {
+          throw new RuntimeException(e);
+        }
+      }
       errorCollector.checkThat(streamInfo.requests.add(request), Matchers.is(true));
     }
 
@@ -89,7 +119,11 @@ class FakeWindmillGrpcService
       StreamObserver<Windmill.StreamingCommitResponse> responseObserver) {
     CommitStreamInfo info = new CommitStreamInfo(responseObserver);
     synchronized (this) {
-      errorCollector.checkThat(failOnNewStreams, Matchers.is(false));
+      errorCollector.checkThat(noMoreStreamsExpected, Matchers.is(false));
+      if (failedStreamConnectsRemaining-- > 0) {
+        throw new RuntimeException(
+            "Injected connection error, remaining failures: " + failedStreamConnectsRemaining);
+      }
       errorCollector.checkThat(commitStreams.offer(info), Matchers.is(true));
     }
     return new StreamInfoObserver<>(info, errorCollector);
@@ -100,7 +134,7 @@ class FakeWindmillGrpcService
   }
 
   public synchronized void expectNoMoreStreams() {
-    failOnNewStreams = true;
+    noMoreStreamsExpected = true;
     errorCollector.checkThat(commitStreams.isEmpty(), Matchers.is(true));
     errorCollector.checkThat(getDataStreams.isEmpty(), Matchers.is(true));
   }
@@ -117,7 +151,11 @@ class FakeWindmillGrpcService
       StreamObserver<Windmill.StreamingGetDataResponse> responseObserver) {
     GetDataStreamInfo info = new GetDataStreamInfo(responseObserver);
     synchronized (this) {
-      errorCollector.checkThat(failOnNewStreams, Matchers.is(false));
+      errorCollector.checkThat(noMoreStreamsExpected, Matchers.is(false));
+      if (failedStreamConnectsRemaining-- > 0) {
+        throw new RuntimeException(
+            "Injected connection error, remaining failures: " + failedStreamConnectsRemaining);
+      }
       errorCollector.checkThat(getDataStreams.offer(info), Matchers.is(true));
     }
     return new StreamInfoObserver<>(info, errorCollector);
