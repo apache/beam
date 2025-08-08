@@ -79,7 +79,7 @@ jobs:
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access
         with:
-          cluster_name: io-datastores-for-tests
+          cluster_name: io-datastores
           k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
           remove_finalizer:  memsqlclusters.memsql.com/sdb-cluster
       - name: Install SingleStore operator
