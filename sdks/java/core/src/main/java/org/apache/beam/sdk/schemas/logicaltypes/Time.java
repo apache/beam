@@ -29,9 +29,6 @@ import org.apache.beam.sdk.schemas.Schema;
  * <p>Its input type is a {@link LocalTime}, and base type is a {@link Long} that represents a count
  * of time in nanoseconds.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Time implements Schema.LogicalType<LocalTime, Long> {
   public static final String IDENTIFIER = "beam:logical_type:time:v1";
 
@@ -59,11 +56,11 @@ public class Time implements Schema.LogicalType<LocalTime, Long> {
 
   @Override
   public Long toBaseType(LocalTime input) {
-    return input == null ? null : input.toNanoOfDay();
+    return input.toNanoOfDay();
   }
 
   @Override
   public LocalTime toInputType(Long base) {
-    return base == null ? null : LocalTime.ofNanoOfDay(base);
+    return LocalTime.ofNanoOfDay(base);
   }
 }
