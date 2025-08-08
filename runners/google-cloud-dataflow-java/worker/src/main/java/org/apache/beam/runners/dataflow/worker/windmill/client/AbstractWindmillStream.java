@@ -269,7 +269,10 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           requestObserver.reset(physicalStreamFactory.apply(new ResponseObserver(streamHandler)));
           onFlushPending(true);
           if (clientClosed) {
-            halfClose();
+            // The logical stream is half-closed so after flushing the remaining requests close the
+            // physical stream.
+            streamHandler.streamDebugMetrics.recordHalfClose();
+            requestObserver.onCompleted();
           } else if (!halfClosePhysicalStreamAfter.isZero()) {
             halfCloseFuture =
                 executor.schedule(
@@ -533,30 +536,34 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       } else {
         checkState(closingPhysicalStreams.remove(handler));
       }
+      boolean doneHandlerHadRequests = handler.hasPendingRequests();
       handler.onDone(status);
-      if (currentPhysicalStream == null
-          && clientClosed
-          && !handler.hasPendingRequests()
-          && closingPhysicalStreams.isEmpty()) {
-        shutdown();
-      }
-      if (isShutdown && currentPhysicalStream == null && closingPhysicalStreams.isEmpty()) {
-        completeShutdown();
-        return;
+      if (currentPhysicalStream == null && closingPhysicalStreams.isEmpty()) {
+        if (clientClosed && !doneHandlerHadRequests && !isShutdown) {
+          shutdown();
+        }
+        if (isShutdown) {
+          completeShutdown();
+          return;
+        }
       }
       if (currentPhysicalStream != null) {
-        try {
-          onFlushPending(false);
-        } catch (WindmillStreamShutdownException e) {
-          logger.debug(
-              "Requests will be flushed by onPhysicalStreamCompletion of the current stream.", e);
+        if (!clientClosed) {
+          // Don't bother attempting to flush the requests if the active stream is closed.
+          try {
+            onFlushPending(false);
+          } catch (WindmillStreamShutdownException e) {
+            logger.debug(
+                "Requests will be flushed by onPhysicalStreamCompletion of the current stream.", e);
+          }
         }
         return;
       }
-      if (isShutdown || !wasActiveStream) {
-        // No new stream needs to be created, one exists or we're shutting down.
+      if (clientClosed && !doneHandlerHadRequests) {
+        // We didn't have any leftover requests and are closing so we skip restarting a stream.
         return;
       }
+      // We're not shutting down and we don't have an active stream, create one.
     }
 
     // Backoff on errors.;

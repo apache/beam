@@ -310,14 +310,30 @@ public class GrpcGetDataStreamTest {
     getDataStream.halfClose();
     assertNull(streamInfo.onDone.get());
 
-    // Simulate an error on the grpc stream, this should trigger an error on all
-    // existing requests but no new connection since we half-closed and nothing left after
-    // responding with errors.
-    fakeService.expectNoMoreStreams();
+    // Simulate an error on the grpc stream, this should trigger retrying the requests on a new
+    // stream
+    // which is half-closed.
     streamInfo.responseObserver.onError(new IOException("test error"));
-    assertThrows(RuntimeException.class, sendFuture::join);
 
-    getDataStream.shutdown();
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
+    Windmill.StreamingGetDataRequest request2 = streamInfo2.requests.take();
+    assertThat(request2.getRequestIdList()).containsExactly(1L);
+    assertEquals(keyedGetDataRequest, request2.getStateRequest(0).getRequests(0));
+    assertNull(streamInfo2.onDone.get());
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
+    streamInfo2.responseObserver.onNext(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(1)
+            .addSerializedResponse(keyedGetDataResponse.toByteString())
+            .build());
+    assertThat(sendFuture.join()).isEqualTo(keyedGetDataResponse);
+    assertFalse(getDataStream.awaitTermination(0, TimeUnit.MILLISECONDS));
+
+    // Sending an error this time shouldn't result in a new stream since there were no requests.
+    fakeService.expectNoMoreStreams();
+    streamInfo2.responseObserver.onError(new IOException("test error"));
+
+    getDataStream.awaitTermination(60, TimeUnit.MINUTES);
   }
 
   private Windmill.KeyedGetDataRequest createTestRequest(long id) {
@@ -998,15 +1014,14 @@ public class GrpcGetDataStreamTest {
     assertFalse(getDataStream.awaitTermination(0, TimeUnit.MILLISECONDS));
 
     Windmill.KeyedGetDataResponse keyedGetDataResponse2 = createTestResponse(2);
-    streamInfo.responseObserver.onNext(
+    streamInfo2.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
-            .addRequestId(1)
+            .addRequestId(2)
             .addSerializedResponse(keyedGetDataResponse2.toByteString())
             .build());
     assertThat(sendFuture2.join()).isEqualTo(keyedGetDataResponse2);
     streamInfo2.responseObserver.onCompleted();
     streamInfo3.responseObserver.onCompleted();
-    assertThrows("fake response error", CompletionException.class, sendFuture2::join);
     assertTrue(getDataStream.awaitTermination(10, TimeUnit.SECONDS));
   }
 
