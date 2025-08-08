@@ -85,6 +85,8 @@ jobs:
           java-version: default
           python-version: default
       - name: Run preCommitPyCoverage
+        env:
+          TC_MAX_TRIES: 30
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py39:preCommitPyCoverage

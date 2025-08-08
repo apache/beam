@@ -23,6 +23,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import typing
 import unittest
 from unittest.mock import MagicMock
 
@@ -201,10 +202,14 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
                 for i in range(0, n)]
 
     with self.create_pipeline() as p:
+      # Add a Map with explicit type hints.
+      # fixes preventing the data corruption that leads to IndexError.
       assert_that(
           p
           | beam.Impulse()
           | beam.ParDo(Input())
+          | 'HintTypes' >> beam.Map(lambda x: x).with_output_types(
+              typing.Tuple[int, str])
           | beam.ParDo(AddIndex()),
           equal_to(expected))
 

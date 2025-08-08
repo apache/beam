@@ -527,13 +527,18 @@ class TestBigQueryWrapper(unittest.TestCase):
   def test_insert_rows_sets_metric_on_failure(self):
     MetricsEnvironment.process_wide_container().reset()
     client = mock.Mock()
-    client.insert_rows_json = mock.Mock(
-        # Fail a few times, then succeed.
-        side_effect=[
-            DeadlineExceeded("Deadline Exceeded"),
-            InternalServerError("Internal Error"),
-            [],
-        ])
+
+    # Use a generator for the side_effect. This prevents the iterator
+    # from being exhausted if the retry logic calls the mock more times than expected
+    def side_effect_generator():
+      yield DeadlineExceeded("Deadline Exceeded")
+      yield InternalServerError("Internal Error")
+      # After the initial failures, always succeed.
+      while True:
+        yield []
+
+    client.insert_rows_json = mock.Mock(side_effect=side_effect_generator())
+
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
 
