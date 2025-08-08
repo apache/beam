@@ -109,7 +109,7 @@ def _extend_path(prefix: str, suffix: str):
   return prefix + '.' + suffix
 
 
-def _search(callable: Callable, node: Any, qual_name_parts: list[str]):
+def _search(callable: Any, node: Any, qual_name_parts: list[str]):
   """Searches an object to create a stable reference code path.
 
   Recursively searches the tree of objects starting from node to find the
@@ -184,9 +184,9 @@ def _search_module_or_class(
 
 
 def _search_function(
-  callable: types.FunctionType,
-  node: types.FunctionType,
-  qual_name_parts: list[str]):
+    callable: types.FunctionType,
+    node: types.FunctionType,
+    qual_name_parts: list[str]):
   """Searches a function to create a stable reference code path.
 
   Args:
@@ -211,9 +211,9 @@ def _search_function(
 
 
 def _search_code(
-  callable: types.FunctionType,
-  node: types.CodeType,
-  qual_name_parts: list[str]):
+    callable: types.FunctionType,
+    node: types.CodeType,
+    qual_name_parts: list[str]):
   """Searches a code object to create a stable reference code path.
 
   Args:
@@ -316,7 +316,7 @@ _ARGUMENT_PATTERN = re.compile(r"'([^']*)'")
 
 
 def _get_code_object_from_single_name_pattern(
-    obj: types.CodeType, name_result: re.Match[str], path: str):
+    obj: types.ModuleType, name_result: re.Match[str], path: str):
   """Returns the code object from a name pattern.
 
   Args:
@@ -342,7 +342,7 @@ def _get_code_object_from_single_name_pattern(
 
 
 def _get_code_object_from_lambda_with_args_pattern(
-    obj: types.CodeType, lambda_with_args_result: re.Match[str], path: str):
+    obj: types.ModuleType, lambda_with_args_result: re.Match[str], path: str):
   """Returns the code object from a lambda with args pattern.
 
   Args:
@@ -371,7 +371,7 @@ def _get_code_object_from_lambda_with_args_pattern(
 
 
 def _get_code_object_from_lambda_with_hash_pattern(
-    obj: types.CodeType, lambda_with_hash_result: re.Match[str], path: str):
+    obj: types.ModuleType, lambda_with_hash_result: re.Match[str], path: str):
   """Returns the code object from a lambda with hash pattern.
 
   Args:
