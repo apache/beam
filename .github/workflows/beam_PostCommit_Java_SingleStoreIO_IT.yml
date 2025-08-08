@@ -92,7 +92,7 @@ jobs:
         id: install_singlestore
         run: |
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-cluster.yaml
-          kubectl wait --for=jsonpath='{.status.phase}'=Running -n ${{matrix.job_name}}-${{github.run_id}} memsqlclusters.memsql.com sdb-cluster --timeout=300s
+          kubectl wait --for=jsonpath='{.status.phase}'=Running -n beam-postcommit-java-singlestoreio-it-${{github.run_id}} memsqlclusters.memsql.com sdb-cluster --timeout=300s
           kubectl wait svc/svc-sdb-cluster-ddl --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=300s
           loadbalancer_IP=$(kubectl get svc svc-sdb-cluster-ddl -o jsonpath='{.status.loadBalancer.ingress[0].ip}') 
           echo lb_ip=$loadbalancer_IP >> $GITHUB_OUTPUT
