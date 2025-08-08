@@ -553,7 +553,7 @@ jobs:
     if:  ${{ fromJson(github.event.inputs.STAGE).managed_io_docs_pr == 'yes'}}
     runs-on: ubuntu-22.04
     env:
-      BRANCH_NAME: updates_managed_io_docs_${{ github.event.inputs.RELEASE }}
+      BRANCH_NAME: updates_managed_io_docs_${{ github.event.inputs.RELEASE }}_rc${{ github.event.inputs.RC }}
       BEAM_ROOT_DIR: ${{ github.workspace }}/beam
       MANAGED_IO_DOCS_PATH: website/www/site/content/en/documentation/io/managed-io.md
     steps:
@@ -598,18 +598,19 @@ jobs:
       - name: Create commit on beam branch
         working-directory: beam
         run: |
+          git fetch origin master
           git checkout -b $BRANCH_NAME origin/master
           mv ${{ runner.temp }}/managed-io.md ${{ env.MANAGED_IO_DOCS_PATH }}
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
           git add ${{ env.MANAGED_IO_DOCS_PATH }}
-          git commit --allow-empty -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}."
+          git commit --allow-empty -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}."
           git push -f --set-upstream origin $BRANCH_NAME
       - name: Create beam PR
         working-directory: beam
         env:
           GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN }}
-          PR_TITLE: "Update managed-io.md for ${{ github.event.inputs.RELEASE }} release"
-          PR_BODY: "Content generated from release ${{ github.event.inputs.RELEASE }}."
+          PR_TITLE: "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          PR_BODY: "Content generated from release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}."
         run: |
           gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base master --repo apache/beam
