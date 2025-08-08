@@ -412,6 +412,17 @@ class BigQueryWrapper(object):
         dataset=self.temp_dataset_id,
         project=project_id)
 
+  def _get_temp_table_project(self, fallback_project_id):
+    """Returns the project ID for temporary table operations.
+    
+    If temp_table_ref exists, returns its projectId.
+    Otherwise, returns the fallback_project_id.
+    """
+    if self.temp_table_ref:
+      return self.temp_table_ref.projectId
+    else:
+      return fallback_project_id
+
   def _get_temp_dataset(self):
     if self.temp_table_ref:
       return self.temp_table_ref.datasetId
@@ -639,7 +650,8 @@ class BigQueryWrapper(object):
                     query=query,
                     useLegacySql=use_legacy_sql,
                     allowLargeResults=not dry_run,
-                    destinationTable=self._get_temp_table(project_id)
+                    destinationTable=self._get_temp_table(
+                        self._get_temp_table_project(project_id))
                     if not dry_run else None,
                     flattenResults=flatten_results,
                     priority=priority,

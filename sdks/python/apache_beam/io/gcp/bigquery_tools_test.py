@@ -578,6 +578,27 @@ class TestBigQueryWrapper(unittest.TestCase):
         client.jobs.Insert.call_args[0][0].job.configuration.query.priority,
         'INTERACTIVE')
 
+  def test_get_temp_table_project_with_temp_table_ref(self):
+    """Test _get_temp_table_project returns project from temp_table_ref."""
+    client = mock.Mock()
+    temp_table_ref = bigquery.TableReference(
+        projectId='temp-project',
+        datasetId='temp_dataset',
+        tableId='temp_table')
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(
+        client, temp_table_ref=temp_table_ref)
+
+    result = wrapper._get_temp_table_project('fallback-project')
+    self.assertEqual(result, 'temp-project')
+
+  def test_get_temp_table_project_without_temp_table_ref(self):
+    """Test _get_temp_table_project returns fallback when no temp_table_ref."""
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    result = wrapper._get_temp_table_project('fallback-project')
+    self.assertEqual(result, 'fallback-project')
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestRowAsDictJsonCoder(unittest.TestCase):
