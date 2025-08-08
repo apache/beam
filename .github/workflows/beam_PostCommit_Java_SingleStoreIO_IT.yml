@@ -87,7 +87,7 @@ jobs:
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-rbac.yaml
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-cluster-crd.yaml
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-operator.yaml
-          kubectl wait --for=condition=Ready pod -l name=sdb-operator --timeout=300s
+          kubectl wait --for=condition=Ready pod -l name=sdb-operator -n beam-postcommit-java-singlestoreio-it-${{github.run_id}} --timeout=300s
       - name: Install SingleStore cluster
         id: install_singlestore
         run: |

@@ -23,16 +23,16 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      name: sdb-operator
+      app.kubernetes.io/component: operator
   template:
     metadata:
       labels:
-        name: sdb-operator
+        app.kubernetes.io/component: operator
     spec:
       serviceAccountName: sdb-operator
       containers:
         - name: sdb-operator
-          image: singlestore/operator:3.246.0-da805c0b
+          image: singlestore/operator:4.14.0-1bcf743a
           imagePullPolicy: Always
           args: [
             # Cause the operator to merge rather than replace annotations on services
@@ -40,10 +40,8 @@ spec:
             # Allow the process inside the container to have read/write access to the `/var/lib/memsql` volume.
             "--fs-group-id", "5555",
             "--cluster-id", "sdb-cluster",
-
-            # Args below are for local dev
-            "--cores-per-unit", "0",
-            "--memory-per-unit", "0"
+            "--cores-per-unit", "2",
+            "--memory-per-unit", "4Gi"
           ]
           env:
             - name: WATCH_NAMESPACE
