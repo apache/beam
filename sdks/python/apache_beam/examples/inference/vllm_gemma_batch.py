@@ -87,7 +87,10 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
   opts.view_as(SetupOptions).save_main_session = save_main_session
 
   logging.info(f"Pipeline starting with model path: {gem.model_gcs_path}")
-  handler = GcsVLLMCompletionsModelHandler(model_name=gem.model_gcs_path)
+  handler = GcsVLLMCompletionsModelHandler(
+    model_name=gem.model_gcs_path,
+    vllm_server_kwargs={"served-model-name": gem.model_gcs_path}
+  )
 
   with (test_pipeline or beam.Pipeline(options=opts)) as p:
     (

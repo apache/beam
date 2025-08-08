@@ -55,7 +55,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Inference Benchmarks'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 950
+    timeout-minutes: 1000
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:

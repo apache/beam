@@ -7,8 +7,8 @@
 --worker_zone=us-central1-b
 --disk_size_gb=50
 --input_options={}
---num_workers=3
---max_num_workers=12
+--num_workers=8
+--max_num_workers=25
 --autoscaling_algorithm=THROUGHPUT_BASED
 --publish_to_big_query=true
 --sdk_location=container
