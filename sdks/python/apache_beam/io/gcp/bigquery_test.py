@@ -145,6 +145,12 @@ def _load_or_default(filename):
     return {}
 
 
+def endless_exceptions(exception_type, message):
+  # Iterable side_effect that never exhausts
+  while True:
+    yield exception_type(message)
+
+
 @unittest.skipIf(
     HttpError is None or gcp_bigquery is None,
     'GCP dependencies are not installed')
@@ -1515,15 +1521,14 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
   @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
   def test_insert_rows_json_persistent_retriable_exception(
       self, mock_send, unused_mock_sleep, exception_type, error_message):
-    # In this test, each insert_rows_json call will result in an exception
-    # and be retried with retry.with_exponential_backoff until MAX_RETRIES is
-    # reached
-    mock_send.side_effect = exception_type(error_message)
 
-    # Expecting 1 initial call plus maximum number of retries
-    expected_call_count = 1 + bigquery_tools.MAX_RETRIES
+    # endless iterable (never exhausts)
+    mock_send.side_effect = endless_exceptions(exception_type, error_message)
 
-    with self.assertRaises(Exception) as exc:
+    # account for the two retry layers (wrapper + write path)
+    expected_call_count = 2 * (1 + bigquery_tools.MAX_RETRIES)
+
+    with self.assertRaises(exception_type) as exc:
       with beam.Pipeline() as p:
         _ = (
             p
@@ -1543,7 +1548,7 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
                 method='STREAMING_INSERTS'))
 
     self.assertEqual(expected_call_count, mock_send.call_count)
-    self.assertIn(error_message, exc.exception.args[0])
+    self.assertIn(error_message, str(exc.exception))
 
   # Running tests with intermittent exceptions with exception types not
   # caught in BigQueryWrapper._insert_all_rows but retriable by
