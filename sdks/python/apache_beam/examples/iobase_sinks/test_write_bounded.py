@@ -31,11 +31,7 @@ from apache_beam.io.textio import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
-from apache_beam.transforms.trigger import AccumulationMode
-from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.util import LogElements
-from apache_beam.transforms.window import FixedWindows
-from apache_beam.utils.timestamp import Duration
 
 
 def run(argv=None, save_main_session=True) -> PipelineResult:
