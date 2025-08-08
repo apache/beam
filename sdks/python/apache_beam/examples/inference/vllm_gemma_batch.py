@@ -1,14 +1,34 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from __future__ import annotations
 
-import os
 import logging
+import os
 import tempfile
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.vllm_inference import VLLMCompletionsModelHandler, _VLLMModelServer
+
+from apache_beam.ml.inference.vllm_inference import VLLMCompletionsModelHandler
+from apache_beam.ml.inference.vllm_inference import _VLLMModelServer
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class GemmaVLLMOptions(PipelineOptions):
@@ -29,8 +49,7 @@ class GemmaVLLMOptions(PipelineOptions):
     parser.add_argument(
         "--model_gcs_path",
         required=True,
-        help=
-        "GCS path to the directory containing model files (e.g., gs://bucket/models/gemma-2b-it/).",
+        help="GCS path to the directory containing model files.",
     )
 
 
@@ -57,7 +76,7 @@ class GcsVLLMCompletionsModelHandler(VLLMCompletionsModelHandler):
     self._local_model_dir = None
 
   def _download_gcs_directory(self, gcs_path: str, local_path: str):
-    logging.info(f"Downloading model from {gcs_path} to {local_path}…")
+    logging.info("Downloading model from %s to %s…", gcs_path, local_path)
     matches = FileSystems.match([os.path.join(gcs_path, "**")])[0].metadata_list
     for md in matches:
       rel = os.path.relpath(md.path, gcs_path)
@@ -72,10 +91,10 @@ class GcsVLLMCompletionsModelHandler(VLLMCompletionsModelHandler):
     if uri.startswith("gs://"):
       self._local_model_dir = tempfile.mkdtemp(prefix="vllm_model_")
       self._download_gcs_directory(uri, self._local_model_dir)
-      logging.info(f"Loading vLLM from local dir {self._local_model_dir}")
+      logging.info("Loading vLLM from local dir %s", self._local_model_dir)
       return _VLLMModelServer(self._local_model_dir, self._vllm_server_kwargs)
     else:
-      logging.info(f"Loading vLLM from HF hub: {uri}")
+      logging.info("Loading vLLM from HF hub: %s", uri)
       return super().load_model()
 
 
@@ -86,14 +105,13 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
   gem = opts.view_as(GemmaVLLMOptions)
   opts.view_as(SetupOptions).save_main_session = save_main_session
 
-  logging.info(f"Pipeline starting with model path: {gem.model_gcs_path}")
+  logging.info("Pipeline starting with model path: %s", gem.model_gcs_path)
   handler = GcsVLLMCompletionsModelHandler(
-    model_name=gem.model_gcs_path,
-    vllm_server_kwargs={"served-model-name": gem.model_gcs_path}
-  )
+      model_name=gem.model_gcs_path,
+      vllm_server_kwargs={"served-model-name": gem.model_gcs_path})
 
   with (test_pipeline or beam.Pipeline(options=opts)) as p:
-    (
+    _ = (
         p
         | "Read" >> beam.io.ReadFromText(gem.input_file)
         | "InferBatch" >> RunInference(handler, inference_batch_size=32)
