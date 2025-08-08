@@ -529,7 +529,8 @@ class TestBigQueryWrapper(unittest.TestCase):
     client = mock.Mock()
 
     # Use a generator for the side_effect. This prevents the iterator
-    # from being exhausted if the retry logic calls the mock more times than expected
+    # from being exhausted if the retry logic calls
+    # the mock more times than expected
     def side_effect_generator():
       yield DeadlineExceeded("Deadline Exceeded")
       yield InternalServerError("Internal Error")
