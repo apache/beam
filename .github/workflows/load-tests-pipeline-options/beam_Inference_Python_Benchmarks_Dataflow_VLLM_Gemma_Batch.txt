@@ -11,11 +11,11 @@
 --max_num_workers=12
 --autoscaling_algorithm=THROUGHPUT_BASED
 --publish_to_big_query=true
+--sdk_location=container
 --output_table=apache-beam-testing.beam_run_inference.result_gemma_vllm_batch
 --metrics_dataset=beam_run_inference
 --metrics_table=gemma_vllm_batch
 --influx_measurement=gemma_vllm_batch
 --model_gcs_path=gs://apache-beam-ml/models/gemma-2b-it
---sdk_container_image=us.gcr.io/apache-beam-testing/beam-vllm-gpu-base:v2.68.3.dev
 --dataflow_service_options=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver
 --experiments=use_runner_v2
