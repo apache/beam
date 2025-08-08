@@ -133,6 +133,7 @@ def validate_generic_expression(
   raise ValueError(
       "Missing language specification, unknown input fields, "
       f"or invalid generic expression: {expr}. "
+      f"The given input fields are {input_fields}. "
       "See https://beam.apache.org/documentation/sdks/yaml-udf/#generic")
 
 
