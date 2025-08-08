@@ -1002,6 +1002,7 @@ class _PTransformFnPTransform(PTransform):
     self._fn = fn
     self._args = args
     self._kwargs = kwargs
+    self._use_backwards_compatible_label = True
 
   def display_data(self):
     res = {
@@ -1030,6 +1031,12 @@ class _PTransformFnPTransform(PTransform):
       pass
     return self._fn(pcoll, *args, **kwargs)
 
+  def set_options(self, options):
+    # Avoid circular import.
+    from apache_beam.transforms.util import is_compat_version_prior_to
+    self._use_backwards_compatible_label = is_compat_version_prior_to(
+        options, '2.68.0')
+
   def default_label(self) -> str:
     # Attempt to give a reasonable name to this transform.
     # We want it to be reasonably unique, but also not sensitive to
@@ -1038,7 +1045,13 @@ class _PTransformFnPTransform(PTransform):
     # the name unwieldy.
     if self._args:
       first_arg_string = label_from_callable(self._args[0])
-      suffix = '(%s)' % first_arg_string if len(first_arg_string) <= 16 else ''
+      if (self._use_backwards_compatible_label or
+          not isinstance(first_arg_string, str) or len(first_arg_string) <= 19):
+        suffix = '(%s)' % first_arg_string
+      else:
+        suffix = ('(%s...%s)' %
+                  (first_arg_string[:10], first_arg_string[-6:])).replace(
+                      '\n', ' ')
     else:
       suffix = ''
     return label_from_callable(self._fn) + suffix

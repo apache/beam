@@ -130,6 +130,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
     job_options = options.view_as(pipeline_options.JobServerOptions)
     self._job_port = job_options.job_port
 
+    self._log_level = prism_options.prism_log_level
+
   # the method is only kept for testing and backward compatibility
   @classmethod
   def local_bin(
@@ -181,8 +183,13 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     _LOGGER.info("Prism binary path resolved to: %s", target_url)
     # Make sure the binary is executable.
-    st = os.stat(target_url)
-    os.chmod(target_url, st.st_mode | stat.S_IEXEC)
+    try:
+      st = os.stat(target_url)
+      os.chmod(target_url, st.st_mode | stat.S_IEXEC)
+    except PermissionError:
+      _LOGGER.warning(
+          'Could not change permissions of prism binary; invoking may fail if '
+          + 'current process does not have exec permissions on binary.')
     return target_url
 
   @staticmethod
@@ -420,6 +427,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
     return [
         '--job_port',
         job_port,
+        '--log_level',
+        self._log_level,
         '--serve_http',
         False,
     ]

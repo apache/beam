@@ -144,7 +144,7 @@ class PyODIForestTest(unittest.TestCase):
     options = PipelineOptions([])
     # This should raise a ValueError with message
     # "X has 3 features, but IsolationForest is expecting 2 features as input."
-    with self.assertRaisesRegex(Exception, "ValueError"):
+    with self.assertRaisesRegex(Exception, "is expecting 2 features"):
       with beam.Pipeline(options=options) as p:
         _ = (
             p | beam.Create(self.get_test_data_with_target())
