@@ -10,14 +10,6 @@ from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.vllm_inference import VLLMCompletionsModelHandler, _VLLMModelServer
 
-# COMPLETION_EXAMPLES = [
-#     "Hello, my name is",
-#     "The president of the United States is",
-#     "The capital of France is",
-#     "The future of AI is",
-#     "John cena is",
-# ]
-
 
 class GemmaVLLMOptions(PipelineOptions):
   """Custom pipeline options for the Gemma vLLM batch inference job."""
