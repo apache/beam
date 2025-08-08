@@ -40,8 +40,8 @@ spec:
             # Allow the process inside the container to have read/write access to the `/var/lib/memsql` volume.
             "--fs-group-id", "5555",
             "--cluster-id", "sdb-cluster",
-            "--cores-per-unit", "2",
-            "--memory-per-unit", "4"
+            "--cores-per-unit", "0",
+            "--memory-per-unit", "0"
           ]
           env:
             - name: WATCH_NAMESPACE
