@@ -41,7 +41,7 @@ spec:
             "--fs-group-id", "5555",
             "--cluster-id", "sdb-cluster",
             "--cores-per-unit", "2",
-            "--memory-per-unit", "4Gi"
+            "--memory-per-unit", "4"
           ]
           env:
             - name: WATCH_NAMESPACE
