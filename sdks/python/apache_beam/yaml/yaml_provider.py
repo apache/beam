@@ -386,38 +386,13 @@ class ExternalJavaProvider(ExternalProvider):
 
 
   def available(self):
-    # pylint: disable=subprocess-run-check
-      def try_decode(bs):
-          try:
-              return bs.decode()
-          except UnicodeError:
-              return bs
-      java = subprocess_server.JavaHelper.get_java()
-      try:
-          if platform.system() == 'Windows':
-              trial = subprocess.run(['where', java], capture_output=True)
-          else:
-              trial = subprocess.run(['which', java], capture_output=True)
-          if trial.returncode == 0:
-              return True
-          else:
-              return NotAvailableWithReason(
-                  f'Unable to locate java executable: '
-                  f'{try_decode(trial.stdout)}{try_decode(trial.stderr)}'
-              )
-      except (FileNotFoundError, OSError):
-          try:
-              java_path = shutil.which(java)
-              if java_path:
-                  return True
-              else:
-                  return NotAvailableWithReason(
-                      'Unable to locate java executable: java not found in PATH'
-                  )
-          except Exception as e:
-              return NotAvailableWithReason(
-                  f'Unable to locate java executable: {str(e)}'
-              )
+      # Directly use shutil.which to find the Java executable cross-platform
+      java_path = shutil.which(subprocess_server.JavaHelper.get_java())
+      if java_path:
+          return True
+      # Return error message when not found (or handle according to business logic)
+      return NotAvailableWithReason('Unable to locate java executable: java not found in PATH')
+
 
 
   def cache_artifacts(self):
