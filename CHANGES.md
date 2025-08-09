@@ -73,6 +73,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [Qdrant](https://qdrant.tech/) vector search enrichment handler (Python) ([#35216](https://github.com/apache/beam/pull/35686)).
 
 ## Breaking Changes
 
