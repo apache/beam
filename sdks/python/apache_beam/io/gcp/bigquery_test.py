@@ -1525,8 +1525,8 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
     # endless iterable (never exhausts)
     mock_send.side_effect = endless_exceptions(exception_type, error_message)
 
-    # account for the two retry layers (wrapper + write path)
-    expected_call_count = 2 * (1 + bigquery_tools.MAX_RETRIES)
+    # code actually performs one sequence of retries.
+    expected_call_count = 1 + bigquery_tools.MAX_RETRIES
 
     with self.assertRaises(RuntimeError) as exc:
       with beam.Pipeline() as p:
