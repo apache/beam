@@ -119,6 +119,7 @@ public class InMemoryMetaStoreTest {
         .name(name)
         .comment(name + " table")
         .location("/home/admin/" + name)
+        //        .path("default.default." + name)
         .schema(
             Stream.of(
                     Schema.Field.nullable("id", Schema.FieldType.INT32),
