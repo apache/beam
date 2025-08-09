@@ -45,6 +45,7 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
 from testcontainers.kafka import KafkaContainer
+from testcontainers.mongodb import MongoDbContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -199,6 +200,60 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     instanceT.delete()
   except HttpError:
     _LOGGER.warning("Failed to clean up instance")
+
+
+@contextlib.contextmanager
+def temp_mongodb_table():
+  """
+  provides a temporary MongoDB instance.
+
+  starts a MongoDB container, creates a unique database
+  and collection name for test isolation, and yields them as a dictionary.
+
+  This allows YAML test files to get connection details without hardcoding them.
+  Example usage in a YAML test file's fixture section:
+
+  fixtures:
+    - name: mongo_vars
+      type: path.to.this.file.mongodb_fixture
+
+  Then, in the pipeline definition, you can use placeholders like:
+  - uri: ${mongo_vars.URI}
+  - database: ${mongo_vars.DATABASE}
+  - collection: ${mongo_vars.COLLECTION}
+  """
+  _LOGGER.info("Setting up MongoDB fixture...")
+  # Initialize and start the MongoDB container.
+  # This will pull the 'mongo:7.0.7' image if it's not available locally.
+  mongo_container = MongoDbContainer("mongo:7.0.7")
+  try:
+    mongo_container.start()
+
+    # Get the dynamically generated connection URI.
+    mongo_uri = mongo_container.get_connection_url()
+
+    # Generate a unique database and collection name for this test run to ensure
+    # isolation between different test files.
+    db_name = f'db_{uuid.uuid4().hex}'
+    collection_name = f'collection_{uuid.uuid4().hex}'
+
+    _LOGGER.info(
+        "MongoDB container started. URI: [%s], DB: [%s], Collection: [%s]",
+        mongo_uri,
+        db_name,
+        collection_name)
+
+    yield {
+        'URI': mongo_uri,
+        'DATABASE': db_name,
+        'COLLECTION': collection_name,
+    }
+
+  finally:
+    # This block executes after the test suite finishes.
+    _LOGGER.info("Tearing down MongoDB fixture...")
+    mongo_container.stop()
+    _LOGGER.info("MongoDB container stopped.")
 
 
 @contextlib.contextmanager
