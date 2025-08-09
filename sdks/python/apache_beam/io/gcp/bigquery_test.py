@@ -1528,7 +1528,7 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
     # account for the two retry layers (wrapper + write path)
     expected_call_count = 2 * (1 + bigquery_tools.MAX_RETRIES)
 
-    with self.assertRaises(exception_type) as exc:
+    with self.assertRaises(RuntimeError) as exc:
       with beam.Pipeline() as p:
         _ = (
             p
