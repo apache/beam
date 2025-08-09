@@ -27,6 +27,7 @@ import inspect
 import json
 import logging
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -383,23 +384,16 @@ class ExternalJavaProvider(ExternalProvider):
     self._jar_provider = jar_provider
     self._classpath = classpath
 
+
   def available(self):
-    # pylint: disable=subprocess-run-check
-    trial = subprocess.run(['which', subprocess_server.JavaHelper.get_java()],
-                           capture_output=True)
-    if trial.returncode == 0:
-      return True
-    else:
+      # Directly use shutil.which to find the Java executable cross-platform
+      java_path = shutil.which(subprocess_server.JavaHelper.get_java())
+      if java_path:
+          return True
+      # Return error message when not found (or handle according to business logic)
+      return NotAvailableWithReason('Unable to locate java executable: java not found in PATH')
 
-      def try_decode(bs):
-        try:
-          return bs.decode()
-        except UnicodeError:
-          return bs
 
-      return NotAvailableWithReason(
-          f'Unable to locate java executable: '
-          f'{try_decode(trial.stdout)}{try_decode(trial.stderr)}')
 
   def cache_artifacts(self):
     return [self._jar_provider()]
