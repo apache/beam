@@ -24,7 +24,6 @@ import tempfile
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import RunInference
-
 from apache_beam.ml.inference.vllm_inference import VLLMCompletionsModelHandler
 from apache_beam.ml.inference.vllm_inference import _VLLMModelServer
 from apache_beam.options.pipeline_options import PipelineOptions
