@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -213,7 +214,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     try {
       final DoFn<InputT, OutputT>.ProcessContext processContext =
           createProcessContext(
-              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
+              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING, null));
       fnInvoker.invokeProcessElement(
           new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
 
@@ -478,7 +479,29 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         @Override
         public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
           getMutableOutput(tag)
-              .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
+              .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING, null));
+        }
+
+        @Override
+        public void output(
+            OutputT output,
+            Instant timestamp,
+            BoundedWindow window,
+            ElementMetadata elementMetadata) {
+          output(mainOutputTag, output, timestamp, window, elementMetadata);
+        }
+
+        @Override
+        public <T> void output(
+            TupleTag<T> tag,
+            T output,
+            Instant timestamp,
+            BoundedWindow window,
+            ElementMetadata elementMetadata) {
+          getMutableOutput(tag)
+              .add(
+                  ValueInSingleWindow.of(
+                      output, timestamp, window, PaneInfo.NO_FIRING, elementMetadata));
         }
       };
     }
@@ -563,6 +586,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public ElementMetadata elementMetadata() {
+      return element.getElementMetadata();
+    }
+
+    @Override
     public PaneInfo pane() {
       return element.getPaneInfo();
     }
@@ -592,6 +620,16 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ElementMetadata elementMetadata) {
+      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, elementMetadata);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       outputWithTimestamp(tag, output, element.getTimestamp());
     }
@@ -601,7 +639,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       getMutableOutput(tag)
           .add(
               ValueInSingleWindow.of(
-                  output, timestamp, element.getWindow(), element.getPaneInfo()));
+                  output,
+                  timestamp,
+                  element.getWindow(),
+                  element.getPaneInfo(),
+                  element.getElementMetadata()));
     }
 
     @Override
@@ -612,7 +654,21 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       for (BoundedWindow w : windows) {
-        getMutableOutput(tag).add(ValueInSingleWindow.of(output, timestamp, w, paneInfo));
+        getMutableOutput(tag).add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, null));
+      }
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ElementMetadata elementMetadata) {
+      for (BoundedWindow w : windows) {
+        getMutableOutput(tag)
+            .add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, elementMetadata));
       }
     }
   }
