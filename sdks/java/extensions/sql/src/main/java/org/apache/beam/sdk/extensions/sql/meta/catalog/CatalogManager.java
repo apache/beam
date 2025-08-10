@@ -58,5 +58,11 @@ public interface CatalogManager {
    */
   void registerTableProvider(TableProvider tableProvider);
 
+  /**
+   * Returns all the {@link TableProvider}s available to this {@link CatalogManager}, organized by
+   * type.
+   */
+  Map<String, TableProvider> tableProviders();
+
   Collection<Catalog> catalogs();
 }

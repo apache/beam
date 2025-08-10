@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 import static java.lang.String.format;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -38,7 +39,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Before;
@@ -102,11 +102,11 @@ public class BeamSqlCliIcebergTest {
     IcebergCatalog catalog = (IcebergCatalog) catalogManager.currentCatalog();
     assertEquals("default", catalog.currentDatabase());
     cli.execute("CREATE DATABASE new_namespace");
-    assertEquals("new_namespace", Iterables.getOnlyElement(catalog.listDatabases()));
+    assertTrue(catalog.databaseExists("new_namespace"));
 
     // Specifies IF NOT EXISTS, so should be a no-op
     cli.execute("CREATE DATABASE IF NOT EXISTS new_namespace");
-    assertEquals("new_namespace", Iterables.getOnlyElement(catalog.listDatabases()));
+    assertTrue(catalog.databaseExists("new_namespace"));
 
     // This one doesn't, so it should throw an error.
     thrown.expect(CalciteContextException.class);
@@ -145,7 +145,7 @@ public class BeamSqlCliIcebergTest {
     cli.execute("USE DATABASE new_namespace");
     assertEquals("new_namespace", catalog.currentDatabase());
     cli.execute("DROP DATABASE new_namespace");
-    assertTrue(catalog.listDatabases().isEmpty());
+    assertFalse(catalog.databaseExists("new_namespace"));
     assertNull(catalog.currentDatabase());
 
     // Drop non-existent namespace with IF EXISTS

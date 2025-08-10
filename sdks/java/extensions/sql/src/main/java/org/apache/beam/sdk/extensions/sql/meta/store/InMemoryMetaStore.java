@@ -99,6 +99,7 @@ public class InMemoryMetaStore implements MetaStore {
 
   @Override
   public void registerProvider(TableProvider provider) {
+    System.out.printf("xxx register provider!!! type: '%s'%n", provider.getTableType());
     if (providers.containsKey(provider.getTableType())) {
       throw new IllegalArgumentException(
           "Provider is already registered for table type: " + provider.getTableType());
@@ -119,7 +120,8 @@ public class InMemoryMetaStore implements MetaStore {
     this.tables.putAll(tables);
   }
 
-  Map<String, TableProvider> getProviders() {
+  @Override
+  public Map<String, TableProvider> tableProviders() {
     return providers;
   }
 

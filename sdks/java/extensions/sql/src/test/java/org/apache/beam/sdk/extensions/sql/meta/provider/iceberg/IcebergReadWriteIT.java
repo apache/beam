@@ -44,6 +44,7 @@ import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -140,6 +141,7 @@ public class IcebergReadWriteIT {
             .setPipelineOptions(PipelineOptionsFactory.create())
             .build();
     String tableIdentifier = DATASET + "." + testName.getMethodName();
+    String tableName = TableName.create(tableIdentifier).getTableName();
 
     // 1) create Iceberg catalog
     String createCatalog =
@@ -153,9 +155,9 @@ public class IcebergReadWriteIT {
             + "  'gcp_region' = 'us-central1')";
     sqlEnv.executeDdl(createCatalog);
 
-    // 2) use the catalog we just created
-    String setCatalog = "USE CATALOG my_catalog";
-    sqlEnv.executeDdl(setCatalog);
+    // 2) use the catalog we just created and dataset
+    sqlEnv.executeDdl("USE CATALOG my_catalog");
+    sqlEnv.executeDdl("USE DATABASE " + DATASET);
 
     // 3) create beam table
     String partitionFields =
@@ -163,7 +165,7 @@ public class IcebergReadWriteIT {
             ? "PARTITIONED BY ('bucket(c_integer, 5)', 'c_boolean', 'hour(c_timestamp)', 'truncate(c_varchar, 3)') \n"
             : "";
     String createTableStatement =
-        "CREATE EXTERNAL TABLE TEST( \n"
+        format("CREATE EXTERNAL TABLE %s( \n", tableName)
             + "   c_bigint BIGINT, \n"
             + "   c_integer INTEGER, \n"
             + "   c_float FLOAT, \n"
@@ -176,10 +178,7 @@ public class IcebergReadWriteIT {
             + "   c_arr_struct ARRAY<ROW<c_arr_struct_arr ARRAY<VARCHAR>, c_arr_struct_integer INTEGER>> \n"
             + ") \n"
             + "TYPE 'iceberg' \n"
-            + partitionFields
-            + "LOCATION '"
-            + tableIdentifier
-            + "'";
+            + partitionFields;
     sqlEnv.executeDdl(createTableStatement);
 
     // 3) verify a real Iceberg table was created, with the right partition spec
@@ -201,12 +200,12 @@ public class IcebergReadWriteIT {
     assertEquals("my_catalog." + tableIdentifier, icebergTable.name());
     assertTrue(icebergTable.location().startsWith(warehouse));
     assertEquals(expectedSpec, icebergTable.spec());
-    Schema expectedSchema = checkStateNotNull(metastore.getTable("TEST")).getSchema();
+    Schema expectedSchema = checkStateNotNull(metastore.getTable(tableName)).getSchema();
     assertEquals(expectedSchema, IcebergUtils.icebergSchemaToBeamSchema(icebergTable.schema()));
 
     // 4) write to underlying Iceberg table
     String insertStatement =
-        "INSERT INTO TEST VALUES ("
+        format("INSERT INTO %s VALUES (", tableName)
             + "9223372036854775807, "
             + "2147483647, "
             + "1.0, "
@@ -249,7 +248,7 @@ public class IcebergReadWriteIT {
     assertEquals(expectedRow, beamRow);
 
     // 6) read using Beam SQL and verify
-    String selectTableStatement = "SELECT * FROM TEST";
+    String selectTableStatement = "SELECT * FROM " + tableName;
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
     PAssert.that(output).containsInAnyOrder(expectedRow);
@@ -257,7 +256,7 @@ public class IcebergReadWriteIT {
     assertThat(state, equalTo(PipelineResult.State.DONE));
 
     // 7) cleanup
-    sqlEnv.executeDdl("DROP TABLE TEST");
+    sqlEnv.executeDdl("DROP TABLE " + tableName);
     assertFalse(icebergCatalog.tableExists(TableIdentifier.parse(tableIdentifier)));
   }
 
@@ -268,6 +267,7 @@ public class IcebergReadWriteIT {
             .setPipelineOptions(PipelineOptionsFactory.create())
             .build();
     String tableIdentifier = DATASET + "." + testName.getMethodName();
+    String tableName = TableName.create(tableIdentifier).getTableName();
 
     // 1) create Iceberg catalog
     String createCatalog =
@@ -281,28 +281,25 @@ public class IcebergReadWriteIT {
             + "  'gcp_region' = 'us-central1')";
     sqlEnv.executeDdl(createCatalog);
 
-    // 2) use the catalog we just created
-    String setCatalog = "USE CATALOG my_catalog";
-    sqlEnv.executeDdl(setCatalog);
+    // 2) use the catalog we just created and the dataset
+    sqlEnv.executeDdl("USE CATALOG my_catalog");
+    sqlEnv.executeDdl("USE DATABASE " + DATASET);
 
     // 3) create Beam table
     String createTableStatement =
-        "CREATE EXTERNAL TABLE TEST( \n"
+        format("CREATE EXTERNAL TABLE %s( \n", tableName)
             + "   c_integer INTEGER, \n"
             + "   c_float FLOAT, \n"
             + "   c_boolean BOOLEAN, \n"
             + "   c_timestamp TIMESTAMP, \n"
             + "   c_varchar VARCHAR \n "
             + ") \n"
-            + "TYPE 'iceberg' \n"
-            + "LOCATION '"
-            + tableIdentifier
-            + "'";
+            + "TYPE 'iceberg'";
     sqlEnv.executeDdl(createTableStatement);
 
     // 4) insert some data)
     String insertStatement =
-        "INSERT INTO TEST VALUES "
+        format("INSERT INTO %s VALUES ", tableName)
             + "(123, 1.23, TRUE, TIMESTAMP '2025-05-22 20:17:40.123', 'a'), "
             + "(456, 4.56, FALSE, TIMESTAMP '2025-05-25 20:17:40.123', 'b'), "
             + "(789, 7.89, TRUE, TIMESTAMP '2025-05-28 20:17:40.123', 'c')";
@@ -311,7 +308,7 @@ public class IcebergReadWriteIT {
 
     // 5) read with a filter
     String selectTableStatement =
-        "SELECT c_integer, c_varchar FROM TEST where "
+        format("SELECT c_integer, c_varchar FROM %s where ", tableName)
             + "(c_boolean=TRUE and c_varchar in ('a', 'b')) or c_float > 5";
     BeamRelNode relNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);

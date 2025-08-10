@@ -18,25 +18,26 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig.IcebergTableInfo;
 import org.apache.beam.sdk.io.iceberg.TableAlreadyExistsException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IcebergMetastore implements MetaStore {
+public class IcebergMetastore extends InMemoryMetaStore {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergMetastore.class);
   @VisibleForTesting final IcebergCatalogConfig catalogConfig;
   private final Map<String, Table> cachedTables = new HashMap<>();
@@ -54,11 +55,16 @@ public class IcebergMetastore implements MetaStore {
 
   @Override
   public void createTable(Table table) {
-    String identifier = getIdentifier(table);
-    try {
-      catalogConfig.createTable(identifier, table.getSchema(), table.getPartitionFields());
-    } catch (TableAlreadyExistsException e) {
-      LOG.info("Iceberg table '{}' already exists at location '{}'.", table.getName(), identifier);
+    if (!table.getType().equals("iceberg")) {
+      getProvider(table.getType()).createTable(table);
+    } else {
+      String identifier = getIdentifier(table);
+      try {
+        catalogConfig.createTable(identifier, table.getSchema(), table.getPartitionFields());
+      } catch (TableAlreadyExistsException e) {
+        LOG.info(
+            "Iceberg table '{}' already exists at location '{}'.", table.getName(), identifier);
+      }
     }
     cachedTables.put(table.getName(), table);
   }
@@ -80,13 +86,14 @@ public class IcebergMetastore implements MetaStore {
   @Override
   public Map<String, Table> getTables() {
     for (String id : catalogConfig.listTables(database)) {
-      String name = Iterables.getLast(Splitter.on(".").split(id));
-      if (!cachedTables.containsKey(name)) {
+      String name = TableName.create(id).getTableName();
+      @Nullable Table cachedTable = cachedTables.get(name);
+      if (cachedTable == null) {
         Table table = checkStateNotNull(loadTable(id));
         cachedTables.put(name, table);
       }
     }
-    return cachedTables;
+    return ImmutableMap.copyOf(cachedTables);
   }
 
   @Override
@@ -106,9 +113,8 @@ public class IcebergMetastore implements MetaStore {
   }
 
   private String getIdentifier(Table table) {
-    if (table.getLocation() != null) {
-      return table.getLocation();
-    }
+    checkArgument(
+        table.getLocation() == null, "Cannot create Iceberg tables using LOCATION property.");
     return getIdentifier(table.getName());
   }
 
@@ -117,28 +123,32 @@ public class IcebergMetastore implements MetaStore {
     if (tableInfo == null) {
       return null;
     }
-    String name = Iterables.getLast(Splitter.on(".").split(tableInfo.getIdentifier()));
     return Table.builder()
         .type(getTableType())
-        .name(name)
+        .name(identifier)
         .schema(tableInfo.getSchema())
-        .location(tableInfo.getIdentifier())
         .properties(TableUtils.parseProperties(tableInfo.getProperties()))
         .build();
   }
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    return new IcebergTable(getIdentifier(table), table, catalogConfig);
+    if (table.getType().equals("iceberg")) {
+      return new IcebergTable(getIdentifier(table), table, catalogConfig);
+    }
+    return getProvider(table.getType()).buildBeamSqlTable(table);
   }
 
   @Override
   public boolean supportsPartitioning(Table table) {
-    return true;
+    if (table.getType().equals("iceberg")) {
+      return true;
+    }
+    return getProvider(table.getType()).supportsPartitioning(table);
   }
 
   @Override
   public void registerProvider(TableProvider provider) {
-    // no-op
+    super.registerProvider(provider);
   }
 }

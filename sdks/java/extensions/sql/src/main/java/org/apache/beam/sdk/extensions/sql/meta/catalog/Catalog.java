@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
@@ -59,12 +58,8 @@ public interface Catalog {
    */
   boolean createDatabase(String databaseName);
 
-  /**
-   * Returns a set of existing databases accessible to this catalog.
-   *
-   * @return a set of existing database names
-   */
-  Set<String> listDatabases();
+  /** Returns true if the database exists. */
+  boolean databaseExists(String db);
 
   /**
    * Switches to use the specified database.
@@ -91,4 +86,9 @@ public interface Catalog {
 
   /** Registers this {@link TableProvider} and propagates it to underlying {@link MetaStore}s. */
   void registerTableProvider(TableProvider provider);
+
+  /**
+   * Returns all the {@link TableProvider}s available to this {@link Catalog}, organized by type.
+   */
+  Map<String, TableProvider> tableProviders();
 }

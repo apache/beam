@@ -154,12 +154,13 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     Schema schema = pair.left.schema;
 
     BeamCalciteSchema beamCalciteSchema;
-    //    String catalogName = "default";
     if (schema instanceof CatalogManagerSchema) {
       TableName pathOverride = TableName.create(name.toString());
-      CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCatalogSchema(pathOverride);
+      CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
+      catalogManagerSchema.maybeRegisterProvider(pathOverride, SqlDdlNodes.getString(type));
+
+      CatalogSchema catalogSchema = catalogManagerSchema.getCatalogSchema(pathOverride);
       beamCalciteSchema = catalogSchema.getDatabaseSchema(pathOverride);
-      //      catalogName = catalogSchema.getCatalog().name();
     } else if (schema instanceof BeamCalciteSchema) {
       beamCalciteSchema = (BeamCalciteSchema) schema;
     } else {
@@ -169,8 +170,6 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
               "Attempting to create a table with unexpected Calcite Schema of type "
                   + schema.getClass()));
     }
-    //    String databaseName = beamCalciteSchema.name();
-    //    String tableName = name(name);
     Table table = toTable();
 
     if (partitionFields != null) {

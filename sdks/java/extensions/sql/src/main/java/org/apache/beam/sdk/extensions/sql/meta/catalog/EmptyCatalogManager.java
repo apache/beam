@@ -57,6 +57,11 @@ public class EmptyCatalogManager implements CatalogManager {
   }
 
   @Override
+  public Map<String, TableProvider> tableProviders() {
+    return EMPTY.tableProviders;
+  }
+
+  @Override
   public void createCatalog(String name, String type, Map<String, String> properties) {
     throw new UnsupportedOperationException(
         "ReadOnlyCatalogManager does not support catalog creation");

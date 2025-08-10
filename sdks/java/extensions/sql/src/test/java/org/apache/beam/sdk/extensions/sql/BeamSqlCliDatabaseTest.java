@@ -19,8 +19,10 @@ package org.apache.beam.sdk.extensions.sql;
 
 import static org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog.DEFAULT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
@@ -29,7 +31,6 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,8 +51,7 @@ public class BeamSqlCliDatabaseTest {
   @Test
   public void testCreateDatabase() {
     cli.execute("CREATE DATABASE my_database");
-    assertEquals(
-        ImmutableSet.of(DEFAULT, "my_database"), catalogManager.currentCatalog().listDatabases());
+    assertTrue(catalogManager.currentCatalog().databaseExists("my_database"));
   }
 
   @Test
@@ -66,8 +66,7 @@ public class BeamSqlCliDatabaseTest {
   public void testCreateDuplicateDatabase_ifNotExists() {
     cli.execute("CREATE DATABASE my_database");
     cli.execute("CREATE DATABASE IF NOT EXISTS my_database");
-    assertEquals(
-        ImmutableSet.of(DEFAULT, "my_database"), catalogManager.currentCatalog().listDatabases());
+    assertTrue(catalogManager.currentCatalog().databaseExists("my_database"));
   }
 
   @Test
@@ -93,15 +92,14 @@ public class BeamSqlCliDatabaseTest {
   @Test
   public void testDropDatabase() {
     cli.execute("CREATE DATABASE my_database");
-    assertEquals(
-        ImmutableSet.of(DEFAULT, "my_database"), catalogManager.currentCatalog().listDatabases());
+    assertTrue(catalogManager.currentCatalog().databaseExists("my_database"));
     cli.execute("DROP DATABASE my_database");
-    assertEquals(ImmutableSet.of(DEFAULT), catalogManager.currentCatalog().listDatabases());
+    assertFalse(catalogManager.currentCatalog().databaseExists("my_database"));
   }
 
   @Test
   public void testDropDatabase_nonexistent() {
-    assertEquals(ImmutableSet.of(DEFAULT), catalogManager.currentCatalog().listDatabases());
+    assertFalse(catalogManager.currentCatalog().databaseExists("my_database"));
     thrown.expect(CalciteContextException.class);
     thrown.expectMessage("Database 'my_database' does not exist.");
     cli.execute("DROP DATABASE my_database");
@@ -112,9 +110,9 @@ public class BeamSqlCliDatabaseTest {
     Catalog catalog = catalogManager.currentCatalog();
     // create new database db_1
     cli.execute("CREATE DATABASE db_1");
+    assertTrue(catalog.databaseExists("db_1"));
     cli.execute("USE DATABASE db_1");
     assertEquals("db_1", catalog.currentDatabase());
-    assertEquals(ImmutableSet.of(DEFAULT, "db_1"), catalog.listDatabases());
 
     // create new table
     TestTableProvider testTableProvider = new TestTableProvider();
@@ -152,7 +150,7 @@ public class BeamSqlCliDatabaseTest {
     cli.execute("CREATE DATABASE db_1");
     cli.execute("USE DATABASE db_1");
     assertEquals("db_1", catalog.currentDatabase());
-    assertEquals(ImmutableSet.of(DEFAULT, "db_1"), catalog.listDatabases());
+    assertTrue(catalog.databaseExists("db_1"));
 
     // switch to other database db_2
     cli.execute("CREATE DATABASE db_2");

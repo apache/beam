@@ -17,67 +17,81 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTable.TRIGGERING_FREQUENCY_FIELD;
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.stream.Stream;
-import org.apache.beam.sdk.extensions.sql.TableUtils;
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_40_0.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /** UnitTest for {@link IcebergMetastore}. */
 public class IcebergMetastoreTest {
-  private final IcebergCatalog catalog =
-      new IcebergCatalog(
-          "test_catalog",
-          ImmutableMap.of(
-              "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
-              "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-              "warehouse", "gs://bucket/warehouse",
-              "beam.catalog.test_catalog.hadoop.fs.gs.project.id", "apache-beam-testing",
-              "beam.catalog.test_catalog.hadoop.foo", "bar"));
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  private IcebergCatalog catalog;
 
-  @Test
-  public void testGetTableType() {
-    assertEquals("iceberg", catalog.metaStore(catalog.currentDatabase()).getTableType());
+  @Before
+  public void setup() throws IOException {
+    File warehouseFile = TEMPORARY_FOLDER.newFolder();
+    assertTrue(warehouseFile.delete());
+    String warehouse = "file:" + warehouseFile + "/" + UUID.randomUUID();
+    catalog =
+        new IcebergCatalog(
+            "test_catalog", ImmutableMap.of("type", "hadoop", "warehouse", warehouse));
+  }
+
+  private IcebergMetastore metastore() {
+    return catalog.metaStore(catalog.currentDatabase());
   }
 
   @Test
-  public void testBuildBeamSqlTable() throws Exception {
-    ImmutableMap<String, Object> properties = ImmutableMap.of(TRIGGERING_FREQUENCY_FIELD, 30);
+  public void testGetTableType() {
+    assertEquals("iceberg", metastore().getTableType());
+  }
 
-    ObjectMapper mapper = new ObjectMapper();
-    String propertiesString = mapper.writeValueAsString(properties);
-    Table table =
-        fakeTableBuilder("my_table")
-            .properties(TableUtils.parseProperties(propertiesString))
-            .build();
-    BeamSqlTable sqlTable = catalog.metaStore(catalog.currentDatabase()).buildBeamSqlTable(table);
+  @Test
+  public void testBuildBeamSqlTable() {
+    Table table = Table.builder().name("my_table").schema(Schema.of()).type("iceberg").build();
+    BeamSqlTable sqlTable = metastore().buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof IcebergTable);
 
     IcebergTable icebergTable = (IcebergTable) sqlTable;
-    assertEquals("namespace.my_table", icebergTable.tableIdentifier);
+    assertEquals(catalog.currentDatabase() + ".my_table", icebergTable.tableIdentifier);
     assertEquals(catalog.catalogConfig, icebergTable.catalogConfig);
   }
 
-  private static Table.Builder fakeTableBuilder(String name) {
-    return Table.builder()
-        .name(name)
-        .location("namespace." + name)
-        .schema(
-            Stream.of(
-                    Schema.Field.nullable("id", Schema.FieldType.INT32),
-                    Schema.Field.nullable("name", Schema.FieldType.STRING))
-                .collect(toSchema()))
-        .type("iceberg");
+  @Test
+  public void testCreateTable() {
+    Table table = Table.builder().name("my_table").schema(Schema.of()).type("iceberg").build();
+    metastore().createTable(table);
+
+    assertNotNull(catalog.catalogConfig.loadTable(catalog.currentDatabase() + ".my_table"));
+  }
+
+  @Test
+  public void testGetTables() {
+    Table table1 = Table.builder().name("my_table_1").schema(Schema.of()).type("iceberg").build();
+    Table table2 = Table.builder().name("my_table_2").schema(Schema.of()).type("iceberg").build();
+    metastore().createTable(table1);
+    metastore().createTable(table2);
+
+    assertEquals(ImmutableSet.of("my_table_1", "my_table_2"), metastore().getTables().keySet());
+  }
+
+  @Test
+  public void testSupportsPartitioning() {
+    Table table = Table.builder().name("my_table_1").schema(Schema.of()).type("iceberg").build();
+    assertTrue(metastore().supportsPartitioning(table));
   }
 }

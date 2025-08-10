@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -60,12 +59,6 @@ public class IcebergCatalog extends InMemoryCatalog {
   public IcebergMetastore metaStore(String db) {
     metaStores.putIfAbsent(db, new IcebergMetastore(db, catalogConfig));
     return metaStores.get(db);
-    //    @Nullable IcebergMetastore metaStore = metaStores.get(db);
-    //    if (metaStore == null) {
-    //      metaStore = new IcebergMetastore(db, catalogConfig);
-    //      metaStores.put(db, metaStore);
-    //    }
-    //    return metaStore;
   }
 
   @Override
@@ -80,8 +73,13 @@ public class IcebergCatalog extends InMemoryCatalog {
 
   @Override
   public void useDatabase(String database) {
-    checkArgument(listDatabases().contains(database), "Database '%s' does not exist.");
+    checkArgument(databaseExists(database), "Database '%s' does not exist.");
     currentDatabase = database;
+  }
+
+  @Override
+  public boolean databaseExists(String db) {
+    return catalogConfig.namespaceExists(db);
   }
 
   @Override
@@ -92,10 +90,5 @@ public class IcebergCatalog extends InMemoryCatalog {
       currentDatabase = null;
     }
     return removed;
-  }
-
-  @Override
-  public Set<String> listDatabases() {
-    return catalogConfig.listNamespaces();
   }
 }

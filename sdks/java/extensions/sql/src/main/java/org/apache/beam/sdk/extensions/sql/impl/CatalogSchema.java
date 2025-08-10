@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import static java.lang.String.format;
+import static org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog.DEFAULT;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
@@ -59,17 +60,8 @@ public class CatalogSchema implements Schema {
   CatalogSchema(JdbcConnection jdbcConnection, Catalog catalog) {
     this.connection = jdbcConnection;
     this.catalog = catalog;
-    // try to eagerly populate Calcite sub-schemas with existing databases
-    try {
-      catalog
-          .listDatabases()
-          .forEach(
-              database ->
-                  subSchemas.put(
-                      database,
-                      new BeamCalciteSchema(database, connection, catalog.metaStore(database))));
-    } catch (Exception ignored) {
-    }
+    // should always have a "default" sub-schema available
+    subSchemas.put(DEFAULT, new BeamCalciteSchema(DEFAULT, connection, catalog.metaStore(DEFAULT)));
   }
 
   public Catalog getCatalog() {
@@ -93,7 +85,7 @@ public class CatalogSchema implements Schema {
     String name = SqlDdlNodes.name(databaseIdentifier);
     boolean alreadyExists = subSchemas.containsKey(name);
 
-    if (!alreadyExists) {
+    if (!alreadyExists || name.equals(DEFAULT)) {
       try {
         LOG.info("Creating database '{}'", name);
         if (catalog.createDatabase(name)) {
@@ -111,7 +103,7 @@ public class CatalogSchema implements Schema {
 
     if (alreadyExists) {
       String message = format("Database '%s' already exists.", name);
-      if (ifNotExists) {
+      if (ifNotExists || name.equals(DEFAULT)) {
         LOG.info(message);
       } else {
         throw SqlUtil.newContextException(
@@ -125,7 +117,7 @@ public class CatalogSchema implements Schema {
   public void useDatabase(SqlIdentifier identifier) {
     String name = SqlDdlNodes.name(identifier);
     if (!subSchemas.containsKey(name)) {
-      if (!catalog.listDatabases().contains(name)) {
+      if (!catalog.databaseExists(name)) {
         throw SqlUtil.newContextException(
             identifier.getParserPosition(),
             RESOURCE.internal(String.format("Cannot use database: '%s' not found.", name)));
@@ -184,33 +176,20 @@ public class CatalogSchema implements Schema {
     if (name == null) {
       return null;
     }
-    @Nullable BeamCalciteSchema beamCalciteSchema = subSchemas.get(name);
-    if (beamCalciteSchema == null) {
-      Set<String> databases;
-      try {
-        databases = catalog.listDatabases();
-      } catch (Exception ignored) {
-        return null;
-      }
-      if (databases.contains(name)) {
-        beamCalciteSchema = new BeamCalciteSchema(name, connection, catalog.metaStore(name));
-        subSchemas.put(name, beamCalciteSchema);
-      }
+
+    if (!subSchemas.containsKey(name) && catalog.databaseExists(name)) {
+      subSchemas.put(name, new BeamCalciteSchema(name, connection, catalog.metaStore(name)));
     }
-    return beamCalciteSchema;
+    return subSchemas.get(name);
   }
 
   private @Nullable BeamCalciteSchema currentDatabase() {
-    @Nullable String currentDatabase = catalog.currentDatabase();
-    if (currentDatabase != null) {
-      return subSchemas.get(currentDatabase);
-    }
-    return null;
+    return getSubSchema(catalog.currentDatabase());
   }
 
   @Override
   public Set<String> getSubSchemaNames() {
-    return catalog.listDatabases();
+    return subSchemas.keySet();
   }
 
   @Override

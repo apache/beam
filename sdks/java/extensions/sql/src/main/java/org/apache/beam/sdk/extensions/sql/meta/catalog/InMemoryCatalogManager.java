@@ -22,11 +22,9 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -35,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalogManager implements CatalogManager {
   private final Map<String, Catalog> catalogs = new HashMap<>();
-  private final Set<TableProvider> tableProviders = new HashSet<>();
+  private final Map<String, TableProvider> tableProviders = new HashMap<>();
   private String currentCatalogName;
 
   public InMemoryCatalogManager() {
@@ -56,7 +54,7 @@ public class InMemoryCatalogManager implements CatalogManager {
         !catalogs.containsKey(name), "Catalog with name '%s' already exists.", name);
 
     Catalog catalog = findAndCreateCatalog(name, type, properties);
-    tableProviders.forEach(catalog::registerTableProvider);
+    tableProviders.values().forEach(catalog::registerTableProvider);
     catalogs.put(name, catalog);
   }
 
@@ -86,7 +84,12 @@ public class InMemoryCatalogManager implements CatalogManager {
   @Override
   public void registerTableProvider(TableProvider tableProvider) {
     catalogs.values().forEach(catalog -> catalog.registerTableProvider(tableProvider));
-    tableProviders.add(tableProvider);
+    tableProviders.put(tableProvider.getTableType(), tableProvider);
+  }
+
+  @Override
+  public Map<String, TableProvider> tableProviders() {
+    return tableProviders;
   }
 
   private Catalog findAndCreateCatalog(String name, String type, Map<String, String> properties) {

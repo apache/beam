@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.Expression;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
@@ -137,6 +139,32 @@ public class CatalogManagerSchema implements Schema {
     catalogSubSchemas.remove(name);
   }
 
+  // A BeamCalciteSchema may be used to interact with multiple TableProviders.
+  // If such a TableProvider is not registered in the BeamCalciteSchema, this method
+  // will attempt to do so.
+  public void maybeRegisterProvider(TableName path, String type) {
+    CatalogSchema catalogSchema = getCatalogSchema(path);
+    BeamCalciteSchema beamCalciteSchema = catalogSchema.getDatabaseSchema(path);
+
+    if (beamCalciteSchema.getTableProvider() instanceof MetaStore) {
+      MetaStore metaStore = (MetaStore) beamCalciteSchema.getTableProvider();
+      if (metaStore.tableProviders().containsKey(type)) {
+        return;
+      }
+
+      // Start with the narrowest scope.
+      // Attempt to fetch provider from Catalog first, then CatalogManager.
+      @Nullable TableProvider provider = catalogSchema.getCatalog().tableProviders().get(type);
+      if (provider == null) {
+        provider = catalogManager.tableProviders().get(type);
+      }
+      // register provider
+      if (provider != null) {
+        metaStore.registerProvider(provider);
+      }
+    }
+  }
+
   @Override
   public @Nullable Table getTable(String table) {
     @Nullable
@@ -148,10 +176,8 @@ public class CatalogManagerSchema implements Schema {
   public Set<String> getTableNames() {
     ImmutableSet.Builder<String> names = ImmutableSet.builder();
     // TODO: this might be a heavy operation
-    for (Catalog catalog : catalogManager.catalogs()) {
-      for (String db : catalog.listDatabases()) {
-        names.addAll(catalog.metaStore(db).getTables().keySet());
-      }
+    for (CatalogSchema catalogSchema : catalogSubSchemas.values()) {
+      names.addAll(catalogSchema.getTableNames());
     }
     return names.build();
   }
@@ -203,6 +229,22 @@ public class CatalogManagerSchema implements Schema {
   @Override
   public Set<String> getSubSchemaNames() {
     return catalogManager.catalogs().stream().map(Catalog::name).collect(Collectors.toSet());
+  }
+
+  public void setPipelineOption(String key, String value) {
+    Map<String, String> options = new HashMap<>(connection.getPipelineOptionsMap());
+    options.put(key, value);
+    connection.setPipelineOptionsMap(options);
+  }
+
+  public void removePipelineOption(String key) {
+    Map<String, String> options = new HashMap<>(connection.getPipelineOptionsMap());
+    options.remove(key);
+    connection.setPipelineOptionsMap(options);
+  }
+
+  public void removeAllPipelineOptions() {
+    connection.setPipelineOptionsMap(Collections.emptyMap());
   }
 
   @Override

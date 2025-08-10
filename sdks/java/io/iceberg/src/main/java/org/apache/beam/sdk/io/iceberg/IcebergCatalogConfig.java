@@ -111,6 +111,11 @@ public abstract class IcebergCatalogConfig implements Serializable {
     }
   }
 
+  public boolean namespaceExists(String namespace) {
+    checkSupportsNamespaces();
+    return ((SupportsNamespaces) catalog()).namespaceExists(Namespace.of(namespace));
+  }
+
   public Set<String> listNamespaces() {
     checkSupportsNamespaces();
 
@@ -143,12 +148,13 @@ public abstract class IcebergCatalogConfig implements Serializable {
     org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
     PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
-      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
       LOG.info(
-          "Created table '{}' with schema: {}\n, partition spec: {}",
+          "Attempting to create table '{}', with schema: {}, partition spec: {}.",
           icebergIdentifier,
           icebergSchema,
           icebergSpec);
+      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
+      LOG.info("Successfully created table '{}'.", icebergIdentifier);
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);
     }

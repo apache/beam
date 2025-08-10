@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
@@ -34,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class InMemoryCatalog implements Catalog {
   private final String name;
   private final Map<String, String> properties;
-  protected final Set<TableProvider> tableProviders = new HashSet<>();
+  protected final Map<String, TableProvider> tableProviders = new HashMap<>();
   private final Map<String, MetaStore> metaStores = new HashMap<>();
   private final HashSet<String> databases = new HashSet<>(Collections.singleton(DEFAULT));
   protected @Nullable String currentDatabase = DEFAULT;
@@ -65,7 +64,7 @@ public class InMemoryCatalog implements Catalog {
     @Nullable MetaStore metaStore = metaStores.get(db);
     if (metaStore == null) {
       metaStore = new InMemoryMetaStore();
-      tableProviders.forEach(metaStore::registerProvider);
+      tableProviders.values().forEach(metaStore::registerProvider);
       metaStores.put(db, metaStore);
     }
     return metaStore;
@@ -82,8 +81,13 @@ public class InMemoryCatalog implements Catalog {
   }
 
   @Override
+  public boolean databaseExists(String db) {
+    return databases.contains(db);
+  }
+
+  @Override
   public void useDatabase(String database) {
-    checkArgument(listDatabases().contains(database), "Database '%s' does not exist.");
+    checkArgument(databaseExists(database), "Database '%s' does not exist.");
     currentDatabase = database;
   }
 
@@ -104,13 +108,13 @@ public class InMemoryCatalog implements Catalog {
   }
 
   @Override
-  public Set<String> listDatabases() {
-    return databases;
+  public void registerTableProvider(TableProvider provider) {
+    tableProviders.put(provider.getTableType(), provider);
+    metaStores.values().forEach(m -> m.registerProvider(provider));
   }
 
   @Override
-  public void registerTableProvider(TableProvider provider) {
-    tableProviders.add(provider);
-    metaStores.values().forEach(m -> m.registerProvider(provider));
+  public Map<String, TableProvider> tableProviders() {
+    return tableProviders;
   }
 }

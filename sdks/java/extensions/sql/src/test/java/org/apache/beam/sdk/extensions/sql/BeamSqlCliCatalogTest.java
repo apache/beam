@@ -20,9 +20,11 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog.DEFAULT;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -34,7 +36,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -186,9 +187,9 @@ public class BeamSqlCliCatalogTest {
     assertEquals("catalog_1", catalogManager.currentCatalog().name());
     assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
     cli.execute("CREATE DATABASE db_1");
+    assertTrue(catalogManager.currentCatalog().databaseExists("db_1"));
     cli.execute("USE DATABASE db_1");
     assertEquals("db_1", catalogManager.currentCatalog().currentDatabase());
-    assertEquals(ImmutableSet.of(DEFAULT, "db_1"), catalogManager.currentCatalog().listDatabases());
 
     // create new Catalog catalog_2 and switch to it
     cli.execute("CREATE CATALOG catalog_2 TYPE 'local'");
@@ -198,13 +199,13 @@ public class BeamSqlCliCatalogTest {
     assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
 
     // confirm that database 'db_1' from catalog_1 is not leaked to catalog_2
-    assertEquals(ImmutableSet.of(DEFAULT), catalogManager.currentCatalog().listDatabases());
+    assertFalse(catalogManager.currentCatalog().databaseExists("db_1"));
 
     // switch back and drop database
     cli.execute("USE CATALOG catalog_1");
     assertEquals("catalog_1", catalogManager.currentCatalog().name());
     cli.execute("DROP DATABASE db_1");
-    assertEquals(ImmutableSet.of(DEFAULT), catalogManager.currentCatalog().listDatabases());
+    assertFalse(catalogManager.currentCatalog().databaseExists("db_1"));
   }
 
   @Test
@@ -218,7 +219,7 @@ public class BeamSqlCliCatalogTest {
     // create new database
     cli.execute("CREATE DATABASE db_1");
     cli.execute("USE DATABASE db_1");
-    assertEquals(ImmutableSet.of(DEFAULT, "db_1"), catalogManager.currentCatalog().listDatabases());
+    assertTrue(catalogManager.currentCatalog().databaseExists("db_1"));
     MetaStore metastoreDb1 =
         checkStateNotNull(catalogManager.getCatalog("catalog_1")).metaStore("db_1");
 
@@ -261,30 +262,24 @@ public class BeamSqlCliCatalogTest {
     assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
     // while using catalog_2, create new database in catalog_1
     cli.execute("CREATE DATABASE catalog_1.db_1");
-    assertEquals(
-        ImmutableSet.of(DEFAULT, "db_1"),
-        checkStateNotNull(catalogManager.getCatalog("catalog_1")).listDatabases());
+    assertTrue(checkStateNotNull(catalogManager.getCatalog("catalog_1")).databaseExists("db_1"));
 
     // use database in catalog_2. this will override both current database (to 'deb_1')
     // and current catalog (to 'catalog_1')
     cli.execute("USE DATABASE catalog_1.db_1");
     assertEquals("catalog_1", catalogManager.currentCatalog().name());
     assertEquals("db_1", catalogManager.currentCatalog().currentDatabase());
-    assertEquals(ImmutableSet.of(DEFAULT, "db_1"), catalogManager.currentCatalog().listDatabases());
+    assertTrue(catalogManager.currentCatalog().databaseExists("db_1"));
 
     // switch back to catalog_2 and drop
     cli.execute("USE CATALOG catalog_2");
     assertEquals("catalog_2", catalogManager.currentCatalog().name());
     // confirm that database 'db_1' created in catalog_1 was not leaked to catalog_2
-    assertEquals(ImmutableSet.of(DEFAULT), catalogManager.currentCatalog().listDatabases());
+    assertFalse(catalogManager.currentCatalog().databaseExists("db_1"));
     // drop and validate
-    assertEquals(
-        ImmutableSet.of(DEFAULT, "db_1"),
-        checkStateNotNull(catalogManager.getCatalog("catalog_1")).listDatabases());
+    assertTrue(checkStateNotNull(catalogManager.getCatalog("catalog_1")).databaseExists("db_1"));
     cli.execute("DROP DATABASE catalog_1.db_1");
-    assertEquals(
-        ImmutableSet.of(DEFAULT),
-        checkStateNotNull(catalogManager.getCatalog("catalog_1")).listDatabases());
+    assertFalse(checkStateNotNull(catalogManager.getCatalog("catalog_1")).databaseExists("db_1"));
   }
 
   @Test
@@ -299,9 +294,7 @@ public class BeamSqlCliCatalogTest {
 
     // while using catalog_2, create new database in catalog_1
     cli.execute("CREATE DATABASE catalog_1.db_1");
-    assertEquals(
-        ImmutableSet.of(DEFAULT, "db_1"),
-        checkStateNotNull(catalogManager.getCatalog("catalog_1")).listDatabases());
+    assertTrue(checkStateNotNull(catalogManager.getCatalog("catalog_1")).databaseExists("db_1"));
     MetaStore metastoreDb1 =
         checkStateNotNull(catalogManager.getCatalog("catalog_1")).metaStore("db_1");
 
