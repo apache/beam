@@ -74,6 +74,9 @@ public final class Caches {
     if (o == null) {
       return REFERENCE_SIZE;
     }
+    if (o instanceof Weighted) {
+      return ((Weighted) o).getWeight() + REFERENCE_SIZE + 8;
+    }
     try {
       return MEMORY_METER.measureDeep(o);
     } catch (RuntimeException e) {
@@ -197,17 +200,19 @@ public final class Caches {
 
                           @Override
                           public int weigh(CompositeKey key, WeightedValue<Object> value) {
+                            // Since our weights are tracking bytes used, we need to account for the
+                            // cache internal bytes.
+                            long weight = key.getWeight() + value.getWeight() + REFERENCE_SIZE * 15;
                             // Round up to the next closest multiple of WEIGHT_RATIO
-                            long size =
-                                ((key.getWeight() + value.getWeight() - 1) >> WEIGHT_RATIO) + 1;
-                            if (size > Integer.MAX_VALUE) {
+                            weight = ((weight - 1) >> WEIGHT_RATIO) + 1;
+                            if (weight > Integer.MAX_VALUE) {
                               LOG.warn(
                                   "Entry with size {} MiBs inserted into the cache. This is larger than the maximum individual entry size of {} MiBs. The cache will under report its memory usage by the difference. This may lead to OutOfMemoryErrors.",
-                                  ((size - 1) >> 20) + 1,
+                                  ((weight - 1) >> 20) + 1,
                                   2 << (WEIGHT_RATIO + 10));
                               return Integer.MAX_VALUE;
                             }
-                            return (int) size;
+                            return (int) weight;
                           }
                         })
                     // The maximum size of an entry in the cache is maxWeight / concurrencyLevel
@@ -232,27 +237,20 @@ public final class Caches {
         weightInBytes);
   }
 
-  private static long findWeight(Object o) {
-    if (o instanceof WeightedValue) {
-      return ((WeightedValue<Object>) o).getWeight();
-    } else if (o instanceof Weighted) {
-      return ((Weighted) o).getWeight();
-    } else {
-      return weigh(o);
-    }
-  }
-
   private static WeightedValue<Object> addWeightedValue(
       CompositeKey key, Object o, LongAdder weightInBytes) {
     WeightedValue<Object> rval;
+    long additionalBytes = 0;
     if (o instanceof WeightedValue) {
       rval = (WeightedValue<Object>) o;
     } else if (o instanceof Weighted) {
       rval = WeightedValue.of(o, ((Weighted) o).getWeight());
+      additionalBytes = REFERENCE_SIZE * 2;
     } else {
       rval = WeightedValue.of(o, weigh(o));
+      additionalBytes = REFERENCE_SIZE * 2;
     }
-    weightInBytes.add(key.getWeight() + rval.getWeight());
+    weightInBytes.add(key.getWeight() + rval.getWeight() + additionalBytes);
     return rval;
   }
 
@@ -351,9 +349,9 @@ public final class Caches {
       subKey[namespace.length] = suffix;
       System.arraycopy(
           additionalSuffixes, 0, subKey, namespace.length + 1, additionalSuffixes.length);
-      long subKeyWeight = weight + findWeight(suffix);
+      long subKeyWeight = weight + weigh(suffix);
       for (int i = 0; i < additionalSuffixes.length; ++i) {
-        subKeyWeight += findWeight(additionalSuffixes[i]);
+        subKeyWeight += weigh(additionalSuffixes[i]);
       }
       return new CompositeKeyPrefix(subKey, subKeyWeight);
     }
@@ -399,7 +397,7 @@ public final class Caches {
     private CompositeKey(Object[] namespace, long namespaceWeight, Object key) {
       this.namespace = namespace;
       this.key = key;
-      this.weight = namespaceWeight + findWeight(key);
+      this.weight = namespaceWeight + weigh(key);
     }
 
     @Override
@@ -426,7 +424,7 @@ public final class Caches {
 
     @Override
     public long getWeight() {
-      return weight;
+      return weight + 24 + REFERENCE_SIZE * namespace.length;
     }
   }
 

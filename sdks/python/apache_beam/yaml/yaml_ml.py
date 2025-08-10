@@ -16,7 +16,10 @@
 #
 
 """This module defines yaml wrappings for some ML transforms."""
+import logging
+import pkgutil
 from collections.abc import Callable
+from importlib import import_module
 from typing import Any
 from typing import Optional
 
@@ -29,13 +32,41 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import options
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
+
+def _list_submodules(package):
+  """
+  Lists all submodules within a given package.
+  """
+  submodules = []
+  skip_modules = ['base', 'handlers', 'test', 'tft', 'utils']
+  for _, module_name, _ in pkgutil.walk_packages(
+      package.__path__, package.__name__ + '.'):
+    if any(skip_name in module_name for skip_name in skip_modules):
+      continue
+    submodules.append(module_name)
+  return submodules
+
+
+_transform_constructors = {}
 try:
   from apache_beam.ml.transforms import tft
   from apache_beam.ml.transforms.base import MLTransform
-  # TODO(robertwb): Is this all of them?
   _transform_constructors = tft.__dict__
 except ImportError:
   tft = None  # type: ignore
+
+if tft:
+  # Load all available ML Transform modules
+  for module_name in _list_submodules(beam.ml.transforms):
+    try:
+      module = import_module(module_name)
+      _transform_constructors |= module.__dict__
+    except ImportError as e:
+      logging.warning(
+          'Could not load ML transform module %s: %s.  Please '
+          'install the necessary module dependencies',
+          module_name,
+          e)
 
 
 class ModelHandlerProvider:

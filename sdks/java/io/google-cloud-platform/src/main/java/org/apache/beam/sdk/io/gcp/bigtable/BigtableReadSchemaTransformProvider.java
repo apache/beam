@@ -24,7 +24,8 @@ import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
-import java.nio.ByteBuffer;
+import com.google.protobuf.ByteString;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,11 +38,12 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Bigtable Read jobs configured via
@@ -69,6 +71,13 @@ public class BigtableReadSchemaTransformProvider
                   Schema.FieldType.STRING,
                   Schema.FieldType.array(Schema.FieldType.row(CELL_SCHEMA))))
           .build();
+  public static final Schema FLATTENED_ROW_SCHEMA =
+      Schema.builder()
+          .addByteArrayField("key")
+          .addStringField("family_name")
+          .addByteArrayField("column_qualifier")
+          .addArrayField("cells", Schema.FieldType.row(CELL_SCHEMA))
+          .build();
 
   @Override
   protected SchemaTransform from(BigtableReadSchemaTransformConfiguration configuration) {
@@ -88,7 +97,7 @@ public class BigtableReadSchemaTransformProvider
   /** Configuration for reading from Bigtable. */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class BigtableReadSchemaTransformConfiguration {
+  public abstract static class BigtableReadSchemaTransformConfiguration implements Serializable {
     /** Instantiates a {@link BigtableReadSchemaTransformConfiguration.Builder} instance. */
     public void validate() {
       String emptyStringMessage =
@@ -100,7 +109,8 @@ public class BigtableReadSchemaTransformProvider
 
     public static Builder builder() {
       return new AutoValue_BigtableReadSchemaTransformProvider_BigtableReadSchemaTransformConfiguration
-          .Builder();
+              .Builder()
+          .setFlatten(true);
     }
 
     public abstract String getTableId();
@@ -108,6 +118,8 @@ public class BigtableReadSchemaTransformProvider
     public abstract String getInstanceId();
 
     public abstract String getProjectId();
+
+    public abstract @Nullable Boolean getFlatten();
 
     /** Builder for the {@link BigtableReadSchemaTransformConfiguration}. */
     @AutoValue.Builder
@@ -117,6 +129,8 @@ public class BigtableReadSchemaTransformProvider
       public abstract Builder setInstanceId(String instanceId);
 
       public abstract Builder setProjectId(String projectId);
+
+      public abstract Builder setFlatten(Boolean flatten);
 
       /** Builds a {@link BigtableReadSchemaTransformConfiguration} instance. */
       public abstract BigtableReadSchemaTransformConfiguration build();
@@ -152,45 +166,97 @@ public class BigtableReadSchemaTransformProvider
                       .withInstanceId(configuration.getInstanceId())
                       .withProjectId(configuration.getProjectId()));
 
+      Schema outputSchema =
+          Boolean.FALSE.equals(configuration.getFlatten()) ? ROW_SCHEMA : FLATTENED_ROW_SCHEMA;
+
       PCollection<Row> beamRows =
-          bigtableRows.apply(MapElements.via(new BigtableRowToBeamRow())).setRowSchema(ROW_SCHEMA);
+          bigtableRows
+              .apply("ConvertToBeamRows", ParDo.of(new BigtableRowConverterDoFn(configuration)))
+              .setRowSchema(outputSchema);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, beamRows);
     }
   }
 
-  public static class BigtableRowToBeamRow extends SimpleFunction<com.google.bigtable.v2.Row, Row> {
-    @Override
-    public Row apply(com.google.bigtable.v2.Row bigtableRow) {
-      // The collection of families is represented as a Map of column families.
-      // Each column family is represented as a Map of columns.
-      // Each column is represented as a List of cells
-      // Each cell is represented as a Beam Row consisting of value and timestamp_micros
-      Map<String, Map<String, List<Row>>> families = new HashMap<>();
+  /**
+   * A {@link DoFn} that converts a Bigtable {@link com.google.bigtable.v2.Row} to a Beam {@link
+   * Row}. It supports both a nested representation and a flattened representation where each column
+   * becomes a separate output element.
+   */
+  private static class BigtableRowConverterDoFn extends DoFn<com.google.bigtable.v2.Row, Row> {
+    private final BigtableReadSchemaTransformConfiguration configuration;
 
-      for (Family fam : bigtableRow.getFamiliesList()) {
-        // Map of column qualifier to list of cells
-        Map<String, List<Row>> columns = new HashMap<>();
-        for (Column col : fam.getColumnsList()) {
-          List<Row> cells = new ArrayList<>();
-          for (Cell cell : col.getCellsList()) {
-            Row cellRow =
-                Row.withSchema(CELL_SCHEMA)
-                    .withFieldValue("value", ByteBuffer.wrap(cell.getValue().toByteArray()))
-                    .withFieldValue("timestamp_micros", cell.getTimestampMicros())
-                    .build();
-            cells.add(cellRow);
-          }
-          columns.put(col.getQualifier().toStringUtf8(), cells);
-        }
-        families.put(fam.getName(), columns);
+    BigtableRowConverterDoFn(BigtableReadSchemaTransformConfiguration configuration) {
+      this.configuration = configuration;
+    }
+
+    private List<Row> convertCells(List<Cell> bigtableCells) {
+      List<Row> beamCells = new ArrayList<>();
+      for (Cell cell : bigtableCells) {
+        Row cellRow =
+            Row.withSchema(CELL_SCHEMA)
+                .withFieldValue("value", cell.getValue().toByteArray())
+                .withFieldValue("timestamp_micros", cell.getTimestampMicros())
+                .build();
+        beamCells.add(cellRow);
       }
-      Row beamRow =
-          Row.withSchema(ROW_SCHEMA)
-              .withFieldValue("key", ByteBuffer.wrap(bigtableRow.getKey().toByteArray()))
-              .withFieldValue("column_families", families)
-              .build();
-      return beamRow;
+      return beamCells;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element com.google.bigtable.v2.Row bigtableRow, OutputReceiver<Row> out) {
+      // The builder defaults flatten to true. We check for an explicit false setting to disable it.
+
+      if (Boolean.FALSE.equals(configuration.getFlatten())) {
+        // Non-flattening logic (original behavior): one output row per Bigtable row.
+        Map<String, Map<String, List<Row>>> families = new HashMap<>();
+        for (Family fam : bigtableRow.getFamiliesList()) {
+          Map<String, List<Row>> columns = new HashMap<>();
+          for (Column col : fam.getColumnsList()) {
+
+            List<Cell> bigTableCells = col.getCellsList();
+
+            List<Row> cells = convertCells(bigTableCells);
+
+            columns.put(col.getQualifier().toStringUtf8(), cells);
+          }
+          families.put(fam.getName(), columns);
+        }
+        Row beamRow =
+            Row.withSchema(ROW_SCHEMA)
+                .withFieldValue("key", bigtableRow.getKey().toByteArray())
+                .withFieldValue("column_families", families)
+                .build();
+        out.output(beamRow);
+      } else {
+        // Flattening logic (new behavior): one output row per column qualifier.
+        byte[] key = bigtableRow.getKey().toByteArray();
+        for (Family fam : bigtableRow.getFamiliesList()) {
+          String familyName = fam.getName();
+          for (Column col : fam.getColumnsList()) {
+            ByteString qualifierName = col.getQualifier();
+            List<Row> cells = new ArrayList<>();
+            for (Cell cell : col.getCellsList()) {
+              Row cellRow =
+                  Row.withSchema(CELL_SCHEMA)
+                      .withFieldValue("value", cell.getValue().toByteArray())
+                      .withFieldValue("timestamp_micros", cell.getTimestampMicros())
+                      .build();
+              cells.add(cellRow);
+            }
+
+            Row flattenedRow =
+                Row.withSchema(FLATTENED_ROW_SCHEMA)
+                    .withFieldValue("key", key)
+                    .withFieldValue("family_name", familyName)
+                    .withFieldValue("column_qualifier", qualifierName.toByteArray())
+                    .withFieldValue("cells", cells)
+                    .build();
+            out.output(flattenedRow);
+          }
+        }
+      }
     }
   }
 }

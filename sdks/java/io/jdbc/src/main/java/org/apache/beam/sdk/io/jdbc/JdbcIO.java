@@ -355,6 +355,10 @@ public class JdbcIO {
    * Like {@link #read}, but executes multiple instances of the query substituting each element of a
    * {@link PCollection} as query parameters.
    *
+   * <p>The substitution is configured via {@link ReadAll#withParameterSetter}. Substitutions
+   * allowed by the JDBC API's {@link PreparedStatement} are supported. In particular, this does not
+   * support parameterizing the table name to read from a different table for each input element.
+   *
    * @param <ParameterT> Type of the data representing query parameters.
    * @param <OutputT> Type of the data to be read.
    */
@@ -1175,6 +1179,18 @@ public class JdbcIO {
       return toBuilder().setQuery(query).build();
     }
 
+    /**
+     * Sets the {@link PreparedStatementSetter} to set the parameters of the query for each input
+     * element.
+     *
+     * <p>For example,
+     *
+     * <pre>{@code
+     * JdbcIO.<String, Row>readAll()
+     *     .withQuery("select * from table where field = ?")
+     *     .withParameterSetter((element, preparedStatement) -> preparedStatement.setString(1, element))
+     * }</pre>
+     */
     public ReadAll<ParameterT, OutputT> withParameterSetter(
         PreparedStatementSetter<ParameterT> parameterSetter) {
       checkArgumentNotNull(
@@ -1248,7 +1264,7 @@ public class JdbcIO {
         try {
           return schemaRegistry.getSchemaCoder(outputType);
         } catch (NoSuchSchemaException e) {
-          LOG.warn(
+          LOG.info(
               "Unable to infer a schema for type {}. Attempting to infer a coder without a schema.",
               outputType);
         }
@@ -1709,6 +1725,15 @@ public class JdbcIO {
         try {
           connection = validSource.getConnection();
           this.connection = connection;
+
+          // PostgreSQL requires autocommit to be disabled to enable cursor streaming
+          // see https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
+          // This option is configurable as Informix will error
+          // if calling setAutoCommit on a non-logged database
+          if (disableAutoCommit) {
+            LOG.info("Autocommit has been disabled");
+            connection.setAutoCommit(false);
+          }
         } finally {
           connectionLock.unlock();
         }
@@ -1739,14 +1764,6 @@ public class JdbcIO {
     public void processElement(ProcessContext context) throws Exception {
       // Only acquire the connection if we need to perform a read.
       Connection connection = getConnection();
-      // PostgreSQL requires autocommit to be disabled to enable cursor streaming
-      // see https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
-      // This option is configurable as Informix will error
-      // if calling setAutoCommit on a non-logged database
-      if (disableAutoCommit) {
-        LOG.info("Autocommit has been disabled");
-        connection.setAutoCommit(false);
-      }
       try (PreparedStatement statement =
           connection.prepareStatement(
               query.get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -1829,8 +1846,8 @@ public class JdbcIO {
   }
 
   /**
-   * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
-   * used to setParameters into the database.
+   * An interface used by the JdbcIO {@link ReadAll} and {@link Write} to set the parameters of the
+   * {@link PreparedStatement} used to setParameters into the database.
    */
   @FunctionalInterface
   public interface PreparedStatementSetter<T> extends Serializable {
