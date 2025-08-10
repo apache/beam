@@ -96,7 +96,7 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* Added JUnit 5 support to Java SDK testing framework with new TestPipelineExtension class (Java) ([#18733](https://github.com/apache/beam/issues/18733)).
+* Added JUnit 5 support to Java SDK testing framework with new TestPipelineExtension class, now provided by a dedicated module (Java) ([#18733](https://github.com/apache/beam/issues/18733), [#35688](https://github.com/apache/beam/pull/35688)).
 * [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
 
 ## I/Os
@@ -107,8 +107,9 @@
 ## New Features / Improvements
 
 * Added support for Processing time Timer in the Spark Classic runner ([#33633](https://github.com/apache/beam/issues/33633)).
-* Added JUnit 5 extension support via TestPipelineExtension class to enable modern testing practices while maintaining backward compatibility with existing JUnit 4 TestRule-based tests (Java) ([#18733](https://github.com/apache/beam/issues/18733)).
-* Added minimal JUnit 5 dependencies (junit-jupiter-api, junit-jupiter-engine 5.10.0) for TestPipelineExtension support without affecting existing JUnit 4 tests (Java) ([#18733](https://github.com/apache/beam/issues/18733)).
+* Introduced a dedicated module for JUnit-based testing support: `sdks/java/testing/junit`, which provides `TestPipelineExtension` for JUnit 5 while maintaining backward compatibility with existing JUnit 4 `TestRule`-based tests (Java) ([#18733](https://github.com/apache/beam/issues/18733), [#35688](https://github.com/apache/beam/pull/35688)).
+  - Java core no longer carries JUnit 5 dependencies; production users of core will not receive test-only dependencies.
+  - To use JUnit 5 with Beam tests, add a test-scoped dependency on `org.apache.beam:beam-sdks-java-testing-junit`.
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/#35397)).
 * [IcebergIO] Create tables with a specified table properties ([#35496](https://github.com/apache/beam/pull/35496))
