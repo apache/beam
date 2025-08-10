@@ -79,6 +79,11 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Set and create temporary directory
+        run: |
+          TEMP_PATH="${{ runner.temp }}/docker-tmp"
+          mkdir -p "$TEMP_PATH"
+          echo "TMPDIR=$TEMP_PATH" >> $GITHUB_ENV
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
