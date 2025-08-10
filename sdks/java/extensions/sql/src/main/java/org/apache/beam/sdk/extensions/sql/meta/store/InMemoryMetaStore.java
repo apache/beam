@@ -99,7 +99,6 @@ public class InMemoryMetaStore implements MetaStore {
 
   @Override
   public void registerProvider(TableProvider provider) {
-    System.out.printf("xxx register provider!!! type: '%s'%n", provider.getTableType());
     if (providers.containsKey(provider.getTableType())) {
       throw new IllegalArgumentException(
           "Provider is already registered for table type: " + provider.getTableType());
