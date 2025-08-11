@@ -19,10 +19,14 @@
 import logging
 import string
 import unittest
+import uuid
 from collections import Counter
+from datetime import datetime
 
 import pytest
+import pytz
 
+import apache_beam as beam
 from apache_beam import Create
 from apache_beam import DoFn
 from apache_beam import FlatMap
@@ -37,6 +41,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms.combiners import Count
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
 
 try:
   import pyarrow as pa
@@ -140,6 +145,42 @@ class ProducerFn(DoFn):
     i = self._number_index
     self._number_index = self._number_index + 1
     return i
+
+
+@unittest.skipIf(pa is None, "PyArrow is not installed.")
+class WriteStreamingIT(unittest.TestCase):
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    super().setUp()
+
+  def test_write_streaming_2_shards_default_shard_name_template(
+      self, num_shards=2):
+
+    args = self.test_pipeline.get_full_options_as_args(streaming=True)
+
+    unique_id = str(uuid.uuid4())
+    output_file = f'gs://apache-beam-testing-integration-testing/iobase/test-{unique_id}'  # pylint: disable=line-too-long
+    p = beam.Pipeline(argv=args)
+    pyschema = pa.schema([('age', pa.int64())])
+
+    _ = (
+        p
+        | "generate impulse" >> PeriodicImpulse(
+            start_timestamp=datetime(2021, 3, 1, 0, 0, 1, 0,
+                                     tzinfo=pytz.UTC).timestamp(),
+            stop_timestamp=datetime(2021, 3, 1, 0, 0, 20, 0,
+                                    tzinfo=pytz.UTC).timestamp(),
+            fire_interval=1)
+        | "generate data" >> beam.Map(lambda t: {'age': t * 10})
+        | 'WriteToParquet' >> beam.io.WriteToParquet(
+            file_path_prefix=output_file,
+            file_name_suffix=".parquet",
+            num_shards=num_shards,
+            triggering_frequency=60,
+            schema=pyschema))
+    result = p.run()
+    result.wait_until_finish(duration=600 * 1000)
 
 
 if __name__ == '__main__':

@@ -45,3 +45,25 @@ pipelines:
               - {label: "11a", rank: 0}
               - {label: "37a", rank: 1}
               - {label: "389a", rank: 2}
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromCsv
+          config:
+            path: "{TEMP_DIR}/out.csv*"
+            filename_column: "source_file"
+        - type: MapToFields
+          name: Check Filename
+          config:
+            language: python
+            fields:
+              label: label
+              rank: rank
+              filename_ok: source_file.startswith(f'{TEMP_DIR}/out.csv')
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: "11a", rank: 0, filename_ok: true}
+              - {label: "37a", rank: 1, filename_ok: true}
+              - {label: "389a", rank: 2, filename_ok: true}

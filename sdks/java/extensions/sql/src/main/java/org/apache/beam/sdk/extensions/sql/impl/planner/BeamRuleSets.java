@@ -42,12 +42,12 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamWindowRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CoreRules;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.PruneEmptyRules;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rules.CoreRules;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rules.PruneEmptyRules;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
@@ -72,6 +72,7 @@ public class BeamRuleSets {
 
           // push a filter into a join
           CoreRules.FILTER_INTO_JOIN,
+          CoreRules.FILTER_SUB_QUERY_TO_CORRELATE,
           // push filter into the children of a join
           CoreRules.JOIN_CONDITION_PUSH,
           // push filter through an aggregation

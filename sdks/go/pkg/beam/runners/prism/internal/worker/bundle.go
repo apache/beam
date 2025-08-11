@@ -40,8 +40,8 @@ type B struct {
 
 	// InputTransformID is where data is being sent to in the SDK.
 	InputTransformID       string
-	Input                  []*engine.Block // Data and Timers for this bundle.
-	EstimatedInputElements int
+	Input                  []*engine.Block        // Data and Timers for this bundle.
+	EstimatedInputElements int                    // Estimated number of Data elements for this bundle
 	HasTimers              []engine.StaticTimerID // Timer streams to terminate.
 
 	// IterableSideInputData is a map from transformID + inputID, to window, to data.
