@@ -23,9 +23,9 @@ pipeline:
     - type: ReadFromBigQuery
       name: ReadFromBigQuery
       config:
-        table: "apache-beam-testing.charlesnguyen.test"
+        table: "{{ BQ_TABLE }}"
         fields: [embedding]
-        row_restriction: 'id = 5'
+#        row_restriction: 'id = 5'
 
     - type: PyTransform
       name: AnomalyScoring
@@ -51,10 +51,42 @@ pipeline:
                   | beam.Map(lambda x: x.embedding)
                   | AnomalyDetection(detector=self.model)
                   | beam.Map(lambda x: beam.Row(
-                     example=x.example,
-                     predictions=[pred.__dict__ for pred in x.predictions]))
+                      example=x.example,
+                      predictions=[pred.__dict__ for pred in x.predictions]))
               )
 
-          model_artifact_path: "gs://apache-beam-testing-charlesng/batch-log-analysis/knn_model.pkl"
+          model_artifact_path: "{{ WAREHOUSE }}/knn_model.pkl"
 
-    - type: LogForTesting
+#    - type: LogForTesting
+
+    - type: MapToFields
+      name: ResultSchemaMapping
+      config:
+        language: python
+        fields:
+          anomaly_score:
+            callable: "lambda row: row.predictions[0]['score']"
+            output_type: number
+          anomaly_label:
+            callable: "lambda row: row.predictions[0]['label']"
+            output_type: integer
+          threshold:
+            callable: "lambda row: row.predictions[0]['threshold']"
+            output_type: number
+
+    - type: WriteToIceberg
+      name: WriteToIceberg
+      config:
+        table: "logs_analytics.hdfs_anomaly"
+        catalog_name: "rest_catalog"
+        catalog_properties:
+          warehouse: "{{ WAREHOUSE }}"
+          catalog-impl: "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog"
+          io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
+          gcp_project: "{{ PROJECT }}"
+          gcp_location: "{{ REGION }}"
+
+# Expected:
+#  Row(anomaly_score=0.65, anomaly_label=0, threshold=0.8)
+#  Row(anomaly_score=0.65, anomaly_label=0, threshold=0.8)
+#  Row(anomaly_score=0.65, anomaly_label=0, threshold=0.8)

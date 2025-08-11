@@ -367,8 +367,8 @@ def create_test_method(
 
   def _python_deps_involved(spec_filename):
     return any(
-        substr in spec_filename
-        for substr in ['deps', 'streaming_sentiment_analysis'])
+        substr in spec_filename for substr in
+        ['deps', 'streaming_sentiment_analysis', 'ml_preprocessing'])
 
   def _java_deps_involved(spec_filename):
     return any(
@@ -596,7 +596,10 @@ def _kafka_test_preprocessor(
     'test_oracle_to_bigquery_yaml',
     'test_mysql_to_bigquery_yaml',
     'test_spanner_to_bigquery_yaml',
-    'test_streaming_sentiment_analysis_yaml'
+    'test_streaming_sentiment_analysis_yaml',
+    'test_iceberg_migration_yaml',
+    'test_ml_preprocessing_yaml',
+    'test_anomaly_scoring_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
@@ -1063,15 +1066,113 @@ def _streaming_taxifare_prediction_test_preprocessor(
   return test_spec
 
 
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_iceberg_migration_yaml',
+    'test_ml_preprocessing_yaml',
+    'test_anomaly_scoring_yaml'
+])
+def _batch_log_analysis_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve the batch log analysis example.
+
+  This preprocessor replaces several IO transforms and the MLTransform.
+  This allows the test to verify the pipeline's correctness
+  without relying on external data sources or MLTransform's many dependencies.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromText transforms replaced.
+  """
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromCsv':
+        file_name = 'system-logs.csv'
+        local_path = env.input_file(file_name, INPUT_FILES[file_name])
+        transform['config']['path'] = local_path
+
+      elif transform.get('type', '') == 'ReadFromIceberg':
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if (k.startswith('__'))
+        }
+
+        transform['config']['elements'] = input_data.system_logs_data()
+
+      elif transform.get('type', '') == 'MLTransform':
+        transform['type'] = 'MapToFields'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if k.startswith('__')
+        }
+
+        transform['config']['language'] = 'python'
+        transform['config']['fields'] = {
+            'LineId': 'LineId',
+            'Date': 'Date',
+            'Time': 'Time',
+            'Level': 'Level',
+            'Process': 'Process',
+            'Component': 'Component',
+            'Content': 'Content',
+            'embedding': {
+                'callable': f"lambda row: {input_data.embedding_data()}",
+            }
+        }
+
+      elif transform.get('type', '') == 'ReadFromBigQuery':
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if (k.startswith('__'))
+        }
+
+        transform['config']['elements'] = (
+            input_data.system_logs_embedding_data())
+
+      elif transform.get('type', '') == 'PyTransform' and \
+          transform.get('name', '') == 'AnomalyScoring':
+        transform['type'] = 'MapToFields'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if k.startswith('__')
+        }
+
+        transform['config']['language'] = 'python'
+        transform['config']['fields'] = {
+            'example': 'embedding',
+            'predictions': {
+                'callable': """lambda row: [{
+                  'score': 0.65,
+                  'label': 0,
+                  'threshold': 0.8
+              }]""",
+            }
+        }
+
+  return test_spec
+
+
 INPUT_FILES = {
     'products.csv': input_data.products_csv(),
     'kinglear.txt': input_data.text_data(),
-    'youtube-comments.csv': input_data.youtube_comments_csv()
+    'youtube-comments.csv': input_data.youtube_comments_csv(),
+    'system-logs.csv': input_data.system_logs_csv()
 }
 
-KAFKA_TOPICS = {
-    'test-topic': input_data.kafka_messages_data(),
-}
+KAFKA_TOPICS = {'test-topic': input_data.kafka_messages_data()}
 
 PUBSUB_TOPICS = {
     'test-topic': input_data.pubsub_messages_data(),

@@ -22,7 +22,7 @@ pipeline:
     - type: ReadFromCsv
       name: ReadLogs
       config:
-        path: "gs://apache-beam-testing-charlesng/batch-log-analysis/Hadoop_2k.log_structured.csv"
+        path: "{{ WAREHOUSE }}/Hadoop_2k.log_structured.csv"
 
     - type: WriteToIceberg
       name: WriteToIceberg
@@ -30,8 +30,13 @@ pipeline:
         table: "logs_dataset.logs_hdfs"
         catalog_name: "rest_catalog"
         catalog_properties:
-          warehouse: "gs://apache-beam-testing-charlesng/batch-log-analysis"
+          warehouse: "{{ WAREHOUSE }}"
           catalog-impl: "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog"
           io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
-          gcp_project: "apache-beam-testing"
-          gcp_location: "us-central1"
+          gcp_project: "{{ PROJECT }}"
+          gcp_location: "{{ REGION }}"
+
+# Expected:
+#  Row(LineId=1, Date='2024-10-01', Time='12:00:00', Level='INFO', Process='Main', Component='ComponentA', Content='System started successfully')
+#  Row(LineId=2, Date='2024-10-01', Time='12:00:05', Level='WARN', Process='Main', Component='ComponentA', Content='Memory usage is high')
+#  Row(LineId=3, Date='2024-10-01', Time='12:00:10', Level='ERROR', Process='Main', Component='ComponentA', Content='Task failed due to timeout')

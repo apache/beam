@@ -1,4 +1,24 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
+"""An example that trains a KNN model on vector embeddings from BigQuery."""
+
+import argparse
+import logging
 import pickle
 
 from google.cloud import bigquery
@@ -6,32 +26,58 @@ import numpy as np
 from pyod.models.knn import KNN
 
 
-print("DEBUGGING LOGGING: \t Querying vector embeddings from BigQuery...")
-client = bigquery.Client()
+def parse_arguments():
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--bq_table',
+      required=True,
+      help='BigQuery dataset ID containing vector embeddings for training.')
 
-sql = """
+  return parser.parse_known_args()
+
+
+class ModelHelper():
+  def __init__(self):
+    args, _ = parse_arguments()
+    self.n_neighbors = 8
+    self.method = 'largest'
+    self.metric = 'euclidean'
+    self.contamination = 0.1
+    self.bq_table = args.bq_table
+    self.dataset = None
+
+  def load_data(self):
+    logging.info("Querying vector embeddings from BigQuery...")
+
+    client = bigquery.Client()
+    sql = f"""
       SELECT *
-      FROM `apache-beam-testing.charlesnguyen.test`
+      FROM `{self.bq_table}`
       """
+    df = client.query_and_wait(sql).to_dataframe()
+    self.dataset = np.stack(df['embedding'].to_numpy())
 
-df = client.query_and_wait(sql).to_dataframe()
-train_dataset = np.stack(df['embedding'].to_numpy())
+  def train_model(self):
+    logging.info("Training KNN model...")
 
-print(train_dataset, df.columns, train_dataset.shape)
-print("DEBUGGING LOGGING: \t Training KNN model...")
-my_knn = KNN(
-    n_neighbors=5,
-    method='largest',
-    metric='euclidean',
-    contamination=0.1,
-)
-my_knn.fit(train_dataset)
+    model = KNN(
+        n_neighbors=self.n_neighbors,
+        method=self.method,
+        metric=self.metric,
+        contamination=self.contamination,
+    )
+    model.fit(self.dataset)
 
-print("DEBUGGING LOGGING: \t KNN model trained successfully! Saving model...")
-knn_pickled_fn = './knn_model.pkl'
-with open(knn_pickled_fn, 'wb') as f:
-    pickle.dump(my_knn, f)
+    logging.info("KNN model trained successfully! Saving model...")
 
-print("DEBUGGING LOGGING: \t Making inferences..")
-inference = my_knn.decision_function(train_dataset)
-print(inference)
+    model_pickled_filename = 'knn_model.pkl'
+    with open(model_pickled_filename, 'wb') as f:
+      pickle.dump(model, f)
+
+
+if __name__ == "__main__":
+  logging.getLogger().setLevel(logging.INFO)
+
+  helper = ModelHelper()
+  helper.load_data()
+  helper.train_model()

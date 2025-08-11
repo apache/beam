@@ -25,37 +25,73 @@ pipeline:
         table: "logs_dataset.logs_hdfs"
         catalog_name: "rest_catalog"
         catalog_properties:
-          warehouse: "gs://apache-beam-testing-charlesng/batch-log-analysis"
+          warehouse: "{{ WAREHOUSE }}"
           catalog-impl: "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog"
           io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
-          gcp_project: "apache-beam-testing"
-          gcp_location: "us-central1"
+          gcp_project: "{{ PROJECT }}"
+          gcp_location: "{{ REGION }}"
 
     - type: MapToFields
       name: MapToFields
       config:
+        language: python
+        append: true
         fields:
-          id: LineId
-          log_message: Content
-          embedding: Content
+          embedding:
+            callable: |
+              def fn(row):
+                line = [row.Date, row.Time, row.Level, row.Process,
+                    row.Component, row.Content]
+                return " ".join(line)
 
     - type: MLTransform
       name: Embedding
       config:
-        write_artifact_location: "gs://apache-beam-testing-charlesng/batch-log-analysis/beam-ml-artifacts"
+        write_artifact_location: "./beam-ml-artifacts"
         transforms:
           - type: SentenceTransformerEmbeddings
             config: { model_name: all-MiniLM-L6-v2, columns: [ embedding ] }
 
     - type: MapToFields
-      name: Normalize
+      name: SchemaMapping
       config:
         language: python
         fields:
           id:
-            callable: "lambda row: row.id"
-          log_message:
-            callable: "lambda row: row.log_message"
+            callable: "lambda row: row.LineId"
+            output_type: integer
+          date:
+            callable: "lambda row: row.Date"
+            output_type: string
+          time:
+            callable: "lambda row: row.Time"
+            output_type: string
+          level:
+            callable: "lambda row: row.Level"
+            output_type: string
+          process:
+            callable: "lambda row: row.Process"
+            output_type: string
+          component:
+            callable: "lambda row: row.Component"
+            output_type: string
+          content:
+            callable: "lambda row: row.Content"
+            output_type: string
+          embedding:
+            callable: "lambda row: row.embedding"
+            output_type:
+              type: array
+              items:
+                type: number
+
+    - type: MapToFields
+      name: Normalize
+      config:
+        language: python
+        append: true
+        drop: [embedding]
+        fields:
           embedding:
             callable: |
               import numpy as np
@@ -63,20 +99,6 @@ pipeline:
                   embedding = row.embedding
                   norm = np.linalg.norm(embedding)
                   return embedding / norm
-
-    - type: MapToFields
-      name: MapToFieldsAfterEmbedding
-      config:
-        language: python
-        fields:
-          id:
-            expression: id
-            output_type: integer
-          log_message:
-            expression: log_message
-            output_type: string
-          embedding:
-            expression: embedding
             output_type:
               type: array
               items:
@@ -85,9 +107,14 @@ pipeline:
     - type: WriteToBigQuery
       name: WriteToBigQuery
       config:
-        table: "apache-beam-testing.charlesnguyen.test"
+        table: "{{ BQ_TABLE }}"
         write_disposition: "WRITE_TRUNCATE"
         create_disposition: "CREATE_IF_NEEDED"
 
 options:
   yaml_experimental_features: [ 'ML' ]
+
+# Expected:
+#  Row(id=1, date='2024-10-01', time='12:00:00', level='INFO', process='Main', component='ComponentA', content='System started successfully', embedding=array([0.13483997, 0.26967994, 0.40451992, 0.53935989, 0.67419986]))
+#  Row(id=2, date='2024-10-01', time='12:00:05', level='WARN', process='Main', component='ComponentA', content='Memory usage is high', embedding=array([0.13483997, 0.26967994, 0.40451992, 0.53935989, 0.67419986]))
+#  Row(id=3, date='2024-10-01', time='12:00:10', level='ERROR', process='Main', component='ComponentA', content='Task failed due to timeout', embedding=array([0.13483997, 0.26967994, 0.40451992, 0.53935989, 0.67419986]))
