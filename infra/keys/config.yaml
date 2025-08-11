@@ -19,7 +19,7 @@
 # GENERAL CONFIGURATION
 
 # The project ID where the secrets rotation service will run
-project_id: "testing-me-460223"
+project_id: "apache-beam-testing"
 
 # Secret service configuration
 
@@ -31,7 +31,7 @@ grace_period: 7
 # LOGGING
 
 # The secret rotation logs will be stored in a GCP bucket.
-bucket_name: "testing-me-460223-tfstate"
+bucket_name: "beam-terraform-infra-state"
 # The log file will be stored in the bucket with the following prefix
 log_file_prefix: "beam-secrets-rotation"
 # Logging level for the secrets rotation service
