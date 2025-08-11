@@ -23,9 +23,12 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.PrintWriter;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -44,7 +47,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.api.client.util.Sleeper;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 
@@ -80,7 +82,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   // shutdown.
   private static final Status OK_STATUS = Status.fromCode(Status.Code.OK);
   private static final String NEVER_RECEIVED_RESPONSE_LOG_STRING = "never received response";
-  private static final String NOT_SHUTDOWN = "not shutdown";
   protected final Sleeper sleeper;
 
   private final Logger logger;
@@ -119,6 +120,9 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   // Physical streams that have been half-closed and are waiting for responses or stream failure.
   @GuardedBy("this")
   protected final Set<PhysicalStreamHandler> closingPhysicalStreams;
+
+  private final Set<PhysicalStreamHandler> closingPhysicalStreamsForDebug =
+      Collections.newSetFromMap(new ConcurrentHashMap<PhysicalStreamHandler, Boolean>());
 
   // Generally the same as currentPhysicalStream, set under synchronization of this but can be read
   // without.
@@ -360,23 +364,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
    */
   public final void appendSummaryHtml(PrintWriter writer) {
     appendSpecificHtml(writer);
-
-    @Nullable PhysicalStreamHandler currentHandler = currentPhysicalStreamForDebug.get();
-    if (currentHandler != null) {
-      writer.format("Physical stream: ");
-      currentHandler.appendHtml(writer);
-      StreamDebugMetrics.Snapshot summaryMetrics =
-          currentHandler.streamDebugMetrics.getSummaryMetrics();
-      if (summaryMetrics.isClientClosed()) {
-        writer.write(" client closed");
-      }
-      writer.format(
-          " current stream is %dms old, last send %dms, last response %dms\n",
-          summaryMetrics.streamAge(),
-          summaryMetrics.timeSinceLastSend(),
-          summaryMetrics.timeSinceLastResponse());
-    }
-
     StreamDebugMetrics.Snapshot summaryMetrics = debugMetrics.getSummaryMetrics();
     summaryMetrics
         .restartMetrics()
@@ -399,13 +386,44 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
 
     writer.format(
-        ", current stream is %dms old, last send %dms, last response %dms, closed: %s, "
-            + "shutdown time: %s",
+        ", stream is %dms old, last send %dms, last response %dms",
         summaryMetrics.streamAge(),
         summaryMetrics.timeSinceLastSend(),
-        summaryMetrics.timeSinceLastResponse(),
-        requestObserver.isClosed(),
-        summaryMetrics.shutdownTime().map(DateTime::toString).orElse(NOT_SHUTDOWN));
+        summaryMetrics.timeSinceLastResponse());
+    if (requestObserver.isClosed()) {
+      writer.append(", observer closed");
+    }
+    summaryMetrics
+        .shutdownTime()
+        .ifPresent(dateTime -> writer.format(", shutdown at %s", dateTime));
+
+    @Nullable PhysicalStreamHandler currentHandler = currentPhysicalStreamForDebug.get();
+    if (currentHandler != null) {
+      writer.format("<br>current physical stream: ");
+      appendPhysicalStream(writer, currentHandler);
+    }
+
+    List<PhysicalStreamHandler> closingStreamsSnapshot =
+        new ArrayList<>(closingPhysicalStreamsForDebug);
+    for (int i = 0; i < closingStreamsSnapshot.size(); ++i) {
+      writer.format("<br>closing physical stream #%d: ", i);
+      appendPhysicalStream(writer, closingStreamsSnapshot.get(i));
+    }
+  }
+
+  private void appendPhysicalStream(
+      PrintWriter writer, PhysicalStreamHandler physicalStreamHandler) {
+    physicalStreamHandler.appendHtml(writer);
+    StreamDebugMetrics.Snapshot summaryMetrics =
+        physicalStreamHandler.streamDebugMetrics.getSummaryMetrics();
+    if (summaryMetrics.isClientClosed()) {
+      writer.write(" client closed");
+    }
+    writer.format(
+        " started %dms ago, last send %dms, last response %dms\n",
+        summaryMetrics.streamAge(),
+        summaryMetrics.timeSinceLastSend(),
+        summaryMetrics.timeSinceLastResponse());
   }
 
   /**
@@ -515,6 +533,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       }
       handler.streamDebugMetrics.recordHalfClose();
       closingPhysicalStreams.add(handler);
+      closingPhysicalStreamsForDebug.add(handler);
       clearCurrentPhysicalStream(false);
       try {
         requestObserver.onCompleted();
@@ -535,6 +554,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         clearCurrentPhysicalStream(true);
       } else {
         checkState(closingPhysicalStreams.remove(handler));
+        closingPhysicalStreamsForDebug.remove(handler);
       }
       boolean doneHandlerHadRequests = handler.hasPendingRequests();
       handler.onDone(status);

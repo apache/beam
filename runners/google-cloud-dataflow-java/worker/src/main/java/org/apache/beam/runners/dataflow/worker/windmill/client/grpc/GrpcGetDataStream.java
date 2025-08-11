@@ -419,7 +419,12 @@ final class GrpcGetDataStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    writer.format("GetDataStream: %d queued batches", batchesDebugSizeSupplier.get());
+    int batches = batchesDebugSizeSupplier.get();
+    if (batches > 0) {
+      writer.format("GetDataStream: %d queued batches ", batches);
+    } else {
+      writer.append("GetDataStream: no queued ");
+    }
   }
 
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn)

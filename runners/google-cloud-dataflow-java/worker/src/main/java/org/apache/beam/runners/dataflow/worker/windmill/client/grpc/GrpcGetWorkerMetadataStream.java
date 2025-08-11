@@ -165,7 +165,7 @@ public final class GrpcGetWorkerMetadataStream
   protected void appendSpecificHtml(PrintWriter writer) {
     synchronized (metadataLock) {
       writer.format(
-          "GetWorkerMetadataStream:  job_header=[%s], current_metadata=[%s]",
+          "GetWorkerMetadataStream:  job_header=[%s], current_metadata=[%s] ",
           workerMetadataRequest.getHeader(), latestResponse);
     }
   }

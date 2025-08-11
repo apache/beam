@@ -134,7 +134,7 @@ final class GrpcCommitWorkStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    writer.format("CommitWorkStream: %d pending", pending.size());
+    writer.format("CommitWorkStream: %d pending ", pending.size());
   }
 
   @Override
