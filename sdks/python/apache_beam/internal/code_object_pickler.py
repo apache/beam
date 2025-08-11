@@ -51,7 +51,8 @@ import inspect
 import re
 import sys
 import types
-from typing import Any, Callable
+from typing import Any
+from typing import Callable
 
 
 def get_normalized_path(path):
