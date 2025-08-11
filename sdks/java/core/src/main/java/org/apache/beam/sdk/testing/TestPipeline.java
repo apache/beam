@@ -101,9 +101,9 @@ import org.junit.runners.model.Statement;
  *  }
  * </code></pre>
  *
- * <h3>JUnit Usage</h3>
+ * <h3>JUnit5 Usage</h3>
  *
- * For JUnit tests, use {@link TestPipelineExtension} from the module <code>
+ * For JUnit5 tests, use {@link TestPipelineExtension} from the module <code>
  * sdks/java/testing/junit</code> (artifact <code>org.apache.beam:beam-sdks-java-testing-junit
  * </code>):
  *
