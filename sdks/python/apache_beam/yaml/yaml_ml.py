@@ -50,13 +50,7 @@ def _list_submodules(package):
 
 _transform_constructors = {}
 try:
-  from apache_beam.ml.transforms import tft
   from apache_beam.ml.transforms.base import MLTransform
-  _transform_constructors = tft.__dict__
-except ImportError:
-  tft = None  # type: ignore
-
-if tft:
   # Load all available ML Transform modules
   for module_name in _list_submodules(beam.ml.transforms):
     try:
@@ -68,6 +62,8 @@ if tft:
           'install the necessary module dependencies',
           module_name,
           e)
+except ImportError:
+  MLTransform = None  # type: ignore
 
 
 class ModelHandlerProvider:
@@ -507,14 +503,12 @@ def ml_transform(
     raise ValueError(
         'tensorflow-transform must be installed to use this MLTransform')
   options.YamlOptions.check_enabled(pcoll.pipeline, 'ML')
-  # TODO(robertwb): Perhaps _config_to_obj could be pushed into MLTransform
-  # itself for better cross-language support?
-  result = pcoll | MLTransform(
+  result_ml_transform = MLTransform(
       write_artifact_location=write_artifact_location,
       read_artifact_location=read_artifact_location,
       transforms=[_config_to_obj(t) for t in transforms] if transforms else [])
 
-  if transforms and any(t.get('type') == 'SentenceTransformerEmbeddings'
+  if transforms and any(t.get('type', '').endswith('Embeddings')
                         for t in transforms):
     from apache_beam.typehints import List
     try:
@@ -522,7 +516,7 @@ def ml_transform(
         new_fields = named_fields_from_element_type(pcoll.element_type)
         columns_to_change = set()
         for t_spec in transforms:
-          if t_spec.get('type') == 'SentenceTransformerEmbeddings':
+          if t_spec.get('type', '').endswith('Embeddings'):
             columns_to_change.update(
                 t_spec.get('config', {}).get('columns', []))
 
@@ -533,12 +527,12 @@ def ml_transform(
           else:
             final_fields.append((name, typ))
         output_schema = RowTypeConstraint.from_fields(final_fields)
-        return result | beam.Map(lambda x: x).with_output_types(output_schema)
+        return pcoll | result_ml_transform.with_output_types(output_schema)
     except TypeError:
       # If we can't get a schema, just return the result.
       pass
-  return result
+  return pcoll | result_ml_transform
 
 
-if tft is not None:
+if MLTransform is not None:
   ml_transform.__doc__ = MLTransform.__doc__
