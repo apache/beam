@@ -91,8 +91,6 @@ pipeline:
         language: python
         append: true
         drop: [embedding]
-        dependencies:
-          - 'numpy>=2.2.0,<2.3.0'
         fields:
           embedding:
             callable: |

@@ -1093,11 +1093,13 @@ def _batch_log_analysis_test_preprocessor(
 
   if pipeline := test_spec.get('pipeline', None):
     for transform in pipeline.get('transforms', []):
+      # Mock ReadFromCsv in iceberg_migration.yaml pipeline
       if transform.get('type', '') == 'ReadFromCsv':
         file_name = 'system-logs.csv'
         local_path = env.input_file(file_name, INPUT_FILES[file_name])
         transform['config']['path'] = local_path
 
+      # Mock ReadFromIceberg in ml_preprocessing.yaml pipeline
       elif transform.get('type', '') == 'ReadFromIceberg':
         transform['type'] = 'Create'
         transform['config'] = {
@@ -1108,6 +1110,7 @@ def _batch_log_analysis_test_preprocessor(
 
         transform['config']['elements'] = input_data.system_logs_data()
 
+      # Mock MLTransform in ml_preprocessing.yaml pipeline
       elif transform.get('type', '') == 'MLTransform':
         transform['type'] = 'MapToFields'
         transform['config'] = {
@@ -1130,6 +1133,12 @@ def _batch_log_analysis_test_preprocessor(
             }
         }
 
+      # Mock MapToFields in ml_preprocessing.yaml pipeline
+      elif transform.get('type', '') == 'MapToFields' and \
+          transform.get('name', '') == 'Normalize':
+        transform['config']['dependencies'] = ['numpy']
+
+      # Mock ReadFromBigQuery in anomaly_scoring.yaml pipeline
       elif transform.get('type', '') == 'ReadFromBigQuery':
         transform['type'] = 'Create'
         transform['config'] = {
@@ -1141,6 +1150,7 @@ def _batch_log_analysis_test_preprocessor(
         transform['config']['elements'] = (
             input_data.system_logs_embedding_data())
 
+      # Mock PyTransform in anomaly_scoring.yaml pipeline
       elif transform.get('type', '') == 'PyTransform' and \
           transform.get('name', '') == 'AnomalyScoring':
         transform['type'] = 'MapToFields'
