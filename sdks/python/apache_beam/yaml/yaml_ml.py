@@ -508,29 +508,29 @@ def ml_transform(
       read_artifact_location=read_artifact_location,
       transforms=[_config_to_obj(t) for t in transforms] if transforms else [])
 
-  if transforms and any(t.get('type', '').endswith('Embeddings')
-                        for t in transforms):
-    from apache_beam.typehints import List
-    try:
-      if pcoll.element_type:
-        new_fields = named_fields_from_element_type(pcoll.element_type)
-        columns_to_change = set()
-        for t_spec in transforms:
-          if t_spec.get('type', '').endswith('Embeddings'):
-            columns_to_change.update(
-                t_spec.get('config', {}).get('columns', []))
-
-        final_fields = []
-        for name, typ in new_fields:
-          if name in columns_to_change:
-            final_fields.append((name, List[float]))
-          else:
-            final_fields.append((name, typ))
-        output_schema = RowTypeConstraint.from_fields(final_fields)
-        return pcoll | result_ml_transform.with_output_types(output_schema)
-    except TypeError:
-      # If we can't get a schema, just return the result.
-      pass
+  if transforms:
+    embedding_transforms = [
+        t for t in transforms if t.get('type', '').endswith('Embeddings')
+    ]
+    if embedding_transforms:
+      from apache_beam.typehints import List
+      try:
+        if pcoll.element_type:
+          columns_to_change = {
+              col
+              for t_spec in embedding_transforms
+              for col in t_spec.get('config', {}).get('columns', [])
+          }
+          new_fields = named_fields_from_element_type(pcoll.element_type)
+          final_fields = [
+              (name, List[float] if name in columns_to_change else typ)
+              for name, typ in new_fields
+          ]
+          output_schema = RowTypeConstraint.from_fields(final_fields)
+          return pcoll | result_ml_transform.with_output_types(output_schema)
+      except TypeError:
+        # If we can't get a schema, just return the result.
+        pass
   return pcoll | result_ml_transform
 
 
