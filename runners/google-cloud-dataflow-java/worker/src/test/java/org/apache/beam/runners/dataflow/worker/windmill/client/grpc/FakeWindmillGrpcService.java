@@ -43,10 +43,7 @@ class FakeWindmillGrpcService
   }
 
   @SuppressWarnings("BusyWait")
-  public void failConnectionsAndWait(int failNextStreamConnections) throws InterruptedException {
-    synchronized (this) {
-      failedStreamConnectsRemaining = failNextStreamConnections;
-    }
+  public void waitForFailedConnectAttempts() throws InterruptedException {
     while (true) {
       Thread.sleep(2);
       synchronized (this) {
@@ -55,6 +52,10 @@ class FakeWindmillGrpcService
         }
       }
     }
+  }
+
+  public synchronized void setFailedStreamConnectsRemaining(int failedStreamConnectsRemaining) {
+    this.failedStreamConnectsRemaining = failedStreamConnectsRemaining;
   }
 
   public static class StreamInfo<RequestT, ResponseT> {

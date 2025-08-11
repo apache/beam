@@ -49,7 +49,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.TriggeredScheduledExecutorService;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
@@ -802,7 +807,8 @@ public class GrpcGetDataStreamTest {
     // A new stream should be created due to handover. However we configure the server to have
     // errors.
     assertTrue(triggeredExecutor.unblockNextFuture());
-    fakeService.failConnectionsAndWait(1);
+    fakeService.setFailedStreamConnectsRemaining(1);
+    fakeService.waitForFailedConnectAttempts();
     // Previous stream client should be half-closed.
     assertNull(streamInfo.onDone.get());
     // Complete first stream with an error. No new
@@ -1023,6 +1029,60 @@ public class GrpcGetDataStreamTest {
     streamInfo2.responseObserver.onCompleted();
     streamInfo3.responseObserver.onCompleted();
     assertTrue(getDataStream.awaitTermination(10, TimeUnit.SECONDS));
+  }
+
+  @Test
+  public void testRequestKeyedData_raceShutdownDuringTrySendBatch() throws Exception {
+    AtomicBoolean connectedOnce = new AtomicBoolean(false);
+    CountDownLatch failedConnects = new CountDownLatch(2);
+    GrpcGetDataStream getDataStream =
+        (GrpcGetDataStream)
+            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+                .setSendKeyedGetDataRequests(false)
+                .build()
+                .createGetDataStream(
+                    CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel)
+                        .withInterceptors(
+                            new ClientInterceptor() {
+                              @Override
+                              public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+                                  MethodDescriptor<ReqT, RespT> methodDescriptor,
+                                  CallOptions callOptions,
+                                  Channel channel) {
+                                if (connectedOnce.getAndSet(true)) {
+                                  failedConnects.countDown();
+                                  throw new RuntimeException("test error");
+                                }
+                                return channel.newCall(methodDescriptor, callOptions);
+                              }
+                            }));
+    getDataStream.start();
+    // Wait for the first stream to succeed and cause it to fail, the rest should fail.
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+    streamInfo.responseObserver.onError(new RuntimeException("fake error"));
+
+    failedConnects.await();
+
+    // Send while we're in this state.
+    // Create a request
+    Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
+    // The shutdown should work if it occurs either before or after the above request is sent.
+    Thread.sleep(100);
+    getDataStream.shutdown();
+
+    // The request should complete with an exception, it may or may not get there.
+    assertThrows(CompletionException.class, sendFuture::join);
+    assertTrue(sendFuture.isCompletedExceptionally());
   }
 
   private FakeWindmillGrpcService.GetDataStreamInfo waitForConnectionAndConsumeHeader() {
