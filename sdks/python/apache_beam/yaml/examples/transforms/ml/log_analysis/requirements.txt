@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
-numpy
+# Additional dependencies needed for the log analysis example.
+# These can be installed locally or submitted as part of Dataflow job.
 sentence-transformers~=5.0.0
 pyod~=2.0.5

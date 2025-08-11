@@ -91,16 +91,12 @@ pipeline:
         language: python
         append: true
         drop: [embedding]
+        dependencies:
+          - 'numpy>=2.2.0,<2.3.0'
         fields:
           embedding:
             callable: |
               import numpy as np
-              np.set_printoptions(
-                  precision=11,
-                  suppress=False,
-                  floatmode='fixed',
-                  linewidth=10_000
-              )
               
               def normalize(row):
                   embedding = row.embedding
@@ -122,6 +118,6 @@ options:
   yaml_experimental_features: [ 'ML' ]
 
 # Expected:
-#  Row(id=1, date='2024-10-01', time='12:00:00', level='INFO', process='Main', component='ComponentA', content='System started successfully', embedding=array([0.13483997249, 0.26967994499, 0.40451991748, 0.53935988997, 0.67419986246]))
-#  Row(id=2, date='2024-10-01', time='12:00:05', level='WARN', process='Main', component='ComponentA', content='Memory usage is high', embedding=array([0.13483997249, 0.26967994499, 0.40451991748, 0.53935988997, 0.67419986246]))
-#  Row(id=3, date='2024-10-01', time='12:00:10', level='ERROR', process='Main', component='ComponentA', content='Task failed due to timeout', embedding=array([0.13483997249, 0.26967994499, 0.40451991748, 0.53935988997, 0.67419986246]))
+#  Row(id=1, date='2024-10-01', time='12:00:00', level='INFO', process='Main', component='ComponentA', content='System started successfully', embedding=[0.13483997249264842, 0.26967994498529685, 0.40451991747794525, 0.5393598899705937, 0.674199862463242])
+#  Row(id=2, date='2024-10-01', time='12:00:05', level='WARN', process='Main', component='ComponentA', content='Memory usage is high', embedding=[0.13483997249264842, 0.26967994498529685, 0.40451991747794525, 0.5393598899705937, 0.674199862463242])
+#  Row(id=3, date='2024-10-01', time='12:00:10', level='ERROR', process='Main', component='ComponentA', content='Task failed due to timeout', embedding=[0.13483997249264842, 0.26967994498529685, 0.40451991747794525, 0.5393598899705937, 0.674199862463242])

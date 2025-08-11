@@ -19,9 +19,8 @@
 
 import argparse
 import logging
-import pickle
-
 import numpy as np
+import pickle
 from google.cloud import bigquery
 from pyod.models.knn import KNN
 
