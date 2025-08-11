@@ -262,8 +262,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           checkState(halfCloseFuture == null, "Unexpected half-close future");
           if (isShutdown) {
             // No need to start the stream. shutdown() or onPhysicalStreamCompletion will be
-            // responsible for completing
-            // shutdown.
+            // responsible for completing shutdown.
             return;
           }
           debugMetrics.recordStart();
@@ -465,7 +464,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   @Override
   public final Instant startTime() {
-    return new Instant(debugMetrics.getStartTimeMs());
+    return Instant.ofEpochMilli(debugMetrics.getStartTimeMs());
   }
 
   @Override
@@ -539,7 +538,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         requestObserver.onCompleted();
       } catch (Exception e) {
         logger.debug(
-            "Exception while half-closing handler, onPhysicalStreamCompletion will for the stream",
+            "Exception while half-closing handler, onPhysicalStreamCompletion will be called for the stream",
             e);
       }
     }

@@ -88,13 +88,13 @@ public class TriggeredScheduledExecutorService extends ThreadPoolExecutor
       this.delay = delay;
     }
 
-    public void triggerRun() {
+    void triggerRun() {
       TriggeredScheduledExecutorService.this.execute(
           () -> {
             try {
               r.run();
               delegateFuture.complete(null);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
               delegateFuture.completeExceptionally(e);
             }
           });

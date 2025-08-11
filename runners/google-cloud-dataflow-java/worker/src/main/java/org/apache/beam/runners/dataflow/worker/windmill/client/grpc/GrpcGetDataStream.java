@@ -423,7 +423,7 @@ final class GrpcGetDataStream
     if (batches > 0) {
       writer.format("GetDataStream: %d queued batches ", batches);
     } else {
-      writer.append("GetDataStream: no queued ");
+      writer.append("GetDataStream: no queued batches ");
     }
   }
 

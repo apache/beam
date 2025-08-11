@@ -362,8 +362,7 @@ public class GrpcGetDataStreamTest {
       throws InterruptedException, ExecutionException {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(60), triggeredExecutor);
+        createGetDataStreamWithPhysicalStreamHandover(Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
@@ -438,12 +437,11 @@ public class GrpcGetDataStreamTest {
   }
 
   @Test
-  public void testRequestKeyedData_multiplePhysicalStreams_OldStreamFails()
+  public void testRequestKeyedData_multiplePhysicalStreams_oldStreamFails()
       throws InterruptedException, ExecutionException {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(60), triggeredExecutor);
+        createGetDataStreamWithPhysicalStreamHandover(Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
@@ -525,8 +523,7 @@ public class GrpcGetDataStreamTest {
       throws InterruptedException, ExecutionException {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(60), triggeredExecutor);
+        createGetDataStreamWithPhysicalStreamHandover(Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
@@ -602,8 +599,7 @@ public class GrpcGetDataStreamTest {
       throws InterruptedException, ExecutionException {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(60), triggeredExecutor);
+        createGetDataStreamWithPhysicalStreamHandover(Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
@@ -683,8 +679,7 @@ public class GrpcGetDataStreamTest {
       throws InterruptedException, ExecutionException {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(60), triggeredExecutor);
+        createGetDataStreamWithPhysicalStreamHandover(Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // Request 1, Stream 1
@@ -781,12 +776,11 @@ public class GrpcGetDataStreamTest {
   }
 
   @Test
-  public void testRequestKeyedData_multiplePhysicalStreams_OldStreamFailsWhileNewStreamInBackoff()
+  public void testRequestKeyedData_multiplePhysicalStreams_oldStreamFailsWhileNewStreamInBackoff()
       throws InterruptedException, ExecutionException {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(60), triggeredExecutor);
+        createGetDataStreamWithPhysicalStreamHandover(Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
@@ -849,8 +843,7 @@ public class GrpcGetDataStreamTest {
       throws InterruptedException, ExecutionException {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(60), triggeredExecutor);
+        createGetDataStreamWithPhysicalStreamHandover(Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // Request 1, Stream 1
@@ -932,8 +925,7 @@ public class GrpcGetDataStreamTest {
       throws InterruptedException, ExecutionException {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(60), triggeredExecutor);
+        createGetDataStreamWithPhysicalStreamHandover(Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // Request 1, Stream 1

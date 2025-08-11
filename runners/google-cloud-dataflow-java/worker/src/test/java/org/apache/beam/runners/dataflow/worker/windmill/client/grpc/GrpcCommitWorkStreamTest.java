@@ -503,6 +503,8 @@ public class GrpcCommitWorkStreamTest {
 
   @Test
   public void testCommitWorkItem_multiplePhysicalStreams() throws Exception {
+    // A special executor that allows triggering scheduled futures (of which the handover is the
+    // only such future).
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
         createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
@@ -524,7 +526,8 @@ public class GrpcCommitWorkStreamTest {
             request.getCommitChunk(0).getSerializedWorkItemCommit());
     assertThat(parsedRequest).isEqualTo(workItemCommitRequest);
 
-    // Trigger a new stream to be created due to handover.
+    // Trigger a new stream to be created by forcing the scheduled halfCloseFuture scheduled within
+    // AbstractWindmillStream to run.
     assertTrue(triggeredExecutor.unblockNextFuture());
     FakeWindmillGrpcService.CommitStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
     fakeService.expectNoMoreStreams();
@@ -571,7 +574,7 @@ public class GrpcCommitWorkStreamTest {
   }
 
   @Test
-  public void testCommitWorkItem_multiplePhysicalStreams_OldStreamFails() throws Exception {
+  public void testCommitWorkItem_multiplePhysicalStreams_oldStreamFails() throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
         createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
@@ -881,7 +884,7 @@ public class GrpcCommitWorkStreamTest {
   }
 
   @Test
-  public void testCommitWorkItem_multiplePhysicalStreams_OldStreamFailsWhileNewStreamInBackoff()
+  public void testCommitWorkItem_multiplePhysicalStreams_oldStreamFailsWhileNewStreamInBackoff()
       throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
@@ -1129,17 +1132,6 @@ public class GrpcCommitWorkStreamTest {
 
     assertTrue(commitWorkStream.awaitTermination(10, TimeUnit.SECONDS));
   }
-
-  // XXX add handover tests needed such as:
-  // - simple physical half close and new stream starting
-  // - when half-closed background stream fails and retries need to occur on new stream
-  // - when active stream fails with a background stream, new stream needs to be created and should
-  // just get
-  //   requests from failed stream
-  // - creation of current stream is in backoff due to start failure and background stream fails,
-  //   make sure requests eventually retried
-  // - logical halfclose with background streams
-  // - shutdown with background streams
 
   private FakeWindmillGrpcService.CommitStreamInfo waitForConnectionAndConsumeHeader() {
     try {
