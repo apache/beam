@@ -25,7 +25,6 @@ pipeline:
       config:
         table: "{{ BQ_TABLE }}"
         fields: [embedding]
-#        row_restriction: 'id = 5'
 
     - type: PyTransform
       name: AnomalyScoring
@@ -56,8 +55,6 @@ pipeline:
               )
 
           model_artifact_path: "{{ WAREHOUSE }}/knn_model.pkl"
-
-#    - type: LogForTesting
 
     - type: MapToFields
       name: ResultSchemaMapping
