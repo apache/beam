@@ -75,7 +75,7 @@ The Beam project uses custom IAM roles to provide granular permissions for diffe
 The custom roles are structured in the following hierarchy:
 
 ```
-beam_viewer < beam_committer < beam_infra_manager < beam_admin
+beam_viewer < beam_writer < beam_infra_manager < beam_admin
 ```
 
 ### Available Roles
@@ -86,7 +86,7 @@ beam_viewer < beam_committer < beam_infra_manager < beam_admin
 - **Exclusions**: Secret management permissions, destructive actions
 - **Use case**: For team members who need to monitor and observe project resources
 
-#### beam_committer
+#### beam_writer
 - **Description**: User access to resources in the Beam project
 - **Permissions**: Inherits all `beam_viewer` permissions plus additional permissions for:
   - BigQuery data access and querying
@@ -99,7 +99,7 @@ beam_viewer < beam_committer < beam_infra_manager < beam_admin
 
 #### beam_infra_manager
 - **Description**: Editor access to the Beam project infrastructure
-- **Permissions**: Inherits all `beam_committer` permissions plus:
+- **Permissions**: Inherits all `beam_writer` permissions plus:
   - Cloud Build editor access
   - Service account token creation and usage
   - Storage object creation and viewing
@@ -143,8 +143,8 @@ The script applies the following hierarchical migration rules:
 
 - **Owner roles**: Left unchanged (highest privilege)
 - **Admin/Secret roles**: Migrated to `beam_admin` (includes all lower roles)
-- **Editor roles**: Migrated to `beam_infra_manager` (includes committer and viewer)
-- **User roles**: Migrated to `beam_committer` (includes viewer)
+- **Editor roles**: Migrated to `beam_infra_manager` (includes writer and viewer)
+- **User roles**: Migrated to `beam_writer` (includes viewer)
 - **Viewer roles**: Migrated to `beam_viewer`
 
 #### Using the Migration Script

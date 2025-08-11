@@ -65,8 +65,8 @@ roles:
       - roles/viewer
     except_suffixes:
       - destructive
-  - name: committer
-    description: "Committer role for Apache Beam in GCP, it has additional permissions for managing resources."
+  - name: writer
+    description: "Writer role for Apache Beam in GCP, it has additional permissions for managing resources."
     hierarchy: 1
     services:
       - cloudkms

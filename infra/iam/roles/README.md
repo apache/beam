@@ -37,14 +37,14 @@ The roles are defined in the `roles_config.yaml` file. Each role includes a name
 The defined roles are:
 
 - `beam_viewer`: Read-only access to the Beam project. Excludes secret management permissions.
-- `beam_commiter`: User access to the the resources in the Beam project.
+- `beam_writer`: User access to the the resources in the Beam project.
 - `beam_infra_manager`: Editor access to the Beam project, excluding destructive permissions.
 - `beam_admin`: Full access to the Beam project, including destructive capabilities and secret management.
 
 Roles are structured in a hierarchy, allowing for inheritance of permissions. Each role builds upon the previous one. The hierarchy is as follows:
 
 ```plaintext
-beam_viewer < beam_commiter < beam_infra_manager < beam_admin
+beam_viewer < beam_writer < beam_infra_manager < beam_admin
 ```
 
 ### Modifying Roles services
