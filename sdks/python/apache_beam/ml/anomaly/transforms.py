@@ -574,8 +574,8 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[Union[InputT,
 
       # Run an ensemble anomaly detector
       sub_detectors = [ZScore(features=["x1"]), IQR(features=["x2"])]
-      p | AnomalyDetection(
-          EnsembleAnomalyDetector(sub_detectors, aggregation_strategy=AnyVote()))
+      p | AnomalyDetection(EnsembleAnomalyDetector(
+          sub_detectors, aggregation_strategy=AnyVote()))
 
   Args:
     detector: The `AnomalyDetector` or `EnsembleAnomalyDetector` to use.
