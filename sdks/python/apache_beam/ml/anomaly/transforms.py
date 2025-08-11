@@ -569,13 +569,13 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[Union[InputT,
 
   Examples::
 
-    # Run a single anomaly detector
-    p | AnomalyDetection(ZScore(features=["x1"]))
+      # Run a single anomaly detector
+      p | AnomalyDetection(ZScore(features=["x1"]))
 
-    # Run an ensemble anomaly detector
-    sub_detectors = [ZScore(features=["x1"]), IQR(features=["x2"])]
-    p | AnomalyDetection(
-        EnsembleAnomalyDetector(sub_detectors, aggregation_strategy=AnyVote()))
+      # Run an ensemble anomaly detector
+      sub_detectors = [ZScore(features=["x1"]), IQR(features=["x2"])]
+      p | AnomalyDetection(
+          EnsembleAnomalyDetector(sub_detectors, aggregation_strategy=AnyVote()))
 
   Args:
     detector: The `AnomalyDetector` or `EnsembleAnomalyDetector` to use.
