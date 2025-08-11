@@ -19,7 +19,7 @@
 
 # Infrastructure rules enforcement
 
-This module is used to check that the infrastructure roles are being used. 
+This module is used to check that the infrastructure roles are being used.
 
 ## IAM Policies
 
@@ -34,7 +34,7 @@ You can specify the action either through the configuration file (`config.yml`) 
 # Check compliance and report issues (default)
 python iam.py --action check
 
-# Create GitHub issue if compliance violations are found  
+# Create GitHub issue if compliance violations are found
 python iam.py --action issue
 
 # Generate new compliance file based on current IAM policy
@@ -52,7 +52,7 @@ python iam.py --action generate
 The `config.yml` file supports the following parameters:
 
 - `project_id`: GCP project ID to check
-- `users_file`: Path to the YAML file containing expected IAM policies  
+- `users_file`: Path to the YAML file containing expected IAM policies
 - `action`: Default action to perform (`check`, `issue`, or `generate`)
 - `logging`: Logging configuration (level and format)
 

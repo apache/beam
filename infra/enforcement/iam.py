@@ -217,13 +217,7 @@ class IAMPolicyComplianceChecker:
 
     def create_github_issue(self) -> None:
         """
-        Creates a GitHub issue in the specified repository.
-
-        Args:
-            title: The title of the issue.
-            body: The body content of the issue.
-        Returns:
-            bool: True if the issue was created successfully, False otherwise.
+        Creates a GitHub issue if compliance issues are found.
         """
         diff = self.check_compliance()
 
