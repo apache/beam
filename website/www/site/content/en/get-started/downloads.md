@@ -88,9 +88,6 @@ the form `major.minor.patch` and are incremented as follows:
 * minor version for new functionality added in a backward-compatible manner, infrequent incompatible API changes
 * patch version for forward-compatible bug fixes
 
-Please note that APIs marked [`@Experimental`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/annotations/Experimental.html)
-may change at any point and are not guaranteed to remain compatible across versions.
-
 Additionally, any API may change before the first stable release, i.e., between
 versions denoted `0.x.y`.
 
