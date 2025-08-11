@@ -24,9 +24,9 @@ project_id: "apache-beam-testing"
 # Secret service configuration
 
 # Default secret rotation interval in days
-rotation_interval: 30
+rotation_interval: 7
 # Time the disabled secret versions will be kept before deletion
-grace_period: 7
+grace_period: 2
 
 # LOGGING
 
