@@ -298,8 +298,7 @@ class PythonProviderDepsTest(unittest.TestCase):
 class JoinUrlOrFilepathTest(unittest.TestCase):
   def test_join_url_relative_path(self):
     self.assertEqual(
-        yaml_provider._join_url_or_filepath(
-            'http://example.com/a', 'b/c.yaml'),
+        yaml_provider._join_url_or_filepath('http://example.com/a', 'b/c.yaml'),
         'http://example.com/b/c.yaml')
     self.assertEqual(
         yaml_provider._join_url_or_filepath(
@@ -321,13 +320,15 @@ class JoinUrlOrFilepathTest(unittest.TestCase):
 
   def test_join_filepath_relative_path(self):
     self.assertEqual(
-        yaml_provider._join_url_or_filepath('/a/b/', 'c/d.yaml'), '/a/b/c/d.yaml')
+        yaml_provider._join_url_or_filepath('/a/b/', 'c/d.yaml'),
+        '/a/b/c/d.yaml')
     self.assertEqual(
         yaml_provider._join_url_or_filepath('/a/b', 'c/d.yaml'), '/a/c/d.yaml')
 
   def test_absolute_path(self):
     self.assertEqual(
-        yaml_provider._join_url_or_filepath('gs://bucket/a', 'gs://bucket/b/c.yaml'),
+        yaml_provider._join_url_or_filepath(
+            'gs://bucket/a', 'gs://bucket/b/c.yaml'),
         'gs://bucket/b/c.yaml')
     self.assertEqual(
         yaml_provider._join_url_or_filepath('/a/b', '/c/d.yaml'), '/c/d.yaml')
