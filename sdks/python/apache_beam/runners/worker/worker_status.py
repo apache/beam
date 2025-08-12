@@ -255,35 +255,9 @@ class FnApiWorkerStatusHandler(object):
           if processor:
             info = processor.state_sampler.get_info()
             self._log_lull_sampler_info(info, instruction)
-            if self._element_processing_timeout_ns:
-              self._terminate_sdk_worker_lull(info, instruction)
-
-  def _terminate_sdk_worker_lull(self, sampler_info, instruction):
-    if (sampler_info and sampler_info.time_since_transition and
-        sampler_info.time_since_transition
-        > self._element_processing_timeout_ns):
-      lull_seconds = sampler_info.time_since_transition / 1e9
-      step_name = sampler_info.state_name.step_name
-      state_name = sampler_info.state_name.name
-      if step_name and state_name:
-        step_name_log = (
-            ' for PTransform{name=%s, state=%s}' % (step_name, state_name))
-      else:
-        step_name_log = ''
-
-      stack_trace = self._get_stack_trace(sampler_info)
-      log_lull_msg = (
-          'Operation ongoing in bundle %s%s for at least %.2f seconds'
-          ' without outputting or completing.\n'
-          'Current Traceback:\n%s.' %
-          (instruction, step_name_log, lull_seconds, stack_trace))
-      raise TimeoutError(log_lull_msg + 'The SDK harness will be terminated.')
 
   def _log_lull_sampler_info(self, sampler_info, instruction):
-    if not self._passed_lull_timeout_since_last_log():
-      return
-    if (sampler_info and sampler_info.time_since_transition and
-        sampler_info.time_since_transition > self.log_lull_timeout_ns):
+    if (sampler_info and sampler_info.time_since_transition):
       lull_seconds = sampler_info.time_since_transition / 1e9
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
@@ -294,17 +268,15 @@ class FnApiWorkerStatusHandler(object):
         step_name_log = ''
 
       stack_trace = self._get_stack_trace(sampler_info)
-
-      _LOGGER.warning(
-          (
-              'Operation ongoing in bundle %s%s for at least %.2f seconds'
-              ' without outputting or completing.\n'
-              'Current Traceback:\n%s'),
-          instruction,
-          step_name_log,
-          lull_seconds,
-          stack_trace,
-      )
+      error_msg = (
+          'Operation ongoing in bundle %s%s for at least %.2f seconds'
+          ' without outputting or completing.\n'
+          'Current Traceback:\n%s').format(
+          instruction, step_name_log, lull_seconds, stack_trace)
+      if (self._passed_lull_timeout_since_last_log and sampler_info.time_since_transition > self.log_lull_timeout_ns):
+        _LOGGER.warning(error_msg)
+      if (self._element_processing_timeout_ns and sampler_info.time_since_transition > self._element_processing_timeout_ns):
+        raise TimeoutError(error_msg + 'The SDK harness will be terminated.')
 
   def _get_stack_trace(self, sampler_info):
     exec_thread = getattr(sampler_info, 'tracked_thread', None)
