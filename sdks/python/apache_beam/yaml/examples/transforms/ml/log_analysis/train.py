@@ -15,14 +15,16 @@
 # limitations under the License.
 #
 
-"""An example that trains a KNN model on vector embeddings from BigQuery."""
+"""
+A script that trains a k-Nearest Neighbors (KNN) model on vector embeddings
+data queried from BigQuery.
+"""
 
 import argparse
 import logging
 import pickle
 
 import numpy as np
-
 from google.cloud import bigquery
 
 from pyod.models.knn import KNN

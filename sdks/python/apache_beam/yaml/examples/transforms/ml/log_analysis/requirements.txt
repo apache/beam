@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-# Additional dependencies needed for the log analysis example.
-# These can be installed locally or submitted as part of Dataflow job.
+# Additional dependencies needed for the pipelines in the log analysis
+# ML workflow.
+# These can be installed on local machine to run the pipelines with local
+# runner, or submitted as part of Dataflow job for the workers' execution
+# environment.
 sentence-transformers~=5.0.0
 pyod~=2.0.5

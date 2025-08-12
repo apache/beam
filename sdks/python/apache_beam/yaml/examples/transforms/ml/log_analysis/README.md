@@ -44,10 +44,10 @@ gcloud storage cp /path/to/Hadoop_2k.log_structured.csv \
   gs://YOUR_BUCKET/Hadoop_2k.log_structured.csv
 ```
 
-For Iceberg table, GCS is used as the storage layer. A natural choice for
-catalog with data lakehouse on GCS is [BigLake metastore](
-https://cloud.google.com/bigquery/docs/about-blms). It is a managed, serverless
-metastore that doesn't require any setup.
+For Iceberg tables, GCS is used as the storage layer. In a data lakehouse with
+Iceberg and GCS object storage, a natural choice for Iceberg catalog is
+[BigLake metastore](https://cloud.google.com/bigquery/docs/about-blms).
+It is a managed, serverless metastore that doesn't require any setup.
 
 A BigQuery dataset needs to exist first before the pipeline can
 create/write to a table. Run the following command to create
@@ -58,16 +58,16 @@ bq --location=YOUR_REGION mk \
   --dataset YOUR_DATASET
 ```
 
-The workflow starts with pipeline [iceberg_migration](./iceberg_migration.yaml)
+The workflow starts with pipeline [iceberg_migration.yaml](./iceberg_migration.yaml)
 that ingests the `.csv` log data and writes to an Iceberg table on GCS with
 BigLake metastore for catalog.
-The next pipeline [ml_preprocessing](
+The next pipeline [ml_preprocessing.yaml](
 ./ml_preprocessing.yaml) reads from this Iceberg table and perform ML-specific
 transformations such as computing text embedding and normalization, before
 writing the vector embeddings to a BigQuery table.
 An anomaly detection model is then trained (in [train.py](./train.py) script)
-on these vector embeddings, and the trained model is saved as artifact on GCS.
-The last pipeline [anomaly_scoring](./anomaly_scoring.yaml) reads the vector
+on these vector embeddings, and is subsequently saved as artifact on GCS.
+The last pipeline [anomaly_scoring.yaml](./anomaly_scoring.yaml) reads the vector
 embeddings from the BigQuery table, uses Beam's anomaly detection module to
 load the model artifact from GCS and perform anomaly scoring, before writing
 it to another Iceberg table.
@@ -91,7 +91,7 @@ Run the workflow on Dataflow:
    --region YOUR_REGION \
    --temp_location gs://YOUR-BUCKET/tmp \
    --num_workers 1 \
-   --worker_machine_type n1-standard-4 \
+   --worker_machine_type n1-standard-2 \
    --warehouse gs://YOUR-BUCKET \
    --bq_table YOUR_PROJECT.YOUR_DATASET.YOUR_TABLE
 ```

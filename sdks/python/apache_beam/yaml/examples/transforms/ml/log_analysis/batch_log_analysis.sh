@@ -19,17 +19,17 @@
 # With DirectRunner:
 # ./batch_log_analysis.sh --runner DirectRunner \
 #   --project YOUR_PROJECT \
-#   --region us-central1 \
+#   --region YOUR_REGION \
 #   --warehouse gs://YOUR-BUCKET \
 #   --bq_table YOUR_PROJECT.YOUR_DATASET.YOUR_TABLE
 
 # With DataflowRunner:
 # ./batch_log_analysis.sh --runner DataflowRunner \
 #   --project YOUR_PROJECT \
-#   --region us-central1 \
+#   --region YOUR_REGION \
 #   --temp_location gs://YOUR-BUCKET/temp \
 #   --num_workers 1 \
-#   --worker_machine_type n1-standard-4 \
+#   --worker_machine_type n1-standard-2 \
 #   --warehouse gs://YOUR-BUCKET \
 #   --bq_table YOUR_PROJECT.YOUR_DATASET.YOUR_TABLE
 
@@ -53,7 +53,8 @@ if [[ "$RUNNER" == "DataflowRunner" ]]; then
   DATAFLOW_COMMON_ARGS="--job_name batch-log-analysis-$(date +%Y%m%d-%H%M%S)
     --project $PROJECT --region $REGION
     --temp_location $TEMP_LOCATION
-    --num_workers $NUM_WORKERS --worker_machine_type $WORKER_MACHINE_TYPE"
+    --num_workers $NUM_WORKERS --worker_machine_type $WORKER_MACHINE_TYPE
+    --disk_size_gb 50"
 else
   DATAFLOW_COMMON_ARGS=""
 fi
@@ -62,19 +63,14 @@ echo "Running iceberg_migration.yaml pipeline..."
 python -m apache_beam.yaml.main --yaml_pipeline_file iceberg_migration.yaml \
   --runner $RUNNER \
   --jinja_variables '{ "WAREHOUSE":"'$WAREHOUSE'", "PROJECT":"'$PROJECT'", "REGION":"'$REGION'" }' \
-  $DATAFLOW_COMMON_ARGS \
-  --sdk_location container \
-  --sdk_harness_container_image_overrides '.*java.*,chrls/beam_java11_sdk:latest'
+  $DATAFLOW_COMMON_ARGS
 
 echo "Running ml_preprocessing.yaml pipeline..."
 python -m apache_beam.yaml.main --yaml_pipeline_file ml_preprocessing.yaml \
   --runner $RUNNER \
   --jinja_variables '{ "WAREHOUSE":"'$WAREHOUSE'", "PROJECT":"'$PROJECT'", "REGION":"'$REGION'", "BQ_TABLE":"'$BQ_TABLE'" }' \
   $DATAFLOW_COMMON_ARGS \
-  --requirements_file requirements.txt \
-  --sdk_location container \
-  --sdk_harness_container_image_overrides '.*java.*,chrls/beam_java11_sdk:latest' \
-  --sdk_harness_container_image_overrides '.*python.*,chrls/beam_python3.11_sdk:latest'
+  --requirements_file requirements.txt
 
 echo "Running train.py..."
 python train.py --bq_table $BQ_TABLE
@@ -85,11 +81,8 @@ gcloud storage cp "./knn_model.pkl" "$WAREHOUSE/knn_model.pkl"
 echo "Running anomaly_scoring.yaml pipeline..."
 python -m apache_beam.yaml.main --yaml_pipeline_file anomaly_scoring.yaml \
   --runner $RUNNER \
-  --jinja_variables '{ "WAREHOUSE":"'$WAREHOUSE'", "BQ_TABLE":"'$BQ_TABLE'" }' \
+  --jinja_variables '{ "WAREHOUSE":"'$WAREHOUSE'", "PROJECT":"'$PROJECT'", "REGION":"'$REGION'", "BQ_TABLE":"'$BQ_TABLE'" }' \
   $DATAFLOW_COMMON_ARGS \
-  --requirements_file requirements.txt \
-  --sdk_location container \
-  --sdk_harness_container_image_overrides '.*java.*,chrls/beam_java11_sdk:latest' \
-  --sdk_harness_container_image_overrides '.*python.*,chrls/beam_python3.11_sdk:latest'
+  --requirements_file requirements.txt
 
 echo "All steps completed."
