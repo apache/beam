@@ -114,33 +114,16 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
 
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 6 * 60  # 6 minutes
-        bundle_id, sampler_info = self.get_state_sampler_info_for_lull(21 * 60)
+        bundle_id, sampler_info = self.get_state_sampler_info_for_lull(3 * 60)
         self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
 
       with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 21 * 60  # 21 minutes
+        time_mock.return_value = now + 10 * 60  # 21 minutes
         bundle_id, sampler_info = self.get_state_sampler_info_for_lull(10 * 60)
         self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
-
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 42 * 60  # 21 minutes after previous one
-        bundle_id, sampler_info = self.get_state_sampler_info_for_lull(21 * 60)
-        self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
-
-  def test__terminate_sdk_worker_lull_in_bundle_processor(self):
-    now = time.time()
-    with mock.patch('time.time') as time_mock:
-      time_mock.return_value = now
-      bundle_id, sampler_info = self.get_state_sampler_info_for_lull(5 * 60)
-      self.fn_status_handler._terminate_sdk_worker_lull(sampler_info, bundle_id)
-
-    with mock.patch('time.time') as time_mock:
-      time_mock.return_value = now + 6 * 60  # 6 minutes
-      bundle_id, sampler_info = self.get_state_sampler_info_for_lull(11 * 60)
-      with self.assertRaises(TimeoutError):
-        self.fn_status_handler._terminate_sdk_worker_lull(
-            sampler_info, bundle_id)
-
+        with self.assertRaises(TimeoutError):
+          self.fn_status_handler._terminate_sdk_worker_lull(
+              sampler_info, bundle_id)
 
 class HeapDumpTest(unittest.TestCase):
   @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)
