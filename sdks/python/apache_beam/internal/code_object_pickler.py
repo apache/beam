@@ -110,7 +110,7 @@ def _extend_path(prefix: str, suffix: str):
 
 def _search(
     callable: types.FunctionType,
-    node: types.ModuleType | types.FunctionType | types.CodeType,
+    node: Union[types.ModuleType, types.FunctionType, types.CodeType],
     qual_name_parts: list[str]):
   """Searches an object to create a stable reference code path.
 
