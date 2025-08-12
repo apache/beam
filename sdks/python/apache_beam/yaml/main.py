@@ -100,6 +100,7 @@ def _parse_arguments(argv):
       help='A json dict of variables used when invoking the jinja preprocessor '
       'on the provided yaml pipeline.')
   parser.add_argument(
+      '--tests',
       '--test',
       action=argparse.BooleanOptionalAction,
       help='Run the tests associated with the given pipeline, rather than the '
@@ -290,7 +291,7 @@ def build_pipeline_components_from_yaml(
 if __name__ == '__main__':
   import logging
   logging.getLogger().setLevel(logging.INFO)
-  if '--test' in sys.argv:
+  if '--tests' in sys.argv or '--test' in sys.argv:
     run_tests()
   else:
     run()

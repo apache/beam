@@ -575,7 +575,7 @@ if __name__ == '__main__':
           'torch': ['torch>=1.9.0,<2.8.0'],
           'tensorflow': ['tensorflow>=2.12rc1,<2.17'],
           'transformers': [
-              'transformers>=4.28.0,<4.49.0',
+              'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
               'torch>=1.9.0'
           ],

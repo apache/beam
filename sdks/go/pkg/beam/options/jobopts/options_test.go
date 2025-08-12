@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
@@ -167,5 +168,20 @@ func TestGetExperiements(t *testing.T) {
 	*Experiments = "better,faster,stronger"
 	if got, want := GetExperiments(), []string{"better", "faster", "stronger"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("GetExperiments(\"\") = %v, want %v", got, want)
+	}
+}
+
+func TestGetElementProcessingTimeout(t *testing.T) {
+	*ElementProcessingTimeout = -1
+	if got, want := GetElementProcessingTimeout(), 0*time.Minute; got != want {
+		t.Errorf("getElementProcessingTimeout() = %v, want %v", got, want)
+	}
+	*ElementProcessingTimeout = 10 * time.Second
+	if got, want := GetElementProcessingTimeout(), 10*time.Second; got != want {
+		t.Errorf("getElementProcessingTimeout() = %v, want %v", got, want)
+	}
+	*ElementProcessingTimeout = 10 * time.Minute
+	if got, want := GetElementProcessingTimeout(), 10*time.Minute; got != want {
+		t.Errorf("getElementProcessingTimeout() = %v, want %v", got, want)
 	}
 }

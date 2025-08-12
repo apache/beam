@@ -180,7 +180,7 @@ public class ProcessBundleHandlerTest {
     MockitoAnnotations.initMocks(this);
     TestBundleProcessor.resetCnt = 0;
     executionStateSampler =
-        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
   }
 
   @After
