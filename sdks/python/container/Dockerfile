@@ -74,8 +74,8 @@ RUN  \
     # Update ensurepip to use most recent versions of setuptools and pip. This avoids some vulnerabilities which won't be fixed on older versions of python.
     pip install upgrade_ensurepip && \
     python3 -m upgrade_ensurepip && \
-    find /usr/local/lib/python3.10/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python3.10/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete && \
-    find /usr/local/lib/python3.10/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python3.10/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete && \
+    find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete && \
+    find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete && \
     pip uninstall upgrade_ensurepip -y && \
     python3 -m ensurepip && \
 
