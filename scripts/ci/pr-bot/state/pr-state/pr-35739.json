@@ -5,7 +5,7 @@
     "kafka": "fozzie15"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": false,
+  "stopReviewerNotifications": true,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
