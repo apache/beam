@@ -444,16 +444,35 @@ If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (
     --experiments=use_runner_v2,use_staged_dataflow_worker_jar
     ```
 
+#### SDK container image change
+
+If you have changed codes under `sdks/java/container`, you need to build a custom SDK container to make the change
+effective.
+
+```shell
+    ./gradlew :sdks:java:container:java11:docker # or java17, java21, etc
+    # change version number to the actual tag below
+    docker tag apache/beam_java8_sdk:2.68.0.dev \
+      "us-docker.pkg.dev/apache-beam-testing/beam-temp/beam_java11_sdk:2.68.0-custom"  # change to your artifact registry
+    docker push "us-docker.pkg.dev/apache-beam-testing/beam-temp/beam_java11_sdk:2.68.0-custom"
+```
+
+Then run the pipeline with the following options:
+```
+    --experiments=use_runner_v2 \
+    --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
+```
+
 #### Snapshot Version Containers
 
-By default, a Snapshot version for an SDK under development will use the containers published to the [apache-beam-testing project's container registry](https://us.gcr.io/apache-beam-testing/github-actions). For example, the most recent snapshot container for Java 17 can be found [here](https://us.gcr.io/apache-beam-testing/github-actions/beam_java17_sdk).
+By default, a Snapshot version for an SDK under development will use the containers published to the apache-beam-testing project's container registry (`https://gcr.io/apache-beam-testing/beam-sdk/...`). For example, the most recent snapshot container for Java 21 can be found [here](https://gcr.io/apache-beam-testing/beam-sdk/beam_java21_sdk).
 
 When a version is entering the [release candidate stage](https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md), one final SNAPSHOT version will be published.
 This SNAPSHOT version will use the final containers published on [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam).
 
 **NOTE:** During the release process, there may be some downtime where a container is not available for use for a SNAPSHOT version. To avoid this, it is recommended to either switch to the latest SNAPSHOT version available or to use [custom containers](https://beam.apache.org/documentation/runtime/environments/#custom-containers). You should also only rely on snapshot versions for important workloads if absolutely necessary.
 
-Certain runners may override this snapshot behavior; for example, the Dataflow runner overrides all SNAPSHOT containers into a [single registry](https://console.cloud.google.com/gcr/images/cloud-dataflow/GLOBAL/v1beta3). The same downtime will still be incurred, however, when switching to the final container
+Certain runners may override this snapshot behavior; for example, the Dataflow runner overrides all SNAPSHOT containers into a [single registry](gcr.io/cloud-dataflow/). The same downtime will still be incurred, however, when switching to the final container.
 
 ## Python development guide
 
