@@ -384,12 +384,13 @@ class ExternalJavaProvider(ExternalProvider):
     self._classpath = classpath
 
   def available(self):
-      # Directly use shutil.which to find the Java executable cross-platform
-      java_path = shutil.which(subprocess_server.JavaHelper.get_java())
-      if java_path:
-          return True
-      # Return error message when not found (or handle according to business logic)
-      return NotAvailableWithReason('Unable to locate java executable: java not found in PATH')
+    # Directly use shutil.which to find the Java executable cross-platform
+    java_path = shutil.which(subprocess_server.JavaHelper.get_java())
+    if java_path:
+      return True
+    # Return error message when not found
+    return NotAvailableWithReason(
+        'Unable to locate java executable: java not found in PATH or JAVA_HOME')
 
 
 
