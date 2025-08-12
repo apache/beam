@@ -392,8 +392,6 @@ class ExternalJavaProvider(ExternalProvider):
     return NotAvailableWithReason(
         'Unable to locate java executable: java not found in PATH or JAVA_HOME')
 
-
-
   def cache_artifacts(self):
     return [self._jar_provider()]
 
