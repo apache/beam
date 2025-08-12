@@ -51,8 +51,6 @@ import inspect
 import re
 import sys
 import types
-from typing import Any
-from typing import Callable
 
 
 def get_normalized_path(path):
@@ -60,7 +58,7 @@ def get_normalized_path(path):
   return path
 
 
-def get_code_path(callable: Callable):
+def get_code_path(callable: types.FunctionType):
   """Returns the stable reference to the code object.
 
   Will be implemented using cloudpickle in a future version.
@@ -110,7 +108,10 @@ def _extend_path(prefix: str, suffix: str):
   return prefix + '.' + suffix
 
 
-def _search(callable: Any, node: Any, qual_name_parts: list[str]):
+def _search(
+    callable: types.FunctionType,
+    node: types.ModuleType | types.FunctionType | types.CodeType,
+    qual_name_parts: list[str]):
   """Searches an object to create a stable reference code path.
 
   Recursively searches the tree of objects starting from node to find the
@@ -147,7 +148,9 @@ def _search(callable: Any, node: Any, qual_name_parts: list[str]):
 
 
 def _search_module_or_class(
-    callable: Callable, node: Any, qual_name_parts: list[str]):
+    callable: types.FunctionType,
+    node: types.ModuleType,
+    qual_name_parts: list[str]):
   """Searches a module or class to create a stable reference code path.
 
   Args:
@@ -254,7 +257,7 @@ def _search_code(
 
 
 def _search_lambda(
-    callable: Callable,
+    callable: types.FunctionType,
     code_objects_by_name: dict[str, list[types.CodeType]],
     qual_name_parts: list[str]):
   """Searches a lambda to create a stable reference code path.
