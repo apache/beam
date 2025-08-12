@@ -147,6 +147,8 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
     for i in range(self.retries):
       try:
         self.container = RedisContainer(image='redis:7.2.4')
+        # Add wait strategy and increase timeout for flaky startup
+        self.container = self.container.with_startup_timeout(120)  # 2 min
         self.container.start()
         self.host = self.container.get_container_host_ip()
         self.port = self.container.get_exposed_port(6379)
@@ -158,6 +160,8 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
               'Unable to start redis container for BigQuery '
               ' enrichment tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
   def tearDown(self) -> None:
     self.container.stop()
