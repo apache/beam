@@ -1531,12 +1531,15 @@ def _join_url_or_filepath(base, path):
     return path
   base_scheme = urllib.parse.urlparse(base, '').scheme
   path_scheme = urllib.parse.urlparse(path, base_scheme).scheme
-  if path_scheme != base_scheme:
+  if path_scheme != base_scheme or path.startswith(path_scheme + "://"):
+    # path has its own scheme or path is an absolute path
     return path
-  elif base_scheme and base_scheme in urllib.parse.uses_relative:
-    return urllib.parse.urljoin(base, path)
   else:
-    return FileSystems.join(FileSystems.split(base)[0], path)
+    # path is a relative path
+    if base_scheme and base_scheme in urllib.parse.uses_relative:
+      return urllib.parse.urljoin(base, path)
+    else:
+      return FileSystems.join(FileSystems.split(base)[0], path)
 
 
 def _read_url_or_filepath(path):
