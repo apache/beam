@@ -276,7 +276,7 @@ class FnApiWorkerStatusHandler(object):
       if (self._passed_lull_timeout_since_last_log and sampler_info.time_since_transition > self.log_lull_timeout_ns):
         _LOGGER.warning(error_msg)
       if (self._element_processing_timeout_ns and sampler_info.time_since_transition > self._element_processing_timeout_ns):
-        raise TimeoutError(error_msg + 'The SDK harness will be terminated.')
+        raise TimeoutError(error_msg)
 
   def _get_stack_trace(self, sampler_info):
     exec_thread = getattr(sampler_info, 'tracked_thread', None)
