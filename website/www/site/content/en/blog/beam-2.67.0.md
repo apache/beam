@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.67.0"
-date:   2025-08-?? 15:00:00 -0500
+date:   2025-08-12 15:00:00 -0500
 categories:
   - blog
   - release
@@ -21,15 +21,13 @@ limitations under the License.
 
 We are happy to present the new 2.67.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2670-2025-08-??) for this release.
+See the [download page](/get-started/downloads/#2670-2025-08-12) for this release.
 
 <!--more-->
 
 For more information on changes in 2.67.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/35?closed=1).
 
 ## Highlights
-
-* [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
 
 ### I/Os
 
@@ -41,7 +39,7 @@ For more information on changes in 2.67.0, check out the [detailed release notes
 ### New Features / Improvements
 
 * Added support for Processing time Timer in the Spark Classic runner ([#33633](https://github.com/apache/beam/issues/33633)).
-* Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/#35397)).
+* Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/35397)).
 * [IcebergIO] Create tables with a specified table properties ([#35496](https://github.com/apache/beam/pull/35496))
 * Add support for comma-separated options in Python SDK (Python) ([#35580](https://github.com/apache/beam/pull/35580)).
   Python SDK now supports comma-separated values for experiments and dataflow_service_options,
@@ -54,9 +52,8 @@ For more information on changes in 2.67.0, check out the [detailed release notes
 
 ### Breaking Changes
 
-* [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
-* Go: The pubsubio.Read transform now accepts ReadOptions as a value type instead of a pointer, and requires exactly one of Topic or Subscription to be set (they are mutually exclusive). Additionally, the ReadOptions struct now includes a Topic field for specifying the topic directly, replacing the previous topic parameter in the Read function signature ([#35369])(https://github.com/apache/beam/pull/35369).
-* SQL: The `ParquetTable` external table provider has changed its handling of the `LOCATION` property. To read from a directory, the path must now end with a trailing slash (e.g., `LOCATION '/path/to/data/'`). Previously, a trailing slash was not required. This change was made to enable support for glob patterns and single-file paths ([#35582])(https://github.com/apache/beam/pull/35582).
+* Go: The pubsubio.Read transform now accepts ReadOptions as a value type instead of a pointer, and requires exactly one of Topic or Subscription to be set (they are mutually exclusive). Additionally, the ReadOptions struct now includes a Topic field for specifying the topic directly, replacing the previous topic parameter in the Read function signature ([#35369](https://github.com/apache/beam/pull/35369)).
+* SQL: The `ParquetTable` external table provider has changed its handling of the `LOCATION` property. To read from a directory, the path must now end with a trailing slash (e.g., `LOCATION '/path/to/data/'`). Previously, a trailing slash was not required. This change was made to enable support for glob patterns and single-file paths ([#35582](https://github.com/apache/beam/pull/35582)).
 
 ### Bugfixes
 
@@ -71,6 +68,6 @@ For more information on changes in 2.67.0, check out the [detailed release notes
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the 2.66.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.67.0 release. Thank you to all contributors!
 
 Aditya Shukla, Ahmed Abualsaud, Arun Pandian, Boris Li, Chamikara Jayalath, Charles Nguyen, Chenzo, Danny McCormick, David Adeniji, Derrick Williams, Dmytro Tsyliuryk, Dustin Rhodes, Enrique Calderon, Gottipati Gautam, Hai Joey Tran, Hunor Portik, Jack McCluskey, Kenneth Knowles, Khorbaladze A., Marcio Sugar, Minh Son Nguyen, Mohamed Awnallah, Nathaniel Young, Nhon Dinh, Quentin Sommer, Rafael Raposo, Rakesh Kumar, Razvan Culea, Reuven Lax, Robert Bradshaw, Sam Whittle, Shunping Huang, Steven van Rossum, Talat UYARER, Tanu Sharma, Tarun Annapareddy, Tobi Kaymak, Tobias Kaymak, Valentyn Tymofieiev, Veronica Wasson, Vitaly Terentyev, XQ Hu, Yi Hu, akashorabek, arnavarora2004, changliiu, claudevdm, fozzie15, mvhensbergen, twosom
