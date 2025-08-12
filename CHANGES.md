@@ -48,7 +48,6 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) Fixed YAML provider fails on Windows due to 'which' command not available ([#35617](https://github.com/apache/beam/issues/35617)).
 
 ## Security Fixes
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
@@ -90,7 +89,8 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
+* (Python) Fixed Java YAML provider fails on Windows ([#35617](https://github.com/apache/beam/issues/35617)).
+* 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
