@@ -105,8 +105,6 @@
 
 ## Highlights
 
-
-
 ## I/Os
 
 * Debezium IO upgraded to 3.1.1 requires Java 17 (Java) ([#34747](https://github.com/apache/beam/issues/34747)).
@@ -121,7 +119,7 @@
 ## New Features / Improvements
 
 * Added support for Processing time Timer in the Spark Classic runner ([#33633](https://github.com/apache/beam/issues/33633)).
-* Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/#35397)).
+* Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/35397)).
 * [IcebergIO] Create tables with a specified table properties ([#35496](https://github.com/apache/beam/pull/35496))
 * Add support for comma-separated options in Python SDK (Python) ([#35580](https://github.com/apache/beam/pull/35580)).
   Python SDK now supports comma-separated values for experiments and dataflow_service_options,
