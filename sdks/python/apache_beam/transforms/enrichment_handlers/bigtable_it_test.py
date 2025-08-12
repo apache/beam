@@ -168,15 +168,13 @@ class TestBigTableEnrichment(unittest.TestCase):
     instance = client.instance(self.instance_id)
     self.table = instance.table(self.table_id)
     create_rows(self.table)
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
     for i in range(self.retries):
       try:
         self.container = RedisContainer(image='redis:7.2.4')
-        # Add wait strategy and increase timeout for flaky startup
-        self.container = self.container.with_startup_timeout(120)  # 2 min
         self.container.start()
         self.host = self.container.get_container_host_ip()
         self.port = self.container.get_exposed_port(6379)
