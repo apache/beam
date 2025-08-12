@@ -295,6 +295,56 @@ class PythonProviderDepsTest(unittest.TestCase):
       self.assertNotEqual(before, after)
 
 
+class JoinUrlOrFilepathTest(unittest.TestCase):
+  def test_join_url_relative_path(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath(
+            'http://example.com/a', 'b/c.yaml'),
+        'http://example.com/b/c.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath(
+            'http://example.com/a/', 'b/c.yaml'),
+        'http://example.com/a/b/c.yaml')
+
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('gs://bucket', 'b/c.yaml'),
+        'gs://bucket/b/c.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('gs://bucket/', 'b/c.yaml'),
+        'gs://bucket/b/c.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('gs://bucket/a', 'b/c.yaml'),
+        'gs://bucket/b/c.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('gs://bucket/a/', 'b/c.yaml'),
+        'gs://bucket/a/b/c.yaml')
+
+  def test_join_filepath_relative_path(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('/a/b/', 'c/d.yaml'), '/a/b/c/d.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('/a/b', 'c/d.yaml'), '/a/c/d.yaml')
+
+  def test_absolute_path(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('gs://bucket/a', 'gs://bucket/b/c.yaml'),
+        'gs://bucket/b/c.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('/a/b', '/c/d.yaml'), '/c/d.yaml')
+
+  def test_different_scheme(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath(
+            'http://example.com/a', 'gs://bucket/b/c.yaml'),
+        'gs://bucket/b/c.yaml')
+
+  def test_empty_base(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('', 'a/b.yaml'), 'a/b.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath(None, 'a/b.yaml'), 'a/b.yaml')
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

@@ -1539,6 +1539,9 @@ def _join_url_or_filepath(base, path):
     if base_scheme and base_scheme in urllib.parse.uses_relative:
       return urllib.parse.urljoin(base, path)
     else:
+      if FileSystems.join(base, "") == base:
+        # base ends with a filesystem separator
+        return FileSystems.join(base, path)
       return FileSystems.join(FileSystems.split(base)[0], path)
 
 
