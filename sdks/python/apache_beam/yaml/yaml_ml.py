@@ -39,7 +39,7 @@ def _list_submodules(package):
   Lists all submodules within a given package.
   """
   submodules = []
-  skip_modules = ['base', 'handlers', 'test', 'tft', 'utils']
+  skip_modules = ['base', 'handlers', 'test', 'utils']
   for _, module_name, _ in pkgutil.walk_packages(
       package.__path__, package.__name__ + '.'):
     if any(skip_name in module_name for skip_name in skip_modules):
@@ -499,9 +499,10 @@ def ml_transform(
     write_artifact_location: Optional[str] = None,
     read_artifact_location: Optional[str] = None,
     transforms: Optional[list[Any]] = None):
-  if tft is None:
+  if MLTransform is None:
     raise ValueError(
-        'tensorflow-transform must be installed to use this MLTransform')
+        'No MLTransform found. Please install tensorflow-transform or '
+        'sentence-transformers to use this transform.')
   options.YamlOptions.check_enabled(pcoll.pipeline, 'ML')
   result_ml_transform = MLTransform(
       write_artifact_location=write_artifact_location,
