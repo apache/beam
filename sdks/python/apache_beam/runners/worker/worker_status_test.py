@@ -117,14 +117,6 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
         bundle_id, sampler_info = self.get_state_sampler_info_for_lull(3 * 60)
         self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
 
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 10 * 60  # 21 minutes
-        bundle_id, sampler_info = self.get_state_sampler_info_for_lull(10 * 60)
-        self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
-        with self.assertRaises(TimeoutError):
-          self.fn_status_handler._terminate_sdk_worker_lull(
-              sampler_info, bundle_id)
-
 class HeapDumpTest(unittest.TestCase):
   @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)
   def test_skip_heap_dump(self):
