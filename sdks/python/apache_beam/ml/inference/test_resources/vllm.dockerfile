@@ -15,33 +15,54 @@
 # limitations under the License.
 
 # Used for any vLLM integration test
+# Dockerfile — Beam dev harness + install dev SDK from LOCAL source package
 
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
-RUN apt update
-RUN apt install software-properties-common -y
-RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt update
+# 1) Non-interactive + timezone
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC
 
-ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      curl \
+      tzdata \
+      software-properties-common \
+      python3.10-full \
+      python3.10-distutils \
+      build-essential \
+      python3.10-dev \
+      cython3 && \
+    ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
+    dpkg-reconfigure --frontend noninteractive tzdata && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN apt install python3.12 -y
-RUN apt install python3.12-venv -y
-RUN apt install python3.12-dev -y
-RUN rm /usr/bin/python3
-RUN ln -s python3.12 /usr/bin/python3
-RUN python3 --version
-RUN apt-get install -y curl
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && pip install --upgrade pip
+# 2) Symlink python3 to 3.10
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.10 /usr/bin/python
 
-RUN pip install --no-cache-dir -vvv apache-beam[gcp]==2.58.1
-RUN pip install openai vllm
+# 3) Install pip, setuptools & wheel
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3 && \
+    python3 -m pip install --upgrade pip setuptools wheel
 
-RUN apt install libcairo2-dev pkg-config python3-dev -y
-RUN pip install pycairo
+# 4) Copy the Beam SDK harness (for Dataflow workers)
+COPY --from=gcr.io/apache-beam-testing/beam-sdk/beam_python3.10_sdk:2.68.0.dev \
+     /opt/apache/beam /opt/apache/beam
 
-# Copy the Apache Beam worker dependencies from the Beam Python 3.12 SDK image.
-COPY --from=apache/beam_python3.12_sdk:2.58.1 /opt/apache/beam /opt/apache/beam
+# 5) Make sure the harness is discovered first
+ENV PYTHONPATH=/opt/apache/beam:$PYTHONPATH
 
-# Set the entrypoint to Apache Beam SDK worker launcher.
-ENTRYPOINT [ "/opt/apache/beam/boot" ]
+# 6) Install the Beam dev SDK from the local source package.
+# This .tar.gz file will be created by GitHub Actions workflow
+# and copied into the build context.
+COPY ./sdks/python/build/apache-beam.tar.gz /tmp/beam.tar.gz
+RUN python3 -m pip install --no-cache-dir "/tmp/beam.tar.gz[gcp]"
+
+# 7) Install vLLM, and other dependencies
+RUN python3 -m pip install --no-cache-dir \
+      openai>=1.52.2 \
+      vllm>=0.6.3 \
+      triton>=3.1.0
+
+# 8) Use the Beam boot script as entrypoint
+ENTRYPOINT ["/opt/apache/beam/boot"]
