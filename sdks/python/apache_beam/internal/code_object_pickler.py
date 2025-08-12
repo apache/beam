@@ -51,6 +51,7 @@ import inspect
 import re
 import sys
 import types
+from typing import Union
 
 
 def get_normalized_path(path):
