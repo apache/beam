@@ -74,6 +74,7 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * BigtableRead Connector for BeamYaml added with new Config Param ([#35696](https://github.com/apache/beam/pull/35696))
+* [Qdrant](https://qdrant.tech/) vector search enrichment handler (Python) ([#35216](https://github.com/apache/beam/pull/35686)).
 
 ## Breaking Changes
 
