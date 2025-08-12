@@ -1,4 +1,60 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 08 Jul 2025 00:00:00 +0000</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Our Experience at Beam College 2025: 1st Place Hackathon Winners</title><link>/blog/beam-summit-2025-hackathon-pcollectors-blog/</link><pubDate>Tue, 08 Jul 2025 00:00:00 +0000</pubDate><guid>/blog/beam-summit-2025-hackathon-pcollectors-blog/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 12 Aug 2025 15:00:00 -0500</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.67.0</title><link>/blog/beam-2.67.0/</link><pubDate>Tue, 12 Aug 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.67.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.67.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2670-2025-08-12">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.67.0, check out the &lt;a href="https://github.com/apache/beam/milestone/35?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Debezium IO upgraded to 3.1.1 requires Java 17 (Java) (&lt;a href="https://github.com/apache/beam/issues/34747">#34747&lt;/a>).&lt;/li>
+&lt;li>Add support for streaming writes in IOBase (Python)&lt;/li>
+&lt;li>Implement support for streaming writes in FileBasedSink (Python)&lt;/li>
+&lt;li>Expose support for streaming writes in TextIO (Python)&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Added support for Processing time Timer in the Spark Classic runner (&lt;a href="https://github.com/apache/beam/issues/33633">#33633&lt;/a>).&lt;/li>
+&lt;li>Add pip-based install support for JupyterLab Sidepanel extension (&lt;a href="https://github.com/apache/beam/issues/35397">#35397&lt;/a>).&lt;/li>
+&lt;li>[IcebergIO] Create tables with a specified table properties (&lt;a href="https://github.com/apache/beam/pull/35496">#35496&lt;/a>)&lt;/li>
+&lt;li>Add support for comma-separated options in Python SDK (Python) (&lt;a href="https://github.com/apache/beam/pull/35580">#35580&lt;/a>).
+Python SDK now supports comma-separated values for experiments and dataflow_service_options,
+matching Java SDK behavior while maintaining backward compatibility.&lt;/li>
+&lt;li>Milvus enrichment handler added (Python) (&lt;a href="https://github.com/apache/beam/pull/35216">#35216&lt;/a>).
+Beam now supports Milvus enrichment handler capabilities for vector, keyword,
+and hybrid search operations.&lt;/li>
+&lt;li>[Beam SQL] Add support for DATABASEs, with an implementation for Iceberg (&lt;a href="https://github.com/apache/beam/issues/35637">#35637&lt;/a>)&lt;/li>
+&lt;li>Respect BatchSize and MaxBufferingDuration when using &lt;code>JdbcIO.WriteWithResults&lt;/code>. Previously, these settings were ignored (&lt;a href="https://github.com/apache/beam/pull/35669">#35669&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>Go: The pubsubio.Read transform now accepts ReadOptions as a value type instead of a pointer, and requires exactly one of Topic or Subscription to be set (they are mutually exclusive). Additionally, the ReadOptions struct now includes a Topic field for specifying the topic directly, replacing the previous topic parameter in the Read function signature (&lt;a href="https://github.com/apache/beam/pull/35369">#35369&lt;/a>).&lt;/li>
+&lt;li>SQL: The &lt;code>ParquetTable&lt;/code> external table provider has changed its handling of the &lt;code>LOCATION&lt;/code> property. To read from a directory, the path must now end with a trailing slash (e.g., &lt;code>LOCATION '/path/to/data/'&lt;/code>). Previously, a trailing slash was not required. This change was made to enable support for glob patterns and single-file paths (&lt;a href="https://github.com/apache/beam/pull/35582">#35582&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>[YAML] Fixed handling of missing optional fields in JSON parsing (&lt;a href="https://github.com/apache/beam/issues/35179">#35179&lt;/a>).&lt;/li>
+&lt;li>[Python] Fix WriteToBigQuery transform using CopyJob does not work with WRITE_TRUNCATE write disposition (&lt;a href="https://github.com/apache/beam/issues/34247">#34247&lt;/a>)&lt;/li>
+&lt;li>[Python] Fixed dicomio tags mismatch in integration tests (&lt;a href="https://github.com/apache/beam/issues/30760">#30760&lt;/a>).&lt;/li>
+&lt;li>[Java] Fixed spammy logging issues that affected versions 2.64.0 to 2.66.0.&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>(&lt;a href="https://github.com/apache/beam/issues/35666">#35666&lt;/a>). YAML Flatten incorrectly drops fields when input PCollections&amp;rsquo; schema are different. This issue exists for all versions since 2.52.0.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.67.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Aditya Shukla, Ahmed Abualsaud, Arun Pandian, Boris Li, Chamikara Jayalath, Charles Nguyen, Chenzo, Danny McCormick, David Adeniji, Derrick Williams, Dmytro Tsyliuryk, Dustin Rhodes, Enrique Calderon, Gottipati Gautam, Hai Joey Tran, Hunor Portik, Jack McCluskey, Kenneth Knowles, Khorbaladze A., Marcio Sugar, Minh Son Nguyen, Mohamed Awnallah, Nathaniel Young, Nhon Dinh, Quentin Sommer, Rafael Raposo, Rakesh Kumar, Razvan Culea, Reuven Lax, Robert Bradshaw, Sam Whittle, Shunping Huang, Steven van Rossum, Talat UYARER, Tanu Sharma, Tarun Annapareddy, Tobi Kaymak, Tobias Kaymak, Valentyn Tymofieiev, Veronica Wasson, Vitaly Terentyev, XQ Hu, Yi Hu, akashorabek, arnavarora2004, changliiu, claudevdm, fozzie15, mvhensbergen, twosom&lt;/p></description></item><item><title>Blog: Our Experience at Beam College 2025: 1st Place Hackathon Winners</title><link>/blog/beam-summit-2025-hackathon-pcollectors-blog/</link><pubDate>Tue, 08 Jul 2025 00:00:00 +0000</pubDate><guid>/blog/beam-summit-2025-hackathon-pcollectors-blog/</guid><description>
 &lt;!--
 Licensed to the Apache Software Foundation (ASF) under one or more
 contributor license agreements. See the NOTICE file distributed with
@@ -6324,588 +6380,4 @@ rvballada,
 sachinag,
 tvalentyn,
 vachan-shetty,
-yirutang&lt;/p></description></item><item><title>Blog: Running Beam SQL in notebooks</title><link>/blog/beam-sql-with-notebooks/</link><pubDate>Thu, 28 Apr 2022 00:00:01 -0800</pubDate><guid>/blog/beam-sql-with-notebooks/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h2 id="intro">Intro&lt;/h2>
-&lt;p>&lt;a href="/documentation/dsls/sql/overview/">Beam SQL&lt;/a> allows a
-Beam user to query PCollections with SQL statements.
-&lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/runners/interactive#interactive-beam">Interactive Beam&lt;/a>
-provides an integration between Apache Beam and
-&lt;a href="https://docs.jupyter.org/en/latest/">Jupyter Notebooks&lt;/a> (formerly known as
-IPython Notebooks) to make pipeline prototyping and data exploration much faster
-and easier.
-You can set up your own notebook user interface (for example,
-&lt;a href="https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html">JupyterLab&lt;/a>
-or classic &lt;a href="https://docs.jupyter.org/en/latest/install.html">Jupyter Notebooks&lt;/a>)
-on your own device following their documentations. Alternatively, you can
-choose a hosted solution that does everything for you. You are free to select
-whichever notebook user interface you prefer. For simplicity, this
-post does not go through the notebook environment setup and uses
-&lt;a href="https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development">Apache Beam Notebooks&lt;/a>
-that provides a cloud-hosted
-&lt;a href="https://jupyterlab.readthedocs.io/en/stable/">JupyterLab&lt;/a> environment and lets
-a Beam user iteratively develop pipelines, inspect pipeline graphs, and parse
-individual PCollections in a read-eval-print-loop (REPL) workflow.&lt;/p>
-&lt;p>In this post, you will see how to use &lt;code>beam_sql&lt;/code>, a notebook
-&lt;a href="https://ipython.readthedocs.io/en/stable/interactive/magics.html">magic&lt;/a>, to
-execute Beam SQL in notebooks and inspect the results.&lt;/p>
-&lt;p>By the end of the post, it also demonstrates how to use the &lt;code>beam_sql&lt;/code> magic
-with a production environment, such as running it as a one-shot job on
-Dataflow. It&amp;rsquo;s optional. To follow those steps, you should have a project in
-Google Cloud Platform with
-&lt;a href="https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#before_you_begin">necessary APIs enabled&lt;/a>
-, and you should have enough permissions to create a Google Cloud Storage bucket
-(or to use an existing one), query a public Google Cloud BigQuery dataset, and
-run Dataflow jobs.&lt;/p>
-&lt;p>If you choose to use the cloud hosted notebook solution, once you have your
-Google Cloud project ready, you will need to create an Apache Beam Notebooks
-instance and open the JupyterLab web interface. Please follow the instructions
-given at:
-&lt;a href="https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#launching_an_notebooks_instance">https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#launching_an_notebooks_instance&lt;/a>&lt;/p>
-&lt;h2 id="getting-familiar-with-the-environment">Getting familiar with the environment&lt;/h2>
-&lt;h3 id="landing-page">Landing page&lt;/h3>
-&lt;p>After starting your own notebook user interface: for example, if using Apche
-Beam Notebooks, after clicking the &lt;code>OPEN JUPYTERLAB&lt;/code> link, you will land on
-the default launcher page of the notebook environment.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image1.png"
-alt="Beam SQL in Notebooks: landing page">&lt;/p>
-&lt;p>On the left side, there is a file explorer to view examples, tutorials and
-assets on the notebook instance. To easily navigate the files, you may
-double-click the &lt;code>00-Start_Here.md&lt;/code> (#1 in the screenshot) file to view detailed
-information about the files.&lt;/p>
-&lt;p>On the right side, it displays the default launcher page of JupyterLab. To
-create and open a completely new notebook file and code with a selected version
-of Apache Beam, click one of (#2) the items with Apache Beam &amp;gt;=2.34.0 (because
-&lt;code>beam_sql&lt;/code> was introduced in 2.34.0) installed.&lt;/p>
-&lt;h3 id="createopen-a-notebook">Create/open a notebook&lt;/h3>
-&lt;p>For example, if you clicked the image button with Apache Beam 2.36.0, you would
-see an &lt;code>Untitled.ipynb&lt;/code> file created and opened.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image2.png"
-alt="Beam SQL in Notebooks: create/open a notebook ">&lt;/p>
-&lt;p>In the file explorer, your new notebook file has been created as
-&lt;code>Untitled.ipynb&lt;/code>.&lt;/p>
-&lt;p>On the right side, in the opened notebook, there are 4 buttons on top that you
-may interact most frequently with:&lt;/p>
-&lt;ul>
-&lt;li>#1: insert an empty code block after the selected / highlighted code block&lt;/li>
-&lt;li>#2: execute the code in the block that is selected / highlighted&lt;/li>
-&lt;li>#3: interrupt code execution if your code execution is stuck&lt;/li>
-&lt;li>#4: “Restart the kernel”: clear all states from code executions and start
-from fresh&lt;/li>
-&lt;/ul>
-&lt;p>There is a button on the top-right (#5) for you to choose a different Apache
-Beam version if needed, so it’s not set in stone.&lt;/p>
-&lt;p>You can always double-click a file from the file explorer to open it without
-creating a new one.&lt;/p>
-&lt;h2 id="beam-sql">Beam SQL&lt;/h2>
-&lt;h3 id="beam_sql-magic">&lt;code>beam_sql&lt;/code> magic&lt;/h3>
-&lt;p>&lt;code>beam_sql&lt;/code> is an IPython
-&lt;a href="https://ipython.readthedocs.io/en/stable/config/custommagics.html">custom magic&lt;/a>.
-If you&amp;rsquo;re not familiar with magics, here are some
-&lt;a href="https://ipython.readthedocs.io/en/stable/interactive/magics.html">built-in examples&lt;/a>.
-It&amp;rsquo;s a convenient way to validate your queries locally against known/test data
-sources when prototyping a Beam pipeline with SQL, before productionizing it on
-remote cluster/services.&lt;/p>
-&lt;p>The Apache Beam Notebooks environment has preloaded the &lt;code>beam_sql&lt;/code> magic and
-basic &lt;code>apache-beam&lt;/code> modules so you can directly use them without additional
-imports. You can also explicitly load the magic via
-&lt;code>%load_ext apache_beam.runners.interactive.sql.beam_sql_magics&lt;/code> and
-&lt;code>apache-beam&lt;/code> modules if you set up your own notebook elsewhere.&lt;/p>
-&lt;p>You can type:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%beam_sql -h
-&lt;/code>&lt;/pre>&lt;p>and then execute the code to learn how to use the magic:&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image3.png"
-alt="Beam SQL in Notebooks: beam_sql magic help message ">&lt;/p>
-&lt;p>The selected/highlighted block is called a notebook cell. It mainly has 3
-components:&lt;/p>
-&lt;ul>
-&lt;li>#1: The execution count. &lt;code>[1]&lt;/code> indicates this block is the first executed
-code. It increases by 1 for each piece of code you execute even if you
-re-execute the same piece of code. &lt;code>[ ]&lt;/code> indicates this block is not
-executed.&lt;/li>
-&lt;li>#2: The cell input: the code gets executed.&lt;/li>
-&lt;li>#3: The cell output: the output of the code execution. Here it contains the
-help documentation of the &lt;code>beam_sql&lt;/code> magic.&lt;/li>
-&lt;/ul>
-&lt;h3 id="create-a-pcollection">Create a PCollection&lt;/h3>
-&lt;p>There are 3 scenarios for Beam SQL when creating a PCollection:&lt;/p>
-&lt;ol>
-&lt;li>Use Beam SQL to create a PCollection from constant values&lt;/li>
-&lt;/ol>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o pcoll
-SELECT CAST(1 AS INT) AS id, CAST(&amp;#39;foo&amp;#39; AS VARCHAR) AS str, CAST(3.14 AS DOUBLE) AS flt
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image4.png"
-alt="Beam SQL in Notebooks: beam_sql creates a PCollection from raw values.">&lt;/p>
-&lt;p>The &lt;code>beam_sql&lt;/code> magic creates and outputs a PCollection named &lt;code>pcoll&lt;/code> with
-element_type like &lt;code>BeamSchema_...(id: int32, str: str, flt: float64)&lt;/code>.&lt;/p>
-&lt;p>&lt;strong>Note&lt;/strong> that you have &lt;strong>not&lt;/strong> explicitly created a Beam pipeline. You get a
-PCollection because the &lt;code>beam_sql&lt;/code> magic always implicitly creates a pipeline to
-execute your SQL query. To hold the elements with each field&amp;rsquo;s type info, Beam
-automatically creates a
-&lt;a href="/documentation/programming-guide/#what-is-a-schema">schema&lt;/a>
-as the &lt;code>element_type&lt;/code> for the created PCollection. You will learn more about
-schema-aware PCollections later.&lt;/p>
-&lt;ol start="2">
-&lt;li>Use Beam SQL to query a PCollection&lt;/li>
-&lt;/ol>
-&lt;p>You can chain another SQL using the output from a previous SQL (or any
-schema-aware PCollection produced by any normal Beam PTransforms) as the input
-to produce a new PCollection.&lt;/p>
-&lt;p>&lt;strong>Note&lt;/strong>: if you name the output PCollection, make sure that it’s unique in your
-notebook to avoid overwriting a different PCollection.&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o id_pcoll
-SELECT id FROM pcoll
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image5.png"
-alt="Beam SQL in Notebooks: beam_sql creates a PCollection from another.">&lt;/p>
-&lt;ol start="3">
-&lt;li>Use Beam SQL to join multiple PCollections&lt;/li>
-&lt;/ol>
-&lt;p>You can query multiple PCollections from a single query.&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o str_with_same_id
-SELECT id, str FROM pcoll JOIN id_pcoll USING (id)
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image6.png"
-alt="Beam SQL in Notebooks: beam_sql creates a PCollection from multiple PCollections.">&lt;/p>
-&lt;p>Now you have learned how to use the &lt;code>beam_sql&lt;/code> magic to create PCollections and
-inspect their results.&lt;/p>
-&lt;p>&lt;strong>Tip&lt;/strong>: if you accidentally delete some of the notebook cell outputs, you can
-always check the content of a PCollection by invoking &lt;code>ib.show(pcoll_name)&lt;/code> or
-&lt;code>ib.collect(pcoll_name)&lt;/code> where &lt;code>ib&lt;/code> stands for “Interactive Beam”
-(&lt;a href="https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#reading_and_visualizing_the_data">learn more&lt;/a>).&lt;/p>
-&lt;h3 id="schema-aware-pcollections">Schema-aware PCollections&lt;/h3>
-&lt;p>The &lt;code>beam_sql&lt;/code> magic provides the flexibility to seamlessly mix SQL and non-SQL
-Beam statements to build pipelines and even run them on Dataflow. However, each
-PCollection queried by Beam SQL needs to have a
-&lt;a href="/documentation/programming-guide/#what-is-a-schema">schema&lt;/a>.
-For the &lt;code>beam_sql&lt;/code> magic, it’s recommended to use &lt;code>typing.NamedTuple&lt;/code> when a
-schema is desired. You can go through the below example to learn more details
-about schema-aware PCollections.&lt;/p>
-&lt;h4 id="setup">Setup&lt;/h4>
-&lt;p>In the setup of this example, you will:&lt;/p>
-&lt;ul>
-&lt;li>Install PyPI package &lt;code>names&lt;/code> using the built-in &lt;code>%pip&lt;/code> magic: you will use
-the module to generate some random English names as the raw data input.&lt;/li>
-&lt;li>Define a schema with &lt;code>NamedTuple&lt;/code> that has 2 attributes: &lt;code>id&lt;/code> - an unique
-numeric identifier of a person; &lt;code>name&lt;/code> - a string name of a person.&lt;/li>
-&lt;li>Define a pipeline with an &lt;code>InteractiveRunner&lt;/code> to utilize notebook related
-features of Apache Beam.&lt;/li>
-&lt;/ul>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="o">%&lt;/span>&lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="n">names&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">names&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">NamedTuple&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">id&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">name&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">p&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>There is no visible output for the code execution.&lt;/p>
-&lt;h4 id="create-schema-aware-pcollections-without-using-sql">Create schema-aware PCollections without using SQL&lt;/h4>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">persons&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">names&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_full_name&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">)]))&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">persons&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image7.png"
-alt="Beam SQL in Notebooks: create a schema-aware PCollection without SQL.">&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">persons_2&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">Person&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">names&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_full_name&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">15&lt;/span>&lt;span class="p">)]))&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">persons_2&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image8.png"
-alt="Beam SQL in Notebooks: create another schema-aware PCollection without SQL.">&lt;/p>
-&lt;p>Now you have 2 PCollections both with the same schema defined by the &lt;code>Person&lt;/code>
-class:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>persons&lt;/code> contains 10 records for 10 persons with ids ranging from 0 to 9,&lt;/li>
-&lt;li>&lt;code>persons_2&lt;/code> contains another 10 records for 10 persons with ids ranging from
-5 to 14.&lt;/li>
-&lt;/ul>
-&lt;h4 id="encode-and-decode-of-schema-aware-pcollections">Encode and Decode of schema-aware PCollections&lt;/h4>
-&lt;p>For this example, you still need one more piece of data from the first &lt;code>pcoll&lt;/code>
-that you have created with instructions in this post.&lt;/p>
-&lt;p>You can use the original &lt;code>pcoll&lt;/code>. Optionally, if you want to exercise using
-coders explicitly with schema-aware PCollections, you can add a Text I/O into
-the mix: write the content of &lt;code>pcoll&lt;/code> into a text file retaining its schema
-information, then read the file back into a new schema-aware PCollection called
-&lt;code>pcoll_in_file&lt;/code>, and use the new PCollection to join &lt;code>persons&lt;/code> and &lt;code>persons_2&lt;/code>
-to find names with the common id in all three of them.&lt;/p>
-&lt;p>To encode &lt;code>pcoll&lt;/code> into a file, execute:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pcoll&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">textio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;/tmp/pcoll&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">run&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">wait_until_finish&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">!&lt;/span>&lt;span class="n">cat&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="n">tmp&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">pcoll&lt;/span>&lt;span class="o">*&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image9.png"
-alt="Beam SQL in Notebooks: write a schema-aware PCollection into a text file.">&lt;/p>
-&lt;p>The above code execution writes the PCollection &lt;code>pcoll&lt;/code> (basically
-&lt;code>{id: 1, str: foo, flt: 3.14}&lt;/code>) into a text file using the coder assigned by
-Beam. As you can see, the file content is recorded in a binary non
-human-readable format, and that’s normal.&lt;/p>
-&lt;p>To decode the file content into a new PCollection, execute:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">pcoll_in_file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;/tmp/pcoll*&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pcoll&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pcoll_in_file&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image10.png"
-alt="Beam SQL in Notebooks: read a schema-aware PCollection from a text file.">&lt;/p>
-&lt;p>&lt;strong>Note&lt;/strong> you have to use the same coder during encoding and decoding, and
-furthermore you may assign the schema explicitly to the new PCollection through
-&lt;code>with_output_types()&lt;/code>.&lt;/p>
-&lt;p>Reading out the encoded binary content from the text file and decoding it with
-the correct coder, the content of &lt;code>pcoll&lt;/code> is recovered into &lt;code>pcoll_in_file&lt;/code>. You
-can use this technique to save and share your data through any Beam I/O (not
-necessarily a text file) with collaborators who work on their own pipelines (not
-just in your notebook session or pipelines).&lt;/p>
-&lt;h4 id="schema-in-beam_sql-magic">Schema in &lt;code>beam_sql&lt;/code> magic&lt;/h4>
-&lt;p>The &lt;code>beam_sql&lt;/code> magic automatically registers a &lt;code>RowCoder&lt;/code> for your &lt;code>NamedTuple&lt;/code>
-schema so that you only need to focus on preparing your data for query without
-worrying about coders. To see more verbose details of what the &lt;code>beam_sql&lt;/code> magic
-does behind the scenes, you can use the &lt;code>-v&lt;/code> option.&lt;/p>
-&lt;p>For example, you can look for all elements with &lt;code>id &amp;lt; 5&lt;/code> in &lt;code>persons&lt;/code> with the
-below query and assign the output to &lt;code>persons_id_lt_5&lt;/code>.&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o persons_id_lt_5 -v
-SELECT * FROM persons WHERE id &amp;lt; 5
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image11.png"
-alt="Beam SQL in Notebooks: beam_sql registers a schema for a PCollection.">&lt;/p>
-&lt;p>Since this is the first time running this query, you might see a warning message
-about:&lt;/p>
-&lt;blockquote>
-&lt;p>Schema Person has not been registered to use a RowCoder. Automatically
-registering it by running:
-beam.coders.registry.register_coder(Person, beam.coders.RowCoder)&lt;/p>
-&lt;/blockquote>
-&lt;p>The &lt;code>beam_sql&lt;/code> magic helps registering a &lt;code>RowCoder&lt;/code> for each schema you define
-and use whenever it finds one. You can also explicitly run the same code to do
-so.&lt;/p>
-&lt;p>&lt;strong>Note&lt;/strong> the output element type is &lt;code>Person(id: int, name: str)&lt;/code> instead of
-&lt;code>BeamSchema_…&lt;/code> because you have selected all the fields from a single
-PCollection of the known type &lt;code>Person(id: int, name: str)&lt;/code>.&lt;/p>
-&lt;p>Another example, you can query for all names from &lt;code>persons&lt;/code> and &lt;code>persons_2&lt;/code> with
-the same ids and assign the output to &lt;code>persons_with_common_id&lt;/code>:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o persons_with_common_id -v
-SELECT * FROM persons JOIN persons_2 USING (id)
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image12.png"
-alt="Beam SQL in Notebooks: beam_sql creates a schema for a query.">&lt;/p>
-&lt;p>Note the output element type is now some
-&lt;code>BeamSchema_...(id: int64, name: str, name0: str)&lt;/code>. Because you have selected
-columns from both PCollections, there is no known schema to hold the result.
-Beam automatically creates a schema and differentiates the conflicted field
-&lt;code>name&lt;/code> by suffixing 0 to one of them.&lt;/p>
-&lt;p>And since &lt;code>Person&lt;/code> is already previously registered with a &lt;code>RowCoder&lt;/code>, there is
-no more warning about registering it even with the &lt;code>-v&lt;/code> option.&lt;/p>
-&lt;p>Additionally, you can do a join with &lt;code>pcoll_in_file&lt;/code>, &lt;code>persons&lt;/code> and &lt;code>persons_2&lt;/code>:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o entry_with_common_id
-SELECT pcoll_in_file.id, persons.name AS name_1, persons_2.name AS name_2
-FROM pcoll_in_file JOIN persons ON pcoll_in_file.id = persons.id
-JOIN persons_2 ON pcoll_in_file.id = persons_2.id
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image13.png"
-alt="Beam SQL in Notebooks: rename fields in a query.">&lt;/p>
-&lt;p>The schema generated reflects the column renaming you have done in the SQL.&lt;/p>
-&lt;h2 id="an-example">An Example&lt;/h2>
-&lt;p>You will go through an example to find out the US state with the most COVID
-positive cases on a specific day with data provided by the
-&lt;a href="https://covidtracking.com/">covid tracking project&lt;/a>.&lt;/p>
-&lt;h3 id="get-the-data">Get the data&lt;/h3>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">json&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">requests&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The covidtracking project has stopped collecting new data, current data ends on 2021-03-07&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">json_current&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;https://api.covidtracking.com/v1/states/current.json&amp;#39;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">get_json_data&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="n">requests&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Session&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">session&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">loads&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">session&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">data&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">current_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">get_json_data&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">json_current&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">current_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image14.png"
-alt="Beam SQL in Notebooks: preview example data.">&lt;/p>
-&lt;p>The data is dated as 2021-03-07. It contains many details about COVID cases for
-different states in the US. &lt;code>current_data[0]&lt;/code> is just one of the data points.&lt;/p>
-&lt;p>You can get rid of most of the columns of the data. For example, just focus on
-“date”, “state”, “positive” and “negative”, and then define a schema
-&lt;code>UsCovidData&lt;/code>:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Optional&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">partition_date&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span> &lt;span class="c1"># Remember to str(e[&amp;#39;date&amp;#39;]).&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">positive&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">negative&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Note&lt;/strong>:&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>date&lt;/code> is a keyword in (Calcite)SQL, use a different field name such as
-&lt;code>partition_date&lt;/code>;&lt;/li>
-&lt;li>&lt;code>date&lt;/code> from the data is an &lt;code>int&lt;/code> type, not &lt;code>str&lt;/code>. Make sure you convert the
-data using &lt;code>str()&lt;/code> or use &lt;code>date: int&lt;/code>.&lt;/li>
-&lt;li>&lt;code>negative&lt;/code> has missing values and the default is &lt;code>None&lt;/code>. So instead of
-&lt;code>negative: int&lt;/code>, it should be &lt;code>negative: Optional[int]&lt;/code>. Or you can convert
-&lt;code>None&lt;/code> into 0 when using the schema.&lt;/li>
-&lt;/ul>
-&lt;p>Then parse the json data into a PCollection with the schema:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">p_sql&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">runner&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">covid_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p_sql&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create PCollection from json&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">current_data&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">lambda&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">partition_date&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;date&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">positive&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;positive&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">negative&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;negative&amp;#39;&lt;/span>&lt;span class="p">]))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">))&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ib&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">covid_data&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image15.png"
-alt="Beam SQL in Notebooks: parse example data with a schema.">&lt;/p>
-&lt;h3 id="query">Query&lt;/h3>
-&lt;p>You can now find the biggest positive on the “current day” (2021-03-07).&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o max_positive
-SELECT partition_date, MAX(positive) AS positive
-FROM covid_data
-GROUP BY partition_date
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image16.png"
-alt="Beam SQL in Notebooks: find the biggest positive from the data.">&lt;/p>
-&lt;p>However, this is just the positive number. You cannot observe the state that has
-this maximum number nor the negative case number for the state.&lt;/p>
-&lt;p>To enrich your result, you have to join this data back to the original data set
-you have parsed.&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o entry_with_max_positive
-SELECT covid_data.partition_date, covid_data.state, covid_data.positive, {fn IFNULL(covid_data.negative, 0)} AS negative
-FROM covid_data JOIN max_positive
-USING (partition_date, positive)
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image17.png"
-alt="Beam SQL in Notebooks: enriched data with biggest positive.">&lt;/p>
-&lt;p>Now you can see all columns of the data with the maximum positive case on
-2021-03-07.
-&lt;strong>Note&lt;/strong>: to handle missing values of the negative column in the original data,
-you can use &lt;code>{fn IFNULL(covid_data.negative, 0)}&lt;/code> to set null values to 0.&lt;/p>
-&lt;p>When you&amp;rsquo;re ready to scale up, you can translate the SQLs into a pipeline with
-&lt;code>SqlTransform&lt;/code>s and run your pipeline on a distributed runner like Flink or
-Spark. This post demonstrates it by launching a one-shot job on Dataflow from
-the notebook with the help of &lt;code>beam_sql&lt;/code> magic.&lt;/p>
-&lt;h3 id="run-on-dataflow">Run on Dataflow&lt;/h3>
-&lt;p>Now that you have a pipeline that parses US COVID data from json to find
-positive/negative/state information for the state with the most positive cases
-on each day, you can try applying it to all historical daily data and running it
-on Dataflow.&lt;/p>
-&lt;p>The new data source you will use is a public dataset from USAFacts US
-Coronavirus Database that contains all historical daily summary of COVID cases
-in the US.&lt;/p>
-&lt;p>The schema of data is very similar to what the covid tracking project website
-provides. The fields you will query are: &lt;code>date&lt;/code>, &lt;code>state&lt;/code>, &lt;code>confirmed_cases&lt;/code>, and
-&lt;code>deaths&lt;/code>.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image18.png"
-alt="Beam SQL in Notebooks: schema of cloud data.">&lt;/p>
-&lt;p>A preview of the data looks like below (you may skip the inspection in BigQuery
-and just take a look at the screenshot):&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image19.png"
-alt="Beam SQL in Notebooks: preview of cloud data.">&lt;/p>
-&lt;p>The format of the data is &lt;strong>slightly different&lt;/strong> from the json data you parsed
-in the previous pipeline because the numbers are grouped by counties instead of
-states, thus some additional aggregations need to be done in the SQLs.&lt;/p>
-&lt;p>If you need a fresh execution, you may click the “Restart the kernel” button on
-the top menu.&lt;/p>
-&lt;p>Full code is as below, on-top of the original pipeline and queries:&lt;/p>
-&lt;ul>
-&lt;li>It changes the source from a single-day data to a more complete historical
-data;&lt;/li>
-&lt;li>It changes the I/O and schema to accommodate the new dataset;&lt;/li>
-&lt;li>It changes the SQLs to include more aggregations to accommodate the new
-format of the dataset.&lt;/li>
-&lt;/ul>
-&lt;p>&lt;strong>Prepare the data with schema&lt;/strong>&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">NamedTuple&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">typing&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Optional&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Public BQ dataset.&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">table&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;bigquery-public-data:covid19_usafacts.summary&amp;#39;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Replace with your project.&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">project&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;YOUR-PROJECT-NAME-HERE&amp;#39;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Replace with your GCS bucket.&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">gcs_location&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;gs://YOUR_GCS_BUCKET_HERE&amp;#39;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">partition_date&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">confirmed_cases&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">deaths&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">]&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">p_on_dataflow&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">runner&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">InteractiveRunner&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">covid_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p_on_dataflow&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read dataset&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">project&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">project&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">gcs_location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">gcs_location&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">lambda&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">partition_date&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;date&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">],&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">confirmed_cases&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">]),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">deaths&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">e&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">])))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UsCovidData&lt;/span>&lt;span class="p">))&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Run on Dataflow&lt;/strong>&lt;/p>
-&lt;p>To run SQL on Dataflow is very simple, you just need to add the option
-&lt;code>-r DataflowRunner&lt;/code>.&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o data_by_state -r DataflowRunner
-SELECT partition_date, state, SUM(confirmed_cases) as confirmed_cases, SUM(deaths) as deaths
-FROM covid_data
-GROUP BY partition_date, state
-&lt;/code>&lt;/pre>&lt;p>Different from previous &lt;code>beam_sql&lt;/code> magic executions, you won’t see the result
-immediately. Instead, a form like below is printed in the notebook cell output:&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image20.png"
-alt="Beam SQL in Notebooks: empty run-on-dataflow form.">&lt;/p>
-&lt;p>The &lt;code>beam_sql&lt;/code> magic tries its best to guess your project id and preferred cloud
-region. You still have to input additional information necessary to submit a
-Dataflow job, such as a GCS bucket to stage the Dataflow job and any additional
-Python dependencies the job needs.&lt;/p>
-&lt;p>For now, ignore the form in the cell output, because you still need 2 more SQLs
-to: 1) find the maximum confirmed cases on each day; 2) join the maximum case
-data with the full data_by_state. The &lt;code>beam_sql&lt;/code> magic allows you to chain SQLs,
-so chain 2 more by executing:&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o max_cases -r DataflowRunner
-SELECT partition_date, MAX(confirmed_cases) as confirmed_cases
-FROM data_by_state
-GROUP BY partition_date
-&lt;/code>&lt;/pre>&lt;p>And&lt;/p>
-&lt;pre tabindex="0">&lt;code>%%beam_sql -o data_with_max_cases -r DataflowRunner
-SELECT data_by_state.partition_date, data_by_state.state, data_by_state.confirmed_cases, data_by_state.deaths
-FROM data_by_state JOIN max_cases
-USING (partition_date, confirmed_cases)
-&lt;/code>&lt;/pre>&lt;p>By default, when running &lt;code>beam_sql&lt;/code> on Dataflow, the output PCollection will be
-written to a text file on GCS. The “write” is automatically provided by
-&lt;code>beam_sql&lt;/code> and mainly for your inspection of the output data for this one-shot
-Dataflow job. It’s lightweight and does not encode elements for further
-development. To save the output and share it with others, you can add more Beam
-I/Os into the mix.&lt;/p>
-&lt;p>For example, you can appropriately encode elements into text files using the
-technique described in the above schema-aware PCollections example.&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">GoogleCloudOptions&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">coder&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data_with_max_cases&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">element_type&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">max_data_file&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">gcs_location&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="s1">&amp;#39;/encoded_max_data&amp;#39;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data_with_max_cases&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">textio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">max_data_file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coder&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Furthermore, you can create a new BQ dataset in your own project to store the
-processed data.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image21.png"
-alt="Beam SQL in Notebooks: create a new BQ dataset.">&lt;/p>
-&lt;p>You have to select the same data location as the public BigQuery data you are
-reading. In this case, “us (multiple regions in United States)”.&lt;/p>
-&lt;p>Once you finish creating an empty dataset, you can execute below:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">output_table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s1">&amp;#39;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">project&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s1">:covid_data.max_analysis&amp;#39;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">bq_schema&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;fields&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;partition_date&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;STRING&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;STRING&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;INTEGER&amp;#39;&lt;/span>&lt;span class="p">},&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;INTEGER&amp;#39;&lt;/span>&lt;span class="p">}]}&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">(&lt;/span>&lt;span class="n">data_with_max_cases&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;To json-like&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;partition_date&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">partition_date&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">state&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;confirmed_cases&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">confirmed_cases&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;deaths&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">deaths&lt;/span>&lt;span class="p">})&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">output_table&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">schema&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bq_schema&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">method&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;STREAMING_INSERTS&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">custom_gcs_temp_location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">gcs_location&lt;/span>&lt;span class="p">))&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now back in the form of the last SQL cell output, you may fill in necessary
-information to run the pipeline on Dataflow. An example input looks like below:&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image22.png"
-alt="Beam SQL in Notebooks: fill in the run-on-Dataflow form.">&lt;/p>
-&lt;p>Because this pipeline doesn’t use any additional Python dependency, “Additional
-Packages” is left empty. In the previous example where you have installed a
-package called &lt;code>names&lt;/code>, to run that pipeline on Dataflow, you have to put
-&lt;code>names&lt;/code> in this field.&lt;/p>
-&lt;p>Once you finish updating your inputs, you can click the &lt;code>Show Options&lt;/code> button to
-view what pipeline options have been configured based on your inputs. A variable
-&lt;code>options_[YOUR_OUTPUT_PCOLL_NAME]&lt;/code> is generated, and you can supply more
-pipeline options to it if the form is not enough for your execution.&lt;/p>
-&lt;p>Once you are ready to submit the Dataflow job, click the &lt;code>Run on Dataflow&lt;/code>
-button. It tells you where the default output would be written, and after a
-while, a line with:&lt;/p>
-&lt;blockquote>
-&lt;p>Click here for the details of your Dataflow job.&lt;/p>
-&lt;/blockquote>
-&lt;p>would be displayed. You can click on the hyperlink to go to your Dataflow job
-page. (Optionally, you can ignore the form and continue development to extend
-your pipeline. Once you are satisfied with the state of your pipeline, you can
-come back to the form and submit the job to Dataflow.)&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image23.png"
-alt="Beam SQL in Notebooks: a Dataflow job graph.">&lt;/p>
-&lt;p>As you can see, each transform name of the generated Dataflow job is prefixed
-with a string &lt;code>[number]: &lt;/code>. This is to distinguish re-executed codes in
-notebooks because Beam requires each transform to have a distinct name. Under
-the hood, the &lt;code>beam_sql&lt;/code> magic also stages your schema information to Dataflow,
-so you might see transforms named as &lt;code>schema_loaded_beam_sql_…&lt;/code>. This is because
-the &lt;code>NamedTuple&lt;/code> defined in the notebook is likely in the &lt;code>__main__&lt;/code> scope and
-Dataflow is not aware of them at all. To minimize user intervention and avoid
-pickling the whole main session (and it’s infeasible to pickle the main session
-when it contains unpickle-able attributes), the &lt;code>beam_sql&lt;/code> magic optimizes the
-staging process by serializing your schemas, staging them to Dataflow, and then
-deserialize/load them for job execution.&lt;/p>
-&lt;p>Once the job succeeds, the result of the output PCollection would be written to
-places instructed by your I/O transforms. &lt;strong>Note&lt;/strong>: running &lt;code>beam_sql&lt;/code> on
-Dataflow generates a one-shot job and it’s not interactive.&lt;/p>
-&lt;p>A simple inspection of the data from the default output location:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!gsutil cat &amp;#39;gs://ningk-so-test/bq/staging/data_with_max_cases*&amp;#39;
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image24.png"
-alt="Beam SQL in Notebooks: inspect the default output file.">&lt;/p>
-&lt;p>The text file with encoded binary data written by your &lt;code>WriteToText&lt;/code>:&lt;/p>
-&lt;pre tabindex="0">&lt;code>!gsutil cat &amp;#39;gs://ningk-so-test/bq/encoded_max_data*&amp;#39;
-&lt;/code>&lt;/pre>&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image25.png"
-alt="Beam SQL in Notebooks: inspect the user-defined output file.">&lt;/p>
-&lt;p>The table &lt;code>YOUR-PROJECT:covid_data.max_analysis&lt;/code> created by your
-&lt;code>WriteToBigQuery&lt;/code>:&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-sql-notebooks/image26.png"
-alt="Beam SQL in Notebooks: inspect the output BQ dataset.">&lt;/p>
-&lt;h3 id="run-on-other-oss-runners-directly-with-the-beam_sql-magic">Run on other OSS runners directly with the &lt;code>beam_sql&lt;/code> magic&lt;/h3>
-&lt;p>On the day this blog is posted, the &lt;code>beam_sql&lt;/code> magic only supports DirectRunner
-(interactive) and DataflowRunner (one-shot). It&amp;rsquo;s a simple wrapper on top of
-the &lt;code>SqlTransform&lt;/code> with interactive input widgets implemented by
-&lt;a href="https://ipywidgets.readthedocs.io/en/stable/">ipywidgets&lt;/a>. You can implement
-your own runner support or utilities by following the
-&lt;a href="https://lists.apache.org/thread/psrx1xhbyjcqbhxx6trf5nvh66c6pk3y">instructions&lt;/a>.&lt;/p>
-&lt;p>Additionally, support for other OSS runners are WIP, for example,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-14373">support using FlinkRunner with the &lt;code>beam_sql&lt;/code> magic&lt;/a>.&lt;/p>
-&lt;h2 id="conclusions">Conclusions&lt;/h2>
-&lt;p>The &lt;code>beam_sql&lt;/code> magic and Apache Beam Notebooks combined is a convenient tool for
-you to learn Beam SQL and mix Beam SQL into prototyping and productionizing (
-e.g., to Dataflow) your Beam pipelines with minimum setups.&lt;/p>
-&lt;p>For more details about the Beam SQL syntax, check out the Beam Calcite SQL
-&lt;a href="/documentation/dsls/sql/calcite/overview/">compatibility&lt;/a>
-and the Apache Calcite SQL
-&lt;a href="https://calcite.apache.org/docs/reference.html">syntax&lt;/a>.&lt;/p></description></item></channel></rss>
+yirutang&lt;/p></description></item></channel></rss>

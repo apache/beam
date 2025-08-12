@@ -1,4 +1,60 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 01 Jul 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.66.0</title><link>/blog/beam-2.66.0/</link><pubDate>Tue, 01 Jul 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.66.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 12 Aug 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.67.0</title><link>/blog/beam-2.67.0/</link><pubDate>Tue, 12 Aug 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.67.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.67.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2670-2025-08-12">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.67.0, check out the &lt;a href="https://github.com/apache/beam/milestone/35?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Debezium IO upgraded to 3.1.1 requires Java 17 (Java) (&lt;a href="https://github.com/apache/beam/issues/34747">#34747&lt;/a>).&lt;/li>
+&lt;li>Add support for streaming writes in IOBase (Python)&lt;/li>
+&lt;li>Implement support for streaming writes in FileBasedSink (Python)&lt;/li>
+&lt;li>Expose support for streaming writes in TextIO (Python)&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Added support for Processing time Timer in the Spark Classic runner (&lt;a href="https://github.com/apache/beam/issues/33633">#33633&lt;/a>).&lt;/li>
+&lt;li>Add pip-based install support for JupyterLab Sidepanel extension (&lt;a href="https://github.com/apache/beam/issues/35397">#35397&lt;/a>).&lt;/li>
+&lt;li>[IcebergIO] Create tables with a specified table properties (&lt;a href="https://github.com/apache/beam/pull/35496">#35496&lt;/a>)&lt;/li>
+&lt;li>Add support for comma-separated options in Python SDK (Python) (&lt;a href="https://github.com/apache/beam/pull/35580">#35580&lt;/a>).
+Python SDK now supports comma-separated values for experiments and dataflow_service_options,
+matching Java SDK behavior while maintaining backward compatibility.&lt;/li>
+&lt;li>Milvus enrichment handler added (Python) (&lt;a href="https://github.com/apache/beam/pull/35216">#35216&lt;/a>).
+Beam now supports Milvus enrichment handler capabilities for vector, keyword,
+and hybrid search operations.&lt;/li>
+&lt;li>[Beam SQL] Add support for DATABASEs, with an implementation for Iceberg (&lt;a href="https://github.com/apache/beam/issues/35637">#35637&lt;/a>)&lt;/li>
+&lt;li>Respect BatchSize and MaxBufferingDuration when using &lt;code>JdbcIO.WriteWithResults&lt;/code>. Previously, these settings were ignored (&lt;a href="https://github.com/apache/beam/pull/35669">#35669&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>Go: The pubsubio.Read transform now accepts ReadOptions as a value type instead of a pointer, and requires exactly one of Topic or Subscription to be set (they are mutually exclusive). Additionally, the ReadOptions struct now includes a Topic field for specifying the topic directly, replacing the previous topic parameter in the Read function signature (&lt;a href="https://github.com/apache/beam/pull/35369">#35369&lt;/a>).&lt;/li>
+&lt;li>SQL: The &lt;code>ParquetTable&lt;/code> external table provider has changed its handling of the &lt;code>LOCATION&lt;/code> property. To read from a directory, the path must now end with a trailing slash (e.g., &lt;code>LOCATION '/path/to/data/'&lt;/code>). Previously, a trailing slash was not required. This change was made to enable support for glob patterns and single-file paths (&lt;a href="https://github.com/apache/beam/pull/35582">#35582&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>[YAML] Fixed handling of missing optional fields in JSON parsing (&lt;a href="https://github.com/apache/beam/issues/35179">#35179&lt;/a>).&lt;/li>
+&lt;li>[Python] Fix WriteToBigQuery transform using CopyJob does not work with WRITE_TRUNCATE write disposition (&lt;a href="https://github.com/apache/beam/issues/34247">#34247&lt;/a>)&lt;/li>
+&lt;li>[Python] Fixed dicomio tags mismatch in integration tests (&lt;a href="https://github.com/apache/beam/issues/30760">#30760&lt;/a>).&lt;/li>
+&lt;li>[Java] Fixed spammy logging issues that affected versions 2.64.0 to 2.66.0.&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>(&lt;a href="https://github.com/apache/beam/issues/35666">#35666&lt;/a>). YAML Flatten incorrectly drops fields when input PCollections&amp;rsquo; schema are different. This issue exists for all versions since 2.52.0.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.67.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Aditya Shukla, Ahmed Abualsaud, Arun Pandian, Boris Li, Chamikara Jayalath, Charles Nguyen, Chenzo, Danny McCormick, David Adeniji, Derrick Williams, Dmytro Tsyliuryk, Dustin Rhodes, Enrique Calderon, Gottipati Gautam, Hai Joey Tran, Hunor Portik, Jack McCluskey, Kenneth Knowles, Khorbaladze A., Marcio Sugar, Minh Son Nguyen, Mohamed Awnallah, Nathaniel Young, Nhon Dinh, Quentin Sommer, Rafael Raposo, Rakesh Kumar, Razvan Culea, Reuven Lax, Robert Bradshaw, Sam Whittle, Shunping Huang, Steven van Rossum, Talat UYARER, Tanu Sharma, Tarun Annapareddy, Tobi Kaymak, Tobias Kaymak, Valentyn Tymofieiev, Veronica Wasson, Vitaly Terentyev, XQ Hu, Yi Hu, akashorabek, arnavarora2004, changliiu, claudevdm, fozzie15, mvhensbergen, twosom&lt;/p></description></item><item><title>Blog: Apache Beam 2.66.0</title><link>/blog/beam-2.66.0/</link><pubDate>Tue, 01 Jul 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.66.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5099,104 +5155,4 @@ See the &lt;a href="/get-started/downloads/#2190-2020-02-04">download page&lt;/a
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.19.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, J Ross Thomson, Juan Rael, Juta, Kasia Kucharczyk, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Łukasz Gajowy, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, ttanay, tvalentyn, Tyler Akidau, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin&lt;/p></description></item><item><title>Blog: Apache Beam 2.18.0</title><link>/blog/beam-2.18.0/</link><pubDate>Thu, 23 Jan 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.18.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.18.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2180-2020-01-23">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.18.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?version=12346383&amp;amp;projectId=12319527">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8470">BEAM-8470&lt;/a> - Create a new Spark runner based on Spark Structured streaming framework&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7636">BEAM-7636&lt;/a> - Added SqsIO v2 support.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8513">BEAM-8513&lt;/a> - RabbitMqIO: Allow reads from exchange-bound queue without declaring the exchange.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8540">BEAM-8540&lt;/a> - Fix CSVSink example in FileIO docs&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5878">BEAM-5878&lt;/a> - Added support DoFns with Keyword-only arguments in Python 3.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-6756">BEAM-6756&lt;/a> - Improved support for lazy iterables in schemas (Java).&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-4776">BEAM-4776&lt;/a> AND &lt;a href="https://issues.apache.org/jira/browse/BEAM-4777">BEAM-4777&lt;/a> - Added metrics supports to portable runners.&lt;/li>
-&lt;li>Various improvements to Interactive Beam: &lt;a href="https://issues.apache.org/jira/browse/BEAM-7760">BEAM-7760&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8379">BEAM-8379&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8016">BEAM-8016&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8016">BEAM-8016&lt;/a>.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8658">BEAM-8658&lt;/a> - Optionally set artifact staging port in FlinkUberJarJobServer.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8660">BEAM-8660&lt;/a> - Override returned artifact staging endpoint&lt;/li>
-&lt;/ul>
-&lt;h3 id="sql">SQL&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8343">BEAM-8343&lt;/a> - [SQL] Add means for IO APIs to support predicate and/or project push-down when running SQL pipelines. And &lt;a href="https://issues.apache.org/jira/browse/BEAM-8468">BEAM-8468&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8365">BEAM-8365&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8508">BEAM-8508&lt;/a>.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8427">BEAM-8427&lt;/a> - [SQL] Add support for MongoDB source.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8456">BEAM-8456&lt;/a> - Add pipeline option to control truncate of BigQuery data processed by Beam SQL.&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8814">BEAM-8814&lt;/a> - &amp;ndash;no_auth flag changed to boolean type.&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8252">BEAM-8252&lt;/a> AND &lt;a href="https://issues.apache.org/jira/browse/BEAM-8254">BEAM-8254&lt;/a> Add worker_region and worker_zone options. Deprecated &amp;ndash;zone flag and &amp;ndash;worker_region experiment argument.&lt;/li>
-&lt;/ul>
-&lt;h3 id="dependency-changes">Dependency Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7078">BEAM-7078&lt;/a> - com.amazonaws:amazon-kinesis-client updated to 1.13.0.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8822">BEAM-8822&lt;/a> - Upgrade Hadoop dependencies to version 2.8.&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7917">BEAM-7917&lt;/a> - Python datastore v1new fails on retry.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7981">BEAM-7981&lt;/a> - ParDo function wrapper doesn&amp;rsquo;t support Iterable output types.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8146">BEAM-8146&lt;/a> - SchemaCoder/RowCoder have no equals() function.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8347">BEAM-8347&lt;/a> - UnboundedRabbitMqReader can fail to advance watermark if no new data comes in.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8352">BEAM-8352&lt;/a> - Reading records in background may lead to OOM errors&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8480">BEAM-8480&lt;/a> - Explicitly set restriction coder for bounded reader wrapper SDF.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8515">BEAM-8515&lt;/a> - Ensure that ValueProvider types have equals/hashCode implemented for comparison reasons.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8579">BEAM-8579&lt;/a> - Strip UTF-8 BOM bytes (if present) in TextSource.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8657">BEAM-8657&lt;/a> - Not doing Combiner lifting for data-driven triggers.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8663">BEAM-8663&lt;/a> - BundleBasedRunner Stacked Bundles don&amp;rsquo;t respect PaneInfo.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8667">BEAM-8667&lt;/a> - Data channel should to avoid unlimited buffering in Python SDK.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8802">BEAM-8802&lt;/a> - Timestamp combiner not respected across bundles in streaming mode.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8803">BEAM-8803&lt;/a> - Default behaviour for Python BQ Streaming inserts sink should be to retry always.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8825">BEAM-8825&lt;/a> - OOM when writing large numbers of &amp;rsquo;narrow&amp;rsquo; rows.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8835">BEAM-8835&lt;/a> - Artifact retrieval fails with FlinkUberJarJobServer&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8836">BEAM-8836&lt;/a> - ExternalTransform is not providing a unique name&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8884">BEAM-8884&lt;/a> - Python MongoDBIO TypeError when splitting.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9041">BEAM-9041&lt;/a> - SchemaCoder equals should not rely on from/toRowFunction equality.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9042">BEAM-9042&lt;/a> - AvroUtils.schemaCoder(schema) produces a not serializable SchemaCoder.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9065">BEAM-9065&lt;/a> - Spark runner accumulates metrics (incorrectly) between runs.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-6303">BEAM-6303&lt;/a> - Add .parquet extension to files in ParquetIO.&lt;/li>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>
-&lt;p>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8882">BEAM-8882&lt;/a> - Python: &lt;code>beam.Create&lt;/code> no longer preserves order unless &lt;code>reshuffle=False&lt;/code> is passed in as an argument.&lt;/p>
-&lt;p>You may encounter this issue when using DirectRunner.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9065">BEAM-9065&lt;/a> - Spark runner accumulates metrics (incorrectly) between runs&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9123">BEAM-9123&lt;/a> - HadoopResourceId returns wrong directory name&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.18.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9144">BEAM-9144&lt;/a> - If you are using Avro 1.9.x with Beam you should not upgrade to this version. There is an issue with timestamp conversions. A fix will be available in the next release.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.18.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Aizhamal Nurmamat kyzy, Alan Myrvold, Alexey Romanenko, Alex Van Boxel, Andre Araujo, Andrew Crites, Andrew Pilloud, Aryan Naraghi, Boyuan Zhang, Brian Hulette, bumblebee-coming, Cerny Ondrej, Chad Dombrova, Chamikara Jayalath, Changming Ma, Chun Yang, cmachgodaddy, Colm O hEigeartaigh, Craig Chambers, Daniel Oliveira, Daniel Robert, David Cavazos, David Moravek, David Song, dependabot[bot], Derek, Dmytro Sadovnychyi, Elliotte Rusty Harold, Etienne Chauchot, Hai Lu, Henry Suryawirawan, Ismaël Mejía, Jack Whelpton, Jan Lukavský, Jean-Baptiste Onofré, Jeff Klukas, Jincheng Sun, Jing, Jing Chen, Joe Tsai, Jonathan Alvarez-Gutierrez, Kamil Wasilewski, KangZhiDong, Kasia Kucharczyk, Kenneth Knowles, kirillkozlov, Kirill Kozlov, Kyle Weaver, liumomo315, lostluck, Łukasz Gajowy, Luke Cwik, Mark Liu, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Niel Markwick, Ning Kang, nlofeudo, pabloem, Pablo Estrada, Pankaj Gudlani, Piotr Szczepanik, Primevenn, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, RusOr10n, Ryan Skraba, Saikat Maitra, sambvfx, Sam Rohde, Samuel Husso, Stefano, Steve Koonce, Steve Niemitz, sunjincheng121, Thomas Weise, Tianyang Hu, Tim Robertson, Tomo Suzuki, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Viola Lyu, Wenjia Liu, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, ziel, 康智冬&lt;/p></description></item></channel></rss>
+&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, J Ross Thomson, Juan Rael, Juta, Kasia Kucharczyk, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Łukasz Gajowy, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, ttanay, tvalentyn, Tyler Akidau, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin&lt;/p></description></item></channel></rss>
