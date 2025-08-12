@@ -74,6 +74,8 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * BigtableRead Connector for BeamYaml added with new Config Param ([#35696](https://github.com/apache/beam/pull/35696))
+* Introduced a dedicated module for JUnit-based testing support: `sdks/java/testing/junit`, which provides `TestPipelineExtension` for JUnit 5 while maintaining backward compatibility with existing JUnit 4 `TestRule`-based tests (Java) ([#18733](https://github.com/apache/beam/issues/18733), [#35688](https://github.com/apache/beam/pull/35688)).
+  - To use JUnit 5 with Beam tests, add a test-scoped dependency on `org.apache.beam:beam-sdks-java-testing-junit`.
 
 ## Breaking Changes
 
@@ -103,7 +105,6 @@
 
 ## Highlights
 
-* Added JUnit 5 support to Java SDK testing framework with new TestPipelineExtension class, provided by a dedicated module (Java) ([#18733](https://github.com/apache/beam/issues/18733), [#35688](https://github.com/apache/beam/pull/35688)).
 
 
 ## I/Os
@@ -121,8 +122,6 @@
 
 * Added support for Processing time Timer in the Spark Classic runner ([#33633](https://github.com/apache/beam/issues/33633)).
 * Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/#35397)).
-* Introduced a dedicated module for JUnit-based testing support: `sdks/java/testing/junit`, which provides `TestPipelineExtension` for JUnit 5 while maintaining backward compatibility with existing JUnit 4 `TestRule`-based tests (Java) ([#18733](https://github.com/apache/beam/issues/18733), [#35688](https://github.com/apache/beam/pull/35688)).
-  - To use JUnit 5 with Beam tests, add a test-scoped dependency on `org.apache.beam:beam-sdks-java-testing-junit`.
 * [IcebergIO] Create tables with a specified table properties ([#35496](https://github.com/apache/beam/pull/35496))
 * Add support for comma-separated options in Python SDK (Python) ([#35580](https://github.com/apache/beam/pull/35580)).
   Python SDK now supports comma-separated values for experiments and dataflow_service_options,
