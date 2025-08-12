@@ -383,7 +383,6 @@ class ExternalJavaProvider(ExternalProvider):
     self._jar_provider = jar_provider
     self._classpath = classpath
 
-
   def available(self):
       # Directly use shutil.which to find the Java executable cross-platform
       java_path = shutil.which(subprocess_server.JavaHelper.get_java())
