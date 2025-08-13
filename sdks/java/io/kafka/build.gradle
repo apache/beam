@@ -107,6 +107,10 @@ dependencies {
   testImplementation library.java.testcontainers_kafka
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(path: ":runners:google-cloud-dataflow-java")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform")
+  implementation 'io.swagger.core.v3:swagger-annotations:2.1.10'
   kafkaVersions.each {"kafkaVersion$it.key" "org.apache.kafka:kafka-clients:$it.value"}
 }
 
