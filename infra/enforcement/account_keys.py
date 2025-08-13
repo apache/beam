@@ -191,9 +191,12 @@ class AccountKeysPolicyComplianceCheck:
                 keys = yaml.safe_load(file)
 
                 if not keys:
-                    raise ValueError("No service account keys found.")
+                    return {"service_accounts": []}
 
                 return keys
+        except FileNotFoundError:
+            self.logger.info(f"Service account keys file {self.service_account_keys_file} not found, starting with empty configuration")
+            return {"service_accounts": []}
         except IOError as e:
             error_msg = f"Failed to read service account keys from {self.service_account_keys_file}: {e}"
             self.logger.error(error_msg)
@@ -247,7 +250,8 @@ class AccountKeysPolicyComplianceCheck:
             List[str]: A list of compliance issue messages.
         """
 
-        file_service_accounts = self._read_service_account_keys()["service_accounts"]
+        service_account_data = self._read_service_account_keys()
+        file_service_accounts = service_account_data.get("service_accounts", [])
 
         if not file_service_accounts:
             error_msg = f"No service account keys found in the {self.service_account_keys_file}."
@@ -335,12 +339,14 @@ class AccountKeysPolicyComplianceCheck:
         It will just add the non managed service accounts.
         """
 
-        file_service_accounts = self._read_service_account_keys()["service_accounts"]
+        service_account_data = self._read_service_account_keys()
+        file_service_accounts = service_account_data.get("service_accounts", [])
+        
+        # Ensure file_service_accounts is a list
+        if file_service_accounts is None:
+            file_service_accounts = []
 
-        if not file_service_accounts:
-            error_msg = f"No service account keys found in the {self.service_account_keys_file}."
-            self.logger.info(error_msg)
-            raise RuntimeError(error_msg)
+        self.logger.info(f"Found {len(file_service_accounts)} existing service accounts in the keys file")
         
         compliance_issues = []
 
