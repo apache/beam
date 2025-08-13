@@ -639,8 +639,9 @@ __Attention:__ Verify that:
 Beam publishes API reference manuals for each release on the website.  For Java
 and Python SDKs, that’s Javadoc and PyDoc, respectively.  The final step of
 building the candidate is to propose website pull requests that update these
-manuals. Two of these PRs will get created by the build_release_candidate action,
-you will need to create the third one manually.
+manuals. `beam-site release-docs` PR and `beam managed-io` update PR will get
+created by the build_release_candidate action, you will need to create the
+`beam release-docs` update PR manually.
 
 Merge the pull requests only after finalizing the release.  To avoid invalid
 redirects for the 'current' version, merge these PRs in the order listed.  Once
@@ -658,11 +659,8 @@ created by the `build_release_candidate` workflow (see above).
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, to update the  `managed-io.md`. 
-It is created by the `build_release_candidate` workflow and updates the documentation for Managed IOs. 
-
-Please work with the team if you encounter any issues with this action, 
-which was added by [PR](https://github.com/apache/beam/pull/35828).
+This pull request is against the `apache/beam` repo, to update the  `managed-io.md`.
+It is created by the `build_release_candidate` workflow and updates the documentation for Managed IOs.
 
 **PR 3: apache/beam**
 
