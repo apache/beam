@@ -658,7 +658,11 @@ created by the `build_release_candidate` workflow (see above).
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, to update the  `managed-io.md`. It is created by the `build_release_candidate` workflow and updates the documentation for Managed IOs.
+This pull request is against the `apache/beam` repo, to update the  `managed-io.md`. 
+It is created by the `build_release_candidate` workflow and updates the documentation for Managed IOs. 
+
+Please work with the team if you encounter any issues with this action, 
+which was added by [PR](https://github.com/apache/beam/pull/35828).
 
 **PR 3: apache/beam**
 
