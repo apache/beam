@@ -193,8 +193,9 @@ class IAMPolicyComplianceChecker:
         existing_policy = self._read_project_iam_file()
 
         if not existing_policy:
-            self.logger.info(f"No existing IAM policy found for project {self.project_id}.")
-            raise RuntimeError("No existing IAM policy found.")
+            error_msg = f"No IAM policy found in the {self.users_file}."
+            self.logger.info(error_msg)
+            raise RuntimeError(error_msg)
 
         differences = []
 
