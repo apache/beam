@@ -367,7 +367,7 @@ def create_monitoring_info(
         urn=urn, type=type_urn, labels=labels or {}, payload=payload)
   except TypeError as e:
     raise RuntimeError(
-        f'Failed to create MonitoringInfo for urn {urn} type {type_urn} ' +
+        f'Failed to create MonitoringInfo for urn {urn} type {type_urn} '
         f'labels {labels} and payload {payload}') from e
 
 
