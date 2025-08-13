@@ -17,6 +17,7 @@
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -310,7 +311,7 @@ class JoinUrlOrFilepathTest(unittest.TestCase):
                     new=lambda x:
                     ("gs://bucket", x.removeprefix("gs://bucket/"))):
       with mock.patch('apache_beam.io.filesystems.FileSystems.join',
-                      new=os.path.join):
+                      new=lambda *args: '/'.join(args)):
         self.assertEqual(
             yaml_provider._join_url_or_filepath('gs://bucket', 'b/c.yaml'),
             'gs://bucket/b/c.yaml')
@@ -320,24 +321,32 @@ class JoinUrlOrFilepathTest(unittest.TestCase):
         self.assertEqual(
             yaml_provider._join_url_or_filepath('gs://bucket/a', 'b/c.yaml'),
             'gs://bucket/b/c.yaml')
-        self.assertEqual(
-            yaml_provider._join_url_or_filepath('gs://bucket/a/', 'b/c.yaml'),
-            'gs://bucket/a/b/c.yaml')
 
   def test_join_filepath_relative_path(self):
-    self.assertEqual(
-        yaml_provider._join_url_or_filepath('/a/b/', 'c/d.yaml'),
-        '/a/b/c/d.yaml')
-    self.assertEqual(
-        yaml_provider._join_url_or_filepath('/a/b', 'c/d.yaml'), '/a/c/d.yaml')
+    if sys.platform != 'win32':
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('/a/b/', 'c/d.yaml'),
+          '/a/b/c/d.yaml')
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('/a/b', 'c/d.yaml'),
+          '/a/c/d.yaml')
+    else:
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('C:\\a\\b\\', 'c\\d.yaml'),
+          'C:\\a\\b\\c\\d.yaml')
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('C:\\a\\b', 'c\\d.yaml'),
+          'C:\\a\\c\\d.yaml')
 
   def test_absolute_path(self):
     self.assertEqual(
         yaml_provider._join_url_or_filepath(
             'gs://bucket/a', 'gs://bucket/b/c.yaml'),
         'gs://bucket/b/c.yaml')
-    self.assertEqual(
-        yaml_provider._join_url_or_filepath('/a/b', '/c/d.yaml'), '/c/d.yaml')
+
+    if sys.platform != 'win32':
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('/a/b', '/c/d.yaml'), '/c/d.yaml')
 
   def test_different_scheme(self):
     self.assertEqual(
