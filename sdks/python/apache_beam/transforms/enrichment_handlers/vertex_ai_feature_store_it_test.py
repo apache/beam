@@ -72,11 +72,11 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     self.entity_type_name = "entity_id"
     self.api_endpoint = "us-central1-aiplatform.googleapis.com"
     self.feature_ids = ['title', 'genres']
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
-    for i in range(5):
+    for i in range(self.retries):
       try:
         self.container = RedisContainer(image='redis:7.2.4')
         self.container.start()
