@@ -58,7 +58,7 @@ class AccountKeysPolicyComplianceCheck:
         Returns:
             str: The full service account email address.
         """
-        if "@" in account_id and account_id.endswith(".iam.gserviceaccount.com"):
+        if "@" in account_id:
             return account_id
         else:
             return f"{account_id}@{self.project_id}.iam.gserviceaccount.com"
