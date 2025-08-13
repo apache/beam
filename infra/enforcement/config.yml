@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Project ID
-project_id: testing-me-460223
+project_id: apache-beam-testing
 
 # Logging
 logging:
