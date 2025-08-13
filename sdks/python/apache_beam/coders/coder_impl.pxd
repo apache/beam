@@ -81,6 +81,7 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl iterable_coder_impl
   cdef object requires_deterministic_step_label
   cdef bint warn_deterministic_fallback
+  cdef bint force_use_dill
 
   @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t,
                  unicode_value=unicode)
@@ -88,6 +89,7 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   @cython.locals(t=int)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
   cdef encode_special_deterministic(self, value, OutputStream stream)
+  cdef encode_type_2_67_0(self, t, OutputStream stream)
   cdef encode_type(self, t, OutputStream stream)
   cdef decode_type(self, InputStream stream)
 
