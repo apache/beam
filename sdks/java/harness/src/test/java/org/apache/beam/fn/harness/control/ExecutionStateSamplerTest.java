@@ -809,8 +809,12 @@ public class ExecutionStateSamplerTest {
                   // and unblock the state transition once a certain number of samples
                   // have been taken.
                   waitTillActive.await();
-                  waitForSamples.countDown();
-                  currentTime += Duration.standardMinutes(1).getMillis();
+                  // Freeze time after the desired number of samples to avoid races where
+                  // the sampling loop spins and exceeds the timeout before we deactivate.
+                  if (waitForSamples.getCount() > 0) {
+                    waitForSamples.countDown();
+                    currentTime += Duration.standardMinutes(1).getMillis();
+                  }
                   return currentTime;
                 }
               }
