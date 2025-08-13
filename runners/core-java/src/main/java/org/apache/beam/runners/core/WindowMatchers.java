@@ -20,6 +20,7 @@ package org.apache.beam.runners.core;
 import java.util.Collection;
 import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -31,6 +32,9 @@ import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Instant;
 
 /** Matchers that are useful for working with Windowing, Timestamps, etc. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WindowMatchers {
 
   public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
@@ -164,6 +168,11 @@ public class WindowMatchers {
         mismatchDescription.appendValue(item.getPaneInfo());
       }
     };
+  }
+
+  public static <T> Matcher<WindowedValue<? extends T>> isValueInGlobalWindow(
+      T value, Instant timestamp) {
+    return isSingleWindowedValue(value, timestamp, GlobalWindow.INSTANCE);
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
