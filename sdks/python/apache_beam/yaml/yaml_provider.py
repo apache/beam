@@ -1520,13 +1520,20 @@ def _as_list(func):
 def _join_url_or_filepath(base, path):
   if not base:
     return path
-  base_scheme = urllib.parse.urlparse(base, '').scheme
-  path_scheme = urllib.parse.urlparse(path, base_scheme).scheme
-  if path_scheme != base_scheme:
+
+  if urllib.parse.urlparse(path).scheme:
+    # path is an absolute path with scheme (whether it is the same as base or
+    # not).
     return path
-  elif base_scheme and base_scheme in urllib.parse.uses_relative:
+
+  # path is a relative path or an absolute path without scheme (e.g. /a/b/c)
+  base_scheme = urllib.parse.urlparse(base, '').scheme
+  if base_scheme and base_scheme in urllib.parse.uses_relative:
     return urllib.parse.urljoin(base, path)
   else:
+    if FileSystems.join(base, "") == base:
+      # base ends with a filesystem separator
+      return FileSystems.join(base, path)
     return FileSystems.join(FileSystems.split(base)[0], path)
 
 
