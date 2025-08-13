@@ -316,10 +316,7 @@ class V1TestUtil {
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
-          LOG.error(
-              "Error writing to the Datastore ({}): {}",
-              exception.getCode(),
-              exception.getMessage());
+          LOG.error("Error writing to the Datastore ({})", exception.getCode(), exception);
           if (!BackOffUtils.next(sleeper, backoff)) {
             LOG.error("Aborting after {} retries.", MAX_RETRIES);
             throw exception;

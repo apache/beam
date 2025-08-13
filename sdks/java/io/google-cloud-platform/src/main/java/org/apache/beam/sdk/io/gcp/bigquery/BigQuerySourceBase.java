@@ -221,8 +221,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       // The error messages thrown in this case are generic and misleading, so leave this breadcrumb
       // in case it's the root cause.
       LOG.warn(
-          "Error extracting table: {} "
-              + "Note that external tables cannot be exported: "
+          "Error extracting table. Note that external tables cannot be exported: "
               + "https://cloud.google.com/bigquery/docs/external-tables#external_table_limitations",
           exn);
       throw exn;

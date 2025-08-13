@@ -325,7 +325,7 @@ public class QueryChangeStreamAction {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
           LOG.debug("[{}] Unable to update the current watermark, partition NOT FOUND", token);
         } else {
-          LOG.error("[{}] Error updating the current watermark: {}", token, e.getMessage(), e);
+          LOG.error("[{}] Error updating the current watermark", token, e);
         }
       }
     };

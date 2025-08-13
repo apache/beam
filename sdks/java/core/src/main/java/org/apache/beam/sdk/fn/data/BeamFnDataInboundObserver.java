@@ -68,6 +68,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
       transformIdToTimerFamilyIdToTimerEndpoint;
   private final CancellableQueue<BeamFnApi.Elements> queue;
   // We use a custom exception for closing to avoid the expense of stack trace generation.
+  @SuppressWarnings("StaticAssignmentOfThrowable")
   protected static class CloseException extends Exception {
     private CloseException() {
       super(
