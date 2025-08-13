@@ -305,21 +305,24 @@ class JoinUrlOrFilepathTest(unittest.TestCase):
             'http://example.com/a/', 'b/c.yaml'),
         'http://example.com/a/b/c.yaml')
 
-    # use os.path.join to mock gcs filesystem join.
-    with mock.patch(
-        'apache_beam.io.filesystems.FileSystems.join', new=os.path.join):
-      self.assertEqual(
-          yaml_provider._join_url_or_filepath('gs://bucket', 'b/c.yaml'),
-          'gs://bucket/b/c.yaml')
-      self.assertEqual(
-          yaml_provider._join_url_or_filepath('gs://bucket/', 'b/c.yaml'),
-          'gs://bucket/b/c.yaml')
-      self.assertEqual(
-          yaml_provider._join_url_or_filepath('gs://bucket/a', 'b/c.yaml'),
-          'gs://bucket/b/c.yaml')
-      self.assertEqual(
-          yaml_provider._join_url_or_filepath('gs://bucket/a/', 'b/c.yaml'),
-          'gs://bucket/a/b/c.yaml')
+    # use os.path.join to mock gcs filesystem split and join.
+    with mock.patch('apache_beam.io.filesystems.FileSystems.split',
+                    new=lambda x:
+                    ("gs://bucket", x.removeprefix("gs://bucket/"))):
+      with mock.patch('apache_beam.io.filesystems.FileSystems.join',
+                      new=os.path.join):
+        self.assertEqual(
+            yaml_provider._join_url_or_filepath('gs://bucket', 'b/c.yaml'),
+            'gs://bucket/b/c.yaml')
+        self.assertEqual(
+            yaml_provider._join_url_or_filepath('gs://bucket/', 'b/c.yaml'),
+            'gs://bucket/b/c.yaml')
+        self.assertEqual(
+            yaml_provider._join_url_or_filepath('gs://bucket/a', 'b/c.yaml'),
+            'gs://bucket/b/c.yaml')
+        self.assertEqual(
+            yaml_provider._join_url_or_filepath('gs://bucket/a/', 'b/c.yaml'),
+            'gs://bucket/a/b/c.yaml')
 
   def test_join_filepath_relative_path(self):
     self.assertEqual(
