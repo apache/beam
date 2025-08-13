@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Project ID
-project_id: apache-beam-testing
+project_id: testing-me-460223
 
 # Logging
 logging:
@@ -25,6 +25,9 @@ logging:
 
 # Working users file
 users_file: ../iam/users.yml
+
+# Service Account Keys
+service_account_keys_file: ../keys/keys.yaml
 
 # Action to perform when running the script
 # Options:
