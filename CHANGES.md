@@ -90,6 +90,8 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Python SDK native SpannerIO (apache_beam/io/gcp/experimental/spannerio) is deprecated. Use cross-language wrapper
+  (apache_beam/io/gcp/spanner) instead (Python) ([#35860](https://github.com/apache/beam/issues/35860)).
 
 ## Bugfixes
 
