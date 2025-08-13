@@ -87,21 +87,20 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
       self.assertIsNotNone(response.error)
     self.fn_status_handler.close()
 
-  def get_state_sampler_info_for_lull(lull_duration_s):
-    return "bundle-id", statesampler.StateSamplerInfo(
+  def test_log_lull_in_bundle_processor(self):
+    def get_state_sampler_info_for_lull(lull_duration_s):
+      return "bundle-id", statesampler.StateSamplerInfo(
         CounterName('progress-msecs', 'stage_name', 'step_name'),
         1,
         lull_duration_s * 1e9,
         threading.current_thread())
 
-  def test_log_lull_in_bundle_processor(self):
     now = time.time()
     with mock.patch('logging.Logger.warning') as warn_mock:
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now
-        bundle_id, sampler_info = self.get_state_sampler_info_for_lull(21 * 60)
+        bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
         self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
-
         bundle_id_template = warn_mock.call_args[0][1]
         step_name_template = warn_mock.call_args[0][2]
         processing_template = warn_mock.call_args[0][3]
@@ -114,7 +113,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
 
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 6 * 60  # 6 minutes
-        bundle_id, sampler_info = self.get_state_sampler_info_for_lull(3 * 60)
+        bundle_id, sampler_info = get_state_sampler_info_for_lull(3 * 60)
         self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
 
 class HeapDumpTest(unittest.TestCase):
