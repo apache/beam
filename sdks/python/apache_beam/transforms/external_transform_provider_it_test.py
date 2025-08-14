@@ -400,6 +400,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
         "by running './gradlew generateExternalTransformsConfig' "
         "and committing the changes.")
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
