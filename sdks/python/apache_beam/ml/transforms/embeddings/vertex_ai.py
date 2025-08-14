@@ -25,8 +25,8 @@ from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
-from typing import cast
 from typing import Optional
+from typing import cast
 
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
