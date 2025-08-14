@@ -105,11 +105,11 @@ def _extend_path(prefix: str, current_path: Optional[str]):
   Returns:
     The extended path.
   """
-  if suffix is None:
+  if current_path is None:
     return None
-  if not suffix:
+  if not current_path:
     return prefix
-  return prefix + '.' + suffix
+  return prefix + '.' + current_path
 
 
 def _search(
@@ -431,7 +431,7 @@ def get_code_from_identifier(code_object_identifier: str):
   for part in parts[1:]:
     if name_result := _SINGLE_NAME_PATTERN.fullmatch(part):
       obj = _get_code_object_from_single_name_pattern(
-        obj, name_result, code_object_identifier)
+          obj, name_result, code_object_identifier)
     elif lambda_with_args_result := _LAMBDA_WITH_ARGS_PATTERN.fullmatch(part):
       obj = _get_code_object_from_lambda_with_args_pattern(
           obj, lambda_with_args_result, code_object_identifier)

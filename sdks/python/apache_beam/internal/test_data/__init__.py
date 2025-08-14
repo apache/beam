@@ -15,4 +15,6 @@
 # limitations under the License.
 #
 
-"""Test data to validate that code identifiers are invariant to small modifications."""
+"""Test data to validate that code identifiers are invariant to small
+     modifications.
+"""
