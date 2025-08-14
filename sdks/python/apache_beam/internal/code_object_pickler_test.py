@@ -292,7 +292,7 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_removing_lambda_variable_in_class_changes_object(self):
     with self.assertRaisesRegex(AttributeError, "object has no attribute"):
-      code_object_pickler.(
+      code_object_pickler.get_code_from_stable_reference(
           code_object_pickler.get_code_path(
               module_2.RemoveLambdaVariable.my_method(
                   self)).replace(
