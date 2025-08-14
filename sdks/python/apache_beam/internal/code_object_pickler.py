@@ -17,10 +17,14 @@
 
 """Customizations to how Python code objects are pickled.
 
-This module provides functions for pickling code objects, especially lambdas,
-in a consistent way. It addresses issues with non-deterministic pickling by
-creating a unique identifier that is invariant to small changes in the source
-code.
+This module provides helper functions to improve pickling code objects,
+especially lambdas, in a consistent way by using code object identifiers. These
+helper functions will be used to patch pickler implementations used by Beam
+(e.g. Cloudpickle).
+
+A code object identifier is a unique identifier for a code object that provides
+a unique reference to the code object in the context where the code is defined
+and is invariant to small changes in the currounding code.
 
 The code object identifiers consists of a sequence of the following parts
 separated by periods:
@@ -51,6 +55,7 @@ import inspect
 import re
 import sys
 import types
+from typing import Optional
 from typing import Union
 
 
@@ -60,15 +65,13 @@ def get_normalized_path(path):
 
 
 def get_code_path(callable: types.FunctionType):
-  """Returns the stable reference to the code object.
-
-  Will be implemented using cloudpickle in a future version.
+  """Returns the code object identifier for a given callable.
 
   Args:
     callable: The callable object to search for.
 
   Returns:
-    The stable reference to the code object.
+    The code object identifier.
       Examples:
       - __main__.top_level_function.__code__
       - __main__.ClassWithNestedFunction.process.__code__.co_consts[
@@ -81,7 +84,7 @@ def get_code_path(callable: types.FunctionType):
   if not hasattr(callable, '__module__') or not hasattr(callable,
                                                         '__qualname__'):
     return None
-  code_path = _extend_path(
+  code_path: str = _extend_path(
       callable.__module__,
       _search(
           callable,
@@ -92,7 +95,7 @@ def get_code_path(callable: types.FunctionType):
   return code_path
 
 
-def _extend_path(prefix: str, suffix: str):
+def _extend_path(prefix: str, current_path: Optional[str]):
   """Extends the path to the code object.
 
   Args:
@@ -113,12 +116,14 @@ def _search(
     callable: types.FunctionType,
     node: Union[types.ModuleType, types.FunctionType, types.CodeType],
     qual_name_parts: list[str]):
-  """Searches an object to create a stable reference code path.
+  """Searches an object to create a code object identifier.
 
   Recursively searches the tree of objects starting from node to find the
-    callable's code object. It uses qual_name_parts to navigate through
-    attributes. Special components like '<locals>' and '<lambda>' direct the
-    search within nested code objects.
+    callable's code object. It navigates through the attributes by using
+    the first element of qual_name_parts to indicate what object it is
+    currently at, then recursively passes through the rest of the list until
+    the callable is found. Special components like '<locals>' and '<lambda>'
+    direct the search within nested code objects.
 
 
   Example of qual_name_parts: ['MyClass', 'process', '<locals>', '<lambda>']
@@ -130,7 +135,7 @@ def _search(
       callable object.
 
   Returns:
-    The stable reference to the code object, or None if not found.
+    The code object identifier, or None if not found.
   """
   if node is None:
     return None
@@ -152,7 +157,7 @@ def _search_module_or_class(
     callable: types.FunctionType,
     node: types.ModuleType,
     qual_name_parts: list[str]):
-  """Searches a module or class to create a stable reference code path.
+  """Searches a module or class to create a code object identifier.
 
   Args:
     callable: The callable object to search for.
@@ -160,7 +165,7 @@ def _search_module_or_class(
     qual_name_parts: The list of qual name parts.
 
   Returns:
-    The stable reference to the code object, or None if not found.
+    The code object identifier, or None if not found.
   """
   # Functions/methods have a name that is unique within a given module or class
   # so the traversal can directly lookup function object identified by the name.
@@ -192,7 +197,7 @@ def _search_function(
     callable: types.FunctionType,
     node: types.FunctionType,
     qual_name_parts: list[str]):
-  """Searches a function to create a stable reference code path.
+  """Searches a function to create a code object identifier.
 
   Args:
     callable: The callable object to search for.
@@ -200,7 +205,7 @@ def _search_function(
     qual_name_parts: The list of qual name parts.
 
   Returns:
-    The stable reference to the code object, or None if not found.
+    The code object identifier, or None if not found.
   """
   first_part = qual_name_parts[0]
   if (node.__code__ == callable.__code__):
@@ -219,7 +224,7 @@ def _search_code(
     callable: types.FunctionType,
     node: types.CodeType,
     qual_name_parts: list[str]):
-  """Searches a code object to create a stable reference code path.
+  """Searches a code object to create a code object identifier.
 
   Args:
     callable: The callable to search for.
@@ -227,7 +232,7 @@ def _search_code(
     qual_name_parts: The list of qual name parts.
 
   Returns:
-    The stable reference to the code object, or None if not found.
+    The code object identifier, or None if not found.
 
   Raises:
     ValueError: If the qual name parts are too long.
@@ -261,7 +266,7 @@ def _search_lambda(
     callable: types.FunctionType,
     code_objects_by_name: dict[str, list[types.CodeType]],
     qual_name_parts: list[str]):
-  """Searches a lambda to create a stable reference code path.
+  """Searches a lambda to create a code object identifier.
 
   Args:
     callable: The callable to search for.
@@ -269,7 +274,7 @@ def _search_lambda(
     qual_name_parts: The rest of the qual_name_parts.
 
   Returns:
-    The stable reference to the code object, or None if not found.
+    The code object identifier, or None if not found.
   """
   # There are multiple lambdas in the code object, so we need to calculate
   # the signature and the hash to identify the correct lambda.
@@ -406,11 +411,11 @@ def _get_code_object_from_lambda_with_hash_pattern(
   raise AttributeError(f'Could not find code object with path: {path}')
 
 
-def _get_code_from_stable_reference(path: str):
-  """Returns the code object from a stable reference.
+def get_code_from_stable_reference(path: str):
+  """Returns the code object from a stable reference code object identifier.
 
   Args:
-    path: A string representing the stable reference to the code object.
+    path: A string representing the code object identifier.
 
   Returns:
     The code object.

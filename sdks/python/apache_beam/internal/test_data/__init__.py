@@ -15,4 +15,4 @@
 # limitations under the License.
 #
 
-"""For internal use only; no backwards-compatibility guarantees."""
+"""Test data to validate that code identifiers are invariant to small modifications."""
