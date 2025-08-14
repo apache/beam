@@ -106,6 +106,7 @@ __all__ = [
 K = TypeVar('K')
 V = TypeVar('V')
 T = TypeVar('T')
+U = TypeVar('U')
 
 RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION = "2.64.0"
 
@@ -267,8 +268,8 @@ class _CoGBKImpl(PTransform):
             | Flatten(pipeline=self.pipeline)
             | GroupByKey()
             | MapTuple(collect_values).with_input_types(
-                tuple[K, Iterable[tuple[str, V]]]).with_output_types(
-                    tuple[K, dict[str, list[V]]]))
+                tuple[K, Iterable[tuple[U, V]]]).with_output_types(
+                    tuple[K, dict[U, list[V]]]))
 
 
 @ptransform_fn
