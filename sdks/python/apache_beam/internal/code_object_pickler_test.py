@@ -24,6 +24,7 @@ from parameterized import parameterized
 
 # pylint: disable=unused-import
 from apache_beam.internal import code_object_pickler
+from apache_beam.internal.test_data import module_1
 from apache_beam.internal.test_data import module_1_class_added
 from apache_beam.internal.test_data import module_1_function_added
 from apache_beam.internal.test_data import module_1_global_variable_added
@@ -32,11 +33,10 @@ from apache_beam.internal.test_data import module_1_local_variable_added
 from apache_beam.internal.test_data import module_1_local_variable_removed
 from apache_beam.internal.test_data import module_1_nested_function_2_added
 from apache_beam.internal.test_data import module_1_nested_function_added
-from apache_beam.internal.test_data import module_1
-from apache_beam.internal.test_data import module_2_modified
 from apache_beam.internal.test_data import module_2
-from apache_beam.internal.test_data import module_3_modified
+from apache_beam.internal.test_data import module_2_modified
 from apache_beam.internal.test_data import module_3
+from apache_beam.internal.test_data import module_3_modified
 from apache_beam.internal.test_data import module_with_default_argument
 
 
@@ -296,8 +296,7 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
             code_object_pickler.get_code_object_identifier(
                 module_2.ClassWithNestedFunction.my_method(self)).replace(
                     "module_2", "module_2_modified")),
-        module_2_modified.ClassWithNestedFunction.my_method(
-            self).__code__,
+        module_2_modified.ClassWithNestedFunction.my_method(self).__code__,
     )
 
   def test_adding_nested_function_2_in_class_preserves_object(self):
@@ -306,8 +305,7 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
             code_object_pickler.get_code_object_identifier(
                 module_2.ClassWithNestedFunction2.my_method(self)).replace(
                     "module_2", "module_2_modified")),
-        module_2_modified.ClassWithNestedFunction2.my_method(
-            self).__code__,
+        module_2_modified.ClassWithNestedFunction2.my_method(self).__code__,
     )
 
   def test_adding_new_function_in_class_preserves_object(self):
@@ -570,6 +568,7 @@ class CodePathStabilityTest(unittest.TestCase):
             module_3_modified.my_function()).replace(
                 "module_3_modified", "module_name"),
     )
+
 
 if __name__ == "__main__":
   unittest.main()
