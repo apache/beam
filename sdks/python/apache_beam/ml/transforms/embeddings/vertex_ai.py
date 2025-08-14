@@ -19,10 +19,13 @@
 # Follow https://cloud.google.com/vertex-ai/docs/python-sdk/use-vertex-ai-python-sdk # pylint: disable=line-too-long
 # to install Vertex AI Python SDK.
 
+import functools
 import logging
+from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
+from typing import cast
 from typing import Optional
 
 from google.api_core.exceptions import ServerError
@@ -35,6 +38,7 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
+from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _MultiModalEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
@@ -42,6 +46,7 @@ from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.vision_models import Image
 from vertexai.vision_models import MultiModalEmbeddingModel
+from vertexai.vision_models import MultiModalEmbeddingResponse
 from vertexai.vision_models import Video
 from vertexai.vision_models import VideoSegmentConfig
 
@@ -346,12 +351,77 @@ class _VertexAIMultiModalEmbeddingHandler(RemoteModelHandler):
     return 'VertexAIMultiModalEmbeddings'
 
 
+def _multimodal_dict_input_fn(
+    image_column: Optional[str],
+    video_column: Optional[str],
+    text_column: Optional[str],
+    batch: Sequence[dict[str, Any]]) -> list[VertexAIMultiModalInput]:
+  multimodal_inputs: list[VertexAIMultiModalInput] = []
+  for item in batch:
+    img: Optional[Image] = None
+    vid: Optional[Video] = None
+    text: Optional[str] = None
+    if image_column:
+      img = item[image_column]
+    if video_column:
+      vid = item[video_column]
+    if text_column:
+      text = item[text_column]
+    multimodal_inputs.append(
+        VertexAIMultiModalInput(image=img, video=vid, contextual_text=text))
+  return multimodal_inputs
+
+
+def _multimodal_dict_output_fn(
+    image_column: Optional[str],
+    video_column: Optional[str],
+    text_column: Optional[str],
+    batch: Sequence[dict[str, Any]],
+    embeddings: Sequence[MultiModalEmbeddingResponse]) -> list[dict[str, Any]]:
+  results = []
+  for batch_idx, item in enumerate(batch):
+    mm_embedding = embeddings[batch_idx]
+    if image_column:
+      item[image_column] = mm_embedding.image_embedding
+    if video_column:
+      item[video_column] = mm_embedding.video_embeddings
+    if text_column:
+      item[text_column] = mm_embedding.text_embedding
+    results.append(item)
+  return results
+
+
+def _create_multimodal_dict_adapter(
+    image_column: Optional[str],
+    video_column: Optional[str],
+    text_column: Optional[str]
+) -> EmbeddingTypeAdapter[dict[str, Any], dict[str, Any]]:
+  return EmbeddingTypeAdapter[dict[str, Any], dict[str, Any]](
+      input_fn=cast(
+          Callable[[Sequence[dict[str, Any]]], list[str]],
+          functools.partial(
+              _multimodal_dict_input_fn,
+              image_column,
+              video_column,
+              text_column)),
+      output_fn=cast(
+          Callable[[Sequence[dict[str, Any]], Sequence[Any]],
+                   list[dict[str, Any]]],
+          functools.partial(
+              _multimodal_dict_output_fn,
+              image_column,
+              video_column,
+              text_column)))
+
+
 class VertexAIMultiModalEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_name: str,
-      columns: list[str],
-      dimension: Optional[int],
+      image_column: Optional[str] = None,
+      video_column: Optional[str] = None,
+      text_column: Optional[str] = None,
+      dimension: Optional[int] = None,
       video_segment_config: Optional[VideoSegmentConfig] = None,
       project: Optional[str] = None,
       location: Optional[str] = None,
@@ -368,9 +438,12 @@ class VertexAIMultiModalEmbeddings(EmbeddingsManager):
 
     Args:
       model_name: The name of the Vertex AI Multi-Modal Embedding model.
-      columns: The columns containing the image, video, and/or string to be embedded.
+      image_column: The column containing image data to be embedded.
+      video_column: The column containing video data to be embedded.
+      text_column: The column containing text data to be embedded.
       dimension: The length of the embedding vector to generate. Must be one of
         128, 256, 512, or 1408. If not set, Vertex AI's default value is 1408.
+        If submitting video content, dimension *musst* be 1408.
       project: The default GCP project for API calls.
       location: The default location for API calls.
       credentials: Custom credentials for API calls.
@@ -386,7 +459,17 @@ class VertexAIMultiModalEmbeddings(EmbeddingsManager):
           "dimension argument must be one of 128, 256, 512, or 1408")
     self.dimension = dimension
     self.video_segment_config = video_segment_config
-    super().__init__(columns=columns, **kwargs)
+    if not image_column and not video_column and not text_column:
+      raise ValueError("at least one input column must be specified")
+    if video_column is not None and dimension != 1408:
+      raise ValueError(
+          "Vertex AI does not support custom dimensions for video input, want dimension = 1408, got ",
+          dimension)
+    self.type_adapter = _create_multimodal_dict_adapter(
+        image_column=image_column,
+        video_column=video_column,
+        text_column=text_column)
+    super().__init__(type_adapter=self.type_adapter, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
     return _VertexAIMultiModalEmbeddingHandler(
