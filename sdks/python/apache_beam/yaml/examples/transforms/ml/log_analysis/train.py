@@ -36,8 +36,8 @@ def parse_arguments():
       '--bq_table',
       required=True,
       help='BigQuery fully qualified table name that contains vector '
-           'embeddings for training, '
-           'specified as `YOUR_PROJECT.YOUR_DATASET.YOUR_TABLE`.')
+      'embeddings for training, '
+      'specified as `YOUR_PROJECT.YOUR_DATASET.YOUR_TABLE`.')
 
   return parser.parse_known_args()
 

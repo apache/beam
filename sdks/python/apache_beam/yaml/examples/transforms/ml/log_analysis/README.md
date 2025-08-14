@@ -41,8 +41,8 @@ gcloud storage cp /path/to/Hadoop_2k.log_structured.csv \
 **NOTE**: This example requires the GCS bucket created to be a single-region
 bucket.
 
-For Iceberg tables, GCS is also used as the storage layer in this workflow. 
-In a data lakehouse with Iceberg and GCS object storage, a natural choice 
+For Iceberg tables, GCS is also used as the storage layer in this workflow.
+In a data lakehouse with Iceberg and GCS object storage, a natural choice
 for Iceberg catalog is [BigLake metastore](https://cloud.google.com/bigquery/docs/about-blms).
 It is a managed, serverless metastore that doesn't require any setup.
 
