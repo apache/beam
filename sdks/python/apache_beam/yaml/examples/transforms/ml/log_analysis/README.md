@@ -25,13 +25,8 @@ workflow on system logs.
 
 Install additional required Python dependencies:
 ```sh
-pip install tensorflow-transform db-types -r requirements.txt
+pip install db-types -r requirements.txt
 ```
-**NOTE**:
-- The underlying `tensorflow-transform` library that MLTransform uses cannot be
-installed on Apple Silicon. This example therefore should be run on
-x86 machines.
-- This example requires the GCS bucket created to be single-region bucket.
 
 The system logs dataset is from [logpai/loghub](https://github.com/logpai/loghub)
 GitHub repository, and specifically the [sample HDFS `.csv` dataset](
@@ -41,12 +36,14 @@ is used in this example.
 Download the dataset and copy it over to a GCS bucket:
 ```sh
 gcloud storage cp /path/to/Hadoop_2k.log_structured.csv \
-  gs://YOUR_BUCKET/Hadoop_2k.log_structured.csv
+  gs://YOUR-BUCKET/Hadoop_2k.log_structured.csv
 ```
+**NOTE**: This example requires the GCS bucket created to be a single-region
+bucket.
 
-For Iceberg tables, GCS is used as the storage layer. In a data lakehouse with
-Iceberg and GCS object storage, a natural choice for Iceberg catalog is
-[BigLake metastore](https://cloud.google.com/bigquery/docs/about-blms).
+For Iceberg tables, GCS is also used as the storage layer in this workflow. 
+In a data lakehouse with Iceberg and GCS object storage, a natural choice 
+for Iceberg catalog is [BigLake metastore](https://cloud.google.com/bigquery/docs/about-blms).
 It is a managed, serverless metastore that doesn't require any setup.
 
 A BigQuery dataset needs to exist first before the pipeline can
@@ -61,16 +58,16 @@ bq --location=YOUR_REGION mk \
 The workflow starts with pipeline [iceberg_migration.yaml](./iceberg_migration.yaml)
 that ingests the `.csv` log data and writes to an Iceberg table on GCS with
 BigLake metastore for catalog.
-The next pipeline [ml_preprocessing.yaml](
-./ml_preprocessing.yaml) reads from this Iceberg table and perform ML-specific
-transformations such as computing text embedding and normalization, before
-writing the vector embeddings to a BigQuery table.
+The next pipeline [ml_preprocessing.yaml](./ml_preprocessing.yaml) reads
+from this Iceberg table and perform ML-specific transformations such as
+computing text embedding and normalization, before writing the embeddings to
+a BigQuery table.
 An anomaly detection model is then trained (in [train.py](./train.py) script)
 on these vector embeddings, and is subsequently saved as artifact on GCS.
-The last pipeline [anomaly_scoring.yaml](./anomaly_scoring.yaml) reads the vector
-embeddings from the BigQuery table, uses Beam's anomaly detection module to
-load the model artifact from GCS and perform anomaly scoring, before writing
-it to another Iceberg table.
+The last pipeline [anomaly_scoring.yaml](./anomaly_scoring.yaml) reads the
+same embeddings from the BigQuery table, uses Beam's anomaly detection
+module to load the model artifact from GCS and perform anomaly scoring,
+before writing it to another Iceberg table.
 
 This entire workflow execution is encapsulated in the `batch_log_analysis.sh`
 script that runs these workloads sequentially.
