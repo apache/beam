@@ -20,8 +20,10 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSetOption;
@@ -44,20 +46,29 @@ public class SqlSetOptionBeam extends SqlSetOption implements BeamSqlParser.Exec
     final SqlIdentifier name = getName();
     final SqlNode value = getValue();
     final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, name);
-    if (!(pair.left.schema instanceof BeamCalciteSchema)) {
+    Schema schema = pair.left.schema;
+    if (schema instanceof CatalogManagerSchema) {
+      CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
+      if (value != null) {
+        catalogManagerSchema.setPipelineOption(pair.right, SqlDdlNodes.getString(value));
+      } else if ("ALL".equals(pair.right)) {
+        catalogManagerSchema.removeAllPipelineOptions();
+      } else {
+        catalogManagerSchema.removePipelineOption(pair.right);
+      }
+    } else if (schema instanceof BeamCalciteSchema) {
+      BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) schema;
+      if (value != null) {
+        beamCalciteSchema.setPipelineOption(pair.right, SqlDdlNodes.getString(value));
+      } else if ("ALL".equals(pair.right)) {
+        beamCalciteSchema.removeAllPipelineOptions();
+      } else {
+        beamCalciteSchema.removePipelineOption(pair.right);
+      }
+    } else {
       throw SqlUtil.newContextException(
           name.getParserPosition(),
-          RESOURCE.internal("Schema is not instanceof BeamCalciteSchema"));
-    }
-
-    BeamCalciteSchema schema = (BeamCalciteSchema) pair.left.schema;
-
-    if (value != null) {
-      schema.setPipelineOption(pair.right, SqlDdlNodes.getString(value));
-    } else if ("ALL".equals(pair.right)) {
-      schema.removeAllPipelineOptions();
-    } else {
-      schema.removePipelineOption(pair.right);
+          RESOURCE.internal("Schema is not instanceof CatalogManagerSchema or BeamCalciteSchema"));
     }
   }
 }
