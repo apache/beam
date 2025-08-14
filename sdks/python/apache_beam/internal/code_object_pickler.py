@@ -24,7 +24,7 @@ helper functions will be used to patch pickler implementations used by Beam
 
 A code object identifier is a unique identifier for a code object that provides
 a unique reference to the code object in the context where the code is defined
-and is invariant to small changes in the currounding code.
+and is invariant to small changes in the surrounding code.
 
 The code object identifiers consists of a sequence of the following parts
 separated by periods:
@@ -64,7 +64,7 @@ def get_normalized_path(path):
   return path
 
 
-def get_code_path(callable: types.FunctionType):
+def get_code_object_identifier(callable: types.FunctionType):
   """Returns the code object identifier for a given callable.
 
   Args:
@@ -411,11 +411,11 @@ def _get_code_object_from_lambda_with_hash_pattern(
   raise AttributeError(f'Could not find code object with path: {path}')
 
 
-def get_code_from_stable_reference(path: str):
-  """Returns the code object from a stable reference code object identifier.
+def get_code_from_identifier(code_object_identifier: str):
+  """Returns the code object corresponding to thefrom a code object identifier.
 
   Args:
-    path: A string representing the code object identifier.
+    code_object_identifier: A string representing the code object identifier.
 
   Returns:
     The code object.
@@ -424,25 +424,26 @@ def get_code_from_stable_reference(path: str):
     ValueError: If the path is empty or invalid.
     AttributeError: If the attribute is not found.
   """
-  if not path:
+  if not code_object_identifier:
     raise ValueError('Path must not be empty.')
-  parts = path.split('.')
+  parts = code_object_identifier.split('.')
   obj = sys.modules[parts[0]]
   for part in parts[1:]:
     if name_result := _SINGLE_NAME_PATTERN.fullmatch(part):
-      obj = _get_code_object_from_single_name_pattern(obj, name_result, path)
+      obj = _get_code_object_from_single_name_pattern(
+        obj, name_result, code_object_identifier)
     elif lambda_with_args_result := _LAMBDA_WITH_ARGS_PATTERN.fullmatch(part):
       obj = _get_code_object_from_lambda_with_args_pattern(
-          obj, lambda_with_args_result, path)
+          obj, lambda_with_args_result, code_object_identifier)
     elif lambda_with_hash_result := _LAMBDA_WITH_HASH_PATTERN.fullmatch(part):
       obj = _get_code_object_from_lambda_with_hash_pattern(
-          obj, lambda_with_hash_result, path)
+          obj, lambda_with_hash_result, code_object_identifier)
     elif default_result := _DEFAULT_PATTERN.fullmatch(part):
       index = int(default_result.group(2))
       if index >= len(obj.__defaults__):
         raise ValueError(
             f'Index {index} is out of bounds for obj.__defaults__'
-            f' {len(obj.__defaults__)} in path {path}')
+            f' {len(obj.__defaults__)} in path {code_object_identifier}')
       obj = getattr(obj, '__defaults__')[index]
     else:
       obj = getattr(obj, part)

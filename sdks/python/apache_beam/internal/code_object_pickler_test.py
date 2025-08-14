@@ -207,60 +207,60 @@ test_cases = [
 ]
 
 
-class CodePathGenerationTest(unittest.TestCase):
+class CodeObjectIdentifierGenerationTest(unittest.TestCase):
   @parameterized.expand(test_cases)
-  def test_get_code_path(self, callable, expected_path):
-    actual = code_object_pickler.get_code_path(callable)
+  def test_get_code_object_identifier(self, callable, expected_path):
+    actual = code_object_pickler.code_object_identifier(callable)
     self.assertEqual(actual, expected)
 
   @parameterized.expand(test_cases)
-  def test_get_code_from_stable_reference(self, expected_callable, path):
-    actual = code_object_pickler.get_code_from_stable_reference(path)
+  def test_get_code_from_identifier(self, expected_callable, path):
+    actual = code_object_pickler.get_code_from_identifier(path)
     self.assertEqual(actual, callable.__code__)
 
   @parameterized.expand(test_cases)
   def test_roundtrip(self, callable, unused_path):
-    path = code_object_pickler.get_code_path(callable)
-    actual = code_object_pickler.get_code_from_stable_reference(path)
+    path = code_object_pickler.code_object_identifier(callable)
+    actual = code_object_pickler.get_code_from_identifier(path)
     self.assertEqual(actual, callable.__code__)
 
 
-class GetCodeFromStableReferenceTest(unittest.TestCase):
+class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
   def empty_path_raises_exception(self):
     with self.assertRaisesRegex(ValueError, "Path must not be empty"):
-      code_object_pickler.get_code_from_stable_reference("")
+      code_object_pickler.test_get_code_from_identifier("")
 
   def invalid_default_index_raises_exception(self):
     with self.assertRaisesRegex(ValueError, "out of bounds"):
-      code_object_pickler.get_code_from_stable_reference(
+      code_object_pickler.test_get_code_from_identifier(
           "apache_beam.internal.test_cases.module_with_default_argument."
           "function_with_lambda_default_argument.__defaults__[1]")
 
   def invalid_single_name_path_raises_exception(self):
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
-      code_object_pickler.get_code_from_stable_reference(
+      code_object_pickler.get_code_from_identifier(
           "apache_beam.internal.test_cases.module_3."
           "my_function.__code__.co_consts[something]")
 
   def invalid_lambda_with_args_path_raises_exception(self):
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
-      code_object_pickler.get_code_from_stable_reference(
+      code_object_pickler.get_code_from_identifier(
           "apache_beam.internal.test_cases.module_3."
           "my_function.__code__.co_consts[<lambda>, ('x',)]")
 
   def invalid_lambda_with_hash_path_raises_exception(self):
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
-      code_object_pickler.get_code_from_stable_reference(
+      code_object_pickler.get_code_from_identifier(
           "apache_beam.internal.test_cases.module_3."
           "my_function.__code__.co_consts[<lambda>, ('',), 1234567890]")
 
   def test_adding_local_variable_in_class_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_2.AddLocalVariable.my_method(
                     self)).replace(
                         "module_2",
@@ -270,8 +270,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_removing_local_variable_in_class_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_2.RemoveLocalVariable.my_method(
                     self)).replace(
                         "module_2",
@@ -281,8 +281,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_lambda_variable_in_class_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_2.AddLambdaVariable.my_method(
                     self)).replace(
                         "module_2",
@@ -292,8 +292,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_removing_lambda_variable_in_class_changes_object(self):
     with self.assertRaisesRegex(AttributeError, "object has no attribute"):
-      code_object_pickler.get_code_from_stable_reference(
-          code_object_pickler.get_code_path(
+      code_object_pickler.get_code_from_identifier(
+          code_object_pickler.code_object_identifier(
               module_2.RemoveLambdaVariable.my_method(
                   self)).replace(
                       "module_2",
@@ -301,8 +301,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_nested_function_in_class_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_2.ClassWithNestedFunction.my_method(
                     self)).replace(
                         "module_2",
@@ -313,8 +313,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_nested_function_2_in_class_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_2.ClassWithNestedFunction2.my_method(
                     self)).replace(
                         "module_2",
@@ -325,8 +325,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_new_function_in_class_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_2.ClassWithTwoMethods.my_method(
                     self)).replace(
                         "module_2",
@@ -336,8 +336,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_removing_method_in_class_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_2.RemoveMethod.my_method(
                     self)).replace(
                         "module_2",
@@ -347,8 +347,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_global_variable_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_1.my_function()).replace(
                     "module_1",
                     "module_1_global_variable_added",
@@ -358,8 +358,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_top_level_function_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_1.my_function()).replace(
                     "module_1",
                     "module_1_function_added")),
@@ -368,8 +368,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_local_variable_in_function_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_1.my_function()).replace(
                     "module_1",
                     "module_1_local_variable_added")),
@@ -378,8 +378,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_removing_local_variable_in_function_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_1.my_function()).replace(
                     "module_1",
                     "module_1_local_variable_removed")),
@@ -388,8 +388,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_nested_function_in_function_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_1.my_function()).replace(
                     "module_1",
                     "module_1_nested_function_added")),
@@ -398,8 +398,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_nested_function_2_in_function_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_1.my_function()).replace(
                     "module_1",
                     "module_1_nested_function_2_added")),
@@ -408,8 +408,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_class_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_1.my_function()).replace(
                     "module_1",
                     "module_1_class_added")),
@@ -418,8 +418,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_adding_lambda_variable_in_function_preserves_object(self):
     self.assertEqual(
-        code_object_pickler.get_code_from_stable_reference(
-            code_object_pickler.get_code_path(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.code_object_identifier(
                 module_1.my_function()).replace(
                     "module_1",
                     "module_1_lambda_variable_added")),
@@ -428,8 +428,8 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 
   def test_removing_lambda_variable_in_function_raises_exception(self):
     with self.assertRaisesRegex(AttributeError, "object has no attribute"):
-      code_object_pickler.get_code_from_stable_reference(
-          code_object_pickler.get_code_path(
+      code_object_pickler.get_code_from_identifier(
+          code_object_pickler.code_object_identifier(
               module_3.my_function()).replace(
                   "module_3",
                   "module_3_modified"))
@@ -438,170 +438,170 @@ class GetCodeFromStableReferenceTest(unittest.TestCase):
 class CodePathStabilityTest(unittest.TestCase):
   def test_adding_local_variable_in_class_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2.AddLocalVariable.my_method(
                 self)).replace("module_2", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2_modified.AddLocalVariable.my_method(self)).replace(
                 "module_2_modified", "module_name"),
     )
 
   def test_removing_local_variable_in_class_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2.RemoveLocalVariable.my_method(
                 self)).replace("module_2", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2_modified.RemoveLocalVariable.my_method(
                 self)).replace("module_2_modified", "module_name"),
     )
 
   def test_adding_lambda_variable_in_class_changes_path(self):
     self.assertNotEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2.AddLambdaVariable.my_method(
                 self)).replace("module_2", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2_modified.AddLambdaVariable.my_method(
                 self)).replace("module_2_modified", "module_name"),
     )
 
   def test_removing_lambda_variable_in_class_changes_path(self):
     self.assertNotEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2.RemoveLambdaVariable.my_method(
                 self)).replace("module_2", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2_modified.RemoveLambdaVariable.my_method(
                 self)).replace("module_2_modified", "module_name"),
     )
 
   def test_adding_nested_function_in_class_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2.ClassWithNestedFunction.my_method(
                 self)).replace("module_2", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2_modified.ClassWithNestedFunction.my_method(
                 self)).replace("module_2_modified", "module_name"),
     )
 
   def test_adding_nested_function_2_in_class_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2.ClassWithNestedFunction2.my_method(
                 self)).replace("module_2", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2_modified.ClassWithNestedFunction2.my_method(
                 self)).replace("module_2_modified", "module_name"),
     )
 
   def test_adding_new_function_in_class_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2.ClassWithTwoMethods.my_method(
                 self)).replace("module_2", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2_modified.ClassWithTwoMethods.my_method(
                 self)).replace("module_2_modified", "module_name"),
     )
 
   def test_removing_function_in_class_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2.RemoveMethod.my_method(self)).replace(
                 "module_2", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_2_modified.RemoveMethod.my_method(self)).replace(
                 "module_2_modified", "module_name"),
     )
 
   def test_adding_global_variable_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1.my_function()).replace(
                 "module_1", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1_global_variable_added.my_function()).replace(
                 "module_1_global_variable_added", "module_name"),
     )
 
   def test_adding_top_level_function_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1.my_function()).replace(
                 "module_1", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1_function_added.my_function()).replace(
                 "module_1_function_added", "module_name"),
     )
 
   def test_adding_local_variable_in_function_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1.my_function()).replace(
                 "module_1", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1_local_variable_added.my_function()).replace(
                 "module_1_local_variable_added", "module_name"),
     )
 
   def test_removing_local_variable_in_function_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1.my_function()).replace(
                 "module_1", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1_local_variable_removed.my_function()).replace(
                 "module_1_local_variable_removed", "module_name"),
     )
 
   def test_adding_nested_function_in_function_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1.my_function()).replace(
                 "module_1", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1_nested_function_added.my_function()).replace(
                 "module_1_nested_function_added", "module_name"),
     )
 
   def test_adding_nested_function_2_in_function_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1.my_function()).replace(
                 "module_1", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1_nested_function_2_added.my_function()).replace(
                 "module_1_nested_function_2_added", "module_name"),
     )
 
   def test_adding_class_preserves_path(self):
     self.assertEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1.my_function()).replace(
                 "module_1", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1_class_added.my_function()).replace(
                 "module_1_class_added", "module_name"),
     )
 
   def test_adding_lambda_variable_in_function_changes_path(self):
     self.assertNotEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1.my_function()).replace(
                 "module_1", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_1_lambda_variable_added.my_function()).replace(
                 "module_1_lambda_variable_added", "module_name"),
     )
 
   def test_removing_lambda_variable_in_function_changes_path(self):
     self.assertNotEqual(
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_3.my_function()).replace(
                 "module_3", "module_name"),
-        code_object_pickler.get_code_path(
+        code_object_pickler.code_object_identifier(
             module_3_modified.my_function()).replace(
                 "module_3_modified", "module_name"),
     )
