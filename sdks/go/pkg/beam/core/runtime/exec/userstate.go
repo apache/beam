@@ -149,11 +149,12 @@ func (s *stateProvider) ReadBagState(userStateID string) ([]any, []state.Transac
 	if !ok {
 		transactions = []state.Transaction{}
 	}
+	// If there were blind writes before this read, trim the transactions.
+	// These don't need to be reset, unless a clear happens.
 	if s.blindBagWriteCountsByKey[userStateID] > 0 {
 		// Trim blind writes from the transaction queue, to avoid re-applying them.
 		transactions = transactions[s.blindBagWriteCountsByKey[userStateID]:]
 	}
-	fmt.Println("XXXX READ", transactions)
 
 	return initialValue, transactions, nil
 }
@@ -181,7 +182,6 @@ func (s *stateProvider) WriteBagState(val state.Transaction) error {
 	_, ok := s.initialBagByKey[val.Key]
 	if !ok {
 		s.blindBagWriteCountsByKey[val.Key]++
-		fmt.Println("XXXX BLIND WRITE", s.blindBagWriteCountsByKey[val.Key])
 	}
 	ap, err := s.getBagAppender(val.Key)
 	if err != nil {

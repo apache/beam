@@ -232,6 +232,13 @@ func (f *bagStateBlindWriteFn) ProcessElement(s state.Provider, w string, c int)
 	for _, val := range i {
 		sum += val
 	}
+
+	// Bonus "non-blind" write
+	err = f.State1.Add(s, 1)
+	if err != nil {
+		panic(err)
+	}
+
 	return fmt.Sprintf("%s: %v", w, sum)
 }
 
@@ -241,7 +248,7 @@ func BagStateBlindWriteParDo(s beam.Scope) {
 	in := beam.Create(s, "apple", "pear", "peach", "apple", "apple", "pear")
 	keyed := beam.ParDo(s, pairWithOne, in)
 	counts := beam.ParDo(s, &bagStateBlindWriteFn{}, keyed)
-	passert.Equals(s, counts, "apple: 1", "pear: 1", "peach: 1", "apple: 2", "apple: 3", "pear: 2")
+	passert.Equals(s, counts, "apple: 1", "pear: 1", "peach: 1", "apple: 3", "apple: 5", "pear: 3")
 }
 
 type combiningStateFn struct {
