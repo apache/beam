@@ -35,17 +35,18 @@ type stateProvider struct {
 	elementKey []byte
 	window     []byte
 
-	transactionsByKey     map[string][]state.Transaction
-	initialValueByKey     map[string]any
-	initialBagByKey       map[string][]any
-	initialMapValuesByKey map[string]map[string]any
-	initialMapKeysByKey   map[string][]any
-	readersByKey          map[string]io.ReadCloser
-	appendersByKey        map[string]io.Writer
-	clearersByKey         map[string]io.Writer
-	codersByKey           map[string]*coder.Coder
-	keyCodersByID         map[string]*coder.Coder
-	combineFnsByKey       map[string]*graph.CombineFn
+	transactionsByKey        map[string][]state.Transaction
+	initialValueByKey        map[string]any
+	initialBagByKey          map[string][]any
+	blindBagWriteCountsByKey map[string]int // Tracks blind writes to bags before a read.
+	initialMapValuesByKey    map[string]map[string]any
+	initialMapKeysByKey      map[string][]any
+	readersByKey             map[string]io.ReadCloser
+	appendersByKey           map[string]io.Writer
+	clearersByKey            map[string]io.Writer
+	codersByKey              map[string]*coder.Coder
+	keyCodersByID            map[string]*coder.Coder
+	combineFnsByKey          map[string]*graph.CombineFn
 }
 
 // ReadValueState reads a value state from the State API
@@ -148,6 +149,11 @@ func (s *stateProvider) ReadBagState(userStateID string) ([]any, []state.Transac
 	if !ok {
 		transactions = []state.Transaction{}
 	}
+	if s.blindBagWriteCountsByKey[userStateID] > 0 {
+		// Trim blind writes from the transaction queue, to avoid re-applying them.
+		transactions = transactions[s.blindBagWriteCountsByKey[userStateID]:]
+	}
+	fmt.Println("XXXX READ", transactions)
 
 	return initialValue, transactions, nil
 }
@@ -165,6 +171,7 @@ func (s *stateProvider) ClearBagState(val state.Transaction) error {
 
 	// Any transactions before a clear don't matter
 	s.transactionsByKey[val.Key] = []state.Transaction{val}
+	s.blindBagWriteCountsByKey[val.Key] = 1 // To account for the clear.
 
 	return nil
 }
@@ -173,13 +180,8 @@ func (s *stateProvider) ClearBagState(val state.Transaction) error {
 func (s *stateProvider) WriteBagState(val state.Transaction) error {
 	_, ok := s.initialBagByKey[val.Key]
 	if !ok {
-		// No initial read has happened. Trigger a read here to avoid
-		// data duplication from the runner side, due to this blind read.
-		//
-		// This is less efficient than what Python and Java do, which is simply
-		// batch full transaction states per bundle, but that's a much more
-		// involved fix to the SDK.
-		s.ReadBagState(val.Key)
+		s.blindBagWriteCountsByKey[val.Key]++
+		fmt.Println("XXXX BLIND WRITE", s.blindBagWriteCountsByKey[val.Key])
 	}
 	ap, err := s.getBagAppender(val.Key)
 	if err != nil {
@@ -520,22 +522,23 @@ func (s *userStateAdapter) NewStateProvider(ctx context.Context, reader StateRea
 		return stateProvider{}, err
 	}
 	sp := stateProvider{
-		ctx:                   ctx,
-		sr:                    reader,
-		SID:                   s.sid,
-		elementKey:            elementKey,
-		window:                win,
-		transactionsByKey:     make(map[string][]state.Transaction),
-		initialValueByKey:     make(map[string]any),
-		initialBagByKey:       make(map[string][]any),
-		initialMapValuesByKey: make(map[string]map[string]any),
-		initialMapKeysByKey:   make(map[string][]any),
-		readersByKey:          make(map[string]io.ReadCloser),
-		appendersByKey:        make(map[string]io.Writer),
-		clearersByKey:         make(map[string]io.Writer),
-		combineFnsByKey:       s.stateIDToCombineFn,
-		codersByKey:           s.stateIDToCoder,
-		keyCodersByID:         s.stateIDToKeyCoder,
+		ctx:                      ctx,
+		sr:                       reader,
+		SID:                      s.sid,
+		elementKey:               elementKey,
+		window:                   win,
+		transactionsByKey:        make(map[string][]state.Transaction),
+		initialValueByKey:        make(map[string]any),
+		initialBagByKey:          make(map[string][]any),
+		blindBagWriteCountsByKey: make(map[string]int),
+		initialMapValuesByKey:    make(map[string]map[string]any),
+		initialMapKeysByKey:      make(map[string][]any),
+		readersByKey:             make(map[string]io.ReadCloser),
+		appendersByKey:           make(map[string]io.Writer),
+		clearersByKey:            make(map[string]io.Writer),
+		combineFnsByKey:          s.stateIDToCombineFn,
+		codersByKey:              s.stateIDToCoder,
+		keyCodersByID:            s.stateIDToKeyCoder,
 	}
 
 	return sp, nil
