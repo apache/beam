@@ -348,8 +348,6 @@ class AccountKeysPolicyComplianceCheck:
 
         self.logger.info(f"Found {len(file_service_accounts)} existing service accounts in the keys file")
         
-        compliance_issues = []
-
         # Check that all service accounts that exist are declared, if not, add them
         for service_account in self._get_all_live_service_accounts():
             if self._denormalize_account_email(service_account) not in [account["account_id"] for account in file_service_accounts]:
@@ -375,20 +373,22 @@ class AccountKeysPolicyComplianceCheck:
 
         # Check for each managed secret if it has the correct permissions
         for account in file_service_accounts:
-            authorized_users = [user["email"] for user in account["authorized_users"]]
-            # If no authorized users, its new, skip
+            secret_name = f"{self._denormalize_account_email(account['account_id'])}-key"
+            if secret_name not in managed_secrets:
+                continue
+
+            authorized_users = sorted([user["email"] for user in account["authorized_users"]])
+
             if not authorized_users:
                 self.logger.info(f"Managed secret '{account}' is new, skipping permission check")
                 continue
 
-            users = self._get_all_secret_authorized_users(f"{self._denormalize_account_email(account['account_id'])}-key")
-            users = [self._denormalize_username(user) for user in users]
-            if authorized_users != users:
+            actual_users_normalized = sorted(self._get_all_secret_authorized_users(secret_name))
+            actual_users = sorted([self._denormalize_username(user) for user in actual_users_normalized])
+
+            if authorized_users != actual_users:
                 self.logger.info(f"Managed secret '{account}' does not have the correct permissions, updating it")
-                for user in users:
-                    if user not in authorized_users:
-                        self.logger.info(f"Adding user '{user}' to managed secret '{account}'")
-                        account["authorized_users"].append({"email": user})
+                account["authorized_users"] = [{"email": user} for user in actual_users]
 
         # Remove duplicates based on account_id
         seen_accounts = set()

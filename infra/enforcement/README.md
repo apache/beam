@@ -19,7 +19,7 @@
 
 # Infrastructure rules enforcement
 
-This module is used to check that the infrastructure roles are being used.
+This module is used to check that the infrastructure rules are being used.
 
 ## IAM Policies
 

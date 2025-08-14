@@ -189,30 +189,33 @@ class IAMPolicyComplianceChecker:
         Returns:
             A list of strings describing any compliance issues found.
         """
-        current_policy = self._export_project_iam()
-        existing_policy = self._read_project_iam_file()
+        current_users = {user['email']: user for user in self._export_project_iam()}
+        existing_users = {user['email']: user for user in self._read_project_iam_file()}
 
-        if not existing_policy:
+        if not existing_users:
             error_msg = f"No IAM policy found in the {self.users_file}."
             self.logger.info(error_msg)
             raise RuntimeError(error_msg)
 
-        differences = []
+        differences = []        
 
-        for current_user in current_policy:
-            found = False
-            for existing_user in existing_policy:
-                if current_user["email"] == existing_user["email"]:
-                    found = True
-                    if current_user["permissions"] != existing_user["permissions"]:
-                        msg = f"\nPermissions for user {current_user['email']} differ."
-                        msg += f"\nIn GCP: {current_user['permissions']}"
-                        msg += f"\nIn {self.users_file}: {existing_user['permissions']}"
-                        self.logger.info(msg)
-                        differences.append(msg)
-                    break
-            if not found:
-                differences.append(f"User {current_user['email']} not found in existing policy.")
+        all_emails = set(current_users.keys()) | set(existing_users.keys())
+
+        for email in sorted(list(all_emails)):
+            current_user = current_users.get(email)
+            existing_user = existing_users.get(email)
+
+            if current_user and not existing_user:
+                differences.append(f"User {email} not found in existing policy.")
+            elif not current_user and existing_user:
+                differences.append(f"User {email} found in policy file but not in GCP.")
+            elif current_user and existing_user:
+                if current_user["permissions"] != existing_user["permissions"]:
+                    msg = f"\nPermissions for user {email} differ."
+                    msg += f"\nIn GCP: {current_user['permissions']}"
+                    msg += f"\nIn {self.users_file}: {existing_user['permissions']}"
+                    self.logger.info(msg)
+                    differences.append(msg)
 
         return differences
 
