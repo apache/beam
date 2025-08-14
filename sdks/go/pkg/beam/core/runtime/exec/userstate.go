@@ -171,6 +171,16 @@ func (s *stateProvider) ClearBagState(val state.Transaction) error {
 
 // WriteBagState writes a bag state to the State API
 func (s *stateProvider) WriteBagState(val state.Transaction) error {
+	_, ok := s.initialBagByKey[val.Key]
+	if !ok {
+		// No initial read has happened. Trigger a read here to avoid
+		// data duplication from the runner side, due to this blind read.
+		//
+		// This is less efficient than what Python and Java do, which is simply
+		// batch full transaction states per bundle, but that's a much more
+		// involved fix to the SDK.
+		s.ReadBagState(val.Key)
+	}
 	ap, err := s.getBagAppender(val.Key)
 	if err != nil {
 		return err
