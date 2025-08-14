@@ -266,7 +266,9 @@ class _CoGBKImpl(PTransform):
     ]
             | Flatten(pipeline=self.pipeline)
             | GroupByKey()
-            | MapTuple(collect_values))
+            | MapTuple(collect_values).with_input_types(
+                tuple[K, Iterable[tuple[str, V]]]).with_output_types(
+                    tuple[K, dict[str, list[V]]]))
 
 
 @ptransform_fn
