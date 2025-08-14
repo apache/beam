@@ -93,8 +93,10 @@ jobs:
         echo "::add-mask::$PYPI_PASSWORD"
     - name: Validate PyPi id/password
       run: |
-        echo "::add-mask::${{ github.event.inputs.PYPI_API_TOKEN }}"
-        if [ "${{ github.event.inputs.PYPI_API_TOKEN }}" == "" ]
+        # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+        PYPI_API_TOKEN=$(jq -r '.inputs.PYPI_API_TOKEN' $GITHUB_EVENT_PATH)
+        echo "::add-mask::$PYPI_API_TOKEN"
+        if [ "$PYPI_API_TOKEN" == "" ]
         then
           echo "Must provide a PyPi password to publish artifacts to PyPi"
           exit 1
