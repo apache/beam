@@ -307,7 +307,7 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
         uuid.uuid4().hex)
     self.model_name = "multimodalembedding"
     self.image_path = "gs://apache-beam-ml/testing/inputs/vertex_images/sunflowers/1008566138_6927679c8a.jpg"  # pylint: disable=line-too-long
-    self.video_path = "gs://cloud-samples-data/vertex-ai-vision/highway_vehicles.mp4"
+    self.video_path = "gs://cloud-samples-data/vertex-ai-vision/highway_vehicles.mp4"  # pylint: disable=line-too-long
     self.video_segment_config = VideoSegmentConfig(end_offset_sec=1)
 
   def tearDown(self) -> None:
