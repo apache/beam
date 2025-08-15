@@ -412,7 +412,7 @@ def _get_code_object_from_lambda_with_hash_pattern(
 
 
 def get_code_from_identifier(code_object_identifier: str):
-  """Returns the code object corresponding to thefrom a code object identifier.
+  """Returns the code object corresponding to the code object identifier.
 
   Args:
     code_object_identifier: A string representing the code object identifier.
