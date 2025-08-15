@@ -3577,6 +3577,10 @@ class Partition(PTransformWithSideInputs):
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
             '%d not in [0, %d)' % (partition, n))
+      if isinstance(partition, bool) or not isinstance(partition, int):
+        raise ValueError(
+            f"PartitionFn yielded a '{type(partition).__name__}' "
+            "when it should only yields integers")
       # Each input is directed into the output that corresponds to the
       # selected partition.
       yield pvalue.TaggedOutput(str(partition), element)

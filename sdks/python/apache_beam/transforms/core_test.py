@@ -162,6 +162,14 @@ class CreateTest(unittest.TestCase):
 
 
 class PartitionTest(unittest.TestCase):
+  def test_partition_with_bools(self):
+    with pytest.raises(
+        ValueError,
+        match="PartitionFn yielded a 'bool' when it should only yields integers"
+    ):
+      with beam.testing.test_pipeline.TestPipeline() as p:
+        _ = (p | beam.Create([True]) | beam.Partition(lambda x, _: x, 2))
+
   def test_partition_boundedness(self):
     def partition_fn(val, num_partitions):
       return val % num_partitions
