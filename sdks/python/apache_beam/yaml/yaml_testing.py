@@ -361,18 +361,31 @@ class AssertEqualAndRecord(beam.PTransform):
     self._recording_id = recording_id
 
   def expand(self, pcoll):
-    equal_to_matcher = equal_to(yaml_provider.dicts_to_rows(self._elements))
+    # Convert elements to rows outside the matcher to avoid capturing
+    # any grpc channels that might be created during the conversion
+    expected_rows = yaml_provider.dicts_to_rows(self._elements)
+    equal_to_matcher = equal_to(expected_rows)
+    recording_id = self._recording_id
 
-    def matcher(actual):
-      try:
-        equal_to_matcher(actual)
-      except Exception:
-        if self._recording_id:
-          AssertEqualAndRecord.store_recorded_result(
-              tuple(self._recording_id), actual)
-        else:
-          raise
+    # Create a serializable matcher function that doesn't capture
+    # any external references that might contain grpc channels
+    class SerializableMatcher:
+      def __init__(self, expected_rows, recording_id):
+        self.expected_rows = expected_rows
+        self.recording_id = recording_id
+        self.equal_to_matcher = equal_to(expected_rows)
 
+      def __call__(self, actual):
+        try:
+          self.equal_to_matcher(actual)
+        except Exception:
+          if self.recording_id:
+            AssertEqualAndRecord.store_recorded_result(
+                tuple(self.recording_id), actual)
+          else:
+            raise
+
+    matcher = SerializableMatcher(expected_rows, recording_id)
     return assert_that(
         pcoll | beam.Map(lambda row: beam.Row(**row._asdict())), matcher)
 

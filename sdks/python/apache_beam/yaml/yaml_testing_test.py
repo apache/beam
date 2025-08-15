@@ -199,7 +199,6 @@ class YamlTestingTest(unittest.TestCase):
   def test_create(self):
     with tempfile.TemporaryDirectory() as tmpdir:
       input_path = os.path.join(tmpdir, 'input.csv')
-      input_path = os.path.join('.', 'input.csv')
       with open(input_path, 'w') as fout:
         fout.write('a,b,c\n')
         for ix in range(1000):
@@ -224,6 +223,97 @@ class YamlTestingTest(unittest.TestCase):
     self.assertEqual(len(test_spec['expected_inputs']), 1)
     self.assertGreaterEqual(len(test_spec['expected_inputs'][0]['elements']), 5)
     yaml_testing.run_test(pipeline, test_spec)
+
+  def test_join_transform_serialization(self):
+    """Test that Join transforms work with YAML testing framework and cloudpickle.
+    
+    This test validates the fix for the grpc channel serialization issue
+    that was causing TypeError: no default __reduce__ due to non-trivial __cinit__
+    when using Join transforms with the YAML testing framework.
+    """
+    join_pipeline = '''
+pipeline:
+  transforms:
+    - type: Create
+      name: Create1
+      config:
+        elements:
+          - ride_id: "1"
+            pickup_location: "downtown"
+          - ride_id: "2"
+            pickup_location: "airport"
+
+    - type: Create
+      name: Create2
+      config:
+        elements:
+          - ride_id: "1"
+            dropoff_location: "mall"
+          - ride_id: "2"
+            dropoff_location: "hotel"
+
+    - type: Join
+      name: JoinRides
+      input:
+        pickup: Create1
+        dropoff: Create2
+      config:
+        equalities: ride_id
+        type: inner
+        fields:
+          pickup: [ride_id, pickup_location]
+          dropoff: [dropoff_location]
+
+    - type: LogForTesting
+      name: LogResult
+      input: JoinRides
+'''
+
+    # Test with expected_inputs to validate the Join transform output
+    yaml_testing.run_test(
+        join_pipeline,
+        {
+            'expected_inputs': [{
+                'name': 'LogResult',
+                'elements': [{
+                    'ride_id': '1',
+                    'pickup_location': 'downtown',
+                    'dropoff_location': 'mall'
+                },
+                             {
+                                 'ride_id': '2',
+                                 'pickup_location': 'airport',
+                                 'dropoff_location': 'hotel'
+                             }]
+            }]
+        })
+
+    # Test with mock_outputs to validate Join transform can handle mocked inputs
+    yaml_testing.run_test(
+        join_pipeline,
+        {
+            'mock_outputs': [{
+                'name': 'Create1',
+                'elements': [{
+                    'ride_id': '3', 'pickup_location': 'station'
+                }]
+            },
+                             {
+                                 'name': 'Create2',
+                                 'elements': [{
+                                     'ride_id': '3',
+                                     'dropoff_location': 'office'
+                                 }]
+                             }],
+            'expected_inputs': [{
+                'name': 'LogResult',
+                'elements': [{
+                    'ride_id': '3',
+                    'pickup_location': 'station',
+                    'dropoff_location': 'office'
+                }]
+            }]
+        })
 
 
 if __name__ == '__main__':
