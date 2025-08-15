@@ -30,6 +30,7 @@ ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
 
 # Use one RUN command to reduce the number of layers.
+ARG py_version
 RUN  \
     # Install native bindings required for dependencies.
     apt-get update && \
