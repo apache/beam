@@ -88,27 +88,32 @@ the form `major.minor.patch` and are incremented as follows:
 * minor version for new functionality added in a backward-compatible manner, infrequent incompatible API changes
 * patch version for forward-compatible bug fixes
 
-Please note that APIs marked [`@Experimental`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/annotations/Experimental.html)
-may change at any point and are not guaranteed to remain compatible across versions.
-
 Additionally, any API may change before the first stable release, i.e., between
 versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.67.0 (2025-08-12)
+
+Official [source code download](https://archive.apache.org/dist/beam/2.67.0/apache-beam-2.67.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.67.0/apache-beam-2.67.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.67.0/apache-beam-2.67.0-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.67.0)
+
 ### 2.66.0 (2025-07-01)
 
 Official [source code download](https://archive.apache.org/dist/beam/2.66.0/apache-beam-2.66.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.66.0/apache-beam-2.66.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.66.0/apache-beam-2.66.0-source-release.zip.asc).
+[SHA-512](https://archive.apache.org/dist/beam/2.66.0/apache-beam-2.66.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.66.0/apache-beam-2.66.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.66.0)
 
 ### 2.65.0 (2025-05-12)
 
 Official [source code download](https://archive.apache.org/dist/beam/2.65.0/apache-beam-2.65.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.65.0/apache-beam-2.65.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.65.0/apache-beam-2.65.0-source-release.zip.asc).
+[SHA-512](https://archive.apache.org/dist/beam/2.65.0/apache-beam-2.65.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.65.0/apache-beam-2.65.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.65.0)
 

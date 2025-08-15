@@ -384,22 +384,13 @@ class ExternalJavaProvider(ExternalProvider):
     self._classpath = classpath
 
   def available(self):
-    # pylint: disable=subprocess-run-check
-    trial = subprocess.run(['which', subprocess_server.JavaHelper.get_java()],
-                           capture_output=True)
-    if trial.returncode == 0:
+    # Directly use shutil.which to find the Java executable cross-platform
+    java_path = shutil.which(subprocess_server.JavaHelper.get_java())
+    if java_path:
       return True
-    else:
-
-      def try_decode(bs):
-        try:
-          return bs.decode()
-        except UnicodeError:
-          return bs
-
-      return NotAvailableWithReason(
-          f'Unable to locate java executable: '
-          f'{try_decode(trial.stdout)}{try_decode(trial.stderr)}')
+    # Return error message when not found
+    return NotAvailableWithReason(
+        'Unable to locate java executable: java not found in PATH or JAVA_HOME')
 
   def cache_artifacts(self):
     return [self._jar_provider()]
@@ -1529,13 +1520,20 @@ def _as_list(func):
 def _join_url_or_filepath(base, path):
   if not base:
     return path
-  base_scheme = urllib.parse.urlparse(base, '').scheme
-  path_scheme = urllib.parse.urlparse(path, base_scheme).scheme
-  if path_scheme != base_scheme:
+
+  if urllib.parse.urlparse(path).scheme:
+    # path is an absolute path with scheme (whether it is the same as base or
+    # not).
     return path
-  elif base_scheme and base_scheme in urllib.parse.uses_relative:
+
+  # path is a relative path or an absolute path without scheme (e.g. /a/b/c)
+  base_scheme = urllib.parse.urlparse(base, '').scheme
+  if base_scheme and base_scheme in urllib.parse.uses_relative:
     return urllib.parse.urljoin(base, path)
   else:
+    if FileSystems.join(base, "") == base:
+      # base ends with a filesystem separator
+      return FileSystems.join(base, path)
     return FileSystems.join(FileSystems.split(base)[0], path)
 
 

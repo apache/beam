@@ -130,6 +130,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
     job_options = options.view_as(pipeline_options.JobServerOptions)
     self._job_port = job_options.job_port
 
+    self._log_level = prism_options.prism_log_level
+
   # the method is only kept for testing and backward compatibility
   @classmethod
   def local_bin(
@@ -425,6 +427,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
     return [
         '--job_port',
         job_port,
+        '--log_level',
+        self._log_level,
         '--serve_http',
         False,
     ]
