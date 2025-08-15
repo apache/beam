@@ -47,7 +47,7 @@ from apache_beam.utils import profiler
 
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
-
+_FN_LOG_HANDLER = None
 
 def _import_beam_plugins(plugins):
   for plugin in plugins:
@@ -167,7 +167,9 @@ def create_harness(environment, dry_run=False):
       enable_heap_dump=enable_heap_dump,
       data_sampler=data_sampler,
       deferred_exception=deferred_exception,
-      runner_capabilities=runner_capabilities)
+      runner_capabilities=runner_capabilities,
+      element_processing_timeout_minutes=sdk_pipeline_options.view_as(
+          WorkerOptions).element_processing_timeout_minutes)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
@@ -202,7 +204,8 @@ def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   (fn_log_handler, sdk_harness,
    sdk_pipeline_options) = create_harness(os.environ)
-
+  if fn_log_handler:
+    _FN_LOG_HANDLER = fn_log_handler
   gcp_profiler_name = _get_gcp_profiler_name_if_enabled(sdk_pipeline_options)
   if gcp_profiler_name:
     _start_profiler(gcp_profiler_name, os.environ["JOB_ID"])
@@ -218,6 +221,12 @@ def main(unused_argv):
     if fn_log_handler:
       fn_log_handler.close()
 
+def flush_fn_log_handler(err_msg):
+  """Flushes the FnApiLogRecordHandler if it exists."""
+  _LOGGER.error(err_msg + 'The SDK harness will be terminated.')
+  if _FN_LOG_HANDLER:
+    _FN_LOG_HANDLER.close()
+    sys.exit(1)
 
 def _load_pipeline_options(options_json):
   if options_json is None:
