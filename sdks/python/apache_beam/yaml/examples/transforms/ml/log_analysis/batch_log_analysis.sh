@@ -59,6 +59,21 @@ else
   DATAFLOW_COMMON_ARGS=""
 fi
 
+if ! command -v python &> /dev/null; then
+  echo "Error: Python is not installed. Please install Python to continue."
+  exit 1
+fi
+
+if ! command -v gcloud &> /dev/null; then
+  echo "Error: gcloud CLI is not installed. Please install gcloud to continue."
+  exit 1
+fi
+
+if [ -d "./beam-ml-artifacts" ]; then
+  echo "Removing existing MLTransform's artifact directory..."
+  rm -rf ./beam-ml-artifacts
+fi
+
 echo "Running iceberg_migration.yaml pipeline..."
 python -m apache_beam.yaml.main --yaml_pipeline_file iceberg_migration.yaml \
   --runner $RUNNER \
@@ -74,6 +89,11 @@ python -m apache_beam.yaml.main --yaml_pipeline_file ml_preprocessing.yaml \
 
 echo "Running train.py..."
 python train.py --bq_table $BQ_TABLE
+
+if [ ! -f "./knn_model.pkl" ]; then
+  echo "Error: Model artifact 'knn_model.pkl' not found. Ensure model training is successful."
+  exit 1
+fi
 
 echo "Uploading trained model to GCS..."
 gcloud storage cp "./knn_model.pkl" "$WAREHOUSE/knn_model.pkl"

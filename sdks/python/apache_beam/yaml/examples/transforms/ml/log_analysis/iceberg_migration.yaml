@@ -16,6 +16,9 @@
 # limitations under the License.
 #
 
+# The pipeline reads structured logs from a CSV file and writes them to an
+# Iceberg table on GCS with BigLake metastore for catalog.
+
 pipeline:
   type: chain
   transforms:

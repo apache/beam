@@ -16,6 +16,11 @@
 # limitations under the License.
 #
 
+# The pipeline reads text embeddings from a BigQuery table, applies anomaly
+# scoring using a custom pre-trained k-Nearest Neighbours (KNN) model, and
+# writes the results to an Iceberg table on GCS with BigLake metastore for
+# catalog.
+
 pipeline:
   type: chain
   transforms:

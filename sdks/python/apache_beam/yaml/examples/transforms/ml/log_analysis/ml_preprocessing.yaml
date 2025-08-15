@@ -16,6 +16,9 @@
 # limitations under the License.
 #
 
+# The pipeline reads structured logs from an Iceberg table, applied
+# ML-specific transformations before writing them to a BigQuery table.
+
 pipeline:
   type: chain
   transforms:

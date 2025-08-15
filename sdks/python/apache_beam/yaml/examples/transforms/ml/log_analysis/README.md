@@ -23,9 +23,13 @@ This example contains several pipelines that leverage Iceberg and BigQuery
 IOs as well as MLTransform to demonstrate an end-to-end ML anomaly detection
 workflow on system logs.
 
-Install additional required Python dependencies:
+Download [Google Cloud CLI](https://cloud.google.com/sdk/docs/install-sdk).
+
+Install required Python dependencies in a virtual environment:
 ```sh
-pip install db-types -r requirements.txt
+python -m venv env
+. env/bin/activate
+pip install 'apache-beam[gcp,yaml]' db-dtypes -r requirements.txt
 ```
 
 The system logs dataset is from [logpai/loghub](https://github.com/logpai/loghub)
@@ -72,7 +76,7 @@ before writing it to another Iceberg table.
 This entire workflow execution is encapsulated in the `batch_log_analysis.sh`
 script that runs these workloads sequentially.
 
-Run the workflow locally:
+Run the pipelines locally:
 ```sh
 ./batch_log_analysis.sh --runner DirectRunner \
   --project YOUR_PROJECT \
@@ -81,7 +85,7 @@ Run the workflow locally:
   --bq_table YOUR_PROJECT.YOUR_DATASET.YOUR_TABLE
 ```
 
-Run the workflow on Dataflow:
+Run the pipelines on Dataflow:
 ```sh
  ./batch_log_analysis.sh --runner DataflowRunner \
    --project YOUR_PROJECT \
