@@ -260,7 +260,8 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       **kwargs,
   ):
     """
-    Example Usage:
+    Example usage::
+
       connection_config = CloudSQLConnectionConfig(
         db_adapter=DatabaseTypeAdapter.POSTGRESQL,
         instance_connection_uri="apache-beam-testing:us-central1:itests",
