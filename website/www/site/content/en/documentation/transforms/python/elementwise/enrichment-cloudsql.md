@@ -29,7 +29,7 @@ limitations under the License.
   </tr>
 </table>
 
-Starting with Apache Beam 2.67.0, the enrichment transform includes
+Starting with Apache Beam 2.68.0, the enrichment transform includes
 built-in enrichment handler support for the
 [Google CloudSQL](https://cloud.google.com/sql/docs). This handler allows your
 Beam pipeline to enrich data using SQL databases, with built-in support for:
