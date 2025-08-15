@@ -1,0 +1,45 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The pipeline reads structured logs from a CSV file and writes them to an
+# Iceberg table on GCS with BigLake metastore for catalog.
+
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromCsv
+      name: ReadLogs
+      config:
+        path: "{{ WAREHOUSE }}/Hadoop_2k.log_structured.csv"
+
+    - type: WriteToIceberg
+      name: WriteToIceberg
+      config:
+        table: "logs_dataset.logs_hdfs"
+        catalog_name: "rest_catalog"
+        catalog_properties:
+          warehouse: "{{ WAREHOUSE }}"
+          catalog-impl: "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog"
+          io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
+          gcp_project: "{{ PROJECT }}"
+          gcp_location: "{{ REGION }}"
+
+# Expected:
+#  Row(LineId=1, Date='2024-10-01', Time='12:00:00', Level='INFO', Process='Main', Component='ComponentA', Content='System started successfully')
+#  Row(LineId=2, Date='2024-10-01', Time='12:00:05', Level='WARN', Process='Main', Component='ComponentA', Content='Memory usage is high')
+#  Row(LineId=3, Date='2024-10-01', Time='12:00:10', Level='ERROR', Process='Main', Component='ComponentA', Content='Task failed due to timeout')
