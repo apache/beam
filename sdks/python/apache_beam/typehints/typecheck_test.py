@@ -181,7 +181,8 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
 
   def test_bad_flatten_input(self):
     with self.assertRaisesRegex(
-        ValueError, "Input to Flatten must be an iterable of PCollections."):
+        TypeError,
+        "Inputs to Flatten cannot include an iterable of PCollections. "):
       with beam.Pipeline() as p:
         pc = p | beam.Create([1, 1])
         flatten_inputs = [pc, (pc, )]
