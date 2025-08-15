@@ -57,7 +57,7 @@ env:
 
 jobs:
   beam_PreCommit_Python_ML:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) [${{ matrix.os }}]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 180
     strategy:
@@ -113,7 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: Python ${{ matrix.python_version }} Test Results
+          name: Python ${{ matrix.python_version }} Test Results [${{ matrix.os }}]
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -123,3 +123,4 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
           large_files: true
+          check_name: 'Python ${{ matrix.python_version }} Test Results [${{ matrix.os }}]'
