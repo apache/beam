@@ -1567,7 +1567,9 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
         exception_type(error_message), exception_type(error_message), []
     ]
 
-    with beam.Pipeline() as p:
+    # This relies on DirectRunner-specific mocking behavior which can be
+    # inconsistent on Prism
+    with beam.Pipeline('DirectRunner') as p:
       _ = (
           p
           | beam.Create([{
