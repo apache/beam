@@ -59,7 +59,7 @@ env:
 jobs:
   beam_PreCommit_Python_Coverage:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     strategy:
       matrix:
         job_name: [beam_PreCommit_Python_Coverage]
@@ -84,7 +84,29 @@ jobs:
         with:
           java-version: default
           python-version: default
+      - name: Start DinD
+        uses: ./.github/actions/dind-up-action
+        id: dind
+        with:
+          # Enable all the new features
+          cleanup-dind-on-start: "true"
+          smoke-test-port-mapping: "true"
+          prime-testcontainers: "true"
+          tmpfs-run-size: 2g
+          tmpfs-varrun-size: 4g
+          export-gh-env: "true"
       - name: Run preCommitPyCoverage
+        env:
+          DOCKER_HOST: ${{ steps.dind.outputs.docker-host }}
+          TESTCONTAINERS_HOST_OVERRIDE: ${{ env.DIND_IP }}
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: "/var/run/docker.sock"
+          TESTCONTAINERS_RYUK_DISABLED: "false"
+          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"
+          # Force sequential execution to eliminate race conditions
+          PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=20 -x"
+          TC_TIMEOUT: "120"
+          TC_MAX_TRIES: "120"
+          TC_SLEEP_TIME: "1"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py39:preCommitPyCoverage
@@ -99,6 +121,8 @@ jobs:
           name: Python Test Results
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
+        env:
+          DOCKER_HOST: ""  # Unset DOCKER_HOST to run on host Docker daemon
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:

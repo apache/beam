@@ -17,10 +17,17 @@
 
 """Pytest configuration and custom hooks."""
 
+import os
 import sys
+import pytest
+
+from types import SimpleNamespace
+
+from testcontainers.core import waiting_utils
 
 from apache_beam.options import pipeline_options
 from apache_beam.testing.test_pipeline import TestPipeline
+
 
 MAX_SUPPORTED_PYTHON_VERSION = (3, 13)
 
@@ -39,11 +46,40 @@ collect_ignore_glob = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def ensure_clean_state():
+  """Ensure clean state before each test to prevent cross-test contamination."""
+  import gc
+  import threading
+  
+  # Force garbage collection to clean up any lingering resources
+  gc.collect()
+  
+  # Log active thread count for debugging
+  thread_count = threading.active_count()
+  if thread_count > 10:  # Arbitrary threshold
+    print(f"Warning: {thread_count} active threads detected before test")
+  
+  yield
+  
+  # Cleanup after test
+  gc.collect()
+
+
 def pytest_configure(config):
   """Saves options added in pytest_addoption for later use.
   This is necessary since pytest-xdist workers do not have the same sys.argv as
   the main pytest invocation. xdist does seem to pickle TestPipeline
   """
+  # set testcontainers vars for the entire test session.
+  # this is necessary since testcontainers ignores these vars,
+  # even after passing through tox.
+  waiting_utils.config = SimpleNamespace(
+    timeout=int(os.getenv("TC_TIMEOUT", "120")),
+    max_tries=int(os.getenv("TC_MAX_TRIES", "120")),
+    sleep_time=float(os.getenv("TC_SLEEP_TIME", "1")),
+  )
+
   TestPipeline.pytest_test_pipeline_options = config.getoption(
       'test_pipeline_options', default='')
   # Enable optional type checks on all tests.
