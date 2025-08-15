@@ -1569,7 +1569,7 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
 
     # This relies on DirectRunner-specific mocking behavior which can be
     # inconsistent on Prism
-    with beam.Pipeline('DirectRunner') as p:
+    with beam.Pipeline('FnApiRunner') as p:
       _ = (
           p
           | beam.Create([{
