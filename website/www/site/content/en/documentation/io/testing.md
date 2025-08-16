@@ -334,7 +334,7 @@ If you modified/added new Jenkins job definitions in your Pull Request, run the 
 
 As mentioned before, we measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots.
 
-The dashboard gathering all the results is available here: [Performance Testing Dashboard](http://35.193.202.176/d/1/getting-started?orgId=1&viewPanel=123125)
+The dashboard gathering all the results is available here: [Performance Testing Dashboard](https://metrics.beam.apache.org/d/1/getting-started?orgId=1&viewPanel=123125)
 
 ### Implementing Integration Tests {#implementing-integration-tests}
 

@@ -108,8 +108,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='getDebugConfigRequest',
         request_type_name='DataflowProjectsJobsDebugGetConfigRequest',
         response_type_name='GetDebugConfigResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def SendCapture(self, request, global_params=None):
       r"""Send encoded debug capture data for component.
@@ -134,8 +133,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='sendDebugCaptureRequest',
         request_type_name='DataflowProjectsJobsDebugSendCaptureRequest',
         response_type_name='SendDebugCaptureResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsJobsMessagesService(base_api.BaseApiService):
     """Service class for the projects_jobs_messages resource."""
@@ -164,19 +162,14 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'jobId'],
         path_params=['jobId', 'projectId'],
         query_params=[
-            'endTime',
-            'location',
-            'minimumImportance',
-            'pageSize',
-            'pageToken',
+            'endTime', 'location', 'minimumImportance', 'pageSize', 'pageToken',
             'startTime'
         ],
         relative_path='v1b3/projects/{projectId}/jobs/{jobId}/messages',
         request_field='',
         request_type_name='DataflowProjectsJobsMessagesListRequest',
         response_type_name='ListJobMessagesResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsJobsWorkItemsService(base_api.BaseApiService):
     """Service class for the projects_jobs_workItems resource."""
@@ -209,8 +202,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='leaseWorkItemRequest',
         request_type_name='DataflowProjectsJobsWorkItemsLeaseRequest',
         response_type_name='LeaseWorkItemResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def ReportStatus(self, request, global_params=None):
       r"""Reports the status of dataflow WorkItems leased by a worker.
@@ -235,8 +227,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='reportWorkItemStatusRequest',
         request_type_name='DataflowProjectsJobsWorkItemsReportStatusRequest',
         response_type_name='ReportWorkItemStatusResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsJobsService(base_api.BaseApiService):
     """Service class for the projects_jobs resource."""
@@ -270,8 +261,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsJobsAggregatedRequest',
         response_type_name='ListJobsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Create(self, request, global_params=None):
       r"""Creates a Cloud Dataflow job. To create a job, we recommend using `projects.locations.jobs.create` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.create` is not recommended, as your job will always start in `us-central1`. Do not enter confidential information when you supply string values using the API.
@@ -295,8 +285,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='job',
         request_type_name='DataflowProjectsJobsCreateRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Gets the state of the specified Cloud Dataflow job. To get the state of a job, we recommend using `projects.locations.jobs.get` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.get` is not recommended, as you can only get the state of jobs that are running in `us-central1`.
@@ -320,8 +309,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsJobsGetRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def GetMetrics(self, request, global_params=None):
       r"""Request the job status. To request the status of a job, we recommend using `projects.locations.jobs.getMetrics` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.getMetrics` is not recommended, as you can only request the status of jobs that are running in `us-central1`.
@@ -345,8 +333,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsJobsGetMetricsRequest',
         response_type_name='JobMetrics',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""List the jobs of a project. To list the jobs of a project in a region, we recommend using `projects.locations.jobs.list` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). To list the all jobs across all regions, use `projects.jobs.aggregated`. Using `projects.jobs.list` is not recommended, because you can only get the list of jobs that are running in `us-central1`. `projects.locations.jobs.list` and `projects.jobs.list` support filtering the list of jobs by name. Filtering by name isn't supported by `projects.jobs.aggregated`.
@@ -371,8 +358,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsJobsListRequest',
         response_type_name='ListJobsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Snapshot(self, request, global_params=None):
       r"""Snapshot the state of a streaming job.
@@ -396,8 +382,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='snapshotJobRequest',
         request_type_name='DataflowProjectsJobsSnapshotRequest',
         response_type_name='Snapshot',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Update(self, request, global_params=None):
       r"""Updates the state of an existing Cloud Dataflow job. To update the state of an existing job, we recommend using `projects.locations.jobs.update` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.update` is not recommended, as you can only update the state of jobs that are running in `us-central1`.
@@ -421,8 +406,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='job',
         request_type_name='DataflowProjectsJobsUpdateRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsFlexTemplatesService(base_api.BaseApiService):
     """Service class for the projects_locations_flexTemplates resource."""
@@ -457,8 +441,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='launchFlexTemplateRequest',
         request_type_name='DataflowProjectsLocationsFlexTemplatesLaunchRequest',
         response_type_name='LaunchFlexTemplateResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsJobsDebugService(base_api.BaseApiService):
     """Service class for the projects_locations_jobs_debug resource."""
@@ -493,8 +476,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='getDebugConfigRequest',
         request_type_name='DataflowProjectsLocationsJobsDebugGetConfigRequest',
         response_type_name='GetDebugConfigResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def SendCapture(self, request, global_params=None):
       r"""Send encoded debug capture data for component.
@@ -520,8 +502,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_type_name=
         'DataflowProjectsLocationsJobsDebugSendCaptureRequest',
         response_type_name='SendDebugCaptureResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsJobsMessagesService(base_api.BaseApiService):
     """Service class for the projects_locations_jobs_messages resource."""
@@ -557,8 +538,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsMessagesListRequest',
         response_type_name='ListJobMessagesResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsJobsSnapshotsService(base_api.BaseApiService):
     """Service class for the projects_locations_jobs_snapshots resource."""
@@ -593,8 +573,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsSnapshotsListRequest',
         response_type_name='ListSnapshotsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsJobsStagesService(base_api.BaseApiService):
     """Service class for the projects_locations_jobs_stages resource."""
@@ -630,8 +609,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_type_name=
         'DataflowProjectsLocationsJobsStagesGetExecutionDetailsRequest',
         response_type_name='StageExecutionDetails',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsJobsWorkItemsService(base_api.BaseApiService):
     """Service class for the projects_locations_jobs_workItems resource."""
@@ -666,8 +644,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='leaseWorkItemRequest',
         request_type_name='DataflowProjectsLocationsJobsWorkItemsLeaseRequest',
         response_type_name='LeaseWorkItemResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def ReportStatus(self, request, global_params=None):
       r"""Reports the status of dataflow WorkItems leased by a worker.
@@ -693,8 +670,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_type_name=
         'DataflowProjectsLocationsJobsWorkItemsReportStatusRequest',
         response_type_name='ReportWorkItemStatusResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsJobsService(base_api.BaseApiService):
     """Service class for the projects_locations_jobs resource."""
@@ -727,8 +703,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='job',
         request_type_name='DataflowProjectsLocationsJobsCreateRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Gets the state of the specified Cloud Dataflow job. To get the state of a job, we recommend using `projects.locations.jobs.get` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.get` is not recommended, as you can only get the state of jobs that are running in `us-central1`.
@@ -753,8 +728,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsGetRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def GetExecutionDetails(self, request, global_params=None):
       r"""Request detailed information about the execution status of the job. EXPERIMENTAL. This API is subject to change or removal without notice.
@@ -780,8 +754,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_type_name=
         'DataflowProjectsLocationsJobsGetExecutionDetailsRequest',
         response_type_name='JobExecutionDetails',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def GetMetrics(self, request, global_params=None):
       r"""Request the job status. To request the status of a job, we recommend using `projects.locations.jobs.getMetrics` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.getMetrics` is not recommended, as you can only request the status of jobs that are running in `us-central1`.
@@ -806,8 +779,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsGetMetricsRequest',
         response_type_name='JobMetrics',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""List the jobs of a project. To list the jobs of a project in a region, we recommend using `projects.locations.jobs.list` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). To list the all jobs across all regions, use `projects.jobs.aggregated`. Using `projects.jobs.list` is not recommended, because you can only get the list of jobs that are running in `us-central1`. `projects.locations.jobs.list` and `projects.jobs.list` support filtering the list of jobs by name. Filtering by name isn't supported by `projects.jobs.aggregated`.
@@ -831,8 +803,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsJobsListRequest',
         response_type_name='ListJobsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Snapshot(self, request, global_params=None):
       r"""Snapshot the state of a streaming job.
@@ -857,8 +828,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='snapshotJobRequest',
         request_type_name='DataflowProjectsLocationsJobsSnapshotRequest',
         response_type_name='Snapshot',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Update(self, request, global_params=None):
       r"""Updates the state of an existing Cloud Dataflow job. To update the state of an existing job, we recommend using `projects.locations.jobs.update` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.jobs.update` is not recommended, as you can only update the state of jobs that are running in `us-central1`.
@@ -883,8 +853,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='job',
         request_type_name='DataflowProjectsLocationsJobsUpdateRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsSnapshotsService(base_api.BaseApiService):
     """Service class for the projects_locations_snapshots resource."""
@@ -919,8 +888,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsSnapshotsDeleteRequest',
         response_type_name='DeleteSnapshotResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Gets information about a snapshot.
@@ -945,8 +913,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsSnapshotsGetRequest',
         response_type_name='Snapshot',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists snapshots.
@@ -971,8 +938,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsSnapshotsListRequest',
         response_type_name='ListSnapshotsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsTemplatesService(base_api.BaseApiService):
     """Service class for the projects_locations_templates resource."""
@@ -1007,8 +973,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='createJobFromTemplateRequest',
         request_type_name='DataflowProjectsLocationsTemplatesCreateRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Get the template associated with a template. To get the template, we recommend using `projects.locations.templates.get` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.templates.get` is not recommended, because only templates that are running in `us-central1` are retrieved.
@@ -1033,8 +998,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsLocationsTemplatesGetRequest',
         response_type_name='GetTemplateResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Launch(self, request, global_params=None):
       r"""Launches a template. To launch a template, we recommend using `projects.locations.templates.launch` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.templates.launch` is not recommended, because jobs launched from the template will always start in `us-central1`.
@@ -1054,18 +1018,15 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId', 'location'],
         path_params=['location', 'projectId'],
         query_params=[
-            'dynamicTemplate_gcsPath',
-            'dynamicTemplate_stagingLocation',
-            'gcsPath',
-            'validateOnly'
+            'dynamicTemplate_gcsPath', 'dynamicTemplate_stagingLocation',
+            'gcsPath', 'validateOnly'
         ],
         relative_path=
         'v1b3/projects/{projectId}/locations/{location}/templates:launch',
         request_field='launchTemplateParameters',
         request_type_name='DataflowProjectsLocationsTemplatesLaunchRequest',
         response_type_name='LaunchTemplateResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsService(base_api.BaseApiService):
     """Service class for the projects_locations resource."""
@@ -1099,8 +1060,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='sendWorkerMessagesRequest',
         request_type_name='DataflowProjectsLocationsWorkerMessagesRequest',
         response_type_name='SendWorkerMessagesResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsSnapshotsService(base_api.BaseApiService):
     """Service class for the projects_snapshots resource."""
@@ -1133,8 +1093,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsSnapshotsGetRequest',
         response_type_name='Snapshot',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists snapshots.
@@ -1158,8 +1117,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsSnapshotsListRequest',
         response_type_name='ListSnapshotsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsTemplatesService(base_api.BaseApiService):
     """Service class for the projects_templates resource."""
@@ -1192,8 +1150,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='createJobFromTemplateRequest',
         request_type_name='DataflowProjectsTemplatesCreateRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Get the template associated with a template. To get the template, we recommend using `projects.locations.templates.get` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.templates.get` is not recommended, because only templates that are running in `us-central1` are retrieved.
@@ -1217,8 +1174,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsTemplatesGetRequest',
         response_type_name='GetTemplateResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Launch(self, request, global_params=None):
       r"""Launches a template. To launch a template, we recommend using `projects.locations.templates.launch` with a [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using `projects.templates.launch` is not recommended, because jobs launched from the template will always start in `us-central1`.
@@ -1238,18 +1194,14 @@ class DataflowV1b3(base_api.BaseApiClient):
         ordered_params=['projectId'],
         path_params=['projectId'],
         query_params=[
-            'dynamicTemplate_gcsPath',
-            'dynamicTemplate_stagingLocation',
-            'gcsPath',
-            'location',
-            'validateOnly'
+            'dynamicTemplate_gcsPath', 'dynamicTemplate_stagingLocation',
+            'gcsPath', 'location', 'validateOnly'
         ],
         relative_path='v1b3/projects/{projectId}/templates:launch',
         request_field='launchTemplateParameters',
         request_type_name='DataflowProjectsTemplatesLaunchRequest',
         response_type_name='LaunchTemplateResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsService(base_api.BaseApiService):
     """Service class for the projects resource."""
@@ -1282,8 +1234,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='',
         request_type_name='DataflowProjectsDeleteSnapshotsRequest',
         response_type_name='DeleteSnapshotResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def WorkerMessages(self, request, global_params=None):
       r"""Send a worker_message to the service.
@@ -1307,5 +1258,4 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field='sendWorkerMessagesRequest',
         request_type_name='DataflowProjectsWorkerMessagesRequest',
         response_type_name='SendWorkerMessagesResponse',
-        supports_download=False,
-    )
+        supports_download=False, )

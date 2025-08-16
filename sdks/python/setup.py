@@ -401,7 +401,6 @@ if __name__ == '__main__':
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
-          'pymilvus>=2.5.10,<3.0.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -445,10 +444,11 @@ if __name__ == '__main__':
               'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
-              'oracledb>=3.1.1'
+              'oracledb>=3.1.1',
+              'milvus'
           ],
           'gcp': [
-              'cachetools>=3.1.0,<6',
+              'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
               'google-apitools>=0.5.31,<0.5.32; python_version <= "3.12"',
               'google-apitools>=0.5.32,<0.5.33; python_version >= "3.13"',
@@ -571,12 +571,12 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch>=1.9.0,<2.1.0'],
-          'tensorflow': ['tensorflow>=2.12rc1,<2.13'],
+          'torch': ['torch>=1.9.0,<2.8.0'],
+          'tensorflow': ['tensorflow>=2.12rc1,<2.17'],
           'transformers': [
-              'transformers>=4.28.0,<4.49.0',
-              'tensorflow==2.12.0',
-              'torch>=1.9.0,<2.1.0'
+              'transformers>=4.28.0,<4.56.0',
+              'tensorflow>=2.12.0',
+              'torch>=1.9.0'
           ],
           'tft': ['tensorflow_transform>=1.14.0,<1.15.0'],
           'onnx': [
@@ -588,7 +588,8 @@ if __name__ == '__main__':
               'transformers==4.25.1'
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
-          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0']
+          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
+          'milvus': ['pymilvus>=2.5.10,<3.0.0']
       },
       zip_safe=False,
       # PyPI package information.

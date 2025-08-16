@@ -78,6 +78,20 @@ Chunk(content=Content(text=None), id='query1', index=0, metadata={'enrichment_da
   return expected
 
 
+def std_out_to_dict(stdout_lines, row_key):
+  output_dict = {}
+  for stdout_line in stdout_lines:
+    # parse the stdout in a dictionary format so that it can be
+    # evaluated/compared as one. This allows us to compare without
+    # considering the order of the stdout or the order that the fields of the
+    # row are arranged in.
+    fmtd = '{\"' + stdout_line[4:-1].replace('=', '\": ').replace(
+        ', ', ', \"').replace('\"\'', '\'') + "}"
+    stdout_dict = eval(fmtd)  # pylint: disable=eval-used
+    output_dict[stdout_dict[row_key]] = stdout_dict
+  return output_dict
+
+
 @mock.patch('sys.stdout', new_callable=StringIO)
 @pytest.mark.uses_testcontainer
 class EnrichmentTest(unittest.TestCase):
@@ -85,22 +99,32 @@ class EnrichmentTest(unittest.TestCase):
     enrichment_with_bigtable()
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_bigtable()
-    self.assertEqual(output, expected)
+
+    self.assertEqual(len(output), len(expected))
+    self.assertEqual(
+        std_out_to_dict(output, 'sale_id'),
+        std_out_to_dict(expected, 'sale_id'))
 
   def test_enrichment_with_vertex_ai(self, mock_stdout):
     enrichment_with_vertex_ai()
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_vertex_ai()
 
-    for i in range(len(expected)):
-      self.assertEqual(set(output[i].split(',')), set(expected[i].split(',')))
+    self.assertEqual(len(output), len(expected))
+    self.assertEqual(
+        std_out_to_dict(output, 'user_id'),
+        std_out_to_dict(expected, 'user_id'))
 
   def test_enrichment_with_vertex_ai_legacy(self, mock_stdout):
     enrichment_with_vertex_ai_legacy()
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_vertex_ai_legacy()
     self.maxDiff = None
-    self.assertEqual(output, expected)
+
+    self.assertEqual(len(output), len(expected))
+    self.assertEqual(
+        std_out_to_dict(output, 'entity_id'),
+        std_out_to_dict(expected, 'entity_id'))
 
   def test_enrichment_with_milvus(self, mock_stdout):
     milvus_db = None

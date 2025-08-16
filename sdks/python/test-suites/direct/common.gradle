@@ -419,6 +419,33 @@ task feastIntegrationTest {
     }
 }
 
+// Integration tests that require Docker-in-Docker capabilities.
+// These tests are marked with the `require_docker_in_docker` pytest marker
+// because they rely on Docker-in-Docker configurations that are not supported
+// on Beam's self-hosted GitHub Actions runners. Docker-in-Docker works on
+// ubuntu-latest GitHub-hosted runners but not on self-hosted environments due
+// to containerization architecture differences.
+// Context: https://github.com/apache/beam/pull/35585
+task dockerInDockerIntegrationTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "require_docker_in_docker",
+          "runner": "TestDirectRunner",
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
@@ -429,6 +456,7 @@ project.tasks.register("inferencePostCommitIT") {
   'transformersInferenceTest',
   'testcontainersTest',
   'feastIntegrationTest',
+  'dockerInDockerIntegrationTest',
   // (TODO) https://github.com/apache/beam/issues/25799
    // uncomment tfx bsl tests once tfx supports protobuf 4.x
   // 'tfxInferenceTest',

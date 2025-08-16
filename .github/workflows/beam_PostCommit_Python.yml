@@ -54,7 +54,7 @@ env:
 jobs:
   beam_PostCommit_Python:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, highmem22]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 240
     strategy:
       fail-fast: false
@@ -62,6 +62,13 @@ jobs:
         job_name: [beam_PostCommit_Python]
         job_phrase: [Run Python PostCommit]
         python_version: ['3.9', '3.10', '3.11', '3.12']
+        # Run on both self-hosted and GitHub-hosted runners.
+        # Some tests (marked require_docker_in_docker) can't run on Beam's
+        # self-hosted runners due to Docker-in-Docker environment constraint.
+        # These tests will only execute on ubuntu-latest (GitHub-hosted).
+        # Context: https://github.com/apache/beam/pull/35585
+        # Temporary removed the ubuntu-latest env till resolving deps issues.
+        os: [[self-hosted, ubuntu-20.04, highmem22]]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
@@ -78,6 +85,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          java-version: |
+            21
+            11
           python-version: ${{ matrix.python_version }}
       - name: Install docker compose
         run: |
@@ -94,7 +104,13 @@ jobs:
         with:
           gradle-command: :python${{steps.set_py_ver_clean.outputs.py_ver_clean}}PostCommit
           arguments: |
+            -Pjava21Home=$JAVA_HOME_21_X64 \
             -PuseWheelDistribution \
+            -Pposargs="${{
+              contains(matrix.os, 'self-hosted') &&
+                '-m (not require_docker_in_docker)' ||
+                '-m require_docker_in_docker'
+            }}" \
             -PpythonVersion=${{ matrix.python_version }} \
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}

@@ -76,4 +76,5 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/java/other/view">View</a></td><td>Operations for turning a collection into view that may be used as a side-input to a <code>ParDo</code>.</td></tr>
   <tr><td><a href="/documentation/transforms/java/other/window">Window</a></td><td>Logically divides up or groups the elements of a collection into finite
   windows according to a provided <code>WindowFn</code>.</td></tr>
+  <tr><td><a href="/documentation/transforms/java/other/wait">Wait</a></td><td>Delays processing of a PCollection until other PCollections have finished processing.</td></tr>
 </table>

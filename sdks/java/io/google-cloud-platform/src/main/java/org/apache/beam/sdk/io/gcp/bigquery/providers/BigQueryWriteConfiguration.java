@@ -194,6 +194,9 @@ public abstract class BigQueryWriteConfiguration {
           + "Is mutually exclusive with 'keep' and 'drop'.")
   public abstract @Nullable String getOnly();
 
+  @SchemaFieldDescription("A list of columns to cluster the BigQuery table by.")
+  public abstract @Nullable List<String> getClusteringFields();
+
   /** Builder for {@link BigQueryWriteConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -225,6 +228,8 @@ public abstract class BigQueryWriteConfiguration {
     public abstract Builder setDrop(List<String> drop);
 
     public abstract Builder setOnly(String only);
+
+    public abstract Builder setClusteringFields(List<String> clusteringFields);
 
     /** Builds a {@link BigQueryWriteConfiguration} instance. */
     public abstract BigQueryWriteConfiguration build();
