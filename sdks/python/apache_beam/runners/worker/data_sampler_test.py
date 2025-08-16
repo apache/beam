@@ -395,7 +395,8 @@ class DataSamplerTest(unittest.TestCase):
       raise Exception('test')
     except Exception:
       exc_info = sys.exc_info()
-    first_sampler.sample_exception('first', exc_info, MAIN_TRANSFORM_ID, 'instid')
+    first_sampler.sample_exception(
+        'first', exc_info, MAIN_TRANSFORM_ID, 'instid')
 
     # Sample a normal element for the output 'b', this will not show up in the
     # final samples response.
@@ -404,11 +405,13 @@ class DataSamplerTest(unittest.TestCase):
 
     samples = self.data_sampler.wait_for_samples(['a', 'b'])
     self.assertEqual(len(samples.element_samples), 2)
-    sample_elements = list(s.elements[0] for s in samples.element_samples.values())
+    sample_elements = list(
+        s.elements[0] for s in samples.element_samples.values())
     num_exceptions = sum(
         1 for element in sample_elements if element.HasField('exception'))
     self.assertEqual(
-        num_exceptions, 1,
+        num_exceptions,
+        1,
         "Only one of the samples should have an exception, found: {}".format(
             sample_elements))
 
@@ -437,7 +440,8 @@ class DataSamplerTest(unittest.TestCase):
       raise Exception('test')
     except Exception:
       exc_info = sys.exc_info()
-    first_sampler.sample_exception('first', exc_info, MAIN_TRANSFORM_ID, 'instid')
+    first_sampler.sample_exception(
+        'first', exc_info, MAIN_TRANSFORM_ID, 'instid')
 
     # Sample a normal element for the output 'b', this will not show up in the
     # final samples response.
