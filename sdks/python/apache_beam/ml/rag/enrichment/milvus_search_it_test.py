@@ -469,14 +469,14 @@ class MilvusEnrichmentTestHelper:
         os.remove(path)
 
 
-@pytest.mark.require_docker_in_docker
-@unittest.skipUnless(
-    platform.system() == "Linux",
-    "Test runs only on Linux due to lack of support, as yet, for nested "
-    "virtualization in CI environments on Windows/macOS. Many CI providers run "
-    "tests in virtualized environments, and nested virtualization "
-    "(Docker inside a VM) is either unavailable or has several issues on "
-    "non-Linux platforms.")
+@pytest.mark.uses_testcontainer
+# @unittest.skipUnless(
+#     platform.system() == "Linux",
+#     "Test runs only on Linux due to lack of support, as yet, for nested "
+#     "virtualization in CI environments on Windows/macOS. Many CI providers run "
+#     "tests in virtualized environments, and nested virtualization "
+#     "(Docker inside a VM) is either unavailable or has several issues on "
+#     "non-Linux platforms.")
 class TestMilvusSearchEnrichment(unittest.TestCase):
   """Tests for search functionality across all search strategies"""
 
