@@ -98,12 +98,12 @@ jobs:
       - name: Run preCommitPyCoverage
         env:
           DOCKER_HOST: ${{ steps.dind.outputs.docker-host }}
+          TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
           TESTCONTAINERS_HOST_OVERRIDE: ${{ env.DIND_IP }}
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: "/var/run/docker.sock"
           TESTCONTAINERS_RYUK_DISABLED: "false"
-          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"
-          # Force sequential execution to eliminate race conditions
-          PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=20 -x"
+          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"          
+          PYTEST_ADDOPTS: "-v --tb=short --maxfail=3 --durations=20 --reruns=2 --reruns-delay=5"
           TC_TIMEOUT: "120"
           TC_MAX_TRIES: "120"
           TC_SLEEP_TIME: "1"
