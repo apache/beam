@@ -364,7 +364,6 @@ class AssertEqualAndRecord(beam.PTransform):
     # Convert elements to rows outside the matcher to avoid capturing
     # any grpc channels that might be created during the conversion
     expected_rows = yaml_provider.dicts_to_rows(self._elements)
-    equal_to_matcher = equal_to(expected_rows)
     recording_id = self._recording_id
 
     # Create a serializable matcher function that doesn't capture

@@ -286,11 +286,11 @@ class YamlTestingTest(unittest.TestCase):
                     'pickup_location': 'downtown',
                     'dropoff_location': 'mall'
                 },
-                {
-                    'ride_id': '2',
-                    'pickup_location': 'airport',
-                    'dropoff_location': 'hotel'
-                }]
+                             {
+                                 'ride_id': '2',
+                                 'pickup_location': 'airport',
+                                 'dropoff_location': 'hotel'
+                             }]
             }]
         })
 
@@ -304,13 +304,13 @@ class YamlTestingTest(unittest.TestCase):
                     'ride_id': '3', 'pickup_location': 'station'
                 }]
             },
-            {
-                'name': 'Create2',
-                'elements': [{
-                    'ride_id': '3',
-                    'dropoff_location': 'office'
-                }]
-            }],
+                             {
+                                 'name': 'Create2',
+                                 'elements': [{
+                                     'ride_id': '3',
+                                     'dropoff_location': 'office'
+                                 }]
+                             }],
             'expected_inputs': [{
                 'name': 'LogResult',
                 'elements': [{
