@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.io.PrintWriter;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
@@ -51,6 +52,9 @@ public final class GrpcGetWorkerMetadataStream
 
   @GuardedBy("metadataLock")
   private WorkerMetadataResponse latestResponse;
+
+  @GuardedBy("metadataLock")
+  private Instant latestResponseReceived = Instant.EPOCH;
 
   private GrpcGetWorkerMetadataStream(
       Function<StreamObserver<WorkerMetadataResponse>, StreamObserver<WorkerMetadataRequest>>
@@ -112,6 +116,7 @@ public final class GrpcGetWorkerMetadataStream
     synchronized (metadataLock) {
       if (response.getMetadataVersion() > latestResponse.getMetadataVersion()) {
         this.latestResponse = response;
+        this.latestResponseReceived = Instant.now();
         return Optional.of(WindmillEndpoints.from(response));
       } else {
         // If the currentMetadataVersion is greater than or equal to one in the response, the
@@ -165,8 +170,8 @@ public final class GrpcGetWorkerMetadataStream
   protected void appendSpecificHtml(PrintWriter writer) {
     synchronized (metadataLock) {
       writer.format(
-          "GetWorkerMetadataStream:  job_header=[%s], current_metadata=[%s] ",
-          workerMetadataRequest.getHeader(), latestResponse);
+          "GetWorkerMetadataStream:  job_header=[%s], current_metadata=[%s] received_at=[%s]",
+          workerMetadataRequest.getHeader(), latestResponse, latestResponseReceived);
     }
   }
 }
