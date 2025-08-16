@@ -281,9 +281,9 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         `ExternalSQLDBConnectionConfig`. This determines how the handler
         connects to the target SQL database.
       query_config: Configuration for database queries. Must be one of:
-        * CustomQueryConfig: For providing a custom query function
-        * TableFieldsQueryConfig: specifies table, where clause, and field names
-        * TableFunctionQueryConfig: specifies table, where clause, and val func
+      * CustomQueryConfig: For providing a custom query function
+      * TableFieldsQueryConfig: specifies table, where clause, and field names
+      * TableFunctionQueryConfig: specifies table, where clause, and val func
       column_names (Optional[list[str]]): List of column names to select from
         the Cloud SQL table. If not provided, all columns (`*`) are selected.
       min_batch_size (int): Minimum number of rows to batch together when
