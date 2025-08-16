@@ -75,15 +75,14 @@ class PyODModelHandler(ModelHandler[beam.Row,
       model: PyODBaseDetector,
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
-    np_batch = []
-    for row in batch:
-      features = []
-      for value in row:
+    def _flatten_row(row_values):
+      for value in row_values:
         if isinstance(value, (list, tuple, np.ndarray)):
-          features.extend(value)
+          yield from value
         else:
-          features.append(value)
-      np_batch.append(np.array(features, dtype=np.float64))
+          yield value
+
+    np_batch = [np.fromiter(_flatten_row(row), dtype=np.float64) for row in batch]
 
     # stack a batch of samples into a 2-D array for better performance
     vectorized_batch = np.stack(np_batch, axis=0)
