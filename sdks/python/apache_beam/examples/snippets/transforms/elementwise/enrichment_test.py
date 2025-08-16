@@ -40,8 +40,8 @@ try:
       parse_chunk_strings,
       assert_chunks_equivalent)
   from apache_beam.io.requestresponse import RequestResponseIO
-except ImportError:
-  raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
+except ImportError as e:
+  raise unittest.SkipTest(f'Examples dependencies are not installed: {str(e)}')
 
 
 def validate_enrichment_with_bigtable():
