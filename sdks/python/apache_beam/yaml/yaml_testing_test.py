@@ -227,15 +227,16 @@ class YamlTestingTest(unittest.TestCase):
     yaml_testing.run_test(pipeline, test_spec)
 
   @unittest.skipIf(
-      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
-      is None,
+      TestPipeline().get_pipeline_options().view_as(
+          StandardOptions).runner is None,
       'Do not run this test on precommit suites.')
   def test_join_transform_serialization(self):
-    """Test that Join transforms work with YAML testing framework and cloudpickle.
+    """Test that Join transforms work with YAML testing framework
+    and cloudpickle.
     
     This test validates the fix for the grpc channel serialization issue
-    that was causing TypeError: no default __reduce__ due to non-trivial __cinit__
-    when using Join transforms with the YAML testing framework.
+    that was causing TypeError: no default __reduce__ due to non-trivial
+    __cinit__ when using Join transforms with the YAML testing framework.
     """
     join_pipeline = '''
       pipeline:
