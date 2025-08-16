@@ -37,6 +37,7 @@ from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
+
 class SearchStrategy(Enum):
   """Search strategies for information retrieval.
 
