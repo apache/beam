@@ -103,6 +103,15 @@ func WritePipeline(project, instance, table string) *beam.Pipeline {
 	return p
 }
 
+func XlangWritePipeline(project, instance, table, expansionAddr string) *beam.Pipeline {
+	p := beam.NewPipeline()
+	s := p.Root()
+
+	rows := beam.ParDo(s, &CreateTestRowsFn{}, beam.Impulse(s))
+	xlangbt.Write(s, project, instance, table, rows, xlangbt.WriteExpansionAddr(expansionAddr))
+	return p
+}
+
 func ReadPipeline(project, instance, table, expansionAddr string) *beam.Pipeline {
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -158,6 +167,38 @@ func TestBigtableIO_BasicWriteRead(t *testing.T) {
 	write := WritePipeline(project, instance, table)
 	ptest.RunAndValidate(t, write)
 
+	read := ReadPipeline(project, instance, table, expansionAddr)
+	ptest.RunAndValidate(t, read)
+}
+
+func TestBigtableIO_XlangWrite(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	if expansionAddr == "" {
+		t.Skip("No expansion service available.")
+	}
+
+	instancePath := *integration.BigtableInstance
+	matches := instanceRegex.FindStringSubmatch(instancePath)
+	project := matches[1]
+	instance := matches[2]
+
+	admin, err := bt.NewAdminClient(context.Background(), project, instance)
+	if err != nil {
+		panic(err)
+	}
+
+	table := createTempTable(admin)
+	t.Cleanup(func() {
+		deleteTempTable(admin, table)
+	})
+
+	// Test the xlang Write function
+	xlangWrite := XlangWritePipeline(project, instance, table, expansionAddr)
+	ptest.RunAndValidate(t, xlangWrite)
+
+	// Verify the data was written correctly by reading it back
 	read := ReadPipeline(project, instance, table, expansionAddr)
 	ptest.RunAndValidate(t, read)
 }
