@@ -297,7 +297,7 @@ class CustomMilvusContainer(MilvusContainer):
 class MilvusEnrichmentTestHelper:
   @staticmethod
   def start_db_container(
-      image="milvusdb/milvus:v2.5.10",
+      image="milvusdb/milvus:v2.3.9",
       max_vec_fields=5,
       vector_client_max_retries=3,
       tc_max_retries=TC_MAX_TRIES) -> Optional[MilvusDBContainerInfo]:
@@ -481,7 +481,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   """Tests for search functionality across all search strategies"""
 
   _db: MilvusDBContainerInfo
-  _version = "milvusdb/milvus:v2.5.10"
+  _version = "milvusdb/milvus:v2.3.9"
 
   @classmethod
   def setUpClass(cls):
