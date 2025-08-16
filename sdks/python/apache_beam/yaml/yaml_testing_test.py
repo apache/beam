@@ -22,6 +22,8 @@ import unittest
 
 # isort is fighting with yapf here.
 # isort: off
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.yaml import yaml_testing
 
 # Note that executing this pipeline will actually fail if the untested
@@ -224,6 +226,10 @@ class YamlTestingTest(unittest.TestCase):
     self.assertGreaterEqual(len(test_spec['expected_inputs'][0]['elements']), 5)
     yaml_testing.run_test(pipeline, test_spec)
 
+  @unittest.skipIf(
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+      is None,
+      'Do not run this test on precommit suites.')
   def test_join_transform_serialization(self):
     """Test that Join transforms work with YAML testing framework and cloudpickle.
     
@@ -232,42 +238,42 @@ class YamlTestingTest(unittest.TestCase):
     when using Join transforms with the YAML testing framework.
     """
     join_pipeline = '''
-pipeline:
-  transforms:
-    - type: Create
-      name: Create1
-      config:
-        elements:
-          - ride_id: "1"
-            pickup_location: "downtown"
-          - ride_id: "2"
-            pickup_location: "airport"
+      pipeline:
+        transforms:
+        - type: Create
+          name: Create1
+          config:
+            elements:
+            - ride_id: "1"
+              pickup_location: "downtown"
+            - ride_id: "2"
+              pickup_location: "airport"
 
-    - type: Create
-      name: Create2
-      config:
-        elements:
-          - ride_id: "1"
-            dropoff_location: "mall"
-          - ride_id: "2"
-            dropoff_location: "hotel"
+        - type: Create
+          name: Create2
+          config:
+            elements:
+            - ride_id: "1"
+              dropoff_location: "mall"
+            - ride_id: "2"
+              dropoff_location: "hotel"
 
-    - type: Join
-      name: JoinRides
-      input:
-        pickup: Create1
-        dropoff: Create2
-      config:
-        equalities: ride_id
-        type: inner
-        fields:
-          pickup: [ride_id, pickup_location]
-          dropoff: [dropoff_location]
+        - type: Join
+          name: JoinRides
+          input:
+            pickup: Create1
+            dropoff: Create2
+          config:
+            equalities: ride_id
+            type: inner
+            fields:
+              pickup: [ride_id, pickup_location]
+              dropoff: [dropoff_location]
 
-    - type: LogForTesting
-      name: LogResult
-      input: JoinRides
-'''
+        - type: LogForTesting
+          name: LogResult
+          input: JoinRides
+      '''
 
     # Test with expected_inputs to validate the Join transform output
     yaml_testing.run_test(
@@ -280,11 +286,11 @@ pipeline:
                     'pickup_location': 'downtown',
                     'dropoff_location': 'mall'
                 },
-                             {
-                                 'ride_id': '2',
-                                 'pickup_location': 'airport',
-                                 'dropoff_location': 'hotel'
-                             }]
+                {
+                    'ride_id': '2',
+                    'pickup_location': 'airport',
+                    'dropoff_location': 'hotel'
+                }]
             }]
         })
 
@@ -298,13 +304,13 @@ pipeline:
                     'ride_id': '3', 'pickup_location': 'station'
                 }]
             },
-                             {
-                                 'name': 'Create2',
-                                 'elements': [{
-                                     'ride_id': '3',
-                                     'dropoff_location': 'office'
-                                 }]
-                             }],
+            {
+                'name': 'Create2',
+                'elements': [{
+                    'ride_id': '3',
+                    'dropoff_location': 'office'
+                }]
+            }],
             'expected_inputs': [{
                 'name': 'LogResult',
                 'elements': [{
