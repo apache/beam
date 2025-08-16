@@ -401,7 +401,6 @@ if __name__ == '__main__':
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
-          'pymilvus>=2.5.10,<3.0.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -447,7 +446,8 @@ if __name__ == '__main__':
               'sqlalchemy-pytds>=1.0.2',
               'pg8000>=1.31.1',
               "PyMySQL>=1.1.0",
-              'oracledb>=3.1.1'
+              'oracledb>=3.1.1',
+              'milvus'
           ],
           'gcp': [
               'cachetools>=3.1.0,<7',
@@ -594,7 +594,8 @@ if __name__ == '__main__':
               'transformers==4.25.1'
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
-          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0']
+          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
+          'milvus': ['pymilvus>=2.5.10,<3.0.0']
       },
       zip_safe=False,
       # PyPI package information.
