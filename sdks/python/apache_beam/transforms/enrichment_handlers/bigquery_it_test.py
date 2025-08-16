@@ -140,7 +140,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
 
   def setUp(self) -> None:
     self.condition_template = "id = {}"
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
@@ -158,6 +158,8 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
               'Unable to start redis container for BigQuery '
               ' enrichment tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
   def tearDown(self) -> None:
     self.container.stop()
