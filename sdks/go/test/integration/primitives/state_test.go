@@ -47,6 +47,11 @@ func TestBagStateClear(t *testing.T) {
 	ptest.BuildAndRun(t, BagStateParDoClear)
 }
 
+func TestBagStateBlindWrite(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, BagStateBlindWriteParDo)
+}
+
 func TestCombiningState(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, CombiningStateParDo)
