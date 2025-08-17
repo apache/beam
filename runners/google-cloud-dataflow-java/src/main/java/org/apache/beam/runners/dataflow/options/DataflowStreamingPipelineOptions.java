@@ -310,6 +310,9 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   class EnableWindmillServiceDirectPathFactory implements DefaultValueFactory<Boolean> {
     @Override
     public Boolean create(PipelineOptions options) {
+      if (ExperimentalOptions.hasExperiment(options, "enable_windmill_service_direct_path=false")) {
+        return false;
+      }
       return ExperimentalOptions.hasExperiment(options, "enable_windmill_service_direct_path");
     }
   }
