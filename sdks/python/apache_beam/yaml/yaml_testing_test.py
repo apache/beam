@@ -227,8 +227,8 @@ class YamlTestingTest(unittest.TestCase):
     yaml_testing.run_test(pipeline, test_spec)
 
   @unittest.skipIf(
-      TestPipeline().get_pipeline_options().view_as(
-          StandardOptions).runner is None,
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+      is None,
       'Do not run this test on precommit suites.')
   def test_join_transform_serialization(self):
     """Test that Join transforms work with YAML testing framework
