@@ -180,13 +180,9 @@ class CalculatePricePerAttribute(beam.CombineFn):
     return (
         total_price + sum(
             record[name] for name in (
-                'base_passenger_fare',
-                'tolls',
-                'bcf',
-                'sales_tax',
-                'congestion_surcharge',
-                'airport_fee',
-                'tips') if record[name] is not None),
+                'base_passenger_fare', 'tolls', 'bcf', 'sales_tax',
+                'congestion_surcharge', 'airport_fee', 'tips')
+            if record[name] is not None),
         total_driver_pay + record['driver_pay'] + record['tips'],
         total_trip_miles + record['trip_miles'],
         total_trip_time + record['trip_time'],

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 
 /** Implementation of {@link Counter} that delegates to the instance for the current context. */
 @Internal
@@ -70,6 +71,9 @@ public class DelegatingCounter implements Metric, Counter, Serializable {
   /** Increment the counter by the given amount. */
   @Override
   public void inc(long n) {
+    if (MetricsFlag.counterDisabled()) {
+      return;
+    }
     MetricsContainer container =
         this.processWideContainer
             ? MetricsEnvironment.getProcessWideContainer()

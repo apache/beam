@@ -181,8 +181,7 @@ class JobServiceHandle(object):
     # TODO: Define URNs for options.
     p_options = {
         'beam:option:' + k + ':v1': convert_pipeline_option_value(v)
-        for k,
-        v in all_options.items() if v is not None
+        for k, v in all_options.items() if v is not None
     }
     return job_utils.dict_to_struct(p_options)
 
@@ -437,7 +436,7 @@ class PortableMetrics(metric.MetricResults):
     ]
 
   def query(self, filter=None):
-    counters, distributions, gauges, stringsets = [
+    counters, distributions, gauges, stringsets, bounded_tries = [
         self._combine(x, y, filter)
         for x, y in zip(self.committed, self.attempted)
     ]
@@ -446,7 +445,8 @@ class PortableMetrics(metric.MetricResults):
         self.COUNTERS: counters,
         self.DISTRIBUTIONS: distributions,
         self.GAUGES: gauges,
-        self.STRINGSETS: stringsets
+        self.STRINGSETS: stringsets,
+        self.BOUNDED_TRIES: bounded_tries,
     }
 
 

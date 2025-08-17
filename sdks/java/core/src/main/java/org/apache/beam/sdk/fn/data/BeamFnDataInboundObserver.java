@@ -19,15 +19,19 @@ package org.apache.beam.sdk.fn.data;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.CancellableQueue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Decodes {@link BeamFnApi.Elements} partitioning them using the provided {@link DataEndpoint}s and
@@ -79,7 +83,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   private final int totalNumEndpoints;
   private int numEndpointsThatAreIncomplete;
 
-  private AtomicBoolean consumingReceivedData;
+  private final AtomicBoolean consumingReceivedData;
 
   private BeamFnDataInboundObserver(
       List<DataEndpoint<?>> dataEndpoints, List<TimerEndpoint<?>> timerEndpoints) {
@@ -118,6 +122,41 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
     return consumingReceivedData.get();
   }
 
+  // Copies the elements of list to an array and removes references to elements that
+  // have been iterated past.
+  private static class DiscardingIterator<T> implements Iterator<T> {
+    private int index = 0;
+    private final @Nullable Object[] array;
+
+    DiscardingIterator(List<T> list) {
+      this.array = list.toArray();
+    }
+
+    @Override
+    public boolean hasNext() {
+      return index < array.length;
+    }
+
+    @Override
+    public T next() {
+      if (index >= array.length) {
+        throw new NoSuchElementException();
+      }
+      @SuppressWarnings("unchecked")
+      T result = (T) array[index];
+      array[index] = null;
+      ++index;
+      return result;
+    }
+  }
+
+  private static <T> Iterator<T> createDiscardingIterator(List<T> list) {
+    if (list.isEmpty()) {
+      return Collections.emptyIterator(); // Optimize empty lists, which are common for timers.
+    }
+    return new DiscardingIterator<>(list);
+  }
+
   /**
    * Uses the callers thread to process all elements received until we receive the end of the stream
    * from the upstream producer for all endpoints specified.
@@ -130,10 +169,20 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
         // The SDK indicates it has consumed all the received data before it attempts to take
         // more elements off the queue.
         consumingReceivedData.set(false);
-        BeamFnApi.Elements elements = queue.take();
+
+        // We use discarding iterators and don't reference the elements longer than necessary to
+        // avoid pinning possibly large data pages and making them ineligible for garbage
+        // collection.
+        Iterator<Elements.Data> dataIterator;
+        Iterator<Elements.Timers> timersIterator;
+        {
+          BeamFnApi.Elements elements = queue.take();
+          dataIterator = createDiscardingIterator(elements.getDataList());
+          timersIterator = createDiscardingIterator(elements.getTimersList());
+        }
         // The SDK is no longer blocked on receiving more data from the Runner.
         consumingReceivedData.set(true);
-        if (multiplexElements(elements)) {
+        if (multiplexElements(dataIterator, timersIterator)) {
           return;
         }
       }
@@ -150,34 +199,45 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
    * Dispatches the data and timers from the elements to corresponding receivers. Returns true if
    * all the endpoints are done after elements dispatching.
    */
-  public boolean multiplexElements(Elements elements) throws Exception {
-    for (BeamFnApi.Elements.Data data : elements.getDataList()) {
-      EndpointStatus<DataEndpoint<?>> endpoint =
-          transformIdToDataEndpoint.get(data.getTransformId());
-      if (endpoint == null) {
-        throw new IllegalStateException(
-            String.format(
-                "Unable to find inbound data receiver for instruction %s and transform %s.",
-                data.getInstructionId(), data.getTransformId()));
-      } else if (endpoint.isDone) {
-        throw new IllegalStateException(
-            String.format(
-                "Received data after inbound data receiver is done for instruction %s and transform %s.",
-                data.getInstructionId(), data.getTransformId()));
+  public boolean multiplexElements(
+      Iterator<Elements.Data> dataElements, Iterator<BeamFnApi.Elements.Timers> timerElements)
+      throws Exception {
+    while (dataElements.hasNext()) {
+      // We're careful to avoid references to the full data while processing, allowing the input
+      // stream to possibly cleanup memory as it advances.
+      InputStream inputStream;
+      EndpointStatus<DataEndpoint<?>> endpoint;
+      boolean isLast;
+      {
+        Elements.Data data = dataElements.next();
+        isLast = data.getIsLast();
+        endpoint = transformIdToDataEndpoint.get(data.getTransformId());
+        if (endpoint == null) {
+          throw new IllegalStateException(
+              String.format(
+                  "Unable to find inbound data receiver for instruction %s and transform %s.",
+                  data.getInstructionId(), data.getTransformId()));
+        } else if (endpoint.isDone) {
+          throw new IllegalStateException(
+              String.format(
+                  "Received data after inbound data receiver is done for instruction %s and transform %s.",
+                  data.getInstructionId(), data.getTransformId()));
+        }
+        inputStream = data.getData().newInput();
       }
-      InputStream inputStream = data.getData().newInput();
       Coder<Object> coder = (Coder<Object>) endpoint.endpoint.getCoder();
       FnDataReceiver<Object> receiver = (FnDataReceiver<Object>) endpoint.endpoint.getReceiver();
       while (inputStream.available() > 0) {
         receiver.accept(coder.decode(inputStream));
       }
-      if (data.getIsLast()) {
+      if (isLast) {
         endpoint.isDone = true;
         numEndpointsThatAreIncomplete -= 1;
       }
     }
 
-    for (BeamFnApi.Elements.Timers timers : elements.getTimersList()) {
+    while (timerElements.hasNext()) {
+      Elements.Timers timers = timerElements.next();
       Map<String, EndpointStatus<TimerEndpoint<?>>> timerFamilyIdToEndpoints =
           transformIdToTimerFamilyIdToTimerEndpoint.get(timers.getTransformId());
       if (timerFamilyIdToEndpoints == null) {

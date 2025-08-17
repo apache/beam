@@ -63,16 +63,40 @@ public class FlinkSourceSplitEnumerator<T>
       Source<T> beamSource,
       PipelineOptions pipelineOptions,
       int numSplits) {
+
+    this(context, beamSource, pipelineOptions, numSplits, false);
+  }
+
+  public FlinkSourceSplitEnumerator(
+      SplitEnumeratorContext<FlinkSourceSplit<T>> context,
+      Source<T> beamSource,
+      PipelineOptions pipelineOptions,
+      int numSplits,
+      boolean splitsInitialized) {
+
     this.context = context;
     this.beamSource = beamSource;
     this.pipelineOptions = pipelineOptions;
     this.numSplits = numSplits;
     this.pendingSplits = new HashMap<>(numSplits);
-    this.splitsInitialized = false;
+    this.splitsInitialized = splitsInitialized;
+
+    LOG.info(
+        "Created new enumerator with parallelism {}, source {}, numSplits {}, initialized {}",
+        context.currentParallelism(),
+        beamSource,
+        numSplits,
+        splitsInitialized);
   }
 
   @Override
   public void start() {
+    if (!splitsInitialized) {
+      initializeSplits();
+    }
+  }
+
+  private void initializeSplits() {
     context.callAsync(
         () -> {
           try {

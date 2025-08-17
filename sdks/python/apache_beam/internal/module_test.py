@@ -23,6 +23,38 @@ import re
 import sys
 from typing import Any
 
+GLOBAL_DICT = {}
+
+
+class UnPicklable:
+  def __init__(self, x):
+    self.x = x
+
+  def __reduce__(self):
+    return NotImplemented
+
+
+UNPICKLABLE_INSTANCE = UnPicklable(5)
+
+
+def closure_contains_unpicklable():
+  def inner():
+    return UNPICKLABLE_INSTANCE
+
+  return inner
+
+
+def closure_contains_unpicklable_imports_self():
+  def inner():
+    import apache_beam.internal.module_test as self_module
+    return self_module.UNPICKLABLE_INSTANCE
+
+  return inner
+
+
+def fn_returns_unpicklable():
+  return UNPICKLABLE_INSTANCE
+
 
 class TopClass(object):
   class NestedClass(object):

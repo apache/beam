@@ -50,7 +50,7 @@ except ImportError as e:
 
 
 def instance_prefix(instance):
-  datestr = "".join(filter(str.isdigit, str(datetime.utcnow().date())))
+  datestr = "".join(filter(str.isdigit, str(datetime.now(timezone.utc).date())))
   instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
   assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
   return instance_id

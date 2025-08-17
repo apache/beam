@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import datetime
 import glob
 import logging
 import os
@@ -37,6 +38,44 @@ pipeline:
     - type: WriteToText
       config:
         path: PATH
+
+tests:
+  - name: InlineTest
+    mock_outputs:
+      - name: Create
+        elements: ['a', 'b', 'c']
+    expected_inputs:
+      - name: WriteToText
+        elements:
+          - {element: a}
+          - {element: b}
+          - {element: c}
+'''
+
+PASSING_TEST_SUITE = '''
+tests:
+  - name: ExternalTest  # comment
+    mock_outputs:
+      - name: Create
+        elements: ['a', 'b', 'c']
+    expected_inputs:
+      - name: WriteToText
+        elements:
+          - element: a
+          - element: b
+          - element: c
+'''
+
+FAILING_TEST_SUITE = '''
+tests:
+  - name: ExternalTest  # comment
+    mock_outputs:
+      - name: Create
+        elements: ['a', 'b', 'c']
+    expected_inputs:
+      - name: WriteToText
+        elements:
+          - element: x
 '''
 
 
@@ -99,6 +138,94 @@ class MainTest(unittest.TestCase):
             '--another_arg=foo',
             'pos_arg',
         ])
+
+  def test_jinja_datetime(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      out_path = os.path.join(tmpdir, 'out.txt')
+      main.run([
+          '--yaml_pipeline',
+          TEST_PIPELINE.replace('PATH', out_path).replace(
+              'ELEMENT', '"{{datetime.datetime.now().strftime("%Y-%m-%d")}}"'),
+      ])
+      with open(glob.glob(out_path + '*')[0], 'rt') as fin:
+        self.assertEqual(
+            fin.read().strip(), datetime.datetime.now().strftime("%Y-%m-%d"))
+
+  def test_inline_test_specs(self):
+    main.run_tests(['--yaml_pipeline', TEST_PIPELINE, '--test'], exit=False)
+
+  def test_external_test_specs(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      good_suite = os.path.join(tmpdir, 'good.yaml')
+      with open(good_suite, 'w') as fout:
+        fout.write(PASSING_TEST_SUITE)
+      bad_suite = os.path.join(tmpdir, 'bad.yaml')
+      with open(bad_suite, 'w') as fout:
+        fout.write(FAILING_TEST_SUITE)
+
+      # Must pass.
+      main.run_tests([
+          '--yaml_pipeline',
+          TEST_PIPELINE,
+          '--test_suite',
+          good_suite,
+      ],
+                     exit=False)
+
+      # Must fail. (Ensures testing is not a no-op.)
+      with self.assertRaisesRegex(Exception, 'errors=1 failures=0'):
+        main.run_tests([
+            '--yaml_pipeline',
+            TEST_PIPELINE,
+            '--test_suite',
+            bad_suite,
+        ],
+                       exit=False)
+
+  def test_fix_suite(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_suite = os.path.join(tmpdir, 'tests.yaml')
+      with open(test_suite, 'w') as fout:
+        fout.write(FAILING_TEST_SUITE)
+
+      main.run_tests([
+          '--yaml_pipeline',
+          TEST_PIPELINE,
+          '--test_suite',
+          test_suite,
+          '--fix_tests'
+      ],
+                     exit=False)
+
+      with open(test_suite) as fin:
+        self.assertEqual(fin.read(), PASSING_TEST_SUITE)
+
+  def test_create_test(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      test_suite = os.path.join(tmpdir, 'tests.yaml')
+      with open(test_suite, 'w') as fout:
+        fout.write('')
+
+      main.run_tests([
+          '--yaml_pipeline',
+          TEST_PIPELINE.replace('ELEMENT', 'x'),
+          '--test_suite',
+          test_suite,
+          '--create_test'
+      ],
+                     exit=False)
+
+      with open(test_suite) as fin:
+        self.assertEqual(
+            fin.read(),
+            '''
+tests:
+- mock_outputs: []
+  expected_inputs:
+  - name: WriteToText
+    elements:
+    - element: x
+'''.lstrip())
 
 
 if __name__ == '__main__':

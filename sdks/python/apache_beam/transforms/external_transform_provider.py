@@ -20,12 +20,10 @@ import re
 from collections import namedtuple
 from inspect import Parameter
 from inspect import Signature
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import JavaJarExpansionService
 from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.external import SchemaTransformsConfig
 from apache_beam.typehints.schemas import named_tuple_to_schema
@@ -46,7 +44,7 @@ ParamInfo = namedtuple('ParamInfo', ['type', 'description', 'original_name'])
 
 
 def get_config_with_descriptions(
-    schematransform: SchemaTransformsConfig) -> Dict[str, ParamInfo]:
+    schematransform: SchemaTransformsConfig) -> dict[str, ParamInfo]:
   # Prepare a configuration schema that includes types and descriptions
   schema = named_tuple_to_schema(schematransform.configuration_schema)
   descriptions = schematransform.configuration_schema._field_descriptions
@@ -63,7 +61,7 @@ def get_config_with_descriptions(
 def _generate_signature(schematransform: SchemaTransformsConfig) -> Signature:
   schema = named_tuple_to_schema(schematransform.configuration_schema)
   descriptions = schematransform.configuration_schema._field_descriptions
-  params: List[Parameter] = []
+  params: list[Parameter] = []
   for field in schema.fields:
     annotation = str(typing_from_runner_api(field.type))
     description = descriptions[field.name]
@@ -88,7 +86,7 @@ class ExternalTransform(PTransform):
   # creating an ExternalTransform type
   default_expansion_service = None
   identifier: str = ""
-  configuration_schema: Dict[str, ParamInfo] = {}
+  configuration_schema: dict[str, ParamInfo] = {}
 
   def __init__(self, expansion_service=None, **kwargs):
     self._kwargs = kwargs
@@ -133,37 +131,57 @@ class ExternalTransformProvider:
   (see the `urn_pattern` parameter).
 
   These classes are generated when :class:`ExternalTransformProvider` is
-  initialized. We need to give it one or more expansion service addresses that
-  are already up and running:
-  >>> provider = ExternalTransformProvider(["localhost:12345",
-  ...                                             "localhost:12121"])
-  We can also give it the gradle target of a standard Beam expansion service:
-  >>> provider = ExternalTransform(BeamJarExpansionService(
-  ...     "sdks:java:io:google-cloud-platform:expansion-service:shadowJar"))
-  Let's take a look at the output of :func:`get_available()` to know the
-  available transforms in the expansion service(s) we provided:
+  initialized. You can give it an expansion service address that is already
+  up and running:
+
+  >>> provider = ExternalTransformProvider("localhost:12345")
+
+  Or you can give it the path to an expansion service Jar file:
+
+  >>> provider = ExternalTransformProvider(JavaJarExpansionService(
+          "path/to/expansion-service.jar"))
+
+  Or you can give it the gradle target of a standard Beam expansion service:
+
+  >>> provider = ExternalTransformProvider(BeamJarExpansionService(
+          "sdks:java:io:google-cloud-platform:expansion-service:shadowJar"))
+
+  Note that you can provide a list of these services:
+
+  >>> provider = ExternalTransformProvider([
+          "localhost:12345",
+          JavaJarExpansionService("path/to/expansion-service.jar"),
+          BeamJarExpansionService(
+            "sdks:java:io:google-cloud-platform:expansion-service:shadowJar")])
+
+  The output of :func:`get_available()` provides a list of available transforms
+  in the provided expansion service(s):
+
   >>> provider.get_available()
   [('JdbcWrite', 'beam:schematransform:org.apache.beam:jdbc_write:v1'),
   ('BigtableRead', 'beam:schematransform:org.apache.beam:bigtable_read:v1'),
   ...]
 
-  Then retrieve a transform by :func:`get()`, :func:`get_urn()`, or by directly
-  accessing it as an attribute of :class:`ExternalTransformProvider`.
-  All of the following commands do the same thing:
+  You can retrieve a transform with :func:`get()`, :func:`get_urn()`, or by
+  directly accessing it as an attribute. The following lines all do the same
+  thing:
+
   >>> provider.get('BigqueryStorageRead')
   >>> provider.get_urn(
-  ...       'beam:schematransform:org.apache.beam:bigquery_storage_read:v1')
+            'beam:schematransform:org.apache.beam:bigquery_storage_read:v1')
   >>> provider.BigqueryStorageRead
 
-  You can inspect the transform's documentation to know more about it. This
-  returns some documentation only IF the underlying SchemaTransform
-  implementation provides any.
+  You can inspect the transform's documentation for more details. The following
+  returns the documentation provided by the underlying SchemaTransform. If no
+  such documentation is provided, this will be empty.
+
   >>> import inspect
   >>> inspect.getdoc(provider.BigqueryStorageRead)
 
   Similarly, you can inspect the transform's signature to know more about its
   parameters, including their names, types, and any documentation that the
   underlying SchemaTransform may provide:
+
   >>> inspect.signature(provider.BigqueryStorageRead)
   (query: 'typing.Union[str, NoneType]: The SQL query to be executed to...',
   row_restriction: 'typing.Union[str, NoneType]: Read only rows that match...',
@@ -178,8 +196,6 @@ class ExternalTransformProvider:
                 query=query,
                 row_restriction=restriction)
         | 'Some processing' >> beam.Map(...))
-
-  Experimental; no backwards compatibility guarantees.
   """
   def __init__(self, expansion_services, urn_pattern=STANDARD_URN_PATTERN):
     f"""Initialize an ExternalTransformProvider
@@ -188,6 +204,7 @@ class ExternalTransformProvider:
       A list of expansion services to discover transforms from.
       Supported forms:
       * a string representing the expansion service address
+      * a :attr:`JavaJarExpansionService` pointing to the path of a Java Jar
       * a :attr:`BeamJarExpansionService` pointing to a gradle target
     :param urn_pattern:
       The regular expression used to match valid transforms. In addition to
@@ -195,8 +212,8 @@ class ExternalTransformProvider:
       By default, the following pattern is used: [{STANDARD_URN_PATTERN}]
     """
     self._urn_pattern = urn_pattern
-    self._transforms: Dict[str, type(ExternalTransform)] = {}
-    self._name_to_urn: Dict[str, str] = {}
+    self._transforms: dict[str, type(ExternalTransform)] = {}
+    self._name_to_urn: dict[str, str] = {}
 
     if isinstance(expansion_services, set):
       expansion_services = list(expansion_services)
@@ -213,11 +230,14 @@ class ExternalTransformProvider:
       target = service
       if isinstance(service, BeamJarExpansionService):
         target = service.gradle_target
+      if isinstance(service, JavaJarExpansionService):
+        target = service.path_to_jar
       try:
         schematransform_configs = SchemaAwareExternalTransform.discover(service)
       except Exception as e:
         logging.exception(
-            "Encountered an error while discovering expansion service %s:\n%s",
+            "Encountered an error while discovering "
+            "expansion service at '%s':\n%s",
             target,
             e)
         continue
@@ -249,7 +269,7 @@ class ExternalTransformProvider:
 
       if skipped_urns:
         logging.info(
-            "Skipped URN(s) in %s that don't follow the pattern \"%s\": %s",
+            "Skipped URN(s) in '%s' that don't follow the pattern \"%s\": %s",
             target,
             self._urn_pattern,
             skipped_urns)
@@ -257,12 +277,12 @@ class ExternalTransformProvider:
     for transform in self._transforms.values():
       setattr(self, transform.__name__, transform)
 
-  def get_available(self) -> List[Tuple[str, str]]:
+  def get_available(self) -> list[tuple[str, str]]:
     """Get a list of available ExternalTransform names and identifiers"""
     return list(self._name_to_urn.items())
 
-  def get_all(self) -> Dict[str, ExternalTransform]:
-    """Get all ExternalTransform"""
+  def get_all(self) -> dict[str, ExternalTransform]:
+    """Get all ExternalTransforms"""
     return self._transforms
 
   def get(self, name) -> ExternalTransform:

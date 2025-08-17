@@ -59,6 +59,7 @@ class BeamDockerPlugin implements Plugin<Project> {
     boolean load = false
     boolean push = false
     String builder = null
+    String target = null
 
     File resolvedDockerfile = null
     File resolvedDockerComposeTemplate = null
@@ -130,6 +131,7 @@ class BeamDockerPlugin implements Plugin<Project> {
       group = 'Docker'
       description = 'Builds Docker image.'
       dependsOn prepare
+      environment 'DOCKER_BUILDKIT', '1'
     })
 
     Task tag = project.tasks.create('dockerTag', {
@@ -240,11 +242,7 @@ class BeamDockerPlugin implements Plugin<Project> {
       if (ext.builder != null) {
         buildCommandLine.addAll('--builder', ext.builder)
       }
-      // Jenkins dependencies aren't up to date enough to accept this flag.
-      // Temporarily exclude until we fully move to GHA.
-      if (!ext.project.jenkins.isCIBuild) {
-        buildCommandLine.addAll('--provenance=false')
-      }
+      buildCommandLine.addAll('--provenance=false')
     } else {
       buildCommandLine.add 'build'
       // TARGETOS and TARGETARCH args not present through `docker build`, add here
@@ -287,6 +285,9 @@ class BeamDockerPlugin implements Plugin<Project> {
       buildCommandLine.add '.'
     } else {
       buildCommandLine.addAll(['-t', "${-> ext.name}", '.'])
+    }
+    if (ext.target != null && ext.target != "") {
+      buildCommandLine.addAll '--target', ext.target
     }
     logger.debug("${buildCommandLine}" as String)
     return buildCommandLine

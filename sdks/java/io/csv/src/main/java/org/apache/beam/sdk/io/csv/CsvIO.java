@@ -53,6 +53,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform}s for reading and writing CSV files.
@@ -548,6 +549,16 @@ public class CsvIO {
     /** Whether to skip the spilling of data. See {@link WriteFiles#withNoSpilling}. */
     public Write<T> withNoSpilling() {
       return toBuilder().setTextIOWrite(getTextIOWrite().withNoSpilling()).build();
+    }
+
+    /**
+     * Set the maximum number of writers created in a bundle before spilling to shuffle. See {@link
+     * WriteFiles#withMaxNumWritersPerBundle()}.
+     */
+    public Write<T> withMaxNumWritersPerBundle(@Nullable Integer maxNumWritersPerBundle) {
+      return toBuilder()
+          .setTextIOWrite(getTextIOWrite().withMaxNumWritersPerBundle(maxNumWritersPerBundle))
+          .build();
     }
 
     /**

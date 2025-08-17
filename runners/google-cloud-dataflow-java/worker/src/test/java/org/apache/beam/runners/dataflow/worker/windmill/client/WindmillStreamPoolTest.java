@@ -43,7 +43,11 @@ public class WindmillStreamPoolTest {
   private final ConcurrentHashMap<
           TestWindmillStream, WindmillStreamPool.StreamData<TestWindmillStream>>
       holds = new ConcurrentHashMap<>();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   private List<WindmillStreamPool.@Nullable StreamData<TestWindmillStream>> streams;
 
   @Before
@@ -260,5 +264,8 @@ public class WindmillStreamPoolTest {
     public void shutdown() {
       halfClose();
     }
+
+    @Override
+    public void start() {}
   }
 }

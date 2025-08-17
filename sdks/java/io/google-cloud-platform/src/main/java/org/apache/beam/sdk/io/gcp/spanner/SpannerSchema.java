@@ -22,6 +22,9 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Type;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
@@ -161,22 +164,42 @@ public abstract class SpannerSchema implements Serializable {
 
     public abstract Type getType();
 
+    private static final Map<String, Type> GOOGLE_STANDARD_SQL_TYPE_MAP =
+        ImmutableMap.<String, Type>builder()
+            .put("BOOL", Type.bool())
+            .put("INT64", Type.int64())
+            .put("FLOAT32", Type.float32())
+            .put("FLOAT64", Type.float64())
+            .put("UUID", Type.string())
+            .put("TOKENLIST", Type.bytes())
+            .put("TIMESTAMP", Type.timestamp())
+            .put("DATE", Type.date())
+            .put("NUMERIC", Type.numeric())
+            .put("JSON", Type.json())
+            .build();
+    private static final Map<String, Type> POSTGRES_TYPE_MAP =
+        ImmutableMap.<String, Type>builder()
+            .put("BOOLEAN", Type.bool())
+            .put("BIGINT", Type.int64())
+            .put("REAL", Type.float32())
+            .put("DOUBLE PRECISION", Type.float64())
+            .put("TEXT", Type.string())
+            .put("BYTEA", Type.bytes())
+            .put("TIMESTAMP WITH TIME ZONE", Type.timestamp())
+            .put("DATE", Type.date())
+            .put("SPANNER.COMMIT_TIMESTAMP", Type.timestamp())
+            .put("SPANNER.TOKENLIST", Type.bytes())
+            .put("UUID", Type.string())
+            .build();
+
     private static Type parseSpannerType(String spannerType, Dialect dialect) {
       String originalSpannerType = spannerType;
       spannerType = spannerType.toUpperCase();
       switch (dialect) {
         case GOOGLE_STANDARD_SQL:
-          if ("BOOL".equals(spannerType)) {
-            return Type.bool();
-          }
-          if ("INT64".equals(spannerType)) {
-            return Type.int64();
-          }
-          if ("FLOAT32".equals(spannerType)) {
-            return Type.float32();
-          }
-          if ("FLOAT64".equals(spannerType)) {
-            return Type.float64();
+          Type type = GOOGLE_STANDARD_SQL_TYPE_MAP.get(spannerType);
+          if (type != null) {
+            return type;
           }
           if (spannerType.startsWith("STRING")) {
             return Type.string();
@@ -184,27 +207,21 @@ public abstract class SpannerSchema implements Serializable {
           if (spannerType.startsWith("BYTES")) {
             return Type.bytes();
           }
-          if ("TOKENLIST".equals(spannerType)) {
-            return Type.bytes();
-          }
-          if ("TIMESTAMP".equals(spannerType)) {
-            return Type.timestamp();
-          }
-          if ("DATE".equals(spannerType)) {
-            return Type.date();
-          }
-          if ("NUMERIC".equals(spannerType)) {
-            return Type.numeric();
-          }
-          if ("JSON".equals(spannerType)) {
-            return Type.json();
-          }
           if (spannerType.startsWith("ARRAY")) {
-            // Substring "ARRAY<xxx>"
-            String spannerArrayType =
-                originalSpannerType.substring(6, originalSpannerType.length() - 1);
-            Type itemType = parseSpannerType(spannerArrayType, dialect);
-            return Type.array(itemType);
+            // find 'xxx' in string ARRAY<xxxxx>
+            // Graph DBs may have suffixes, eg ARRAY<FLOAT32>(vector_length=>256)
+            //
+            Pattern pattern = Pattern.compile("ARRAY<([^>]+)>");
+            Matcher matcher = pattern.matcher(originalSpannerType);
+
+            if (matcher.find()) {
+              String spannerArrayType = matcher.group(1).trim();
+              Type itemType = parseSpannerType(spannerArrayType, dialect);
+              return Type.array(itemType);
+            } else {
+              // Handle the case where the regex doesn't match (invalid ARRAY type)
+              throw new IllegalArgumentException("Invalid ARRAY type: " + originalSpannerType);
+            }
           }
           if (spannerType.startsWith("PROTO")) {
             // Substring "PROTO<xxx>"
@@ -220,42 +237,24 @@ public abstract class SpannerSchema implements Serializable {
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         case POSTGRESQL:
-          if (spannerType.endsWith("[]")) {
-            // Substring "xxx[]"
+          Pattern pattern = Pattern.compile("([^\\[]+)\\[\\]");
+          Matcher m = pattern.matcher(spannerType);
+          if (m.find()) {
+            // Substring "xxx[]" or "xxx[] vector length yyy"
             // Must check array type first
-            String spannerArrayType = spannerType.substring(0, spannerType.length() - 2);
+            String spannerArrayType = m.group(1);
             Type itemType = parseSpannerType(spannerArrayType, dialect);
             return Type.array(itemType);
           }
-          if ("BOOLEAN".equals(spannerType)) {
-            return Type.bool();
+          type = POSTGRES_TYPE_MAP.get(spannerType);
+          if (type != null) {
+            return type;
           }
-          if ("BIGINT".equals(spannerType)) {
-            return Type.int64();
-          }
-          if ("REAL".equals(spannerType)) {
-            return Type.float32();
-          }
-          if ("DOUBLE PRECISION".equals(spannerType)) {
-            return Type.float64();
-          }
-          if (spannerType.startsWith("CHARACTER VARYING") || "TEXT".equals(spannerType)) {
+          if (spannerType.startsWith("CHARACTER VARYING")) {
             return Type.string();
-          }
-          if ("BYTEA".equals(spannerType)) {
-            return Type.bytes();
-          }
-          if ("TIMESTAMP WITH TIME ZONE".equals(spannerType)) {
-            return Type.timestamp();
-          }
-          if ("DATE".equals(spannerType)) {
-            return Type.date();
           }
           if (spannerType.startsWith("NUMERIC")) {
             return Type.pgNumeric();
-          }
-          if ("SPANNER.COMMIT_TIMESTAMP".equals(spannerType)) {
-            return Type.timestamp();
           }
           if (spannerType.startsWith("JSONB")) {
             return Type.pgJsonb();

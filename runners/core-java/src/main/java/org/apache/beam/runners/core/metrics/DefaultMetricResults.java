@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -25,6 +26,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -42,16 +44,22 @@ public class DefaultMetricResults extends MetricResults {
   private final Iterable<MetricResult<DistributionResult>> distributions;
   private final Iterable<MetricResult<GaugeResult>> gauges;
   private final Iterable<MetricResult<StringSetResult>> stringSets;
+  private final Iterable<MetricResult<BoundedTrieResult>> boundedTries;
+  private final Iterable<MetricResult<HistogramData>> histograms;
 
   public DefaultMetricResults(
       Iterable<MetricResult<Long>> counters,
       Iterable<MetricResult<DistributionResult>> distributions,
       Iterable<MetricResult<GaugeResult>> gauges,
-      Iterable<MetricResult<StringSetResult>> stringSets) {
+      Iterable<MetricResult<StringSetResult>> stringSets,
+      Iterable<MetricResult<BoundedTrieResult>> boundedTries,
+      Iterable<MetricResult<HistogramData>> histograms) {
     this.counters = counters;
     this.distributions = distributions;
     this.gauges = gauges;
     this.stringSets = stringSets;
+    this.boundedTries = boundedTries;
+    this.histograms = histograms;
   }
 
   @Override
@@ -62,6 +70,10 @@ public class DefaultMetricResults extends MetricResults {
             distributions, distribution -> MetricFiltering.matches(filter, distribution.getKey())),
         Iterables.filter(gauges, gauge -> MetricFiltering.matches(filter, gauge.getKey())),
         Iterables.filter(
-            stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())));
+            stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())),
+        Iterables.filter(
+            boundedTries, boundedTries -> MetricFiltering.matches(filter, boundedTries.getKey())),
+        Iterables.filter(
+            histograms, histogram -> MetricFiltering.matches(filter, histogram.getKey())));
   }
 }

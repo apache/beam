@@ -12,11 +12,12 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { Inspectables } from '../../inspector/Inspectables';
+import { waitFor } from '@testing-library/dom';
 
 jest.mock('../../inspector/InspectableList', () => {
   const FakeInspectableList = function (): React.ReactNode {
@@ -30,36 +31,52 @@ jest.mock('../../inspector/InspectableList', () => {
 });
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
-afterEach(() => {
-  unmountComponentAtNode(container);
-  container.remove();
-  container = null;
-  jest.clearAllMocks();
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    jest.clearAllMocks();
+    container = null;
+    root = null;
+  }
 });
 
-it('renders info message about no inspectable when none is available', () => {
+it(`renders info message about no inspectable
+   when none is available`, async () => {
   const inspectablesRef: React.RefObject<Inspectables> =
     React.createRef<Inspectables>();
-  act(() => {
-    render(<Inspectables ref={inspectablesRef} />, container);
+  await act(async () => {
+    root.render(<Inspectables ref={inspectablesRef} />);
     const inspectables = inspectablesRef.current;
     if (inspectables) {
       inspectables.setState({ inspectables: {} });
     }
   });
-  const infoElement: Element = container.firstElementChild;
+  const infoElement = container.firstElementChild as Element;
   expect(infoElement.tagName).toBe('DIV');
   expect(infoElement.textContent).toBe(
     'No inspectable pipeline nor pcollection has been defined.'
   );
 });
 
-it('renders inspectables as a list of collapsible lists', () => {
+it('renders inspectables as a list of collapsible lists', async () => {
   const inspectablesRef: React.RefObject<Inspectables> =
     React.createRef<Inspectables>();
   const testData = {
@@ -92,17 +109,21 @@ it('renders inspectables as a list of collapsible lists', () => {
       }
     }
   };
-  act(() => {
-    render(<Inspectables ref={inspectablesRef} />, container);
-    const inspectables = inspectablesRef.current;
-    if (inspectables) {
-      inspectables.setState({ inspectables: testData });
-    }
+
+  await act(async () => {
+    root.render(<Inspectables ref={inspectablesRef} />);
   });
-  const listElement: Element = container.firstElementChild;
-  expect(listElement.tagName).toBe('UL');
-  expect(listElement.getAttribute('class')).toContain('mdc-list');
-  // Only checks the length of dummy InspectableList items. Each InspectableList
-  // has its own unit tests.
-  expect(listElement.children).toHaveLength(2);
+
+  await act(async () => {
+    inspectablesRef.current?.setState({ inspectables: testData });
+  });
+
+  await waitFor(() => {
+    const listElement = container.firstElementChild as Element;
+    expect(listElement.tagName).toBe('UL');
+    expect(listElement.getAttribute('class')).toContain('mdc-list');
+    // Only checks the length of dummy InspectableList items.
+    // Each InspectableList has its own unit tests.
+    expect(listElement.children).toHaveLength(2);
+  });
 });

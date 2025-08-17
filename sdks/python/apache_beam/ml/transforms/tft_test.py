@@ -404,13 +404,19 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
   def test_compute_and_apply_vocabulary_inputs(self):
     num_elements = 100
     num_instances = num_elements + 1
-    input_data = [{
-        'x': '%.10i' % i,  # Front-padded to facilitate lexicographic sorting.
-    } for i in range(num_instances)]
+    input_data = [
+        {
+            'x': '%.10i' %
+            i,  # Front-padded to facilitate lexicographic sorting.
+        } for i in range(num_instances)
+    ]
 
-    expected_data = [{
-        'x': (len(input_data) - 1) - i, # Due to reverse lexicographic sorting.
-    } for i in range(len(input_data))]
+    expected_data = [
+        {
+            'x': (len(input_data) - 1) -
+            i,  # Due to reverse lexicographic sorting.
+        } for i in range(len(input_data))
+    ]
 
     with beam.Pipeline() as p:
       actual_data = (

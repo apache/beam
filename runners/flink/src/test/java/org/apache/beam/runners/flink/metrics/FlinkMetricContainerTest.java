@@ -21,10 +21,10 @@ import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlin
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -101,7 +101,7 @@ public class FlinkMetricContainerTest {
   public void testGauge() {
     FlinkMetricContainer.FlinkGauge flinkGauge =
         new FlinkMetricContainer.FlinkGauge(GaugeResult.empty());
-    when(metricGroup.gauge(eq("namespace.name"), anyObject())).thenReturn(flinkGauge);
+    when(metricGroup.gauge(eq("namespace.name"), any())).thenReturn(flinkGauge);
 
     MetricsContainer step = container.getMetricsContainer("step");
     MetricName metricName = MetricName.named("namespace", "name");
@@ -251,7 +251,7 @@ public class FlinkMetricContainerTest {
   public void testDistribution() {
     FlinkMetricContainer.FlinkDistributionGauge flinkGauge =
         new FlinkMetricContainer.FlinkDistributionGauge(DistributionResult.IDENTITY_ELEMENT);
-    when(metricGroup.gauge(eq("namespace.name"), anyObject())).thenReturn(flinkGauge);
+    when(metricGroup.gauge(eq("namespace.name"), any())).thenReturn(flinkGauge);
 
     MetricsContainer step = container.getMetricsContainer("step");
     MetricName metricName = MetricName.named("namespace", "name");

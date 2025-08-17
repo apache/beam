@@ -70,17 +70,11 @@ import sys
 import warnings
 
 if sys.version_info.major == 3:
-  if sys.version_info.minor <= 7 or sys.version_info.minor >= 13:
+  if sys.version_info.minor <= 8 or sys.version_info.minor >= 14:
     warnings.warn(
         'This version of Apache Beam has not been sufficiently tested on '
         'Python %s.%s. You may encounter bugs or missing features.' %
         (sys.version_info.major, sys.version_info.minor))
-  elif sys.version_info.minor == 8:
-    warnings.warn(
-        'Python 3.8 reaches EOL in October 2024 and support will '
-        'be removed from Apache Beam in version 2.61.0. See '
-        'https://github.com/apache/beam/issues/31192 for more '
-        'information.')
   pass
 else:
   raise RuntimeError(
@@ -95,7 +89,7 @@ from apache_beam import io
 from apache_beam import metrics
 from apache_beam import typehints
 from apache_beam import version
-from apache_beam.pipeline import Pipeline
+from apache_beam.pipeline import *
 from apache_beam.transforms import *
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row

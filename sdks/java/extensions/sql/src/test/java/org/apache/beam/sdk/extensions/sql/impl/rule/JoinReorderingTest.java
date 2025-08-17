@@ -30,41 +30,41 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.DataContext;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.EnumerableConvention;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.EnumerableRules;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Enumerable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Linq4j;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollations;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelFieldCollation;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelRoot;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Join;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.TableScan;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CoreRules;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.JoinCommuteRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ScannableTable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Statistic;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Statistics;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.impl.AbstractSchema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.impl.AbstractTable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParser;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.FrameworkConfig;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Planner;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Programs;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableBitSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.DataContext;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.EnumerableConvention;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.EnumerableRules;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Enumerable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Linq4j;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelCollationTraitDef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelCollations;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelRoot;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Join;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.TableScan;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rules.CoreRules;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rules.JoinCommuteRule;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.ScannableTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Statistic;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Statistics;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Table;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.impl.AbstractSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.impl.AbstractTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParser;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.FrameworkConfig;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Planner;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Programs;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
@@ -415,7 +415,7 @@ final class ThreeTablesSchema extends AbstractSchema {
   }
 
   @Override
-  protected Map<String, org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table>
+  protected Map<String, org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Table>
       getTableMap() {
     return tables;
   }

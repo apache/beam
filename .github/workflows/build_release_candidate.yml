@@ -40,6 +40,8 @@ on:
           beam_site_pr: create the documentation update PR against apache/beam-site.
           --
           prism: build and upload the artifacts to the release for this tag
+          --
+          managed_io_docs_pr: create the managed-io.md update PR against apache/beam.
         required: true
         default: |
            {java_artifacts: "no",
@@ -47,10 +49,11 @@ on:
             docker_artifacts: "no",
             python_artifacts: "no",
             beam_site_pr: "no",
-            prism: "no"}
+            prism: "no",
+            managed_io_docs_pr: "no"}
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   publish_java_artifacts:
@@ -62,11 +65,13 @@ jobs:
         with:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
-      - name: Install Java 8
+      - name: Install Java 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '8'
+          java-version: |
+            21
+            11
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
@@ -92,12 +97,12 @@ jobs:
       - name: Configure git
         run: git config credential.helper store
       - name: Stage Java Artifacts into Maven
-        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease --no-daemon --no-parallel
+        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease -Pjava21Home=$JAVA_HOME_21_X64 --no-daemon --no-parallel
 
 
   stage_java_source:
     if:  ${{ fromJson(github.event.inputs.STAGE).java_source == 'yes'}}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Mask Apache Password
         run: |
@@ -114,11 +119,11 @@ jobs:
           then
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
-      - name: Install Java 8
+      - name: Install Java 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '8'
+          java-version: '11'
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
@@ -161,7 +166,8 @@ jobs:
 
   stage_python_artifacts:
     if:  ${{ fromJson(github.event.inputs.STAGE).python_artifacts == 'yes'}}
-    runs-on: ubuntu-latest
+    needs: [stage_java_source, build_and_stage_prism] # Enforce ordering to avoid svn conflicts
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -245,8 +251,22 @@ jobs:
 
   stage_docker:
     if:  ${{ fromJson(github.event.inputs.STAGE).docker_artifacts == 'yes'}}
-    # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Split up images to publish so that longer ones are able to run independently/finish faster, otherwise this takes >6 hours
+        # Any task which is skipped from a broader task must be explicitly included in this list to avoid accidentally missing new
+        # tasks as they are added.
+        images_to_publish: [
+          {"gradle_task": ":pushAllRunnersDockerImages", "skip_flags": ""},
+          {"gradle_task": ":sdks:python:container:push39", "skip_flags": ""},
+          {"gradle_task": ":sdks:python:container:push310", "skip_flags": ""},
+          {"gradle_task": ":sdks:python:container:push311", "skip_flags": ""},
+          {"gradle_task": ":sdks:python:container:pushAll", "skip_flags": "-Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images"},
+          {"gradle_task": ":pushAllSdkDockerImages", "skip_flags": "-Pskip-python-images"},
+          {"gradle_task": ":pushAllDockerImages", "skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
+        ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -264,14 +284,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-      - run: echo $JAVA_HOME
-      - run: echo "JAVA11_HOME=${JAVA_HOME}" >> "$GITHUB_OUTPUT"
-        id: export-java11
-      - name: Install Java 8
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '8'
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Remove default github maven configuration
@@ -285,18 +297,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
-        run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel
+        run: ./gradlew ${{ matrix.images_to_publish.gradle_task }} -PisRelease -Pdocker-pull-licenses -Pprune-images ${{ matrix.images_to_publish.skip_flags }} -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
 
   beam_site_pr:
     if:  ${{ fromJson(github.event.inputs.STAGE).beam_site_pr == 'yes'}}
     # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
       BRANCH_NAME: updates_release_${{ github.event.inputs.RELEASE }}
       BEAM_ROOT_DIR: ${{ github.workspace }}/beam
       SITE_ROOT_DIR: ${{ github.workspace }}/beam-site
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.0
+        with:
+          docker-images: false
       - name: Checkout Beam Repo
         uses: actions/checkout@v4
         with:
@@ -318,11 +334,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '16'
-      - name: Install Java 8
+      - name: Install Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '8'
+          java-version: '21'
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -347,7 +363,7 @@ jobs:
       - name: Build Java Docs
         working-directory: beam
         run: |
-            ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+            ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease -PdisableSpotlessCheck=true --no-daemon --no-parallel
       - name: Build YAML Docs
         working-directory: beam
         run: |
@@ -384,6 +400,7 @@ jobs:
             echo "............Copying generated yamldoc into beam-site.........."
             mkdir -p yamldoc/${{ github.event.inputs.RELEASE }}
             cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/index.html
+            cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-examples.html yamldoc/${{ github.event.inputs.RELEASE }}/examples.html
             # Update current symlink to point to the latest release
             unlink yamldoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} yamldoc/current
@@ -409,7 +426,8 @@ jobs:
 
   build_and_stage_prism:
     if: ${{ fromJson(github.event.inputs.STAGE).prism == 'yes'}}
-    runs-on: ubuntu-latest
+    needs: [stage_java_source] # Enforce ordering to avoid svn conflicts
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -433,7 +451,7 @@ jobs:
           fi
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
@@ -530,3 +548,69 @@ jobs:
           svn add --force --parents prism
           svn status
           svn commit -m "Staging Prism artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
+
+  managed_io_docs_pr:
+    if:  ${{ fromJson(github.event.inputs.STAGE).managed_io_docs_pr == 'yes'}}
+    runs-on: ubuntu-22.04
+    env:
+      BRANCH_NAME: updates_managed_io_docs_${{ github.event.inputs.RELEASE }}_rc${{ github.event.inputs.RC }}
+      BEAM_ROOT_DIR: ${{ github.workspace }}/beam
+      MANAGED_IO_DOCS_PATH: website/www/site/content/en/documentation/io/managed-io.md
+    steps:
+      - name: Checkout Beam Repo
+        uses: actions/checkout@v4
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+          path: beam
+          token: ${{ github.event.inputs.REPO_TOKEN }}
+          persist-credentials: false
+      - name: Install Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Install Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml || true
+      - name: Install SDK
+        working-directory: beam/sdks/python
+        run: |
+          pip install -e.
+      - name: Build Expansion Service Jar
+        working-directory: beam
+        run: |
+          ./gradlew sdks:java:io:expansion-service:shadowJar
+      - name: Build GCP Expansion Service Jar
+        working-directory: beam
+        run: |
+          ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
+      - name: Generate Managed IO Docs
+        working-directory: beam/sdks/python
+        run: |
+          python gen_managed_doc.py --output_location ${{ runner.temp }}/managed-io.md
+      - name: Create commit on beam branch
+        working-directory: beam
+        run: |
+          git fetch origin master
+          git checkout -b $BRANCH_NAME origin/master
+          mv ${{ runner.temp }}/managed-io.md ${{ env.MANAGED_IO_DOCS_PATH }}
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+          git add ${{ env.MANAGED_IO_DOCS_PATH }}
+          git commit --allow-empty -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}."
+          git push -f --set-upstream origin $BRANCH_NAME
+      - name: Create beam PR
+        working-directory: beam
+        env:
+          GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN }}
+          PR_TITLE: "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          PR_BODY: "Content generated from release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}."
+        run: |
+          gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base master --repo apache/beam

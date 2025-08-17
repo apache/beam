@@ -25,13 +25,13 @@ RUN docker buildx install && docker buildx version
 
 USER root
 #Install Node
-RUN curl -OL https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz && \
-    tar -C /usr/local -xf node-v18.16.0-linux-x64.tar.xz && \
-    rm node-v18.16.0-linux-x64.tar.xz && \
-    mv /usr/local/node-v18.16.0-linux-x64 /usr/local/node
+RUN curl -OL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz && \
+    tar -C /usr/local -xf node-v22.14.0-linux-x64.tar.xz && \
+    rm node-v22.14.0-linux-x64.tar.xz && \
+    mv /usr/local/node-v22.14.0-linux-x64 /usr/local/node
 ENV PATH="${PATH}:/usr/local/node/bin"
 #Install Go
-ARG go_version=1.22.5
+ARG go_version=1.24.0
 RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz
@@ -52,7 +52,7 @@ ENV PATH="${PATH}:/usr/local/gradle/bin"
 RUN curl -OL https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz && \
     tar -xvf gh_2.31.0_linux_amd64.tar.gz && \
     rm gh_2.31.0_linux_amd64.tar.gz && \
-    mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin 
+    mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin
 #Install GCloud CLI and Kubectl
 RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-471.0.0-linux-x86_64.tar.gz && \
     tar -xvf google-cloud-sdk-471.0.0-linux-x86_64.tar.gz && \

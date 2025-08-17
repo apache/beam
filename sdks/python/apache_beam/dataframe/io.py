@@ -93,6 +93,7 @@ def read_csv(path, *args, splittable=False, binary=True, **kwargs):
   newlines may result in partial records and data corruption."""
   if 'nrows' in kwargs:
     raise ValueError('nrows not yet supported')
+  filename_column = kwargs.pop('filename_column', None)
   return _ReadFromPandas(
       pd.read_csv,
       path,
@@ -100,7 +101,8 @@ def read_csv(path, *args, splittable=False, binary=True, **kwargs):
       kwargs,
       incremental=True,
       binary=binary,
-      splitter=_TextFileSplitter(args, kwargs) if splittable else None)
+      splitter=_TextFileSplitter(args, kwargs) if splittable else None,
+      filename_column=filename_column)
 
 
 def _as_pc(df, label=None):
@@ -171,8 +173,7 @@ def to_json(df, path, orient=None, *args, **kwargs):
 @frame_base.with_docs_from(pd)
 def read_html(path, *args, **kwargs):
   return _ReadFromPandas(
-      lambda *args,
-      **kwargs: pd.read_html(*args, **kwargs)[0],
+      lambda *args, **kwargs: pd.read_html(*args, **kwargs)[0],
       path,
       args,
       kwargs)
@@ -193,8 +194,8 @@ def to_html(df, path, *args, **kwargs):
 
 def _binary_reader(format):
   func = getattr(pd, 'read_%s' % format)
-  result = lambda path, *args, **kwargs: _ReadFromPandas(func, path, args,
-                                                         kwargs)
+  result = lambda path, *args, **kwargs: _ReadFromPandas(
+      func, path, args, kwargs)
   result.__name__ = f'read_{format}'
 
   return result
@@ -202,10 +203,8 @@ def _binary_reader(format):
 
 def _binary_writer(format):
   result = (
-      lambda df,
-      path,
-      *args,
-      **kwargs: _as_pc(df) | _WriteToPandas(f'to_{format}', path, args, kwargs))
+      lambda df, path, *args, **kwargs: _as_pc(df) | _WriteToPandas(
+          f'to_{format}', path, args, kwargs))
   result.__name__ = f'to_{format}'
   return result
 
@@ -257,7 +256,8 @@ class _ReadFromPandas(beam.PTransform):
       kwargs,
       binary=True,
       incremental=False,
-      splitter=False):
+      splitter=False,
+      filename_column=None):
     if 'compression' in kwargs:
       raise NotImplementedError('compression')
     if not isinstance(path, str):
@@ -269,6 +269,7 @@ class _ReadFromPandas(beam.PTransform):
     self.binary = binary
     self.incremental = incremental
     self.splitter = splitter
+    self.filename_column = filename_column
 
   def expand(self, root):
     paths_pcoll = root | beam.Create([self.path])
@@ -288,15 +289,18 @@ class _ReadFromPandas(beam.PTransform):
           sample = next(stream)
       else:
         sample = self.reader(handle, *self.args, **self.kwargs)
+    if self.filename_column:
+      sample[self.filename_column] = ''
 
     matches_pcoll = paths_pcoll | fileio.MatchAll()
     indices_pcoll = (
         matches_pcoll.pipeline
         | 'DoOnce' >> beam.Create([None])
         | beam.Map(
-            lambda _,
-            paths: {path: ix
-                    for ix, path in enumerate(sorted(paths))},
+            lambda _, paths: {
+                path: ix
+                for ix, path in enumerate(sorted(paths))
+            },
             paths=beam.pvalue.AsList(
                 matches_pcoll | beam.Map(lambda match: match.path))))
 
@@ -311,7 +315,8 @@ class _ReadFromPandas(beam.PTransform):
                 self.kwargs,
                 self.binary,
                 self.incremental,
-                self.splitter),
+                self.splitter,
+                self.filename_column),
             path_indices=beam.pvalue.AsSingleton(indices_pcoll)))
     from apache_beam.dataframe import convert
     return convert.to_dataframe(pcoll, proxy=sample[:0])
@@ -582,7 +587,15 @@ class _TruncatingFileHandle(object):
 
 
 class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
-  def __init__(self, reader, args, kwargs, binary, incremental, splitter):
+  def __init__(
+      self,
+      reader,
+      args,
+      kwargs,
+      binary,
+      incremental,
+      splitter,
+      filename_column=None):
     # avoid pickling issues
     if reader.__module__.startswith('pandas.'):
       reader = reader.__name__
@@ -592,6 +605,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
     self.binary = binary
     self.incremental = incremental
     self.splitter = splitter
+    self.filename_column = filename_column
 
   def initial_restriction(self, readable_file):
     return beam.io.restriction_trackers.OffsetRange(
@@ -644,6 +658,8 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
       else:
         frames = [reader(handle, *self.args, **self.kwargs)]
       for df in frames:
+        if self.filename_column:
+          df[self.filename_column] = readable_file.metadata.path
         yield _shift_range_index(start_index, df)
       if not self.incremental:
         # Satisfy the SDF contract by claiming the whole range.
@@ -771,10 +787,15 @@ class ReadViaPandas(beam.PTransform):
       *args,
       include_indexes=False,
       objects_as_strings=True,
+      filename_column=None,
       **kwargs):
+    if format == 'csv':
+      kwargs['filename_column'] = filename_column
+    self._reader = globals()['read_%s' % format](*args, **kwargs)
     self._reader = globals()['read_%s' % format](*args, **kwargs)
     self._include_indexes = include_indexes
     self._objects_as_strings = objects_as_strings
+    self._filename_column = filename_column
 
   def expand(self, p):
     from apache_beam.dataframe import convert  # avoid circular import

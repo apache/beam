@@ -85,6 +85,22 @@ tasks.register("generateExternalTransformsConfig") {
   }
 }
 
+tasks.register("generateManagedIOPage") {
+  description "Generages the Managed Connectors Beam page based on SchemaTransform metadata"
+
+  dependsOn buildPython
+  // Need to build all expansion services listed in apache_beam/transforms/managed.py
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:expansion-service:build"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "python gen_managed_doc.py"
+    }
+  }
+}
+
 tasks.register("generateYamlDocs") {
   description "Generates the reference documentation for all YAML transforms."
 
@@ -95,20 +111,21 @@ tasks.register("generateYamlDocs") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-  def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2"
+  def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2 virtualenv-clone"
 
   doLast {
     exec {
       executable 'sh'
       args '-c', "${envdir}/bin/pip install $extraPackages && " +
-              "${envdir}/bin/python -m apache_beam.yaml.generate_yaml_docs --html_file=${buildDir}/yaml-ref.html"
+              "${envdir}/bin/python -m apache_beam.yaml.generate_yaml_docs --html_file=${buildDir}/yaml-ref.html --examples_file=${buildDir}/yaml-examples.html"
     }
   }
   outputs.file "${buildDir}/yaml-ref.html"
+  outputs.file "${buildDir}/yaml-examples.html"
 }
 
 tasks.register("yamlIntegrationTests") {
-  description "Runs integration tests for yaml pipelines."
+  description "Runs precommit integration tests for yaml pipelines."
 
   dependsOn installGcpTest
   // Need to build all expansion services referenced in apache_beam/yaml/*.*
@@ -121,7 +138,45 @@ tasks.register("yamlIntegrationTests") {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0"
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py"
+    }
+  }
+}
+
+tasks.register("postCommitYamlIntegrationTests") {
+  description "Runs postcommit integration tests for yaml pipelines - parameterized by yamlTestSet."
+
+  dependsOn installGcpTest
+  // Need to build all expansion services referenced in apache_beam/yaml/*.*
+  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+
+  doLast {
+    def testSetInput = project.findProperty('yamlTestSet') ?: 'data,databases,messaging'
+    def testSetsToRun = testSetInput.tokenize(',').collect { it.trim() }.findAll { !it.isEmpty() }
+    testSetsToRun.each { currentTestSet ->
+      def test_files_dir
+
+      switch (currentTestSet) {
+        case 'data':
+          test_files_dir = 'extended_tests/data'
+          break
+        case 'databases':
+          test_files_dir = 'extended_tests/databases'
+          break
+        case 'messaging':
+          test_files_dir = 'extended_tests/messaging'
+          break
+        default:
+          throw StopExecutionException("Unknown yamlTestSet: ${testSet}. Must be one of 'data', 'databases', or 'messaging'.")
+      }
+      exec {
+        executable 'sh'
+        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='${test_files_dir}'"
+      }
     }
   }
 }

@@ -18,7 +18,10 @@
 """Unit tests for the transform.util classes."""
 
 # pytype: skip-file
+# pylint: disable=too-many-function-args
 
+import collections
+import importlib
 import logging
 import math
 import random
@@ -26,10 +29,13 @@ import re
 import time
 import unittest
 import warnings
+from collections.abc import Mapping
 from datetime import datetime
 
 import pytest
 import pytz
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam import GroupByKey
@@ -72,10 +78,38 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
+from apache_beam.utils.windowed_value import PaneInfo
+from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
+
+
+class _Unpicklable(object):
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    raise NotImplementedError()
+
+  def __setstate__(self, state):
+    raise NotImplementedError()
+
+
+class _UnpicklableCoder(beam.coders.Coder):
+  def encode(self, value):
+    return str(value.value).encode()
+
+  def decode(self, encoded):
+    return _Unpicklable(int(encoded.decode()))
+
+  def to_type_hint(self):
+    return _Unpicklable
+
+  def is_deterministic(self):
+    return True
 
 
 class CoGroupByKeyTest(unittest.TestCase):
@@ -177,6 +211,20 @@ class CoGroupByKeyTest(unittest.TestCase):
                   equal_to(expected),
                   label='AssertOneDict')
 
+  def test_co_group_by_key_on_unpickled(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+    values = [_Unpicklable(i) for i in range(5)]
+    with TestPipeline() as pipeline:
+      xs = pipeline | beam.Create(values) | beam.WithKeys(lambda x: x)
+      pcoll = ({
+          'x': xs
+      }
+               | beam.CoGroupByKey()
+               | beam.FlatMapTuple(
+                   lambda k, tagged: (k.value, tagged['x'][0].value * 2)))
+      expected = [0, 0, 1, 2, 2, 4, 3, 6, 4, 8]
+      assert_that(pcoll, equal_to(expected))
+
 
 class FakeClock(object):
   def __init__(self, now=time.time()):
@@ -245,8 +293,8 @@ class BatchElementsTest(unittest.TestCase):
     self.assertEqual(len(results["distributions"]), 0)
 
   def test_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -256,8 +304,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
   def test_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle in order, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(47), reshuffle=False)
@@ -278,15 +326,15 @@ class BatchElementsTest(unittest.TestCase):
           ]))
 
   def test_global_batch_timestamps(self):
-    # Assumes a single bundle
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(3), reshuffle=False)
           | util.BatchElements(min_batch_size=2, max_batch_size=2)
           | beam.Map(
-              lambda batch,
-              timestamp=beam.DoFn.TimestampParam: (len(batch), timestamp)))
+              lambda batch, timestamp=beam.DoFn.TimestampParam:
+              (len(batch), timestamp)))
       assert_that(
           res,
           equal_to([
@@ -298,12 +346,19 @@ class BatchElementsTest(unittest.TestCase):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create([
-              'a', 'a',                # First batch.
-              'aaaaaaaaaa',            # Second batch.
-              'aaaaa', 'aaaaa',        # Third batch.
-              'a', 'aaaaaaa', 'a', 'a' # Fourth batch.
-              ], reshuffle=False)
+          | beam.Create(
+              [
+                  'a',
+                  'a',  # First batch.
+                  'aaaaaaaaaa',  # Second batch.
+                  'aaaaa',
+                  'aaaaa',  # Third batch.
+                  'a',
+                  'aaaaaaa',
+                  'a',
+                  'a'  # Fourth batch.
+              ],
+              reshuffle=False)
           | util.BatchElements(
               min_batch_size=10, max_batch_size=10, element_size_fn=len)
           | beam.Map(lambda batch: ''.join(batch))
@@ -311,8 +366,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([2, 10, 10, 10]))
 
   def test_sized_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle, in order so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(1, 8), reshuffle=False)
@@ -327,10 +382,10 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(
           res,
           equal_to([
-              'a' * (1+2), # Elements in [1, 3)
-              'a' * (3+4), # Elements in [3, 6)
+              'a' * (1 + 2),  # Elements in [1, 3)
+              'a' * (3 + 4),  # Elements in [3, 6)
               'a' * 5,
-              'a' * 6, # Elements in [6, 9)
+              'a' * 6,  # Elements in [6, 9)
               'a' * 7,
           ]))
 
@@ -511,8 +566,8 @@ class BatchElementsTest(unittest.TestCase):
         util._BatchSizeEstimator.linear_regression_numpy, True)
 
   def test_stateful_constant_batch(self):
-    # Assumes a single bundle...
-    p = TestPipeline()
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    p = TestPipeline('FnApiRunner')
     output = (
         p
         | beam.Create(range(35))
@@ -549,8 +604,8 @@ class BatchElementsTest(unittest.TestCase):
     start_time = timestamp.Timestamp(0)
     test_stream = (
         TestStream().add_elements([
-            TimestampedValue(value, start_time + i) for i,
-            value in enumerate(BatchElementsTest._create_test_data())
+            TimestampedValue(value, start_time + i)
+            for i, value in enumerate(BatchElementsTest._create_test_data())
         ]).advance_processing_time(150).advance_watermark_to(
             start_time + window_duration).advance_watermark_to(
                 start_time + window_duration +
@@ -633,8 +688,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(num_elements_per_batch, equal_to([9, 1]))
 
   def test_stateful_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -691,7 +746,7 @@ class IdentityWindowTest(unittest.TestCase):
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
-    with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(Exception, r'.*window.*None.*add_timestamps2'):
       with TestPipeline() as pipeline:
         data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
         expected_windows = [
@@ -707,7 +762,7 @@ class IdentityWindowTest(unittest.TestCase):
             equal_to(expected_windows),
             label='before_identity',
             reify_windows=True)
-        after_identity = (
+        _ = (
             before_identity
             | 'window' >> beam.WindowInto(
                 beam.transforms.util._IdentityWindowFn(
@@ -717,11 +772,6 @@ class IdentityWindowTest(unittest.TestCase):
             # contain a window of None. IdentityWindowFn should
             # raise an exception.
             | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
-        assert_that(
-            after_identity,
-            equal_to(expected_windows),
-            label='after_identity',
-            reify_windows=True)
 
 
 class ReshuffleTest(unittest.TestCase):
@@ -790,15 +840,17 @@ class ReshuffleTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
       expected_data = [
-          TestWindowedValue(v, t - .001, [w])
-          for (v, t, w) in [((1, contains_in_any_order([2, 1])),
-                             4.0,
-                             IntervalWindow(1.0, 4.0)),
-                            ((2, contains_in_any_order([2, 1])),
-                             4.0,
+          TestWindowedValue(
+              v,
+              t - .001, [w],
+              pane_info=PaneInfo(True, False, PaneInfoTiming.ON_TIME, 0, 0))
+          for (v, t, w) in [((1, contains_in_any_order([2, 1])), 4.0,
                              IntervalWindow(1.0, 4.0)), (
-                                 (3, [1]), 3.0, IntervalWindow(1.0, 3.0)), (
-                                     (1, [4]), 6.0, IntervalWindow(4.0, 6.0))]
+                                 (2, contains_in_any_order([2, 1])), 4.0,
+                                 IntervalWindow(1.0, 4.0)), ((
+                                     3, [1]), 3.0, IntervalWindow(1.0, 3.0)), ((
+                                         1,
+                                         [4]), 6.0, IntervalWindow(4.0, 6.0))]
       ]
       before_reshuffle = (
           pipeline
@@ -823,25 +875,27 @@ class ReshuffleTest(unittest.TestCase):
     any_order = contains_in_any_order
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+
       expected_windows = [
           TestWindowedValue(v, t, [w])
-          for (v, t, w) in [((1, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-              (2, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-                  (3, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-                      (1, 2), 2.0, IntervalWindow(2.0, 4.0)), (
+          for (v, t, w) in [((1, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+              2, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+                  3, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+                      1, 2), 2.0, IntervalWindow(2.0, 4.0)), (
                           (2, 2), 2.0,
-                          IntervalWindow(2.0, 4.0)), ((1, 4),
-                                                      4.0,
+                          IntervalWindow(2.0, 4.0)), ((1, 4), 4.0,
                                                       IntervalWindow(4.0, 6.0))]
       ]
       expected_merged_windows = [
-          TestWindowedValue(v, t - .001, [w])
+          TestWindowedValue(
+              v,
+              t - .001, [w],
+              pane_info=PaneInfo(True, False, PaneInfoTiming.ON_TIME, 0, 0))
           for (v, t,
                w) in [((1, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)), (
                    (2, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)), (
                        (3, [1]), 3.0,
-                       IntervalWindow(1.0, 3.0)), ((1, [4]),
-                                                   6.0,
+                       IntervalWindow(1.0, 3.0)), ((1, [4]), 6.0,
                                                    IntervalWindow(4.0, 6.0))]
       ]
       before_reshuffle = (
@@ -939,6 +993,189 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
+    """Tests that Reshuffle preserves pane info."""
+    element_count = 12
+    timestamp_value = timestamp.Timestamp(0)
+    l = [
+        TimestampedValue(("key", i), timestamp_value)
+        for i in range(element_count)
+    ]
+
+    expected_timestamp = GlobalWindow().max_timestamp()
+    expected = [
+        TestWindowedValue(
+            ('key', [0, 1, 2]),
+            expected_timestamp,
+            [GlobalWindow()],
+            pane_info=PaneInfo(
+                is_first=True,
+                is_last=False,
+                timing=PaneInfoTiming.EARLY,  # 0
+                index=0,
+                nonspeculative_index=-1)),
+        TestWindowedValue(
+            ('key', [3, 4, 5]),
+            expected_timestamp,
+            [GlobalWindow()],
+            pane_info=PaneInfo(
+                is_first=False,
+                is_last=False,
+                timing=PaneInfoTiming.EARLY,  # 0
+                index=1,
+                nonspeculative_index=-1)),
+        TestWindowedValue(
+            ('key', [6, 7, 8]),
+            expected_timestamp,
+            [GlobalWindow()],
+            pane_info=PaneInfo(
+                is_first=False,
+                is_last=False,
+                timing=PaneInfoTiming.EARLY,  # 0
+                index=2,
+                nonspeculative_index=-1)),
+        TestWindowedValue(
+            ('key', [9, 10, 11]),
+            expected_timestamp,
+            [GlobalWindow()],
+            pane_info=PaneInfo(
+                is_first=False,
+                is_last=False,
+                timing=PaneInfoTiming.EARLY,  # 0
+                index=3,
+                nonspeculative_index=-1))
+    ] if compat_version is None else ([
+        TestWindowedValue(('key', [0, 1, 2]),
+                          expected_timestamp, [GlobalWindow()],
+                          PANE_INFO_UNKNOWN),
+        TestWindowedValue(('key', [3, 4, 5]),
+                          expected_timestamp, [GlobalWindow()],
+                          PANE_INFO_UNKNOWN),
+        TestWindowedValue(('key', [6, 7, 8]),
+                          expected_timestamp, [GlobalWindow()],
+                          PANE_INFO_UNKNOWN),
+        TestWindowedValue(('key', [9, 10, 11]),
+                          expected_timestamp, [GlobalWindow()],
+                          PANE_INFO_UNKNOWN)
+    ])
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    options.view_as(StandardOptions).streaming = True
+
+    with beam.Pipeline(options=options) as p:
+      stream_source = (
+          TestStream().advance_watermark_to(0).advance_processing_time(
+              100).add_elements(l[:element_count // 4]).advance_processing_time(
+                  100).advance_watermark_to(100).add_elements(
+                      l[element_count // 4:2 * element_count // 4]).
+          advance_processing_time(100).advance_watermark_to(200).add_elements(
+              l[2 * element_count // 4:3 * element_count //
+                4]).advance_processing_time(
+                    100).advance_watermark_to(300).add_elements(
+                        l[3 * element_count // 4:]).advance_processing_time(
+                            100).advance_watermark_to_infinity())
+      grouped = (
+          p | stream_source
+          | "Rewindow" >> beam.WindowInto(
+              beam.window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.GroupByKey())
+
+      after_reshuffle = (grouped | 'Reshuffle' >> beam.Reshuffle())
+
+      assert_that(
+          after_reshuffle,
+          equal_to(expected),
+          label='CheckMetadataPreserved',
+          reify_windows=True)
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_default_window_preserves_metadata(self, compat_version):
+    """Tests that Reshuffle preserves timestamp, window, and pane info
+    metadata."""
+
+    no_firing = PaneInfo(
+        is_first=True,
+        is_last=True,
+        timing=PaneInfoTiming.UNKNOWN,
+        index=0,
+        nonspeculative_index=0)
+
+    on_time_only = PaneInfo(
+        is_first=True,
+        is_last=True,
+        timing=PaneInfoTiming.ON_TIME,
+        index=0,
+        nonspeculative_index=0)
+
+    late_firing = PaneInfo(
+        is_first=False,
+        is_last=False,
+        timing=PaneInfoTiming.LATE,
+        index=1,
+        nonspeculative_index=1)
+
+    # Portable runners may not have the same level of precision on timestamps -
+    # this gets the largest supported timestamp with the extra non-supported
+    # bits truncated
+    gt = GlobalWindow().max_timestamp()
+    truncated_gt = gt - (gt % 0.001)
+
+    expected_preserved = [
+        TestWindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
+        TestWindowedValue(
+            'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
+        TestWindowedValue(
+            'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
+        TestWindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
+    ]
+
+    expected_not_preserved = [
+        TestWindowedValue(
+            'a', MIN_TIMESTAMP, [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'b', timestamp.Timestamp(0), [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'c', timestamp.Timestamp(33), [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'd', truncated_gt, [GlobalWindow()], PANE_INFO_UNKNOWN)
+    ]
+
+    expected = (
+        expected_preserved
+        if compat_version is None else expected_not_preserved)
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    with TestPipeline(options=options) as pipeline:
+      # Create windowed values with specific metadata
+      elements = [
+          WindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
+          WindowedValue(
+              'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
+          WindowedValue(
+              'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
+          WindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
+      ]
+
+      after_reshuffle = (
+          pipeline
+          | 'Create' >> beam.Create(elements)
+          | 'Reshuffle' >> beam.Reshuffle())
+
+      assert_that(
+          after_reshuffle,
+          equal_to(expected),
+          label='CheckMetadataPreserved',
+          reify_windows=True)
+
   @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
@@ -1007,6 +1244,56 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected_data),
           label="formatted_after_reshuffle")
 
+  def reshuffle_unpicklable_in_global_window_helper(
+      self, update_compatibility_version=None):
+    with TestPipeline(options=PipelineOptions(
+        update_compatibility_version=update_compatibility_version)) as pipeline:
+      data = [_Unpicklable(i) for i in range(5)]
+      expected_data = [0, 10, 20, 30, 40]
+      result = (
+          pipeline
+          | beam.Create(data)
+          | beam.WindowInto(GlobalWindows())
+          | beam.Reshuffle()
+          | beam.Map(lambda u: u.value * 10))
+      assert_that(result, equal_to(expected_data))
+
+  def test_reshuffle_unpicklable_in_global_window(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+
+    self.reshuffle_unpicklable_in_global_window_helper()
+    # An exception is raised when running reshuffle on unpicklable objects
+    # prior to 2.64.0
+    self.assertRaises(
+        RuntimeError,
+        self.reshuffle_unpicklable_in_global_window_helper,
+        "2.63.0")
+
+  def reshuffle_unpicklable_in_non_global_window_helper(
+      self, update_compatibility_version=None):
+    with TestPipeline(options=PipelineOptions(
+        update_compatibility_version=update_compatibility_version)) as pipeline:
+      data = [_Unpicklable(i) for i in range(5)]
+      expected_data = [0, 0, 0, 10, 10, 10, 20, 20, 20, 30, 30, 30, 40, 40, 40]
+      result = (
+          pipeline
+          | beam.Create(data)
+          | beam.WindowInto(window.SlidingWindows(size=3, period=1))
+          | beam.Reshuffle()
+          | beam.Map(lambda u: u.value * 10))
+      assert_that(result, equal_to(expected_data))
+
+  def test_reshuffle_unpicklable_in_non_global_window(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+
+    self.reshuffle_unpicklable_in_non_global_window_helper()
+    # An exception is raised when running reshuffle on unpicklable objects
+    # prior to 2.64.0
+    self.assertRaises(
+        RuntimeError,
+        self.reshuffle_unpicklable_in_non_global_window_helper,
+        "2.63.0")
+
 
 class WithKeysTest(unittest.TestCase):
   def setUp(self):
@@ -1016,7 +1303,8 @@ class WithKeysTest(unittest.TestCase):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys('k')
-      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
+      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)],
+                                      ))
 
   def test_callable_k(self):
     with TestPipeline() as p:
@@ -1041,9 +1329,7 @@ class WithKeysTest(unittest.TestCase):
       si1 = AsList(p | "side input 1" >> beam.Create([1, 2, 3]))
       si2 = AsSingleton(p | "side input 2" >> beam.Create([10]))
       with_keys = pc | util.WithKeys(
-          lambda x,
-          the_list,
-          the_singleton: x + sum(the_list) + the_singleton,
+          lambda x, the_list, the_singleton: x + sum(the_list) + the_singleton,
           si1,
           the_singleton=si2)
       assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
@@ -1126,8 +1412,8 @@ class GroupIntoBatchesTest(unittest.TestCase):
     start_time = timestamp.Timestamp(0)
     test_stream = (
         TestStream().add_elements([
-            TimestampedValue(value, start_time + i) for i,
-            value in enumerate(GroupIntoBatchesTest._create_test_data())
+            TimestampedValue(value, start_time + i)
+            for i, value in enumerate(GroupIntoBatchesTest._create_test_data())
         ]).advance_processing_time(150).advance_watermark_to(
             start_time + window_duration).advance_watermark_to(
                 start_time + window_duration +
@@ -1337,7 +1623,10 @@ class LogElementsTest(unittest.TestCase):
           ])
           | beam.WindowInto(FixedWindows(60))
           | util.LogElements(
-              prefix='prefix_', with_window=True, with_timestamp=True))
+              prefix='prefix_',
+              with_window=True,
+              with_timestamp=True,
+              with_pane_info=True))
 
     request.captured_stdout = capsys.readouterr().out
     return result
@@ -1346,9 +1635,46 @@ class LogElementsTest(unittest.TestCase):
   def test_stdout_logs(self):
     assert self.captured_stdout == \
       ("prefix_event, timestamp='2022-10-01T00:00:00Z', "
-       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z)\n"
+       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z), "
+       "pane_info=PaneInfo(first: True, last: True, timing: UNKNOWN, "
+       "index: 0, nonspeculative_index: 0)\n"
        "prefix_event, timestamp='2022-10-02T00:00:00Z', "
-       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z)\n"), \
+       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z), "
+       "pane_info=PaneInfo(first: True, last: True, timing: UNKNOWN, "
+       "index: 0, nonspeculative_index: 0)\n"), \
+      f'Received from stdout: {self.captured_stdout}'
+
+  @pytest.fixture(scope="function")
+  def _capture_stdout_log_without_rfc3339(request, capsys):
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create([
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 1, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 2, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+          ])
+          | beam.WindowInto(FixedWindows(60))
+          | util.LogElements(
+              prefix='prefix_',
+              with_window=True,
+              with_timestamp=True,
+              use_epoch_time=True))
+
+    request.captured_stdout = capsys.readouterr().out
+    return result
+
+  @pytest.mark.usefixtures("_capture_stdout_log_without_rfc3339")
+  def test_stdout_logs_without_rfc3339(self):
+    assert self.captured_stdout == \
+      ("prefix_event, timestamp=1664582400, "
+       "window(start=1664582400, end=1664582460)\n"
+       "prefix_event, timestamp=1664668800, "
+       "window(start=1664668800, end=1664668860)\n"), \
       f'Received from stdout: {self.captured_stdout}'
 
   def test_ptransform_output(self):
@@ -1810,6 +2136,32 @@ class RegexTest(unittest.TestCase):
           "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"
       ]]
       assert_that(result, equal_to(expected_result))
+
+
+class TeeTest(unittest.TestCase):
+  _side_effects: Mapping[str, int] = collections.defaultdict(int)
+
+  def test_tee(self):
+    # The imports here are to avoid issues with the class (and its attributes)
+    # possibly being pickled rather than referenced.
+    def cause_side_effect(element):
+      importlib.import_module(__name__).TeeTest._side_effects[element] += 1
+
+    def count_side_effects(element):
+      return importlib.import_module(__name__).TeeTest._side_effects[element]
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a', 'b', 'c'])
+          | 'TeePTransform' >> beam.Tee(beam.Map(cause_side_effect))
+          | 'TeeCallable' >> beam.Tee(
+              lambda pcoll: pcoll | beam.Map(
+                  lambda element: cause_side_effect('X' + element))))
+      assert_that(result, equal_to(['a', 'b', 'c']))
+
+    self.assertEqual(count_side_effects('a'), 1)
+    self.assertEqual(count_side_effects('Xa'), 1)
 
 
 class WaitOnTest(unittest.TestCase):

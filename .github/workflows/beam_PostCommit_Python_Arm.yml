@@ -48,14 +48,14 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-22.04
     timeout-minutes: 240
     strategy:
       fail-fast: false
@@ -84,6 +84,13 @@ jobs:
         run: |
           sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
+      - name: Authenticate on GCP
+        uses: google-github-actions/auth@v2
+        with:
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: GCloud Docker credential helper
@@ -125,3 +132,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
+          large_files: true

@@ -82,7 +82,6 @@ defined, or before importing a module containing type-hinted functions.
 import inspect
 import itertools
 import logging
-import sys
 import traceback
 import types
 from typing import Any
@@ -353,11 +352,12 @@ class IOTypeHints(NamedTuple):
       my_type: any,
       has_my_type: Callable[[], bool],
       my_key: str,
-      special_containers: List[
-          Union['PBegin', 'PDone', 'PCollection']], # noqa: F821
+      special_containers: List[Union[
+          'PBegin',  # noqa: F821
+          'PDone',  # noqa: F821
+          'PCollection']],  # noqa: F821
       error_str: str,
-      source_str: str
-      ) -> 'IOTypeHints':
+      source_str: str) -> 'IOTypeHints':
     from apache_beam.pvalue import PCollection
 
     if not has_my_type() or not my_type or len(my_type[0]) != 1:
@@ -424,6 +424,11 @@ class IOTypeHints(NamedTuple):
           output_type = types[0]
         except ValueError:
           pass
+    if isinstance(output_type, typehints.TypeVariable):
+      # We don't know what T yields, so we just assume Any.
+      return self._replace(
+          output_types=((typehints.Any, ), {}),
+          origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
     yielded_type = typehints.get_yielded_type(output_type)
     return self._replace(
@@ -572,8 +577,8 @@ def _unpack_positional_arg_hints(arg, hint):
           (arg, tuple_constraint, hint))
     if isinstance(hint, typehints.TupleConstraint):
       return tuple(
-          _unpack_positional_arg_hints(a, t) for a,
-          t in zip(arg, hint.tuple_types))
+          _unpack_positional_arg_hints(a, t)
+          for a, t in zip(arg, hint.tuple_types))
     return (typehints.Any, ) * len(arg)
   return hint
 
@@ -686,9 +691,6 @@ def get_type_hints(fn: Any) -> IOTypeHints:
       # Can't add arbitrary attributes to this object,
       # but might have some restrictions anyways...
       hints = IOTypeHints.empty()
-      # Python 3.7 introduces annotations for _MethodDescriptorTypes.
-      if isinstance(fn, _MethodDescriptorType) and sys.version_info < (3, 7):
-        hints = hints.with_input_types(fn.__objclass__)  # type: ignore
       return hints
   return fn._type_hints
   # pylint: enable=protected-access

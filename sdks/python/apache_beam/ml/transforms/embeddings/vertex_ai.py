@@ -19,18 +19,19 @@
 # Follow https://cloud.google.com/vertex-ai/docs/python-sdk/use-vertex-ai-python-sdk # pylint: disable=line-too-long
 # to install Vertex AI Python SDK.
 
+import logging
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import List
 from typing import Optional
-from typing import Sequence
 
+from google.api_core.exceptions import ServerError
+from google.api_core.exceptions import TooManyRequests
 from google.auth.credentials import Credentials
 
 import apache_beam as beam
 import vertexai
 from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
@@ -53,9 +54,29 @@ TASK_TYPE_INPUTS = [
     "CLUSTERING"
 ]
 _BATCH_SIZE = 5  # Vertex AI limits requests to 5 at a time.
+_MSEC_TO_SEC = 1000
+
+LOGGER = logging.getLogger("VertexAIEmbeddings")
 
 
-class _VertexAITextEmbeddingHandler(ModelHandler):
+def _retry_on_appropriate_gcp_error(exception):
+  """
+  Retry filter that returns True if a returned HTTP error code is 5xx or 429.
+  This is used to retry remote requests that fail, most notably 429
+  (TooManyRequests.)
+
+  Args:
+    exception: the returned exception encountered during the request/response
+      loop.
+
+  Returns:
+    boolean indication whether or not the exception is a Server Error (5xx) or
+      a TooManyRequests (429) error.
+  """
+  return isinstance(exception, (TooManyRequests, ServerError))
+
+
+class _VertexAITextEmbeddingHandler(RemoteModelHandler):
   """
   Note: Intended for internal use and guarantees no backwards compatibility.
   """
@@ -67,7 +88,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
-  ):
+      **kwargs):
     vertexai.init(project=project, location=location, credentials=credentials)
     self.model_name = model_name
     if task_type not in TASK_TYPE_INPUTS:
@@ -76,26 +97,30 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
     self.task_type = task_type
     self.title = title
 
-  def run_inference(
+    super().__init__(
+        namespace='VertexAITextEmbeddingHandler',
+        retry_filter=_retry_on_appropriate_gcp_error,
+        **kwargs)
+
+  def request(
       self,
       batch: Sequence[str],
-      model: Any,
-      inference_args: Optional[Dict[str, Any]] = None,
-  ) -> Iterable:
+      model: TextEmbeddingModel,
+      inference_args: Optional[dict[str, Any]] = None):
     embeddings = []
     batch_size = _BATCH_SIZE
     for i in range(0, len(batch), batch_size):
-      text_batch = batch[i:i + batch_size]
+      text_batch_strs = batch[i:i + batch_size]
       text_batch = [
           TextEmbeddingInput(
               text=text, title=self.title, task_type=self.task_type)
-          for text in text_batch
+          for text in text_batch_strs
       ]
-      embeddings_batch = model.get_embeddings(text_batch)
+      embeddings_batch = model.get_embeddings(list(text_batch))
       embeddings.extend([el.values for el in embeddings_batch])
     return embeddings
 
-  def load_model(self):
+  def create_client(self) -> TextEmbeddingModel:
     model = TextEmbeddingModel.from_pretrained(self.model_name)
     return model
 
@@ -110,7 +135,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_name: str,
-      columns: List[str],
+      columns: list[str],
       title: Optional[str] = None,
       task_type: str = DEFAULT_TASK_TYPE,
       project: Optional[str] = None,
@@ -144,6 +169,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
     self.credentials = credentials
     self.title = title
     self.task_type = task_type
+    self.kwargs = kwargs
     super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
@@ -154,7 +180,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
         credentials=self.credentials,
         title=self.title,
         task_type=self.task_type,
-    )
+        **self.kwargs)
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return RunInference(
@@ -162,7 +188,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
         inference_args=self.inference_args)
 
 
-class _VertexAIImageEmbeddingHandler(ModelHandler):
+class _VertexAIImageEmbeddingHandler(RemoteModelHandler):
   def __init__(
       self,
       model_name: str,
@@ -170,26 +196,29 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
-  ):
+      **kwargs):
     vertexai.init(project=project, location=location, credentials=credentials)
     self.model_name = model_name
     self.dimension = dimension
 
-  def run_inference(
+    super().__init__(
+        namespace='VertexAIImageEmbeddingHandler',
+        retry_filter=_retry_on_appropriate_gcp_error,
+        **kwargs)
+
+  def request(
       self,
-      batch: Sequence[Image],
+      imgs: Sequence[Image],
       model: MultiModalEmbeddingModel,
-      inference_args: Optional[Dict[str, Any]] = None,
-  ) -> Iterable:
+      inference_args: Optional[dict[str, Any]] = None):
     embeddings = []
-    # Maximum request size for muli-model embedding models is 1.
-    for img in batch:
-      embedding_response = model.get_embeddings(
-          image=img, dimension=self.dimension)
-      embeddings.append(embedding_response.image_embedding)
+    # Max request size for multi-modal embedding models is 1
+    for img in imgs:
+      prediction = model.get_embeddings(image=img, dimension=self.dimension)
+      embeddings.append(prediction.image_embedding)
     return embeddings
 
-  def load_model(self):
+  def create_client(self):
     model = MultiModalEmbeddingModel.from_pretrained(self.model_name)
     return model
 
@@ -204,7 +233,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
   def __init__(
       self,
       model_name: str,
-      columns: List[str],
+      columns: list[str],
       dimension: Optional[int],
       project: Optional[str] = None,
       location: Optional[str] = None,
@@ -220,7 +249,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
 
     Args:
       model_name: The name of the Vertex AI Multi-Modal Embedding model.
-      columns: The columns containing the text to be embedded.
+      columns: The columns containing the image to be embedded.
       dimension: The length of the embedding vector to generate. Must be one of
         128, 256, 512, or 1408. If not set, Vertex AI's default value is 1408.
       project: The default GCP project for API calls.
@@ -232,6 +261,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
     self.project = project
     self.location = location
     self.credentials = credentials
+    self.kwargs = kwargs
     if dimension is not None and dimension not in (128, 256, 512, 1408):
       raise ValueError(
           "dimension argument must be one of 128, 256, 512, or 1408")
@@ -245,7 +275,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
         project=self.project,
         location=self.location,
         credentials=self.credentials,
-    )
+        **self.kwargs)
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return RunInference(

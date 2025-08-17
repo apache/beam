@@ -1593,7 +1593,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class BundleFinalizationTests extends SharedTestBase implements Serializable {
     private abstract static class BundleFinalizingDoFn extends DoFn<KV<String, Long>, String> {
-      private static final long MAX_ATTEMPTS = 3000;
+      private static final long MAX_ATTEMPTS = 100;
       // We use the UUID to uniquely identify this DoFn in case this test is run with
       // other tests in the same JVM.
       private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new HashMap();
@@ -1637,9 +1637,15 @@ public class ParDoTest implements Serializable {
     public void testBundleFinalization() {
       TestStream.Builder<KV<String, Long>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
-      for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
+      long attemptCap = BundleFinalizingDoFn.MAX_ATTEMPTS - 1;
+      for (long i = 0; i < attemptCap; ++i) {
         stream = stream.addElements(KV.of("key" + (i % 10), i));
       }
+      // Advance the time, and add the final element. This allows Finalization
+      // check mechanism to work without being sensitive to how bundles are
+      // produced by a runner.
+      stream = stream.advanceWatermarkTo(new Instant(10));
+      stream = stream.addElements(KV.of("key" + (attemptCap % 10), attemptCap));
       PCollection<String> output =
           pipeline
               .apply(stream.advanceWatermarkToInfinity())
@@ -1677,6 +1683,8 @@ public class ParDoTest implements Serializable {
       for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
         stream = stream.addElements(KV.of("key" + (i % 10), i));
       }
+      // Stateful execution is already per-key, so it is unnecessary to add a
+      // "final" element to attempt additional bundles to validate finalization.
       PCollection<String> output =
           pipeline
               .apply(stream.advanceWatermarkToInfinity())
@@ -1715,9 +1723,15 @@ public class ParDoTest implements Serializable {
     public void testBundleFinalizationWithSideInputs() {
       TestStream.Builder<KV<String, Long>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
-      for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
+      long attemptCap = BundleFinalizingDoFn.MAX_ATTEMPTS - 1;
+      for (long i = 0; i < attemptCap; ++i) {
         stream = stream.addElements(KV.of("key" + (i % 10), i));
       }
+      // Advance the time, and add the final element. This allows Finalization
+      // check mechanism to work without being sensitive to how bundles are
+      // produced by a runner.
+      stream = stream.advanceWatermarkTo(GlobalWindow.INSTANCE.maxTimestamp());
+      stream = stream.addElements(KV.of("key" + (attemptCap % 10), attemptCap));
       PCollectionView<String> sideInput =
           pipeline.apply(Create.of("sideInput value")).apply(View.asSingleton());
       PCollection<String> output =
@@ -3750,7 +3764,9 @@ public class ParDoTest implements Serializable {
         if (stamp == 100) {
           // advance watermark when we have 100 remaining elements
           // all the rest are going to be late elements
-          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+          input =
+              input.advanceWatermarkTo(
+                  GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.standardSeconds(1)));
         }
       }
       testTimeSortedInput(
@@ -3782,7 +3798,9 @@ public class ParDoTest implements Serializable {
         if (stamp == 100) {
           // advance watermark when we have 100 remaining elements
           // all the rest are going to be late elements
-          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+          input =
+              input.advanceWatermarkTo(
+                  GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.standardSeconds(1)));
         }
       }
       // apply the sorted function for the first time

@@ -104,9 +104,10 @@ class _MockMongoColl(object):
   @staticmethod
   def _projection(docs, projection=None):
     if projection:
-      return [{k: v
-               for k, v in doc.items() if k in projection or k == '_id'}
-              for doc in docs]
+      return [{
+          k: v
+          for k, v in doc.items() if k in projection or k == '_id'
+      } for doc in docs]
     return docs
 
   def find(self, filter=None, projection=None, **kwargs):

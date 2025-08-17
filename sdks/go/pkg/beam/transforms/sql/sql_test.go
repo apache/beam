@@ -16,10 +16,14 @@
 package sql
 
 import (
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/sql/sqlx"
 	"reflect"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/sql/sqlx"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestOptions_Add(t *testing.T) {
@@ -92,5 +96,153 @@ func TestExpansionAddr(t *testing.T) {
 	option(o)
 	if !reflect.DeepEqual(o.expansionAddr, test.addr) {
 		t.Errorf("The function that ExpansionAddr(%v) returned did not work correctly. For the expansionAddr field in options, got %v, want %v", test.addr, o.expansionAddr, test.addr)
+	}
+}
+
+// TestOutputType tests the OutputType option for setting the output type
+// in an SQL transformation in Beam. It verifies both cases: when
+// components are provided and when they are not. The test checks if
+// the 'outType' field in the options is set correctly based on the
+// output type and components.
+func TestOutputType(t *testing.T) {
+	testCases := []struct {
+		name       string
+		typ        reflect.Type
+		components []typex.FullType
+		wantNil    bool
+	}{
+		{
+			name: "output_type_without_components",
+			typ:  reflect.TypeOf(int64(0)),
+		},
+		{
+			name:       "output_type_with_components",
+			typ:        reflect.TypeOf(int64(0)),
+			components: []typex.FullType{typex.New(reflect.TypeOf(""))},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			o := &options{}
+
+			var opt Option
+			if len(tc.components) > 0 {
+				opt = OutputType(tc.typ, tc.components...)
+			} else {
+				opt = OutputType(tc.typ)
+			}
+
+			opt(o)
+
+			var expected typex.FullType
+			if len(tc.components) > 0 {
+				expected = typex.New(tc.typ, tc.components...)
+			} else {
+				expected = typex.New(tc.typ)
+			}
+
+			opts := cmp.Options{
+				cmp.Comparer(func(x, y typex.FullType) bool {
+					// Compare only the type and components
+					return x.Type() == y.Type()
+				}),
+			}
+			if d := cmp.Diff(expected, o.outType, opts); d != "" {
+				t.Errorf("OutputType() failed: (-want, +got)\n%s", d)
+			}
+		})
+	}
+}
+
+// TestTransform tests the behavior of the Transform function
+// in the context of SQL transformations. It checks that the function
+// panics when an output type is missing.
+func TestTransform_MissingOutputType(t *testing.T) {
+	p := beam.NewPipeline()
+	s := p.Root()
+	col := beam.Create(s, 1, 2, 3)
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("Transform() with missing output type should panic")
+		}
+		if msg, ok := r.(string); !ok || msg != "output type must be specified for sql.Transform" {
+			t.Errorf("Transform() unexpected panic message: %v", r)
+		}
+	}()
+
+	Transform(s, "SELECT value FROM test", Input("test", col))
+}
+
+// TestMultipleOptions tests applying multiple options at once
+// and verifying that they are all correctly applied to the options object.
+func TestMultipleOptions(t *testing.T) {
+	testCases := []struct {
+		name          string
+		inputName     string
+		dialect       string
+		expansionAddr string
+		typ           reflect.Type
+		customOpt     sqlx.Option
+	}{
+		{
+			name:          "all_options",
+			inputName:     "test",
+			expansionAddr: "localhost:8080",
+			typ:           reflect.TypeOf(int64(0)),
+			customOpt:     sqlx.Option{Urn: "test"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := beam.NewPipeline()
+			s := p.Root()
+			col := beam.Create(s, 1, 2, 3)
+
+			o := &options{
+				inputs: make(map[string]beam.PCollection),
+			}
+
+			opts := []Option{
+				Input(tc.inputName, col),
+				Dialect(tc.dialect),
+				ExpansionAddr(tc.expansionAddr),
+				OutputType(tc.typ),
+			}
+
+			for _, opt := range opts {
+				opt(o)
+			}
+			o.Add(tc.customOpt)
+
+			// Construct the expected options struct
+			expected := &options{
+				inputs: map[string]beam.PCollection{
+					tc.inputName: col,
+				},
+				dialect:       tc.dialect,
+				expansionAddr: tc.expansionAddr,
+				outType:       typex.New(tc.typ),
+				customs:       []sqlx.Option{tc.customOpt},
+			}
+
+			// Define a custom comparer for typex.FullType
+			fullTypeComparer := cmp.Comparer(func(x, y typex.FullType) bool {
+				return x.Type() == y.Type() // Compare only the underlying reflect.Type
+			})
+
+			if d := cmp.Diff(
+				expected,
+				o,
+				cmp.AllowUnexported(options{}),
+				cmpopts.IgnoreUnexported(beam.PCollection{}),
+				fullTypeComparer, // Use the custom comparer for typex.FullType
+			); d != "" {
+				t.Errorf("Options mismatch: (-want, +got)\n%s", d)
+			}
+		})
 	}
 }

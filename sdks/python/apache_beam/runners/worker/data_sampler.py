@@ -155,9 +155,8 @@ class OutputSampler:
         exceptions = [s for s in self._exceptions]
         samples = [s for s in self._samples if id(s) not in seen]
       else:
-        exceptions = [
-            (self.remove_windowed_value(a), b) for a, b in self._exceptions
-        ]
+        exceptions = [(self.remove_windowed_value(a), b)
+                      for a, b in self._exceptions]
         samples = [
             self.remove_windowed_value(s) for s in self._samples
             if id(s) not in seen
@@ -186,8 +185,7 @@ class OutputSampler:
                 exception=beam_fn_api_pb2.SampledElement.Exception(
                     instruction_id=exn.instruction_id,
                     transform_id=exn.transform_id,
-                    error=exn.msg)) for s,
-            exn in exceptions)
+                    error=exn.msg)) for s, exn in exceptions)
       except Exception as e:  # pylint: disable=broad-except
         _LOGGER.warning('Could not encode sampled exception values: %s' % e)
 

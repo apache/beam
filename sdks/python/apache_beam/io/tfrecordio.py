@@ -41,7 +41,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _default_crc32c_fn(value):
-  """Calculates crc32c of a bytes object using either snappy or crcmod."""
+  """Calculates crc32c of a bytes object using 
+  either snappy or google-crc32c or crcmod."""
 
   if not _default_crc32c_fn.fn:
     try:
@@ -55,11 +56,20 @@ def _default_crc32c_fn(value):
     except ImportError:
       pass
 
+  if not _default_crc32c_fn.fn:
+    try:
+      import google_crc32c  # pylint: disable=import-error
+
+      if getattr(google_crc32c, 'value', None):
+        _default_crc32c_fn.fn = google_crc32c.value  # pylint: disable=protected-access
+    except ImportError:
+      pass
+
     if not _default_crc32c_fn.fn:
       _LOGGER.warning(
-          'Couldn\'t find python-snappy so the implementation of '
-          '_TFRecordUtil._masked_crc32c is not as fast as it could '
-          'be.')
+          'Couldn\'t find python-snappy or google-crc32c so the '
+          'implementation of _TFRecordUtil._masked_crc32c is not as fast '
+          'as it could be.')
       _default_crc32c_fn.fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
   return _default_crc32c_fn.fn(value)
 
@@ -280,7 +290,8 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
       file_name_suffix,
       num_shards,
       shard_name_template,
-      compression_type):
+      compression_type,
+      triggering_frequency=60):
     """Initialize a TFRecordSink. See WriteToTFRecord for details."""
 
     super().__init__(
@@ -290,7 +301,8 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
         num_shards=num_shards,
         shard_name_template=shard_name_template,
         mime_type='application/octet-stream',
-        compression_type=compression_type)
+        compression_type=compression_type,
+        triggering_frequency=triggering_frequency)
 
   def write_encoded_record(self, file_handle, value):
     _TFRecordUtil.write_record(file_handle, value)
@@ -305,7 +317,8 @@ class WriteToTFRecord(PTransform):
       file_name_suffix='',
       num_shards=0,
       shard_name_template=None,
-      compression_type=CompressionTypes.AUTO):
+      compression_type=CompressionTypes.AUTO,
+      triggering_frequency=None):
     """Initialize WriteToTFRecord transform.
 
     Args:
@@ -316,16 +329,29 @@ class WriteToTFRecord(PTransform):
       file_name_suffix: Suffix for the files written.
       num_shards: The number of files (shards) used for output. If not set, the
         default value will be used.
+        In streaming if not set, the service will write a file per bundle.
       shard_name_template: A template string containing placeholders for
-        the shard number and shard count. When constructing a filename for a
-        particular shard number, the upper-case letters 'S' and 'N' are
-        replaced with the 0-padded shard number and shard count respectively.
-        This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+        the shard number and shard count. Currently only ``''``,
+        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
+        ``'-V-SSSSS-of-NNNNN'`` are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
+        shard number and shard count respectively.  This argument can be ``''``
+        in which case it behaves as if num_shards was set to 1 and only one file
+        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded 
+        PCollections.
+        W is used for windowed shard naming and is replaced with 
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with 
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"), 
+        window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       compression_type: Used to handle compressed output files. Typical value
           is CompressionTypes.AUTO, in which case the file_path's extension will
           be used to detect the compression.
+      triggering_frequency: (int) Every triggering_frequency duration, a window 
+        will be triggered and all bundles in the window will be written.
+        If set it overrides user windowing. Mandatory for GlobalWindow.
 
     Returns:
       A WriteToTFRecord transform object.
@@ -337,7 +363,17 @@ class WriteToTFRecord(PTransform):
         file_name_suffix,
         num_shards,
         shard_name_template,
-        compression_type)
+        compression_type,
+        triggering_frequency)
 
   def expand(self, pcoll):
+    if (not pcoll.is_bounded and self._sink.shard_name_template
+        == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
+      self._sink.shard_name_format = self._sink._template_to_format(
+          self._sink.shard_name_template)
+      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
+          self._sink.shard_name_template)
+
     return pcoll | Write(self._sink)

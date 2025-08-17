@@ -17,7 +17,7 @@
 
 """Google Cloud Spanner IO
 
-Experimental; no backwards-compatibility guarantees.
+Deprecated; use apache_beam.io.gcp.spanner module instead.
 
 This is an experimental module for reading and writing data from Google Cloud
 Spanner. Visit: https://cloud.google.com/spanner for more details.
@@ -190,6 +190,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
+from apache_beam.utils.annotations import deprecated
 
 # Protect against environments where spanner library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -356,8 +357,8 @@ class _NaiveSpannerReadDoFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
@@ -612,8 +613,8 @@ class _ReadFromPartitionFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
@@ -675,20 +676,31 @@ class _ReadFromPartitionFn(DoFn):
       self._snapshot.close()
 
 
+@deprecated(since='2.68', current='apache_beam.io.gcp.spanner.ReadFromSpanner')
 class ReadFromSpanner(PTransform):
   """
   A PTransform to perform reads from cloud spanner.
   ReadFromSpanner uses BatchAPI to perform all read operations.
   """
-
-  def __init__(self, project_id, instance_id, database_id, pool=None,
-               read_timestamp=None, exact_staleness=None, credentials=None,
-               sql=None, params=None, param_types=None,  # with_query
-               table=None, query_name=None, columns=None, index="",
-               keyset=None,  # with_table
-               read_operations=None,  # for read all
-               transaction=None
-              ):
+  def __init__(
+      self,
+      project_id,
+      instance_id,
+      database_id,
+      pool=None,
+      read_timestamp=None,
+      exact_staleness=None,
+      credentials=None,
+      sql=None,
+      params=None,
+      param_types=None,  # with_query
+      table=None,
+      query_name=None,
+      columns=None,
+      index="",
+      keyset=None,  # with_table
+      read_operations=None,  # for read all
+      transaction=None):
     """
     A PTransform that uses Spanner Batch API to perform reads.
 
@@ -815,6 +827,8 @@ class ReadFromSpanner(PTransform):
     return res
 
 
+@deprecated(
+    since='2.68', current='apache_beam.io.gcp.spanner.WriteToSpannerSchema')
 class WriteToSpanner(PTransform):
   def __init__(
       self,
@@ -986,11 +1000,8 @@ class WriteMutation(object):
     self._replace = replace
     self._delete = delete
 
-    if sum([1 for x in [self._insert,
-                        self._update,
-                        self._insert_or_update,
-                        self._replace,
-                        self._delete] if x is not None]) != 1:
+    if sum([1 for x in [self._insert, self._update, self._insert_or_update,
+                        self._replace, self._delete] if x is not None]) != 1:
       raise ValueError(
           "No or more than one write mutation operation "
           "provided: <%s: %s>" % (self.__class__.__name__, str(self.__dict__)))
@@ -1217,8 +1228,8 @@ class _WriteToSpannerDoFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)

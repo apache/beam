@@ -17,29 +17,33 @@
 
 # pytype: skip-file
 
+import asyncio
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import uuid
+from collections.abc import Iterable
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
-from typing import Tuple
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils import subprocess_server
+from openai import AsyncOpenAI
 from openai import OpenAI
 
 try:
+  # VLLM logging config breaks beam logging.
+  os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
   import vllm  # pylint: disable=unused-import
   logging.info('vllm module successfully imported.')
+  os.environ["VLLM_CONFIGURE_LOGGING"] = "1"
 except ModuleNotFoundError:
   msg = 'vllm module was not found. This is ok as long as the specified ' \
     'runner has vllm dependencies installed.'
@@ -63,7 +67,7 @@ class OpenAIChatMessage():
   content: str
 
 
-def start_process(cmd) -> Tuple[subprocess.Popen, int]:
+def start_process(cmd) -> tuple[subprocess.Popen, int]:
   port, = subprocess_server.pick_port(None)
   cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
   logging.info("Starting service with %s", str(cmd).replace("',", "'"))
@@ -94,33 +98,46 @@ def getVLLMClient(port) -> OpenAI:
   )
 
 
+def getAsyncVLLMClient(port) -> AsyncOpenAI:
+  openai_api_key = "EMPTY"
+  openai_api_base = f"http://localhost:{port}/v1"
+  return AsyncOpenAI(
+      api_key=openai_api_key,
+      base_url=openai_api_base,
+  )
+
+
 class _VLLMModelServer():
-  def __init__(self, model_name: str, vllm_server_kwargs: Dict[str, str]):
+  def __init__(self, model_name: str, vllm_server_kwargs: dict[str, str]):
     self._model_name = model_name
     self._vllm_server_kwargs = vllm_server_kwargs
     self._server_started = False
     self._server_process = None
     self._server_port: int = -1
+    self._server_process_lock = threading.RLock()
 
     self.start_server()
 
   def start_server(self, retries=3):
-    if not self._server_started:
-      server_cmd = [
-          'python',
-          '-m',
-          'vllm.entrypoints.openai.api_server',
-          '--model',
-          self._model_name,
-          '--port',
-          '{{PORT}}',
-      ]
-      for k, v in self._vllm_server_kwargs.items():
-        server_cmd.append(f'--{k}')
-        server_cmd.append(v)
-      self._server_process, self._server_port = start_process(server_cmd)
+    with self._server_process_lock:
+      if not self._server_started:
+        server_cmd = [
+            sys.executable,
+            '-m',
+            'vllm.entrypoints.openai.api_server',
+            '--model',
+            self._model_name,
+            '--port',
+            '{{PORT}}',
+        ]
+        for k, v in self._vllm_server_kwargs.items():
+          server_cmd.append(f'--{k}')
+          # Only add values for commands with value part.
+          if v is not None:
+            server_cmd.append(v)
+        self._server_process, self._server_port = start_process(server_cmd)
 
-    self.check_connectivity()
+      self.check_connectivity(retries)
 
   def get_server_port(self) -> int:
     if not self._server_started:
@@ -128,27 +145,27 @@ class _VLLMModelServer():
     return self._server_port
 
   def check_connectivity(self, retries=3):
-    client = getVLLMClient(self._server_port)
-    while self._server_process.poll() is None:
-      try:
-        models = client.models.list().data
-        logging.info('models: %s' % models)
-        if len(models) > 0:
-          self._server_started = True
-          return
-      except:  # pylint: disable=bare-except
-        pass
-      # Sleep while bringing up the process
-      time.sleep(5)
+    with getVLLMClient(self._server_port) as client:
+      while self._server_process.poll() is None:
+        try:
+          models = client.models.list().data
+          logging.info('models: %s' % models)
+          if len(models) > 0:
+            self._server_started = True
+            return
+        except:  # pylint: disable=bare-except
+          pass
+        # Sleep while bringing up the process
+        time.sleep(5)
 
-    if retries == 0:
-      self._server_started = False
-      raise Exception(
-          "Failed to start vLLM server, polling process exited with code " +
-          "%s.  Next time a request is tried, the server will be restarted" %
-          self._server_process.poll())
-    else:
-      self.start_server(retries - 1)
+      if retries == 0:
+        self._server_started = False
+        raise Exception(
+            "Failed to start vLLM server, polling process exited with code " +
+            "%s.  Next time a request is tried, the server will be restarted" %
+            self._server_process.poll())
+      else:
+        self.start_server(retries - 1)
 
 
 class VLLMCompletionsModelHandler(ModelHandler[str,
@@ -157,7 +174,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
   def __init__(
       self,
       model_name: str,
-      vllm_server_kwargs: Optional[Dict[str, str]] = None):
+      vllm_server_kwargs: Optional[dict[str, str]] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
 
@@ -178,17 +195,39 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-completions-api
     """
     self._model_name = model_name
-    self._vllm_server_kwargs: Dict[str, str] = vllm_server_kwargs or {}
+    self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
     self._env_vars = {}
 
   def load_model(self) -> _VLLMModelServer:
     return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
 
+  async def _async_run_inference(
+      self,
+      batch: Sequence[str],
+      model: _VLLMModelServer,
+      inference_args: Optional[dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    inference_args = inference_args or {}
+
+    async with getAsyncVLLMClient(model.get_server_port()) as client:
+      try:
+        async_predictions = [
+            client.completions.create(
+                model=self._model_name, prompt=prompt, **inference_args)
+            for prompt in batch
+        ]
+        responses = await asyncio.gather(*async_predictions)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+
+    return [PredictionResult(x, y) for x, y in zip(batch, responses)]
+
   def run_inference(
       self,
       batch: Sequence[str],
       model: _VLLMModelServer,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of text strings.
 
@@ -200,22 +239,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
     Returns:
       An Iterable of type PredictionResult.
     """
-    client = getVLLMClient(model.get_server_port())
-    inference_args = inference_args or {}
-    predictions = []
-    # TODO(https://github.com/apache/beam/issues/32528): We should add support
-    # for taking in batches and doing a bunch of async calls. That will end up
-    # being more efficient when we can do in bundle batching.
-    for prompt in batch:
-      try:
-        completion = client.completions.create(
-            model=self._model_name, prompt=prompt, **inference_args)
-        predictions.append(completion)
-      except Exception as e:
-        model.check_connectivity()
-        raise e
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return asyncio.run(self._async_run_inference(batch, model, inference_args))
 
   def share_model_across_processes(self) -> bool:
     return True
@@ -228,7 +252,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       self,
       model_name: str,
       chat_template_path: Optional[str] = None,
-      vllm_server_kwargs: Optional[Dict[str, str]] = None):
+      vllm_server_kwargs: Optional[dict[str, str]] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
 
@@ -254,7 +278,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
     """
     self._model_name = model_name
-    self._vllm_server_kwargs: Dict[str, str] = vllm_server_kwargs or {}
+    self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
     self._env_vars = {}
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
@@ -272,11 +296,36 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
 
     return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
 
+  async def _async_run_inference(
+      self,
+      batch: Sequence[Sequence[OpenAIChatMessage]],
+      model: _VLLMModelServer,
+      inference_args: Optional[dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    inference_args = inference_args or {}
+
+    async with getAsyncVLLMClient(model.get_server_port()) as client:
+      try:
+        async_predictions = [
+            client.chat.completions.create(
+                model=self._model_name,
+                messages=[{
+                    "role": message.role, "content": message.content
+                } for message in messages],
+                **inference_args) for messages in batch
+        ]
+        predictions = await asyncio.gather(*async_predictions)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
   def run_inference(
       self,
       batch: Sequence[Sequence[OpenAIChatMessage]],
       model: _VLLMModelServer,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of text strings.
 
@@ -288,25 +337,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     Returns:
       An Iterable of type PredictionResult.
     """
-    client = getVLLMClient(model.get_server_port())
-    inference_args = inference_args or {}
-    predictions = []
-    # TODO(https://github.com/apache/beam/issues/32528): We should add support
-    # for taking in batches and doing a bunch of async calls. That will end up
-    # being more efficient when we can do in bundle batching.
-    for messages in batch:
-      formatted = []
-      for message in messages:
-        formatted.append({"role": message.role, "content": message.content})
-      try:
-        completion = client.chat.completions.create(
-            model=self._model_name, messages=formatted, **inference_args)
-        predictions.append(completion)
-      except Exception as e:
-        model.check_connectivity()
-        raise e
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return asyncio.run(self._async_run_inference(batch, model, inference_args))
 
   def share_model_across_processes(self) -> bool:
     return True

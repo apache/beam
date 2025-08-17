@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 /**
- * Provides a transform for ordered processing.
+ * Provides a transform for ordered processing. For a detailed reference implementation which uses
+ * this transform visit {@link <a
+ * href="">https://github.com/GoogleCloudPlatform/dataflow-ordered-processing</a>}
  *
  * @see org.apache.beam.sdk.extensions.ordered.OrderedEventProcessor
  */

@@ -101,6 +101,28 @@ class YamlPubSubTest(unittest.TestCase):
             result,
             equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')]))
 
+  def test_simple_read_string(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage('äter'.encode('utf-8'),
+                                                  {'attr': 'value1'}),
+                                    PubsubMessage('köttbullar'.encode('utf-8'),
+                                                  {'attr': 'value2'})])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: STRING
+            ''')
+        assert_that(
+            result,
+            equal_to([beam.Row(payload='äter'),
+                      beam.Row(payload='köttbullar')]))
+
   def test_read_with_attribute(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -208,9 +230,10 @@ class YamlPubSubTest(unittest.TestCase):
             ''' % json.dumps(self._avro_schema))
         assert_that(
             result,
-            equal_to(
-                [beam.Row(label='37a', rank=1),  # linebreak
-                 beam.Row(label='389a', rank=2)]))
+            equal_to([
+                beam.Row(label='37a', rank=1),  # linebreak
+                beam.Row(label='389a', rank=2)
+            ]))
 
   def test_read_json(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

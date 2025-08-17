@@ -23,7 +23,6 @@ import org.apache.beam.examples.cookbook.MaxPerKeyExamples.ExtractTempFn;
 import org.apache.beam.examples.cookbook.MaxPerKeyExamples.FormatMaxesFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -78,7 +76,6 @@ public class MaxPerKeyExamplesTest {
   @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testExtractTempFn() {
     PCollection<KV<Integer, Double>> results =
         p.apply(Create.of(TEST_ROWS)).apply(ParDo.of(new ExtractTempFn()));
@@ -87,7 +84,6 @@ public class MaxPerKeyExamplesTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testFormatMaxesFn() {
     PCollection<TableRow> results =
         p.apply(Create.of(TEST_KVS)).apply(ParDo.of(new FormatMaxesFn()));

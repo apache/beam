@@ -181,7 +181,7 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
     model_name = DEFAULT_MODEL_NAME
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline
@@ -316,7 +316,7 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
         model_name=IMAGE_MODEL_NAME,
         columns=[test_query_column],
         image_model=True)
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline
@@ -328,7 +328,7 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
                     embedding_config))
 
 
-@unittest.skipIf(_HF_TOKEN is None, 'HF_TOKEN environment variable not set.')
+@unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPITest(unittest.TestCase):
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp()
@@ -366,7 +366,7 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
       assert_that(max_ele_pcoll, equal_to(expected_output))
 
 
-@unittest.skipIf(_HF_TOKEN is None, 'HF_TOKEN environment variable not set.')
+@unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPIGCSLocationTest(HuggingfaceInferenceAPITest):
   def setUp(self):
     self.artifact_location = self.gcs_artifact_location = os.path.join(

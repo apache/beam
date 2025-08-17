@@ -416,7 +416,7 @@ class PipelineOptionsValidator(object):
       return False
     if url_parts.scheme not in ['http', 'https']:
       return False
-    if set(
-        url_parts.netloc) <= set(string.ascii_letters + string.digits + '-.'):
+    if set(url_parts.netloc) <= set(string.ascii_letters + string.digits +
+                                    '-.'):
       return True
     return False

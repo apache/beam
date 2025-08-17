@@ -52,8 +52,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.joda.time.Instant;
 
 /**
@@ -92,6 +92,11 @@ public abstract class PTransformRunnerFactoryTestContext
                   boolean collectElementsIfNoFlushes) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
+
+              @Override
+              public void poisonInstructionId(String instructionId) {
+                throw new UnsupportedOperationException("Unexpected call during test.");
+              }
             })
         .beamFnStateClient(
             new BeamFnStateClient() {
@@ -109,9 +114,13 @@ public abstract class PTransformRunnerFactoryTestContext
         .cacheTokensSupplier(() -> Collections.emptyList())
         .bundleCacheSupplier(() -> Caches.noop())
         .processWideCache(Caches.noop())
-        .pCollections(Collections.emptyMap()) // expected to be immutable
-        .coders(Collections.emptyMap()) // expected to be immutable
-        .windowingStrategies(Collections.emptyMap()) // expected to be immutable
+        .components(
+            RunnerApi.Components.newBuilder()
+                .putAllCoders(Collections.emptyMap())
+                .putAllEnvironments(Collections.emptyMap())
+                .putAllWindowingStrategies(Collections.emptyMap())
+                .putAllPcollections(Collections.emptyMap())
+                .build())
         .pCollectionConsumers(new HashMap<>())
         .startBundleFunctions(new ArrayList<>())
         .finishBundleFunctions(new ArrayList<>())
@@ -170,11 +179,13 @@ public abstract class PTransformRunnerFactoryTestContext
       return processBundleInstructionIdSupplier(() -> value);
     }
 
-    Builder pCollections(Map<String, RunnerApi.PCollection> value);
+    // Builder pCollections(Map<String, RunnerApi.PCollection> value);
 
-    Builder coders(Map<String, RunnerApi.Coder> value);
+    Builder components(RunnerApi.Components value);
 
-    Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
+    // Builder coders(Map<String, RunnerApi.Coder> value);
+
+    // Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
 
     Builder runnerCapabilities(Set<String> value);
 
@@ -264,6 +275,11 @@ public abstract class PTransformRunnerFactoryTestContext
       String timerFamilyId, Coder<Timer<T>> coder, FnDataReceiver<Timer<T>> receiver) {
     getIncomingTimerEndpoints()
         .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
+  }
+
+  @Override
+  public <T> void addChannelRoot(BeamFnDataReadRunner<T> beamFnDataReadRunner) {
+    // noop
   }
 
   public abstract Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();

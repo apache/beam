@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -151,6 +152,11 @@ public class ReadFromKafkaDoFnTest {
     public FailingDeserializer() {}
 
     @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      // intentionally left blank for compatibility with older kafka versions
+    }
+
+    @Override
     public String deserialize(String topic, byte[] data) {
       throw new SerializationException("Intentional serialization exception");
     }
@@ -200,6 +206,8 @@ public class ReadFromKafkaDoFnTest {
         OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
       super(offsetResetStrategy);
       this.topicPartition = topicPartition;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, Long.MAX_VALUE));
     }
 
     public void reset() {
@@ -209,6 +217,8 @@ public class ReadFromKafkaDoFnTest {
       this.startOffsetForTime = KV.of(0L, Instant.now());
       this.stopOffsetForTime = KV.of(Long.MAX_VALUE, null);
       this.numOfRecordsPerPoll = 0L;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, Long.MAX_VALUE));
     }
 
     public void setRemoved() {
@@ -244,14 +254,27 @@ public class ReadFromKafkaDoFnTest {
     }
 
     @Override
+    public synchronized List<PartitionInfo> partitionsFor(String partition) {
+      if (this.isRemoved) {
+        return ImmutableList.of();
+      } else {
+        return ImmutableList.of(
+            new PartitionInfo(
+                topicPartition.topic(), topicPartition.partition(), null, null, null));
+      }
+    }
+
+    @Override
     public synchronized void assign(Collection<TopicPartition> partitions) {
       assertTrue(Iterables.getOnlyElement(partitions).equals(this.topicPartition));
+      super.assign(partitions);
     }
 
     @Override
     public synchronized void seek(TopicPartition partition, long offset) {
       assertTrue(partition.equals(this.topicPartition));
       this.startOffset = offset;
+      super.seek(partition, offset);
     }
 
     @Override
@@ -503,12 +526,9 @@ public class ReadFromKafkaDoFnTest {
         new OffsetRangeTracker(new OffsetRange(startOffset, startOffset + 3));
     KafkaSourceDescriptor descriptor =
         KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
-    ProcessContinuation result =
-        dofnInstanceWithBrokenSeek.processElement(descriptor, tracker, null, receiver);
-    assertEquals(ProcessContinuation.stop(), result);
-    assertEquals(
-        createExpectedRecords(descriptor, startOffset, 3, "key", "value"),
-        receiver.getGoodRecords());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dofnInstanceWithBrokenSeek.processElement(descriptor, tracker, null, receiver));
   }
 
   @Test
@@ -697,14 +717,14 @@ public class ReadFromKafkaDoFnTest {
   @Test
   public void testConstructorWithPollTimeout() {
     ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
-    // default poll timeout = 1 scond
+    // default poll timeout = 2 seconds
     ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(2L, dofnInstance.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(2L), dofnInstance.consumerPollingTimeout);
     // updated timeout = 5 seconds
     descriptors = descriptors.withConsumerPollingTimeout(5L);
     ReadFromKafkaDoFn<String, String> dofnInstanceNew =
         ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(5L, dofnInstanceNew.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(5L), dofnInstanceNew.consumerPollingTimeout);
   }
 
   private BoundednessVisitor testBoundedness(

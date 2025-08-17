@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -224,17 +225,19 @@ public class DirectStreamObserverTest {
   public void testMessageCheckInterval() throws Exception {
     final AtomicInteger index = new AtomicInteger();
     ArrayListMultimap<Integer, String> values = ArrayListMultimap.create();
+
+    // An observer that is always ready but puts items into a new bucket each time it is queried
+    CallStreamObserver<String> bucketingObserver =
+        TestStreams.withOnNext((String t) -> assertTrue(values.put(index.get(), t)))
+            .withIsReady(
+                () -> {
+                  index.incrementAndGet();
+                  return true;
+                })
+            .build();
+
     final DirectStreamObserver<String> streamObserver =
-        new DirectStreamObserver<>(
-            new AdvancingPhaser(1),
-            TestStreams.withOnNext((String t) -> assertTrue(values.put(index.get(), t)))
-                .withIsReady(
-                    () -> {
-                      index.incrementAndGet();
-                      return true;
-                    })
-                .build(),
-            10);
+        new DirectStreamObserver<>(new AdvancingPhaser(1), bucketingObserver, 10);
 
     List<String> prefixes = ImmutableList.of("0", "1", "2", "3", "4");
     List<Future<String>> results = new ArrayList<>();

@@ -158,13 +158,10 @@ class FileBasedCacheManager(CacheManager):
   _available_formats = {
       'text': (
           lambda path: textio.ReadFromText(
-              path,
-              coder=Base64Coder(),
-              compression_type=filesystems.CompressionTypes.BZIP2),
-          lambda path: textio.WriteToText(
-              path,
-              coder=Base64Coder(),
-              compression_type=filesystems.CompressionTypes.BZIP2)),
+              path, coder=Base64Coder(), compression_type=filesystems.
+              CompressionTypes.BZIP2), lambda path: textio.WriteToText(
+                  path, coder=Base64Coder(), compression_type=filesystems.
+                  CompressionTypes.BZIP2)),
       'tfrecord': (tfrecordio.ReadFromTFRecord, tfrecordio.WriteToTFRecord)
   }
 

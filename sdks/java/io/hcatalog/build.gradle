@@ -30,9 +30,10 @@ description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
 
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
     "2102": "2.10.2",
+    "324": "3.2.4",
+    "336": "3.3.6",
+    // "341": "3.4.1", // tests already exercised on the default version
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
@@ -70,13 +71,21 @@ dependencies {
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
   }
 }
 
 hadoopVersions.each {kv ->
   configurations."hadoopVersion$kv.key" {
     resolutionStrategy {
+      force "org.apache.hadoop:hadoop-client:$kv.value"
       force "org.apache.hadoop:hadoop-common:$kv.value"
+      force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+      force "org.apache.hadoop:hadoop-minicluster:$kv.value"
+      force "org.apache.hadoop:hadoop-hdfs:$kv.value"
+      force "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
     }
   }
 }

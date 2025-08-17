@@ -264,9 +264,9 @@ wordLengths := beam.ParDo(s, func(word string) int {
 {{if (eq .Sdk "java")}}
 ### Accessing additional parameters in your DoFn
 
-In addition to the element and the OutputReceiver, Beam will populate other parameters to your DoFn’s @ProcessElement method. Any combination of these parameters can be added to your process method in any order.
+In addition to the element and the `OutputReceiver`, Beam will populate other parameters to your DoFn’s `@ProcessElement` method. Any combination of these parameters can be added to your process method in any order.
 
-**Timestamp**: To access the timestamp of an input element, add a parameter annotated with @Timestamp of type Instant. For example:
+**Timestamp**: To access the timestamp of an input element, add a parameter annotated with `@Timestamp` of type `Instant`. For example:
 
 ```
 .of(new DoFn<String, String>() {
@@ -274,7 +274,7 @@ In addition to the element and the OutputReceiver, Beam will populate other para
   }})
 ```
 
-**Window**: To access the window an input element falls into, add a parameter of the type of the window used for the input `PCollection`. If the parameter is a window type (a subclass of BoundedWindow) that does not match the input `PCollection`, then an error will be raised. If an element falls in multiple windows (for example, this will happen when using `SlidingWindows`), then the `@ProcessElement` method will be invoked multiple time for the element, once for each window. For example, when fixed windows are being used, the window is of type `IntervalWindow`.
+**Window**: To access the window an input element falls into, add a parameter of the type of the window used for the input `PCollection`. If the parameter is a window type (a subclass of `BoundedWindow`) that does not match the input `PCollection`, then an error will be raised. If an element falls in multiple windows (for example, this will happen when using `SlidingWindows`), then the `@ProcessElement` method will be invoked multiple time for the element, once for each window. For example, when fixed windows are being used, the window is of type `IntervalWindow`.
 
 ```
 .of(new DoFn<String, String>() {
@@ -298,7 +298,7 @@ In addition to the element and the OutputReceiver, Beam will populate other para
   }})
 ```
 
-`@OnTimer` methods can also access many of these parameters. Timestamp, Window, key, `PipelineOptions`, `OutputReceiver`, and `MultiOutputReceiver` parameters can all be accessed in an @OnTimer method. In addition, an `@OnTimer` method can take a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time. Timers are explained in more detail in the Timely (and Stateful) Processing with Apache Beam blog post.
+`@OnTimer` methods can also access many of these parameters. Timestamp, Window, key, `PipelineOptions`, `OutputReceiver`, and `MultiOutputReceiver` parameters can all be accessed in an `@OnTimer` method. In addition, an `@OnTimer` method can take a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time. Timers are explained in more detail in the [Timely (and Stateful) Processing with Apache Beam blog post](https://beam.apache.org/blog/timely-processing/).
 
 
 {{end}}
@@ -401,7 +401,7 @@ class StatefulDoFn(beam.DoFn):
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
-You can work with any type of object.For example String:
+You can work with any type of object. For example `String`:
 
 {{if (eq .Sdk "go")}}
 ```

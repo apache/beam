@@ -29,7 +29,7 @@ on:
         required: true
         default: 'no'
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
 permissions:
   contents: write
@@ -55,7 +55,7 @@ jobs:
         echo "Publish SDK docker images to Docker Hub."
         
         echo "================Pull RC Containers from DockerHub==========="
-        IMAGES=$(docker search apache/beam_ --format "{{.Name}}" --limit 100)
+        IMAGES=$(docker search apache/beam --format "{{.Name}}" --limit 100)
         KNOWN_IMAGES=()
         echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
         while read IMAGE; do
@@ -93,8 +93,10 @@ jobs:
         echo "::add-mask::$PYPI_PASSWORD"
     - name: Validate PyPi id/password
       run: |
-        echo "::add-mask::${{ github.event.inputs.PYPI_API_TOKEN }}"
-        if [ "${{ github.event.inputs.PYPI_API_TOKEN }}" == "" ]
+        # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+        PYPI_API_TOKEN=$(jq -r '.inputs.PYPI_API_TOKEN' $GITHUB_EVENT_PATH)
+        echo "::add-mask::$PYPI_API_TOKEN"
+        if [ "$PYPI_API_TOKEN" == "" ]
         then
           echo "Must provide a PyPi password to publish artifacts to PyPi"
           exit 1
@@ -113,7 +115,7 @@ jobs:
       env:
         RELEASE: "${{ github.event.inputs.RELEASE }}"
       run: |
-        wget -r --no-parent -A tar.gz,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
+        wget -e robots=off -r --no-parent -A tar.gz,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
         cd "dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/"
         echo "Will upload the following files to PyPI:"
         ls
@@ -138,6 +140,7 @@ jobs:
       env:
         VERSION_TAG: "v${{ github.event.inputs.RELEASE }}"
         RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+        POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
       run: |
         # Ensure local tags are in sync. If there's a mismatch, it will tell you.
         git fetch --all --tags --prune
@@ -146,9 +149,33 @@ jobs:
         git rev-list $RC_TAG -n 1
         
         # Tag for Go SDK
-        git tag "sdks/$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
+        git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "sdks/$VERSION_TAG"
         
         # Tag for repo root.
-        git tag "$VERSION_TAG" "$RC_TAG" -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
+        git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "$VERSION_TAG"
+
+        git checkout -b "$POST_RELEASE_BRANCH" "$VERSION_TAG"
+        git push https://github.com/apache/beam "$POST_RELEASE_BRANCH"
+
+  update_master:
+    needs: push_git_tags
+    runs-on: ubuntu-latest
+    env:
+        POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set git config
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+      - name: Update .asf.yaml to protect new postrelease branch from force push
+        run: |
+          sed -i -e "s/master: {}/master: {}\n    ${POST_RELEASE_BRANCH}: {}/g" .asf.yaml
+      - name: Commit and Push to master branch files with Next Version
+        run: |
+          git add .asf.yaml
+          git commit -m "Adding ${POST_RELEASE_BRANCH} to protected branches in .asf.yaml"
+          git push origin ${MASTER_BRANCH}

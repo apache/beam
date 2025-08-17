@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions.GcsCustomAuditEntries;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.junit.Test;
@@ -44,6 +45,12 @@ public class TransportTest {
     gcsOptions.setGcpCredential(new TestCredential());
     gcsOptions.setJobName("test-job");
     gcsOptions.setAppName("test-app");
+    GcsCustomAuditEntries entries = new GcsCustomAuditEntries();
+    entries.put("job", "test-job-override");
+    entries.put("user", "test-user");
+    entries.put("id", "1234");
+    entries.put("status", "ok");
+    gcsOptions.setGcsCustomAuditEntries(entries);
 
     Storage storageClient = Transport.newStorageClient(gcsOptions).build();
     Storage.Objects.Get getObject = storageClient.objects().get("test-bucket", "test-object");
@@ -69,6 +76,18 @@ public class TransportTest {
     // there should be one and only one custom audit entry for job name
     assertEquals(
         request.getHeaders().getHeaderStringValues("x-goog-custom-audit-job"),
-        Collections.singletonList("test-job"));
+        Collections.singletonList("test-job-override"));
+
+    assertEquals(
+        request.getHeaders().getHeaderStringValues("x-goog-custom-audit-user"),
+        Collections.singletonList("test-user"));
+
+    assertEquals(
+        request.getHeaders().getHeaderStringValues("x-goog-custom-audit-id"),
+        Collections.singletonList("1234"));
+
+    assertEquals(
+        request.getHeaders().getHeaderStringValues("x-goog-custom-audit-status"),
+        Collections.singletonList("ok"));
   }
 }

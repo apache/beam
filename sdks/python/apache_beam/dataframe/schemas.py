@@ -24,12 +24,10 @@ The utilities here enforce the type mapping defined in
 # pytype: skip-file
 
 import warnings
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
 from typing import NamedTuple
 from typing import Optional
-from typing import Sequence
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -170,7 +168,7 @@ def element_typehint_from_dataframe_proxy(
 
   fields = [(column, dtype_to_fieldtype(dtype))
             for (column, dtype) in output_columns]
-  field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]]
+  field_options: Optional[dict[str, Sequence[tuple[str, Any]]]]
   if include_indexes:
     field_options = {
         index_name: [(INDEX_OPTION_NAME, None)]

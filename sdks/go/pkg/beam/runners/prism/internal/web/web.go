@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -40,7 +41,6 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )

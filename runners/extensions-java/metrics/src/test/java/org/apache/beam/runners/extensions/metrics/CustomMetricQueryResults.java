@@ -19,6 +19,7 @@ package org.apache.beam.runners.extensions.metrics;
 
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
@@ -27,6 +28,8 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 
@@ -81,5 +84,19 @@ class CustomMetricQueryResults extends MetricQueryResults {
         "n3",
         StringSetResult.create(ImmutableSet.of("ab")),
         StringSetResult.create(ImmutableSet.of("cd")));
+  }
+
+  @Override
+  public Iterable<MetricResult<BoundedTrieResult>> getBoundedTries() {
+    return makeResults(
+        "s3",
+        "n3",
+        BoundedTrieResult.create(ImmutableSet.of(ImmutableList.of("ab", String.valueOf(false)))),
+        BoundedTrieResult.create(ImmutableSet.of(ImmutableList.of("cd", String.valueOf(false)))));
+  }
+
+  @Override
+  public Iterable<MetricResult<HistogramData>> getHistograms() {
+    return Collections.emptyList();
   }
 }

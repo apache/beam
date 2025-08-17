@@ -29,7 +29,7 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.conscrypt.OpenSSLProvider;
@@ -82,7 +82,9 @@ public final class DataflowWorkerHarnessHelper {
 
   @SuppressWarnings("Slf4jIllegalPassedClass")
   public static void initializeLogging(Class<?> workerHarnessClass) {
-    /* Set up exception handling tied to the workerHarnessClass. */
+    // Set up exception handling for raw Threads tied to the workerHarnessClass.
+    // Does NOT handle exceptions thrown by threads created by
+    // ScheduledExecutors/ScheduledExecutorServices.
     Thread.setDefaultUncaughtExceptionHandler(
         new WorkerUncaughtExceptionHandler(LoggerFactory.getLogger(workerHarnessClass)));
 

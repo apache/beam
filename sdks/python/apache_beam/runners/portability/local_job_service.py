@@ -35,7 +35,7 @@ from typing import Optional
 import grpc
 from google.protobuf import json_format
 from google.protobuf import struct_pb2
-from google.protobuf import text_format  # type: ignore # not in typeshed
+from google.protobuf import text_format
 
 from apache_beam import pipeline
 from apache_beam.metrics import monitoring_infos
@@ -88,12 +88,12 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
         endpoints_pb2.ApiServiceDescriptor] = None
     self._beam_job_type = beam_job_type or BeamJob
 
-  def create_beam_job(self,
-                      preparation_id,  # stype: str
-                      job_name: str,
-                      pipeline: beam_runner_api_pb2.Pipeline,
-                      options: struct_pb2.Struct
-                     ) -> 'BeamJob':
+  def create_beam_job(
+      self,
+      preparation_id,  # stype: str
+      job_name: str,
+      pipeline: beam_runner_api_pb2.Pipeline,
+      options: struct_pb2.Struct) -> 'BeamJob':
     self._artifact_service.register_job(
         staging_token=preparation_id,
         dependency_sets=_extract_dependency_sets(

@@ -28,16 +28,22 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Test;
@@ -45,6 +51,7 @@ import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Test class for {@link IcebergUtils}. */
 @RunWith(Enclosed.class)
 public class IcebergUtilsTest {
 
@@ -102,21 +109,87 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testDate() {}
+    public void testDate() {
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(SqlTypes.DATE),
+          Types.DateType.get(),
+          DateTimeUtil.dateFromDays(12345));
+    }
 
     @Test
-    public void testTime() {}
+    public void testTime() {
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(SqlTypes.TIME),
+          Types.TimeType.get(),
+          DateTimeUtil.timeFromMicros(12345678L));
+    }
 
     @Test
     public void testTimestamp() {
+      // SqlTypes.DATETIME
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          Types.TimestampType.withoutZone(),
+          DateTimeUtil.timestampFromMicros(123456789L));
+
+      // Schema.FieldType.DATETIME
       DateTime dateTime =
           new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-
       checkRowValueToRecordValue(
           Schema.FieldType.DATETIME,
-          dateTime.toInstant(),
+          dateTime,
           Types.TimestampType.withoutZone(),
-          dateTime.getMillis());
+          DateTimeUtil.timestampFromMicros(dateTime.getMillis() * 1000L));
+
+      // Schema.FieldType.INT64
+      long micros = 1234567890L;
+      checkRowValueToRecordValue(
+          Schema.FieldType.INT64,
+          micros,
+          Types.TimestampType.withoutZone(),
+          DateTimeUtil.timestampFromMicros(micros));
+
+      // Schema.FieldType.STRING
+      String val = "2024-10-08T13:18:20.053";
+      LocalDateTime localDateTime = LocalDateTime.of(2024, 10, 8, 13, 18, 20, 53_000_000);
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING, val, Types.TimestampType.withoutZone(), localDateTime);
+    }
+
+    @Test
+    public void testTimestampWithZone() {
+      String val = "2024-10-08T13:18:20.053+03:27";
+      DateTime dateTime = DateTime.parse(val);
+      OffsetDateTime offsetDateTime = OffsetDateTime.parse(val);
+      LocalDateTime localDateTime =
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+      // SqlTypes.DATETIME
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          localDateTime,
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.DATETIME
+      checkRowValueToRecordValue(
+          Schema.FieldType.DATETIME,
+          dateTime,
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.INT64
+      checkRowValueToRecordValue(
+          Schema.FieldType.INT64,
+          DateTimeUtil.microsFromTimestamptz(offsetDateTime),
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.STRING
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          val,
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
     }
 
     @Test
@@ -170,6 +243,27 @@ public class IcebergUtilsTest {
           Types.ListType.ofRequired(1, Types.StringType.get()),
           list);
     }
+
+    @Test
+    public void testListOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_LIST_ICEBERG_SCHEMA, ROW_LIST_OF_ROWS);
+      assertEquals(RECORD_LIST_OF_RECORDS, actual);
+    }
+
+    @Test
+    public void testIterableOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_LIST_ICEBERG_SCHEMA, ROW_ITERABLE_OF_ROWS);
+      assertEquals(RECORD_LIST_OF_RECORDS, actual);
+    }
+
+    @Test
+    public void testMapOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_MAP_ICEBERG_SCHEMA, ROW_MAP_OF_ROWS);
+      assertEquals(RECORD_MAP_OF_RECORDS, actual);
+    }
   }
 
   @RunWith(JUnit4.class)
@@ -190,7 +284,7 @@ public class IcebergUtilsTest {
 
       Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
 
-      assertThat(row.getBaseValue("v"), equalTo(destValue));
+      assertThat(row.getValue("v"), equalTo(destValue));
     }
 
     @Test
@@ -224,21 +318,75 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testDate() {}
+    public void testDate() {
+      checkRecordValueToRowValue(
+          Types.DateType.get(),
+          Schema.FieldType.logicalType(SqlTypes.DATE),
+          DateTimeUtil.dateFromDays(12345));
+    }
 
     @Test
-    public void testTime() {}
+    public void testTime() {
+      checkRecordValueToRowValue(
+          Types.TimeType.get(),
+          Schema.FieldType.logicalType(SqlTypes.TIME),
+          DateTimeUtil.timeFromMicros(1234567L));
+    }
 
     @Test
     public void testTimestamp() {
-      DateTime dateTime =
-          new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
-
+      // SqlTypes.DATETIME
       checkRecordValueToRowValue(
           Types.TimestampType.withoutZone(),
-          dateTime.getMillis(),
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          DateTimeUtil.timestampFromMicros(123456789L));
+
+      // Schema.FieldType.DATETIME
+      DateTime dateTime =
+          new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withoutZone(),
+          dateTime.getMillis() * 1000L,
           Schema.FieldType.DATETIME,
-          dateTime.toInstant());
+          dateTime);
+    }
+
+    @Test
+    public void testTimestampWithZone() {
+      String timestamp = "2024-10-08T13:18:20.053+03:27";
+      OffsetDateTime offsetDateTime = OffsetDateTime.parse(timestamp);
+      LocalDateTime localDateTime =
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+      // SqlTypes.DATETIME
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          offsetDateTime,
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          localDateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          localDateTime,
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          localDateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          DateTimeUtil.microsFromTimestamptz(offsetDateTime),
+          Schema.FieldType.logicalType(SqlTypes.DATETIME),
+          localDateTime);
+
+      // Schema.FieldType.DATETIME
+      DateTime dateTime = DateTime.parse(timestamp).withZone(DateTimeZone.UTC);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(), offsetDateTime, Schema.FieldType.DATETIME, dateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(), localDateTime, Schema.FieldType.DATETIME, dateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          DateTimeUtil.microsFromTimestamptz(offsetDateTime),
+          Schema.FieldType.DATETIME,
+          dateTime);
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(), timestamp, Schema.FieldType.DATETIME, dateTime);
     }
 
     @Test
@@ -292,7 +440,121 @@ public class IcebergUtilsTest {
           Schema.FieldType.iterable(Schema.FieldType.STRING),
           list);
     }
+
+    @Test
+    public void testListOfRecords() {
+      Row actual =
+          IcebergUtils.icebergRecordToBeamRow(ROW_LIST_BEAM_SCHEMA, RECORD_LIST_OF_RECORDS);
+      assertEquals(ROW_LIST_OF_ROWS, actual);
+    }
+
+    @Test
+    public void testIterableOfRecords() {
+      Row actual =
+          IcebergUtils.icebergRecordToBeamRow(ROW_ITERABLE_BEAM_SCHEMA, RECORD_ITERABLE_OF_RECORDS);
+      assertEquals(ROW_ITERABLE_OF_ROWS, actual);
+    }
+
+    @Test
+    public void testMapOfRecords() {
+      Row actual = IcebergUtils.icebergRecordToBeamRow(ROW_MAP_BEAM_SCHEMA, RECORD_MAP_OF_RECORDS);
+      assertEquals(ROW_MAP_OF_ROWS, actual);
+    }
   }
+
+  static final Schema NESTED_BEAM_SCHEMA =
+      Schema.builder()
+          .addArrayField("str_list", Schema.FieldType.STRING)
+          .addInt32Field("int")
+          .build();
+  static final Schema ROW_LIST_BEAM_SCHEMA =
+      Schema.builder()
+          .addArrayField("list", Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .addBooleanField("bool")
+          .build();
+  static final Schema ROW_ITERABLE_BEAM_SCHEMA =
+      Schema.builder()
+          .addIterableField("list", Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .addBooleanField("bool")
+          .build();
+  static final Schema ROW_MAP_BEAM_SCHEMA =
+      Schema.builder()
+          .addMapField("map", Schema.FieldType.STRING, Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .build();
+  static final org.apache.iceberg.Schema NESTED_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(4, "str_list", Types.ListType.ofRequired(6, Types.StringType.get())),
+          required(5, "int", Types.IntegerType.get()));
+  static final org.apache.iceberg.Schema RECORD_LIST_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(
+              1,
+              "list",
+              Types.ListType.ofRequired(3, Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))),
+          required(2, "bool", Types.BooleanType.get()));
+  static final org.apache.iceberg.Schema RECORD_MAP_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(
+              1,
+              "map",
+              Types.MapType.ofRequired(
+                  2,
+                  3,
+                  Types.StringType.get(),
+                  Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))));
+  static final List<Record> LIST_OF_RECORDS =
+      Arrays.asList(
+          GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+              .copy(ImmutableMap.of("str_list", Arrays.asList("a", "b", "c"), "int", 123)),
+          GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+              .copy(ImmutableMap.of("str_list", Arrays.asList("x", "y", "z"), "int", 789)));
+  static final Record RECORD_LIST_OF_RECORDS =
+      GenericRecord.create(RECORD_LIST_ICEBERG_SCHEMA)
+          .copy(ImmutableMap.of("list", LIST_OF_RECORDS, "bool", true));
+  static final Record RECORD_ITERABLE_OF_RECORDS =
+      GenericRecord.create(RECORD_LIST_ICEBERG_SCHEMA)
+          .copy(
+              ImmutableMap.of(
+                  "list", Iterables.unmodifiableIterable(LIST_OF_RECORDS), "bool", true));
+  static final List<Row> LIST_OF_ROWS =
+      Arrays.asList(
+          Row.withSchema(NESTED_BEAM_SCHEMA).addValues(Arrays.asList("a", "b", "c"), 123).build(),
+          Row.withSchema(NESTED_BEAM_SCHEMA).addValues(Arrays.asList("x", "y", "z"), 789).build());
+  static final Row ROW_LIST_OF_ROWS =
+      Row.withSchema(ROW_LIST_BEAM_SCHEMA).addValues(LIST_OF_ROWS, true).build();
+  static final Row ROW_ITERABLE_OF_ROWS =
+      Row.withSchema(ROW_ITERABLE_BEAM_SCHEMA)
+          .addValues(Iterables.unmodifiableIterable(LIST_OF_ROWS), true)
+          .build();
+  static final Record RECORD_MAP_OF_RECORDS =
+      GenericRecord.create(RECORD_MAP_ICEBERG_SCHEMA)
+          .copy(
+              ImmutableMap.of(
+                  "map",
+                  ImmutableMap.of(
+                      "key_1",
+                      GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+                          .copy(
+                              ImmutableMap.of(
+                                  "str_list", Arrays.asList("a", "b", "c"), "int", 123)),
+                      "key_2",
+                      GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+                          .copy(
+                              ImmutableMap.of(
+                                  "str_list", Arrays.asList("x", "y", "z"), "int", 789)))));
+  static final Row ROW_MAP_OF_ROWS =
+      Row.withSchema(ROW_MAP_BEAM_SCHEMA)
+          .addValues(
+              ImmutableMap.of(
+                  "key_1",
+                  Row.withSchema(NESTED_BEAM_SCHEMA)
+                      .addValues(Arrays.asList("a", "b", "c"), 123)
+                      .build(),
+                  "key_2",
+                  Row.withSchema(NESTED_BEAM_SCHEMA)
+                      .addValues(Arrays.asList("x", "y", "z"), 789)
+                      .build()))
+          .build();
 
   @RunWith(JUnit4.class)
   public static class SchemaTests {
@@ -425,7 +687,7 @@ public class IcebergUtilsTest {
               new BeamFieldTypeTestCase(
                   1,
                   Schema.FieldType.row(BEAM_SCHEMA_PRIMITIVE),
-                  7,
+                  11,
                   Types.StructType.of(ICEBERG_SCHEMA_PRIMITIVE.columns())),
               new BeamFieldTypeTestCase(
                   15,
@@ -537,6 +799,10 @@ public class IcebergUtilsTest {
             .addNullableStringField("str")
             .addNullableBooleanField("bool")
             .addByteArrayField("bytes")
+            .addDateTimeField("datetime_tz")
+            .addLogicalTypeField("datetime", SqlTypes.DATETIME)
+            .addLogicalTypeField("time", SqlTypes.TIME)
+            .addLogicalTypeField("date", SqlTypes.DATE)
             .build();
 
     static final org.apache.iceberg.Schema ICEBERG_SCHEMA_PRIMITIVE =
@@ -547,15 +813,16 @@ public class IcebergUtilsTest {
             required(4, "long", Types.LongType.get()),
             optional(5, "str", Types.StringType.get()),
             optional(6, "bool", Types.BooleanType.get()),
-            required(7, "bytes", Types.BinaryType.get()));
+            required(7, "bytes", Types.BinaryType.get()),
+            required(8, "datetime_tz", Types.TimestampType.withZone()),
+            required(9, "datetime", Types.TimestampType.withoutZone()),
+            required(10, "time", Types.TimeType.get()),
+            required(11, "date", Types.DateType.get()));
 
     @Test
     public void testPrimitiveBeamSchemaToIcebergSchema() {
       org.apache.iceberg.Schema convertedIcebergSchema =
           IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA_PRIMITIVE);
-
-      System.out.println(convertedIcebergSchema);
-      System.out.println(ICEBERG_SCHEMA_PRIMITIVE);
 
       assertTrue(convertedIcebergSchema.sameSchema(ICEBERG_SCHEMA_PRIMITIVE));
     }
@@ -569,9 +836,9 @@ public class IcebergUtilsTest {
 
     static final Schema BEAM_SCHEMA_LIST =
         Schema.builder()
-            .addIterableField("arr_str", Schema.FieldType.STRING)
-            .addIterableField("arr_int", Schema.FieldType.INT32)
-            .addIterableField("arr_bool", Schema.FieldType.BOOLEAN)
+            .addArrayField("arr_str", Schema.FieldType.STRING)
+            .addArrayField("arr_int", Schema.FieldType.INT32)
+            .addArrayField("arr_bool", Schema.FieldType.BOOLEAN)
             .build();
     static final org.apache.iceberg.Schema ICEBERG_SCHEMA_LIST =
         new org.apache.iceberg.Schema(
@@ -590,9 +857,6 @@ public class IcebergUtilsTest {
     @Test
     public void testArrayIcebergSchemaToBeamSchema() {
       Schema convertedBeamSchema = IcebergUtils.icebergSchemaToBeamSchema(ICEBERG_SCHEMA_LIST);
-
-      System.out.println(convertedBeamSchema);
-      System.out.println(BEAM_SCHEMA_LIST);
 
       assertEquals(BEAM_SCHEMA_LIST, convertedBeamSchema);
     }

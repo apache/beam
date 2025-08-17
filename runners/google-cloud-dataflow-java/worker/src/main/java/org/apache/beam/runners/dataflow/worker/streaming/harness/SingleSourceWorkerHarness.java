@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.co
 
 import com.google.auto.value.AutoBuilder;
 import com.google.auto.value.AutoOneOf;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,7 +32,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.RpcException;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.WindmillRpcException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
@@ -43,6 +42,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSe
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -82,7 +82,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
     this.waitForResources = waitForResources;
     this.computationStateFetcher = computationStateFetcher;
     this.workProviderExecutor =
-        Executors.newSingleThreadScheduledExecutor(
+        Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MIN_PRIORITY)
@@ -130,16 +130,14 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         isRunning.compareAndSet(true, false),
         "Multiple calls to {}.shutdown() are not allowed.",
         getClass());
-    workProviderExecutor.shutdown();
-    boolean isTerminated = false;
+    // Interrupt the dispatch loop to start shutting it down.
+    workProviderExecutor.shutdownNow();
     try {
-      isTerminated = workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS);
+      while (!workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+        LOG.warn("Still waiting for the dispatch loop to terminate.");
+      }
     } catch (InterruptedException e) {
       LOG.warn("Unable to shutdown {}", getClass());
-    }
-
-    if (!isTerminated) {
-      workProviderExecutor.shutdownNow();
     }
     workCommitter.stop();
   }
@@ -153,6 +151,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                   inputDataWatermark,
                   synchronizedProcessingTime,
                   workItem,
+                  serializedWorkItemSize,
                   getWorkStreamLatencies) ->
                   computationStateFetcher
                       .apply(computationId)
@@ -162,6 +161,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                             streamingWorkScheduler.scheduleWork(
                                 computationState,
                                 workItem,
+                                serializedWorkItemSize,
                                 Watermarks.builder()
                                     .setInputDataWatermark(
                                         Preconditions.checkNotNull(inputDataWatermark))
@@ -199,7 +199,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
           if (workResponse.getWorkCount() > 0) {
             break;
           }
-        } catch (RpcException e) {
+        } catch (WindmillRpcException e) {
           LOG.warn("GetWork failed, retrying:", e);
         }
         sleepUninterruptibly(backoff, TimeUnit.MILLISECONDS);
@@ -228,10 +228,11 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
           streamingWorkScheduler.scheduleWork(
               computationState,
               workItem,
+              workItem.getSerializedSize(),
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
                   computationId, getDataClient, workCommitter::commit, heartbeatSender),
-              /* getWorkStreamLatencies= */ Collections.emptyList());
+              /* getWorkStreamLatencies= */ ImmutableList.of());
         }
       }
     }

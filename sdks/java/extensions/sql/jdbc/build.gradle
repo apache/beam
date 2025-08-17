@@ -18,7 +18,10 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  id 'application'
+}
 applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.sql.jdbc',
   exportJavadoc: false,
   testShadowJar: true,
@@ -35,9 +38,13 @@ dependencies {
   implementation "jline:jline:2.14.6"
   permitUnusedDeclared "jline:jline:2.14.6" // BEAM-11761
   implementation "sqlline:sqlline:1.4.0"
-  implementation library.java.vendored_calcite_1_28_0
-  permitUnusedDeclared library.java.vendored_calcite_1_28_0
-  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+  implementation library.java.vendored_calcite_1_40_0
+  permitUnusedDeclared library.java.vendored_calcite_1_40_0
+  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+  testImplementation library.java.jackson_databind
+  testImplementation library.java.joda_time
   testImplementation library.java.junit
   testImplementation library.java.vendored_guava_32_1_2_jre
   // Depending on outputs so integrationTest can run with only test dependencies.
@@ -45,6 +52,14 @@ dependencies {
   integrationTest sourceSets.test.output
   integrationTest sourceSets.main.output
   integrationTest library.java.junit
+
+  if (project.hasProperty("beam.sql.shell.bundled")) {
+    project.getProperty("beam.sql.shell.bundled").tokenize(",").each {
+      subproject ->
+        implementation project(path: subproject)
+        permitUnusedDeclared project(path: subproject)
+    }
+  }
 }
 
 processResources {
@@ -106,4 +121,30 @@ task postCommit {
   group = "Verification"
   description = "Various integration tests"
   dependsOn endToEndTest
+}
+
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+          'beam.version': version,
+  ]
+}
+
+/**
+ * Gradle console will interfere with SQL shell, so to run this command
+ * we need to configure it:
+ *  - disable daemon with '--no-daemon';
+ *  - decrease verbosity with '--console plain';
+ *  - quiet it with '-q';
+ *
+ * So, correct gradle invocation to start the SQL shell
+ * looks something like this:
+ *
+ *   ./gradlew :sdks:java:extensions:sql:jdbc:run --console plain -q --no-daemon
+ *
+ * To add extra Beam project, set subproject property like
+ * `-Pbeam.sql.shell.bundled="sdks:java:extensions:sql:hcatalog"`
+ */
+run {
+  mainClassName = "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
+  standardInput System.in
 }

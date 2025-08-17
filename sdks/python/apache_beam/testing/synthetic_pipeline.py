@@ -39,7 +39,6 @@ import json
 import logging
 import math
 import os
-import sys
 import time
 from random import Random
 from typing import Optional
@@ -80,15 +79,6 @@ class _Random(Random):
   # `numpy.random.RandomState` does not provide `random()` method, we keep this
   # for compatibility reasons.
   random_sample = Random.random
-
-  # TODO(yathu) just use builtin rand_bytes when drop py38 support
-  def rand_bytes(self, length):
-    """Returns random bytes.
-
-    Args:
-      length (int): Number of random bytes.
-    """
-    return self.getrandbits(length * 8).to_bytes(length, sys.byteorder)
 
 
 def get_generator(seed: Optional[int] = None, algorithm: Optional[str] = None):
@@ -478,10 +468,10 @@ class SyntheticSource(iobase.BoundedSource):
       # with equal probability.
       generator_hot = get_generator(
           seed=index % self._num_hot_keys, algorithm=self.gen_algo)
-      bytes_ = generator_hot.rand_bytes(self._key_size), generator.rand_bytes(
+      bytes_ = generator_hot.randbytes(self._key_size), generator.randbytes(
         self._value_size)
     else:
-      bytes_ = generator.rand_bytes(self.element_size)
+      bytes_ = generator.randbytes(self.element_size)
       bytes_ = bytes_[:self._key_size], bytes_[self._key_size:]
     return bytes_
 
@@ -611,8 +601,7 @@ class SyntheticSDFAsSource(beam.DoFn):
       r = get_generator(algorithm=element.get('algorithm', None), seed=cur)
       time.sleep(element['sleep_per_input_record_sec'])
       yield (
-          r.rand_bytes(element['key_size']),
-          r.rand_bytes(element['value_size']))
+          r.randbytes(element['key_size']), r.randbytes(element['value_size']))
       cur += 1
 
 
@@ -631,8 +620,7 @@ class SideInputBarrier(beam.PTransform):
         pc
         | beam.Map(rotate_key)
         | beam.Map(
-            lambda elem,
-            ignored: elem,
+            lambda elem, ignored: elem,
             beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
 
 

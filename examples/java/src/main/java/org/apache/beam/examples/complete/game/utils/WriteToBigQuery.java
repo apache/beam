@@ -28,6 +28,7 @@ import java.util.Map;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -129,7 +130,8 @@ public class WriteToBigQuery<InputT> extends PTransform<PCollection<InputT>, PDo
                 .to(getTable(projectId, datasetId, tableName))
                 .withSchema(getSchema())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+                .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+                .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors()));
     return PDone.in(teamAndScore.getPipeline());
   }
 

@@ -27,9 +27,7 @@ for more information.)
 import argparse
 import io
 import logging
-from typing import Iterable
-from typing import List
-from typing import Tuple
+from collections.abc import Iterable
 
 import apache_beam as beam
 import tensorflow as tf
@@ -102,13 +100,13 @@ IMG_WIDTH = 128
 COLUMNS = ['dandelion', 'daisy', 'tulips', 'sunflowers', 'roses']
 
 
-def read_image(image_file_name: str) -> Tuple[str, bytes]:
+def read_image(image_file_name: str) -> tuple[str, bytes]:
   with FileSystems().open(image_file_name, 'r') as file:
     data = io.BytesIO(file.read()).getvalue()
     return image_file_name, data
 
 
-def preprocess_image(data: bytes) -> List[float]:
+def preprocess_image(data: bytes) -> list[float]:
   """Preprocess the image, resizing it and normalizing it before
   converting to a list.
   """
@@ -119,7 +117,7 @@ def preprocess_image(data: bytes) -> List[float]:
 
 
 class PostProcessor(beam.DoFn):
-  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
+  def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     img_name, prediction_result = element
     prediction_vals = prediction_result.inference
     index = prediction_vals.index(max(prediction_vals))

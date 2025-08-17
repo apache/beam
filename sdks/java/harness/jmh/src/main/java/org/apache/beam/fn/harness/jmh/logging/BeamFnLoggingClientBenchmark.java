@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
+import org.apache.beam.fn.harness.logging.LoggingClient;
+import org.apache.beam.fn.harness.logging.LoggingClientFactory;
 import org.apache.beam.fn.harness.logging.QuotaEvent;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
@@ -33,9 +35,9 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
@@ -80,7 +82,7 @@ public class BeamFnLoggingClientBenchmark {
   /** Setup a simple logging service and configure the {@link BeamFnLoggingClient}. */
   @State(Scope.Benchmark)
   public static class ManageLoggingClientAndService {
-    public final BeamFnLoggingClient loggingClient;
+    public final LoggingClient loggingClient;
     public final CallCountLoggingService loggingService;
     public final Server server;
 
@@ -98,7 +100,7 @@ public class BeamFnLoggingClientBenchmark {
                 .build();
         server.start();
         loggingClient =
-            BeamFnLoggingClient.createAndStart(
+            LoggingClientFactory.createAndStart(
                 PipelineOptionsFactory.create(),
                 apiServiceDescriptor,
                 managedChannelFactory::forDescriptor);

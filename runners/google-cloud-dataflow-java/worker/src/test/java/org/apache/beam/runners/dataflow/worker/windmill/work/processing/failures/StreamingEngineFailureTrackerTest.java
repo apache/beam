@@ -24,7 +24,7 @@ import com.google.api.services.dataflow.model.Status;
 import com.google.common.truth.Correspondence;
 import com.google.rpc.Code;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

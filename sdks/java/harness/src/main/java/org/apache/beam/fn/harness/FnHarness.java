@@ -29,7 +29,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -39,7 +38,8 @@ import org.apache.beam.fn.harness.control.HarnessMonitoringInfosInstructionHandl
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.debug.DataSampler;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
+import org.apache.beam.fn.harness.logging.LoggingClient;
+import org.apache.beam.fn.harness.logging.LoggingClientFactory;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.status.BeamFnStatusClient;
 import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
@@ -62,10 +62,12 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.util.UnboundedScheduledExecutorService;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -274,17 +276,24 @@ public class FnHarness {
 
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
-    ExecutorService executorService =
-        options.as(ExecutorOptions.class).getScheduledExecutorService();
+    UnboundedScheduledExecutorService executorService = new UnboundedScheduledExecutorService();
+    options.as(ExecutorOptions.class).setScheduledExecutorService(executorService);
+    CompletableFuture<Void> samplerTerminationFuture = new CompletableFuture<>();
     ExecutionStateSampler executionStateSampler =
-        new ExecutionStateSampler(options, System::currentTimeMillis);
+        new ExecutionStateSampler(
+            options,
+            System::currentTimeMillis,
+            message -> {
+              String errMsg = "FATAL ERROR: Timeout occurred! Exiting JVM. Details:" + message;
+              samplerTerminationFuture.completeExceptionally(new RuntimeException(errMsg));
+            });
 
     final @Nullable DataSampler dataSampler = DataSampler.create(options);
 
     // The logging client variable is not used per se, but during its lifetime (until close()) it
     // intercepts logging and sends it to the logging service.
-    try (BeamFnLoggingClient logging =
-        BeamFnLoggingClient.createAndStart(
+    try (LoggingClient logging =
+        LoggingClientFactory.createAndStart(
             options, loggingApiServiceDescriptor, channelFactory::forDescriptor)) {
       LOG.info("Fn Harness started");
       // Register standard file systems.
@@ -410,7 +419,13 @@ public class FnHarness {
               outboundObserverFactory,
               executorService,
               handlers);
-      CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
+      if (options.as(SdkHarnessOptions.class).getEnableLogViaFnApi()) {
+        CompletableFuture.anyOf(
+                control.terminationFuture(), logging.terminationFuture(), samplerTerminationFuture)
+            .get();
+      } else {
+        CompletableFuture.anyOf(control.terminationFuture(), samplerTerminationFuture).get();
+      }
       if (beamFnStatusClient != null) {
         beamFnStatusClient.close();
       }

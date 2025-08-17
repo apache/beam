@@ -24,6 +24,8 @@ import os
 import secrets
 import time
 import unittest
+from unittest.mock import Mock
+from unittest.mock import call
 
 import mock
 import pytest
@@ -39,6 +41,7 @@ from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
@@ -427,7 +430,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
-    job_reference.location = 'US'
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
 
@@ -448,8 +450,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         temp_file_format=bigquery_tools.FileFormat.JSON)
 
-    # Need to test this with the DirectRunner to avoid serializing mocks
-    with TestPipeline('DirectRunner') as p:
+    # Need to test this with the FnApiRunner to avoid serializing mocks
+    with TestPipeline('FnApiRunner') as p:
       outputs = p | beam.Create(_ELEMENTS) | transform
 
       dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
@@ -479,11 +481,48 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobs')
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_before_load(self, compat_version):
+    destination = 'project1:dataset1.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = bigquery_api.Job()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+
+    transform = bqfl.BigQueryBatchFileLoads(
+        destination,
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False,
+        temp_file_format=bigquery_tools.FileFormat.JSON)
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    # Need to test this with the DirectRunner to avoid serializing mocks
+    with TestPipeline('DirectRunner', options=options) as p:
+      _ = p | beam.Create(_ELEMENTS) | transform
+
+    reshuffle_before_load = compat_version is None
+    assert transform.reshuffle_before_load == reshuffle_before_load
+
   def test_load_job_id_used(self):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
     job_reference.jobId = 'job_name1'
-    job_reference.location = 'US'
 
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
@@ -505,7 +544,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         load_job_project_id='loadJobProject')
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = p | beam.Create(_ELEMENTS) | transform
       jobs = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS] \
              | "GetJobs" >> beam.Map(lambda x: x[1])
@@ -521,7 +563,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
     job_reference.jobId = 'job_name1'
-    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -536,7 +577,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Insert.return_value = result_job
     bq_client.tables.Delete.return_value = None
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = (
           p
           | beam.Create(_ELEMENTS, reshuffle=False)
@@ -577,12 +621,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_1.jobReference = bigquery_api.JobReference()
     job_1.jobReference.projectId = 'project1'
     job_1.jobReference.jobId = 'jobId1'
-    job_1.jobReference.location = 'US'
     job_2 = bigquery_api.Job()
     job_2.jobReference = bigquery_api.JobReference()
     job_2.jobReference.projectId = 'project1'
     job_2.jobReference.jobId = 'jobId2'
-    job_2.jobReference.location = 'US'
 
     job_1_waiting = mock.Mock()
     job_1_waiting.status.state = 'RUNNING'
@@ -622,12 +664,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_1.jobReference = bigquery_api.JobReference()
     job_1.jobReference.projectId = 'project1'
     job_1.jobReference.jobId = 'jobId1'
-    job_1.jobReference.location = 'US'
     job_2 = bigquery_api.Job()
     job_2.jobReference = bigquery_api.JobReference()
     job_2.jobReference.projectId = 'project1'
     job_2.jobReference.jobId = 'jobId2'
-    job_2.jobReference.location = 'US'
 
     job_1_waiting = mock.Mock()
     job_1_waiting.status.state = 'RUNNING'
@@ -664,7 +704,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
-    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -679,7 +718,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Insert.return_value = result_job
     bq_client.tables.Delete.return_value = None
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = (
           p
           | beam.Create(_ELEMENTS, reshuffle=False)
@@ -750,7 +792,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
-    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -782,18 +823,182 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     # TriggerCopyJob only processes once
     self.assertEqual(mock_call_process.call_count, 1)
 
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper.wait_for_bq_job')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._insert_copy_job')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._start_job',
+      wraps=BigQueryWrapper._start_job)
+  def test_multiple_identical_destinations_on_write_truncate(
+      self, mock_perform_start_job, mock_insert_copy_job, mock_wait_for_bq_job):
+    """
+    Test that multiple identical table names,
+     but under different datasets are handled correctly.
+    This essentially means that the `write_disposition` is set
+     to `WRITE_TRUNCATE` for the first job and `WRITE_APPEND` for the rest.
+
+    Previously this was not the case and all jobs were set to `WRITE_APPEND`
+     from the 2nd table that was named identically with at least
+     one previous table - but from different dataset.
+    """
+    def dynamic_destination_resolver(element, *side_inputs):
+      """A dynamic destination resolver that returns a destination strictly the
+       same table, but different dataset."""
+      if element['name'] == 'beam':
+        return 'project1:dataset1.table1'
+      elif element['name'] == 'flink':
+        return 'project1:dataset2.table1'
+
+      return 'project1:dataset3.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = mock.Mock()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+    bq_client.tables.Delete.return_value = None
+
+    m = bigquery_tools.BigQueryWrapper(bq_client)
+    m.wait_for_bq_job = mock.Mock()
+    m.wait_for_bq_job.return_value = None
+
+    mock_jobs = [
+        Mock(jobReference=bigquery_api.JobReference(jobId=f'job_name{i}'))
+        # Order matters in a sense to prove that jobs with different ids
+        #  (`2` & `3`) are run with `WRITE_APPEND` without this current fix.
+        for i in [1, 2, 1, 3, 1]
+    ]
+    mock_perform_start_job.side_effect = mock_jobs
+
+    # For now we don't care about the return value.
+    mock_insert_copy_job.return_value = None
+
+    # Pin to FnApiRunner for now to make mocks act appropriately.
+    # TODO(https://github.com/apache/beam/issues/34549)
+    with TestPipeline('FnApiRunner') as p:
+      _ = (
+          p
+          | beam.Create([
+              {
+                  'name': 'beam', 'language': 'java'
+              },
+              {
+                  'name': 'flink', 'language': 'java'
+              },
+              {
+                  'name': 'beam', 'language': 'java'
+              },
+              {
+                  'name': 'spark', 'language': 'java'
+              },
+              {
+                  'name': 'beam', 'language': 'java'
+              },
+          ],
+                        reshuffle=False)
+          | bqfl.BigQueryBatchFileLoads(
+              dynamic_destination_resolver,
+              custom_gcs_temp_location=self._new_tempdir(),
+              test_client=bq_client,
+              validate=False,
+              temp_file_format=bigquery_tools.FileFormat.JSON,
+              max_file_size=45,
+              max_partition_size=80,
+              max_files_per_partition=3,
+              write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
+
+    from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+    mock_insert_copy_job.assert_has_calls(
+        [
+            call(
+                'project1',
+                mock.ANY,
+                TableReference(
+                    datasetId='dataset1',
+                    projectId='project1',
+                    tableId='job_name1'),
+                TableReference(
+                    datasetId='dataset1',
+                    projectId='project1',
+                    tableId='table1'),
+                create_disposition=None,
+                write_disposition='WRITE_TRUNCATE',
+                job_labels={'step_name': 'bigquerybatchfileloads'}),
+            call(
+                'project1',
+                mock.ANY,
+                TableReference(
+                    datasetId='dataset1',
+                    projectId='project1',
+                    tableId='job_name2'),
+                TableReference(
+                    datasetId='dataset1',
+                    projectId='project1',
+                    tableId='table1'),
+                create_disposition=None,
+                write_disposition='WRITE_APPEND',
+                job_labels={'step_name': 'bigquerybatchfileloads'}),
+            call(
+                'project1',
+                mock.ANY,
+                TableReference(
+                    datasetId='dataset2',
+                    projectId='project1',
+                    tableId='job_name1'),
+                TableReference(
+                    datasetId='dataset2',
+                    projectId='project1',
+                    tableId='table1'),
+                create_disposition=None,
+                # Previously this was `WRITE_APPEND`.
+                write_disposition='WRITE_TRUNCATE',
+                job_labels={'step_name': 'bigquerybatchfileloads'}),
+            call(
+                'project1',
+                mock.ANY,
+                TableReference(
+                    datasetId='dataset3',
+                    projectId='project1',
+                    tableId='job_name3'),
+                TableReference(
+                    datasetId='dataset3',
+                    projectId='project1',
+                    tableId='table1'),
+                create_disposition=None,
+                # Previously this was `WRITE_APPEND`.
+                write_disposition='WRITE_TRUNCATE',
+                job_labels={'step_name': 'bigquerybatchfileloads'}),
+        ],
+        any_order=True)
+    self.assertEqual(4, mock_insert_copy_job.call_count)
+
   @parameterized.expand([
-      param(is_streaming=False, with_auto_sharding=False),
-      param(is_streaming=True, with_auto_sharding=False),
-      param(is_streaming=True, with_auto_sharding=True),
+      param(is_streaming=False, with_auto_sharding=False, compat_version=None),
+      param(is_streaming=True, with_auto_sharding=False, compat_version=None),
+      param(is_streaming=True, with_auto_sharding=True, compat_version=None),
+      param(
+          is_streaming=True, with_auto_sharding=False, compat_version="2.64.0"),
+      param(
+          is_streaming=True, with_auto_sharding=True, compat_version="2.64.0"),
   ])
-  def test_triggering_frequency(self, is_streaming, with_auto_sharding):
+  def test_triggering_frequency(
+      self, is_streaming, with_auto_sharding, compat_version):
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
-    job_reference.location = 'US'
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
 
@@ -830,19 +1035,21 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         with_auto_sharding=with_auto_sharding)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
-    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    test_options = PipelineOptions(
+        flags=['--allow_unsafe_triggers'],
+        update_compatibility_version=compat_version)
     test_options.view_as(StandardOptions).streaming = is_streaming
     with TestPipeline(runner='BundleBasedDirectRunner',
                       options=test_options) as p:
       if is_streaming:
         _SIZE = len(_ELEMENTS)
         fisrt_batch = [
-            TimestampedValue(value, start_time + i + 1) for i,
-            value in enumerate(_ELEMENTS[:_SIZE // 2])
+            TimestampedValue(value, start_time + i + 1)
+            for i, value in enumerate(_ELEMENTS[:_SIZE // 2])
         ]
         second_batch = [
-            TimestampedValue(value, start_time + _SIZE // 2 + i + 1) for i,
-            value in enumerate(_ELEMENTS[_SIZE // 2:])
+            TimestampedValue(value, start_time + _SIZE // 2 + i + 1)
+            for i, value in enumerate(_ELEMENTS[_SIZE // 2:])
         ]
         # Advance processing time between batches of input elements to fire the
         # user triggers. Intentionally advance the processing time twice for the
@@ -1041,12 +1248,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
       _ = (
           input | "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
-              table=lambda x,
-              tables:
+              table=lambda x, tables:
               (tables['table1'] if 'language' in x else tables['table2']),
               table_side_inputs=(table_record_pcv, ),
-              schema=lambda dest,
-              schema_map: schema_map.get(dest, None),
+              schema=lambda dest, schema_map: schema_map.get(dest, None),
               schema_side_inputs=(schema_map_pcv, ),
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
@@ -1055,8 +1260,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
           input | "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
               table=lambda x:
               (output_table_3 if 'language' in x else output_table_4),
-              schema=lambda dest,
-              schema_map: schema_map.get(dest, None),
+              schema=lambda dest, schema_map: schema_map.get(dest, None),
               schema_side_inputs=(schema_map_pcv, ),
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,

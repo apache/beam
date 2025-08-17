@@ -26,9 +26,8 @@ See also: PTransforms.with_resource_hints().
 """
 
 import re
+from collections.abc import Mapping
 from typing import Any
-from typing import Dict
-from typing import Mapping
 from typing import Optional
 
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -40,6 +39,7 @@ __all__ = [
     'AcceleratorHint',
     'MinRamHint',
     'CpuCountHint',
+    'MaxActiveBundlesPerWorkerHint',
     'merge_resource_hints',
     'parse_resource_hints',
     'resource_hints_from_options',
@@ -51,11 +51,11 @@ class ResourceHint:
   # A unique URN, one per Resource Hint class.
   urn: Optional[str] = None
 
-  _urn_to_known_hints: Dict[str, type] = {}
-  _name_to_known_hints: Dict[str, type] = {}
+  _urn_to_known_hints: dict[str, type] = {}
+  _name_to_known_hints: dict[str, type] = {}
 
   @classmethod
-  def parse(cls, value: str) -> Dict[str, bytes]:
+  def parse(cls, value: str) -> dict[str, bytes]:
     """Describes how to parse the hint.
     Override to specify a custom parsing logic."""
     assert cls.urn is not None
@@ -145,6 +145,10 @@ class ResourceHint:
   def _use_max(v1, v2):
     return str(max(int(v1), int(v2))).encode('ascii')
 
+  @staticmethod
+  def _use_sum(v1, v2):
+    return str(int(v1) + int(v2)).encode('ascii')
+
 
 class AcceleratorHint(ResourceHint):
   """Describes desired hardware accelerators in execution environment."""
@@ -159,7 +163,7 @@ class MinRamHint(ResourceHint):
   urn = resource_hints.MIN_RAM_BYTES.urn
 
   @classmethod
-  def parse(cls, value: str) -> Dict[str, bytes]:
+  def parse(cls, value: str) -> dict[str, bytes]:
     return {cls.urn: ResourceHint._parse_storage_size_str(value)}
 
   @classmethod
@@ -186,7 +190,31 @@ ResourceHint.register_resource_hint('cpu_count', CpuCountHint)
 ResourceHint.register_resource_hint('cpuCount', CpuCountHint)
 
 
-def parse_resource_hints(hints: Dict[Any, Any]) -> Dict[str, bytes]:
+class MaxActiveBundlesPerWorkerHint(ResourceHint):
+  """
+  Describes max active bundles processed in parallel
+  in transform's execution environment.
+  """
+  urn = resource_hints.MAX_ACTIVE_BUNDLES_PER_WORKER.urn
+
+  @classmethod
+  def get_merged_value(cls, outer_value: bytes, inner_value: bytes) -> bytes:
+    return ResourceHint._use_sum(outer_value, inner_value)
+
+
+ResourceHint.register_resource_hint(
+    'max_active_bundles_per_worker', MaxActiveBundlesPerWorkerHint)
+# Alias for interoperability with SDKs preferring camelCase.
+ResourceHint.register_resource_hint(
+    'MaxActiveBundlesPerWorker', MaxActiveBundlesPerWorkerHint)
+# Alias for common typo.
+ResourceHint.register_resource_hint(
+    'max_active_bundle_per_worker', MaxActiveBundlesPerWorkerHint)
+ResourceHint.register_resource_hint(
+    'MaxActiveBundlePerWorker', MaxActiveBundlesPerWorkerHint)
+
+
+def parse_resource_hints(hints: dict[Any, Any]) -> dict[str, bytes]:
   parsed_hints = {}
   for hint, value in hints.items():
     try:
@@ -202,11 +230,15 @@ def parse_resource_hints(hints: Dict[Any, Any]) -> Dict[str, bytes]:
 
 
 def resource_hints_from_options(
-    options: Optional[PipelineOptions]) -> Dict[str, bytes]:
+    options: Optional[PipelineOptions]) -> dict[str, bytes]:
   if options is None:
     return {}
   hints = {}
   option_specified_hints = options.view_as(StandardOptions).resource_hints
+
+  if isinstance(option_specified_hints, dict):
+    return parse_resource_hints(option_specified_hints)
+
   for hint in option_specified_hints:
     if '=' in hint:
       k, v = hint.split('=', maxsplit=1)
@@ -219,7 +251,7 @@ def resource_hints_from_options(
 
 def merge_resource_hints(
     outer_hints: Mapping[str, bytes],
-    inner_hints: Mapping[str, bytes]) -> Dict[str, bytes]:
+    inner_hints: Mapping[str, bytes]) -> dict[str, bytes]:
   merged_hints = dict(inner_hints)
   for urn, outer_value in outer_hints.items():
     if urn in inner_hints:

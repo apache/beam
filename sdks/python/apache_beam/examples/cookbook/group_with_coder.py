@@ -30,7 +30,6 @@ and score.
 import argparse
 import logging
 import sys
-import typing
 
 import apache_beam as beam
 from apache_beam import coders
@@ -71,7 +70,7 @@ class PlayerCoder(coders.Coder):
 # Annotate the get_players function so that the typehint system knows that the
 # input to the CombinePerKey operation is a key-value pair of a Player object
 # and an integer.
-@with_output_types(typing.Tuple[Player, int])
+@with_output_types(tuple[Player, int])
 def get_players(descriptor):
   name, points = descriptor.split(',')
   return Player(name), int(points)

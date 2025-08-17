@@ -45,8 +45,6 @@ import sys
 import traceback
 from io import StringIO
 from typing import Any
-from typing import Dict
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -146,7 +144,7 @@ class _InMemoryResultRecorder(object):
   """
 
   # Class-level value to survive pickling.
-  _ALL_RESULTS = {}  # type: Dict[str, List[Any]]
+  _ALL_RESULTS: dict[str, list[Any]] = {}
 
   def __init__(self):
     self._id = id(self)
@@ -190,8 +188,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
     session = expressions.PartitioningSession(self._env._inputs)
     return {
         name: session.evaluate(frame._expr)
-        for name,
-        frame in to_compute.items()
+        for name, frame in to_compute.items()
     }
 
   def compute_using_beam(self, to_compute):
@@ -200,13 +197,13 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         input_pcolls = {
             placeholder: p
             | 'Create%s' % placeholder >> beam.Create([input[::2], input[1::2]])
-            for placeholder,
-            input in self._env._inputs.items()
+            for placeholder, input in self._env._inputs.items()
         }
         output_pcolls = (
-            input_pcolls | transforms._DataframeExpressionsTransform(
-                {name: frame._expr
-                 for name, frame in to_compute.items()}))
+            input_pcolls | transforms._DataframeExpressionsTransform({
+                name: frame._expr
+                for name, frame in to_compute.items()
+            }))
         for name, output_pcoll in output_pcolls.items():
           _ = output_pcoll | 'Record%s' % name >> beam.FlatMap(
               recorder.record_fn(name))
@@ -290,6 +287,12 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         want = sort_and_normalize(want)
       except Exception:
         got = traceback.format_exc()
+
+    if 'NumpyExtensionArray' in got:
+      # Work around formatting differences (np.int32(1) vs 1).
+      got = re.sub('np.(int32|str_)[(]([^()]+)[)]', r'\2', got)
+      got = re.sub('np.complex128[(]([^()]+)[)]', r'(\1)', got)
+
     return want, got
 
   @property
@@ -361,18 +364,15 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
     self._wont_implement_ok = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (wont_implement_ok or {}).items()
+        for test, examples in (wont_implement_ok or {}).items()
     }
     self._not_implemented_ok = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (not_implemented_ok or {}).items()
+        for test, examples in (not_implemented_ok or {}).items()
     }
     self._skip = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (skip or {}).items()
+        for test, examples in (skip or {}).items()
     }
     super().__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
@@ -537,9 +537,9 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
   IMPORT_PANDAS = 'import pandas as pd'
 
   example_srcs = []
-  lines = iter([(lineno, line.rstrip()) for lineno,
-                line in enumerate(rst.split('\n')) if is_example_line(line)] +
-               [(None, 'END')])
+  lines = iter([(lineno, line.rstrip())
+                for lineno, line in enumerate(rst.split('\n'))
+                if is_example_line(line)] + [(None, 'END')])
 
   # https://ipython.readthedocs.io/en/stable/sphinxext.html
   lineno, line = next(lines)
@@ -692,12 +692,8 @@ def _run_patched(func, *args, **kwargs):
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
-        env,
-        use_beam=use_beam,
-        wont_implement_ok=wont_implement_ok,
-        not_implemented_ok=not_implemented_ok,
-        skip=skip,
-        **kwargs)
+        env, use_beam=use_beam, wont_implement_ok=wont_implement_ok,
+        not_implemented_ok=not_implemented_ok, skip=skip, **kwargs)
     with expressions.allow_non_parallel_operations():
       return func(
           *args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
@@ -729,15 +725,15 @@ def with_run_patched_docstring(target=None):
 
     Args:
       optionflags (int): Passed through to doctests.
-      extraglobs (Dict[str,Any]): Passed through to doctests.
+      extraglobs (dict[str,Any]): Passed through to doctests.
       use_beam (bool): If true, run a Beam pipeline with partitioned input to
         verify the examples, else use PartitioningSession to simulate
         distributed execution.
-      skip (Dict[str,str]): A set of examples to skip entirely.
+      skip (dict[str,str]): A set of examples to skip entirely.
         If a key is '*', an example will be skipped in all test scenarios.
-      wont_implement_ok (Dict[str,str]): A set of examples that are allowed to
+      wont_implement_ok (dict[str,str]): A set of examples that are allowed to
         raise WontImplementError.
-      not_implemented_ok (Dict[str,str]): A set of examples that are allowed to
+      not_implemented_ok (dict[str,str]): A set of examples that are allowed to
         raise NotImplementedError.
 
     Returns:

@@ -19,28 +19,44 @@ package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.Base2Exponent;
 import com.google.api.services.dataflow.model.BucketOptions;
+import com.google.api.services.dataflow.model.DataflowGaugeValue;
 import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.api.services.dataflow.model.Linear;
 import com.google.api.services.dataflow.model.MetricValue;
 import com.google.api.services.dataflow.model.OutlierStats;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Converts metric updates to {@link PerStepNamespaceMetrics} protos. Currently we only support
- * converting metrics from {@link BigQuerySinkMetrics} with this converter.
+ * converting metrics from {@link BigQuerySinkMetrics} and from {@link KafkaSinkMetrics} with this
+ * converter.
  */
 public class MetricsToPerStepNamespaceMetricsConverter {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(MetricsToPerStepNamespaceMetricsConverter.class);
+
+  // Avoids to introduce mandatory kafka-io dependency to Dataflow worker
+  // keep in sync with org.apache.beam.sdk.io.kafka.KafkaSinkMetrics.METRICS_NAMESPACE
+  public static String KAFKA_SINK_METRICS_NAMESPACE = "KafkaSink";
+  private static String[] SUPPORTED_NAMESPACES = {
+    KAFKA_SINK_METRICS_NAMESPACE, BigQuerySinkMetrics.METRICS_NAMESPACE
+  };
 
   private static Optional<LabeledMetricNameUtils.ParsedMetricName> getParsedMetricName(
       MetricName metricName,
@@ -56,16 +72,34 @@ public class MetricsToPerStepNamespaceMetricsConverter {
   }
 
   /**
+   * @param metricName The {@link MetricName} that represents this metric.
+   * @return boolean If the metric is from a supported namespace.
+   */
+  private static boolean isNameSpaceSupported(MetricName metricName) {
+    boolean isValidNameSpace =
+        Stream.of(SUPPORTED_NAMESPACES).anyMatch(x -> x.equals(metricName.getNamespace()));
+    if (!isValidNameSpace) {
+      LOG.warn(
+          "Dropping metric {} since {} is not one of the supported namespaces: {}",
+          metricName,
+          metricName.getNamespace(),
+          Arrays.toString(SUPPORTED_NAMESPACES));
+    }
+    return isValidNameSpace;
+  }
+
+  /**
    * @param metricName The {@link MetricName} that represents this counter.
    * @param value The counter value.
    * @return If the conversion succeeds, {@code MetricValue} that represents this counter. Otherwise
-   *     returns an empty optional
+   *     return an empty optional
    */
   private static Optional<MetricValue> convertCounterToMetricValue(
       MetricName metricName,
       Long value,
       Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
-    if (value == 0 || !metricName.getNamespace().equals(BigQuerySinkMetrics.METRICS_NAMESPACE)) {
+
+    if (value == 0) {
       return Optional.empty();
     }
 
@@ -77,6 +111,33 @@ public class MetricsToPerStepNamespaceMetricsConverter {
                     .setMetric(labeledName.getBaseName())
                     .setMetricLabels(labeledName.getMetricLabels())
                     .setValueInt64(value));
+  }
+
+  /**
+   * @param metricName The {@link MetricName} that represents this counter.
+   * @param value The counter value.
+   * @return If the conversion succeeds, {@code MetricValue} that represents this counter. Otherwise
+   *     returns an empty optional
+   */
+  private static Optional<MetricValue> convertGaugeToMetricValue(
+      MetricName metricName,
+      Long value,
+      Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
+
+    Optional<LabeledMetricNameUtils.ParsedMetricName> labeledName =
+        getParsedMetricName(metricName, parsedPerWorkerMetricsCache);
+    if (!labeledName.isPresent() || labeledName.get().getBaseName().isEmpty()) {
+      return Optional.empty();
+    }
+
+    DataflowGaugeValue gauge_value = new DataflowGaugeValue();
+    gauge_value.setValue(value);
+
+    return Optional.of(
+        new MetricValue()
+            .setMetric(labeledName.get().getBaseName())
+            .setMetricLabels(labeledName.get().getMetricLabels())
+            .setValueGauge64(gauge_value));
   }
 
   /**
@@ -189,12 +250,18 @@ public class MetricsToPerStepNamespaceMetricsConverter {
   public static Collection<PerStepNamespaceMetrics> convert(
       String stepName,
       Map<MetricName, Long> counters,
+      Map<MetricName, Long> gauges,
       Map<MetricName, LockFreeHistogram.Snapshot> histograms,
       Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
 
     Map<String, PerStepNamespaceMetrics> metricsByNamespace = new HashMap<>();
     for (Entry<MetricName, Long> entry : counters.entrySet()) {
       MetricName metricName = entry.getKey();
+
+      boolean validNameSpace = isNameSpaceSupported(metricName);
+      if (!validNameSpace) {
+        continue;
+      }
 
       Optional<MetricValue> metricValue =
           convertCounterToMetricValue(metricName, entry.getValue(), parsedPerWorkerMetricsCache);
@@ -218,6 +285,11 @@ public class MetricsToPerStepNamespaceMetricsConverter {
 
     for (Entry<MetricName, LockFreeHistogram.Snapshot> entry : histograms.entrySet()) {
       MetricName metricName = entry.getKey();
+
+      boolean validNameSpace = isNameSpaceSupported(metricName);
+      if (!validNameSpace) {
+        continue;
+      }
       Optional<MetricValue> metricValue =
           convertHistogramToMetricValue(metricName, entry.getValue(), parsedPerWorkerMetricsCache);
       if (!metricValue.isPresent()) {
@@ -238,6 +310,32 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       stepNamespaceMetrics.getMetricValues().add(metricValue.get());
     }
 
+    for (Entry<MetricName, Long> entry : gauges.entrySet()) {
+      MetricName metricName = entry.getKey();
+
+      boolean validNameSpace = isNameSpaceSupported(metricName);
+      if (!validNameSpace) {
+        continue;
+      }
+
+      Optional<MetricValue> metricValue =
+          convertGaugeToMetricValue(metricName, entry.getValue(), parsedPerWorkerMetricsCache);
+      if (!metricValue.isPresent()) {
+        continue;
+      }
+
+      PerStepNamespaceMetrics stepNamespaceMetrics =
+          metricsByNamespace.get(metricName.getNamespace());
+      if (stepNamespaceMetrics == null) {
+        stepNamespaceMetrics =
+            new PerStepNamespaceMetrics()
+                .setMetricValues(new ArrayList<>())
+                .setOriginalStep(stepName)
+                .setMetricsNamespace(metricName.getNamespace());
+        metricsByNamespace.put(metricName.getNamespace(), stepNamespaceMetrics);
+      }
+      stepNamespaceMetrics.getMetricValues().add(metricValue.get());
+    }
     return metricsByNamespace.values();
   }
 }

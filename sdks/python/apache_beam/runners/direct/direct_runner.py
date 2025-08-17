@@ -52,6 +52,7 @@ from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.typehints import trivial_inference
+from apache_beam.utils.interactive_utils import is_in_ipython
 
 __all__ = ['BundleBasedDirectRunner', 'DirectRunner', 'SwitchingDirectRunner']
 
@@ -66,8 +67,13 @@ class SwitchingDirectRunner(PipelineRunner):
   which supports streaming execution and certain primitives not yet
   implemented in the FnApiRunner.
   """
+  _is_interactive = False
+
   def is_fnapi_compatible(self):
     return BundleBasedDirectRunner.is_fnapi_compatible()
+
+  def is_interactive(self):
+    self._is_interactive = True
 
   def run_pipeline(self, pipeline, options):
 
@@ -110,6 +116,118 @@ class SwitchingDirectRunner(PipelineRunner):
               if timer.time_domain == TimeDomain.REAL_TIME:
                 self.supported_by_fnapi_runner = False
 
+    class _PrismRunnerSupportVisitor(PipelineVisitor):
+      """Visitor determining if a Pipeline can be run on the PrismRunner."""
+      def accept(self, pipeline, is_interactive):
+        all_options = options.get_all_options()
+        self.supported_by_prism_runner = True
+        # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+        # double fires on AfterCount trigger, once appropriately, and once
+        # incorrectly at the end of the window. This if condition could be
+        # more targeted, but for now we'll just ignore all unsafe triggers.
+        if pipeline.allow_unsafe_triggers:
+          self.supported_by_prism_runner = False
+        # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+        # does not support interactive mode
+        elif is_in_ipython() or is_interactive:
+          self.supported_by_prism_runner = False
+        # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+        # does not support the update compat flag
+        elif all_options['update_compatibility_version']:
+          self.supported_by_prism_runner = False
+        else:
+          pipeline.visit(self)
+        return self.supported_by_prism_runner
+
+      def visit_transform(self, applied_ptransform):
+        transform = applied_ptransform.transform
+        # Python SDK assumes the direct runner TestStream implementation is
+        # being used.
+        if isinstance(transform, TestStream):
+          self.supported_by_prism_runner = False
+        if isinstance(transform, beam.ExternalTransform):
+          # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+          # seems to not be able to consistently bring up external transforms.
+          # It does sometimes, but at volume suites start to fail. We will try
+          # to enable this in a future release.
+          self.supported_by_prism_runner = False
+        if isinstance(transform, beam.ParDo):
+          dofn = transform.dofn
+          # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+          # does not seem to handle DoFns using exception handling very well.
+          # This may be limited just to subprocess DoFns, but more
+          # investigation is needed before making it default
+          if isinstance(dofn,
+                        beam.transforms.core._ExceptionHandlingWrapperDoFn):
+            self.supported_by_prism_runner = False
+          # https://github.com/apache/beam/issues/34549
+          # Remote once we can support local materialization
+          if (hasattr(dofn, 'is_materialize_values_do_fn') and
+              dofn.is_materialize_values_do_fn):
+            self.supported_by_prism_runner = False
+          # It's uncertain if the Prism Runner supports execution of CombineFns
+          # with deferred side inputs.
+          if isinstance(dofn, CombineValuesDoFn):
+            args, kwargs = transform.raw_side_inputs
+            args_to_check = itertools.chain(args, kwargs.values())
+            if any(isinstance(arg, ArgumentPlaceholder)
+                   for arg in args_to_check):
+              self.supported_by_prism_runner = False
+          if userstate.is_stateful_dofn(dofn):
+            # https://github.com/apache/beam/issues/32786 -
+            # Remove once Real time clock is used.
+            state_specs, timer_specs = userstate.get_dofn_specs(dofn)
+            for timer in timer_specs:
+              if timer.time_domain == TimeDomain.REAL_TIME:
+                self.supported_by_prism_runner = False
+
+            for state in state_specs:
+              if isinstance(state, userstate.CombiningValueStateSpec):
+                self.supported_by_prism_runner = False
+          if isinstance(
+              dofn,
+              beam.transforms.combiners._PartialGroupByKeyCombiningValues):
+            if len(transform.side_inputs) > 0:
+              # Prism doesn't support side input combiners (this is within spec)
+              self.supported_by_prism_runner = False
+
+        # TODO(https://github.com/apache/beam/issues/33623): Prism seems to
+        # not handle session windows correctly. Examples are:
+        # util_test.py::ReshuffleTest::test_reshuffle_window_fn_preserved
+        # and util_test.py::ReshuffleTest::test_reshuffle_windows_unchanged
+        if isinstance(transform, beam.WindowInto) and isinstance(
+            transform.get_windowing('').windowfn, beam.window.Sessions):
+          self.supported_by_prism_runner = False
+
+    # Use BundleBasedDirectRunner if other runners are missing needed features.
+    runner = BundleBasedDirectRunner()
+
+    # Check whether all transforms used in the pipeline are supported by the
+    # PrismRunner
+    if _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
+      _LOGGER.info('Running pipeline with PrismRunner.')
+      from apache_beam.runners.portability import prism_runner
+      runner = prism_runner.PrismRunner()
+
+      try:
+        pr = runner.run_pipeline(pipeline, options)
+        # This is non-blocking, so if the state is *already* finished, something
+        # probably failed on job submission.
+        if (PipelineState.is_terminal(pr.state) and
+            pr.state != PipelineState.DONE):
+          _LOGGER.info(
+              'Pipeline failed on PrismRunner, falling back to DirectRunner.')
+          runner = BundleBasedDirectRunner()
+        else:
+          return pr
+      except Exception as e:
+        # If prism fails in Preparing the portable job, then the PortableRunner
+        # code raises an exception. Catch it, log it, and use the Direct runner
+        # instead.
+        _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
+        _LOGGER.info('Falling back to DirectRunner')
+        runner = BundleBasedDirectRunner()
+
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
@@ -122,8 +240,6 @@ class SwitchingDirectRunner(PipelineRunner):
           beam_provision_api_pb2.ProvisionInfo(
               pipeline_options=encoded_options))
       runner = fn_runner.FnApiRunner(provision_info=provision_info)
-    else:
-      runner = BundleBasedDirectRunner()
 
     return runner.run_pipeline(pipeline, options)
 
@@ -281,7 +397,7 @@ def _get_transform_overrides(pipeline_options):
 
   # Importing following locally to avoid a circular dependency.
   from apache_beam.pipeline import PTransformOverride
-  from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
+  from apache_beam.transforms.combiners import LiftedCombinePerKey
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
   from apache_beam.runners.direct.sdf_direct_runner import SplittableParDoOverride
 
@@ -516,7 +632,9 @@ class BundleBasedDirectRunner(PipelineRunner):
         if isinstance(applied_ptransform.transform, ExternalTransform):
           raise RuntimeError(
               "Streaming Python direct runner "
-              "does not support cross-language pipelines.")
+              "does not support cross-language pipelines."
+              "Please use other runners such as FlinkRunner, "
+              "DataflowRunner, or PrismRunner.")
 
     pipeline.visit(VerifyNoCrossLanguageTransforms())
 

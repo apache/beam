@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
+import org.apache.beam.sdk.io.iceberg.IcebergCdcReadSchemaTransformProvider.IcebergCdcReadSchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -45,6 +46,19 @@ public class IcebergSchemaTransformTranslation {
     }
   }
 
+  static class IcebergCdcReadSchemaTransformTranslator
+      extends SchemaTransformPayloadTranslator<IcebergCdcReadSchemaTransform> {
+    @Override
+    public SchemaTransformProvider provider() {
+      return new IcebergCdcReadSchemaTransformProvider();
+    }
+
+    @Override
+    public Row toConfigRow(IcebergCdcReadSchemaTransform transform) {
+      return transform.getConfigurationRow();
+    }
+  }
+
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class ReadRegistrar implements TransformPayloadTranslatorRegistrar {
     @Override
@@ -55,6 +69,7 @@ public class IcebergSchemaTransformTranslation {
         getTransformPayloadTranslators() {
       return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
           .put(IcebergReadSchemaTransform.class, new IcebergReadSchemaTransformTranslator())
+          .put(IcebergCdcReadSchemaTransform.class, new IcebergCdcReadSchemaTransformTranslator())
           .build();
     }
   }

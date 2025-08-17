@@ -35,7 +35,7 @@ programming guide, take a look at the
 {{< language-switcher java py go typescript yaml >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 3.8, 3.9, 3.10, and 3.11.
+The Python SDK supports Python 3.8, 3.9, 3.10, 3.11, and 3.12.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
@@ -1887,7 +1887,7 @@ PCollection<Integer> sum = pc.apply(
 # The resulting PCollection, called result, contains one value: the sum of all
 # the elements in the input PCollection.
 pc = ...
-{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_execute >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" global_sum >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -2024,7 +2024,7 @@ playerAccuracies := ... // PCollection<string,int>
 #### 4.2.5. Flatten {#flatten}
 
 <span class="language-java">[`Flatten`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span>
-<span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span>
+<span class="language-py">[`Flatten`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten)</span>
 <span class="language-go">[`Flatten`](https://github.com/apache/beam/blob/master/sdks/go/pkg/beam/flatten.go)</span>
 <span class="language-typescript">`Flatten`</span>
 is a Beam transform for `PCollection` objects that store the same data type.
@@ -2045,11 +2045,47 @@ PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< /highlight >}}
 
+{{< paragraph class="language-java" >}}
+One can also use the [`FlattenWith`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/Flatten.html)
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.
+{{< /paragraph >}}
+
+{{< highlight java >}}
+PCollection<String> merged = pc1
+    .apply(...)
+    // Merges the elements of pc2 in at this point...
+    .apply(FlattenWith.of(pc2))
+    .apply(...)
+    // and the elements of pc3 at this point.
+    .apply(FlattenWith.of(pc3))
+    .apply(...);
+{{< /highlight >}}
+
 
 {{< highlight py >}}
 # Flatten takes a tuple of PCollection objects.
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+One can also use the [`FlattenWith`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlattenWith)
+transform to merge PCollections into an output PCollection in a manner more compatible with chaining.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-py" >}}
+`FlattenWith` can take root `PCollection`-producing transforms
+(such as `Create` and `Read`) as well as already constructed PCollections,
+and will apply them and flatten their outputs into the resulting output
+PCollection.
+{{< /paragraph >}}
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten_with_transform >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -6173,7 +6209,7 @@ class MyDoFn(beam.DoFn):
     self.gauge = metrics.Metrics.gauge("namespace", "gauge1")
 
   def process(self, element):
-    self.gaguge.set(element)
+    self.gauge.set(element)
     yield element
 {{< /highlight >}}
 
@@ -6508,6 +6544,106 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" bag_state >}}
 {{< /highlight >}}
 
+#### SetState
+
+A common use case for state is to accumulate unique elements. `SetState` allows for accumulating an unordered set
+of elements.
+
+{{< highlight java >}}
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<SetState<ValueT>> uniqueElements = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @Element KV<String, ValueT> element,
+    @StateId("state") SetState<ValueT> state) {
+    // Add the current element to the set state for this key.
+    state.add(element.getValue());
+    if (shouldFetch()) {
+      // Occasionally we fetch and process the values.
+      Iterable<ValueT> values = state.read();
+      processValues(values);
+      state.clear();  // Clear the state for this key.
+    }
+  }
+}));
+{{< /highlight >}}
+{{< highlight py >}}
+class SetStateDoFn(DoFn):
+  UNIQUE_ELEMENTS = SetStateSpec('buffer', coders.VarIntCoder())
+
+  def process(self, element_pair, state=DoFn.StateParam(UNIQUE_ELEMENTS)):
+    state.add(element_pair[1])
+    if should_fetch():
+      unique_elements = list(state.read())
+      process_values(unique_elements)
+      state.clear()
+
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'Set state pardo' >> beam.ParDo(SetStateDoFn()))
+{{< /highlight >}}
+
+#### OrderListState
+
+`OrderListState` state that accumulate elements in an ordered List.
+
+{{< highlight java >}}
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<OrderedListState<ValueT>> uniqueElements = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @Element KV<String, ValueT> element,
+    @StateId("state") SetState<ValueT> state) {
+    // Add the current element to the set state for this key.
+    state.add(element.getValue());
+    if (shouldFetch()) {
+      // Occasionally we fetch and process the values.
+      Iterable<ValueT> values = state.read();
+      processValues(values);
+      state.clear();  // Clear the state for this key.
+    }
+  }
+}));
+{{< /highlight >}}
+{{< highlight py >}}
+class OrderedListStateDoFn(DoFn):
+  STATE_ELEMENTS = OrderedListStateSpec('buffer', coders.ListCoder())
+
+  def process(self, element_pair, state=DoFn.StateParam(STATE_ELEMENTS)):
+    state.add(element_pair[1])
+    if should_fetch():
+      elements = list(state.read())
+      process_values(elements)
+      state.clear()
+
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'Set state pardo' >> beam.ParDo(OrderedListStateDoFn()))
+{{< /highlight >}}
+
+#### MultimapState {#multimap-state}
+`MultimapState` allow one key mapped to different values but the key value could be unordered.
+
+{{< highlight java >}}
+
+  @StateId(stateId)
+  private final StateSpec<MultimapState<String, Integer>> multimapState =
+      StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+  @ProcessElement
+  public void processElement(
+      ProcessContext c,
+      @Element KV<String, KV<String, Integer>> element,
+      @StateId(stateId) MultimapState<String, Integer> state,
+      @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+      OutputReceiver<KV<String, Integer>> r) {
+    ReadableState<Boolean> isEmptyView = state.isEmpty();
+    boolean isEmpty = state.isEmpty().read();
+
+    KV<String, Integer> value = element.getValue();
+    state.put(value.getKey(), value.getValue());
+  }
+{{< /highlight >}}
 ### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
@@ -6857,6 +6993,69 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_good >}}
+{{< /highlight >}}
+
+
+#### 11.3.5 Timer Callback Parameters {#timer-callback-parameters}
+The following parameters are provided for the timer callback methods which could be used for debuging.
+
+1. Window: This can provide the window object to access the window start and end time.
+2. Timestamp: This can provide the timestamp at which the timer was set to fire.
+3. Key: The key was associated with the element.
+
+{{< highlight java >}}
+
+
+@OnTimer(END_OF_WINDOW_ID)
+public void onWindowTimer(
+        OutputReceiver<KV<K, Iterable<InputT>>> receiver,
+        @Timestamp Instant timestamp,
+        @Key K key,
+        @StateId(BATCH_ID) BagState<InputT> batch,
+        BoundedWindow window) {
+
+      // You can write your debug code here.
+      LOG.debug(
+          "*** END OF WINDOW *** for key {} and timer timestamp {} in windows {}",
+          key.toString(),
+          timestamp.toString(),
+          window.toString());
+}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class TimerDoFn(DoFn):
+  BAG_STATE = BagStateSpec('buffer', coders.VarIntCoder())
+  TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
+
+  def process(self,
+              element_pair,
+              bag_state=DoFn.StateParam(BAG_STATE),
+              timer=DoFn.TimerParam(TIMER)):
+    ...
+
+  @on_timer(TIMER)
+  def expiry_callback(self,
+                      bag_state=DoFn.StateParam(BAG_STATE),
+                      window=DoFn.WindowParam,
+                      timestamp=DoFn.TimestampParam,
+                      key=DoFn.KeyParam):
+    # You can potentlly print these parameter to get more information for debugging.
+    bag_state.clear()
+    log.info(f"Key: {key}, timestamp: {timestamp}, window: {window}")
+    yield (timer_tag, 'fired')
+
+{{< /highlight >}}
+{{< highlight go >}}
+
+func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key, word string, _ func(beam.EventTime, string, string)) error {
+	s.ElementBag.Add(sp, word)
+	s.MinTime.Add(sp, int64(ts))
+  // Process the element here.
+}
+func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(beam.EventTime, string, string)) {
+	log.Infof(ctx, "Timer fired for key %q, for family %q and tag %q", key, timer.Family, timer.Tag)
+}
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}

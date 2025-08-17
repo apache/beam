@@ -93,7 +93,7 @@ from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
-from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
+from apache_beam.typehints.native_type_compatibility import convert_to_python_type
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
@@ -142,23 +142,36 @@ def named_fields_to_schema(
     schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
     field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
     schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY,
+    field_descriptions: Optional[Dict[str, str]] = None,
 ):
   schema_options = schema_options or []
   field_options = field_options or {}
+  field_descriptions = field_descriptions or {}
 
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
+
+  _, cached_schema = schema_registry.by_id.get(schema_id, (None, None))
+  if cached_schema:
+    type_by_name_from_schema = {
+        field.name: field.type
+        for field in cached_schema.fields
+    }
+  else:
+    type_by_name_from_schema = {}
 
   schema = schema_pb2.Schema(
       fields=[
           schema_pb2.Field(
               name=name,
-              type=typing_to_runner_api(type),
+              type=type_by_name_from_schema.get(
+                  name, typing_to_runner_api(type)),
               options=[
                   option_to_runner_api(option_tuple)
                   for option_tuple in field_options.get(name, [])
               ],
-          ) for (name, type) in names_and_types
+              description=field_descriptions.get(name, None))
+          for (name, type) in names_and_types
       ],
       options=[
           option_to_runner_api(option_tuple) for option_tuple in schema_options
@@ -274,6 +287,7 @@ class SchemaTranslation(object):
                         self.option_to_runner_api(option_tuple)
                         for option_tuple in type_.field_options(field_name)
                     ],
+                    description=type_._field_descriptions.get(field_name, None),
                 ) for (field_name, field_type) in type_._fields
             ],
             id=schema_id,
@@ -292,7 +306,7 @@ class SchemaTranslation(object):
         return self.typing_to_runner_api(row_type_constraint)
 
     if isinstance(type_, typehints.TypeConstraint):
-      type_ = convert_to_typing_type(type_)
+      type_ = convert_to_python_type(type_)
 
     # All concrete types (other than NamedTuple sub-classes) should map to
     # a supported primitive type.
@@ -334,7 +348,10 @@ class SchemaTranslation(object):
           array_type=schema_pb2.ArrayType(element_type=element_type))
 
     try:
-      logical_type = LogicalType.from_typing(type_)
+      if LogicalType.is_known_logical_type(type_):
+        logical_type = type_
+      else:
+        logical_type = LogicalType.from_typing(type_)
     except ValueError:
       # Unknown type, just treat it like Any
       return schema_pb2.FieldType(
@@ -512,13 +529,17 @@ class SchemaTranslation(object):
         # generate a NamedTuple type to use.
 
         fields = named_fields_from_schema(schema)
+        descriptions = {
+            field.name: field.description
+            for field in schema.fields
+        }
         result = row_type.RowTypeConstraint.from_fields(
             fields=fields,
             schema_id=schema.id,
             schema_options=schema_options,
             field_options=field_options,
             schema_registry=self.schema_registry,
-        )
+            field_descriptions=descriptions or None)
         return result
       else:
         return row_type.RowTypeConstraint.from_user_type(
@@ -532,6 +553,10 @@ class SchemaTranslation(object):
       else:
         return LogicalType.from_runner_api(
             fieldtype_proto.logical_type).language_type()
+
+    elif type_info == "iterable_type":
+      return Sequence[self.typing_from_runner_api(
+          fieldtype_proto.iterable_type.element_type)]
 
     else:
       raise ValueError(f"Unrecognized type_info: {type_info!r}")
@@ -604,6 +629,13 @@ def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
   if isinstance(element_type, row_type.RowTypeConstraint):
     return named_fields_to_schema(element_type._fields)
   elif match_is_named_tuple(element_type):
+    if hasattr(element_type, row_type._BEAM_SCHEMA_ID):
+      # if the named tuple's schema is in registry, we just use it instead of
+      # regenerating one.
+      schema_id = getattr(element_type, row_type._BEAM_SCHEMA_ID)
+      schema = SCHEMA_REGISTRY.get_schema_by_id(schema_id)
+      if schema is not None:
+        return schema
     return named_tuple_to_schema(element_type)
   else:
     raise TypeError(
@@ -660,7 +692,7 @@ class LogicalTypeRegistry(object):
   def get_logical_type_by_urn(self, urn):
     return self.by_urn.get(urn, None)
 
-  def get_urn_by_logial_type(self, logical_type):
+  def get_urn_by_logical_type(self, logical_type):
     return self.by_logical_type.get(logical_type, None)
 
   def get_logical_type_by_language_type(self, representation_type):
@@ -798,6 +830,11 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
             logical_type_proto.urn)
         return logical_type()
       return logical_type(argument)
+
+  @classmethod
+  def is_known_logical_type(cls, logical_type):
+    return cls._known_logical_types.get_urn_by_logical_type(
+        logical_type) is not None
 
 
 class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
@@ -1000,15 +1037,15 @@ class FixedPrecisionDecimalLogicalType(
   def language_type(cls):
     return decimal.Decimal
 
-  def to_representation_type(self, value):
-    # type: (decimal.Decimal) -> bytes
+  # from language type (decimal.Decimal) to representation type
+  # (the type corresponding to the coder used in DecimalLogicalType)
+  def to_representation_type(self, value: decimal.Decimal) -> decimal.Decimal:
+    return value
 
-    return DecimalLogicalType().to_representation_type(value)
-
-  def to_language_type(self, value):
-    # type: (bytes) -> decimal.Decimal
-
-    return DecimalLogicalType().to_language_type(value)
+  # from representation type (the type corresponding to the coder used in
+  # DecimalLogicalType) to language type
+  def to_language_type(self, value: decimal.Decimal) -> decimal.Decimal:
+    return value
 
   @classmethod
   def argument_type(cls):

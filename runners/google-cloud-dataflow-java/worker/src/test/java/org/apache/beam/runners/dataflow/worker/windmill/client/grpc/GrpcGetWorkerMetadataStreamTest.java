@@ -18,8 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream.DEFAULT_STREAM_RPC_DEADLINE_SECONDS;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -38,17 +36,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
-import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.util.MutableHandlerRegistry;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.junit.After;
@@ -82,28 +77,23 @@ public class GrpcGetWorkerMetadataStreamTest {
   private static final String FAKE_SERVER_NAME = "Fake server for GrpcGetWorkerMetadataStreamTest";
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  private final Set<AbstractWindmillStream<?, ?>> streamRegistry = new HashSet<>();
+  private final GrpcWindmillStreamFactory streamFactory =
+      GrpcWindmillStreamFactory.of(TEST_JOB_HEADER).build();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private GrpcGetWorkerMetadataStream stream;
 
   private GrpcGetWorkerMetadataStream getWorkerMetadataTestStream(
       GetWorkerMetadataTestStub getWorkerMetadataTestStub,
-      int metadataVersion,
       Consumer<WindmillEndpoints> endpointsConsumer) {
     serviceRegistry.addService(getWorkerMetadataTestStub);
-    return GrpcGetWorkerMetadataStream.create(
-        responseObserver ->
-            CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel)
-                .getWorkerMetadata(responseObserver),
-        FluentBackoff.DEFAULT.backoff(),
-        StreamObserverFactory.direct(DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2, 1),
-        streamRegistry,
-        1, // logEveryNStreamFailures
-        TEST_JOB_HEADER,
-        metadataVersion,
-        new ThrottleTimer(),
-        endpointsConsumer);
+    GrpcGetWorkerMetadataStream getWorkerMetadataStream =
+        (GrpcGetWorkerMetadataStream)
+            streamFactory.createGetWorkerMetadataStream(
+                () -> CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel),
+                endpointsConsumer);
+    getWorkerMetadataStream.start();
+    return getWorkerMetadataStream;
   }
 
   @Before
@@ -146,8 +136,7 @@ public class GrpcGetWorkerMetadataStreamTest {
         new TestWindmillEndpointsConsumer();
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    int metadataVersion = -1;
-    stream = getWorkerMetadataTestStream(testStub, metadataVersion, testWindmillEndpointsConsumer);
+    stream = getWorkerMetadataTestStream(testStub, testWindmillEndpointsConsumer);
     testStub.injectWorkerMetadata(mockResponse);
 
     assertThat(testWindmillEndpointsConsumer.globalDataEndpoints.keySet())
@@ -175,8 +164,7 @@ public class GrpcGetWorkerMetadataStreamTest {
 
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    int metadataVersion = 0;
-    stream = getWorkerMetadataTestStream(testStub, metadataVersion, testWindmillEndpointsConsumer);
+    stream = getWorkerMetadataTestStream(testStub, testWindmillEndpointsConsumer);
     testStub.injectWorkerMetadata(initialResponse);
 
     List<WorkerMetadataResponse.Endpoint> newDirectPathEndpoints =
@@ -222,8 +210,7 @@ public class GrpcGetWorkerMetadataStreamTest {
         Mockito.spy(new TestWindmillEndpointsConsumer());
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    int metadataVersion = 0;
-    stream = getWorkerMetadataTestStream(testStub, metadataVersion, testWindmillEndpointsConsumer);
+    stream = getWorkerMetadataTestStream(testStub, testWindmillEndpointsConsumer);
     testStub.injectWorkerMetadata(freshEndpoints);
 
     List<WorkerMetadataResponse.Endpoint> staleDirectPathEndpoints =
@@ -249,10 +236,11 @@ public class GrpcGetWorkerMetadataStreamTest {
   }
 
   @Test
-  public void testGetWorkerMetadata_correctlyAddsAndRemovesStreamFromRegistry() {
+  public void testGetWorkerMetadata_correctlyAddsAndRemovesStreamFromRegistry()
+      throws InterruptedException {
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    stream = getWorkerMetadataTestStream(testStub, 0, new TestWindmillEndpointsConsumer());
+    stream = getWorkerMetadataTestStream(testStub, new TestWindmillEndpointsConsumer());
     testStub.injectWorkerMetadata(
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
@@ -260,17 +248,19 @@ public class GrpcGetWorkerMetadataStreamTest {
             .putAllGlobalDataEndpoints(GLOBAL_DATA_ENDPOINTS)
             .build());
 
-    assertTrue(streamRegistry.contains(stream));
+    assertTrue(streamFactory.streamRegistry().contains(stream));
     stream.halfClose();
-    assertFalse(streamRegistry.contains(stream));
+    while (streamFactory.streamRegistry().contains(stream)) {
+      Thread.sleep(100);
+    }
   }
 
   @Test
-  public void testSendHealthCheck() {
+  public void testSendHealthCheck() throws WindmillStreamShutdownException {
     TestGetWorkMetadataRequestObserver requestObserver =
         Mockito.spy(new TestGetWorkMetadataRequestObserver());
     GetWorkerMetadataTestStub testStub = new GetWorkerMetadataTestStub(requestObserver);
-    stream = getWorkerMetadataTestStream(testStub, 0, new TestWindmillEndpointsConsumer());
+    stream = getWorkerMetadataTestStream(testStub, new TestWindmillEndpointsConsumer());
     stream.sendHealthCheck();
 
     verify(requestObserver).onNext(WorkerMetadataRequest.getDefaultInstance());

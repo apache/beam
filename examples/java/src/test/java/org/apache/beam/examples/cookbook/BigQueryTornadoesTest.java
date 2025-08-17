@@ -22,7 +22,6 @@ import org.apache.beam.examples.cookbook.BigQueryTornadoes.ExtractTornadoesFn;
 import org.apache.beam.examples.cookbook.BigQueryTornadoes.FormatCountsFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -41,7 +39,6 @@ public class BigQueryTornadoesTest {
   @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testExtractTornadoes() {
     TableRow row = new TableRow().set("month", "6").set("tornado", true);
     PCollection<TableRow> input = p.apply(Create.of(ImmutableList.of(row)));
@@ -51,7 +48,6 @@ public class BigQueryTornadoesTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testNoTornadoes() {
     TableRow row = new TableRow().set("month", 6).set("tornado", false);
     PCollection<TableRow> inputs = p.apply(Create.of(ImmutableList.of(row)));
@@ -61,7 +57,6 @@ public class BigQueryTornadoesTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testEmpty() {
     PCollection<KV<Integer, Long>> inputs =
         p.apply(Create.empty(new TypeDescriptor<KV<Integer, Long>>() {}));
@@ -71,7 +66,6 @@ public class BigQueryTornadoesTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testFormatCounts() {
     PCollection<KV<Integer, Long>> inputs =
         p.apply(Create.of(KV.of(3, 0L), KV.of(4, Long.MAX_VALUE), KV.of(5, Long.MIN_VALUE)));

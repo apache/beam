@@ -1,4 +1,7 @@
 {
+  "https://github.com/apache/beam/pull/35213": "Eliminating getPane() in favor of getPaneInfo()",
+  "https://github.com/apache/beam/pull/35177": "Introducing WindowedValueReceiver to runners",
   "comment": "Modify this file in a trivial way to cause this test suite to run",
-  "https://github.com/apache/beam/pull/31761": "noting that PR #31761 should run this test"
+  "https://github.com/apache/beam/pull/31761": "noting that PR #31761 should run this test",
+  "https://github.com/apache/beam/pull/35159": "moving WindowedValue and making an interface"
 }

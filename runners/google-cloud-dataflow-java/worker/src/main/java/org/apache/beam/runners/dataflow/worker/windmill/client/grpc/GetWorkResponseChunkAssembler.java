@@ -19,15 +19,18 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 @NotThreadSafe
 final class GetWorkResponseChunkAssembler {
+
   private static final Logger LOG = LoggerFactory.getLogger(GetWorkResponseChunkAssembler.class);
 
   private final GetWorkTimingInfosTracker workTimingInfosTracker;
@@ -61,17 +65,26 @@ final class GetWorkResponseChunkAssembler {
    * Appends the response chunk bytes to the {@link #data }byte buffer. Return the assembled
    * WorkItem if all response chunks for a WorkItem have been received.
    */
-  Optional<AssembledWorkItem> append(Windmill.StreamingGetWorkResponseChunk chunk) {
+  List<AssembledWorkItem> append(Windmill.StreamingGetWorkResponseChunk chunk) {
     if (chunk.hasComputationMetadata()) {
       metadata = ComputationMetadata.fromProto(chunk.getComputationMetadata());
     }
-
-    data = data.concat(chunk.getSerializedWorkItem());
-    bufferedSize += chunk.getSerializedWorkItem().size();
     workTimingInfosTracker.addTimingInfo(chunk.getPerWorkItemTimingInfosList());
 
-    // If the entire WorkItem has been received, assemble the WorkItem.
-    return chunk.getRemainingBytesForWorkItem() == 0 ? flushToWorkItem() : Optional.empty();
+    List<AssembledWorkItem> response = new ArrayList<>();
+    for (int i = 0; i < chunk.getSerializedWorkItemList().size(); i++) {
+      ByteString serializedWorkItem = chunk.getSerializedWorkItemList().get(i);
+      data = data.concat(serializedWorkItem);
+      bufferedSize += serializedWorkItem.size();
+      long remainingSize = 0;
+      if (i == chunk.getSerializedWorkItemList().size() - 1) {
+        remainingSize = chunk.getRemainingBytesForWorkItem();
+      }
+      if (remainingSize == 0) {
+        flushToWorkItem().ifPresent(response::add);
+      }
+    }
+    return response;
   }
 
   /**
@@ -100,6 +113,7 @@ final class GetWorkResponseChunkAssembler {
 
   @AutoValue
   abstract static class ComputationMetadata {
+
     private static ComputationMetadata fromProto(
         Windmill.ComputationWorkItemMetadata metadataProto) {
       return new AutoValue_GetWorkResponseChunkAssembler_ComputationMetadata(
@@ -111,9 +125,9 @@ final class GetWorkResponseChunkAssembler {
 
     abstract String computationId();
 
-    abstract Instant inputDataWatermark();
+    abstract @Nullable Instant inputDataWatermark();
 
-    abstract Instant synchronizedProcessingTime();
+    abstract @Nullable Instant synchronizedProcessingTime();
   }
 
   @AutoValue
@@ -122,7 +136,7 @@ final class GetWorkResponseChunkAssembler {
     private static AssembledWorkItem create(
         WorkItem workItem,
         ComputationMetadata computationMetadata,
-        List<Windmill.LatencyAttribution> latencyAttributions,
+        ImmutableList<LatencyAttribution> latencyAttributions,
         long size) {
       return new AutoValue_GetWorkResponseChunkAssembler_AssembledWorkItem(
           workItem, computationMetadata, latencyAttributions, size);
@@ -132,7 +146,7 @@ final class GetWorkResponseChunkAssembler {
 
     abstract ComputationMetadata computationMetadata();
 
-    abstract List<Windmill.LatencyAttribution> latencyAttributions();
+    abstract ImmutableList<LatencyAttribution> latencyAttributions();
 
     abstract long bufferedSize();
   }

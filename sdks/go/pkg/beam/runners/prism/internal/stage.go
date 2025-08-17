@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"runtime/debug"
 	"sync/atomic"
 	"time"
@@ -33,8 +34,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -57,19 +58,25 @@ type link struct {
 // account, but all serialization boundaries remain since the pcollections
 // would continue to get serialized.
 type stage struct {
-	ID           string
-	transforms   []string
-	primaryInput string          // PCollection used as the parallel input.
-	outputs      []link          // PCollections that must escape this stage.
-	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
-	internalCols []string        // PCollections that escape. Used for precise coder sending.
-	envID        string
-	finalize     bool
-	stateful     bool
+	ID                 string
+	transforms         []string
+	primaryInput       string          // PCollection used as the parallel input.
+	outputs            []link          // PCollections that must escape this stage.
+	sideInputs         []engine.LinkID // Non-parallel input PCollections and their consumers
+	internalCols       []string        // PCollections that escape. Used for precise coder sending.
+	envID              string
+	finalize           bool
+	stateful           bool
+	onWindowExpiration engine.StaticTimerID
+
 	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
 	// the stage to be considered complete.
-	hasTimers            []struct{ Transform, TimerFamily string }
+	hasTimers            []engine.StaticTimerID
 	processingTimeTimers map[string]bool
+
+	// stateTypeLen maps state values to encoded lengths for the type.
+	// Only used for OrderedListState which must manipulate individual state datavalues.
+	stateTypeLen map[engine.LinkID]func([]byte) int
 
 	exe              transformExecuter
 	inputTransformID string
@@ -173,9 +180,9 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 	progTick := time.NewTicker(baseTick)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
-	// If we have no data outputs, we still need to have progress & splits
+	// If we have no data outputs and timers, we still need to have progress & splits
 	// while waiting for bundle completion.
-	if b.OutputCount == 0 {
+	if b.OutputCount+len(b.HasTimers) == 0 {
 		dataFinished = true
 	}
 	var resp *fnpb.ProcessBundleResponse
@@ -201,8 +208,9 @@ progress:
 			ticked = true
 			resp, err := b.Progress(ctx, wk)
 			if err != nil {
-				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
-				break progress
+				slog.Debug("SDK Error from progress request, aborting progress update and turning off future progress updates", "bundle", rb, "error", err.Error())
+				progTick.Stop()
+				continue progress
 			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
@@ -213,12 +221,15 @@ progress:
 
 			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
 			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
-			if slow && unsplit {
+			if slow && unsplit && b.EstimatedInputElements > 0 {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
-					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
-					break progress
+					slog.Warn("SDK Error from split, aborting splits and failing bundle", "bundle", rb, "error", err.Error())
+					if b.BundleErr != nil {
+						b.BundleErr = err
+					}
+					return b.BundleErr
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)
@@ -361,7 +372,7 @@ func portFor(wInCid string, wk *worker.W) []byte {
 	}
 	sourcePortBytes, err := proto.Marshal(sourcePort)
 	if err != nil {
-		slog.Error("bad port", err, slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
+		slog.Error("bad port", slog.Any("error", err), slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
 	}
 	return sourcePortBytes
 }
@@ -436,6 +447,38 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 				rewriteCoder(&s.SetSpec.ElementCoderId)
 			case *pipepb.StateSpec_OrderedListSpec:
 				rewriteCoder(&s.OrderedListSpec.ElementCoderId)
+				// Add the length determination helper for OrderedList state values.
+				if stg.stateTypeLen == nil {
+					stg.stateTypeLen = map[engine.LinkID]func([]byte) int{}
+				}
+				linkID := engine.LinkID{
+					Transform: tid,
+					Local:     stateID,
+				}
+				var fn func([]byte) int
+				switch v := coders[s.OrderedListSpec.GetElementCoderId()]; v.GetSpec().GetUrn() {
+				case urns.CoderBool:
+					fn = func(_ []byte) int {
+						return 1
+					}
+				case urns.CoderDouble:
+					fn = func(_ []byte) int {
+						return 8
+					}
+				case urns.CoderVarInt:
+					fn = func(b []byte) int {
+						_, n := protowire.ConsumeVarint(b)
+						return int(n)
+					}
+				case urns.CoderLengthPrefix, urns.CoderBytes, urns.CoderStringUTF8:
+					fn = func(b []byte) int {
+						l, n := protowire.ConsumeVarint(b)
+						return int(l) + n
+					}
+				default:
+					rewriteErr = fmt.Errorf("unknown coder used for ordered list state after re-write id: %v coder: %v, for state %v for transform %v in stage %v", s.OrderedListSpec.GetElementCoderId(), v, stateID, tid, stg.ID)
+				}
+				stg.stateTypeLen[linkID] = fn
 			case *pipepb.StateSpec_CombiningSpec:
 				rewriteCoder(&s.CombiningSpec.AccumulatorCoderId)
 			case *pipepb.StateSpec_MapSpec:
@@ -452,7 +495,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			}
 		}
 		for timerID, v := range pardo.GetTimerFamilySpecs() {
-			stg.hasTimers = append(stg.hasTimers, struct{ Transform, TimerFamily string }{Transform: tid, TimerFamily: timerID})
+			stg.hasTimers = append(stg.hasTimers, engine.StaticTimerID{TransformID: tid, TimerFamily: timerID})
 			if v.TimeDomain == pipepb.TimeDomain_PROCESSING_TIME {
 				if stg.processingTimeTimers == nil {
 					stg.processingTimeTimers = map[string]bool{}
@@ -578,10 +621,9 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	// Update coders for internal collections, and add those collections to the bundle descriptor.
 	for _, pid := range stg.internalCols {
 		col := clonePColToBundle(pid)
-		if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
-			col.CoderId = newCID
-		} else if err != nil {
-			return fmt.Errorf("buildDescriptor: coder  couldn't rewrite coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
+		// Keep the original coder of an internal pcollection without rewriting(LP'ing).
+		if err := retrieveCoders(col.GetCoderId(), coders, comps.GetCoders()); err != nil {
+			return fmt.Errorf("buildDescriptor: couldn't retrieve coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
 		}
 	}
 	// Add coders for all windowing strategies.

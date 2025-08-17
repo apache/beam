@@ -64,7 +64,7 @@ import time
 import urllib.parse
 
 from google.protobuf import json_format
-from google.protobuf import text_format  # type: ignore
+from google.protobuf import text_format
 
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -151,9 +151,8 @@ class PipelineRenderer:
     if options.render_leaf_composite_nodes:
       is_leaf = lambda transform_id: any(
           re.match(
-              pattern,
-              self.pipeline.components.transforms[transform_id].unique_name)
-          for patterns in options.render_leaf_composite_nodes
+              pattern, self.pipeline.components.transforms[transform_id].
+              unique_name) for patterns in options.render_leaf_composite_nodes
           for pattern in patterns.split(','))
       self.leaf_composites = set()
 

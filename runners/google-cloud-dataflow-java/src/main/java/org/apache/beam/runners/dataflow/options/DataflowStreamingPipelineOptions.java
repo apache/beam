@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.options;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Duration;
@@ -135,6 +136,12 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setUseSeparateWindmillHeartbeatStreams(Boolean value);
 
+  @Description("If true, GetWorkStreams will request multiple work items in a response chunk.")
+  @Default.Boolean(true)
+  boolean getWindmillRequestBatchedGetWorkResponse();
+
+  void setWindmillRequestBatchedGetWorkResponse(boolean value);
+
   @Description("The number of streams to use for GetData requests.")
   @Default.Integer(1)
   int getWindmillGetDataStreamCount();
@@ -219,10 +226,8 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillServiceStreamMaxBackoffMillis(int value);
 
-  @Description(
-      "If true, Dataflow streaming pipeline will be running in direct path mode."
-          + " VMs must have IPv6 enabled for this to work.")
-  @Default.Boolean(false)
+  @Description("Enables direct path mode for streaming engine.")
+  @Default.InstanceFactory(EnableWindmillServiceDirectPathFactory.class)
   boolean getIsWindmillServiceDirectPathEnabled();
 
   void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
@@ -298,6 +303,14 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
       DataflowWorkerHarnessOptions streamingOptions =
           options.as(DataflowWorkerHarnessOptions.class);
       return streamingOptions.isEnableStreamingEngine() ? Integer.MAX_VALUE : 1;
+    }
+  }
+
+  /** EnableStreamingEngine defaults to false unless one of the experiment is set. */
+  class EnableWindmillServiceDirectPathFactory implements DefaultValueFactory<Boolean> {
+    @Override
+    public Boolean create(PipelineOptions options) {
+      return ExperimentalOptions.hasExperiment(options, "enable_windmill_service_direct_path");
     }
   }
 }

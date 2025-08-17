@@ -46,7 +46,7 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -80,24 +80,13 @@ jobs:
           java-version: |
             ${{ matrix.java_version }}
             11
-      - name: run jar Java${{ matrix.java_version }} script
-        run: |
-          ./gradlew runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar \
-          -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesRunner
           arguments: |
-            -x shadowJar \
-            -x shadowTestJar \
-            -x compileJava \
-            -x compileTestJava \
-            -x jar \
-            -x testJar \
-            -x classes \
-            -x testClasses \
-            -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PtestJavaVersion=${{ matrix.java_version }} \
+            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
           max-workers: 12
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
@@ -112,3 +101,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true

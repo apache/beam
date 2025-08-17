@@ -62,6 +62,20 @@ META_DATA_ALL_NAME = 'Dicom_io_it_test_data.json'
 META_DATA_REFINED_NAME = 'Dicom_io_it_test_refined_data.json'
 NUM_INSTANCE = 18
 RAND_LEN = 15
+SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
+
+# Tag 00081190 contains temp store name which contains currentDate
+VOLATILE_TAGS = {"00081190"}
+
+
+def normalize_outer(elem: dict) -> dict:
+  elem = dict(elem)  # shallow copy
+  elem["result"] = [normalize_instance(d) for d in elem.get("result", [])]
+  return elem
+
+
+def normalize_instance(instance: dict) -> dict:
+  return {k: v for k, v in instance.items() if k not in VOLATILE_TAGS}
 
 
 def random_string_generator(length):
@@ -72,7 +86,7 @@ def random_string_generator(length):
 
 def create_dicom_store(project_id, dataset_id, region, dicom_store_id):
   # Create a an empty DICOM store
-  credential, _ = default()
+  credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
   api_endpoint = "{}/projects/{}/locations/{}".format(
       HEALTHCARE_BASE_URL, project_id, region)
@@ -88,7 +102,7 @@ def create_dicom_store(project_id, dataset_id, region, dicom_store_id):
 
 def delete_dicom_store(project_id, dataset_id, region, dicom_store_id):
   # Delete an existing DICOM store
-  credential, _ = default()
+  credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
   api_endpoint = "{}/projects/{}/locations/{}".format(
       HEALTHCARE_BASE_URL, project_id, region)
@@ -108,7 +122,7 @@ def get_gcs_file_http(file_name):
   api_endpoint = "{}/b/{}/o/{}?alt=media".format(
       GCS_BASE_URL, BUCKET_NAME, file_name)
 
-  credential, _ = default()
+  credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
 
   response = session.get(api_endpoint)
@@ -172,17 +186,22 @@ class DICOMIoIntegrationTest(unittest.TestCase):
       results_all = (
           p
           | 'create all dict' >> beam.Create([input_dict_all])
-          | 'search all' >> DicomSearch())
+          | 'search all' >> DicomSearch()
+          | 'normalize all' >> beam.Map(normalize_outer))
       results_refine = (
           p
           | 'create refine dict' >> beam.Create([input_dict_refine])
-          | 'search refine' >> DicomSearch())
+          | 'search refine' >> DicomSearch()
+          | 'normalize refine' >> beam.Map(normalize_outer))
+
+      expected_all_norm = normalize_outer(expected_dict_all)
+      expected_refine_norm = normalize_outer(expected_dict_refine)
 
       assert_that(
-          results_all, equal_to([expected_dict_all]), label='all search assert')
+          results_all, equal_to([expected_all_norm]), label='all search assert')
       assert_that(
           results_refine,
-          equal_to([expected_dict_refine]),
+          equal_to([expected_refine_norm]),
           label='refine search assert')
 
   @pytest.mark.it_postcommit
@@ -209,14 +228,21 @@ class DICOMIoIntegrationTest(unittest.TestCase):
           results, equal_to(expected_output), label='store first assert')
 
     # Check the metadata using client
+    credential, _ = default(SCOPES)
     result, status_code = DicomApiHttpClient().qido_search(
-      self.project, REGION, DATA_SET_ID, self.temp_dicom_store, 'instances'
+      self.project, REGION, DATA_SET_ID,
+      self.temp_dicom_store, 'instances', credential=credential
     )
 
     self.assertEqual(status_code, 200)
 
-    # List comparison based on different version of python
-    self.assertCountEqual(result, self.expected_output_all_metadata)
+    actual_norm = [normalize_instance(r) for r in result]
+    expected_norm = [
+        normalize_instance(r) for r in self.expected_output_all_metadata
+    ]
+
+    # Order-insensitive deep equality
+    self.assertCountEqual(actual_norm, expected_norm)
 
 
 if __name__ == '__main__':

@@ -42,7 +42,7 @@ except ImportError:
 
 test_query = "This is a test"
 test_query_column = "feature_1"
-model_name: str = "textembedding-gecko@002"
+model_name: str = "text-embedding-005"
 
 
 @unittest.skipIf(
@@ -142,7 +142,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=self.artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.15
+          assert round(element, 2) == 0.11
 
         _ = (
             result_pcoll
@@ -153,7 +153,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
   def test_with_int_data_types(self):
     embedding_config = VertexAITextEmbeddings(
         model_name=model_name, columns=[test_query_column])
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline
@@ -192,7 +192,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=self.gcs_artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.15
+          assert round(element, 2) == 0.11
 
         _ = (
             result_pcoll
@@ -201,7 +201,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
             | beam.Map(assert_element))
 
   def test_mltransform_to_ptransform_with_vertex(self):
-    model_name = 'textembedding-gecko@002'
+    model_name = 'text-embedding-005'
     transforms = [
         VertexAITextEmbeddings(
             columns=['x'],

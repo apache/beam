@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import logging
+import os
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
@@ -450,7 +451,8 @@ class _TextSink(filebasedsink.FileBasedSink):
       *,
       max_records_per_shard=None,
       max_bytes_per_shard=None,
-      skip_if_empty=False):
+      skip_if_empty=False,
+      triggering_frequency=None):
     """Initialize a _TextSink.
 
     Args:
@@ -467,13 +469,23 @@ class _TextSink(filebasedsink.FileBasedSink):
         Constraining the number of shards is likely to reduce
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
+        In streaming if not set, the service will write a file per bundle.
       shard_name_template: A template string containing placeholders for
-        the shard number and shard count. When constructing a filename for a
-        particular shard number, the upper-case letters 'S' and 'N' are
-        replaced with the 0-padded shard number and shard count respectively.
-        This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+        the shard number and shard count. Currently only ``''``,
+        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
+        ``'-V-SSSSS-of-NNNNN'`` are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
+        shard number and shard count respectively.  This argument can be ``''``
+        in which case it behaves as if num_shards was set to 1 and only one file
+        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded
+        PCollections.
+        W is used for windowed shard naming and is replaced with
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"),
+        window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       coder: Coder used to encode each line.
       compression_type: Used to handle compressed output files. Typical value
         is CompressionTypes.AUTO, in which case the final file path's
@@ -493,6 +505,10 @@ class _TextSink(filebasedsink.FileBasedSink):
         to exceed this value.  This also tracks the uncompressed,
         not compressed, size of the shard.
       skip_if_empty: Don't write any shards if the PCollection is empty.
+      triggering_frequency: (int) Every triggering_frequency duration, a window
+        will be triggered and all bundles in the window will be written.
+        If set it overrides user windowing. Mandatory for GlobalWindow.
+
 
     Returns:
       A _TextSink object usable for writing.
@@ -507,7 +523,8 @@ class _TextSink(filebasedsink.FileBasedSink):
         compression_type=compression_type,
         max_records_per_shard=max_records_per_shard,
         max_bytes_per_shard=max_bytes_per_shard,
-        skip_if_empty=skip_if_empty)
+        skip_if_empty=skip_if_empty,
+        triggering_frequency=triggering_frequency)
     self._append_trailing_newlines = append_trailing_newlines
     self._header = header
     self._footer = footer
@@ -781,6 +798,13 @@ class ReadFromText(PTransform):
     """
 
     super().__init__(**kwargs)
+    if file_pattern:
+      try:
+        if not os.path.dirname(file_pattern):
+          file_pattern = os.path.join('.', file_pattern)
+      except TypeError:
+        pass
+
     self._source = self._source_class(
         file_pattern,
         min_bundle_size,
@@ -825,7 +849,8 @@ class WriteToText(PTransform):
       *,
       max_records_per_shard=None,
       max_bytes_per_shard=None,
-      skip_if_empty=False):
+      skip_if_empty=False,
+      triggering_frequency=None):
     r"""Initialize a :class:`WriteToText` transform.
 
     Args:
@@ -844,13 +869,21 @@ class WriteToText(PTransform):
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
       shard_name_template (str): A template string containing placeholders for
-        the shard number and shard count. Currently only ``''`` and
-        ``'-SSSSS-of-NNNNN'`` are patterns accepted by the service.
+        the shard number and shard count. Currently only ``''``,
+        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
+        ``'-V-SSSSS-of-NNNNN'`` are patterns accepted by the service.
         When constructing a filename for a particular shard number, the
         upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
         shard number and shard count respectively.  This argument can be ``''``
         in which case it behaves as if num_shards was set to 1 and only one file
-        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'``.
+        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded
+        PCollections.
+        W is used for windowed shard naming and is replaced with
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"),
+        window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       coder (~apache_beam.coders.coders.Coder): Coder used to encode each line.
       compression_type (str): Used to handle compressed output files.
         Typical value is :class:`CompressionTypes.AUTO
@@ -875,6 +908,8 @@ class WriteToText(PTransform):
       skip_if_empty: Don't write any shards if the PCollection is empty.
         In case of an empty PCollection, this will still delete existing
         files having same file path and not create new ones.
+      triggering_frequency: (int) Every triggering_frequency duration, a window
+        will be triggered and all bundles in the window will be written.
     """
 
     self._sink = _TextSink(
@@ -889,9 +924,18 @@ class WriteToText(PTransform):
         footer,
         max_records_per_shard=max_records_per_shard,
         max_bytes_per_shard=max_bytes_per_shard,
-        skip_if_empty=skip_if_empty)
+        skip_if_empty=skip_if_empty,
+        triggering_frequency=triggering_frequency)
 
   def expand(self, pcoll):
+    if (not pcoll.is_bounded and self._sink.shard_name_template
+        == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
+      self._sink.shard_name_format = self._sink._template_to_format(
+          self._sink.shard_name_template)
+      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
+          self._sink.shard_name_template)
     return pcoll | Write(self._sink)
 
 
@@ -929,7 +973,12 @@ try:
 
   @append_pandas_args(
       pandas.read_csv, exclude=['filepath_or_buffer', 'iterator'])
-  def ReadFromCsv(path: str, *, splittable: bool = True, **kwargs):
+  def ReadFromCsv(
+      path: str,
+      *,
+      splittable: bool = True,
+      filename_column: Optional[str] = None,
+      **kwargs):
     """A PTransform for reading comma-separated values (csv) files into a
     PCollection.
 
@@ -941,11 +990,17 @@ try:
         This should be set to False if single records span multiple lines (e.g.
         a quoted field has a newline inside of it).  Setting this to false may
         disable liquid sharding.
+      filename_column (str): If not None, the name of the column to add
+        to each record, containing the filename of the source file.
       **kwargs: Extra arguments passed to `pandas.read_csv` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
     return 'ReadFromCsv' >> ReadViaPandas(
-        'csv', path, splittable=splittable, **kwargs)
+        'csv',
+        path,
+        splittable=splittable,
+        filename_column=filename_column,
+        **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_csv, exclude=['path_or_buf', 'index', 'index_label'])

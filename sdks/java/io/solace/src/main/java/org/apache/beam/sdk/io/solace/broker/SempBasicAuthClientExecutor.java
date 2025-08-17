@@ -19,6 +19,9 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpContent;
 import com.google.api.client.http.HttpHeaders;
@@ -40,6 +43,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.solace.data.Semp.Queue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -52,7 +56,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * response is 401 Unauthorized, the client will execute an additional request with Basic Auth
  * header to refresh the token.
  */
-class SempBasicAuthClientExecutor implements Serializable {
+public class SempBasicAuthClientExecutor implements Serializable {
   // Every request will be repeated 2 times in case of abnormal connection failures.
   private static final int REQUEST_NUM_RETRIES = 2;
   private static final Map<CookieManagerKey, CookieManager> COOKIE_MANAGER_MAP =
@@ -65,8 +69,10 @@ class SempBasicAuthClientExecutor implements Serializable {
   private final String password;
   private final CookieManagerKey cookieManagerKey;
   private final transient HttpRequestFactory requestFactory;
+  private final ObjectMapper objectMapper =
+      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-  SempBasicAuthClientExecutor(
+  public SempBasicAuthClientExecutor(
       String host,
       String username,
       String password,
@@ -78,7 +84,16 @@ class SempBasicAuthClientExecutor implements Serializable {
     this.password = password;
     this.requestFactory = httpRequestFactory;
     this.cookieManagerKey = new CookieManagerKey(this.baseUrl, this.username);
-    COOKIE_MANAGER_MAP.putIfAbsent(this.cookieManagerKey, new CookieManager());
+    COOKIE_MANAGER_MAP.computeIfAbsent(this.cookieManagerKey, key -> new CookieManager());
+  }
+
+  public boolean isQueueNonExclusive(String queueName) throws IOException {
+    BrokerResponse response = getQueueResponse(queueName);
+    if (response.content == null) {
+      throw new IOException("SolaceIO: response from SEMP is empty!");
+    }
+    Queue q = mapJsonToClass(response.content, Queue.class);
+    return q.data().accessType().equals("non-exclusive");
   }
 
   private static String getQueueEndpoint(String messageVpn, String queueName)
@@ -197,6 +212,20 @@ class SempBasicAuthClientExecutor implements Serializable {
 
   private static String urlEncode(String queueName) throws UnsupportedEncodingException {
     return URLEncoder.encode(queueName, StandardCharsets.UTF_8.name());
+  }
+
+  private <T> T mapJsonToClass(String content, Class<T> mapSuccessToClass)
+      throws JsonProcessingException {
+    return objectMapper.readValue(content, mapSuccessToClass);
+  }
+
+  public long getBacklogBytes(String queueName) throws IOException {
+    BrokerResponse response = getQueueResponse(queueName);
+    if (response.content == null) {
+      throw new IOException("SolaceIO: response from SEMP is empty!");
+    }
+    Queue q = mapJsonToClass(response.content, Queue.class);
+    return q.data().msgSpoolUsage();
   }
 
   private static class CookieManagerKey implements Serializable {

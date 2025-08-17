@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
@@ -53,9 +52,10 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -77,6 +77,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
+
   // TODO: Remove once Distributions has shipped.
   @VisibleForTesting
   static final String OUTPUTS_PER_ELEMENT_EXPERIMENT = "outputs_per_element_counter";
@@ -174,6 +175,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
   /** Simple state tracker to calculate PerElementOutputCount counter. */
   private interface OutputsPerElementTracker {
+
     void onOutput();
 
     void onProcessElement();
@@ -182,6 +184,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   private class OutputsPerElementTrackerImpl implements OutputsPerElementTracker {
+
     private long outputsPerElement;
     private final Counter<Long, CounterFactory.CounterDistribution> counter;
 
@@ -214,6 +217,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
   /** No-op {@link OutputsPerElementTracker} implementation used when the counter is disabled. */
   private static class NoopOutputsPerElementTracker implements OutputsPerElementTracker {
+
     private NoopOutputsPerElementTracker() {}
 
     public static final OutputsPerElementTracker INSTANCE = new NoopOutputsPerElementTracker();
@@ -245,8 +249,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private void reallyStartBundle() throws Exception {
     checkState(fnRunner == null, "bundle already started (or not properly finished)");
 
-    OutputManager outputManager =
-        new OutputManager() {
+    WindowedValueMultiReceiver outputManager =
+        new WindowedValueMultiReceiver() {
           final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
 
           private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
@@ -259,7 +263,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           }
 
           @Override
-          public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+          public <TagT> void output(TupleTag<TagT> tag, WindowedValue<TagT> output) {
             outputsPerElementTracker.onOutput();
             Receiver receiver = getReceiverOrNull(tag);
             if (receiver == null) {
@@ -516,10 +520,14 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
   private Instant earliestAllowableCleanupTime(
       BoundedWindow window, WindowingStrategy windowingStrategy) {
-    return window
-        .maxTimestamp()
-        .plus(windowingStrategy.getAllowedLateness())
-        .plus(Duration.millis(1L));
+    Instant cleanupTime =
+        window
+            .maxTimestamp()
+            .plus(windowingStrategy.getAllowedLateness())
+            .plus(Duration.millis(1L));
+    return cleanupTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)
+        ? BoundedWindow.TIMESTAMP_MAX_VALUE
+        : cleanupTime;
   }
 
   /**

@@ -148,14 +148,12 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     # Convert to string to assert they are equal.
     out_of_order_labels = {
         str(k): [str(t) for t in value_to_consumer]
-        for k,
-        value_to_consumer in v_out_of_order.value_to_consumers.items()
+        for k, value_to_consumer in v_out_of_order.value_to_consumers.items()
     }
 
     original_labels = {
         str(k): [str(t) for t in value_to_consumer]
-        for k,
-        value_to_consumer in v_original.value_to_consumers.items()
+        for k, value_to_consumer in v_original.value_to_consumers.items()
     }
     self.assertDictEqual(out_of_order_labels, original_labels)
 

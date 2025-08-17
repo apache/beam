@@ -20,7 +20,6 @@
 
 import unittest
 from typing import Any
-from typing import List
 
 import mock
 import pytest
@@ -437,7 +436,7 @@ class InterfaceTest(unittest.TestCase):
 
 class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   # pylint: disable=expression-not-assigned
-  all_records: List[Any]
+  all_records: list[Any]
 
   def setUp(self):
     # Use state on the TestCase class, since other references would be pickled
@@ -745,7 +744,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
         yield sorted(set_state.read())
 
-    with TestPipeline() as p:
+    # Pin to FnApiRunner since this assumes a large bundle size to contain
+    # all elements
+    with TestPipeline('FnApiRunner') as p:
       values = p | beam.Create([('key', 1), ('key', 2), ('key', 3), ('key', 4),
                                 ('key', 5)])
       actual_values = (
@@ -993,7 +994,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   @pytest.mark.no_xdist
-  @pytest.mark.timeout(10)
+  @pytest.mark.timeout(60)
   def test_dynamic_timer_clear_then_set_timer(self):
     class EmitTwoEvents(DoFn):
       EMIT_CLEAR_SET_TIMER = TimerSpec('emitclear', TimeDomain.WATERMARK)

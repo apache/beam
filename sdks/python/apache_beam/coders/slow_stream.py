@@ -58,6 +58,9 @@ class OutputStream(object):
       if not v:
         break
 
+  def write_var_int32(self, v: int) -> None:
+    self.write_var_int64(int(v) & 0xFFFFFFFF)
+
   def write_bigendian_int64(self, v):
     self.write(struct.pack('>q', v))
 
@@ -155,6 +158,10 @@ class InputStream(object):
     if result >= 1 << 63:
       result -= 1 << 64
     return result
+
+  def read_var_int32(self):
+    v = self.read_var_int64()
+    return struct.unpack('<i', struct.pack('<I', v))[0]
 
   def read_bigendian_int64(self):
     return struct.unpack('>q', self.read(8))[0]

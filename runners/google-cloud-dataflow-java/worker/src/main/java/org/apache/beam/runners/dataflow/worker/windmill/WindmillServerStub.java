@@ -24,16 +24,19 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 public abstract class WindmillServerStub
     implements ApplianceWindmillClient, StreamingEngineWindmillClient, StatusDataProvider {
 
-  /** Returns the amount of time the server has been throttled and resets the time to 0. */
-  public abstract long getAndResetThrottleTime();
-
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
 
-  /** Generic Exception type for implementors to use to represent errors while making RPCs. */
-  public static final class RpcException extends RuntimeException {
-    public RpcException(Throwable cause) {
+  /**
+   * Generic Exception type for implementors to use to represent errors while making Windmill RPCs.
+   */
+  public static final class WindmillRpcException extends RuntimeException {
+    public WindmillRpcException(Throwable cause) {
       super(cause);
+    }
+
+    public WindmillRpcException(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 }

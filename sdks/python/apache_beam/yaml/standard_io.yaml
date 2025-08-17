@@ -22,6 +22,7 @@
 # should be kept in sync.
 # TODO(yaml): See if this can be enforced programmatically.
 
+# BigQuery
 - type: renaming
   transforms:
     'ReadFromBigQuery': 'ReadFromBigQuery'
@@ -48,6 +49,7 @@
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
 
+# Kafka
 - type: renaming
   transforms:
     'ReadFromKafka': 'ReadFromKafka'
@@ -82,7 +84,14 @@
         'WriteToKafka': 'beam:schematransform:org.apache.beam:kafka_write:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+        managed_replacement:
+          # Following transforms may be replaced with equivalent managed transforms,
+          # if the pipelines 'updateCompatibilityBeamVersion' match the provided
+          # version.
+          'ReadFromKafka': '2.65.0'
+          'WriteToKafka': '2.65.0'
 
+# PubSub
 - type: renaming
   transforms:
     'ReadFromPubSubLite': 'ReadFromPubSubLite'
@@ -120,6 +129,10 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+# TODO(yaml): Tests are assuming python providers are before java ones, hence
+# the order below.  This should be fixed in the future.
+
+# Python Providers
 - type: python
   transforms:
     'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
@@ -129,7 +142,12 @@
     'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
     'ReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
     'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
+    'ReadFromIceberg': 'apache_beam.yaml.yaml_io.read_from_iceberg'
+    'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
+    'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
+    'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
 
+# General File Formats
 # Declared as a renaming transform to avoid exposing all
 # (implementation-specific) pandas arguments and aligning with possible Java
 # implementation.
@@ -151,6 +169,7 @@
         path: 'path'
         delimiter: 'sep'
         comment: 'comment'
+        filename_column: 'filename_column'
       'WriteToCsv':
         path: 'path'
         delimiter: 'sep'
@@ -183,6 +202,7 @@
         'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
         'WriteToAvro': 'apache_beam.io.WriteToAvro'
 
+# BeamJar Providers
 - type: beamJar
   transforms:
     'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
@@ -190,41 +210,50 @@
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# Databases
 - type: renaming
   transforms:
     'ReadFromJdbc': 'ReadFromJdbc'
     'WriteToJdbc': 'WriteToJdbc'
-    'ReadFromMySql': 'ReadFromJdbc'
-    'WriteToMySql': 'WriteToJdbc'
-    'ReadFromPostgres': 'ReadFromJdbc'
-    'WriteToPostgres': 'WriteToJdbc'
-    'ReadFromOracle': 'ReadFromJdbc'
-    'WriteToOracle': 'WriteToJdbc'
-    'ReadFromSqlServer': 'ReadFromJdbc'
-    'WriteToSqlServer': 'WriteToJdbc'
+    'ReadFromMySql': 'ReadFromMySql'
+    'WriteToMySql': 'WriteToMySql'
+    'ReadFromPostgres': 'ReadFromPostgres'
+    'WriteToPostgres': 'WriteToPostgres'
+    'ReadFromOracle': 'ReadFromOracle'
+    'WriteToOracle': 'WriteToOracle'
+    'ReadFromSqlServer': 'ReadFromSqlServer'
+    'WriteToSqlServer': 'WriteToSqlServer'
   config:
     mappings:
       'ReadFromJdbc':
-        driver_class_name: 'driver_class_name'
-        type: 'jdbc_type'
         url: 'jdbc_url'
-        username: 'username'
+        connection_init_sql: 'connection_init_sql'
+        connection_properties: 'connection_properties'
+        disable_auto_commit: 'disable_auto_commit'
+        driver_class_name: 'driver_class_name'
+        driver_jars: 'driver_jars'
+        fetch_size: 'fetch_size'
+        output_parallelization: 'output_parallelization'
         password: 'password'
-        table: 'location'
         query: 'read_query'
-        driver_jars: 'driver_jars'
-        connection_properties: 'connection_properties'
-        connection_init_sql: 'connection_init_sql'
-      'WriteToJdbc':
-        driver_class_name: 'driver_class_name'
+        table: 'location'
+        partition_column : 'partition_column'
+        num_partitions: 'num_partitions'
         type: 'jdbc_type'
-        url: 'jdbc_url'
         username: 'username'
+      'WriteToJdbc':
+        url: 'jdbc_url'
+        auto_sharding: 'autosharding'
+        connection_init_sql: 'connection_init_sql'
+        connection_properties: 'connection_properties'
+        driver_class_name: 'driver_class_name'
+        driver_jars: 'driver_jars'
         password: 'password'
         table: 'location'
-        driver_jars: 'driver_jars'
-        connection_properties: 'connection_properties'
-        connection_init_sql: 'connection_init_sql'
+        batch_size: 'batch_size'
+        type: 'jdbc_type'
+        username: 'username'
+        query: 'write_statement'
       'ReadFromMySql': 'ReadFromJdbc'
       'WriteToMySql': 'WriteToJdbc'
       'ReadFromPostgres': 'ReadFromJdbc'
@@ -235,29 +264,60 @@
       'WriteToSqlServer': 'WriteToJdbc'
     defaults:
       'ReadFromMySql':
-        jdbcType: 'mysql'
+        driver_class_name: ''
+        driver_jars: ''
+        jdbc_type: ''
       'WriteToMySql':
-        jdbcType: 'mysql'
+        driver_class_name: ''
+        driver_jars: ''
+        jdbc_type: ''
       'ReadFromPostgres':
-        jdbcType: 'postgres'
+        connection_init_sql: ''
+        driver_class_name: ''
+        driver_jars: ''
+        jdbc_type: ''
       'WriteToPostgres':
-        jdbcType: 'postgres'
+        connection_init_sql: ''
+        driver_class_name: ''
+        driver_jars: ''
+        jdbc_type: ''
       'ReadFromOracle':
-        jdbcType: 'oracle'
+        connection_init_sql: ''
+        driver_class_name: ''
+        driver_jars: ''
+        jdbc_type: ''
       'WriteToOracle':
-        jdbcType: 'oracle'
+        connection_init_sql: ''
+        driver_class_name: ''
+        driver_jars: ''
+        jdbc_type: ''
       'ReadFromSqlServer':
-        jdbcType: 'mssql'
+        connection_init_sql: ''
+        driver_class_name: ''
+        driver_jars: ''
+        jdbc_type: ''
       'WriteToSqlServer':
-        jdbcType: 'mssql'
+        connection_init_sql: ''
+        driver_class_name: ''
+        driver_jars: ''
+        jdbc_type: ''
     underlying_provider:
       type: beamJar
       transforms:
         'ReadFromJdbc': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'ReadFromMySql': 'beam:schematransform:org.apache.beam:mysql_read:v1'
+        'ReadFromPostgres': 'beam:schematransform:org.apache.beam:postgres_read:v1'
+        'ReadFromOracle': 'beam:schematransform:org.apache.beam:oracle_read:v1'
+        'ReadFromSqlServer': 'beam:schematransform:org.apache.beam:sql_server_read:v1'
         'WriteToJdbc': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+        'WriteToMySql': 'beam:schematransform:org.apache.beam:mysql_write:v1'
+        'WriteToPostgres': 'beam:schematransform:org.apache.beam:postgres_write:v1'
+        'WriteToOracle': 'beam:schematransform:org.apache.beam:oracle_write:v1'
+        'WriteToSqlServer': 'beam:schematransform:org.apache.beam:sql_server_write:v1'
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# Spanner
 - type: renaming
   transforms:
     'ReadFromSpanner': 'ReadFromSpanner'
@@ -271,6 +331,9 @@
         table: 'table_id'
         query: 'query'
         columns: 'columns'
+        index: 'index'
+        batching: 'batching'
+        error_handling: 'error_handling'
       'WriteToSpanner':
         project: 'project_id'
         instance: 'instance_id'
@@ -282,5 +345,55 @@
       transforms:
         'ReadFromSpanner': 'beam:schematransform:org.apache.beam:spanner_read:v1'
         'WriteToSpanner': 'beam:schematransform:org.apache.beam:spanner_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
+# TFRecord
+- type: renaming
+  transforms:
+    'ReadFromTFRecord': 'ReadFromTFRecord'
+    'WriteToTFRecord': 'WriteToTFRecord'
+  config:
+    mappings:
+      'ReadFromTFRecord':
+        file_pattern: 'file_pattern'
+        compression_type: 'compression'
+        validate: 'validate'
+      'WriteToTFRecord':
+        file_path_prefix: 'output_prefix'
+        shard_name_template: 'shard_template'
+        file_name_suffix: 'filename_suffix'
+        num_shards: 'num_shards'
+        compression_type: 'compression'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_read:v1'
+        'WriteToTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
+#BigTable
+- type: renaming
+  transforms:
+    'ReadFromBigTable': 'ReadFromBigTable'
+    'WriteToBigTable': 'WriteToBigTable'
+  config:
+    mappings:
+      #Temp removing read from bigTable IO
+      'ReadFromBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+        flatten: "flatten"
+      'WriteToBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
+        'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'

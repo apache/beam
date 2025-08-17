@@ -226,6 +226,7 @@ class PipelineContext(object):
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
+    self.enable_best_effort_deterministic_pickling = False
 
   def add_requirement(self, requirement: str) -> None:
     self._requirements.add(requirement)
@@ -306,7 +307,7 @@ class PipelineContext(object):
       #  "Message"; expected "Environment"  [arg-type]
       # Here, Environment is a subclass of Message but mypy still
       # throws an error.
-      cloned_env.CopyFrom(template_env)  # type: ignore[arg-type]
+      cloned_env.CopyFrom(template_env)
       cloned_env.resource_hints.clear()
       cloned_env.resource_hints.update(resource_hints)
 

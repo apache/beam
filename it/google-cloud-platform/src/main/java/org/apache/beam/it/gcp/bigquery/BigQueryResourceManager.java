@@ -34,6 +34,7 @@ import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
+import com.google.cloud.bigquery.TimePartitioning;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -260,6 +261,102 @@ public final class BigQueryResourceManager implements ResourceManager {
         bigQuery.create(tableInfo);
         LOG.info(
             "Successfully created table {}.{}", dataset.getDatasetId().getDataset(), tableName);
+
+        return tableId;
+      } else {
+        throw new IllegalStateException(
+            "Table " + tableId + " already exists for dataset " + datasetId + ".");
+      }
+    } catch (Exception e) {
+      throw new BigQueryResourceManagerException("Failed to create table.", e);
+    }
+  }
+
+  /**
+   * Creates a table within the current dataset given a table name, schema and time partitioning
+   * properties.
+   *
+   * <p>This table will automatically expire 1 hour after creation if not cleaned up manually or by
+   * calling the {@link BigQueryResourceManager#cleanupAll()} method.
+   *
+   * <p>Note: Implementations may do dataset creation here, if one does not already exist.
+   *
+   * @param tableName The name of the table.
+   * @param schema A schema object that defines the table.
+   * @param timePartitioning A TimePartition object that defines time partitioning details.
+   * @return The TableId (reference) to the table
+   * @throws BigQueryResourceManagerException if there is an error creating the table in BigQuery.
+   */
+  public synchronized TableId createTimePartitionedTable(
+      String tableName, Schema schema, TimePartitioning timePartitioning)
+      throws BigQueryResourceManagerException {
+    return createTimePartitionedTable(
+        tableName, schema, timePartitioning, System.currentTimeMillis() + 3600000); // 1h
+  }
+
+  /**
+   * Creates a table within the current dataset given a table name and schema.
+   *
+   * <p>This table will automatically expire at the time specified by {@code expirationTime} if not
+   * cleaned up manually or by calling the {@link BigQueryResourceManager#cleanupAll()} method.
+   *
+   * <p>Note: Implementations may do dataset creation here, if one does not already exist.
+   *
+   * @param tableName The name of the table.
+   * @param schema A schema object that defines the table.
+   * @param timePartitioning A TimePartition object that defines time partitioning details.
+   * @param expirationTimeMillis Sets the time when this table expires, in milliseconds since the
+   *     epoch.
+   * @return The TableId (reference) to the table
+   * @throws BigQueryResourceManagerException if there is an error creating the table in BigQuery.
+   */
+  public synchronized TableId createTimePartitionedTable(
+      String tableName, Schema schema, TimePartitioning timePartitioning, Long expirationTimeMillis)
+      throws BigQueryResourceManagerException {
+    // Check table ID
+    BigQueryResourceManagerUtils.checkValidTableId(tableName);
+
+    // Check schema
+    if (schema == null) {
+      throw new IllegalArgumentException("A valid schema must be provided to create a table.");
+    }
+
+    // Check time partition details
+    if (timePartitioning == null) {
+      throw new IllegalArgumentException(
+          "A valid TimePartition object must be provided to create a time paritioned table. Use createTable instead to create non-partitioned tables.");
+    }
+
+    // Create a default dataset if this resource manager has not already created one
+    if (dataset == null) {
+      createDataset(DEFAULT_DATASET_REGION);
+    }
+    checkHasDataset();
+
+    LOG.info(
+        "Creating time partitioned table using tableName '{}' on field '{}'.",
+        tableName,
+        timePartitioning.getField());
+
+    // Create the table if it does not already exist in the dataset
+    try {
+      TableId tableId = TableId.of(dataset.getDatasetId().getDataset(), tableName);
+      if (bigQuery.getTable(tableId) == null) {
+        StandardTableDefinition tableDefinition =
+            StandardTableDefinition.newBuilder()
+                .setSchema(schema)
+                .setTimePartitioning(timePartitioning)
+                .build();
+        TableInfo tableInfo =
+            TableInfo.newBuilder(tableId, tableDefinition)
+                .setExpirationTime(expirationTimeMillis)
+                .build();
+        bigQuery.create(tableInfo);
+        LOG.info(
+            "Successfully created table {}.{} partitioned on {}",
+            dataset.getDatasetId().getDataset(),
+            tableName,
+            timePartitioning.getField());
 
         return tableId;
       } else {

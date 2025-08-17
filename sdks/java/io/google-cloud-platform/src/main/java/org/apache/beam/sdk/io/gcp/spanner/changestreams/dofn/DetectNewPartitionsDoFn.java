@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DetectNewPartitionsAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.CacheFactory;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.WatermarkCache;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
@@ -60,6 +62,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
+  private final CacheFactory cacheFactory;
   private long averagePartitionBytesSize;
   private boolean averagePartitionBytesSizeSet;
   private transient DetectNewPartitionsAction detectNewPartitionsAction;
@@ -81,10 +84,12 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
+      CacheFactory cacheFactory,
       ChangeStreamMetrics metrics) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
+    this.cacheFactory = cacheFactory;
     this.metrics = metrics;
     this.resumeDuration = DEFAULT_RESUME_DURATION;
     this.averagePartitionBytesSizeSet = false;
@@ -143,9 +148,10 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   public void setup() {
     final PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
+    final WatermarkCache watermarkCache = cacheFactory.getWatermarkCache();
     this.detectNewPartitionsAction =
         actionFactory.detectNewPartitionsAction(
-            partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
+            partitionMetadataDao, partitionMetadataMapper, watermarkCache, metrics, resumeDuration);
   }
 
   /**

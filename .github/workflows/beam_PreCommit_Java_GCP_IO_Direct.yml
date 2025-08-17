@@ -20,7 +20,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths:
-      - "runners/core-construction-java/**"
+      - "buildSrc/**"
       - "runners/core-java/**"
       - "sdks/java/core/src/main/**"
       - "sdks/java/extensions/arrow/**"
@@ -34,7 +34,7 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
-      - "runners/core-construction-java/**"
+      - "buildSrc/**"
       - "runners/core-java/**"
       - 'release/trigger_all_tests.json'
       - '.github/trigger_files/beam_PreCommit_Java_GCP_IO_Direct.json'
@@ -74,7 +74,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -85,7 +85,7 @@ jobs:
       matrix:
         job_name: ["beam_PreCommit_Java_GCP_IO_Direct"]
         job_phrase: ["Run Java_GCP_IO_Direct PreCommit"]
-    timeout-minutes: 120
+    timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -127,6 +127,7 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v4
         if: always()

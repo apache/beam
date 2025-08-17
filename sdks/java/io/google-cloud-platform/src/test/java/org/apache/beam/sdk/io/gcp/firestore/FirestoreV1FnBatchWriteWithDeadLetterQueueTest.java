@@ -177,7 +177,7 @@ public final class FirestoreV1FnBatchWriteWithDeadLetterQueueTest
 
     when(rpcQos.newWriteAttempt(any())).thenReturn(attempt);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
-    when(attempt.<Write, Element<Write>>newFlushBuffer(any()))
+    when(attempt.<Element<Write>>newFlushBuffer(any()))
         .thenReturn(newFlushBuffer(options))
         .thenReturn(newFlushBuffer(options))
         .thenThrow(new IllegalStateException("too many attempt#newFlushBuffer calls"));
@@ -223,6 +223,7 @@ public final class FirestoreV1FnBatchWriteWithDeadLetterQueueTest
       RpcQosOptions rpcQosOptions,
       CounterFactory counterFactory,
       DistributionFactory distributionFactory) {
-    return new BatchWriteFnWithDeadLetterQueue(clock, ff, rpcQosOptions, counterFactory);
+    return new BatchWriteFnWithDeadLetterQueue(
+        clock, ff, rpcQosOptions, counterFactory, null, null);
   }
 }

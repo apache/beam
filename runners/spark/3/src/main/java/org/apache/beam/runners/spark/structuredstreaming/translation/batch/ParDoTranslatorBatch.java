@@ -45,12 +45,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
@@ -116,7 +116,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
     // Filter out obsolete PCollections to only cache when absolutely necessary
     Map<TupleTag<?>, PCollection<?>> outputs =
-        skipObsoleteOutputs(cxt.getOutputs(), mainOut, transform.getAdditionalOutputTags(), cxt);
+        skipUnconsumedOutputs(cxt.getOutputs(), mainOut, transform.getAdditionalOutputTags(), cxt);
 
     if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.
@@ -206,12 +206,12 @@ class ParDoTranslatorBatch<InputT, OutputT>
   }
 
   /**
-   * Filter out obsolete, unused output tags except for {@code mainTag}.
+   * Filter out output tags which are not consumed by any transform, except for {@code mainTag}.
    *
    * <p>This can help to avoid unnecessary caching in case of multiple outputs if only {@code
    * mainTag} is consumed.
    */
-  private Map<TupleTag<?>, PCollection<?>> skipObsoleteOutputs(
+  private Map<TupleTag<?>, PCollection<?>> skipUnconsumedOutputs(
       Map<TupleTag<?>, PCollection<?>> outputs,
       TupleTag<?> mainTag,
       TupleTagList otherTags,

@@ -20,11 +20,11 @@ package org.apache.beam.runners.spark.translation;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -55,9 +55,10 @@ import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
@@ -116,7 +117,7 @@ public class SparkExecutableStageFunctionTest {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
     doThrow(new Exception()).when(remoteBundle).close();
     List<WindowedValue<Integer>> inputs = new ArrayList<>();
-    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    inputs.add(WindowedValues.valueInGlobalWindow(0));
     function.call(inputs.iterator());
   }
 
@@ -132,9 +133,9 @@ public class SparkExecutableStageFunctionTest {
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
     when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of(inputId, receiver));
 
-    WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
-    WindowedValue<Integer> two = WindowedValue.valueInGlobalWindow(2);
-    WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
+    WindowedValue<Integer> one = WindowedValues.valueInGlobalWindow(1);
+    WindowedValue<Integer> two = WindowedValues.valueInGlobalWindow(2);
+    WindowedValue<Integer> three = WindowedValues.valueInGlobalWindow(3);
     function.call(Arrays.asList(one, two, three).iterator());
 
     verify(receiver).accept(one);
@@ -145,9 +146,9 @@ public class SparkExecutableStageFunctionTest {
 
   @Test
   public void outputsAreTaggedCorrectly() throws Exception {
-    WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
-    WindowedValue<Integer> four = WindowedValue.valueInGlobalWindow(4);
-    WindowedValue<Integer> five = WindowedValue.valueInGlobalWindow(5);
+    WindowedValue<Integer> three = WindowedValues.valueInGlobalWindow(3);
+    WindowedValue<Integer> four = WindowedValues.valueInGlobalWindow(4);
+    WindowedValue<Integer> five = WindowedValues.valueInGlobalWindow(5);
     Map<String, Integer> outputTagMap =
         ImmutableMap.of(
             "one", 1,
@@ -230,7 +231,7 @@ public class SparkExecutableStageFunctionTest {
 
     SparkExecutableStageFunction<Integer, ?> function = getFunction(outputTagMap);
     List<WindowedValue<Integer>> inputs = new ArrayList<>();
-    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    inputs.add(WindowedValues.valueInGlobalWindow(0));
     Iterator<RawUnionValue> iterator = function.call(inputs.iterator());
     Iterable<RawUnionValue> iterable = () -> iterator;
 
@@ -244,7 +245,7 @@ public class SparkExecutableStageFunctionTest {
   public void testStageBundleClosed() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
     List<WindowedValue<Integer>> inputs = new ArrayList<>();
-    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    inputs.add(WindowedValues.valueInGlobalWindow(0));
     function.call(inputs.iterator());
     verify(stageBundleFactory).getBundle(any(), any(), any(), any(BundleProgressHandler.class));
     verify(stageBundleFactory).getProcessBundleDescriptor();
@@ -256,7 +257,7 @@ public class SparkExecutableStageFunctionTest {
   public void testNoCallOnEmptyInputIterator() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
     function.call(Collections.emptyIterator());
-    verifyZeroInteractions(stageBundleFactory);
+    verifyNoInteractions(stageBundleFactory);
   }
 
   private <InputT, SideInputT> SparkExecutableStageFunction<InputT, SideInputT> getFunction(

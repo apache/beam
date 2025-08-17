@@ -107,9 +107,9 @@ class Stager(object):
   """
   _DEFAULT_CHUNK_SIZE = 2 << 20
 
-  def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):
-    # type: (str, str, str) -> None
-
+  def stage_artifact(
+      self, local_path_to_artifact: str, artifact_name: str,
+      sha256: str) -> None:
     """ Stages the artifact to Stager._staging_location and adds artifact_name
         to the manifest of artifacts that have been staged."""
     raise NotImplementedError
@@ -159,14 +159,16 @@ class Stager(object):
         raise RuntimeError("unknown artifact type: %s" % artifact.type_urn)
 
   @staticmethod
-  def create_job_resources(options,  # type: PipelineOptions
-                           temp_dir,  # type: str
-                           build_setup_args=None,  # type: Optional[List[str]]
-                           pypi_requirements=None,  # type: Optional[List[str]]
-                           populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
-                           skip_prestaged_dependencies=False,  # type: Optional[bool]
-                           log_submission_env_dependencies=True,  # type: Optional[bool]
-                           ):
+  def create_job_resources(
+      options: PipelineOptions,
+      temp_dir: str,
+      build_setup_args: Optional[List[str]] = None,
+      pypi_requirements: Optional[List[str]] = None,
+      populate_requirements_cache: Optional[Callable[[str, str, bool],
+                                                     None]] = None,
+      skip_prestaged_dependencies: Optional[bool] = False,
+      log_submission_env_dependencies: Optional[bool] = True,
+  ):
     """For internal use only; no backwards-compatibility guarantees.
 
         Creates (if needed) a list of job resources.
@@ -198,7 +200,7 @@ class Stager(object):
           while trying to create the resources (e.g., build a setup package).
         """
 
-    resources = []  # type: List[beam_runner_api_pb2.ArtifactInformation]
+    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
 
     setup_options = options.view_as(SetupOptions)
     use_beam_default_container = options.view_as(
@@ -212,8 +214,8 @@ class Stager(object):
     if not skip_prestaged_dependencies:
       requirements_cache_path = (
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
-          (setup_options.requirements_cache is None) else
-          setup_options.requirements_cache)
+          (setup_options.requirements_cache
+           is None) else setup_options.requirements_cache)
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
           not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path)
@@ -280,15 +282,23 @@ class Stager(object):
           raise RuntimeError(
               'The file %s cannot be found. It was specified in the '
               '--setup_file command line option.' % setup_options.setup_file)
-        if os.path.basename(setup_options.setup_file) != 'setup.py':
+        if os.path.basename(setup_options.setup_file) not in ('setup.py',
+                                                              'pyproject.toml'):
           raise RuntimeError(
               'The --setup_file option expects the full path to a file named '
-              'setup.py instead of %s' % setup_options.setup_file)
+              'setup.py or pyproject.toml instead of %s' %
+              setup_options.setup_file)
         tarball_file = Stager._build_setup_package(
             setup_options.setup_file, temp_dir, build_setup_args)
         resources.append(
             Stager._create_file_stage_to_artifact(
                 tarball_file, WORKFLOW_TARBALL_FILE))
+
+      if setup_options.files_to_stage is not None:
+        for file in setup_options.files_to_stage:
+          resources.append(
+              Stager._create_file_stage_to_artifact(
+                  file, os.path.basename(file)))
 
       # Handle extra local packages that should be staged.
       if setup_options.extra_packages is not None:
@@ -381,10 +391,10 @@ class Stager(object):
 
     return resources
 
-  def stage_job_resources(self,
-                          resources,  # type: List[Tuple[str, str, str]]
-                          staging_location=None  # type: Optional[str]
-                         ):
+  def stage_job_resources(
+      self,
+      resources: List[Tuple[str, str, str]],
+      staging_location: Optional[str] = None):
     """For internal use only; no backwards-compatibility guarantees.
 
         Stages job resources to staging_location.
@@ -416,13 +426,13 @@ class Stager(object):
 
   def create_and_stage_job_resources(
       self,
-      options,  # type: PipelineOptions
-      build_setup_args=None,  # type: Optional[List[str]]
-      temp_dir=None,  # type: Optional[str]
-      pypi_requirements=None,  # type: Optional[List[str]]
-      populate_requirements_cache=None, # type: Optional[Callable[[str, str, bool], None]]
-      staging_location=None  # type: Optional[str]
-      ):
+      options: PipelineOptions,
+      build_setup_args: Optional[List[str]] = None,
+      temp_dir: Optional[str] = None,
+      pypi_requirements: Optional[List[str]] = None,
+      populate_requirements_cache: Optional[Callable[[str, str, bool],
+                                                     None]] = None,
+      staging_location: Optional[str] = None):
     """For internal use only; no backwards-compatibility guarantees.
 
         Creates (if needed) and stages job resources to staging_location.
@@ -523,9 +533,8 @@ class Stager(object):
     return path.find('://') != -1
 
   @staticmethod
-  def _create_jar_packages(jar_packages, temp_dir):
-    # type: (...) -> List[beam_runner_api_pb2.ArtifactInformation]
-
+  def _create_jar_packages(
+      jar_packages, temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a list of local jar packages for Java SDK Harness.
 
     :param jar_packages: Ordered list of local paths to jar packages to be
@@ -538,9 +547,9 @@ class Stager(object):
       RuntimeError: If files specified are not found or do not have expected
         name patterns.
     """
-    resources = []  # type: List[beam_runner_api_pb2.ArtifactInformation]
+    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages = []  # type: List[str]
+    local_packages: List[str] = []
     for package in jar_packages:
       if not os.path.basename(package).endswith('.jar'):
         raise RuntimeError(
@@ -574,9 +583,9 @@ class Stager(object):
     return resources
 
   @staticmethod
-  def _create_extra_packages(extra_packages, temp_dir):
-    # type: (...) -> List[beam_runner_api_pb2.ArtifactInformation]
-
+  def _create_extra_packages(
+      extra_packages,
+      temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a list of local extra packages.
 
       Args:
@@ -595,9 +604,9 @@ class Stager(object):
         RuntimeError: If files specified are not found or do not have expected
           name patterns.
       """
-    resources = []  # type: List[beam_runner_api_pb2.ArtifactInformation]
+    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages = []  # type: List[str]
+    local_packages: List[str] = []
     for package in extra_packages:
       if not (os.path.basename(package).endswith('.tar') or
               os.path.basename(package).endswith('.tar.gz') or
@@ -665,9 +674,7 @@ class Stager(object):
 
   @staticmethod
   def _remove_dependency_from_requirements(
-          requirements_file,  # type: str
-          dependency_to_remove,  # type: str
-          temp_directory_path):
+      requirements_file: str, dependency_to_remove: str, temp_directory_path):
     """Function to remove dependencies from a given requirements file."""
     # read all the dependency names
     with open(requirements_file, 'r') as f:
@@ -776,17 +783,18 @@ class Stager(object):
       processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
-  def _build_setup_package(setup_file,  # type: str
-                           temp_dir,  # type: str
-                           build_setup_args=None  # type: Optional[List[str]]
-                          ):
-    # type: (...) -> str
+  def _build_setup_package(
+      setup_file: str,
+      temp_dir: str,
+      build_setup_args: Optional[List[str]] = None) -> str:
     saved_current_directory = os.getcwd()
+
     try:
       os.chdir(os.path.dirname(setup_file))
       if build_setup_args is None:
         # if build is installed in the user env, use it to
-        # build the sdist else fallback to legacy setup.py sdist call.
+        # build the sdist else fallback to legacy
+        # setup.py sdist call for setup.py file.
         try:
           build_setup_args = [
               Stager._get_python_executable(),
@@ -801,15 +809,24 @@ class Stager(object):
           _LOGGER.info('Executing command: %s', build_setup_args)
           processes.check_output(build_setup_args)
         except RuntimeError:
-          build_setup_args = [
-              Stager._get_python_executable(),
-              os.path.basename(setup_file),
-              'sdist',
-              '--dist-dir',
-              temp_dir
-          ]
-          _LOGGER.info('Executing command: %s', build_setup_args)
-          processes.check_output(build_setup_args)
+          if setup_file.endswith('setup.py'):
+            build_setup_args = [
+                Stager._get_python_executable(),
+                os.path.basename(setup_file),
+                'sdist',
+                '--dist-dir',
+                temp_dir
+            ]
+            _LOGGER.info('Executing command: %s', build_setup_args)
+            processes.check_output(build_setup_args)
+          else:
+            # If it's pyproject.toml and `python -m build` failed,
+            # there's no direct legacy fallback.
+            raise RuntimeError(
+                f"Failed to build package from '{setup_file}' using . "
+                f"'python -m build'. Please ensure that the 'build' module "
+                f"is installed and your project's build configuration is valid."
+            )
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(
@@ -819,9 +836,7 @@ class Stager(object):
       os.chdir(saved_current_directory)
 
   @staticmethod
-  def _desired_sdk_filename_in_staging_location(sdk_location):
-    # type: (...) -> str
-
+  def _desired_sdk_filename_in_staging_location(sdk_location) -> str:
     """Returns the name that SDK file should have in the staging location.
       Args:
         sdk_location: Full path to SDK file.
@@ -836,9 +851,9 @@ class Stager(object):
       return names.STAGED_SDK_SOURCES_FILENAME
 
   @staticmethod
-  def _create_beam_sdk(sdk_remote_location, temp_dir):
-    # type: (...) -> List[beam_runner_api_pb2.ArtifactInformation]
-
+  def _create_beam_sdk(
+      sdk_remote_location,
+      temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a Beam SDK file with the appropriate version.
 
       Args:

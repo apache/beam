@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
+import static org.apache.beam.runners.dataflow.worker.MetricsToPerStepNamespaceMetricsConverter.KAFKA_SINK_METRICS_NAMESPACE;
 import static org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_COUNTER_NAME;
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -118,7 +119,8 @@ public abstract class StageInfo {
   private void translateKnownPerWorkerCounters(List<PerStepNamespaceMetrics> metrics) {
     for (PerStepNamespaceMetrics perStepnamespaceMetrics : metrics) {
       if (!BigQuerySinkMetrics.METRICS_NAMESPACE.equals(
-          perStepnamespaceMetrics.getMetricsNamespace())) {
+              perStepnamespaceMetrics.getMetricsNamespace())
+          && !KAFKA_SINK_METRICS_NAMESPACE.equals(perStepnamespaceMetrics.getMetricsNamespace())) {
         continue;
       }
       for (MetricValue metric : perStepnamespaceMetrics.getMetricValues()) {

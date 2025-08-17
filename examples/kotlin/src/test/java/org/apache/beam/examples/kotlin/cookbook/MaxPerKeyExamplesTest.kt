@@ -69,7 +69,6 @@ class MaxPerKeyExamplesTest {
     fun pipeline(): TestPipeline = pipeline
 
     @Test
-    @Category(ValidatesRunner::class)
     fun testExtractTempFn() {
         val results = pipeline.apply(Create.of(testRows)).apply(ParDo.of<TableRow, KV<Int, Double>>(MaxPerKeyExamples.ExtractTempFn()))
         PAssert.that(results).containsInAnyOrder(ImmutableList.of(kv1, kv2, kv3))
@@ -77,7 +76,6 @@ class MaxPerKeyExamplesTest {
     }
 
     @Test
-    @Category(ValidatesRunner::class)
     fun testFormatMaxesFn() {
         val results = pipeline.apply(Create.of(testKvs)).apply(ParDo.of<KV<Int, Double>, TableRow>(MaxPerKeyExamples.FormatMaxesFn()))
         PAssert.that(results).containsInAnyOrder(resultRow1, resultRow2, resultRow3)

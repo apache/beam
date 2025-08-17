@@ -17,9 +17,9 @@
 
 """This module defines the basic Combine operation."""
 
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Iterable
-from typing import Mapping
 from typing import Optional
 
 import apache_beam as beam
@@ -94,6 +94,12 @@ class PyJsYamlCombine(beam.PTransform):
 
   See also the documentation on
   [YAML Aggregation](https://beam.apache.org/documentation/sdks/yaml-combine/).
+
+  Args:
+    group_by: The field(s) to aggregate on.
+    combine: The aggregation function to use.
+    language: The language used to define (and execute) the
+      custom callables in `combine`. Defaults to generic.
   """
   def __init__(
       self,

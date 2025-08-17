@@ -153,15 +153,16 @@ def generate_transforms_config(input_services, output_file):
         transform_destinations[sdk] = dest  # override the destination
       name = modified_transform.get('name', wrapper.__name__)
 
-      fields = {}
+      fields = []
       for param in wrapper.configuration_schema.values():
         (tp, nullable) = pretty_type(param.type)
         field_info = {
+            'name': param.original_name,
             'type': str(tp),
             'description': param.description,
             'nullable': nullable
         }
-        fields[param.original_name] = field_info
+        fields.append(field_info)
 
       transform = {
           'identifier': identifier,
@@ -228,8 +229,14 @@ def pretty_type(tp):
     tp = tp.__name__
   elif tp.__module__ == 'typing':
     tp = str(tp).replace("typing.", "")
+    tp = tp.replace("Sequence", "list")
+    tp = tp.replace("Mapping", "map")
   elif tp.__module__ == 'numpy':
-    tp = "%s.%s" % (tp.__module__, tp.__name__)
+    tp = tp.__name__
+  tp = str(tp).replace("numpy.", "")
+
+  if tp == "bool":
+    tp = "boolean"
 
   return (tp, nullable)
 
@@ -269,14 +276,14 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
       identifier = config['identifier']
 
       parameters = []
-      for param, info in fields.items():
+      for field in fields:
         param_details = {
-            "name": param,
-            "type": info['type'],
-            "description": info['description'],
+            "name": field['name'],
+            "type": field['type'],
+            "description": field['description'],
         }
 
-        if info['nullable']:
+        if field['nullable']:
           param_details["default"] = None
         parameters.append(param_details)
 

@@ -17,7 +17,7 @@ name: PostCommit Python ValidatesContainer Dataflow With RC
 
 on:
   schedule:
-    - cron: '15 5/6 * * *'
+    - cron: '15 8/6 * * *'
   pull_request_target:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Python_ValidatesContainer_Dataflow_With_RC.json']
   workflow_dispatch:
@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -56,7 +56,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       startsWith(github.event.comment.body, 'Run Python RC Dataflow ValidatesContainer')
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 100
+    timeout-minutes: 300
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     strategy:
       fail-fast: false
@@ -72,12 +72,14 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+      - name: Install libsnappy-dev
+        run: sudo apt-get update && sudo apt-get install -y libsnappy-dev
+      - name: Install libpq-dev
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            11
-            8
+          java-version: default
           python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
@@ -94,6 +96,15 @@ jobs:
           arguments: |
             -PtestRCDependencies=true \
             -PpythonVersion=${{ matrix.python_version }} \
+      - name: Run validatesDistrolessContainer script
+        env:
+          USER: github-actions
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesDistrolessContainer
+          arguments: |
+            -PtestRCDependencies=true \
+            -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
@@ -107,3 +118,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
+          large_files: true

@@ -24,6 +24,9 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ChildPartitionsRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DataChangeRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.HeartbeatRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.PartitionEndRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.PartitionEventRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.PartitionStartRecordAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStreamAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
@@ -176,8 +179,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   /**
    * Constructs instances for the {@link PartitionMetadataDao}, {@link ChangeStreamDao}, {@link
    * ChangeStreamRecordMapper}, {@link PartitionMetadataMapper}, {@link DataChangeRecordAction},
-   * {@link HeartbeatRecordAction}, {@link ChildPartitionsRecordAction} and {@link
-   * QueryChangeStreamAction}.
+   * {@link HeartbeatRecordAction}, {@link ChildPartitionsRecordAction}, {@link
+   * PartitionStartRecordAction}, {@link PartitionEndRecordAction}, {@link
+   * PartitionEventRecordAction} and {@link QueryChangeStreamAction}.
    */
   @Setup
   public void setup() {
@@ -192,6 +196,12 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
         actionFactory.heartbeatRecordAction(metrics);
     final ChildPartitionsRecordAction childPartitionsRecordAction =
         actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics);
+    final PartitionStartRecordAction partitionStartRecordAction =
+        actionFactory.partitionStartRecordAction(partitionMetadataDao, metrics);
+    final PartitionEndRecordAction partitionEndRecordAction =
+        actionFactory.partitionEndRecordAction(partitionMetadataDao, metrics);
+    final PartitionEventRecordAction partitionEventRecordAction =
+        actionFactory.partitionEventRecordAction(partitionMetadataDao, metrics);
 
     this.queryChangeStreamAction =
         actionFactory.queryChangeStreamAction(
@@ -202,6 +212,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
+            partitionStartRecordAction,
+            partitionEndRecordAction,
+            partitionEventRecordAction,
             metrics);
   }
 

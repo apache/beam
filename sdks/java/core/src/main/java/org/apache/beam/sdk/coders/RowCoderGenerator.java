@@ -199,7 +199,6 @@ public abstract class RowCoderGenerator {
 
   @SuppressWarnings("unchecked")
   public static Coder<Row> generate(Schema schema) {
-    String stackTrace = getStackTrace();
     UUID uuid = Preconditions.checkNotNull(schema.getUUID());
     // Avoid using computeIfAbsent which may cause issues with nested schemas.
     synchronized (cacheLock) {
@@ -268,6 +267,7 @@ public abstract class RowCoderGenerator {
           | InvocationTargetException e) {
         throw new RuntimeException("Unable to generate coder for schema " + schema, e);
       }
+      String stackTrace = getStackTrace();
       GENERATED_CODERS.put(uuid, new WithStackTrace<>(rowCoder, stackTrace));
       LOG.debug(
           "Created row coder for uuid {} with encoding positions {} at {}",

@@ -34,6 +34,8 @@ on:
       - '.github/workflows/tour_of_beam_backend_integration.yml'
       - 'learning/tour-of-beam/backend/**'
       - 'playground/backend/**'
+  schedule:
+    - cron: '0 10 * * 6'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -62,7 +64,7 @@ env:
   PORT_POST_DELETE_PROGRESS: 8807
 
   # Gradle Enterprise
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 

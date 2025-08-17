@@ -30,30 +30,28 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
+import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
@@ -61,17 +59,15 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessSocketAddress;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessSocketAddress;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.junit.After;
 import org.junit.Before;
@@ -83,8 +79,11 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class FanOutStreamingEngineWorkerHarnessTest {
+  private static final String CHANNEL_NAME = "FanOutStreamingEngineWorkerHarnessTest";
+  private static final long WAIT_FOR_METADATA_INJECTIONS_SECONDS = 5;
+  private static final long SERVER_SHUTDOWN_TIMEOUT_SECONDS = 30;
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
-      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
+      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannels.LOCALHOST, 443));
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
       ImmutableMap.of(
           "global_data",
@@ -92,7 +91,6 @@ public class FanOutStreamingEngineWorkerHarnessTest {
               .setDirectEndpoint(DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().toString())
               .build());
 
-  private static final long CLIENT_ID = 1L;
   private static final String JOB_ID = "jobId";
   private static final String PROJECT_ID = "projectId";
   private static final String WORKER_ID = "workerId";
@@ -101,17 +99,17 @@ public class FanOutStreamingEngineWorkerHarnessTest {
           .setJobId(JOB_ID)
           .setProjectId(PROJECT_ID)
           .setWorkerId(WORKER_ID)
+          .setClientId(1L)
           .build();
 
-  @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
+  @Rule
+  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule().setTimeout(3, TimeUnit.MINUTES);
+
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
   private final ChannelCachingStubFactory stubFactory =
       new FakeWindmillStubFactory(
-          () ->
-              grpcCleanup.register(
-                  WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest")));
+          () -> grpcCleanup.register(WindmillChannels.inProcessChannel(CHANNEL_NAME)));
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class),
@@ -126,7 +124,11 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   private FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkProvider;
 
   private static WorkItemScheduler noOpProcessWorkItemFn() {
-    return (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
+    return (workItem,
+        serializedWorkItemSize,
+        watermarks,
+        processingContext,
+        getWorkStreamLatencies) -> {};
   }
 
   private static GetWorkRequest getWorkRequest(long items, long bytes) {
@@ -134,7 +136,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         .setJobId(JOB_ID)
         .setProjectId(PROJECT_ID)
         .setWorkerId(WORKER_ID)
-        .setClientId(CLIENT_ID)
+        .setClientId(JOB_HEADER.getClientId())
         .setMaxItems(items)
         .setMaxBytes(bytes)
         .build();
@@ -149,59 +151,63 @@ public class FanOutStreamingEngineWorkerHarnessTest {
 
   @Before
   public void setUp() throws IOException {
-    stubFactory.shutdown();
-    fakeStreamingEngineServer =
-        grpcCleanup.register(
-            InProcessServerBuilder.forName("StreamingEngineClientTest")
-                .fallbackHandlerRegistry(serviceRegistry)
-                .executor(Executors.newFixedThreadPool(1))
-                .build());
-
-    fakeStreamingEngineServer.start();
-    dispatcherClient.consumeWindmillDispatcherEndpoints(
-        ImmutableSet.of(
-            HostAndPort.fromString(
-                new InProcessSocketAddress("StreamingEngineClientTest").toString())));
     getWorkerMetadataReady = new CountDownLatch(1);
     fakeGetWorkerMetadataStub = new GetWorkerMetadataTestStub(getWorkerMetadataReady);
-    serviceRegistry.addService(fakeGetWorkerMetadataStub);
+    fakeStreamingEngineServer =
+        grpcCleanup
+            .register(
+                InProcessServerBuilder.forName(CHANNEL_NAME)
+                    .directExecutor()
+                    .addService(fakeGetWorkerMetadataStub)
+                    .addService(new WindmillServiceFakeStub())
+                    .build())
+            .start();
+
+    dispatcherClient.consumeWindmillDispatcherEndpoints(
+        ImmutableSet.of(
+            HostAndPort.fromString(new InProcessSocketAddress(CHANNEL_NAME).toString())));
   }
 
   @After
-  public void cleanUp() {
+  public void cleanUp() throws InterruptedException {
     Preconditions.checkNotNull(fanOutStreamingEngineWorkProvider).shutdown();
-    fakeStreamingEngineServer.shutdownNow();
     stubFactory.shutdown();
+    fakeStreamingEngineServer.shutdown();
+    if (!fakeStreamingEngineServer.awaitTermination(
+        SERVER_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+      fakeStreamingEngineServer.shutdownNow();
+    }
   }
 
-  private FanOutStreamingEngineWorkerHarness newStreamingEngineClient(
+  private FanOutStreamingEngineWorkerHarness newFanOutStreamingEngineWorkerHarness(
       GetWorkBudget getWorkBudget,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
-      WorkItemScheduler workItemScheduler) {
-    return FanOutStreamingEngineWorkerHarness.forTesting(
-        JOB_HEADER,
-        getWorkBudget,
-        streamFactory,
-        workItemScheduler,
-        stubFactory,
-        getWorkBudgetDistributor,
-        dispatcherClient,
-        CLIENT_ID,
-        ignored -> mock(WorkCommitter.class),
-        new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)));
+      WorkItemScheduler workItemScheduler)
+      throws InterruptedException {
+    FanOutStreamingEngineWorkerHarness harness =
+        FanOutStreamingEngineWorkerHarness.forTesting(
+            JOB_HEADER,
+            getWorkBudget,
+            streamFactory,
+            workItemScheduler,
+            stubFactory,
+            getWorkBudgetDistributor,
+            dispatcherClient,
+            ignored -> mock(WorkCommitter.class),
+            new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)));
+    getWorkerMetadataReady.await();
+    return harness;
   }
 
   @Test
   public void testStreamsStartCorrectly() throws InterruptedException {
     long items = 10L;
     long bytes = 10L;
-    int numBudgetDistributionsExpected = 1;
 
-    TestGetWorkBudgetDistributor getWorkBudgetDistributor =
-        spy(new TestGetWorkBudgetDistributor(numBudgetDistributionsExpected));
+    TestGetWorkBudgetDistributor getWorkBudgetDistributor = spy(new TestGetWorkBudgetDistributor());
 
     fanOutStreamingEngineWorkProvider =
-        newStreamingEngineClient(
+        newFanOutStreamingEngineWorkerHarness(
             GetWorkBudget.builder().setItems(items).setBytes(bytes).build(),
             getWorkBudgetDistributor,
             noOpProcessWorkItemFn());
@@ -209,26 +215,20 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     String workerToken = "workerToken1";
     String workerToken2 = "workerToken2";
 
-    WorkerMetadataResponse firstWorkerMetadata =
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
             .addWorkEndpoints(metadataResponseEndpoint(workerToken))
             .addWorkEndpoints(metadataResponseEndpoint(workerToken2))
             .putAllGlobalDataEndpoints(DEFAULT)
-            .build();
+            .build());
 
-    getWorkerMetadataReady.await();
-    fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
+    StreamingEngineBackends currentBackends = fanOutStreamingEngineWorkProvider.currentBackends();
 
-    StreamingEngineConnectionState currentConnections =
-        fanOutStreamingEngineWorkProvider.getCurrentConnections();
-
-    assertEquals(2, currentConnections.windmillConnections().size());
-    assertEquals(2, currentConnections.windmillStreams().size());
+    assertEquals(2, currentBackends.windmillStreams().size());
     Set<String> workerTokens =
-        currentConnections.windmillConnections().values().stream()
-            .map(WindmillConnection::backendWorkerToken)
+        currentBackends.windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElseThrow(IllegalStateException::new))
             .collect(Collectors.toSet());
 
     assertTrue(workerTokens.contains(workerToken));
@@ -240,47 +240,18 @@ public class FanOutStreamingEngineWorkerHarnessTest {
 
     verify(streamFactory, times(2))
         .createDirectGetWorkStream(
-            any(),
-            eq(getWorkRequest(0, 0)),
-            any(),
-            any(),
-            any(),
-            any(),
-            eq(noOpProcessWorkItemFn()));
+            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
 
-    verify(streamFactory, times(2)).createGetDataStream(any(), any());
-    verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
-  }
-
-  @Test
-  public void testScheduledBudgetRefresh() throws InterruptedException {
-    TestGetWorkBudgetDistributor getWorkBudgetDistributor =
-        spy(new TestGetWorkBudgetDistributor(2));
-    fanOutStreamingEngineWorkProvider =
-        newStreamingEngineClient(
-            GetWorkBudget.builder().setItems(1L).setBytes(1L).build(),
-            getWorkBudgetDistributor,
-            noOpProcessWorkItemFn());
-
-    getWorkerMetadataReady.await();
-    fakeGetWorkerMetadataStub.injectWorkerMetadata(
-        WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(1)
-            .addWorkEndpoints(metadataResponseEndpoint("workerToken"))
-            .putAllGlobalDataEndpoints(DEFAULT)
-            .build());
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
-    verify(getWorkBudgetDistributor, atLeast(2)).distributeBudget(any(), any());
+    verify(streamFactory, times(2)).createDirectGetDataStream(any());
+    verify(streamFactory, times(2)).createDirectCommitWorkStream(any());
   }
 
   @Test
   public void testOnNewWorkerMetadata_correctlyRemovesStaleWindmillServers()
       throws InterruptedException {
-    int metadataCount = 2;
-    TestGetWorkBudgetDistributor getWorkBudgetDistributor =
-        spy(new TestGetWorkBudgetDistributor(metadataCount));
+    GetWorkBudgetDistributor getWorkBudgetDistributor = mock(GetWorkBudgetDistributor.class);
     fanOutStreamingEngineWorkProvider =
-        newStreamingEngineClient(
+        newFanOutStreamingEngineWorkerHarness(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
             getWorkBudgetDistributor,
             noOpProcessWorkItemFn());
@@ -309,32 +280,26 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken(workerToken3)
                     .build())
-            .putAllGlobalDataEndpoints(DEFAULT)
             .build();
 
-    getWorkerMetadataReady.await();
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
-    StreamingEngineConnectionState currentConnections =
-        fanOutStreamingEngineWorkProvider.getCurrentConnections();
-    assertEquals(1, currentConnections.windmillConnections().size());
-    assertEquals(1, currentConnections.windmillStreams().size());
+    StreamingEngineBackends currentBackends = fanOutStreamingEngineWorkProvider.currentBackends();
+    assertEquals(1, currentBackends.windmillStreams().size());
     Set<String> workerTokens =
-        fanOutStreamingEngineWorkProvider.getCurrentConnections().windmillConnections().values()
-            .stream()
-            .map(WindmillConnection::backendWorkerToken)
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElseThrow(IllegalStateException::new))
             .collect(Collectors.toSet());
 
     assertFalse(workerTokens.contains(workerToken));
     assertFalse(workerTokens.contains(workerToken2));
+    assertTrue(currentBackends.globalDataStreams().isEmpty());
   }
 
   @Test
   public void testOnNewWorkerMetadata_redistributesBudget() throws InterruptedException {
     String workerToken = "workerToken1";
     String workerToken2 = "workerToken2";
-    String workerToken3 = "workerToken3";
 
     WorkerMetadataResponse firstWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
@@ -354,42 +319,80 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                     .build())
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
-    WorkerMetadataResponse thirdWorkerMetadata =
-        WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(3)
-            .addWorkEndpoints(
-                WorkerMetadataResponse.Endpoint.newBuilder()
-                    .setBackendWorkerToken(workerToken3)
-                    .build())
-            .putAllGlobalDataEndpoints(DEFAULT)
-            .build();
 
-    List<WorkerMetadataResponse> workerMetadataResponses =
-        Lists.newArrayList(firstWorkerMetadata, secondWorkerMetadata, thirdWorkerMetadata);
-
-    TestGetWorkBudgetDistributor getWorkBudgetDistributor =
-        spy(new TestGetWorkBudgetDistributor(workerMetadataResponses.size()));
+    TestGetWorkBudgetDistributor getWorkBudgetDistributor = spy(new TestGetWorkBudgetDistributor());
     fanOutStreamingEngineWorkProvider =
-        newStreamingEngineClient(
+        newFanOutStreamingEngineWorkerHarness(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
             getWorkBudgetDistributor,
             noOpProcessWorkItemFn());
 
-    getWorkerMetadataReady.await();
-
-    // Make sure we are injecting the metadata from smallest to largest.
-    workerMetadataResponses.stream()
-        .sorted(Comparator.comparingLong(WorkerMetadataResponse::getMetadataVersion))
-        .forEach(fakeGetWorkerMetadataStub::injectWorkerMetadata);
-
-    waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
-    verify(getWorkBudgetDistributor, atLeast(workerMetadataResponses.size()))
-        .distributeBudget(any(), any());
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
+    verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
+    verify(getWorkBudgetDistributor, times(2)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
   }
 
-  private void waitForWorkerMetadataToBeConsumed(
-      TestGetWorkBudgetDistributor getWorkBudgetDistributor) throws InterruptedException {
-    getWorkBudgetDistributor.waitForBudgetDistribution();
+  private static class WindmillServiceFakeStub
+      extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
+    @Override
+    public StreamObserver<Windmill.StreamingGetDataRequest> getDataStream(
+        StreamObserver<Windmill.StreamingGetDataResponse> responseObserver) {
+      return new StreamObserver<Windmill.StreamingGetDataRequest>() {
+        @Override
+        public void onNext(Windmill.StreamingGetDataRequest getDataRequest) {}
+
+        @Override
+        public void onError(Throwable throwable) {
+          responseObserver.onError(throwable);
+        }
+
+        @Override
+        public void onCompleted() {
+          responseObserver.onCompleted();
+        }
+      };
+    }
+
+    @Override
+    public StreamObserver<Windmill.StreamingGetWorkRequest> getWorkStream(
+        StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver) {
+      return new StreamObserver<Windmill.StreamingGetWorkRequest>() {
+        @Override
+        public void onNext(Windmill.StreamingGetWorkRequest getWorkRequest) {}
+
+        @Override
+        public void onError(Throwable throwable) {
+          responseObserver.onError(throwable);
+        }
+
+        @Override
+        public void onCompleted() {
+          responseObserver.onCompleted();
+        }
+      };
+    }
+
+    @Override
+    public StreamObserver<Windmill.StreamingCommitWorkRequest> commitWorkStream(
+        StreamObserver<Windmill.StreamingCommitResponse> responseObserver) {
+      return new StreamObserver<Windmill.StreamingCommitWorkRequest>() {
+        @Override
+        public void onNext(Windmill.StreamingCommitWorkRequest streamingCommitWorkRequest) {}
+
+        @Override
+        public void onError(Throwable throwable) {
+          responseObserver.onError(throwable);
+        }
+
+        @Override
+        public void onCompleted() {
+          responseObserver.onCompleted();
+        }
+      };
+    }
   }
 
   private static class GetWorkerMetadataTestStub
@@ -422,7 +425,11 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         }
 
         @Override
-        public void onCompleted() {}
+        public void onCompleted() {
+          if (responseObserver != null) {
+            responseObserver.onCompleted();
+          }
+        }
       };
     }
 
@@ -434,22 +441,10 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   }
 
   private static class TestGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
-    private final CountDownLatch getWorkBudgetDistributorTriggered;
-
-    private TestGetWorkBudgetDistributor(int numBudgetDistributionsExpected) {
-      this.getWorkBudgetDistributorTriggered = new CountDownLatch(numBudgetDistributionsExpected);
-    }
-
-    @SuppressWarnings("ReturnValueIgnored")
-    private void waitForBudgetDistribution() throws InterruptedException {
-      getWorkBudgetDistributorTriggered.await(5, TimeUnit.SECONDS);
-    }
-
     @Override
     public <T extends GetWorkBudgetSpender> void distributeBudget(
         ImmutableCollection<T> streams, GetWorkBudget getWorkBudget) {
-      streams.forEach(stream -> stream.adjustBudget(getWorkBudget.items(), getWorkBudget.bytes()));
-      getWorkBudgetDistributorTriggered.countDown();
+      streams.forEach(stream -> stream.setBudget(getWorkBudget.items(), getWorkBudget.bytes()));
     }
   }
 }

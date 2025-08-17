@@ -50,14 +50,14 @@ import org.apache.beam.sdk.fn.stream.DirectStreamObserver;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Value;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.ClientResponseObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Value;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -68,7 +68,7 @@ import org.slf4j.MDC;
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
  */
-public class BeamFnLoggingClient implements AutoCloseable {
+public class BeamFnLoggingClient implements LoggingClient {
   private static final String ROOT_LOGGER_NAME = "";
   private static final ImmutableMap<Level, BeamFnApi.LogEntry.Severity.Enum> LOG_LEVEL_MAP =
       ImmutableMap.<Level, BeamFnApi.LogEntry.Severity.Enum>builder()
@@ -119,7 +119,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
    */
   private @Nullable Thread logEntryHandlerThread = null;
 
-  public static BeamFnLoggingClient createAndStart(
+  static BeamFnLoggingClient createAndStart(
       PipelineOptions options,
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
@@ -383,6 +383,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
   }
 
+  @Override
   public CompletableFuture<?> terminationFuture() {
     checkNotNull(bufferedLogConsumer, "BeamFnLoggingClient not fully started");
     return bufferedLogConsumer;

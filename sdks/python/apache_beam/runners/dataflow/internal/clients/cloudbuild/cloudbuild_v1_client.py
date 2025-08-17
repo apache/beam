@@ -130,8 +130,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='httpBody',
         request_type_name='CloudbuildLocationsRegionalWebhookRequest',
         response_type_name='Empty',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class OperationsService(base_api.BaseApiService):
     """Service class for the operations resource."""
@@ -165,8 +164,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='cancelOperationRequest',
         request_type_name='CloudbuildOperationsCancelRequest',
         response_type_name='Empty',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Gets the latest state of a long-running operation. Clients can use this method to poll the operation result at intervals as recommended by the API service.
@@ -191,8 +189,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildOperationsGetRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsBuildsService(base_api.BaseApiService):
     """Service class for the projects_builds resource."""
@@ -226,8 +223,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='approveBuildRequest',
         request_type_name='CloudbuildProjectsBuildsApproveRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Cancel(self, request, global_params=None):
       r"""Cancels a build in progress.
@@ -251,8 +247,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='<request>',
         request_type_name='CancelBuildRequest',
         response_type_name='Build',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Create(self, request, global_params=None):
       r"""Starts a build with the specified configuration. This method returns a long-running `Operation`, which includes the build ID. Pass the build ID to `GetBuild` to determine the build status (such as `SUCCESS` or `FAILURE`).
@@ -276,8 +271,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='build',
         request_type_name='CloudbuildProjectsBuildsCreateRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Returns information about a previously requested build. The `Build` that is returned includes its status (such as `SUCCESS`, `FAILURE`, or `WORKING`), and timing information.
@@ -301,8 +295,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsBuildsGetRequest',
         response_type_name='Build',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists previously requested builds. Previously requested builds may still be in-progress, or may have finished successfully or unsuccessfully.
@@ -326,8 +319,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsBuildsListRequest',
         response_type_name='ListBuildsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Retry(self, request, global_params=None):
       r"""Creates a new build based on the specified build. This method creates a new build using the original build request, which may or may not result in an identical build. For triggered builds: * Triggered builds resolve to a precise revision; therefore a retry of a triggered build will result in a build that uses the same revision. For non-triggered builds that specify `RepoSource`: * If the original build built from the tip of a branch, the retried build will build from the tip of that branch, which may not be the same revision as the original build. * If the original build specified a commit sha or revision ID, the retried build will use the identical source. For builds that specify `StorageSource`: * If the original build pulled source from Google Cloud Storage without specifying the generation of the object, the new build will use the current object, which may be different from the original build source. * If the original build pulled source from Cloud Storage and specified the generation of the object, the new build will attempt to use the same object, which may or may not be available depending on the bucket's lifecycle management settings.
@@ -351,8 +343,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='<request>',
         request_type_name='RetryBuildRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsGithubEnterpriseConfigsService(base_api.BaseApiService):
     """Service class for the projects_githubEnterpriseConfigs resource."""
@@ -388,8 +379,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsGithubEnterpriseConfigsCreateRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Delete(self, request, global_params=None):
       r"""Delete an association between a GCP project and a GitHub Enterprise server.
@@ -416,8 +406,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsGithubEnterpriseConfigsDeleteRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Retrieve a GitHubEnterpriseConfig.
@@ -443,8 +432,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsGithubEnterpriseConfigsGetRequest',
         response_type_name='GitHubEnterpriseConfig',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""List all GitHubEnterpriseConfigs for a given project.
@@ -470,8 +458,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsGithubEnterpriseConfigsListRequest',
         response_type_name='ListGithubEnterpriseConfigsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Update an association between a GCP project and a GitHub Enterprise server.
@@ -498,8 +485,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsGithubEnterpriseConfigsPatchRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsBitbucketServerConfigsConnectedRepositoriesService(
       base_api.BaseApiService):
@@ -540,8 +526,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsConnectedRepositoriesBatchCreateRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsBitbucketServerConfigsReposService(
       base_api.BaseApiService):
@@ -581,8 +566,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsReposListRequest',
         response_type_name='ListBitbucketServerRepositoriesResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsBitbucketServerConfigsService(base_api.BaseApiService):
     """Service class for the projects_locations_bitbucketServerConfigs resource."""
@@ -621,8 +605,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsAddBitbucketServerConnectedRepositoryRequest',
         response_type_name='AddBitbucketServerConnectedRepositoryResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Create(self, request, global_params=None):
       r"""Creates a new `BitbucketServerConfig`. This API is experimental.
@@ -649,8 +632,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsCreateRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Delete(self, request, global_params=None):
       r"""Delete a `BitbucketServerConfig`. This API is experimental.
@@ -677,8 +659,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsDeleteRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Retrieve a `BitbucketServerConfig`. This API is experimental.
@@ -705,8 +686,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsGetRequest',
         response_type_name='BitbucketServerConfig',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""List all `BitbucketServerConfigs` for a given project. This API is experimental.
@@ -733,8 +713,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsListRequest',
         response_type_name='ListBitbucketServerConfigsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Updates an existing `BitbucketServerConfig`. This API is experimental.
@@ -761,8 +740,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsPatchRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def RemoveBitbucketServerConnectedRepository(
         self, request, global_params=None):
@@ -791,8 +769,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsBitbucketServerConfigsRemoveBitbucketServerConnectedRepositoryRequest',
         response_type_name='Empty',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsBuildsService(base_api.BaseApiService):
     """Service class for the projects_locations_builds resource."""
@@ -827,8 +804,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='approveBuildRequest',
         request_type_name='CloudbuildProjectsLocationsBuildsApproveRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Cancel(self, request, global_params=None):
       r"""Cancels a build in progress.
@@ -854,8 +830,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='<request>',
         request_type_name='CancelBuildRequest',
         response_type_name='Build',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Create(self, request, global_params=None):
       r"""Starts a build with the specified configuration. This method returns a long-running `Operation`, which includes the build ID. Pass the build ID to `GetBuild` to determine the build status (such as `SUCCESS` or `FAILURE`).
@@ -880,8 +855,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='build',
         request_type_name='CloudbuildProjectsLocationsBuildsCreateRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Returns information about a previously requested build. The `Build` that is returned includes its status (such as `SUCCESS`, `FAILURE`, or `WORKING`), and timing information.
@@ -907,8 +881,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsBuildsGetRequest',
         response_type_name='Build',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists previously requested builds. Previously requested builds may still be in-progress, or may have finished successfully or unsuccessfully.
@@ -933,8 +906,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsBuildsListRequest',
         response_type_name='ListBuildsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Retry(self, request, global_params=None):
       r"""Creates a new build based on the specified build. This method creates a new build using the original build request, which may or may not result in an identical build. For triggered builds: * Triggered builds resolve to a precise revision; therefore a retry of a triggered build will result in a build that uses the same revision. For non-triggered builds that specify `RepoSource`: * If the original build built from the tip of a branch, the retried build will build from the tip of that branch, which may not be the same revision as the original build. * If the original build specified a commit sha or revision ID, the retried build will use the identical source. For builds that specify `StorageSource`: * If the original build pulled source from Google Cloud Storage without specifying the generation of the object, the new build will use the current object, which may be different from the original build source. * If the original build pulled source from Cloud Storage and specified the generation of the object, the new build will attempt to use the same object, which may or may not be available depending on the bucket's lifecycle management settings.
@@ -960,8 +932,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='<request>',
         request_type_name='RetryBuildRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsGithubEnterpriseConfigsService(base_api.BaseApiService
                                                         ):
@@ -1000,8 +971,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsGithubEnterpriseConfigsCreateRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Delete(self, request, global_params=None):
       r"""Delete an association between a GCP project and a GitHub Enterprise server.
@@ -1029,8 +999,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsGithubEnterpriseConfigsDeleteRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Retrieve a GitHubEnterpriseConfig.
@@ -1057,8 +1026,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsGithubEnterpriseConfigsGetRequest',
         response_type_name='GitHubEnterpriseConfig',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""List all GitHubEnterpriseConfigs for a given project.
@@ -1085,8 +1053,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsGithubEnterpriseConfigsListRequest',
         response_type_name='ListGithubEnterpriseConfigsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Update an association between a GCP project and a GitHub Enterprise server.
@@ -1113,8 +1080,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_type_name=
         'CloudbuildProjectsLocationsGithubEnterpriseConfigsPatchRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsOperationsService(base_api.BaseApiService):
     """Service class for the projects_locations_operations resource."""
@@ -1150,8 +1116,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='cancelOperationRequest',
         request_type_name='CloudbuildProjectsLocationsOperationsCancelRequest',
         response_type_name='Empty',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Gets the latest state of a long-running operation. Clients can use this method to poll the operation result at intervals as recommended by the API service.
@@ -1177,8 +1142,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsOperationsGetRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsTriggersService(base_api.BaseApiService):
     """Service class for the projects_locations_triggers resource."""
@@ -1213,8 +1177,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='buildTrigger',
         request_type_name='CloudbuildProjectsLocationsTriggersCreateRequest',
         response_type_name='BuildTrigger',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Delete(self, request, global_params=None):
       r"""Deletes a `BuildTrigger` by its project ID and trigger ID. This API is experimental.
@@ -1240,8 +1203,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsTriggersDeleteRequest',
         response_type_name='Empty',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Returns information about a `BuildTrigger`. This API is experimental.
@@ -1267,8 +1229,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsTriggersGetRequest',
         response_type_name='BuildTrigger',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists existing `BuildTrigger`s. This API is experimental.
@@ -1293,8 +1254,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsTriggersListRequest',
         response_type_name='ListBuildTriggersResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Updates a `BuildTrigger` by its project ID and trigger ID. This API is experimental.
@@ -1320,8 +1280,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='buildTrigger',
         request_type_name='CloudbuildProjectsLocationsTriggersPatchRequest',
         response_type_name='BuildTrigger',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Run(self, request, global_params=None):
       r"""Runs a `BuildTrigger` at a particular source revision.
@@ -1347,8 +1306,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='runBuildTriggerRequest',
         request_type_name='CloudbuildProjectsLocationsTriggersRunRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Webhook(self, request, global_params=None):
       r"""ReceiveTriggerWebhook [Experimental] is called when the API receives a webhook request targeted at a specific trigger.
@@ -1374,8 +1332,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='httpBody',
         request_type_name='CloudbuildProjectsLocationsTriggersWebhookRequest',
         response_type_name='ReceiveTriggerWebhookResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsWorkerPoolsService(base_api.BaseApiService):
     """Service class for the projects_locations_workerPools resource."""
@@ -1411,8 +1368,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='workerPool',
         request_type_name='CloudbuildProjectsLocationsWorkerPoolsCreateRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Delete(self, request, global_params=None):
       r"""Deletes a `WorkerPool`.
@@ -1438,8 +1394,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsWorkerPoolsDeleteRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Returns details of a `WorkerPool`.
@@ -1465,8 +1420,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsWorkerPoolsGetRequest',
         response_type_name='WorkerPool',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists `WorkerPool`s.
@@ -1492,8 +1446,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsLocationsWorkerPoolsListRequest',
         response_type_name='ListWorkerPoolsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Updates a `WorkerPool`.
@@ -1519,8 +1472,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='workerPool',
         request_type_name='CloudbuildProjectsLocationsWorkerPoolsPatchRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsLocationsService(base_api.BaseApiService):
     """Service class for the projects_locations resource."""
@@ -1562,8 +1514,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='buildTrigger',
         request_type_name='CloudbuildProjectsTriggersCreateRequest',
         response_type_name='BuildTrigger',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Delete(self, request, global_params=None):
       r"""Deletes a `BuildTrigger` by its project ID and trigger ID. This API is experimental.
@@ -1587,8 +1538,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsTriggersDeleteRequest',
         response_type_name='Empty',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Returns information about a `BuildTrigger`. This API is experimental.
@@ -1612,8 +1562,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsTriggersGetRequest',
         response_type_name='BuildTrigger',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists existing `BuildTrigger`s. This API is experimental.
@@ -1637,8 +1586,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='',
         request_type_name='CloudbuildProjectsTriggersListRequest',
         response_type_name='ListBuildTriggersResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Updates a `BuildTrigger` by its project ID and trigger ID. This API is experimental.
@@ -1662,8 +1610,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='buildTrigger',
         request_type_name='CloudbuildProjectsTriggersPatchRequest',
         response_type_name='BuildTrigger',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Run(self, request, global_params=None):
       r"""Runs a `BuildTrigger` at a particular source revision.
@@ -1687,8 +1634,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='repoSource',
         request_type_name='CloudbuildProjectsTriggersRunRequest',
         response_type_name='Operation',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Webhook(self, request, global_params=None):
       r"""ReceiveTriggerWebhook [Experimental] is called when the API receives a webhook request targeted at a specific trigger.
@@ -1712,8 +1658,7 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='httpBody',
         request_type_name='CloudbuildProjectsTriggersWebhookRequest',
         response_type_name='ReceiveTriggerWebhookResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsService(base_api.BaseApiService):
     """Service class for the projects resource."""
@@ -1755,5 +1700,4 @@ class CloudbuildV1(base_api.BaseApiClient):
         request_field='httpBody',
         request_type_name='CloudbuildWebhookRequest',
         response_type_name='Empty',
-        supports_download=False,
-    )
+        supports_download=False, )

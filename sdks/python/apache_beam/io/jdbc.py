@@ -86,6 +86,7 @@
 
 # pytype: skip-file
 
+import contextlib
 import datetime
 import typing
 
@@ -114,7 +115,8 @@ def default_io_expansion_service(classpath=None):
 
 JdbcConfigSchema = typing.NamedTuple(
     'JdbcConfigSchema',
-    [('location', str), ('config', bytes)],
+    [('location', str), ('config', bytes),
+     ('dataSchema', typing.Optional[bytes])],
 )
 
 Config = typing.NamedTuple(
@@ -125,12 +127,14 @@ Config = typing.NamedTuple(
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
      ('fetch_size', typing.Optional[np.int16]),
+     ('disable_autocommit', typing.Optional[bool]),
      ('output_parallelization', typing.Optional[bool]),
      ('autosharding', typing.Optional[bool]),
      ('partition_column', typing.Optional[str]),
      ('partitions', typing.Optional[np.int16]),
      ('max_connections', typing.Optional[np.int16]),
-     ('driver_jars', typing.Optional[str])],
+     ('driver_jars', typing.Optional[str]),
+     ('write_batch_size', typing.Optional[np.int64])],
 )
 
 DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
@@ -186,6 +190,7 @@ class WriteToJdbc(ExternalTransform):
       driver_jars=None,
       expansion_service=None,
       classpath=None,
+      write_batch_size=None,
   ):
     """
     Initializes a write operation to Jdbc.
@@ -217,6 +222,9 @@ class WriteToJdbc(ExternalTransform):
                       package (e.g. "org.postgresql:postgresql:42.3.1").
                       By default, this argument includes a Postgres SQL JDBC
                       driver.
+    :param write_batch_size: sets the maximum size in number of SQL statement
+                             for the batch.
+                             default is {@link JdbcIO.DEFAULT_BATCH_SIZE}
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
@@ -234,17 +242,31 @@ class WriteToJdbc(ExternalTransform):
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=statement,
+                            write_batch_size=write_batch_size,
                             read_query=None,
                             fetch_size=None,
+                            disable_autocommit=None,
                             output_parallelization=None,
                             autosharding=autosharding,
                             max_connections=max_connections,
                             driver_jars=driver_jars,
                             partitions=None,
-                            partition_column=None))),
+                            partition_column=None)),
+                dataSchema=None),
         ),
         expansion_service or default_io_expansion_service(classpath),
     )
+
+
+@contextlib.contextmanager
+def enforce_millis_instant_for_timestamp():
+  old_registry = LogicalType._known_logical_types
+  LogicalType._known_logical_types = old_registry.copy()
+  try:
+    LogicalType.register_logical_type(MillisInstant)
+    yield
+  finally:
+    LogicalType._known_logical_types = old_registry
 
 
 class ReadFromJdbc(ExternalTransform):
@@ -286,6 +308,7 @@ class ReadFromJdbc(ExternalTransform):
       username,
       password,
       query=None,
+      disable_autocommit=None,
       output_parallelization=None,
       fetch_size=None,
       partition_column=None,
@@ -296,7 +319,7 @@ class ReadFromJdbc(ExternalTransform):
       driver_jars=None,
       expansion_service=None,
       classpath=None,
-  ):
+      schema=None):
     """
     Initializes a read operation from Jdbc.
 
@@ -305,6 +328,7 @@ class ReadFromJdbc(ExternalTransform):
     :param username: database username
     :param password: database password
     :param query: sql query to be executed
+    :param disable_autocommit: disable autocommit on read
     :param output_parallelization: is output parallelization on
     :param fetch_size: how many rows to fetch
     :param partition_column: enable partitioned reads by splitting on this
@@ -331,8 +355,21 @@ class ReadFromJdbc(ExternalTransform):
                       package (e.g. "org.postgresql:postgresql:42.3.1").
                       By default, this argument includes a Postgres SQL JDBC
                       driver.
+    :param schema: Optional custom schema for the returned rows. If provided,
+                   this should be a NamedTuple type that defines the structure
+                   of the output PCollection elements. This bypasses automatic
+                   schema inference during pipeline construction.
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
+
+    dataSchema = None
+    if schema is not None:
+      with enforce_millis_instant_for_timestamp():
+        # Convert Python schema to Beam Schema proto
+        schema_proto = typing_to_runner_api(schema).row_type.schema
+      # Serialize the proto to bytes for transmission
+      dataSchema = schema_proto.SerializeToString()
+
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -348,14 +385,17 @@ class ReadFromJdbc(ExternalTransform):
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=None,
+                            write_batch_size=None,
                             read_query=query,
                             fetch_size=fetch_size,
+                            disable_autocommit=disable_autocommit,
                             output_parallelization=output_parallelization,
                             autosharding=None,
                             max_connections=max_connections,
                             driver_jars=driver_jars,
                             partition_column=partition_column,
-                            partitions=partitions))),
+                            partitions=partitions)),
+                dataSchema=dataSchema),
         ),
         expansion_service or default_io_expansion_service(classpath),
     )
@@ -374,7 +414,7 @@ class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
 
   @classmethod
   def representation_type(cls) -> type:
-    return Timestamp
+    return MillisInstant
 
   @classmethod
   def urn(cls):
@@ -390,7 +430,6 @@ class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
             value, datetime.datetime.min.time(), tzinfo=datetime.timezone.utc))
 
   def to_language_type(self, value: Timestamp) -> datetime.date:
-
     return value.to_utc_datetime().date()
 
   @classmethod
@@ -418,7 +457,7 @@ class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
 
   @classmethod
   def representation_type(cls) -> type:
-    return Timestamp
+    return MillisInstant
 
   @classmethod
   def urn(cls):
@@ -436,7 +475,6 @@ class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
             tzinfo=datetime.timezone.utc))
 
   def to_language_type(self, value: Timestamp) -> datetime.date:
-
     return value.to_utc_datetime().time()
 
   @classmethod

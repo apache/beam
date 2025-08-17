@@ -21,8 +21,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
@@ -60,7 +60,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TransformInputs;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -69,6 +68,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -79,7 +80,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -187,13 +188,14 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             eq(producingTransform), Mockito.<StructuralKey>any()))
         .thenReturn(mockExecutionContext);
     when(mockExecutionContext.getStepContext(any())).thenReturn(mockStepContext);
-    when(mockEvaluationContext.createBundle(Matchers.<PCollection<Integer>>any()))
+    when(mockEvaluationContext.createBundle(ArgumentMatchers.<PCollection<Integer>>any()))
         .thenReturn(mockUncommittedBundle);
     when(mockStepContext.getTimerUpdate()).thenReturn(TimerUpdate.empty());
 
     // And digging to check whether the window is ready
     when(mockEvaluationContext.createSideInputReader(anyList())).thenReturn(mockSideInputReader);
-    when(mockSideInputReader.isReady(Matchers.any(), Matchers.any())).thenReturn(false);
+    when(mockSideInputReader.isReady(ArgumentMatchers.any(), ArgumentMatchers.any()))
+        .thenReturn(false);
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
 
@@ -202,7 +204,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     // depend on the window.
     String key = "hello";
     WindowedValue<KV<String, Integer>> firstKv =
-        WindowedValue.of(KV.of(key, 1), new Instant(3), firstWindow, PaneInfo.NO_FIRING);
+        WindowedValues.of(KV.of(key, 1), new Instant(3), firstWindow, PaneInfo.NO_FIRING);
 
     WindowedValue<KeyedWorkItem<String, KV<String, Integer>>> gbkOutputElement =
         firstKv.withValue(

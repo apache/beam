@@ -29,9 +29,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
 
 /**
@@ -120,7 +118,7 @@ public class ComputationState {
     }
   }
 
-  public void failWork(Multimap<Long, WorkId> failedWork) {
+  public void failWork(ImmutableList<WorkIdWithShardingKey> failedWork) {
     activeWorkState.failWorkForKey(failedWork);
   }
 
@@ -139,15 +137,11 @@ public class ComputationState {
   }
 
   private void execute(ExecutableWork executableWork) {
-    executor.execute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
+    executor.execute(executableWork, executableWork.work().getSerializedWorkItemSize());
   }
 
   private void forceExecute(ExecutableWork executableWork) {
-    executor.forceExecute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
-  }
-
-  public ImmutableListMultimap<ShardedKey, RefreshableWork> currentActiveWorkReadOnly() {
-    return activeWorkState.getReadOnlyActiveWork();
+    executor.forceExecute(executableWork, executableWork.work().getSerializedWorkItemSize());
   }
 
   public ImmutableList<RefreshableWork> getRefreshableWork(Instant refreshDeadline) {

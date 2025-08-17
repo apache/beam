@@ -221,13 +221,28 @@ class OptimizeGrid(beam.PTransform):
 
       # Run L-BFGS-B optimizer
       result = minimize(lambda x: np.sum(sim.simulate(x)), x0, bounds=bounds)
-      return result.x.tolist(), sim.simulate(result.x)
+
+      # Ensure result.x is always a list, regardless of NumPy version
+      x_values = result.x if isinstance(result.x, list) else result.x.tolist()
+
+      # Ensure simulation output is also properly converted
+      costs = sim.simulate(result.x)
+      costs = costs if isinstance(costs, list) else costs.tolist()
+
+      return x_values, costs
 
     def process(self, element):
       mapping_identifier, greenhouse = element[0]
       crops, quantities = zip(*element[1])
       sim = Simulator(quantities)
       optimum, costs = self._optimize_production_parameters(sim)
+
+      # Ensure NumPy arrays are converted to lists before yielding
+      if isinstance(optimum, np.ndarray):
+        optimum = optimum.tolist()
+      if isinstance(costs, np.ndarray):
+        costs = costs.tolist()
+
       solution = (mapping_identifier, (greenhouse, optimum))
       yield pvalue.TaggedOutput('solution', solution)
       for crop, cost, quantity in zip(crops, costs, quantities):

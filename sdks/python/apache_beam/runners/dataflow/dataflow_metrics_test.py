@@ -21,6 +21,7 @@ the DataflowMetrics class.
 """
 
 # pytype: skip-file
+# pylint: skip-file
 
 import types
 import unittest
@@ -308,8 +309,7 @@ class TestDataflowMetrics(unittest.TestCase):
                       "additionalProperties": [
                           {
                               "key": "original_name",
-                              "value":
-                                  "ToIsmRecordForMultimap-out0-ElementCount"
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount"
                           },  # yapf: disable
                           {
                               "key": "output_user_name",
@@ -332,13 +332,13 @@ class TestDataflowMetrics(unittest.TestCase):
                       "additionalProperties": [
                           {
                               "key": "original_name",
-                              "value":
-                                  "ToIsmRecordForMultimap-out0-ElementCount"
+                              "value": "ToIsmRecordForMultimap-out0-ElementCount"
                           },  # yapf: disable
                           {
                               "key": "output_user_name",
                               "value": "ToIsmRecordForMultimap-out0"
-                          }, {
+                          },
+                          {
                               "key": "tentative", "value": "true"
                           }
                       ]

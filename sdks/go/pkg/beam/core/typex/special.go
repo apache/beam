@@ -98,6 +98,19 @@ const (
 	PaneUnknown PaneTiming = 3
 )
 
+func (t PaneTiming) String() string {
+	switch t {
+	case PaneEarly:
+		return "early"
+	case PaneOnTime:
+		return "ontime"
+	case PaneLate:
+		return "late"
+	default:
+		return "unknown"
+	}
+}
+
 // PaneInfo represents the output pane.
 type PaneInfo struct {
 	Timing                     PaneTiming

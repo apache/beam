@@ -151,18 +151,19 @@ class Recording:
   def __init__(
       self,
       user_pipeline: beam.Pipeline,
-      pcolls: List[beam.pvalue.PCollection], # noqa: F821
+      pcolls: List[beam.pvalue.PCollection],  # noqa: F821
       result: 'beam.runner.PipelineResult',
       max_n: int,
       max_duration_secs: float,
-      ):
+  ):
     self._user_pipeline = user_pipeline
     self._result = result
     self._result_lock = threading.Lock()
     self._pcolls = pcolls
-    pcoll_var = lambda pcoll: {v: k
-                               for k, v in utils.pcoll_by_name().items()}.get(
-                                   pcoll, None)
+    pcoll_var = lambda pcoll: {
+        v: k
+        for k, v in utils.pcoll_by_name().items()
+    }.get(pcoll, None)
 
     self._streams = {
         pcoll: ElementStream(
@@ -363,6 +364,8 @@ class RecordingManager:
     runner = self.user_pipeline.runner
     if isinstance(runner, ir.InteractiveRunner):
       runner = runner._underlying_runner
+    if hasattr(runner, 'is_interactive'):
+      runner.is_interactive()
 
     # Make sure that sources without a user reference are still cached.
     ie.current_env().add_user_pipeline(self.user_pipeline)

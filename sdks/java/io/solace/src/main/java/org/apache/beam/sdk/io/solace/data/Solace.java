@@ -21,7 +21,6 @@ import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
@@ -52,6 +51,7 @@ public class Solace {
       return name;
     }
   }
+
   /** Represents a Solace topic. */
   public static class Topic {
     private final String name;
@@ -68,6 +68,7 @@ public class Solace {
       return name;
     }
   }
+
   /** Represents a Solace destination type. */
   public enum DestinationType {
     TOPIC,
@@ -93,17 +94,17 @@ public class Solace {
      */
     public abstract DestinationType getType();
 
-    static Builder builder() {
+    public static Builder builder() {
       return new AutoValue_Solace_Destination.Builder();
     }
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setName(String name);
+    public abstract static class Builder {
+      public abstract Builder setName(String name);
 
-      abstract Builder setType(DestinationType type);
+      public abstract Builder setType(DestinationType type);
 
-      abstract Destination build();
+      public abstract Destination build();
     }
   }
 
@@ -120,17 +121,19 @@ public class Solace {
      * @return The message ID, or null if not available.
      */
     @SchemaFieldNumber("0")
-    public abstract @Nullable String getMessageId();
+    public abstract String getMessageId();
 
     /**
-     * Gets the payload of the message as a ByteString.
+     * Gets the payload of the message as a byte array.
      *
      * <p>Mapped from {@link BytesXMLMessage#getBytes()}
      *
      * @return The message payload.
      */
+    @SuppressWarnings("mutable")
     @SchemaFieldNumber("1")
-    public abstract ByteBuffer getPayload();
+    public abstract byte[] getPayload();
+
     /**
      * Gets the destination (topic or queue) to which the message was sent.
      *
@@ -192,7 +195,7 @@ public class Solace {
      * @return The timestamp.
      */
     @SchemaFieldNumber("7")
-    public abstract long getReceiveTimestamp();
+    public abstract @Nullable Long getReceiveTimestamp();
 
     /**
      * Gets the timestamp (in milliseconds since the Unix epoch) when the message was sent by the
@@ -241,55 +244,62 @@ public class Solace {
     public abstract @Nullable String getReplicationGroupMessageId();
 
     /**
-     * Gets the attachment data of the message as a ByteString, if any. This might represent files
+     * Gets the attachment data of the message as a byte array, if any. This might represent files
      * or other binary content associated with the message.
      *
      * <p>Mapped from {@link BytesXMLMessage#getAttachmentByteBuffer()}
      *
-     * @return The attachment data, or an empty ByteString if no attachment is present.
+     * @return The attachment data, or an empty byte array if no attachment is present.
      */
+    @SuppressWarnings("mutable")
     @SchemaFieldNumber("12")
-    public abstract ByteBuffer getAttachmentBytes();
+    public abstract byte[] getAttachmentBytes();
 
-    static Builder builder() {
-      return new AutoValue_Solace_Record.Builder();
+    public static Builder builder() {
+      return new AutoValue_Solace_Record.Builder()
+          .setExpiration(0L)
+          .setPriority(-1)
+          .setRedelivered(false)
+          .setTimeToLive(0)
+          .setAttachmentBytes(new byte[0]);
     }
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setMessageId(@Nullable String messageId);
+    public abstract static class Builder {
+      public abstract Builder setMessageId(String messageId);
 
-      abstract Builder setPayload(ByteBuffer payload);
+      public abstract Builder setPayload(byte[] payload);
 
-      abstract Builder setDestination(@Nullable Destination destination);
+      public abstract Builder setDestination(@Nullable Destination destination);
 
-      abstract Builder setExpiration(long expiration);
+      public abstract Builder setExpiration(long expiration);
 
-      abstract Builder setPriority(int priority);
+      public abstract Builder setPriority(int priority);
 
-      abstract Builder setRedelivered(boolean redelivered);
+      public abstract Builder setRedelivered(boolean redelivered);
 
-      abstract Builder setReplyTo(@Nullable Destination replyTo);
+      public abstract Builder setReplyTo(@Nullable Destination replyTo);
 
-      abstract Builder setReceiveTimestamp(long receiveTimestamp);
+      public abstract Builder setReceiveTimestamp(@Nullable Long receiveTimestamp);
 
-      abstract Builder setSenderTimestamp(@Nullable Long senderTimestamp);
+      public abstract Builder setSenderTimestamp(@Nullable Long senderTimestamp);
 
-      abstract Builder setSequenceNumber(@Nullable Long sequenceNumber);
+      public abstract Builder setSequenceNumber(@Nullable Long sequenceNumber);
 
-      abstract Builder setTimeToLive(long timeToLive);
+      public abstract Builder setTimeToLive(long timeToLive);
 
-      abstract Builder setReplicationGroupMessageId(@Nullable String replicationGroupMessageId);
+      public abstract Builder setReplicationGroupMessageId(
+          @Nullable String replicationGroupMessageId);
 
-      abstract Builder setAttachmentBytes(ByteBuffer attachmentBytes);
+      public abstract Builder setAttachmentBytes(byte[] attachmentBytes);
 
-      abstract Record build();
+      public abstract Record build();
     }
   }
 
   /**
    * The result of writing a message to Solace. This will be returned by the {@link
-   * com.google.cloud.dataflow.dce.io.solace.SolaceIO.Write} connector.
+   * org.apache.beam.sdk.io.solace.SolaceIO.Write} connector.
    *
    * <p>This class provides a builder to create instances, but you will probably not need it. The
    * write connector will create and return instances of {@link Solace.PublishResult}.
@@ -311,12 +321,12 @@ public class Solace {
     public abstract Boolean getPublished();
 
     /**
-     * The publishing latency in milliseconds. This is the difference between the time the message
+     * The publishing latency in nanoseconds. This is the difference between the time the message
      * was created, and the time the message was published. It is only available if the {@link
-     * CorrelationKey} class is used as correlation key of the messages.
+     * CorrelationKey} class is used as correlation key of the messages, and null otherwise.
      */
     @SchemaFieldNumber("2")
-    public abstract @Nullable Long getLatencyMilliseconds();
+    public abstract @Nullable Long getLatencyNanos();
 
     /** The error details if the message could not be published. */
     @SchemaFieldNumber("3")
@@ -332,7 +342,7 @@ public class Solace {
 
       public abstract Builder setPublished(Boolean published);
 
-      public abstract Builder setLatencyMilliseconds(Long latencyMs);
+      public abstract Builder setLatencyNanos(Long latencyNanos);
 
       public abstract Builder setError(String error);
 
@@ -354,7 +364,7 @@ public class Solace {
     public abstract String getMessageId();
 
     @SchemaFieldNumber("1")
-    public abstract long getPublishMonotonicMillis();
+    public abstract long getPublishMonotonicNanos();
 
     public static Builder builder() {
       return new AutoValue_Solace_CorrelationKey.Builder();
@@ -364,7 +374,7 @@ public class Solace {
     public abstract static class Builder {
       public abstract Builder setMessageId(String messageId);
 
-      public abstract Builder setPublishMonotonicMillis(long millis);
+      public abstract Builder setPublishMonotonicNanos(long nanos);
 
       public abstract CorrelationKey build();
     }
@@ -414,7 +424,7 @@ public class Solace {
       Destination destination = getDestination(msg.getCorrelationId(), msg.getDestination());
       return Record.builder()
           .setMessageId(msg.getApplicationMessageId())
-          .setPayload(ByteBuffer.wrap(payloadBytesStream.toByteArray()))
+          .setPayload(payloadBytesStream.toByteArray())
           .setDestination(destination)
           .setExpiration(msg.getExpiration())
           .setPriority(msg.getPriority())
@@ -428,7 +438,7 @@ public class Solace {
               msg.getReplicationGroupMessageId() != null
                   ? msg.getReplicationGroupMessageId().toString()
                   : null)
-          .setAttachmentBytes(ByteBuffer.wrap(attachmentBytesStream.toByteArray()))
+          .setAttachmentBytes(attachmentBytesStream.toByteArray())
           .build();
     }
 

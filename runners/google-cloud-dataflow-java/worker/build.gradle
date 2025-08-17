@@ -43,7 +43,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_60_1,
+        library.java.vendored_grpc_1_69_0,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -87,10 +87,10 @@ applyJavaNature(
                 // TODO(https://github.com/apache/beam/issues/19114): Move DataflowRunnerHarness class under org.apache.beam.runners.dataflow.worker namespace
                 "com/google/cloud/dataflow/worker/DataflowRunnerHarness.class",
                 // Allow slf4j implementation worker for logging during pipeline execution
-                "org/slf4j/impl/**"
+                "org/slf4j/jul/**"
         ],
         generatedClassPatterns: [
-                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/,
+                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill\..*AutoBuilder.*/,
                 /^org\.apache\.beam\.runners\.dataflow\.worker\..*AutoBuilder.*/,
         ],
         shadowClosure: {
@@ -208,7 +208,7 @@ dependencies {
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.slf4j_api
-    implementation library.java.vendored_grpc_1_60_1
+    implementation library.java.vendored_grpc_1_69_0
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14
@@ -228,7 +228,6 @@ dependencies {
     shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
-    shadowTest library.java.powermock
 }
 
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
@@ -240,7 +239,7 @@ project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
     doLast {
         project.configurations.shadow.artifacts.files.each {
             FileTree slf4jImpl = project.zipTree(it).matching {
-                include "org/slf4j/impl/JDK14LoggerAdapter.class"
+                include "org/slf4j/jul/JDK14LoggerAdapter.class"
             }
             outFile.text = slf4jImpl.files
             if (slf4jImpl.files.isEmpty()) {

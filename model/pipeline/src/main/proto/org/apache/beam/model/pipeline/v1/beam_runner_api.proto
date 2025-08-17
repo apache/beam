@@ -594,6 +594,9 @@ message BagStateSpec {
   string element_coder_id = 1;
 }
 
+// OrderedListState values are encoded with the var int encoded
+// millis-since-epoch followed by the value encoded by the provided coder.
+// Be aware this is not the standard timestamp value encoding.
 message OrderedListStateSpec {
   string element_coder_id = 1;
 }
@@ -719,19 +722,6 @@ message TestStreamPayload {
   }
 }
 
-service TestStreamService {
-  // A TestStream will request for events using this RPC.
-  rpc Events(EventsRequest) returns (stream TestStreamPayload.Event) {}
-}
-
-message EventsRequest {
-  // The set of PCollections to read from. These are the PTransform outputs
-  // local names. These are a subset of the TestStream's outputs. This allows
-  // Interactive Beam to cache many PCollections from a pipeline then replay a
-  // subset of them.
-  repeated string output_ids = 1;
-}
-
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
 
@@ -747,7 +737,7 @@ message WriteFilesPayload {
 
   map<string, SideInput> side_inputs = 5;
 
-  // This is different from runner based sharding. This is done by the runner backend, where as runner_determined_sharding 
+  // This is different from runner based sharding. This is done by the runner backend, where as runner_determined_sharding
   // is by the runner translator
   bool auto_sharded = 6;
 }
@@ -946,7 +936,7 @@ message StandardCoders {
     //     coder.
     //
     //   pane - The first byte of the pane info determines which type of
-    //     encoding is used, as well as the is_first, is_last, and timing
+    //     encoding is used, as well as the is_first, is_last and timing
     //     fields. If this byte is bits [0 1 2 3 4 5 6 7], then:
     //     * bits [0 1 2 3] determine the encoding as follows:
     //         0000 - The entire pane info is encoded as a single byte.
@@ -954,7 +944,7 @@ message StandardCoders {
     //                as below, and the index and non-speculative index are
     //                both zero (and hence are not encoded here).
     //         0001 - The pane info is encoded as this byte plus a single
-    //                VarInt encoed integer representing the pane index. The
+    //                VarInt encoded integer representing the pane index. The
     //                non-speculative index can be derived as follows:
     //                  -1 if the pane is early, otherwise equal to index.
     //         0010 - The pane info is encoded as this byte plus two VarInt
@@ -965,8 +955,10 @@ message StandardCoders {
     //         01 - on time
     //         10 - late
     //         11 - unknown
-    //     * bit 6 is 1 if this is the first pane, 0 otherwise.
-    //     * bit 7 is 1 if this is the last pane, 0 otherwise.
+    //     * bit 6 is 1 if this is the last pane, 0 otherwise.
+    //         Commonly set with `byte |= 0x02`
+    //     * bit 7 is 1 if this is the first pane, 0 otherwise.
+    //         Commonly set with `byte |= 0x01`
     //
     //   element - The element incoded using the supplied element coder.
     //
@@ -1329,7 +1321,7 @@ message Trigger {
   message AfterSynchronizedProcessingTime {
   }
 
-  // The default trigger. Equivalent to Repeat { AfterEndOfWindow } but
+  // The default trigger. Equivalent to AfterEndOfWindow { Late: Always }} but
   // specially denoted to indicate the user did not alter the triggering.
   message Default {
   }
@@ -1339,12 +1331,12 @@ message Trigger {
     int32 element_count = 1;
   }
 
-  // Never ready. There will only be an ON_TIME output and a final
-  // output at window expiration.
+  // Never ready. There will only be an ON_TIME final output at window
+  // expiration.
   message Never {
   }
 
-  // Always ready. This can also be expressed as ElementCount(1) but
+  // Always ready. This can also be expressed as Repeat{ ElementCount(1) } but
   // is more explicit.
   message Always {
   }
@@ -1685,6 +1677,10 @@ message StandardProtocols {
     // Indicates whether the SDK supports ordered list state.
     ORDERED_LIST_STATE = 10
     [(beam_urn) = "beam:protocol:ordered_list_state:v1"];
+
+    // Indicates support for reading, writing and propagating Element's metadata
+    ELEMENT_METADATA = 11
+    [(beam_urn) = "beam:protocol:element_metadata:v1"];
   }
 }
 
@@ -2034,5 +2030,9 @@ message StandardResourceHints {
     // SDKs should accept and validate a positive integer count.
     // Payload: ASCII encoded string of the base 10 representation of an integer number of CPUs.
     CPU_COUNT = 2 [(beam_urn) = "beam:resources:cpu_count:v1"];
+    // Describes max number of active bundles per worker in transform's execution environment.
+    // SDKs should accept and validate a positive integer count.
+    // Payload: ASCII encoded string of the base 10 representation of an integer number of active bundles.
+    MAX_ACTIVE_BUNDLES_PER_WORKER = 3 [(beam_urn) = "beam:resources:max_active_bundles_per_worker:v1"];
   }
 }

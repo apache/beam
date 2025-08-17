@@ -19,7 +19,7 @@
 
 # Apache Beam
 
-[Apache Beam](http://beam.apache.org/) is a unified model for defining both batch and streaming data-parallel processing pipelines, as well as a set of language-specific SDKs for constructing pipelines and Runners for executing them on distributed processing backends, including [Apache Flink](http://flink.apache.org/), [Apache Spark](http://spark.apache.org/), [Google Cloud Dataflow](http://cloud.google.com/dataflow/), and [Hazelcast Jet](https://jet.hazelcast.org/).
+[Apache Beam](http://beam.apache.org/) is a unified model for defining both batch and streaming data-parallel processing pipelines, as well as a set of language-specific SDKs for constructing pipelines and Runners for executing them on distributed processing backends, including [Apache Flink](http://flink.apache.org/), [Apache Spark](http://spark.apache.org/), [Google Cloud Dataflow](http://cloud.google.com/dataflow/), and [Hazelcast Jet](https://hazelcast.com/).
 
 ## Status
 
@@ -27,9 +27,10 @@
 [![PyPI version](https://badge.fury.io/py/apache-beam.svg)](https://badge.fury.io/py/apache-beam)
 [![Go version](https://pkg.go.dev/badge/github.com/apache/beam/sdks/v2/go.svg)](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go)
 [![Python coverage](https://codecov.io/gh/apache/beam/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/beam)
-[![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Build+python+source+distribution+and+wheels%22+branch%3Amaster+event%3Aschedule)
-[![Python tests](https://github.com/apache/beam/workflows/Python%20tests/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Python+Tests%22+branch%3Amaster+event%3Aschedule)
-[![Java tests](https://github.com/apache/beam/workflows/Java%20Tests/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Java+Tests%22+branch%3Amaster+event%3Aschedule)
+[![Build python source distribution and wheels](https://github.com/apache/beam/actions/workflows/build_wheels.yml/badge.svg?event=schedule&&?branch=master)](https://github.com/apache/beam/actions?query=workflow%3A%22Build+python+source+distribution+and+wheels%22+branch%3Amaster+event%3Aschedule)
+[![Python tests](https://github.com/apache/beam/actions/workflows/python_tests.yml/badge.svg?event=schedule&&?branch=master)](https://github.com/apache/beam/actions?query=workflow%3A%22Python+Tests%22+branch%3Amaster+event%3Aschedule)
+[![Java tests](https://github.com/apache/beam/actions/workflows/java_tests.yml/badge.svg?event=schedule&&?branch=master)](https://github.com/apache/beam/actions?query=workflow%3A%22Java+Tests%22+branch%3Amaster+event%3Aschedule)
+[![Go tests](https://github.com/apache/beam/actions/workflows/go_tests.yml/badge.svg?event=schedule&&?branch=master)](https://github.com/apache/beam/actions?query=workflow%3A%22Go+Tests%22+branch%3Amaster+event%3Aschedule)
 
 ## Overview
 
@@ -60,11 +61,16 @@ Currently, this repository contains SDKs for Java, Python and Go.
 
 Have ideas for new SDKs or DSLs? See the [sdk-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-ideas).
 
+#### Specific SDK Readmes
+
+* [Python SDK readme](./sdks/python/README.md)
+
 ### Runners
 
 Beam supports executing programs on multiple distributed processing backends through PipelineRunners. Currently, the following PipelineRunners are available:
 
 - The `DirectRunner` runs the pipeline on your local machine.
+- The `PrismRunner` runs the pipeline on your local machine using Beam Portability.
 - The `DataflowRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
 - The `FlinkRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
 - The `SparkRunner` runs the pipeline on an Apache Spark cluster.
@@ -113,7 +119,7 @@ Here are some resources actively maintained by the Beam community to help you ge
     <td>A certification granted by Google Cloud, certifying proficiency in Beam.</td>
   </tr>
   <tr>
-    <td><a href="https://s.apache.org/beam-community-metrics" target="_blank" rel="noopener noreferrer">Community Metrics </a></td>
+    <td><a href="https://metrics.beam.apache.org/" target="_blank" rel="noopener noreferrer">Community Metrics </a></td>
     <td>Beam's Git Community Metrics.</td>
   </tr>
 </tbody>

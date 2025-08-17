@@ -34,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -122,8 +123,12 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 	var serializedPayload []byte
 	switch urn {
 	case URNEnvProcess:
-		// TODO Support process based SDK Harness.
-		return nil, errors.Errorf("unsupported environment %v", urn)
+		config := extractEnvironmentConfig(ctx)
+		payload := &pipepb.ProcessPayload{}
+		if err := protojson.Unmarshal([]byte(config), payload); err != nil {
+			return nil, fmt.Errorf("unable to json unmarshal --environment_config: %w", err)
+		}
+		serializedPayload = protox.MustEncode(payload)
 	case URNEnvExternal:
 		config := extractEnvironmentConfig(ctx)
 		payload := &pipepb.ExternalPayload{Endpoint: &pipepb.ApiServiceDescriptor{Url: config}}
@@ -1064,6 +1069,8 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	if _, err := m.makeNode(gbkOut, gbkCoderID, outNode); err != nil {
 		return handleErr(err)
 	}
+	// Use the same windowing for gbk output as postReify
+	m.pcollections[gbkOut].WindowingStrategyId = m.pcollections[postReify].WindowingStrategyId
 
 	gbkID := fmt.Sprintf("%v_gbk", id)
 	gbk := &pipepb.PTransform{

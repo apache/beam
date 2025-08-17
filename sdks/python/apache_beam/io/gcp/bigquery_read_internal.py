@@ -195,6 +195,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       self,
       options: PipelineOptions,
       gcs_location: Union[str, ValueProvider] = None,
+      validate: bool = False,
       use_json_exports: bool = False,
       bigquery_job_labels: Dict[str, str] = None,
       step_name: str = None,
@@ -205,6 +206,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       temp_dataset: Union[str, DatasetReference] = None,
       query_priority: Optional[str] = None):
     self.options = options
+    self.validate = validate
     self.use_json_exports = use_json_exports
     self.gcs_location = gcs_location
     self.bigquery_job_labels = bigquery_job_labels or {}
@@ -236,6 +238,17 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       return self.temp_dataset
     else:
       raise ValueError("temp_dataset has to be either str or DatasetReference")
+
+  def _get_temp_dataset_project(self):
+    """Returns the project ID for temporary dataset operations.
+    
+    If temp_dataset is a DatasetReference, returns its projectId.
+    Otherwise, returns the pipeline project for billing.
+    """
+    if isinstance(self.temp_dataset, DatasetReference):
+      return self.temp_dataset.projectId
+    else:
+      return self._get_project()
 
   def start_bundle(self):
     self.bq = bigquery_tools.BigQueryWrapper(
@@ -276,7 +289,9 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def finish_bundle(self):
     if self.bq.created_temp_dataset:
-      self.bq.clean_up_temporary_dataset(self._get_project())
+      # Use the same project that was used to create the temp dataset
+      temp_dataset_project = self._get_temp_dataset_project()
+      self.bq.clean_up_temporary_dataset(temp_dataset_project)
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -285,14 +300,15 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def _create_source(self, path, schema):
     if not self.use_json_exports:
-      return _create_avro_source(path)
+      return _create_avro_source(path, validate=self.validate)
     else:
       return _TextSource(
           path,
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=_JsonToDictCoder(schema))
+          coder=_JsonToDictCoder(schema),
+          validate=self.validate)
 
   def _setup_temporary_dataset(
       self,
@@ -300,7 +316,10 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       element: 'ReadFromBigQueryRequest'):
     location = bq.get_query_location(
         self._get_project(), element.query, not element.use_standard_sql)
-    bq.create_temporary_dataset(self._get_project(), location)
+    # Use the project from temp_dataset if it's a DatasetReference,
+    # otherwise use the pipeline project
+    temp_dataset_project = self._get_temp_dataset_project()
+    bq.create_temporary_dataset(temp_dataset_project, location)
 
   def _execute_query(
       self,

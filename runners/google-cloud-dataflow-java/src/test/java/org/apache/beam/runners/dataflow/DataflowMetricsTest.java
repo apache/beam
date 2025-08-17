@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -41,11 +42,14 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -119,6 +123,7 @@ public class DataflowMetricsTest {
     assertThat(ImmutableList.copyOf(result.getCounters()), is(empty()));
     assertThat(ImmutableList.copyOf(result.getDistributions()), is(empty()));
     assertThat(ImmutableList.copyOf(result.getStringSets()), is(empty()));
+    assertThat(ImmutableList.copyOf(result.getBoundedTries()), is(empty()));
   }
 
   @Test
@@ -192,6 +197,13 @@ public class DataflowMetricsTest {
       String name, String namespace, String step, Set<String> setValues, boolean tentative) {
     MetricUpdate update = new MetricUpdate();
     update.setSet(setValues);
+    return setStructuredName(update, name, namespace, step, tentative);
+  }
+
+  private MetricUpdate makeBoundedTrieMetricUpdate(
+      String name, String namespace, String step, BoundedTrie data, boolean tentative) {
+    MetricUpdate update = new MetricUpdate();
+    update.setBoundedTrie(data);
     return setStructuredName(update, name, namespace, step, tentative);
   }
 
@@ -283,6 +295,98 @@ public class DataflowMetricsTest {
                 "counterName",
                 "myStepName",
                 StringSetResult.create(ImmutableSet.of("ab", "cd")))));
+  }
+
+  @Test
+  public void testParseBoundedTrieWithSingleton() {
+    ArrayMap arrayMap = ArrayMap.create();
+    arrayMap.put("bound", 100);
+    arrayMap.put(
+        "singleton", ImmutableList.of("pubsub:", "topic:", "`google.com:abc`.", "some-topic"));
+
+    BoundedTrieData result =
+        DataflowMetrics.DataflowMetricResultExtractor.trieFromArrayMap(arrayMap);
+    assertEquals(
+        "BoundedTrieData({'pubsub:topic:`google.com:abc`.some-topicfalse'})", result.toString());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked") // assemble ArrayMap from scratch for testing
+  public void testParseBoundedTrieWithRoot() {
+    ArrayMap arrayMap = ArrayMap.create();
+    arrayMap.put("bound", 100);
+    ArrayMap root = ArrayMap.create();
+    root.put("truncated", false);
+    ArrayMap children = ArrayMap.create();
+    ArrayMap leaf = ArrayMap.create();
+    leaf.put("1", ArrayMap.of("truncated", false));
+    leaf.put("2", ArrayMap.of("truncated", false));
+    leaf.put("3", ArrayMap.of("truncated", false));
+    children.put("gcs:some-bucket.some-folder/", leaf);
+    root.put("children", children);
+    arrayMap.put("root", root);
+
+    BoundedTrieData result =
+        DataflowMetrics.DataflowMetricResultExtractor.trieFromArrayMap(arrayMap);
+    assertEquals("BoundedTrieData({'gcs:some-bucket.some-folder/false'})", result.toString());
+  }
+
+  @Test
+  public void testSingleBoundedTrieUpdates() throws IOException {
+    AppliedPTransform<?, ?, ?> myStep = mock(AppliedPTransform.class);
+    when(myStep.getFullName()).thenReturn("myStepName");
+    BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames = HashBiMap.create();
+    transformStepNames.put(myStep, "s2");
+
+    JobMetrics jobMetrics = new JobMetrics();
+    DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
+    when(job.getState()).thenReturn(State.RUNNING);
+    when(job.getJobId()).thenReturn(JOB_ID);
+    when(job.getTransformStepNames()).thenReturn(transformStepNames);
+
+    // The parser relies on the fact that one tentative and one committed metric update exist in
+    // the job metrics results.
+    MetricUpdate mu1 =
+        makeBoundedTrieMetricUpdate(
+            "counterName",
+            "counterNamespace",
+            "s2",
+            new BoundedTrieData(ImmutableList.of("ab", "cd")).toProto(),
+            false);
+    MetricUpdate mu1Tentative =
+        makeBoundedTrieMetricUpdate(
+            "counterName",
+            "counterNamespace",
+            "s2",
+            new BoundedTrieData(ImmutableList.of("ab", "cd")).toProto(),
+            true);
+    jobMetrics.setMetrics(ImmutableList.of(mu1, mu1Tentative));
+    DataflowClient dataflowClient = mock(DataflowClient.class);
+    when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
+
+    DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
+    assertThat(
+        result.getBoundedTries(),
+        containsInAnyOrder(
+            attemptedMetricsResult(
+                "counterNamespace",
+                "counterName",
+                "myStepName",
+                BoundedTrieResult.create(
+                    ImmutableSet.of(ImmutableList.of("ab", "cd", String.valueOf(false)))))));
+    assertThat(
+        result.getBoundedTries(),
+        containsInAnyOrder(
+            committedMetricsResult(
+                "counterNamespace",
+                "counterName",
+                "myStepName",
+                BoundedTrieResult.create(
+                    ImmutableSet.of(ImmutableList.of("ab", "cd", String.valueOf(false)))))));
   }
 
   @Test

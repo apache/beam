@@ -43,9 +43,10 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.common import group_by_key_input_visitor
-from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
+from apache_beam.runners.pipeline_utils import merge_common_environments
+from apache_beam.runners.pipeline_utils import merge_superset_dep_environments
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -96,6 +97,9 @@ class DataflowRunner(PipelineRunner):
 
   def __init__(self, cache=None):
     self._default_environment = None
+
+  def default_pickle_library_override(self):
+    return 'cloudpickle'
 
   def is_fnapi_compatible(self):
     return False
@@ -165,8 +169,8 @@ class DataflowRunner(PipelineRunner):
 
           # Check that job is in a post-preparation state before starting the
           # final countdown.
-          if (str(response.currentState) not in ('JOB_STATE_PENDING',
-                                                 'JOB_STATE_QUEUED')):
+          if (str(response.currentState)
+              not in ('JOB_STATE_PENDING', 'JOB_STATE_QUEUED')):
             # The job has failed; ensure we see any final error messages.
             sleep_secs = 1.0  # poll faster during the final countdown
             final_countdown_timer_secs -= sleep_secs
@@ -434,7 +438,8 @@ class DataflowRunner(PipelineRunner):
       self.proto_pipeline.components.environments[env_id].CopyFrom(
           environments.resolve_anyof_environment(
               env, common_urns.environments.DOCKER.urn))
-    self.proto_pipeline = merge_common_environments(self.proto_pipeline)
+    self.proto_pipeline = merge_common_environments(
+        merge_superset_dep_environments(self.proto_pipeline))
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.
@@ -499,7 +504,7 @@ class DataflowRunner(PipelineRunner):
     # template creation). If a request was sent and failed then the call will
     # raise an exception.
     result = DataflowPipelineResult(
-        self.dataflow_client.create_job(self.job), self)
+        self.dataflow_client.create_job(self.job), self, options)
 
     # TODO(BEAM-4274): Circular import runners-metrics. Requires refactoring.
     from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
@@ -689,7 +694,7 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
 
 class DataflowPipelineResult(PipelineResult):
   """Represents the state of a pipeline run on the Dataflow service."""
-  def __init__(self, job, runner):
+  def __init__(self, job, runner, options=None):
     """Initialize a new DataflowPipelineResult instance.
 
     Args:
@@ -699,6 +704,7 @@ class DataflowPipelineResult(PipelineResult):
     """
     self._job = job
     self._runner = runner
+    self._options = options
     self.metric_results = None
 
   def _update_job(self):
@@ -777,10 +783,11 @@ class DataflowPipelineResult(PipelineResult):
     if not self.is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
+      gcp_options = self._options.view_as(GoogleCloudOptions)
       consoleUrl = (
           "Console URL: https://console.cloud.google.com/"
-          f"dataflow/jobs/<RegionId>/{self.job_id()}"
-          "?project=<ProjectId>")
+          f"dataflow/jobs/{gcp_options.region}/{self.job_id()}"
+          f"?project={gcp_options.project}")
       thread = threading.Thread(
           target=DataflowRunner.poll_for_job_completion,
           args=(self._runner, self, duration))

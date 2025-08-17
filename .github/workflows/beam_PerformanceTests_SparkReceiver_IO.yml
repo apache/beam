@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -96,7 +96,7 @@ jobs:
       - name: run integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:sparkreceiver:2:integrationTest
+          gradle-command: :sdks:java:io:sparkreceiver:3:integrationTest
           arguments: |
             --info \
             --tests org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIOIT \

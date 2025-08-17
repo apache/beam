@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assume.assumeFalse;
-import static org.mockito.Matchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 

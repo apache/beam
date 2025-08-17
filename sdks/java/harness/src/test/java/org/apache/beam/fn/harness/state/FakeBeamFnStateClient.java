@@ -52,7 +52,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */

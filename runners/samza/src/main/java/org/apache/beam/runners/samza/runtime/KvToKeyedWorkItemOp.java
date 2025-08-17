@@ -18,8 +18,8 @@
 package org.apache.beam.runners.samza.runtime;
 
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /** Samza operator to map input stream of {@link KV} to {@link KeyedWorkItem}. */
 public class KvToKeyedWorkItemOp<K, V> implements Op<KV<K, V>, KeyedWorkItem<K, V>, K> {

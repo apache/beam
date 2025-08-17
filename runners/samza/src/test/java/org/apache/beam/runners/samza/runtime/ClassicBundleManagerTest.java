@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -35,7 +35,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -149,7 +149,7 @@ public final class ClassicBundleManagerTest {
     bundleManager.tryStartBundle();
     bundleManager.tryFinishBundle(mockEmitter);
 
-    verify(mockEmitter, times(1)).emitFuture(anyObject());
+    verify(mockEmitter, times(1)).emitFuture(any());
     verify(bundleProgressListener, times(1)).onBundleFinished(mockEmitter);
     assertEquals(
         "Expected the number of element in the current bundle to be 0",
@@ -172,7 +172,7 @@ public final class ClassicBundleManagerTest {
     bundleManager.tryStartBundle();
     bundleManager.tryFinishBundle(mockEmitter);
 
-    verify(mockEmitter, times(1)).emitFuture(anyObject());
+    verify(mockEmitter, times(1)).emitFuture(any());
     verify(bundleProgressListener, times(1)).onBundleFinished(mockEmitter);
     assertEquals(
         "Expected the number of element in the current bundle to be 0",
@@ -197,7 +197,7 @@ public final class ClassicBundleManagerTest {
     bundleManager.tryFinishBundle(mockEmitter);
 
     verify(mockFutureCollector, times(1)).finish();
-    verify(mockEmitter, times(1)).emitFuture(anyObject());
+    verify(mockEmitter, times(1)).emitFuture(any());
     verify(bundleProgressListener, times(0)).onBundleFinished(mockEmitter);
     assertEquals(
         "Expected the number of element in the current bundle to be 1",
@@ -216,7 +216,7 @@ public final class ClassicBundleManagerTest {
 
     bundleManager.tryFinishBundle(mockEmitter);
 
-    verify(mockEmitter, times(1)).emitFuture(anyObject());
+    verify(mockEmitter, times(1)).emitFuture(any());
     assertNull(
         "tryFinishBundle() should not set the future when no bundle in progress",
         bundleManager.getCurrentBundleDoneFuture());
@@ -313,7 +313,7 @@ public final class ClassicBundleManagerTest {
     bundleManager.tryStartBundle();
     bundleManager.processTimer(mockTimer, mockEmitter);
 
-    verify(mockEmitter, times(1)).emitFuture(anyObject());
+    verify(mockEmitter, times(1)).emitFuture(any());
     verify(bundleProgressListener, times(1)).onBundleFinished(mockEmitter);
     assertEquals(
         "Expected the number of element in the current bundle to be 0",
@@ -340,7 +340,7 @@ public final class ClassicBundleManagerTest {
     bundleManager.processTimer(mockTimer, mockEmitter);
 
     verify(mockFutureCollector, times(1)).finish();
-    verify(mockEmitter, times(1)).emitFuture(anyObject());
+    verify(mockEmitter, times(1)).emitFuture(any());
     verify(bundleProgressListener, times(0)).onBundleFinished(mockEmitter);
     assertEquals(
         "Expected the number of element in the current bundle to be 1",
@@ -364,7 +364,7 @@ public final class ClassicBundleManagerTest {
     bundleManager.processTimer(mockTimer, mockEmitter);
 
     verify(mockFutureCollector, times(0)).finish();
-    verify(mockEmitter, times(0)).emitFuture(anyObject());
+    verify(mockEmitter, times(0)).emitFuture(any());
     verify(bundleProgressListener, times(0)).onBundleFinished(mockEmitter);
     assertEquals(
         "Expected the number of element in the current bundle to be 1",

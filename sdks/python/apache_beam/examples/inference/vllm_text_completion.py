@@ -25,7 +25,7 @@ correctly.
 
 import argparse
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import PredictionResult

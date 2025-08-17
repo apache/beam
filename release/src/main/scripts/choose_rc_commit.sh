@@ -106,9 +106,11 @@ SCRIPT_DIR=$(dirname $0)
 
 RC_TAG="v${RELEASE}-RC${RC}"
 
+RELEASE_BRANCH="release-$(cut -d '.' -f 1,2 <<< $RELEASE)"
+
 if [[ "$CLONE" == yes ]] ; then
   CLONE_DIR=`mktemp -d`
-  git clone "$GIT_REPO" "$CLONE_DIR" --single-branch --branch "release-$RELEASE" --shallow-exclude master
+  git clone "$GIT_REPO" "$CLONE_DIR" --single-branch --branch "$RELEASE_BRANCH" --shallow-exclude master
 else
   echo "Not cloning repo; assuming working dir is the desired repo. To run with a fresh clone, run with --clone."
   CLONE_DIR=$PWD

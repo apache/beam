@@ -134,22 +134,38 @@ func main() {
 	}
 
 	const jarsDir = "/opt/apache/beam/jars"
-	cp := []string{
-		filepath.Join(jarsDir, "slf4j-api.jar"),
-		filepath.Join(jarsDir, "slf4j-jdk14.jar"),
-		filepath.Join(jarsDir, "jcl-over-slf4j.jar"),
-		filepath.Join(jarsDir, "log4j-over-slf4j.jar"),
-		filepath.Join(jarsDir, "log4j-to-slf4j.jar"),
-		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
+	const javaHarnessJar = "beam-sdks-java-harness.jar"
+	defaultLoggingJars := []string{
+		"slf4j-api.jar",
+		"slf4j-jdk14.jar",
+		"jcl-over-slf4j.jar",
+		"log4j-over-slf4j.jar",
+		"log4j-to-slf4j.jar",
+	}
+	cp := []string{}
+	if strings.Contains(options, "use_custom_logging_libraries") {
+		// In this case, the logging libraries will be provided from the staged
+		// artifacts.
+		logger.Warnf(ctx, "Skipping default slf4j dependencies in classpath")
+	} else {
+		logger.Printf(ctx, "Using default slf4j dependencies in classpath")
+		for _, jar := range defaultLoggingJars {
+			cp = append(cp, filepath.Join(jarsDir, jar))
+		}
+	}
+	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
+
+	if hasWorkerExperiment {
+		// Skip adding system "beam-sdks-java-harness.jar". User-provided jar will
+		// be added to classpath as a normal user jar further below.
+		logger.Printf(ctx, "Opted to use staged java harness. Make sure beam-sdks-java-harness is included or shaded in the staged jars.")
+	} else {
+		cp = append(cp, filepath.Join(jarsDir, javaHarnessJar))
 	}
 
-	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
 	for _, a := range artifacts {
 		name, _ := artifact.MustExtractFilePayload(a)
 		if hasWorkerExperiment {
-			if strings.HasPrefix(name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
-				continue
-			}
 			if name == "dataflow-worker.jar" {
 				continue
 			}
@@ -206,6 +222,18 @@ func main() {
 	} else {
 		args = append(args, jammAgentArgs)
 	}
+
+	// If heap dumping is enabled, configure the JVM to dump it on oom events.
+	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
+		if heapDumpOption, ok := pipelineOptions.GetStructValue().GetFields()["enableHeapDumps"]; ok {
+			if heapDumpOption.GetBoolValue() {
+			  args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
+			                "-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
+			                "-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
+			}
+		}
+	}
+
 	// Apply meta options
 	const metaDir = "/opt/apache/beam/options"
 
@@ -236,11 +264,17 @@ func main() {
 	sort.Strings(properties)
 	args = append(args, properties...)
 
-	// Open modules specified in pipeline options
 	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
+		// Open modules specified in pipeline options
 		if modules, ok := pipelineOptions.GetStructValue().GetFields()["jdkAddOpenModules"]; ok {
 			for _, module := range modules.GetListValue().GetValues() {
 				args = append(args, "--add-opens="+module.GetStringValue())
+			}
+		}
+		// Add modules specified in pipeline options
+		if modules, ok := pipelineOptions.GetStructValue().GetFields()["jdkAddRootModules"]; ok {
+			for _, module := range modules.GetListValue().GetValues() {
+				args = append(args, "--add-modules="+module.GetStringValue())
 			}
 		}
 	}

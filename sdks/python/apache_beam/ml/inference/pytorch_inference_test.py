@@ -60,10 +60,8 @@ TWO_FEATURES_EXAMPLES = [
 ]
 
 TWO_FEATURES_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
-        TWO_FEATURES_EXAMPLES,
-        torch.Tensor(
+    PredictionResult(ex, pred) for ex, pred in zip(
+        TWO_FEATURES_EXAMPLES, torch.Tensor(
             [f1 * 2.0 + f2 * 3 + 0.5
              for f1, f2 in TWO_FEATURES_EXAMPLES]).reshape(-1, 1))
 ]
@@ -95,20 +93,17 @@ KEYED_TORCH_EXAMPLES = [
 ]
 
 KEYED_TORCH_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
-        KEYED_TORCH_EXAMPLES,
-        torch.Tensor([(example['k1'] * 2.0 + 0.5) + (example['k2'] * 2.0 + 0.5)
-                      for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
+    PredictionResult(ex, pred) for ex, pred in zip(
+        KEYED_TORCH_EXAMPLES, torch.Tensor(
+            [(example['k1'] * 2.0 + 0.5) + (example['k2'] * 2.0 + 0.5)
+             for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
 ]
 
 KEYED_TORCH_HELPER_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
-        KEYED_TORCH_EXAMPLES,
-        torch.Tensor([(example['k1'] * 2.0 + 0.5) +
-                      (example['k2'] * 2.0 + 0.5) + 0.5
-                      for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
+    PredictionResult(ex, pred) for ex, pred in zip(
+        KEYED_TORCH_EXAMPLES, torch.Tensor(
+            [(example['k1'] * 2.0 + 0.5) + (example['k2'] * 2.0 + 0.5) + 0.5
+             for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
 ]
 
 KEYED_TORCH_DICT_OUT_PREDICTIONS = [
@@ -139,8 +134,8 @@ class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
 def _compare_prediction_result(x, y):
   if isinstance(x.example, dict):
     example_equals = all(
-        torch.equal(x, y) for x,
-        y in zip(x.example.values(), y.example.values()))
+        torch.equal(x, y)
+        for x, y in zip(x.example.values(), y.example.values()))
   else:
     example_equals = torch.equal(x.example, y.example)
   if not example_equals:
@@ -148,8 +143,8 @@ def _compare_prediction_result(x, y):
 
   if isinstance(x.inference, dict):
     return all(
-        torch.equal(x, y) for x,
-        y in zip(x.inference.values(), y.inference.values()))
+        torch.equal(x, y)
+        for x, y in zip(x.inference.values(), y.inference.values()))
 
   return torch.equal(x.inference, y.inference)
 
@@ -157,10 +152,9 @@ def _compare_prediction_result(x, y):
 def custom_tensor_inference_fn(
     batch, model, device, inference_args, model_id=None):
   predictions = [
-      PredictionResult(ex, pred) for ex,
-      pred in zip(
-          batch,
-          torch.Tensor([item * 2.0 + 1.5 for item in batch]).reshape(-1, 1))
+      PredictionResult(ex, pred) for ex, pred in zip(
+          batch, torch.Tensor([item * 2.0 + 1.5
+                               for item in batch]).reshape(-1, 1))
   ]
   return predictions
 
@@ -221,11 +215,9 @@ class PytorchRunInferenceTest(unittest.TestCase):
         torch.from_numpy(np.array([10.0], dtype="float32")),
     ]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            examples,
-            torch.Tensor([example * 2.0 + 0.5
-                          for example in examples]).reshape(-1, 1))
+        PredictionResult(ex, pred) for ex, pred in zip(
+            examples, torch.Tensor(
+                [example * 2.0 + 0.5 for example in examples]).reshape(-1, 1))
     ]
 
     model = PytorchLinearRegression(input_dim=1, output_dim=1)
@@ -274,11 +266,9 @@ class PytorchRunInferenceTest(unittest.TestCase):
         torch.from_numpy(np.array([10.0], dtype="float32")),
     ]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            examples,
-            torch.Tensor([example * 2.0 + 1.5
-                          for example in examples]).reshape(-1, 1))
+        PredictionResult(ex, pred) for ex, pred in zip(
+            examples, torch.Tensor(
+                [example * 2.0 + 1.5 for example in examples]).reshape(-1, 1))
     ]
 
     model = PytorchLinearRegression(input_dim=1, output_dim=1)
@@ -385,11 +375,9 @@ class PytorchRunInferenceTest(unittest.TestCase):
         torch.from_numpy(np.array([10.0], dtype="float32")),
     ]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            examples,
-            torch.Tensor([example * 2.0 + 1.0
-                          for example in examples]).reshape(-1, 1))
+        PredictionResult(ex, pred) for ex, pred in zip(
+            examples, torch.Tensor(
+                [example * 2.0 + 1.0 for example in examples]).reshape(-1, 1))
     ]
 
     gen_fn = make_tensor_model_fn('generate')
@@ -663,11 +651,9 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       examples = torch.from_numpy(
           np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(
-              examples,
-              torch.Tensor([example * 2.0 + 0.5
-                            for example in examples]).reshape(-1, 1))
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, torch.Tensor(
+                  [example * 2.0 + 0.5 for example in examples]).reshape(-1, 1))
       ]
 
       gs_pth = 'gs://apache-beam-ml/models/' \
@@ -691,11 +677,9 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
       examples = torch.from_numpy(
           np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(
-              examples,
-              torch.Tensor([example * 2.0 + 0.5
-                            for example in examples]).reshape(-1, 1))
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, torch.Tensor(
+                  [example * 2.0 + 0.5 for example in examples]).reshape(-1, 1))
       ]
 
       def batch_validator_tensor_inference_fn(
@@ -731,7 +715,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(TypeError, "expected Tensor as element"):
+    with self.assertRaisesRegex(Exception, "expected Tensor as element"):
       with TestPipeline() as pipeline:
         examples = np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1)
 

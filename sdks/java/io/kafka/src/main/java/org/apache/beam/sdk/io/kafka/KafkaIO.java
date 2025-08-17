@@ -31,7 +31,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -72,6 +71,7 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -95,6 +95,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTim
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -106,9 +107,9 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Comparators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -118,6 +119,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
@@ -716,6 +718,9 @@ public class KafkaIO {
     public abstract int getRedistributeNumKeys();
 
     @Pure
+    public abstract @Nullable Boolean getOffsetDeduplication();
+
+    @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
@@ -738,6 +743,9 @@ public class KafkaIO {
 
     @Pure
     public abstract long getConsumerPollingTimeout();
+
+    @Pure
+    public abstract @Nullable Boolean getLogTopicVerification();
 
     abstract Builder<K, V> toBuilder();
 
@@ -780,6 +788,8 @@ public class KafkaIO {
 
       abstract Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
 
+      abstract Builder<K, V> setOffsetDeduplication(Boolean offsetDeduplication);
+
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
 
@@ -802,6 +812,8 @@ public class KafkaIO {
       }
 
       abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
+
+      abstract Builder<K, V> setLogTopicVerification(@Nullable Boolean logTopicVerification);
 
       abstract Read<K, V> build();
 
@@ -863,9 +875,13 @@ public class KafkaIO {
           builder.setStopReadTime(Instant.ofEpochMilli(config.stopReadTime));
         }
 
-        // We can expose dynamic read to external build when ReadFromKafkaDoFn is the default
-        // implementation.
-        builder.setDynamicRead(false);
+        if (config.dynamicReadPollIntervalSeconds != null) {
+          builder.setDynamicRead(true);
+          builder.setWatchTopicPartitionDuration(
+              Duration.standardSeconds(config.dynamicReadPollIntervalSeconds));
+        } else {
+          builder.setDynamicRead(false);
+        }
 
         if (config.consumerPollingTimeout != null) {
           if (config.consumerPollingTimeout <= 0) {
@@ -884,11 +900,16 @@ public class KafkaIO {
           if (config.allowDuplicates != null) {
             builder.setAllowDuplicates(config.allowDuplicates);
           }
-
+          if (config.redistribute
+              && (config.allowDuplicates == null || !config.allowDuplicates)
+              && config.offsetDeduplication != null) {
+            builder.setOffsetDeduplication(config.offsetDeduplication);
+          }
         } else {
           builder.setRedistributed(false);
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
+          builder.setOffsetDeduplication(false);
         }
       }
 
@@ -957,6 +978,8 @@ public class KafkaIO {
         private Integer redistributeNumKeys;
         private Boolean redistribute;
         private Boolean allowDuplicates;
+        private Boolean offsetDeduplication;
+        private Long dynamicReadPollIntervalSeconds;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -1013,6 +1036,14 @@ public class KafkaIO {
         public void setAllowDuplicates(Boolean allowDuplicates) {
           this.allowDuplicates = allowDuplicates;
         }
+
+        public void setOffsetDeduplication(Boolean offsetDeduplication) {
+          this.offsetDeduplication = offsetDeduplication;
+        }
+
+        public void setDynamicReadPollIntervalSeconds(Long dynamicReadPollIntervalSeconds) {
+          this.dynamicReadPollIntervalSeconds = dynamicReadPollIntervalSeconds;
+        }
       }
     }
 
@@ -1062,26 +1093,57 @@ public class KafkaIO {
 
     /**
      * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
+     *
+     * @return an updated {@link Read} transform.
      */
     public Read<K, V> withRedistribute() {
-      if (getRedistributeNumKeys() == 0 && isRedistributed()) {
-        LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
-      }
       return toBuilder().setRedistributed(true).build();
     }
 
+    /**
+     * Hints to the runner that it can relax exactly-once processing guarantees, allowing duplicates
+     * in at-least-once processing mode of Kafka inputs.
+     *
+     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
+     *
+     * <p>Not compatible with {@link KafkaIO#withOffsetDeduplication()}.
+     *
+     * @param allowDuplicates specifies whether to allow duplicates.
+     * @return an updated {@link Read} transform.
+     */
     public Read<K, V> withAllowDuplicates(Boolean allowDuplicates) {
-      if (!isAllowDuplicates()) {
-        LOG.warn("Setting this value without setting withRedistribute() will have no effect.");
-      }
       return toBuilder().setAllowDuplicates(allowDuplicates).build();
     }
 
+    /**
+     * Redistributes Kafka messages into a distinct number of keys for processing in subsequent
+     * steps.
+     *
+     * <p>Specifying an explicit number of keys is generally recommended over redistributing into an
+     * unbounded key space.
+     *
+     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
+     *
+     * @param redistributeNumKeys specifies the total number of keys for redistributing inputs.
+     * @return an updated {@link Read} transform.
+     */
     public Read<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
-      checkState(
-          isRedistributed(),
-          "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
       return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
+    }
+
+    /**
+     * Hints to the runner to optimize the redistribute by minimizing the amount of data required
+     * for persistence as part of the redistribute operation.
+     *
+     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
+     *
+     * <p>Not compatible with {@link KafkaIO#withAllowDuplicates()}.
+     *
+     * @param offsetDeduplication specifies whether to enable offset-based deduplication.
+     * @return an updated {@link Read} transform.
+     */
+    public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
+      return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
     }
 
     /**
@@ -1453,6 +1515,28 @@ public class KafkaIO {
       return toBuilder().setConsumerPollingTimeout(duration).build();
     }
 
+    /**
+     * Creates and sets the Application Default Credentials for a Kafka consumer. This allows the
+     * consumer to be authenticated with a Google Kafka Server using OAuth.
+     */
+    public Read<K, V> withGCPApplicationDefaultCredentials() {
+
+      return withConsumerConfigUpdates(
+          ImmutableMap.of(
+              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+              "SASL_SSL",
+              SaslConfigs.SASL_MECHANISM,
+              "OAUTHBEARER",
+              SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+              "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+              SaslConfigs.SASL_JAAS_CONFIG,
+              "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
+    }
+
+    public Read<K, V> withTopicVerificationLogging(boolean logTopicVerification) {
+      return toBuilder().setLogTopicVerification(logTopicVerification).build();
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1521,6 +1605,9 @@ public class KafkaIO {
               ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
         }
       }
+
+      checkRedistributeConfiguration();
+
       warnAboutUnsafeConfigurations(input);
 
       // Infer key/value coders if not specified explicitly
@@ -1531,6 +1618,8 @@ public class KafkaIO {
 
       final KafkaIOReadImplementationCompatibilityResult compatibility =
           KafkaIOReadImplementationCompatibility.getCompatibility(this);
+
+      Read<K, V> kafkaRead = deduplicateTopics(this);
 
       // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
       // Kafka source, for example,
@@ -1548,9 +1637,29 @@ public class KafkaIO {
           || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
           || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
-        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
+        return input.apply(new ReadFromKafkaViaUnbounded<>(kafkaRead, keyCoder, valueCoder));
       }
-      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+      return input.apply(new ReadFromKafkaViaSDF<>(kafkaRead, keyCoder, valueCoder));
+    }
+
+    private void checkRedistributeConfiguration() {
+      if (getRedistributeNumKeys() == 0 && isRedistributed()) {
+        LOG.warn(
+            "withRedistribute without withRedistributeNumKeys will create a key per record, which is sub-optimal for most use cases.");
+      }
+      if (isAllowDuplicates()) {
+        LOG.warn("Setting this value without setting withRedistribute() will have no effect.");
+      }
+      if (getRedistributeNumKeys() > 0) {
+        checkState(
+            isRedistributed(),
+            "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
+      }
+      if (getOffsetDeduplication() != null && getOffsetDeduplication()) {
+        checkState(
+            isRedistributed() && !isAllowDuplicates(),
+            "withOffsetDeduplication should only be used with withRedistribute and withAllowDuplicates(false).");
+      }
     }
 
     private void warnAboutUnsafeConfigurations(PBegin input) {
@@ -1575,6 +1684,29 @@ public class KafkaIO {
                 + " We recommend setting commitOffsetInFinalize to true in ReadFromKafka,"
                 + " enable.auto.commit to false, and auto.offset.reset to none");
       }
+    }
+
+    private Read<K, V> deduplicateTopics(Read<K, V> kafkaRead) {
+      final List<String> topics = getTopics();
+      if (topics != null && !topics.isEmpty()) {
+        final List<String> distinctTopics = topics.stream().distinct().collect(Collectors.toList());
+        if (topics.size() == distinctTopics.size()) {
+          return kafkaRead;
+        }
+        return kafkaRead.toBuilder().setTopics(distinctTopics).build();
+      }
+
+      final List<TopicPartition> topicPartitions = getTopicPartitions();
+      if (topicPartitions != null && !topicPartitions.isEmpty()) {
+        final List<TopicPartition> distinctTopicPartitions =
+            topicPartitions.stream().distinct().collect(Collectors.toList());
+        if (topicPartitions.size() == distinctTopicPartitions.size()) {
+          return kafkaRead;
+        }
+        return kafkaRead.toBuilder().setTopicPartitions(distinctTopicPartitions).build();
+      }
+
+      return kafkaRead;
     }
 
     // This class is designed to mimic the Flink pipeline options, so we can check for the
@@ -1731,8 +1863,10 @@ public class KafkaIO {
                 .withConsumerConfigOverrides(kafkaRead.getConsumerConfig())
                 .withOffsetConsumerConfigOverrides(kafkaRead.getOffsetConsumerConfig())
                 .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
-                .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
-                .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
+                .withKeyDeserializerProviderAndCoder(
+                    kafkaRead.getKeyDeserializerProvider(), keyCoder)
+                .withValueDeserializerProviderAndCoder(
+                    kafkaRead.getValueDeserializerProvider(), valueCoder)
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
@@ -1779,11 +1913,28 @@ public class KafkaIO {
                       kafkaRead.getStartReadTime(),
                       kafkaRead.getStopReadTime()));
         } else {
-          output =
+          String requestedVersionString =
               input
                   .getPipeline()
-                  .apply(Impulse.create())
-                  .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+                  .getOptions()
+                  .as(StreamingOptions.class)
+                  .getUpdateCompatibilityVersion();
+          if (requestedVersionString != null
+              && !requestedVersionString.isEmpty()
+              && TransformUpgrader.compareVersions(requestedVersionString, "2.66.0") < 0) {
+            // Use discouraged Impulse for backwards compatibility with previous released versions.
+            output =
+                input
+                    .getPipeline()
+                    .apply(Impulse.create())
+                    .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+          } else {
+            output =
+                input
+                    .getPipeline()
+                    .apply(Create.of(new byte[0]).withCoder(ByteArrayCoder.of()))
+                    .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+          }
         }
         if (kafkaRead.isRedistributed()) {
           PCollection<KafkaRecord<K, V>> pcol =
@@ -1819,6 +1970,7 @@ public class KafkaIO {
         this.topicPattern = read.getTopicPattern();
         this.startReadTime = read.getStartReadTime();
         this.stopReadTime = read.getStopReadTime();
+        this.logTopicVerification = read.getLogTopicVerification();
       }
 
       private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -1835,6 +1987,7 @@ public class KafkaIO {
       @VisibleForTesting final @Nullable List<String> topics;
 
       private final @Nullable Pattern topicPattern;
+      private final @Nullable Boolean logTopicVerification;
 
       @ProcessElement
       public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
@@ -1855,7 +2008,22 @@ public class KafkaIO {
               }
             } else {
               for (String topic : topics) {
-                for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
+                if (logTopicVerification == null || !logTopicVerification) {
+                  checkState(
+                      partitionInfoList != null && !partitionInfoList.isEmpty(),
+                      "Could not find any partitions info for topic "
+                          + topic
+                          + ". Please check Kafka configuration and make sure "
+                          + "that provided topics exist.");
+                } else {
+                  LOG.warn(
+                      "Could not find any partitions info for topic {}. Please check Kafka configuration "
+                          + "and make sure that the provided topics exist.",
+                      topic);
+                }
+
+                for (PartitionInfo p : partitionInfoList) {
                   partitions.add(new TopicPartition(p.topic(), p.partition()));
                 }
               }
@@ -2302,16 +2470,6 @@ public class KafkaIO {
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
-    public ReadSourceDescriptors<K, V> withKeyDeserializerProvider(
-        @Nullable DeserializerProvider<K> deserializerProvider) {
-      return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
-    }
-
-    public ReadSourceDescriptors<K, V> withValueDeserializerProvider(
-        @Nullable DeserializerProvider<V> deserializerProvider) {
-      return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
-    }
-
     /**
      * Sets a Kafka {@link Deserializer} to interpret key bytes read from Kafka.
      *
@@ -2323,6 +2481,31 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withKeyDeserializer(
         Class<? extends Deserializer<K>> keyDeserializer) {
       return withKeyDeserializerProvider(LocalDeserializerProvider.of(keyDeserializer));
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer} for interpreting key bytes read from Kafka along with a
+     * {@link Coder} for helping the Beam runner materialize key objects at runtime if necessary.
+     *
+     * <p>Use this method to override the coder inference performed within {@link
+     * #withKeyDeserializer(Class)}.
+     */
+    public ReadSourceDescriptors<K, V> withKeyDeserializerAndCoder(
+        Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
+      return withKeyDeserializer(keyDeserializer).toBuilder().setKeyCoder(keyCoder).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withKeyDeserializerProvider(
+        @Nullable DeserializerProvider<K> deserializerProvider) {
+      return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withKeyDeserializerProviderAndCoder(
+        @Nullable DeserializerProvider<K> deserializerProvider, Coder<K> keyCoder) {
+      return toBuilder()
+          .setKeyDeserializerProvider(deserializerProvider)
+          .setKeyCoder(keyCoder)
+          .build();
     }
 
     /**
@@ -2339,18 +2522,6 @@ public class KafkaIO {
     }
 
     /**
-     * Sets a Kafka {@link Deserializer} for interpreting key bytes read from Kafka along with a
-     * {@link Coder} for helping the Beam runner materialize key objects at runtime if necessary.
-     *
-     * <p>Use this method to override the coder inference performed within {@link
-     * #withKeyDeserializer(Class)}.
-     */
-    public ReadSourceDescriptors<K, V> withKeyDeserializerAndCoder(
-        Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
-      return withKeyDeserializer(keyDeserializer).toBuilder().setKeyCoder(keyCoder).build();
-    }
-
-    /**
      * Sets a Kafka {@link Deserializer} for interpreting value bytes read from Kafka along with a
      * {@link Coder} for helping the Beam runner materialize value objects at runtime if necessary.
      *
@@ -2360,6 +2531,19 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withValueDeserializerAndCoder(
         Class<? extends Deserializer<V>> valueDeserializer, Coder<V> valueCoder) {
       return withValueDeserializer(valueDeserializer).toBuilder().setValueCoder(valueCoder).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withValueDeserializerProvider(
+        @Nullable DeserializerProvider<V> deserializerProvider) {
+      return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withValueDeserializerProviderAndCoder(
+        @Nullable DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
+      return toBuilder()
+          .setValueDeserializerProvider(deserializerProvider)
+          .setValueCoder(valueCoder)
+          .build();
     }
 
     /**
@@ -2708,30 +2892,25 @@ public class KafkaIO {
                 .getOptions()
                 .as(StreamingOptions.class)
                 .getUpdateCompatibilityVersion();
-        if (requestedVersionString != null) {
-          List<String> requestedVersion = Arrays.asList(requestedVersionString.split("\\."));
-          List<String> targetVersion = Arrays.asList("2", "60", "0");
+        if (requestedVersionString != null
+            && !requestedVersionString.isEmpty()
+            && TransformUpgrader.compareVersions(requestedVersionString, "2.60.0") < 0) {
+          // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
+          // prior to the redistribute. The reshuffle will occur before commits are offsetted and
+          // before outputting KafkaRecords. Adding a redistribute then afterwards doesn't provide
+          // additional performance benefit.
+          checkArgument(
+              !isRedistribute(),
+              "Can not enable isRedistribute() while committing offsets prior to 2.60.0");
 
-          if (Comparators.lexicographical(Comparator.<String>naturalOrder())
-                  .compare(requestedVersion, targetVersion)
-              < 0) {
-            // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
-            // prior to the redistribute. The reshuffle will occur before commits are offsetted and
-            // before outputting KafkaRecords. Adding a redistribute then afterwards doesn't provide
-            // additional performance benefit.
-            checkArgument(
-                !isRedistribute(),
-                "Can not enable isRedistribute() while committing offsets prior to "
-                    + String.join(".", targetVersion));
-
-            return expand259Commits(
-                outputWithDescriptor, recordCoder, input.getPipeline().getSchemaRegistry());
-          }
+          return expand259Commits(
+              outputWithDescriptor, recordCoder, input.getPipeline().getSchemaRegistry());
+        } else {
+          outputWithDescriptor.apply(new KafkaCommitOffset<>(this, false)).setCoder(VoidCoder.of());
+          return outputWithDescriptor
+              .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+              .setCoder(recordCoder);
         }
-        outputWithDescriptor.apply(new KafkaCommitOffset<>(this, false)).setCoder(VoidCoder.of());
-        return outputWithDescriptor
-            .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
-            .setCoder(recordCoder);
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e.getMessage());
       }
@@ -3360,6 +3539,23 @@ public class KafkaIO {
     public Write<K, V> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return withWriteRecordsTransform(
           getWriteRecordsTransform().withBadRecordErrorHandler(badRecordErrorHandler));
+    }
+
+    /**
+     * Creates and sets the Application Default Credentials for a Kafka producer. This allows the
+     * consumer to be authenticated with a Google Kafka Server using OAuth.
+     */
+    public Write<K, V> withGCPApplicationDefaultCredentials() {
+      return withProducerConfigUpdates(
+          ImmutableMap.of(
+              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+              "SASL_SSL",
+              SaslConfigs.SASL_MECHANISM,
+              "OAUTHBEARER",
+              SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+              "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+              SaslConfigs.SASL_JAAS_CONFIG,
+              "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
     }
 
     @Override

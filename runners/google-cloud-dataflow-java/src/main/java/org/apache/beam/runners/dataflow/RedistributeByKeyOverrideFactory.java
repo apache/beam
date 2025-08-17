@@ -21,11 +21,7 @@ import java.util.Collections;
 import org.apache.beam.runners.dataflow.internal.DataflowGroupByKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
@@ -47,6 +43,12 @@ class RedistributeByKeyOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
         PCollection<KV<K, V>>, PCollection<KV<K, V>>, RedistributeByKey<K, V>> {
 
+  private final boolean usesAtLeastOnceStreamingMode;
+
+  public RedistributeByKeyOverrideFactory(boolean usesAtLeastOnceStreamingMode) {
+    this.usesAtLeastOnceStreamingMode = usesAtLeastOnceStreamingMode;
+  }
+
   @Override
   public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, V>>>
       getReplacementTransform(
@@ -54,17 +56,24 @@ class RedistributeByKeyOverrideFactory<K, V>
               transform) {
     return PTransformOverrideFactory.PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new DataflowRedistributeByKey<>(transform.getTransform()));
+        new DataflowRedistributeByKey<>(transform.getTransform(), usesAtLeastOnceStreamingMode));
   }
 
   /** Specialized implementation of {@link RedistributeByKey} for Dataflow pipelines. */
-  private static class DataflowRedistributeByKey<K, V>
+  public static class DataflowRedistributeByKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
     private final RedistributeByKey<K, V> originalTransform;
+    private final boolean usesAtLeastOnceStreamingMode;
 
-    private DataflowRedistributeByKey(RedistributeByKey<K, V> originalTransform) {
+    private DataflowRedistributeByKey(
+        RedistributeByKey<K, V> originalTransform, boolean usesAtLeastOnceStreamingMode) {
       this.originalTransform = originalTransform;
+      this.usesAtLeastOnceStreamingMode = usesAtLeastOnceStreamingMode;
+    }
+
+    public boolean getAllowDuplicates() {
+      return this.usesAtLeastOnceStreamingMode || this.originalTransform.getAllowDuplicates();
     }
 
     @Override
@@ -84,7 +93,7 @@ class RedistributeByKeyOverrideFactory<K, V>
               .apply("ReifyOriginalMetadata", Reify.windowsInValue());
 
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped;
-      if (originalTransform.getAllowDuplicates()) {
+      if (getAllowDuplicates()) {
         grouped = reified.apply(DataflowGroupByKey.createWithAllowDuplicates());
       } else {
         grouped = reified.apply(DataflowGroupByKey.create());
@@ -130,7 +139,7 @@ class RedistributeByKeyOverrideFactory<K, V>
                       KV.of(kv.getKey(), kv.getValue().getValue()),
                       kv.getValue().getTimestamp(),
                       Collections.singleton(kv.getValue().getWindow()),
-                      kv.getValue().getPane());
+                      kv.getValue().getPaneInfo());
                 }
               }));
     }

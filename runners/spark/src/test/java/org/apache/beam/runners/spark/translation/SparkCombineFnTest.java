@@ -39,8 +39,9 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -233,7 +234,7 @@ public class SparkCombineFnTest {
     WindowedValue<KV<String, Integer>> first = input("key", 1, ts);
     WindowedValue<KV<String, Integer>> second = input("key", 2, ts);
     WindowedValue<KV<String, Integer>> third = input("key", 3, ts);
-    WindowedValue<Long> accumulator = WindowedValue.valueInGlobalWindow(0L);
+    WindowedValue<Long> accumulator = WindowedValues.valueInGlobalWindow(0L);
     SparkCombineFn.SingleWindowWindowedAccumulator<KV<String, Integer>, Integer, Long> acc1 =
         SparkCombineFn.SingleWindowWindowedAccumulator.create(KV::getValue, accumulator);
     SparkCombineFn.SingleWindowWindowedAccumulator<KV<String, Integer>, Integer, Long> acc2 =
@@ -293,7 +294,7 @@ public class SparkCombineFnTest {
 
     @SuppressWarnings("unchecked")
     WindowFn<V, BoundedWindow> cast = (WindowFn<V, BoundedWindow>) windowFn;
-    return WindowedValue.of(
+    return WindowedValues.of(
         value,
         timestamp,
         cast.assignWindows(assignContext(cast, value, timestamp)),

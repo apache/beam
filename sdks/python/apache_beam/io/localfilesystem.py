@@ -157,7 +157,9 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dirname = os.path.dirname(path)
+    if dirname:
+      os.makedirs(os.path.dirname(path), exist_ok=True)
     return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(
@@ -364,3 +366,6 @@ class LocalFileSystem(FileSystem):
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
+
+  def report_lineage(self, path, lineage):
+    lineage.add('filesystem', 'localhost', path, last_segment_sep='/')

@@ -450,6 +450,9 @@ public class BigQueryUtilsTest {
 
   private static final TableRow BQ_ENUM_ROW = new TableRow().set("color", "GREEN");
 
+  private static final Row NULL_ARRAY_ROW =
+      Row.withSchema(ARRAY_TYPE_NULLS).addValue(Collections.emptyList()).build();
+
   private static final Row ARRAY_ROW_NULLS =
       Row.withSchema(ARRAY_TYPE_NULLS).addValues((Object) Arrays.asList(123L, null, null)).build();
 
@@ -458,6 +461,8 @@ public class BigQueryUtilsTest {
 
   private static final Row MAP_ROW =
       Row.withSchema(MAP_MAP_TYPE).addValues(ImmutableMap.of("test", 123.456)).build();
+
+  private static final TableRow BQ_NULL_ARRAY_ROW = new TableRow().set("ids", null);
 
   private static final TableRow BQ_ARRAY_ROW_NULLS =
       new TableRow()
@@ -689,6 +694,18 @@ public class BigQueryUtilsTest {
   @Test
   public void testToTableSchema_map() {
     TableSchema schema = toTableSchema(MAP_MAP_TYPE);
+
+    assertThat(schema.getFields().size(), equalTo(1));
+    TableFieldSchema field = schema.getFields().get(0);
+    assertThat(field.getName(), equalTo("map"));
+    assertThat(field.getType(), equalTo(StandardSQLTypeName.STRUCT.toString()));
+    assertThat(field.getMode(), equalTo(Mode.REPEATED.toString()));
+    assertThat(field.getFields(), containsInAnyOrder(MAP_KEY, MAP_VALUE));
+  }
+
+  @Test
+  public void testToTableSchema_map_array() {
+    TableSchema schema = toTableSchema(MAP_ARRAY_TYPE);
 
     assertThat(schema.getFields().size(), equalTo(1));
     TableFieldSchema field = schema.getFields().get(0);
@@ -1010,6 +1027,12 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testToBeamRow_nullArray() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE_NULLS, BQ_NULL_ARRAY_ROW);
+    assertEquals(NULL_ARRAY_ROW, beamRow);
+  }
+
+  @Test
   public void testToBeamRow_arrayNulls() {
     Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE_NULLS, BQ_ARRAY_ROW_NULLS);
     assertEquals(ARRAY_ROW_NULLS, beamRow);
@@ -1111,6 +1134,30 @@ public class BigQueryUtilsTest {
         BigQueryUtils.toBeamRow(
             record, FLAT_TYPE, BigQueryUtils.ConversionOptions.builder().build());
     assertEquals(expected, actual);
+  }
+
+  /**
+   * Dedicated test for MicrosInstant logical type because this type is intended only for
+   * cross-language use-cases. This is a one-way mapping from BQ --> Beam based on Beam Schema.
+   */
+  @Test
+  @SuppressWarnings("JavaInstantGetSecondsGetNano")
+  public void testToBeamRow_timestamp_micros() {
+    Schema schema =
+        Schema.builder().addLogicalTypeField("timestamp_micros", SqlTypes.TIMESTAMP).build();
+
+    String timestamp = "2024-08-10T16:52:07.123456Z";
+    java.time.Instant instant = java.time.Instant.parse(timestamp);
+    Row expectedRow = Row.withSchema(schema).addValue(instant).build();
+
+    Row beamRowISOString =
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("timestamp_micros", timestamp));
+    assertEquals(expectedRow, beamRowISOString);
+
+    long micros = instant.toEpochMilli() * 1000 + (instant.getNano() / 1000) % 1000;
+    Row beamRowMicros =
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("timestamp_micros", micros));
+    assertEquals(expectedRow, beamRowMicros);
   }
 
   @Test

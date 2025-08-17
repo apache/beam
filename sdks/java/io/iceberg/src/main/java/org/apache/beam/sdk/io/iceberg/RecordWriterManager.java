@@ -21,34 +21,45 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.ManifestFiles;
-import org.apache.iceberg.ManifestWriter;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.OutputFile;
+import org.apache.iceberg.exceptions.AlreadyExistsException;
+import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.apache.iceberg.transforms.Transforms;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A writer that manages multiple {@link RecordWriter}s to write to multiple tables and partitions.
@@ -66,19 +77,14 @@ import org.apache.iceberg.io.OutputFile;
  *
  * <ol>
  *   <li>Close all underlying {@link RecordWriter}s
- *   <li>Collect all {@link DataFile}s
- *   <li>Create a new {@link ManifestFile} referencing these {@link DataFile}s
+ *   <li>Collect all {@link DataFile}s as {@link SerializableDataFile}s (a more Beam-friendly type)
  * </ol>
  *
- * <p>After closing, the resulting {@link ManifestFile}s can be retrieved using {@link
- * #getManifestFiles()}.
+ * <p>After closing, the resulting {@link SerializableDataFile}s can be retrieved using {@link
+ * #getSerializableDataFiles()}.
  */
 class RecordWriterManager implements AutoCloseable {
-  private final Counter dataFilesWritten =
-      Metrics.counter(RecordWriterManager.class, "dataFilesWritten");
-  private final Counter manifestFilesWritten =
-      Metrics.counter(RecordWriterManager.class, "manifestFilesWritten");
-
+  private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
    * partition and manages them in a {@link Cache}.
@@ -89,23 +95,28 @@ class RecordWriterManager implements AutoCloseable {
     private final IcebergDestination icebergDestination;
     private final PartitionSpec spec;
     private final org.apache.iceberg.Schema schema;
-    private final PartitionKey partitionKey;
-    private final String tableLocation;
-    private final FileIO fileIO;
+    // used to determine the partition to which a record belongs
+    // must not be directly used to create a writer
+    private final PartitionKey routingPartitionKey;
     private final Table table;
     private final String stateToken = UUID.randomUUID().toString();
-    private final List<DataFile> dataFiles = Lists.newArrayList();
-    @VisibleForTesting final Cache<PartitionKey, RecordWriter> writers;
+    final Cache<PartitionKey, RecordWriter> writers;
+    private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
+    private final Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
+    private final List<Exception> exceptions = Lists.newArrayList();
+    private final InternalRecordWrapper wrapper; // wrapper that facilitates partitioning
 
     DestinationState(IcebergDestination icebergDestination, Table table) {
       this.icebergDestination = icebergDestination;
       this.schema = table.schema();
       this.spec = table.spec();
-      this.partitionKey = new PartitionKey(spec, schema);
-      this.tableLocation = table.location();
-      this.fileIO = table.io();
+      this.routingPartitionKey = new PartitionKey(spec, schema);
+      this.wrapper = new InternalRecordWrapper(schema.asStruct());
       this.table = table;
+      for (PartitionField partitionField : spec.fields()) {
+        partitionFieldMap.put(partitionField.name(), partitionField);
+      }
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
@@ -121,15 +132,19 @@ class RecordWriterManager implements AutoCloseable {
                     try {
                       recordWriter.close();
                     } catch (IOException e) {
-                      throw new RuntimeException(
-                          String.format(
-                              "Encountered an error when closing data writer for table '%s', partition %s",
-                              icebergDestination.getTableIdentifier(), pk),
-                          e);
+                      RuntimeException rethrow =
+                          new RuntimeException(
+                              String.format(
+                                  "Encountered an error when closing data writer for table '%s', path: %s",
+                                  icebergDestination.getTableIdentifier(), recordWriter.path()),
+                              e);
+                      exceptions.add(rethrow);
+                      throw rethrow;
                     }
                     openWriters--;
-                    dataFiles.add(recordWriter.getDataFile());
-                    dataFilesWritten.inc();
+                    String partitionPath = getPartitionDataPath(pk.toPath(), partitionFieldMap);
+                    dataFiles.add(
+                        SerializableDataFile.from(recordWriter.getDataFile(), partitionPath));
                   })
               .build();
     }
@@ -142,12 +157,13 @@ class RecordWriterManager implements AutoCloseable {
      * can't create a new writer, the {@link Record} is rejected and {@code false} is returned.
      */
     boolean write(Record record) {
-      partitionKey.partition(record);
+      routingPartitionKey.partition(wrapper.wrap(record));
 
-      if (!writers.asMap().containsKey(partitionKey) && openWriters >= maxNumWriters) {
+      @Nullable RecordWriter writer = writers.getIfPresent(routingPartitionKey);
+      if (writer == null && openWriters >= maxNumWriters) {
         return false;
       }
-      RecordWriter writer = fetchWriterForPartition(partitionKey);
+      writer = fetchWriterForPartition(routingPartitionKey, writer);
       writer.write(record);
       return true;
     }
@@ -157,14 +173,15 @@ class RecordWriterManager implements AutoCloseable {
      * no {@link RecordWriter} exists or if it has reached the maximum limit of bytes written, a new
      * one is created and returned.
      */
-    private RecordWriter fetchWriterForPartition(PartitionKey partitionKey) {
-      RecordWriter recordWriter = writers.getIfPresent(partitionKey);
-
+    private RecordWriter fetchWriterForPartition(
+        PartitionKey partitionKey, @Nullable RecordWriter recordWriter) {
       if (recordWriter == null || recordWriter.bytesWritten() > maxFileSize) {
+        // each writer must have its own PartitionKey object
+        PartitionKey copy = partitionKey.copy();
         // calling invalidate for a non-existent key is a safe operation
-        writers.invalidate(partitionKey);
-        recordWriter = createWriter(partitionKey);
-        writers.put(partitionKey, recordWriter);
+        writers.invalidate(copy);
+        recordWriter = createWriter(copy);
+        writers.put(copy, recordWriter);
       }
       return recordWriter;
     }
@@ -191,14 +208,40 @@ class RecordWriterManager implements AutoCloseable {
             e);
       }
     }
-
-    private String getManifestFileLocation(PaneInfo paneInfo) {
-      return FileFormat.AVRO.addExtension(
-          String.format(
-              "%s/metadata/%s-%s-%s.manifest",
-              tableLocation, filePrefix, stateToken, paneInfo.getIndex()));
-    }
   }
+
+  /**
+   * Returns an equivalent partition path that is made up of partition data. Needed to reconstruct a
+   * {@link DataFile}.
+   */
+  @VisibleForTesting
+  static String getPartitionDataPath(
+      String partitionPath, Map<String, PartitionField> partitionFieldMap) {
+    if (partitionPath.isEmpty() || partitionFieldMap.isEmpty()) {
+      return partitionPath;
+    }
+    List<String> resolved = new ArrayList<>();
+    for (String partition : Splitter.on('/').splitToList(partitionPath)) {
+      List<String> nameAndValue = Splitter.on('=').splitToList(partition);
+      String name = nameAndValue.get(0);
+      String value = nameAndValue.get(1);
+      String transformName =
+          Preconditions.checkArgumentNotNull(partitionFieldMap.get(name)).transform().toString();
+      if (Transforms.month().toString().equals(transformName)) {
+        int month = YearMonth.parse(value).getMonthValue();
+        value = String.valueOf(month);
+      } else if (Transforms.hour().toString().equals(transformName)) {
+        long hour = ChronoUnit.HOURS.between(EPOCH, LocalDateTime.parse(value, HOUR_FORMATTER));
+        value = String.valueOf(hour);
+      }
+      resolved.add(name + "=" + value);
+    }
+    return String.join("/", resolved);
+  }
+
+  private static final DateTimeFormatter HOUR_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
+  private static final LocalDateTime EPOCH = LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC);
 
   private final Catalog catalog;
   private final String filePrefix;
@@ -209,8 +252,12 @@ class RecordWriterManager implements AutoCloseable {
   @VisibleForTesting
   final Map<WindowedValue<IcebergDestination>, DestinationState> destinations = Maps.newHashMap();
 
-  private final Map<WindowedValue<IcebergDestination>, List<ManifestFile>> totalManifestFiles =
-      Maps.newHashMap();
+  private final Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
+      totalSerializableDataFiles = Maps.newHashMap();
+
+  @VisibleForTesting
+  static final Cache<TableIdentifier, Table> TABLE_CACHE =
+      CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
 
   private boolean isClosed = false;
 
@@ -219,6 +266,76 @@ class RecordWriterManager implements AutoCloseable {
     this.filePrefix = filePrefix;
     this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
+  }
+
+  /**
+   * Returns an Iceberg {@link Table}.
+   *
+   * <p>First attempts to fetch the table from the {@link #TABLE_CACHE}. If it's not there, we
+   * attempt to load it using the Iceberg API. If the table doesn't exist at all, we attempt to
+   * create it, inferring the table schema from the record schema.
+   *
+   * <p>Note that this is a best-effort operation that depends on the {@link Catalog}
+   * implementation. Although it is expected, some implementations may not support creating a table
+   * using the Iceberg API.
+   */
+  private Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    TableIdentifier identifier = destination.getTableIdentifier();
+    @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
+    if (table != null) {
+      // If fetching from cache, refresh the table to avoid working with stale metadata
+      // (e.g. partition spec)
+      table.refresh();
+      return table;
+    }
+
+    Namespace namespace = identifier.namespace();
+    @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
+    PartitionSpec partitionSpec =
+        createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+    Map<String, String> tableProperties =
+        createConfig != null && createConfig.getTableProperties() != null
+            ? createConfig.getTableProperties()
+            : Maps.newHashMap();
+
+    synchronized (TABLE_CACHE) {
+      // Create namespace if it does not exist yet
+      if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
+        SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
+        if (!supportsNamespaces.namespaceExists(namespace)) {
+          try {
+            supportsNamespaces.createNamespace(namespace);
+            LOG.info("Created new namespace '{}'.", namespace);
+          } catch (AlreadyExistsException ignored) {
+            // race condition: another worker already created this namespace
+          }
+        }
+      }
+
+      // If table exists, just load it
+      // Note: the implementation of catalog.tableExists() will load the table to check its
+      // existence. We don't use it here to avoid double loadTable() calls.
+      try {
+        table = catalog.loadTable(identifier);
+      } catch (NoSuchTableException e) { // Otherwise, create the table
+        org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+        try {
+          table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+          LOG.info(
+              "Created Iceberg table '{}' with schema: {}\n, partition spec: {}, table properties: {}",
+              identifier,
+              tableSchema,
+              partitionSpec,
+              tableProperties);
+        } catch (AlreadyExistsException ignored) {
+          // race condition: another worker already created this table
+          table = catalog.loadTable(identifier);
+        }
+      }
+    }
+
+    TABLE_CACHE.put(identifier, table);
+    return table;
   }
 
   /**
@@ -233,8 +350,9 @@ class RecordWriterManager implements AutoCloseable {
         destinations.computeIfAbsent(
             icebergDestination,
             destination -> {
-              Table table = catalog.loadTable(destination.getValue().getTableIdentifier());
-              return new DestinationState(destination.getValue(), table);
+              IcebergDestination dest = destination.getValue();
+              Table table = getOrCreateTable(dest, row.getSchema());
+              return new DestinationState(dest, table);
             });
 
     Record icebergRecord = IcebergUtils.beamRowToIcebergRecord(destinationState.schema, row);
@@ -249,31 +367,28 @@ class RecordWriterManager implements AutoCloseable {
   public void close() throws IOException {
     for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
         windowedDestinationAndState : destinations.entrySet()) {
-      WindowedValue<IcebergDestination> windowedDestination = windowedDestinationAndState.getKey();
       DestinationState state = windowedDestinationAndState.getValue();
 
       // removing writers from the state's cache will trigger the logic to collect each writer's
       // data file.
       state.writers.invalidateAll();
+      // first check for any exceptions swallowed by the cache
+      if (!state.exceptions.isEmpty()) {
+        IllegalStateException exception =
+            new IllegalStateException(
+                String.format("Encountered %s failed writer(s).", state.exceptions.size()));
+        for (Exception e : state.exceptions) {
+          exception.addSuppressed(e);
+        }
+        throw exception;
+      }
+
       if (state.dataFiles.isEmpty()) {
         continue;
       }
 
-      OutputFile outputFile =
-          state.fileIO.newOutputFile(state.getManifestFileLocation(windowedDestination.getPane()));
-
-      ManifestWriter<DataFile> manifestWriter;
-      try (ManifestWriter<DataFile> openWriter = ManifestFiles.write(state.spec, outputFile)) {
-        openWriter.addAll(state.dataFiles);
-        manifestWriter = openWriter;
-      }
-      ManifestFile manifestFile = manifestWriter.toManifestFile();
-      manifestFilesWritten.inc();
-
-      totalManifestFiles
-          .computeIfAbsent(windowedDestination, dest -> Lists.newArrayList())
-          .add(manifestFile);
-
+      totalSerializableDataFiles.put(
+          windowedDestinationAndState.getKey(), new ArrayList<>(state.dataFiles));
       state.dataFiles.clear();
     }
     destinations.clear();
@@ -285,15 +400,16 @@ class RecordWriterManager implements AutoCloseable {
   }
 
   /**
-   * Returns a list of accumulated windowed {@link ManifestFile}s for each windowed {@link
+   * Returns a list of accumulated serializable {@link DataFile}s for each windowed {@link
    * IcebergDestination}. The {@link RecordWriterManager} must first be closed before this is
    * called.
    */
-  public Map<WindowedValue<IcebergDestination>, List<ManifestFile>> getManifestFiles() {
+  public Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
+      getSerializableDataFiles() {
     checkState(
         isClosed,
-        "Please close this %s before retrieving its manifest files.",
+        "Please close this %s before retrieving its data files.",
         getClass().getSimpleName());
-    return totalManifestFiles;
+    return totalSerializableDataFiles;
   }
 }

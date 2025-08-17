@@ -50,11 +50,10 @@ WindowFn.
 # pytype: skip-file
 
 import abc
+from collections.abc import Iterable
 from functools import total_ordering
 from typing import Any
 from typing import Generic
-from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import TypeVar
 
@@ -367,7 +366,7 @@ class GlobalWindows(NonMergingWindowFn):
     return cls.windowed_value(value, GlobalWindow().max_timestamp())
 
   def assign(self,
-             assign_context: WindowFn.AssignContext) -> List[GlobalWindow]:
+             assign_context: WindowFn.AssignContext) -> list[GlobalWindow]:
     return [GlobalWindow()]
 
   def get_window_coder(self) -> coders.GlobalWindowCoder:
@@ -419,7 +418,7 @@ class FixedWindows(NonMergingWindowFn):
     self.size = Duration.of(size)
     self.offset = Timestamp.of(offset) % self.size
 
-  def assign(self, context: WindowFn.AssignContext) -> List[IntervalWindow]:
+  def assign(self, context: WindowFn.AssignContext) -> list[IntervalWindow]:
     timestamp = context.timestamp
     start = timestamp - (timestamp - self.offset) % self.size
     return [IntervalWindow(start, start + self.size)]
@@ -449,8 +448,8 @@ class FixedWindows(NonMergingWindowFn):
       standard_window_fns_pb2.FixedWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context) -> 'FixedWindows':
     return FixedWindows(
-        size=Duration(micros=fn_parameter.size.ToMicroseconds()),
-        offset=Timestamp(micros=fn_parameter.offset.ToMicroseconds()))
+        size=Duration(micros=proto_utils.to_micros(fn_parameter.size)),
+        offset=Timestamp(micros=proto_utils.to_micros(fn_parameter.offset)))
 
 
 class SlidingWindows(NonMergingWindowFn):
@@ -479,7 +478,7 @@ class SlidingWindows(NonMergingWindowFn):
     self.period = Duration.of(period)
     self.offset = Timestamp.of(offset) % period
 
-  def assign(self, context: WindowFn.AssignContext) -> List[IntervalWindow]:
+  def assign(self, context: WindowFn.AssignContext) -> list[IntervalWindow]:
     timestamp = context.timestamp
     start = timestamp - ((timestamp - self.offset) % self.period)
     return [
@@ -487,9 +486,8 @@ class SlidingWindows(NonMergingWindowFn):
             (interval_start := Timestamp(micros=s)),
             interval_start + self.size,
         ) for s in range(
-            start.micros,
-            timestamp.micros - self.size.micros,
-            -self.period.micros)
+            start.micros, timestamp.micros -
+            self.size.micros, -self.period.micros)
     ]
 
   def get_window_coder(self) -> coders.IntervalWindowCoder:
@@ -522,9 +520,9 @@ class SlidingWindows(NonMergingWindowFn):
   def from_runner_api_parameter(
       fn_parameter, unused_context) -> 'SlidingWindows':
     return SlidingWindows(
-        size=Duration(micros=fn_parameter.size.ToMicroseconds()),
-        offset=Timestamp(micros=fn_parameter.offset.ToMicroseconds()),
-        period=Duration(micros=fn_parameter.period.ToMicroseconds()))
+        size=Duration(micros=proto_utils.to_micros(fn_parameter.size)),
+        offset=Timestamp(micros=proto_utils.to_micros(fn_parameter.offset)),
+        period=Duration(micros=proto_utils.to_micros(fn_parameter.period)))
 
 
 class Sessions(WindowFn):
@@ -541,7 +539,7 @@ class Sessions(WindowFn):
       raise ValueError('The size parameter must be strictly positive.')
     self.gap_size = Duration.of(gap_size)
 
-  def assign(self, context: WindowFn.AssignContext) -> List[IntervalWindow]:
+  def assign(self, context: WindowFn.AssignContext) -> list[IntervalWindow]:
     timestamp = context.timestamp
     return [IntervalWindow(timestamp, timestamp + self.gap_size)]
 
@@ -549,7 +547,7 @@ class Sessions(WindowFn):
     return coders.IntervalWindowCoder()
 
   def merge(self, merge_context: WindowFn.MergeContext) -> None:
-    to_merge: List[BoundedWindow] = []
+    to_merge: list[BoundedWindow] = []
     end = MIN_TIMESTAMP
     for w in sorted(merge_context.windows, key=lambda w: w.start):
       if to_merge:
@@ -589,4 +587,4 @@ class Sessions(WindowFn):
       standard_window_fns_pb2.SessionWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context) -> 'Sessions':
     return Sessions(
-        gap_size=Duration(micros=fn_parameter.gap_size.ToMicroseconds()))
+        gap_size=Duration(micros=proto_utils.to_micros(fn_parameter.gap_size)))

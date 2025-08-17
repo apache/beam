@@ -740,6 +740,12 @@ message Elements {
     bool is_last = 4;
   }
 
+  // Element metadata passed as part of WindowedValue to make WindowedValue
+  // extensible and backward compatible
+  message ElementMetadata {
+    // empty message - add drain, kind, tracing metadata in the future
+  }
+
   // Represent the encoded user timer for a given instruction, transform and
   // timer id.
   message Timers {

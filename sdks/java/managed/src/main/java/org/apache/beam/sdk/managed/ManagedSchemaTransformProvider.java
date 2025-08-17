@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.managed;
 
-import static org.apache.beam.sdk.managed.ManagedTransformConstants.MAPPINGS;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -117,7 +118,7 @@ public class ManagedSchemaTransformProvider
           "Please specify a config or a config URL, but not both.");
     }
 
-    public @Nullable String resolveUnderlyingConfig() {
+    private Map<String, Object> resolveUnderlyingConfig() {
       String yamlTransformConfig = getConfig();
       // If YAML string is empty, then attempt to read from YAML file
       if (Strings.isNullOrEmpty(yamlTransformConfig)) {
@@ -131,7 +132,8 @@ public class ManagedSchemaTransformProvider
           throw new RuntimeException(e);
         }
       }
-      return yamlTransformConfig;
+
+      return YamlUtils.yamlStringToMap(yamlTransformConfig);
     }
   }
 
@@ -152,34 +154,34 @@ public class ManagedSchemaTransformProvider
 
   static class ManagedSchemaTransform extends SchemaTransform {
     private final ManagedConfig managedConfig;
-    private final Row underlyingTransformConfig;
+    private final Row underlyingRowConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
         ManagedConfig managedConfig, SchemaTransformProvider underlyingTransformProvider) {
       // parse config before expansion to check if it matches underlying transform's config schema
       Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
-      Row underlyingTransformConfig;
+      Row underlyingRowConfig;
       try {
-        underlyingTransformConfig = getRowConfig(managedConfig, transformConfigSchema);
+        underlyingRowConfig = getRowConfig(managedConfig, transformConfigSchema);
       } catch (Exception e) {
         throw new IllegalArgumentException(
-            "Encountered an error when retrieving a Row configuration", e);
+            "Encountered an error when retrieving a configuration", e);
       }
 
-      this.managedConfig = managedConfig;
-      this.underlyingTransformConfig = underlyingTransformConfig;
+      this.underlyingRowConfig = underlyingRowConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
+      this.managedConfig = managedConfig;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       LOG.debug(
-          "Building transform \"{}\" with Row configuration: {}",
+          "Building transform \"{}\" with configuration: {}",
           underlyingTransformProvider.identifier(),
-          underlyingTransformConfig);
+          underlyingRowConfig);
 
-      return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
+      return input.apply(underlyingTransformProvider.from(underlyingRowConfig));
     }
 
     public ManagedConfig getManagedConfig() {
@@ -201,23 +203,22 @@ public class ManagedSchemaTransformProvider
     }
   }
 
+  // May return an empty row (perhaps the underlying transform doesn't have any required
+  // parameters)
   @VisibleForTesting
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
-    // May return an empty row (perhaps the underlying transform doesn't have any required
-    // parameters)
-    String yamlConfig = config.resolveUnderlyingConfig();
-    Map<String, Object> configMap = YamlUtils.yamlStringToMap(yamlConfig);
-
-    // The config Row object will be used to build the underlying SchemaTransform.
-    // If a mapping for the SchemaTransform exists, we use it to update parameter names and align
-    // with the underlying config schema
-    Map<String, String> mapping = MAPPINGS.get(config.getTransformIdentifier());
-    if (mapping != null && configMap != null) {
+    Map<String, Object> configMap = config.resolveUnderlyingConfig();
+    // Build a config Row that will be used to build the underlying SchemaTransform.
+    // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
+    // with the underlying SchemaTransform config schema
+    @Nullable Map<String, String> aliases = getAliases().get(config.getTransformIdentifier());
+    if (aliases != null && configMap != null) {
       Map<String, Object> remappedConfig = new HashMap<>();
       for (Map.Entry<String, Object> entry : configMap.entrySet()) {
         String paramName = entry.getKey();
-        if (mapping.containsKey(paramName)) {
-          paramName = mapping.get(paramName);
+        if (aliases.containsKey(paramName)) {
+          // replace alias with the actual field name
+          paramName = aliases.get(paramName);
         }
         remappedConfig.put(paramName, entry.getValue());
       }
@@ -227,7 +228,20 @@ public class ManagedSchemaTransformProvider
     return YamlUtils.toBeamRow(configMap, transformSchema, false);
   }
 
-  // We load providers seperately, after construction, to prevent the
+  public static Map<String, Map<String, String>> getAliases() {
+    InputStream inputStream =
+        checkStateNotNull(
+            checkStateNotNull(ManagedSchemaTransformProvider.class.getClassLoader())
+                .getResourceAsStream("config_aliases.yaml"));
+
+    Map<String, Map<String, String>> aliases = new HashMap<>();
+    for (Map.Entry<String, Object> entry : YamlUtils.loadFromStream(inputStream).entrySet()) {
+      aliases.put(entry.getKey(), (Map<String, String>) entry.getValue());
+    }
+    return aliases;
+  }
+
+  // We load providers separately, after construction, to prevent the
   // 'ManagedSchemaTransformProvider' from being initialized in a recursive loop
   // when being loaded using 'AutoValue'.
   synchronized Map<String, SchemaTransformProvider> getAllProviders() {

@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -49,6 +50,7 @@ import net.bytebuddy.implementation.bytecode.constant.LongConstant;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.avro.AvroRuntimeException;
+import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -61,6 +63,7 @@ import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.AvroRecordSchema;
@@ -94,11 +97,14 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.joda.time.Days;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -151,6 +157,47 @@ public class AvroUtils {
   private static final ForLoadedType JODA_READABLE_INSTANT =
       new ForLoadedType(ReadableInstant.class);
   private static final ForLoadedType JODA_INSTANT = new ForLoadedType(Instant.class);
+
+  private static final GenericData GENERIC_DATA_WITH_DEFAULT_CONVERSIONS;
+
+  static {
+    GENERIC_DATA_WITH_DEFAULT_CONVERSIONS = new GenericData();
+    addLogicalTypeConversions(GENERIC_DATA_WITH_DEFAULT_CONVERSIONS);
+    GENERIC_DATA_WITH_DEFAULT_CONVERSIONS.addLogicalTypeConversion(
+        new Conversions.DecimalConversion());
+  }
+
+  // contains workarounds for third-party methods that accept nullable arguments but lack proper
+  // annotations
+  private static class NullnessCheckerWorkarounds {
+
+    private static ReflectData newReflectData(Class<?> clazz) {
+      // getClassLoader returns @Nullable Classloader, but it's ok, as ReflectData constructor
+      // actually tolerates null classloader argument despite lacking the @Nullable annotation
+      @SuppressWarnings("nullness")
+      @NonNull
+      ClassLoader classLoader = clazz.getClassLoader();
+      return new ReflectData(classLoader);
+    }
+
+    private static void builderSet(
+        GenericRecordBuilder builder, String fieldName, @Nullable Object value) {
+      // the value argument can actually be null here, it's not annotated as such in the method
+      // though, hence this wrapper
+      builder.set(fieldName, castToNonNull(value));
+    }
+
+    private static Object createFixed(
+        @Nullable Object old, byte[] bytes, org.apache.avro.Schema schema) {
+      // old is tolerated when null, due to an instanceof check
+      return GenericData.get().createFixed(castToNonNull(old), bytes, schema);
+    }
+
+    @SuppressWarnings("nullness")
+    private static <T> @NonNull T castToNonNull(@Nullable T value) {
+      return value;
+    }
+  }
 
   public static void addLogicalTypeConversions(final GenericData data) {
     // do not add DecimalConversion by default as schema must have extra 'scale' and 'precision'
@@ -235,7 +282,9 @@ public class AvroUtils {
     /** Create a {@link FixedBytesField} from a Beam {@link FieldType}. */
     public static @Nullable FixedBytesField fromBeamFieldType(FieldType fieldType) {
       if (fieldType.getTypeName().isLogicalType()
-          && fieldType.getLogicalType().getIdentifier().equals(FixedBytes.IDENTIFIER)) {
+          && checkNotNull(fieldType.getLogicalType())
+              .getIdentifier()
+              .equals(FixedBytes.IDENTIFIER)) {
         int length = fieldType.getLogicalType(FixedBytes.class).getLength();
         return new FixedBytesField(length);
       } else {
@@ -264,7 +313,7 @@ public class AvroUtils {
 
     /** Convert to an AVRO type. */
     public org.apache.avro.Schema toAvroType(String name, String namespace) {
-      return org.apache.avro.Schema.createFixed(name, null, namespace, size);
+      return org.apache.avro.Schema.createFixed(name, "", namespace, size);
     }
   }
 
@@ -463,7 +512,7 @@ public class AvroUtils {
    * @param clazz avro class
    */
   public static Schema toBeamSchema(Class<?> clazz) {
-    ReflectData data = new ReflectData(clazz.getClassLoader());
+    ReflectData data = NullnessCheckerWorkarounds.newReflectData(clazz);
     return toBeamSchema(data.getSchema(clazz));
   }
 
@@ -486,10 +535,17 @@ public class AvroUtils {
     return builder.build();
   }
 
+  @EnsuresNonNullIf(
+      expression = {"#1"},
+      result = false)
+  private static boolean isNullOrEmpty(@Nullable String str) {
+    return str == null || str.isEmpty();
+  }
+
   /** Converts a Beam Schema into an AVRO schema. */
   public static org.apache.avro.Schema toAvroSchema(
       Schema beamSchema, @Nullable String name, @Nullable String namespace) {
-    final String schemaName = Strings.isNullOrEmpty(name) ? "topLevelRecord" : name;
+    final String schemaName = isNullOrEmpty(name) ? "topLevelRecord" : name;
     final String schemaNamespace = namespace == null ? "" : namespace;
     String childNamespace =
         !"".equals(schemaNamespace) ? schemaNamespace + "." + schemaName : schemaName;
@@ -498,7 +554,7 @@ public class AvroUtils {
       org.apache.avro.Schema.Field recordField = toAvroField(field, childNamespace);
       fields.add(recordField);
     }
-    return org.apache.avro.Schema.createRecord(schemaName, null, schemaNamespace, false, fields);
+    return org.apache.avro.Schema.createRecord(schemaName, "", schemaNamespace, false, fields);
   }
 
   public static org.apache.avro.Schema toAvroSchema(Schema beamSchema) {
@@ -509,9 +565,20 @@ public class AvroUtils {
    * Strict conversion from AVRO to Beam, strict because it doesn't do widening or narrowing during
    * conversion. If Schema is not provided, one is inferred from the AVRO schema.
    */
-  public static Row toBeamRowStrict(GenericRecord record, @Nullable Schema schema) {
+  public static Row toBeamRowStrict(
+      GenericRecord record, @Nullable Schema schema, @Nullable GenericData genericData) {
     if (schema == null) {
       schema = toBeamSchema(record.getSchema());
+    }
+
+    if (genericData == null) {
+      if (record instanceof SpecificRecordBase) {
+        // in case of SpecificRecord, the MODEL$ GenericData already has registered the specific
+        // conversions
+        genericData = getGenericData((SpecificRecordBase) record);
+      } else {
+        genericData = GENERIC_DATA_WITH_DEFAULT_CONVERSIONS;
+      }
     }
 
     Row.Builder builder = Row.withSchema(schema);
@@ -520,10 +587,19 @@ public class AvroUtils {
     for (Field field : schema.getFields()) {
       Object value = record.get(field.getName());
       org.apache.avro.Schema fieldAvroSchema = avroSchema.getField(field.getName()).schema();
-      builder.addValue(convertAvroFieldStrict(value, fieldAvroSchema, field.getType()));
+      builder.addValue(
+          convertAvroFieldStrict(value, fieldAvroSchema, field.getType(), genericData));
     }
 
     return builder.build();
+  }
+
+  /**
+   * Strict conversion from AVRO to Beam, strict because it doesn't do widening or narrowing during
+   * conversion. If Schema is not provided, one is inferred from the AVRO schema.
+   */
+  public static Row toBeamRowStrict(GenericRecord record, @Nullable Schema schema) {
+    return toBeamRowStrict(record, schema, null);
   }
 
   /**
@@ -557,7 +633,8 @@ public class AvroUtils {
     GenericRecordBuilder builder = new GenericRecordBuilder(avroSchema);
     for (int i = 0; i < beamSchema.getFieldCount(); ++i) {
       Field field = beamSchema.getField(i);
-      builder.set(
+      NullnessCheckerWorkarounds.builderSet(
+          builder,
           field.getName(),
           genericFromBeamField(
               field.getType(), avroSchema.getField(field.getName()).schema(), row.getValue(i)));
@@ -567,7 +644,7 @@ public class AvroUtils {
 
   @SuppressWarnings("unchecked")
   public static <T> SerializableFunction<T, Row> getToRowFunction(
-      Class<T> clazz, org.apache.avro.@Nullable Schema schema) {
+      Class<T> clazz, org.apache.avro.Schema schema) {
     if (GenericRecord.class.equals(clazz)) {
       Schema beamSchema = toBeamSchema(schema);
       return (SerializableFunction<T, Row>) getGenericRecordToRowFunction(beamSchema);
@@ -662,9 +739,9 @@ public class AvroUtils {
   }
 
   private static class GenericRecordToRowFn implements SerializableFunction<GenericRecord, Row> {
-    private final Schema schema;
+    private final @Nullable Schema schema;
 
-    GenericRecordToRowFn(Schema schema) {
+    GenericRecordToRowFn(@Nullable Schema schema) {
       this.schema = schema;
     }
 
@@ -701,7 +778,7 @@ public class AvroUtils {
   }
 
   private static class RowToGenericRecordFn implements SerializableFunction<Row, GenericRecord> {
-    private transient org.apache.avro.Schema avroSchema;
+    private transient org.apache.avro.@Nullable Schema avroSchema;
 
     RowToGenericRecordFn(org.apache.avro.@Nullable Schema avroSchema) {
       this.avroSchema = avroSchema;
@@ -751,7 +828,8 @@ public class AvroUtils {
   public static <T> SchemaCoder<T> schemaCoder(TypeDescriptor<T> type) {
     @SuppressWarnings("unchecked")
     Class<T> clazz = (Class<T>) type.getRawType();
-    org.apache.avro.Schema avroSchema = new ReflectData(clazz.getClassLoader()).getSchema(clazz);
+    org.apache.avro.Schema avroSchema =
+        NullnessCheckerWorkarounds.newReflectData(clazz).getSchema(clazz);
     Schema beamSchema = toBeamSchema(avroSchema);
     return SchemaCoder.of(
         beamSchema, type, getToRowFunction(clazz, avroSchema), getFromRowFunction(clazz));
@@ -790,7 +868,7 @@ public class AvroUtils {
    */
   public static <T> SchemaCoder<T> schemaCoder(Class<T> clazz, org.apache.avro.Schema schema) {
     return SchemaCoder.of(
-        getSchema(clazz, schema),
+        checkNotNull(getSchema(clazz, schema)),
         TypeDescriptor.of(clazz),
         getToRowFunction(clazz, schema),
         getFromRowFunction(clazz));
@@ -821,7 +899,7 @@ public class AvroUtils {
         Method method = methods.get(i);
         if (ReflectUtils.isGetter(method)) {
           FieldValueTypeInformation fieldValueTypeInformation =
-              FieldValueTypeInformation.forGetter(method, i);
+              FieldValueTypeInformation.forGetter(typeDescriptor, method, i);
           String name = mapping.get(fieldValueTypeInformation.getName());
           if (name != null) {
             types.add(fieldValueTypeInformation.withName(name));
@@ -871,7 +949,8 @@ public class AvroUtils {
       for (int i = 0; i < classFields.size(); ++i) {
         java.lang.reflect.Field f = classFields.get(i);
         if (!f.isAnnotationPresent(AvroIgnore.class)) {
-          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f, i);
+          FieldValueTypeInformation typeInformation =
+              FieldValueTypeInformation.forField(typeDescriptor, f, i);
           AvroName avroname = f.getAnnotation(AvroName.class);
           if (avroname != null) {
             typeInformation = typeInformation.withName(avroname.value());
@@ -895,7 +974,7 @@ public class AvroUtils {
   }
 
   /** Get generated getters for an AVRO-generated SpecificRecord or a POJO. */
-  public static <T> List<FieldValueGetter> getGetters(
+  public static <T> List<FieldValueGetter<@NonNull T, Object>> getGetters(
       TypeDescriptor<T> typeDescriptor, Schema schema) {
     if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
       return JavaBeanUtils.getGetters(
@@ -968,7 +1047,7 @@ public class AvroUtils {
           break;
 
         case FIXED:
-          fieldType = FixedBytesField.fromAvroType(type.type).toBeamType();
+          fieldType = checkNotNull(FixedBytesField.fromAvroType(type.type)).toBeamType();
           break;
 
         case STRING:
@@ -1066,7 +1145,8 @@ public class AvroUtils {
         break;
 
       case LOGICAL_TYPE:
-        String identifier = fieldType.getLogicalType().getIdentifier();
+        Schema.LogicalType<?, ?> logicalType = checkNotNull(fieldType.getLogicalType());
+        String identifier = logicalType.getIdentifier();
         if (FixedBytes.IDENTIFIER.equals(identifier)) {
           FixedBytesField fixedBytesField =
               checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
@@ -1077,15 +1157,13 @@ public class AvroUtils {
         } else if (FixedString.IDENTIFIER.equals(identifier)
             || "CHAR".equals(identifier)
             || "NCHAR".equals(identifier)) {
-          baseType =
-              buildHiveLogicalTypeSchema("char", (int) fieldType.getLogicalType().getArgument());
+          baseType = buildHiveLogicalTypeSchema("char", checkNotNull(logicalType.getArgument()));
         } else if (VariableString.IDENTIFIER.equals(identifier)
             || "NVARCHAR".equals(identifier)
             || "VARCHAR".equals(identifier)
             || "LONGNVARCHAR".equals(identifier)
             || "LONGVARCHAR".equals(identifier)) {
-          baseType =
-              buildHiveLogicalTypeSchema("varchar", (int) fieldType.getLogicalType().getArgument());
+          baseType = buildHiveLogicalTypeSchema("varchar", checkNotNull(logicalType.getArgument()));
         } else if (EnumerationType.IDENTIFIER.equals(identifier)) {
           EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
           baseType =
@@ -1103,7 +1181,7 @@ public class AvroUtils {
           baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
         } else {
           throw new RuntimeException(
-              "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
+              "Unhandled logical type " + checkNotNull(fieldType.getLogicalType()).getIdentifier());
         }
         break;
 
@@ -1111,22 +1189,23 @@ public class AvroUtils {
       case ITERABLE:
         baseType =
             org.apache.avro.Schema.createArray(
-                getFieldSchema(fieldType.getCollectionElementType(), fieldName, namespace));
+                getFieldSchema(
+                    checkNotNull(fieldType.getCollectionElementType()), fieldName, namespace));
         break;
 
       case MAP:
-        if (fieldType.getMapKeyType().getTypeName().isStringType()) {
+        if (checkNotNull(fieldType.getMapKeyType()).getTypeName().isStringType()) {
           // Avro only supports string keys in maps.
           baseType =
               org.apache.avro.Schema.createMap(
-                  getFieldSchema(fieldType.getMapValueType(), fieldName, namespace));
+                  getFieldSchema(checkNotNull(fieldType.getMapValueType()), fieldName, namespace));
         } else {
           throw new IllegalArgumentException("Avro only supports maps with string keys");
         }
         break;
 
       case ROW:
-        baseType = toAvroSchema(fieldType.getRowSchema(), fieldName, namespace);
+        baseType = toAvroSchema(checkNotNull(fieldType.getRowSchema()), fieldName, namespace);
         break;
 
       default:
@@ -1167,7 +1246,9 @@ public class AvroUtils {
       case DECIMAL:
         BigDecimal decimal = (BigDecimal) value;
         LogicalType logicalType = typeWithNullability.type.getLogicalType();
-        return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
+        @SuppressWarnings("nullness")
+        ByteBuffer result = new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
+        return result;
 
       case DATETIME:
         if (typeWithNullability.type.getType() == Type.INT) {
@@ -1185,7 +1266,7 @@ public class AvroUtils {
         return ByteBuffer.wrap((byte[]) value);
 
       case LOGICAL_TYPE:
-        String identifier = fieldType.getLogicalType().getIdentifier();
+        String identifier = checkNotNull(fieldType.getLogicalType()).getIdentifier();
         if (FixedBytes.IDENTIFIER.equals(identifier)) {
           FixedBytesField fixedBytesField =
               checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
@@ -1193,9 +1274,11 @@ public class AvroUtils {
           if (byteArray.length != fixedBytesField.getSize()) {
             throw new IllegalArgumentException("Incorrectly sized byte array.");
           }
-          return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
+          return NullnessCheckerWorkarounds.createFixed(
+              null, (byte[]) value, typeWithNullability.type);
         } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
-          return GenericData.get().createFixed(null, (byte[]) value, typeWithNullability.type);
+          return NullnessCheckerWorkarounds.createFixed(
+              null, (byte[]) value, typeWithNullability.type);
         } else if (FixedString.IDENTIFIER.equals(identifier)
             || "CHAR".equals(identifier)
             || "NCHAR".equals(identifier)) {
@@ -1239,26 +1322,27 @@ public class AvroUtils {
       case ARRAY:
       case ITERABLE:
         Iterable iterable = (Iterable) value;
-        List<Object> translatedArray = Lists.newArrayListWithExpectedSize(Iterables.size(iterable));
+        List<@Nullable Object> translatedArray =
+            Lists.newArrayListWithExpectedSize(Iterables.size(iterable));
 
         for (Object arrayElement : iterable) {
           translatedArray.add(
               genericFromBeamField(
-                  fieldType.getCollectionElementType(),
+                  checkNotNull(fieldType.getCollectionElementType()),
                   typeWithNullability.type.getElementType(),
                   arrayElement));
         }
         return translatedArray;
 
       case MAP:
-        Map map = Maps.newHashMap();
+        Map<Object, @Nullable Object> map = Maps.newHashMap();
         Map<Object, Object> valueMap = (Map<Object, Object>) value;
         for (Map.Entry entry : valueMap.entrySet()) {
-          Utf8 key = new Utf8((String) entry.getKey());
+          Utf8 key = new Utf8((String) checkNotNull(entry.getKey()));
           map.put(
               key,
               genericFromBeamField(
-                  fieldType.getMapValueType(),
+                  checkNotNull(fieldType.getMapValueType()),
                   typeWithNullability.type.getValueType(),
                   entry.getValue()));
         }
@@ -1272,6 +1356,67 @@ public class AvroUtils {
     }
   }
 
+  private static Object convertLogicalType(
+      @PolyNull Object value,
+      @Nonnull org.apache.avro.Schema avroSchema,
+      @Nonnull FieldType fieldType,
+      @Nonnull GenericData genericData) {
+    TypeWithNullability type = new TypeWithNullability(avroSchema);
+    LogicalType logicalType = LogicalTypes.fromSchema(type.type);
+    if (logicalType == null) {
+      return null;
+    }
+
+    Object rawType = value;
+
+    Conversion<?> conversion = genericData.getConversionByClass(value.getClass(), logicalType);
+    Class<?> convertedType = null;
+    if (conversion != null) {
+      convertedType = conversion.getConvertedType();
+      if (convertedType.isInstance(value)) {
+        rawType = Conversions.convertToRawType(value, avroSchema, logicalType, conversion);
+      }
+    }
+
+    // switch on string name because some LogicalType classes are not available in all versions of
+    // Avro
+    switch (logicalType.getName()) {
+      case "date":
+        return convertDateStrict(
+            checkRawType(Integer.class, value, logicalType, rawType, conversion, convertedType),
+            fieldType);
+      case "time-millis":
+        return checkRawType(Integer.class, value, logicalType, rawType, conversion, convertedType);
+      case "time-micros":
+      case "timestamp-micros":
+      case "local-timestamp-millis":
+      case "local-timestamp-micros":
+        return checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType);
+      case "timestamp-millis":
+        return convertDateTimeStrict(
+            checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType),
+            fieldType);
+      case "decimal":
+        {
+          if (rawType instanceof GenericFixed) {
+            // Decimal can be backed by ByteBuffer or GenericFixed. in case of GenericFixed, we
+            // convert it to ByteBuffer here
+            rawType = ByteBuffer.wrap(((GenericFixed) rawType).bytes());
+          }
+          ByteBuffer byteBuffer =
+              checkRawType(
+                  ByteBuffer.class, value, logicalType, rawType, conversion, convertedType);
+          Conversion<BigDecimal> decimalConversion = new Conversions.DecimalConversion();
+          BigDecimal bigDecimal =
+              decimalConversion.fromBytes(byteBuffer.duplicate(), type.type, logicalType);
+          return convertDecimal(bigDecimal, fieldType);
+        }
+      case "uuid":
+        return UUID.fromString(rawType.toString()).toString();
+    }
+    return null;
+  }
+
   /**
    * Strict conversion from AVRO to Beam, strict because it doesn't do widening or narrowing during
    * conversion.
@@ -1279,43 +1424,25 @@ public class AvroUtils {
    * @param value {@link GenericRecord} or any nested value
    * @param avroSchema schema for value
    * @param fieldType target beam field type
+   * @param genericData {@link GenericData} instance to use for conversions
    * @return value converted for {@link Row}
    */
-  @SuppressWarnings("unchecked")
-  public static @Nullable Object convertAvroFieldStrict(
-      @Nullable Object value,
+  public static @PolyNull Object convertAvroFieldStrict(
+      @PolyNull Object value,
       @Nonnull org.apache.avro.Schema avroSchema,
-      @Nonnull FieldType fieldType) {
+      @Nonnull FieldType fieldType,
+      @Nonnull GenericData genericData) {
+
     if (value == null) {
       return null;
     }
+    Object convertedLogicalType = convertLogicalType(value, avroSchema, fieldType, genericData);
+
+    if (convertedLogicalType != null) {
+      return convertedLogicalType;
+    }
 
     TypeWithNullability type = new TypeWithNullability(avroSchema);
-    LogicalType logicalType = LogicalTypes.fromSchema(type.type);
-    if (logicalType != null) {
-      if (logicalType instanceof LogicalTypes.Decimal) {
-        ByteBuffer byteBuffer = (ByteBuffer) value;
-        BigDecimal bigDecimal =
-            new Conversions.DecimalConversion()
-                .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
-        return convertDecimal(bigDecimal, fieldType);
-      } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
-        if (value instanceof ReadableInstant) {
-          return convertDateTimeStrict(((ReadableInstant) value).getMillis(), fieldType);
-        } else {
-          return convertDateTimeStrict((Long) value, fieldType);
-        }
-      } else if (logicalType instanceof LogicalTypes.Date) {
-        if (value instanceof ReadableInstant) {
-          int epochDays = Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
-          return convertDateStrict(epochDays, fieldType);
-        } else if (value instanceof java.time.LocalDate) {
-          return convertDateStrict((int) ((java.time.LocalDate) value).toEpochDay(), fieldType);
-        } else {
-          return convertDateStrict((Integer) value, fieldType);
-        }
-      }
-    }
 
     switch (type.type.getType()) {
       case FIXED:
@@ -1351,14 +1478,15 @@ public class AvroUtils {
         return convertEnumStrict(value, fieldType);
 
       case ARRAY:
-        return convertArrayStrict((List<Object>) value, type.type.getElementType(), fieldType);
+        return convertArrayStrict(
+            (List<Object>) value, type.type.getElementType(), fieldType, genericData);
 
       case MAP:
         return convertMapStrict(
-            (Map<CharSequence, Object>) value, type.type.getValueType(), fieldType);
+            (Map<CharSequence, Object>) value, type.type.getValueType(), fieldType, genericData);
 
       case UNION:
-        return convertUnionStrict(value, type.type, fieldType);
+        return convertUnionStrict(value, type.type, fieldType, genericData);
 
       case NULL:
         throw new IllegalArgumentException("Can't convert 'null' to non-nullable field");
@@ -1366,6 +1494,24 @@ public class AvroUtils {
       default:
         throw new AssertionError("Unexpected AVRO Schema.Type: " + type.type.getType());
     }
+  }
+
+  /**
+   * Strict conversion from AVRO to Beam, strict because it doesn't do widening or narrowing during
+   * conversion.
+   *
+   * @param value {@link GenericRecord} or any nested value
+   * @param avroSchema schema for value
+   * @param fieldType target beam field type
+   * @return value converted for {@link Row}
+   */
+  @SuppressWarnings("unchecked")
+  public static @PolyNull Object convertAvroFieldStrict(
+      @PolyNull Object value,
+      @Nonnull org.apache.avro.Schema avroSchema,
+      @Nonnull FieldType fieldType) {
+    return convertAvroFieldStrict(
+        value, avroSchema, fieldType, GENERIC_DATA_WITH_DEFAULT_CONVERSIONS);
   }
 
   private static Object convertRecordStrict(GenericRecord record, FieldType fieldType) {
@@ -1383,7 +1529,8 @@ public class AvroUtils {
 
   private static Object convertFixedStrict(GenericFixed fixed, FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), TypeName.LOGICAL_TYPE, "fixed");
-    checkArgument(FixedBytes.IDENTIFIER.equals(fieldType.getLogicalType().getIdentifier()));
+    checkArgument(
+        FixedBytes.IDENTIFIER.equals(checkNotNull(fieldType.getLogicalType()).getIdentifier()));
     return fixed.bytes().clone(); // clone because GenericFixed is mutable
   }
 
@@ -1434,32 +1581,44 @@ public class AvroUtils {
 
   private static Object convertEnumStrict(Object value, FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), TypeName.LOGICAL_TYPE, "enum");
-    checkArgument(fieldType.getLogicalType().getIdentifier().equals(EnumerationType.IDENTIFIER));
+    checkArgument(
+        checkNotNull(fieldType.getLogicalType())
+            .getIdentifier()
+            .equals(EnumerationType.IDENTIFIER));
     EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
     return enumerationType.valueOf(value.toString());
   }
 
   private static Object convertUnionStrict(
-      Object value, org.apache.avro.Schema unionAvroSchema, FieldType fieldType) {
+      Object value,
+      org.apache.avro.Schema unionAvroSchema,
+      FieldType fieldType,
+      GenericData genericData) {
     checkTypeName(fieldType.getTypeName(), TypeName.LOGICAL_TYPE, "oneOfType");
-    checkArgument(fieldType.getLogicalType().getIdentifier().equals(OneOfType.IDENTIFIER));
+    checkArgument(
+        checkNotNull(fieldType.getLogicalType()).getIdentifier().equals(OneOfType.IDENTIFIER));
     OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
     int fieldNumber = GenericData.get().resolveUnion(unionAvroSchema, value);
     FieldType baseFieldType = oneOfType.getOneOfSchema().getField(fieldNumber).getType();
     Object convertedValue =
-        convertAvroFieldStrict(value, unionAvroSchema.getTypes().get(fieldNumber), baseFieldType);
+        convertAvroFieldStrict(
+            value, unionAvroSchema.getTypes().get(fieldNumber), baseFieldType, genericData);
     return oneOfType.createValue(fieldNumber, convertedValue);
   }
 
   private static Object convertArrayStrict(
-      List<Object> values, org.apache.avro.Schema elemAvroSchema, FieldType fieldType) {
+      List<Object> values,
+      org.apache.avro.Schema elemAvroSchema,
+      FieldType fieldType,
+      GenericData genericData) {
     checkTypeName(fieldType.getTypeName(), TypeName.ARRAY, "array");
 
     List<Object> ret = new ArrayList<>(values.size());
     FieldType elemFieldType = fieldType.getCollectionElementType();
 
     for (Object value : values) {
-      ret.add(convertAvroFieldStrict(value, elemAvroSchema, elemFieldType));
+      ret.add(
+          convertAvroFieldStrict(value, elemAvroSchema, checkNotNull(elemFieldType), genericData));
     }
 
     return ret;
@@ -1468,12 +1627,13 @@ public class AvroUtils {
   private static Object convertMapStrict(
       Map<CharSequence, Object> values,
       org.apache.avro.Schema valueAvroSchema,
-      FieldType fieldType) {
+      FieldType fieldType,
+      GenericData genericData) {
     checkTypeName(fieldType.getTypeName(), TypeName.MAP, "map");
-    checkNotNull(fieldType.getMapKeyType());
-    checkNotNull(fieldType.getMapValueType());
+    FieldType mapKeyType = checkNotNull(fieldType.getMapKeyType());
+    FieldType mapValueType = checkNotNull(fieldType.getMapValueType());
 
-    if (!fieldType.getMapKeyType().equals(FieldType.STRING)) {
+    if (!FieldType.STRING.equals(fieldType.getMapKeyType())) {
       throw new IllegalArgumentException(
           "Can't convert 'string' map keys to " + fieldType.getMapKeyType());
     }
@@ -1482,8 +1642,8 @@ public class AvroUtils {
 
     for (Map.Entry<CharSequence, Object> value : values.entrySet()) {
       ret.put(
-          convertStringStrict(value.getKey(), fieldType.getMapKeyType()),
-          convertAvroFieldStrict(value.getValue(), valueAvroSchema, fieldType.getMapValueType()));
+          convertStringStrict(value.getKey(), mapKeyType),
+          convertAvroFieldStrict(value.getValue(), valueAvroSchema, mapValueType, genericData));
     }
 
     return ret;
@@ -1506,5 +1666,47 @@ public class AvroUtils {
             "{\"type\": \"string\", \"logicalType\": \"%s\", \"maxLength\": %s}",
             hiveLogicalType, size);
     return new org.apache.avro.Schema.Parser().parse(schemaJson);
+  }
+
+  static GenericData getGenericData(SpecificRecordBase record) {
+    try {
+      return record.getSpecificData();
+    } catch (NoSuchMethodError e) {
+      try {
+        // SpecificRecordBase.getSpecificData() was not available in avro 182
+        return (GenericData) FieldUtils.readStaticField(record.getClass(), "MODEL$", true);
+      } catch (IllegalAccessException ex) {
+        throw new IllegalArgumentException(
+            "Unable to access MODEL$ field in SpecificRecordBase class", ex);
+      }
+    }
+  }
+
+  private static <T> T checkRawType(
+      Class<T> desiredRawType,
+      Object value,
+      LogicalType logicalType,
+      Object rawType,
+      Conversion<?> conversion,
+      Class<?> convertedType) {
+    String msg =
+        String.format(
+            "Value %s of class %s is not a supported type for logical type %s (%s). "
+                + "Underlying avro built-in raw type should be instance of %s. "
+                + "However it is instance of %s and has value %s ."
+                + "Generic data has conversion %s, convertedType %s",
+            value,
+            value.getClass(),
+            logicalType.getName(),
+            logicalType,
+            desiredRawType,
+            rawType.getClass(),
+            rawType,
+            conversion,
+            convertedType);
+    if (!desiredRawType.isInstance(rawType)) {
+      throw new IllegalArgumentException(msg);
+    }
+    return (T) rawType;
   }
 }

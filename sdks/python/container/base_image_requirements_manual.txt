@@ -30,12 +30,13 @@ cython>=3,<4
 # some versions of libraries that launch Beam pipelines, like tensorflow-transform.
 # Leaving 'future' in our containers for now prevent breaking tft users.
 future
-google-cloud-profiler
+# google-cloud-profiler is not compatible with python 3.13 (and is not
+# explicitly compatible with python 3.12)
+google-cloud-profiler;python_version<="3.12"
 guppy3
 mmh3  # Optimizes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.
-nose==1.3.7  # For Dataflow internal testing. TODO: remove this.
-python-snappy  # Optimizes execution of some Beam codepaths.
+google-crc32c
 scipy
 scikit-learn
 build>=1.0,<2 # tool to build sdist from setup.py in stager.

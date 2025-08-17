@@ -91,8 +91,7 @@ _BIDIRECTIONAL = [
 
 PANDAS_TO_BEAM = {
     pd.Series([], dtype=dtype).dtype: fieldtype
-    for dtype,
-    fieldtype in _BIDIRECTIONAL
+    for dtype, fieldtype in _BIDIRECTIONAL
 }
 BEAM_TO_PANDAS = {fieldtype: dtype for dtype, fieldtype in _BIDIRECTIONAL}
 
@@ -196,8 +195,10 @@ class DataFrameBatchConverter(BatchConverter):
 
     for values in zip(*iterators):
       yield self._element_type.user_type(
-          **{column: value
-             for column, value in zip(self._columns, values)})
+          **{
+              column: value
+              for column, value in zip(self._columns, values)
+          })
 
   def combine_batches(self, batches: List[pd.DataFrame]):
     return pd.concat(batches)

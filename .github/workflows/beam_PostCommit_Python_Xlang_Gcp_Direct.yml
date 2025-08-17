@@ -44,9 +44,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  ALLOYDB_PASSWORD: ${{ secrets.ALLOYDB_PASSWORD }}
 
 jobs:
   beam_PostCommit_Python_Xlang_Gcp_Direct:
@@ -55,8 +56,8 @@ jobs:
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python_Xlang_Gcp_Direct PostCommit'
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 100
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    timeout-minutes: 160
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
@@ -76,6 +77,10 @@ jobs:
           python-version: |
             3.9
             3.12
+      - name: Install docker compose
+        run: |
+          sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
       - name: run PostCommit Python Xlang Gcp Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -93,3 +98,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
+          large_files: true

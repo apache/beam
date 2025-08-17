@@ -30,7 +30,6 @@ import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
-import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
@@ -44,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +70,7 @@ public class SpannerAccessor implements AutoCloseable {
   private final BatchClient batchClient;
   private final DatabaseAdminClient databaseAdminClient;
   private final SpannerConfig spannerConfig;
+  private final String instanceConfigId;
   private int refcount = 0;
 
   private SpannerAccessor(
@@ -77,12 +78,14 @@ public class SpannerAccessor implements AutoCloseable {
       DatabaseClient databaseClient,
       DatabaseAdminClient databaseAdminClient,
       BatchClient batchClient,
-      SpannerConfig spannerConfig) {
+      SpannerConfig spannerConfig,
+      String instanceConfigId) {
     this.spanner = spanner;
     this.databaseClient = databaseClient;
     this.databaseAdminClient = databaseAdminClient;
     this.batchClient = batchClient;
     this.spannerConfig = spannerConfig;
+    this.instanceConfigId = instanceConfigId;
   }
 
   public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
@@ -151,10 +154,12 @@ public class SpannerAccessor implements AutoCloseable {
           commitSettings.getRetrySettings().toBuilder();
       commitSettings.setRetrySettings(
           commitRetrySettingsBuilder
-              .setTotalTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
-              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
-              .setInitialRpcTimeout(
-                  org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setTotalTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setMaxRpcTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setInitialRpcTimeoutDuration(
+                  java.time.Duration.ofMillis(commitDeadline.get().getMillis()))
               .build());
     }
 
@@ -172,10 +177,17 @@ public class SpannerAccessor implements AutoCloseable {
           executeStreamingSqlSettings.getRetrySettings().toBuilder();
       executeStreamingSqlSettings.setRetrySettings(
           executeSqlStreamingRetrySettings
-              .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-              .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(120))
+              .setInitialRpcTimeoutDuration(java.time.Duration.ofHours(2))
+              .setMaxRpcTimeoutDuration(java.time.Duration.ofHours(2))
+              .setTotalTimeoutDuration(java.time.Duration.ofHours(2))
+              .setRpcTimeoutMultiplier(1.0)
+              .setInitialRetryDelayDuration(java.time.Duration.ofSeconds(2))
+              .setMaxRetryDelayDuration(java.time.Duration.ofSeconds(60))
+              .setRetryDelayMultiplier(1.5)
+              .setMaxAttempts(100)
               .build());
+      // This property sets the default timeout between 2 response packets in the client library.
+      System.setProperty("com.google.cloud.spanner.watchdogTimeoutSeconds", "7200");
     }
 
     SpannerStubSettings.Builder spannerStubSettingsBuilder =
@@ -207,10 +219,7 @@ public class SpannerAccessor implements AutoCloseable {
     if (serviceFactory != null) {
       builder.setServiceFactory(serviceFactory);
     }
-    ValueProvider<String> host = spannerConfig.getHost();
-    if (host != null) {
-      builder.setHost(host.get());
-    }
+    builder.setHost(spannerConfig.getHostValue());
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();
     if (emulatorHost != null) {
       builder.setEmulatorHost(emulatorHost.get());
@@ -221,6 +230,10 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setCredentials(NoCredentials.getInstance());
     }
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
+    SpannerIOMetadata spannerIOMetadata = SpannerIOMetadata.create();
+    if (!Strings.isNullOrEmpty(spannerIOMetadata.getBeamJobId())) {
+      userAgentString = userAgentString + "/" + spannerIOMetadata.getBeamJobId();
+    }
     builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
     ValueProvider<String> databaseRole = spannerConfig.getDatabaseRole();
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
@@ -230,9 +243,7 @@ public class SpannerAccessor implements AutoCloseable {
     if (credentials != null && credentials.get() != null) {
       builder.setCredentials(credentials.get());
     }
-    SessionPoolOptions sessionPoolOptions =
-        SessionPoolOptions.newBuilder().setFailIfPoolExhausted().build();
-    builder.setSessionPoolOption(sessionPoolOptions);
+
     return builder.build();
   }
 
@@ -246,9 +257,24 @@ public class SpannerAccessor implements AutoCloseable {
     BatchClient batchClient =
         spanner.getBatchClient(DatabaseId.of(options.getProjectId(), instanceId, databaseId));
     DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
+    String instanceConfigId = "unknown";
+    try {
+      instanceConfigId =
+          spanner
+              .getInstanceAdminClient()
+              .getInstance(instanceId)
+              .getInstanceConfigId()
+              .getInstanceConfig();
+    } catch (Exception e) {
+      // fetch instanceConfigId is fail-free.
+      // Do not emit warning when serviceFactory is overridden (e.g. in tests).
+      if (spannerConfig.getServiceFactory() == null) {
+        LOG.warn("unable to get Spanner instanceConfigId for {}: {}", instanceId, e.getMessage());
+      }
+    }
 
     return new SpannerAccessor(
-        spanner, databaseClient, databaseAdminClient, batchClient, spannerConfig);
+        spanner, databaseClient, databaseAdminClient, batchClient, spannerConfig, instanceConfigId);
   }
 
   public DatabaseClient getDatabaseClient() {
@@ -261,6 +287,10 @@ public class SpannerAccessor implements AutoCloseable {
 
   public DatabaseAdminClient getDatabaseAdminClient() {
     return databaseAdminClient;
+  }
+
+  public String getInstanceConfigId() {
+    return instanceConfigId;
   }
 
   @Override

@@ -32,8 +32,7 @@ from . import approximatequantiles
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.aggregation.'
-    'approximatequantiles.print',
-    lambda x: x)
+    'approximatequantiles.print', lambda x: x)
 class ApproximateQuantilesTest(unittest.TestCase):
   def test_approximatequantiles(self):
     def check_result(quantiles):

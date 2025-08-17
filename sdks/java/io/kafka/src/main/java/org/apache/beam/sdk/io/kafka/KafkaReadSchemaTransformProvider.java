@@ -18,14 +18,17 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -34,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
@@ -101,9 +105,20 @@ public class KafkaReadSchemaTransformProvider
     };
   }
 
+  public static SerializableFunction<byte[], Row> getRawStringToRowFunction(Schema stringSchema) {
+    return new SimpleFunction<byte[], Row>() {
+      @Override
+      public Row apply(byte[] input) {
+        return Row.withSchema(stringSchema)
+            .addValue(new String(input, StandardCharsets.UTF_8))
+            .build();
+      }
+    };
+  }
+
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:kafka_read:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ);
   }
 
   @Override
@@ -118,6 +133,13 @@ public class KafkaReadSchemaTransformProvider
 
   static class KafkaReadSchemaTransform extends SchemaTransform {
     private final KafkaReadSchemaTransformConfiguration configuration;
+    private static final String googleManagedSchemaRegistryPrefix =
+        "https://managedkafka.googleapis.com/";
+
+    enum SchemaRegistryProvider {
+      UNSPECIFIED,
+      GOOGLE_MANAGED
+    }
 
     KafkaReadSchemaTransform(KafkaReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
@@ -135,6 +157,13 @@ public class KafkaReadSchemaTransformProvider
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }
+    }
+
+    private SchemaRegistryProvider getSchemaRegistryProvider(String confluentSchemaRegUrl) {
+      if (confluentSchemaRegUrl.contains(googleManagedSchemaRegistryPrefix)) {
+        return SchemaRegistryProvider.GOOGLE_MANAGED;
+      }
+      return SchemaRegistryProvider.UNSPECIFIED;
     }
 
     @Override
@@ -164,16 +193,41 @@ public class KafkaReadSchemaTransformProvider
       if (confluentSchemaRegUrl != null) {
         final String confluentSchemaRegSubject =
             checkArgumentNotNull(configuration.getConfluentSchemaRegistrySubject());
-        KafkaIO.Read<byte[], GenericRecord> kafkaRead =
+        KafkaIO.Read<byte[], GenericRecord> kafkaRead;
+
+        kafkaRead =
             KafkaIO.<byte[], GenericRecord>read()
                 .withTopic(configuration.getTopic())
                 .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
                 .withBootstrapServers(configuration.getBootstrapServers())
                 .withConsumerConfigUpdates(consumerConfigs)
-                .withKeyDeserializer(ByteArrayDeserializer.class)
-                .withValueDeserializer(
+                .withKeyDeserializer(ByteArrayDeserializer.class);
+
+        SchemaRegistryProvider provider = getSchemaRegistryProvider(confluentSchemaRegUrl);
+        switch (provider) {
+          case GOOGLE_MANAGED:
+            // Custom configs to authenticate with Google's Managed Schema Registry
+            Map<String, Object> configs = new HashMap<>();
+            configs.put(
+                KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG, confluentSchemaRegUrl);
+            configs.put(KafkaAvroDeserializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE, "CUSTOM");
+            configs.put(
+                "bearer.auth.custom.provider.class",
+                "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider");
+
+            LOG.info("Constructing read transform with Google Managed Schema Registry URL.");
+            kafkaRead =
+                kafkaRead.withValueDeserializer(
+                    ConfluentSchemaRegistryDeserializerProvider.of(
+                        confluentSchemaRegUrl, confluentSchemaRegSubject, null, configs));
+            break;
+          case UNSPECIFIED:
+            kafkaRead =
+                kafkaRead.withValueDeserializer(
                     ConfluentSchemaRegistryDeserializerProvider.of(
                         confluentSchemaRegUrl, confluentSchemaRegSubject));
+        }
+
         Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
         if (maxReadTimeSeconds != null) {
           kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
@@ -182,7 +236,7 @@ public class KafkaReadSchemaTransformProvider
         PCollection<GenericRecord> kafkaValues =
             input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
 
-        assert kafkaValues.getCoder().getClass() == AvroCoder.class;
+        assert kafkaValues.getCoder() instanceof AvroCoder;
         AvroCoder<GenericRecord> coder = (AvroCoder<GenericRecord>) kafkaValues.getCoder();
         kafkaValues = kafkaValues.setCoder(AvroUtils.schemaCoder(coder.getSchema()));
         return PCollectionRowTuple.of("output", kafkaValues.apply(Convert.toRows()));
@@ -191,6 +245,9 @@ public class KafkaReadSchemaTransformProvider
       if ("RAW".equals(format)) {
         beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
         valueMapper = getRawBytesToRowFunction(beamSchema);
+      } else if ("STRING".equals(format)) {
+        beamSchema = Schema.builder().addField("payload", Schema.FieldType.STRING).build();
+        valueMapper = getRawStringToRowFunction(beamSchema);
       } else if ("PROTO".equals(format)) {
         String fileDescriptorPath = configuration.getFileDescriptorPath();
         String messageName = checkArgumentNotNull(configuration.getMessageName());

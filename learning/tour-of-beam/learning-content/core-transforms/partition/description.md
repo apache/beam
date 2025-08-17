@@ -70,7 +70,7 @@ fortieth_percentile = by_decile[4]
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
-The `applyTransforms` returns a slice of the PCollection, you can access it by index. In this case, we have two `PCollections`, one consists of numbers that are less than 100, the second is more than 100.
+The `applyTransforms` returns a slice of the `PCollection`, you can access it by index. In this case, we have two `PCollections`, one consists of numbers that are less than 100, the second is more than 100.
 
 You can also divide other types into parts, for example: "strings" and others.
 

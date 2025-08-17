@@ -23,7 +23,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.util.JsonFormat;
 
 /** Translator for row coders. */
 public class RowCoderCloudObjectTranslator implements CloudObjectTranslator<RowCoder> {
@@ -56,7 +56,6 @@ public class RowCoderCloudObjectTranslator implements CloudObjectTranslator<RowC
       SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
       JsonFormat.parser().merge(Structs.getString(cloudObject, SCHEMA), schemaBuilder);
       Schema schema = SchemaTranslation.schemaFromProto(schemaBuilder.build());
-      SchemaCoderCloudObjectTranslator.overrideEncodingPositions(schema);
       return RowCoder.of(schema);
     } catch (IOException e) {
       throw new RuntimeException(e);

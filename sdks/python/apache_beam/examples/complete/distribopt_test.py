@@ -77,8 +77,11 @@ class DistribOptimizationTest(unittest.TestCase):
     # Only 1 result
     self.assertEqual(len(lines), 1)
 
+    # Handle NumPy string representation before parsing
+    cleaned_line = lines[0].replace("np.str_('", "'").replace("')", "'")
+
     # parse result line and verify optimum
-    optimum = make_tuple(lines[0])
+    optimum = make_tuple(cleaned_line)
     self.assertAlmostEqual(optimum['cost'], 454.39597, places=3)
     self.assertDictEqual(optimum['mapping'], EXPECTED_MAPPING)
     production = optimum['production']

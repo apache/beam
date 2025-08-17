@@ -55,7 +55,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
@@ -231,16 +231,16 @@ final class ComputationWorkExecutorFactory {
    * stage. This encodes many assumptions about how the streaming execution context works.
    */
   private @Nullable Coder<?> extractKeyCoder(Coder<?> readCoder) {
-    if (!(readCoder instanceof WindowedValue.WindowedValueCoder)) {
+    if (!(readCoder instanceof WindowedValues.WindowedValueCoder)) {
       throw new RuntimeException(
           String.format(
               "Expected coder for streaming read to be %s, but received %s",
-              WindowedValue.WindowedValueCoder.class.getSimpleName(), readCoder));
+              WindowedValues.WindowedValueCoder.class.getSimpleName(), readCoder));
     }
 
     // Note that TimerOrElementCoder is a backwards-compatibility class
     // that is really a FakeKeyedWorkItemCoder
-    Coder<?> valueCoder = ((WindowedValue.WindowedValueCoder<?>) readCoder).getValueCoder();
+    Coder<?> valueCoder = ((WindowedValues.WindowedValueCoder<?>) readCoder).getValueCoder();
 
     if (valueCoder instanceof KvCoder<?, ?>) {
       return ((KvCoder<?, ?>) valueCoder).getKeyCoder();

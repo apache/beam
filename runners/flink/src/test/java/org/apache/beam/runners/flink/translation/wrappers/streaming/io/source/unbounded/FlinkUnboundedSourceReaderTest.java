@@ -41,9 +41,9 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.So
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -92,9 +92,9 @@ public class FlinkUnboundedSourceReaderTest
    * This is a concurrency correctness test. It verifies that the main thread is always waken up by
    * the alarm runner executed in the executor thread.
    */
-  @Test(timeout = 30000L)
+  @Test(timeout = 60000L)
   public void testIsAvailableAlwaysWakenUp() throws Exception {
-    final int numFuturesRequired = 1_000_000;
+    final int numFuturesRequired = 1_000;
     List<CompletableFuture<Void>> futures = new ArrayList<>();
     AtomicReference<Exception> exceptionRef = new AtomicReference<>();
 

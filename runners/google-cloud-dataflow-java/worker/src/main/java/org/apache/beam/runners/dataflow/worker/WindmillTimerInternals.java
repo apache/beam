@@ -21,7 +21,10 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Consumer;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -33,14 +36,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
-import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table.Cell;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -54,6 +52,7 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillTimerInternals implements TimerInternals {
+
   private static final Instant OUTPUT_TIMESTAMP_MAX_WINDMILL_VALUE =
       GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
 
@@ -66,10 +65,9 @@ class WindmillTimerInternals implements TimerInternals {
   // though technically in Windmill this is only enforced per ID and namespace
   // and TimeDomain. This TimerInternals is scoped to a step and key, shared
   // across namespaces.
-  private final Table<String, StateNamespace, TimerData> timers = HashBasedTable.create();
-
-  // Map from timer id to whether it is to be deleted or set
-  private final Table<String, StateNamespace, Boolean> timerStillPresent = HashBasedTable.create();
+  private final Map<
+          Entry<String /*ID*/, StateNamespace>, Entry<TimerData, Boolean /*timer set/unset*/>>
+      timerMap = new HashMap<>();
 
   private final Watermarks watermarks;
   private final Instant processingTime;
@@ -98,8 +96,9 @@ class WindmillTimerInternals implements TimerInternals {
   @Override
   public void setTimer(TimerData timerKey) {
     String timerDataKey = getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId());
-    timers.put(timerDataKey, timerKey.getNamespace(), timerKey);
-    timerStillPresent.put(timerDataKey, timerKey.getNamespace(), true);
+    timerMap.put(
+        new SimpleEntry<>(timerDataKey, timerKey.getNamespace()),
+        new SimpleEntry<>(timerKey, true));
     onTimerModified.accept(timerKey);
   }
 
@@ -128,8 +127,9 @@ class WindmillTimerInternals implements TimerInternals {
   @Override
   public void deleteTimer(TimerData timerKey) {
     String timerDataKey = getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId());
-    timers.put(timerDataKey, timerKey.getNamespace(), timerKey);
-    timerStillPresent.put(timerDataKey, timerKey.getNamespace(), false);
+    timerMap.put(
+        new SimpleEntry<>(timerDataKey, timerKey.getNamespace()),
+        new SimpleEntry<>(timerKey, false));
     onTimerModified.accept(timerKey.deleted());
   }
 
@@ -191,16 +191,16 @@ class WindmillTimerInternals implements TimerInternals {
   }
 
   public void persistTo(Windmill.WorkItemCommitRequest.Builder outputBuilder) {
-    for (Cell<String, StateNamespace, Boolean> cell : timerStillPresent.cellSet()) {
+    for (Entry<TimerData, Boolean> value : timerMap.values()) {
       // Regardless of whether it is set or not, it must have some TimerData stored so we
       // can know its time domain
-      TimerData timerData = timers.get(cell.getRowKey(), cell.getColumnKey());
+      TimerData timerData = value.getKey();
 
       Timer.Builder timer =
           buildWindmillTimerFromTimerData(
               stateFamily, prefix, timerData, outputBuilder.addOutputTimersBuilder());
 
-      if (cell.getValue()) {
+      if (value.getValue()) {
         // Setting the timer. If it is a user timer, set a hold.
 
         // Only set a hold if it's needed and if the hold is before the end of the global window.
@@ -243,7 +243,7 @@ class WindmillTimerInternals implements TimerInternals {
     }
 
     // Wipe the unpersisted state
-    timers.clear();
+    timerMap.clear();
   }
 
   private boolean needsWatermarkHold(TimerData timerData) {
@@ -406,36 +406,27 @@ class WindmillTimerInternals implements TimerInternals {
    */
   public static ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     String tagString;
-    ExposedByteArrayOutputStream out = new ExposedByteArrayOutputStream();
-    try {
-      if (useNewTimerTagEncoding(timerData)) {
-        tagString =
-            new StringBuilder()
-                .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-                .append(
-                    timerData.getNamespace().stringKey()) // this must begin and end with a slash
-                .append('+')
-                .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-                .append('+')
-                .append(timerData.getTimerFamilyId())
-                .toString();
-        out.write(tagString.getBytes(StandardCharsets.UTF_8));
-      } else {
-        // Timers without timerFamily would have timerFamily would be an empty string
-        tagString =
-            new StringBuilder()
-                .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-                .append(
-                    timerData.getNamespace().stringKey()) // this must begin and end with a slash
-                .append('+')
-                .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-                .toString();
-        out.write(tagString.getBytes(StandardCharsets.UTF_8));
-      }
-      return ByteString.readFrom(new ExposedByteArrayInputStream(out.toByteArray()));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    if (useNewTimerTagEncoding(timerData)) {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .append('+')
+              .append(timerData.getTimerFamilyId())
+              .toString();
+    } else {
+      // Timers without timerFamily would have timerFamily would be an empty string
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .toString();
     }
+    return ByteString.copyFromUtf8(tagString);
   }
 
   /**

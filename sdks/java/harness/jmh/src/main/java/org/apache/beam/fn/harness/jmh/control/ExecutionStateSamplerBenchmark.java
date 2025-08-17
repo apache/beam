@@ -27,7 +27,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
@@ -122,7 +122,7 @@ public class ExecutionStateSamplerBenchmark {
   public static class HarnessStateSampler {
     public final org.apache.beam.fn.harness.control.ExecutionStateSampler sampler =
         new org.apache.beam.fn.harness.control.ExecutionStateSampler(
-            PipelineOptionsFactory.create(), System::currentTimeMillis);
+            PipelineOptionsFactory.create(), System::currentTimeMillis, null);
 
     @TearDown(Level.Trial)
     public void tearDown() {

@@ -26,9 +26,10 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link ParDoFnFactory} to create instances of {@link ReifyTimestampAndWindowsParDoFn}. */
@@ -70,17 +71,17 @@ class ReifyTimestampAndWindowsParDoFnFactory implements ParDoFnFactory {
       WindowedValue<KV<?, ?>> typedElem = (WindowedValue<KV<?, ?>>) untypedElem;
 
       receiver.process(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   typedElem.getValue().getKey(),
-                  WindowedValue.of(
+                  WindowedValues.of(
                       typedElem.getValue().getValue(),
                       typedElem.getTimestamp(),
                       typedElem.getWindows(),
-                      typedElem.getPane())),
+                      typedElem.getPaneInfo())),
               typedElem.getTimestamp(),
               typedElem.getWindows(),
-              typedElem.getPane()));
+              typedElem.getPaneInfo()));
     }
 
     @Override

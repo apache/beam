@@ -22,8 +22,8 @@ import edu.iu.dsc.tws.api.tset.fn.MapFunc;
 import java.io.ObjectStreamException;
 import org.apache.beam.runners.twister2.utils.TranslationUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 
 /** ByteToWindow function. */
 @SuppressWarnings({

@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.client.util.Clock;
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -860,6 +860,8 @@ public class PubsubIO {
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    abstract boolean getValidate();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<PubsubMessage, T> parseFn) {
@@ -871,6 +873,7 @@ public class PubsubIO {
       builder.setNeedsOrderingKey(false);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
+      builder.setValidate(false);
       return builder;
     }
 
@@ -917,6 +920,8 @@ public class PubsubIO {
 
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<T> setValidate(boolean validation);
 
       abstract Read<T> build();
     }
@@ -1097,6 +1102,11 @@ public class PubsubIO {
           .build();
     }
 
+    /** Enable validation of the PubSub Read. */
+    public Read<T> withValidation() {
+      return toBuilder().setValidate(true).build();
+    }
+
     @VisibleForTesting
     /**
      * Set's the internal Clock.
@@ -1178,14 +1188,15 @@ public class PubsubIO {
                 if (topicPath != null) {
                   TopicPath topic = topicPath.get();
                   if (topic != null) {
-                    Lineage.getSources().add("pubsub", "topic", topic.getDataCatalogSegments());
+                    Lineage.getSources()
+                        .add("pubsub", "topic", topic.getDataCatalogSegments(), null);
                   }
                 }
                 if (subscriptionPath != null) {
                   SubscriptionPath sub = subscriptionPath.get();
                   if (sub != null) {
                     Lineage.getSources()
-                        .add("pubsub", "subscription", sub.getDataCatalogSegments());
+                        .add("pubsub", "subscription", sub.getDataCatalogSegments(), null);
                   }
                 }
                 reportedMetrics = true;
@@ -1263,6 +1274,35 @@ public class PubsubIO {
     }
 
     @Override
+    public void validate(PipelineOptions options) {
+      if (!getValidate()) {
+        return;
+      }
+
+      PubsubOptions psOptions = options.as(PubsubOptions.class);
+
+      // Validate the existence of the topic.
+      if (getTopicProvider() != null) {
+        PubsubTopic topic = getTopicProvider().get();
+        boolean topicExists = true;
+        try (PubsubClient pubsubClient =
+            getPubsubClientFactory()
+                .newClient(getTimestampAttribute(), getIdAttribute(), psOptions)) {
+          topicExists =
+              pubsubClient.isTopicExists(
+                  PubsubClient.topicPathFromName(topic.project, topic.topic));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+
+        if (!topicExists) {
+          throw new IllegalArgumentException(
+              String.format("Pubsub topic '%s' does not exist.", topic));
+        }
+      }
+    }
+
+    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
@@ -1337,9 +1377,13 @@ public class PubsubIO {
 
     abstract @Nullable String getPubsubRootUrl();
 
+    abstract boolean getPublishWithOrderingKey();
+
     abstract BadRecordRouter getBadRecordRouter();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
+    abstract boolean getValidate();
 
     abstract Builder<T> toBuilder();
 
@@ -1350,6 +1394,8 @@ public class PubsubIO {
       builder.setFormatFn(formatFn);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
+      builder.setPublishWithOrderingKey(false);
+      builder.setValidate(false);
       return builder;
     }
 
@@ -1381,10 +1427,14 @@ public class PubsubIO {
 
       abstract Builder<T> setPubsubRootUrl(String pubsubRootUrl);
 
+      abstract Builder<T> setPublishWithOrderingKey(boolean publishWithOrderingKey);
+
       abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
 
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<T> setValidate(boolean validation);
 
       abstract Write<T> build();
     }
@@ -1396,16 +1446,26 @@ public class PubsubIO {
      * {@code topic} string.
      */
     public Write<T> to(String topic) {
+      ValueProvider<String> topicProvider = StaticValueProvider.of(topic);
+      validateTopic(topicProvider);
       return to(StaticValueProvider.of(topic));
     }
 
     /** Like {@code topic()} but with a {@link ValueProvider}. */
     public Write<T> to(ValueProvider<String> topic) {
+      validateTopic(topic);
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
           .setTopicFunction(null)
           .setDynamicDestinations(false)
           .build();
+    }
+
+    /** Handles validation of {@code topic}. */
+    private static void validateTopic(ValueProvider<String> topic) {
+      if (topic.isAccessible()) {
+        PubsubTopic.fromPath(topic.get());
+      }
     }
 
     /**
@@ -1455,6 +1515,19 @@ public class PubsubIO {
     }
 
     /**
+     * Writes to Pub/Sub with each record's ordering key. A subscription with message ordering
+     * enabled will receive messages published in the same region with the same ordering key in the
+     * order in which they were received by the service. Note that the order in which Beam publishes
+     * records to the service remains unspecified.
+     *
+     * @see <a href="https://cloud.google.com/pubsub/docs/ordering">Pub/Sub documentation on message
+     *     ordering</a>
+     */
+    public Write<T> withOrderingKey() {
+      return toBuilder().setPublishWithOrderingKey(true).build();
+    }
+
+    /**
      * Writes to Pub/Sub and adds each record's timestamp to the published messages in an attribute
      * with the specified name. The value of the attribute will be a number representing the number
      * of milliseconds since the Unix epoch. For example, if using the Joda time classes, {@link
@@ -1497,6 +1570,11 @@ public class PubsubIO {
           .build();
     }
 
+    /** Enable validation of the PubSub Write. */
+    public Write<T> withValidation() {
+      return toBuilder().setValidate(true).build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null && !getDynamicDestinations()) {
@@ -1525,6 +1603,7 @@ public class PubsubIO {
                       new PreparePubsubWriteDoFn<>(
                           getFormatFn(),
                           topicFunction,
+                          getPublishWithOrderingKey(),
                           maxMessageSize,
                           getBadRecordRouter(),
                           input.getCoder(),
@@ -1536,8 +1615,12 @@ public class PubsubIO {
               pubsubMessageTuple
                   .get(BAD_RECORD_TAG)
                   .setCoder(BadRecord.getCoder(input.getPipeline())));
-      PCollection<PubsubMessage> pubsubMessages =
-          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(PubsubMessageWithTopicCoder.of());
+      PCollection<PubsubMessage> pubsubMessages = pubsubMessageTuple.get(pubsubMessageTupleTag);
+      if (getPublishWithOrderingKey()) {
+        pubsubMessages.setCoder(PubsubMessageSchemaCoder.getSchemaCoder());
+      } else {
+        pubsubMessages.setCoder(PubsubMessageWithTopicCoder.of());
+      }
       switch (input.isBounded()) {
         case BOUNDED:
           pubsubMessages.apply(
@@ -1557,6 +1640,7 @@ public class PubsubIO {
                   getTimestampAttribute(),
                   getIdAttribute(),
                   100 /* numShards */,
+                  getPublishWithOrderingKey(),
                   MoreObjects.firstNonNull(
                       getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
                   MoreObjects.firstNonNull(
@@ -1564,6 +1648,35 @@ public class PubsubIO {
                   getPubsubRootUrl()));
       }
       throw new RuntimeException(); // cases are exhaustive.
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (!getValidate()) {
+        return;
+      }
+
+      PubsubOptions psOptions = options.as(PubsubOptions.class);
+
+      // Validate the existence of the topic.
+      if (getTopicProvider() != null) {
+        PubsubTopic topic = getTopicProvider().get();
+        boolean topicExists = true;
+        try (PubsubClient pubsubClient =
+            getPubsubClientFactory()
+                .newClient(getTimestampAttribute(), getIdAttribute(), psOptions)) {
+          topicExists =
+              pubsubClient.isTopicExists(
+                  PubsubClient.topicPathFromName(topic.project, topic.topic));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+
+        if (!topicExists) {
+          throw new IllegalArgumentException(
+              String.format("Pubsub topic '%s' does not exist.", topic));
+        }
+      }
     }
 
     @Override
@@ -1589,7 +1702,9 @@ public class PubsubIO {
         }
       }
 
-      private transient Map<PubsubTopic, OutgoingData> output;
+      // NOTE: A single publish request may only write to one ordering key.
+      // See https://cloud.google.com/pubsub/docs/publisher#using-ordering-keys for details.
+      private transient Map<KV<PubsubTopic, String>, OutgoingData> output;
 
       private transient PubsubClient pubsubClient;
 
@@ -1620,51 +1735,47 @@ public class PubsubIO {
       public void processElement(@Element PubsubMessage message, @Timestamp Instant timestamp)
           throws IOException, SizeLimitExceededException {
         // Validate again here just as a sanity check.
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+        // - Size validation makes no distinction between JSON and Protobuf encoding
+        // - Accounting for HTTP to gRPC transcoding is non-trivial
         PreparePubsubWriteDoFn.validatePubsubMessageSize(message, maxPublishBatchByteSize);
-        byte[] payload = message.getPayload();
-        int messageSize = payload.length;
+        // NOTE: The record id is always null since it will be assigned by Pub/Sub.
+        final OutgoingMessage msg =
+            OutgoingMessage.of(message, timestamp.getMillis(), null, message.getTopic());
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+        // - Size validation makes no distinction between JSON and Protobuf encoding
+        // - Accounting for HTTP to gRPC transcoding is non-trivial
+        final int messageSize = msg.getMessage().getData().size();
 
-        PubsubTopic pubsubTopic;
+        final PubsubTopic pubsubTopic;
         if (getTopicProvider() != null) {
           pubsubTopic = getTopicProvider().get();
         } else {
-          pubsubTopic =
-              PubsubTopic.fromPath(Preconditions.checkArgumentNotNull(message.getTopic()));
+          pubsubTopic = PubsubTopic.fromPath(Preconditions.checkArgumentNotNull(msg.topic()));
         }
+
         // Checking before adding the message stops us from violating max batch size or bytes
-        OutgoingData currentTopicOutput =
-            output.computeIfAbsent(pubsubTopic, t -> new OutgoingData());
-        if (currentTopicOutput.messages.size() >= maxPublishBatchSize
-            || (!currentTopicOutput.messages.isEmpty()
-                && (currentTopicOutput.bytes + messageSize) >= maxPublishBatchByteSize)) {
-          publish(pubsubTopic, currentTopicOutput.messages);
-          currentTopicOutput.messages.clear();
-          currentTopicOutput.bytes = 0;
+        String orderingKey = getPublishWithOrderingKey() ? msg.getMessage().getOrderingKey() : "";
+        final OutgoingData currentTopicAndOrderingKeyOutput =
+            output.computeIfAbsent(KV.of(pubsubTopic, orderingKey), t -> new OutgoingData());
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+        if (currentTopicAndOrderingKeyOutput.messages.size() >= maxPublishBatchSize
+            || (!currentTopicAndOrderingKeyOutput.messages.isEmpty()
+                && (currentTopicAndOrderingKeyOutput.bytes + messageSize)
+                    >= maxPublishBatchByteSize)) {
+          publish(pubsubTopic, currentTopicAndOrderingKeyOutput.messages);
+          currentTopicAndOrderingKeyOutput.messages.clear();
+          currentTopicAndOrderingKeyOutput.bytes = 0;
         }
 
-        Map<String, String> attributes = message.getAttributeMap();
-        String orderingKey = message.getOrderingKey();
-
-        com.google.pubsub.v1.PubsubMessage.Builder msgBuilder =
-            com.google.pubsub.v1.PubsubMessage.newBuilder()
-                .setData(ByteString.copyFrom(payload))
-                .putAllAttributes(attributes);
-
-        if (orderingKey != null) {
-          msgBuilder.setOrderingKey(orderingKey);
-        }
-
-        // NOTE: The record id is always null.
-        currentTopicOutput.messages.add(
-            OutgoingMessage.of(
-                msgBuilder.build(), timestamp.getMillis(), null, message.getTopic()));
-        currentTopicOutput.bytes += messageSize;
+        currentTopicAndOrderingKeyOutput.messages.add(msg);
+        currentTopicAndOrderingKeyOutput.bytes += messageSize;
       }
 
       @FinishBundle
       public void finishBundle() throws IOException {
-        for (Map.Entry<PubsubTopic, OutgoingData> entry : output.entrySet()) {
-          publish(entry.getKey(), entry.getValue().messages);
+        for (Map.Entry<KV<PubsubTopic, String>, OutgoingData> entry : output.entrySet()) {
+          publish(entry.getKey().getKey(), entry.getValue().messages);
         }
         output = null;
         pubsubClient.close();

@@ -46,7 +46,7 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -77,8 +77,31 @@ jobs:
       - name: run PostCommit Java Examples Dataflow V2 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-            gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest
+          gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest
+          max-workers: 12
+      - name: Setup Java 17 environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 17
+      - name: Set DOCKER_TAG unique variable based on timestamp
+        run: echo "DOCKER_TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_ENV
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker us.gcr.io
+      - name: run PostCommit Java Distroless Examples Dataflow V2 script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        env:
+          USER: github-actions
+        with:
+            gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
             max-workers: 12
+            arguments: |
+              -PdisableSpotlessCheck=true \
+              -PdisableCheckStyle=true \
+              -PskipCheckerFramework \
+              -PtestJavaVersion=17 \
+              -Pjava17Home=$JAVA_HOME_17_X64 \
+              -PdockerTag=${{ env.DOCKER_TAG }} \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
@@ -92,3 +115,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true

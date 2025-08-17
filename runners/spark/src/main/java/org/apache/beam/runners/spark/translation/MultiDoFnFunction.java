@@ -31,19 +31,18 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
-import org.apache.beam.runners.spark.util.CachedSideInputReader;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SparkSideInputReader;
+import org.apache.beam.runners.spark.util.SideInputReaderFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
@@ -66,6 +65,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final MetricsContainerStepMapAccumulator metricsAccum;
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
+  private final boolean useStreamingSideInput;
   private transient boolean wasSetupCalled;
   private final SerializablePipelineOptions options;
   private final TupleTag<OutputT> mainOutputTag;
@@ -106,7 +106,8 @@ public class MultiDoFnFunction<InputT, OutputT>
       boolean stateful,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping,
-      boolean useBoundedConcurrentOutput) {
+      boolean useBoundedConcurrentOutput,
+      boolean useStreamingSideInput) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -121,6 +122,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
     this.useBoundedConcurrentOutput = useBoundedConcurrentOutput;
+    this.useStreamingSideInput = useStreamingSideInput;
   }
 
   @Override
@@ -178,7 +180,7 @@ public class MultiDoFnFunction<InputT, OutputT>
         DoFnRunners.simpleRunner(
             options.get(),
             doFn,
-            CachedSideInputReader.of(new SparkSideInputReader(sideInputs)),
+            SideInputReaderFactory.create(this.useStreamingSideInput, this.sideInputs),
             processor.getOutputManager(),
             mainOutputTag,
             additionalOutputTags,

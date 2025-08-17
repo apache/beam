@@ -44,7 +44,7 @@ public class DaoFactory implements Serializable {
   private final SpannerConfig metadataSpannerConfig;
 
   private final String changeStreamName;
-  private final String partitionMetadataTableName;
+  private final PartitionMetadataTableNames partitionMetadataTableNames;
   private final RpcPriority rpcPriority;
   private final String jobName;
   private final Dialect spannerChangeStreamDatabaseDialect;
@@ -56,7 +56,7 @@ public class DaoFactory implements Serializable {
    * @param changeStreamSpannerConfig the configuration for the change streams DAO
    * @param changeStreamName the name of the change stream for the change streams DAO
    * @param metadataSpannerConfig the metadata tables configuration
-   * @param partitionMetadataTableName the name of the created partition metadata table
+   * @param partitionMetadataTableNames the names of the partition metadata ddl objects
    * @param rpcPriority the priority of the requests made by the DAO queries
    * @param jobName the name of the running job
    */
@@ -64,7 +64,7 @@ public class DaoFactory implements Serializable {
       SpannerConfig changeStreamSpannerConfig,
       String changeStreamName,
       SpannerConfig metadataSpannerConfig,
-      String partitionMetadataTableName,
+      PartitionMetadataTableNames partitionMetadataTableNames,
       RpcPriority rpcPriority,
       String jobName,
       Dialect spannerChangeStreamDatabaseDialect,
@@ -78,7 +78,7 @@ public class DaoFactory implements Serializable {
     this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
     this.metadataSpannerConfig = metadataSpannerConfig;
-    this.partitionMetadataTableName = partitionMetadataTableName;
+    this.partitionMetadataTableNames = partitionMetadataTableNames;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
     this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
@@ -102,7 +102,7 @@ public class DaoFactory implements Serializable {
               databaseAdminClient,
               metadataSpannerConfig.getInstanceId().get(),
               metadataSpannerConfig.getDatabaseId().get(),
-              partitionMetadataTableName,
+              partitionMetadataTableNames,
               this.metadataDatabaseDialect);
     }
     return partitionMetadataAdminDao;
@@ -120,7 +120,7 @@ public class DaoFactory implements Serializable {
     if (partitionMetadataDaoInstance == null) {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
-              this.partitionMetadataTableName,
+              this.partitionMetadataTableNames.getTableName(),
               spannerAccessor.getDatabaseClient(),
               this.metadataDatabaseDialect);
     }

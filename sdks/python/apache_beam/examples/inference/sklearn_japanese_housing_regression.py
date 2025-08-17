@@ -31,7 +31,7 @@ In order to set this example up, you will need two things.
 
 import argparse
 import os
-from typing import Iterable
+from collections.abc import Iterable
 
 import pandas
 

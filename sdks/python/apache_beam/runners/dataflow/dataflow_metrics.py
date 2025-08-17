@@ -101,8 +101,8 @@ class DataflowMetrics(MetricResults):
           'Could not translate the internal step name %r since job graph is '
           'not available.' % internal_name)
     user_step_name = None
-    if (self._job_graph and internal_name in
-        self._job_graph.proto_pipeline.components.transforms.keys()):
+    if (self._job_graph and internal_name
+        in self._job_graph.proto_pipeline.components.transforms.keys()):
       # Dataflow Runner v2 with portable job submission uses proto transform map
       # IDs for step names. Also PTransform.unique_name maps to user step names.
       # Hence we lookup user step names based on the proto.

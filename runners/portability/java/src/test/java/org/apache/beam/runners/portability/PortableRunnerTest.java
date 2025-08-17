@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.portability;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeBoundedTrie;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
@@ -34,6 +35,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.StringSetData;
@@ -48,10 +50,11 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
@@ -73,6 +76,7 @@ public class PortableRunnerTest implements Serializable {
   private static final String DIST_TYPE = "beam:metrics:distribution_int64:v1";
   private static final String GAUGE_TYPE = "beam:metrics:latest_int64:v1";
   private static final String STRING_SET_TYPE = "beam:metrics:set_string:v1";
+  private static final String BOUNDED_TRIE_TYPE = "beam:metrics:bounded_trie:v1";
   private static final String NAMESPACE_LABEL = "NAMESPACE";
   private static final String METRIC_NAME_LABEL = "NAME";
   private static final String STEP_NAME_LABEL = "PTRANSFORM";
@@ -133,6 +137,9 @@ public class PortableRunnerTest implements Serializable {
     assertThat(
         metricQueryResults.getStringSets().iterator().next().getAttempted().getStringSet(),
         is(STRING_SET_VALUE));
+    assertThat(
+        metricQueryResults.getBoundedTries().iterator().next().getAttempted().getResult(),
+        is(ImmutableSet.of(ImmutableList.of("ab", String.valueOf(false)))));
   }
 
   private JobApi.MetricResults generateMetricResults() throws Exception {
@@ -171,11 +178,19 @@ public class PortableRunnerTest implements Serializable {
             .setPayload(encodeStringSet(StringSetData.create(STRING_SET_VALUE)))
             .build();
 
+    MetricsApi.MonitoringInfo boundedTrieMonitoringInfo =
+        MetricsApi.MonitoringInfo.newBuilder()
+            .setType(BOUNDED_TRIE_TYPE)
+            .putAllLabels(labelMap)
+            .setPayload(encodeBoundedTrie(new BoundedTrieData(ImmutableList.of("ab"))))
+            .build();
+
     return JobApi.MetricResults.newBuilder()
         .addAttempted(counterMonitoringInfo)
         .addAttempted(distMonitoringInfo)
         .addAttempted(gaugeMonitoringInfo)
         .addAttempted(stringSetMonitoringInfo)
+        .addAttempted(boundedTrieMonitoringInfo)
         .build();
   }
 

@@ -48,6 +48,8 @@ applyJavaNature(
     enableStrictDependencies:true,
     automaticModuleName: 'org.apache.beam.runners.flink',
     archivesBaseName: archivesBaseName,
+    // flink runner jars are in same package name. Publish javadoc once.
+    exportJavadoc: project.ext.flink_version.startsWith(all_versions.first())
 )
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
@@ -168,41 +170,24 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  implementation library.java.vendored_grpc_1_60_1
+  implementation library.java.vendored_grpc_1_69_0
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
 
-  // Flink 1.15 shades all remaining scala dependencies and therefor does not depend on a specific version of Scala anymore
-  if (flink_version.compareTo("1.15") >= 0) {
-    implementation "org.apache.flink:flink-clients:$flink_version"
-    // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
-    // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
-    permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
+  implementation "org.apache.flink:flink-clients:$flink_version"
+  // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
+  // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
+  permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
 
-    implementation "org.apache.flink:flink-streaming-java:$flink_version"
-    // RocksDB state backend (included in the Flink distribution)
-    provided "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
-    testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
-    testImplementation "org.apache.flink:flink-streaming-java:$flink_version:tests"
-    testImplementation "org.apache.flink:flink-test-utils:$flink_version"
+  implementation "org.apache.flink:flink-streaming-java:$flink_version"
+  // RocksDB state backend (included in the Flink distribution)
+  provided "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
+  testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
+  testImplementation "org.apache.flink:flink-streaming-java:$flink_version:tests"
+  testImplementation "org.apache.flink:flink-test-utils:$flink_version"
 
-    miniCluster "org.apache.flink:flink-runtime-web:$flink_version"
-  } else {
-    implementation "org.apache.flink:flink-clients_2.12:$flink_version"
-    // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
-    // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
-    permitUnusedDeclared "org.apache.flink:flink-clients_2.12:$flink_version"
-
-    implementation "org.apache.flink:flink-streaming-java_2.12:$flink_version"
-    // RocksDB state backend (included in the Flink distribution)
-    provided "org.apache.flink:flink-statebackend-rocksdb_2.12:$flink_version"
-    testImplementation "org.apache.flink:flink-statebackend-rocksdb_2.12:$flink_version"
-    testImplementation "org.apache.flink:flink-streaming-java_2.12:$flink_version:tests"
-    testImplementation "org.apache.flink:flink-test-utils_2.12:$flink_version"
-
-    miniCluster "org.apache.flink:flink-runtime-web_2.12:$flink_version"
-  }
+  miniCluster "org.apache.flink:flink-runtime-web:$flink_version"
 
   implementation "org.apache.flink:flink-core:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
@@ -218,7 +203,8 @@ dependencies {
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  testImplementation library.java.powermock
+  // TODO(https://github.com/apache/beam/issues/34056) remove powermock once remove Whitebox usages
+  testImplementation "org.powermock:powermock-reflect:2.0.9"
   testImplementation library.java.google_api_services_bigquery
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation library.java.jackson_dataformat_yaml
@@ -253,6 +239,14 @@ class ValidatesRunnerConfig {
 def sickbayTests = [
         // TODO(https://github.com/apache/beam/issues/21306)
         'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
+        // Flink errors are not deterministic. Exception may just be
+        // org.apache.flink.runtime.operators.coordination.TaskNotRunningException: Task is not running, but in state FAILED
+        // instead of the actual cause. Real cause is visible in the logs.
+        'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests',
+        'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+        // TODO(https://github.com/apache/beam/issues/18198)
+        'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
+        // testTriggeredLatestSingleton gets "stuck" both with or without --useDatastreamForBatch
 ]
 
 def createValidatesRunnerTask(Map m) {
@@ -266,7 +260,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptionsArray = ["--runner=TestFlinkRunner",
                                 "--streaming=${config.streaming}",
                                 "--useDataStreamForBatch=${config.useDataStreamForBatch}",
-                                "--parallelism=2",
+                                "--parallelism=1",
     ]
     if (config.checkpointing) {
       pipelineOptionsArray.addAll([
@@ -439,3 +433,8 @@ createPipelineOptionsTableTask('Python')
 // Update the pipeline options documentation before running the tests
 test.dependsOn(generatePipelineOptionsTableJava)
 test.dependsOn(generatePipelineOptionsTablePython)
+
+// delegate spotlessApply to :runners:flink:spotlessApply
+tasks.named("spotlessApply") {
+  dependsOn ":runners:flink:spotlessApply"
+}

@@ -15,9 +15,8 @@
 # limitations under the License.
 #
 import logging
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
 from typing import Optional
 
 from google.api_core.exceptions import NotFound
@@ -115,7 +114,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     Args:
     request: the input `beam.Row` to enrich.
     """
-    response_dict: Dict[str, Any] = {}
+    response_dict: dict[str, Any] = {}
     row_key_str: str = ""
     try:
       if self._row_key_fn:

@@ -14,10 +14,6 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- Zetasql planner has some problems when parsing the original query96
--- Added some modification to assign count(*) a name and it can work now.
-
---select  count(*)
 select  count(*) as cnt
 from store_sales
     ,household_demographics 
@@ -29,6 +25,5 @@ where ss_sold_time_sk = time_dim.t_time_sk
     and time_dim.t_minute >= 30
     and household_demographics.hd_dep_count = 5
     and store.s_store_name = 'ese'
---order by count(*)
 order by cnt
 limit 100

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -28,8 +29,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -71,6 +72,7 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
@@ -243,7 +245,12 @@ public class JdbcIOTest implements Serializable {
     Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
     PAssert.that(rows).containsInAnyOrder(expectedValues);
 
-    pipeline.run();
+    PipelineResult result = pipeline.run();
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(
+            String.format(
+                "%s:%s.%s.%s.%s", "derby", "memory", "testDB", "default", READ_TABLE_NAME)));
   }
 
   @Test
@@ -263,7 +270,12 @@ public class JdbcIOTest implements Serializable {
     Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
     PAssert.that(rows).containsInAnyOrder(expectedValues);
 
-    pipeline.run();
+    PipelineResult result = pipeline.run();
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(
+            String.format(
+                "%s:%s.%s.%s.%s", "derby", "memory", "testDB", "default", READ_TABLE_NAME)));
   }
 
   @Test
@@ -459,6 +471,51 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadRowsWithExplicitSchema() {
+    Schema customSchema =
+        Schema.of(
+            Schema.Field.of("CUSTOMER_NAME", Schema.FieldType.STRING).withNullable(true),
+            Schema.Field.of("CUSTOMER_ID", Schema.FieldType.INT64).withNullable(true));
+
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement -> preparedStatement.setString(1, TestRow.getNameForSeed(1)))
+                .withSchema(customSchema));
+
+    assertEquals(customSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("CUSTOMER_NAME", "CUSTOMER_ID"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(Row.withSchema(customSchema).addValues("Testval1", 1L).build()));
+
+    pipeline.run();
+  }
+
+  @Test
+  @SuppressWarnings({"UnusedVariable"})
+  public void testIncompatibleSchemaThrowsError() {
+    Schema incompatibleSchema =
+        Schema.of(
+            Schema.Field.of("WRONG_TYPE_NAME", Schema.FieldType.INT64),
+            Schema.Field.of("WRONG_TYPE_ID", Schema.FieldType.STRING));
+
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(
+        JdbcIO.readRows()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withQuery(String.format("select name,id from %s limit 10", READ_TABLE_NAME))
+            .withSchema(incompatibleSchema));
+
+    PipelineExecutionException exception =
+        assertThrows(PipelineExecutionException.class, () -> pipeline.run().waitUntilFinish());
+  }
+
+  @Test
   public void testReadWithPartitions() {
     PCollection<TestRow> rows =
         pipeline.apply(
@@ -471,6 +528,32 @@ public class JdbcIOTest implements Serializable {
                 .withLowerBound(0L)
                 .withUpperBound(1000L));
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithPartitionsWithExplicitSchema() {
+    Schema customSchema =
+        Schema.of(
+            Schema.Field.of("CUSTOMER_NAME", Schema.FieldType.STRING).withNullable(true),
+            Schema.Field.of("CUSTOMER_ID", Schema.FieldType.INT32).withNullable(true));
+
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.<Row>readWithPartitions()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withTable(String.format("(select name,id from %s) as subq", READ_TABLE_NAME))
+                .withNumPartitions(5)
+                .withPartitionColumn("id")
+                .withLowerBound(0L)
+                .withUpperBound(1000L)
+                .withRowOutput()
+                .withSchema(customSchema));
+
+    assertEquals(customSchema, rows.getSchema());
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
+
     pipeline.run();
   }
 
@@ -530,6 +613,25 @@ public class JdbcIOTest implements Serializable {
     try {
       ArrayList<KV<Integer, String>> data = getDataToWrite(EXPECTED_ROW_COUNT);
       pipeline.apply(Create.of(data)).apply(getJdbcWrite(tableName));
+
+      PipelineResult result = pipeline.run();
+      assertRowCount(DATA_SOURCE, tableName, EXPECTED_ROW_COUNT);
+      assertThat(
+          Lineage.query(result.metrics(), Lineage.Type.SINK),
+          hasItem(
+              String.format("%s:%s.%s.%s.%s", "derby", "memory", "testDB", "default", tableName)));
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
+    }
+  }
+
+  @Test
+  public void testWriteWithBatchSize() throws Exception {
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
+    try {
+      ArrayList<KV<Integer, String>> data = getDataToWrite(EXPECTED_ROW_COUNT);
+      pipeline.apply(Create.of(data)).apply(getJdbcWrite(tableName).withBatchSize(10L));
 
       pipeline.run();
 

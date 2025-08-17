@@ -17,13 +17,9 @@ limitations under the License.
 
 # Python SDK Roadmap
 
-## Sunsetting Python 2 Support
-
-The Apache Beam community voted to join [the pledge](https://python3statement.org/) to sunset Python 2 support in 2020. The Beam community will discontinue Python 2 support in 2020 and cannot guarantee long-term functional support or maintenance of Beam on Python 2. To ensure minimal disruption to your service, we strongly recommend that you upgrade to Python 3 as soon as possible.
-
 ## Python 3 Support
 
-Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We're continuing to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and add support for Python 3.x minor versions ([BEAM-8494](https://issues.apache.org/jira/browse/BEAM-8494)):
+Apache Beam 2.64.0 and higher support Python 3.9, 3.10, 3.11 and 3.12. We're continuing to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and add support for Python 3.x minor versions:
 
 
  - [Kanban Board](https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&view=detail)

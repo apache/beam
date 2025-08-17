@@ -259,6 +259,51 @@ class YamlTransformE2ETest(unittest.TestCase):
           lines=True).sort_values('rank').reindex()
       pd.testing.assert_frame_equal(data, result)
 
+  def test_circular_reference_validation(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # pylint: disable=expression-not-assigned
+      with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
+        p | YamlTransform(
+            '''
+                type: composite
+                transforms:
+                  - type: Create
+                    name: Create
+                    config:
+                        elements: [0, 1, 3, 4]
+                    input: Create
+                  - type: PyMap
+                    name: PyMap
+                    config:
+                        fn: "lambda row: row.element * row.element"
+                    input: Create
+                output: PyMap
+                ''',
+            providers=TEST_PROVIDERS)
+
+  def test_circular_reference_multi_inputs_validation(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # pylint: disable=expression-not-assigned
+      with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
+        p | YamlTransform(
+            '''
+                  type: composite
+                  transforms:
+                    - type: Create
+                      name: Create
+                      config:
+                        elements: [0, 1, 3, 4]
+                    - type: PyMap
+                      name: PyMap
+                      config:
+                        fn: "lambda row: row.element * row.element"
+                      input: [Create, PyMap]
+                  output: PyMap
+                ''',
+            providers=TEST_PROVIDERS)
+
   def test_name_is_not_ambiguous(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -285,7 +330,7 @@ class YamlTransformE2ETest(unittest.TestCase):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       # pylint: disable=expression-not-assigned
-      with self.assertRaisesRegex(ValueError, r'Ambiguous.*'):
+      with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
         p | YamlTransform(
             '''
             type: composite
@@ -370,6 +415,278 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''' % (annotations['yaml_type'], annotations['yaml_args']))
       assert_that(result, equal_to([100, 105, 110, 115]))
 
+  def test_resource_hints(self):
+    t = LinearTransform(5, b=100)
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [0, 1, 2, 3]
+            - type: MapToFields
+              name: WithResourceHints
+              config:
+                language: python
+                fields:
+                  square: element * element
+              resource_hints:
+                min_ram: 1GB
+          ''')
+      assert_that(result | beam.Map(lambda x: x.square), equal_to([0, 1, 4, 9]))
+    proto = p.to_runner_api()
+    transform, = [
+        t for t in proto.components.transforms.values()
+        if t.unique_name == 'YamlTransform/Chain/WithResourceHints']
+    self.assertEqual(
+        proto.components.environments[transform.environment_id].
+        resource_hints['beam:resources:min_ram_bytes:v1'],
+        b'1000000000',
+        proto)
+
+  def test_composite_resource_hints(self):
+    t = LinearTransform(5, b=100)
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [0, 1, 2, 3]
+            - type: MapToFields
+              name: WithInheritedResourceHints
+              config:
+                language: python
+                fields:
+                  square: element * element
+          resource_hints:
+            min_ram: 1GB
+          ''')
+      assert_that(result | beam.Map(lambda x: x.square), equal_to([0, 1, 4, 9]))
+    proto = p.to_runner_api()
+    transform, = [
+        t for t in proto.components.transforms.values()
+        if t.unique_name == 'YamlTransform/Chain/WithInheritedResourceHints']
+    self.assertEqual(
+        proto.components.environments[transform.environment_id].
+        resource_hints['beam:resources:min_ram_bytes:v1'],
+        b'1000000000',
+        proto)
+
+  def test_flatten_unifies_schemas(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {ride_id: '1', passenger_count: 1}
+                    - {ride_id: '2', passenger_count: 2}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {ride_id: '3'}
+                    - {ride_id: '4'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {ride_id: '1', passenger_count: 1}
+                    - {ride_id: '2', passenger_count: 2}
+                    - {ride_id: '3'}
+                    - {ride_id: '4'}
+          ''')
+
+  def test_flatten_unifies_optional_fields(self):
+    """Test that Flatten correctly unifies schemas with optional fields."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: '1', name: 'Alice', age: 30}
+                    - {id: '2', name: 'Bob', age: 25}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: '3', name: 'Charlie'}
+                    - {id: '4', name: 'Diana'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: '1', name: 'Alice', age: 30}
+                    - {id: '2', name: 'Bob', age: 25}
+                    - {id: '3', name: 'Charlie'}
+                    - {id: '4', name: 'Diana'}
+          ''')
+
+  def test_flatten_unifies_different_types(self):
+    """Test that Flatten correctly unifies schemas with different
+    field types."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: 1, value: 100}
+                    - {id: 2, value: 200}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: '3', value: 'text'}
+                    - {id: '4', value: 'data'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: 1, value: 100}
+                    - {id: 2, value: 200}
+                    - {id: '3', value: 'text'}
+                    - {id: '4', value: 'data'}
+          ''')
+
+  def test_flatten_unifies_list_fields(self):
+    """Test that Flatten correctly unifies schemas with list fields."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: '1', tags: ['red', 'blue']}
+                    - {id: '2', tags: ['green']}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: '3', tags: ['yellow', 'purple', 'orange']}
+                    - {id: '4', tags: []}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: '1', tags: ['red', 'blue']}
+                    - {id: '2', tags: ['green']}
+                    - {id: '3', tags: ['yellow', 'purple', 'orange']}
+                    - {id: '4', tags: []}
+          ''')
+
+  def test_flatten_unifies_with_missing_fields(self):
+    """Test that Flatten correctly unifies schemas when some inputs have
+    missing fields."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: '1', name: 'Alice', department: 'Engineering',
+                       salary: 75000}
+                    - {id: '2', name: 'Bob', department: 'Marketing',
+                       salary: 65000}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: '3', name: 'Charlie', department: 'Sales'}
+                    - {id: '4', name: 'Diana'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: '1', name: 'Alice', department: 'Engineering',
+                       salary: 75000}
+                    - {id: '2', name: 'Bob', department: 'Marketing',
+                       salary: 65000}
+                    - {id: '3', name: 'Charlie', department: 'Sales'}
+                    - {id: '4', name: 'Diana'}
+          ''')
+
+  def test_flatten_unifies_complex_mixed_schemas(self):
+    """Test that Flatten correctly unifies complex mixed
+    schemas."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {id: 1, name: 'Product A', price: 29.99,
+                       categories: ['electronics', 'gadgets']}
+                    - {id: 2, name: 'Product B', price: 15.50,
+                       categories: ['books']}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {id: 3, name: 'Product C', categories: ['clothing']}
+                    - {id: 4, name: 'Product D', price: 99.99}
+              - type: Create
+                name: Create3
+                config:
+                  elements:
+                    - {id: 5, name: 'Product E', price: 5.00,
+                       categories: []}
+              - type: Flatten
+                input: [Create1, Create2, Create3]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: 1, name: 'Product A', price: 29.99,
+                       categories: ['electronics', 'gadgets']}
+                    - {id: 2, name: 'Product B', price: 15.50,
+                       categories: ['books']}
+                    - {id: 3, name: 'Product C', categories: ['clothing']}
+                    - {id: 4, name: 'Product D', price: 99.99}
+                    - {id: 5, name: 'Product E', price: 5.00,
+                       categories: []}
+          ''')
+
 
 class ErrorHandlingTest(unittest.TestCase):
   def test_error_handling_outputs(self):
@@ -400,6 +717,51 @@ class ErrorHandlingTest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
       assert_that(result['bad'], equal_to(["ValueError('biiiiig')"]))
+
+  def test_strip_error_metadata(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                  elements: ['a', 'b', 'biiiiig']
+
+            - type: SizeLimiter
+              input: Create
+              config:
+                  limit: 5
+                  error_handling:
+                    output: errors
+            - type: StripErrorMetadata
+              name: StripErrorMetadata1
+              input: SizeLimiter.errors
+
+            - type: MapToFields
+              input: Create
+              config:
+                  language: python
+                  fields:
+                    out: "1.0/(1-len(element))"
+                  error_handling:
+                    output: errors
+            - type: StripErrorMetadata
+              name: StripErrorMetadata2
+              input: MapToFields.errors
+
+          output:
+            good: SizeLimiter
+            bad1: StripErrorMetadata1
+            bad2: StripErrorMetadata2
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
+      assert_that(
+          result['bad1'] | beam.Map(lambda x: x.element), equal_to(['biiiiig']))
+      assert_that(
+          result['bad2'] | beam.Map(lambda x: x.element), equal_to(['a', 'b']))
 
   def test_must_handle_error_output(self):
     with self.assertRaisesRegex(Exception, 'Unconsumed error output .*line 7'):
@@ -631,8 +993,8 @@ class AnnotatingProvider(yaml_provider.InlineProvider):
   """
   def __init__(self, name, transform_names):
     super().__init__({
-        transform_name:
-        lambda: beam.Map(lambda x: (x if type(x) == tuple else ()) + (name, ))
+        transform_name: lambda: beam.Map(
+            lambda x: (x if type(x) == tuple else ()) + (name, ))
         for transform_name in transform_names.strip().split()
     })
     self._name = name
@@ -684,8 +1046,7 @@ class ProviderAffinityTest(unittest.TestCase):
               'provider1',
               # All of the providers vend A, but since the input was produced
               # by provider1, we prefer to use that again.
-              'provider1',
-              # Similarly for C.
+              'provider1',  # Similarly for C.
               'provider1')]),
           label='StartWith1')
 
@@ -705,10 +1066,8 @@ class ProviderAffinityTest(unittest.TestCase):
           result2,
           equal_to([(
               # provider2 was necessarily chosen for P2
-              'provider2',
-              # Unlike above, we choose provider2 to implement A.
-              'provider2',
-              # Likewise for C.
+              'provider2',  # Unlike above, we choose provider2 to implement A.
+              'provider2',  # Likewise for C.
               'provider2')]),
           label='StartWith2')
 

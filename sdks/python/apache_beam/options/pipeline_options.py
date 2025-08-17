@@ -143,10 +143,146 @@ class _DictUnionAction(argparse.Action):
   than one of the values, the last value takes precedence.
   """
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace,
-                   self.dest) or getattr(namespace, self.dest) is None:
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
       setattr(namespace, self.dest, {})
     getattr(namespace, self.dest).update(values)
+
+
+class _GcsCustomAuditEntriesAction(argparse.Action):
+  """
+  Argparse Action for GCS custom audit entries.
+
+  According to Google Cloud Storage audit logging documentation
+  (https://cloud.google.com/storage/docs/audit-logging#add-custom-metadata), the
+  following limitations apply:
+  - keys must be 64 characters or less,
+  - values 1,200 characters or less, and
+  - a maximum of four custom metadata entries are permitted per request.
+  """
+  MAX_KEY_LENGTH = 64
+  MAX_VALUE_LENGTH = 1200
+  MAX_ENTRIES = 4
+  GCS_AUDIT_PREFIX = 'x-goog-custom-audit-'
+
+  def _exceed_entry_limit(self):
+    job_audit_entry = _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX + 'job'
+    if job_audit_entry in self._custom_audit_entries:
+      return len(
+          self._custom_audit_entries) > _GcsCustomAuditEntriesAction.MAX_ENTRIES
+    else:
+      return len(self._custom_audit_entries) > (
+          _GcsCustomAuditEntriesAction.MAX_ENTRIES - 1)
+
+  def _add_entry(self, key, value):
+    if len(key) > _GcsCustomAuditEntriesAction.MAX_KEY_LENGTH:
+      raise argparse.ArgumentError(
+          None,
+          "The key '%s' in GCS custom audit entries exceeds the %d-character limit."  # pylint: disable=line-too-long
+          % (key, _GcsCustomAuditEntriesAction.MAX_KEY_LENGTH))
+
+    if len(value) > _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH:
+      raise argparse.ArgumentError(
+          None,
+          "The value '%s' in GCS custom audit entries exceeds the %d-character limit."  # pylint: disable=line-too-long
+          % (value, _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH))
+
+    if key.startswith(_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX):
+      self._custom_audit_entries[key] = value
+    else:
+      self._custom_audit_entries[_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX +
+                                 key] = value
+
+  def __call__(self, parser, namespace, values, option_string=None):
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
+      setattr(namespace, self.dest, {})
+      self._custom_audit_entries = getattr(namespace, self.dest)
+
+    if option_string == '--gcs_custom_audit_entries':
+      # in the format of {"key": "value"}
+      assert (isinstance(values, str))
+      sub_entries = json.loads(values)
+      for key, value in sub_entries.items():
+        self._add_entry(key, value)
+    else:  # option_string == '--gcs_custom_audit_entry'
+      # in the format of 'key=value'
+      assert (isinstance(values, str))
+      parts = values.split('=', 1)
+      key = parts[0]
+      value = parts[1] if len(parts) > 1 else ''
+      self._add_entry(key, value)
+
+    if self._exceed_entry_limit():
+      raise argparse.ArgumentError(
+          None,
+          "The maximum allowed number of GCS custom audit entries (including the default x-goo-custom-audit-job) is %d."  # pylint: disable=line-too-long
+          % _GcsCustomAuditEntriesAction.MAX_ENTRIES)
+
+
+class _CommaSeparatedListAction(argparse.Action):
+  """
+  Argparse Action that splits comma-separated values and appends them to
+  a list. This allows options like --experiments=abc,def to be treated
+  as separate experiments 'abc' and 'def', similar to how Java SDK handles
+  them.
+
+  If there are key=value experiments in a raw argument, the remaining part of
+  the argument are treated as values and won't split further. For example:
+  'abc,def,master_key=k1=v1,k2=v2' becomes
+  ['abc', 'def', 'master_key=k1=v1,k2=v2'].
+  """
+  def __call__(self, parser, namespace, values, option_string=None):
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
+      setattr(namespace, self.dest, [])
+
+    # Split comma-separated values and extend the list
+    if isinstance(values, str):
+      # Smart splitting: only split at commas that are not part of
+      # key=value pairs
+      split_values = self._smart_split(values)
+      getattr(namespace, self.dest).extend(split_values)
+    else:
+      # If values is not a string, just append it
+      getattr(namespace, self.dest).append(values)
+
+  def _smart_split(self, values):
+    """Split comma-separated values, but preserve commas within
+    key=value pairs."""
+    result = []
+    current = []
+    equals_depth = 0
+
+    i = 0
+    while i < len(values):
+      char = values[i]
+
+      if char == '=':
+        equals_depth += 1
+        current.append(char)
+      elif char == ',' and equals_depth <= 1:
+        # This comma is a top-level separator (not inside a complex value)
+        if current:
+          result.append(''.join(current).strip())
+          current = []
+          equals_depth = 0
+      elif char == ',' and equals_depth > 1:
+        # This comma is inside a complex value, keep it
+        current.append(char)
+      elif char == ' ' and not current:
+        # Skip leading spaces
+        pass
+      else:
+        current.append(char)
+
+      i += 1
+
+    # Add the last item
+    if current:
+      result.append(''.join(current).strip())
+
+    return [v for v in result if v]  # Filter out empty values
 
 
 class PipelineOptions(HasDisplayData):
@@ -225,7 +361,7 @@ class PipelineOptions(HasDisplayData):
 
     # Build parser that will parse options recognized by the [sub]class of
     # PipelineOptions whose object is being instantiated.
-    parser = _BeamArgumentParser()
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
@@ -267,8 +403,7 @@ class PipelineOptions(HasDisplayData):
       return self.__dict__
 
   @classmethod
-  def _add_argparse_args(cls, parser):
-    # type: (_BeamArgumentParser) -> None
+  def _add_argparse_args(cls, parser: _BeamArgumentParser) -> None:
     # Override this in subclasses to provide options.
     pass
 
@@ -317,11 +452,8 @@ class PipelineOptions(HasDisplayData):
   def get_all_options(
       self,
       drop_default=False,
-      add_extra_args_fn=None,  # type: Optional[Callable[[_BeamArgumentParser], None]]
-      retain_unknown_options=False
-  ):
-    # type: (...) -> Dict[str, Any]
-
+      add_extra_args_fn: Optional[Callable[[_BeamArgumentParser], None]] = None,
+      retain_unknown_options=False) -> Dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -344,7 +476,7 @@ class PipelineOptions(HasDisplayData):
     # sub-classes in the main session might be repeated. Pick last unique
     # instance of each subclass to avoid conflicts.
     subset = {}
-    parser = _BeamArgumentParser()
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
@@ -358,6 +490,14 @@ class PipelineOptions(HasDisplayData):
         _LOGGER.warning(
             'Unknown pipeline options received: %s. Ignore if flags are '
             'used for internal purposes.' % (','.join(unknown_args)))
+
+      seen = set()
+
+      def add_new_arg(arg, **kwargs):
+        if arg not in seen:
+          parser.add_argument(arg, **kwargs)
+        seen.add(arg)
+
       i = 0
       while i < len(unknown_args):
         # End of argument parsing.
@@ -371,12 +511,12 @@ class PipelineOptions(HasDisplayData):
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
-            parser.add_argument(unknown_args[i], action='store_true')
+            add_new_arg(unknown_args[i], action='store_true')
           else:
-            parser.add_argument(split[0], type=str)
+            add_new_arg(split[0], type=str)
           i += 1
         elif unknown_args[i].startswith('--'):
-          parser.add_argument(unknown_args[i], type=str)
+          add_new_arg(unknown_args[i], type=str)
           i += 2
         else:
           # skip all binary flags used with '-' and not '--'.
@@ -446,9 +586,7 @@ class PipelineOptions(HasDisplayData):
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
-  def view_as(self, cls):
-    # type: (Type[PipelineOptionsT]) -> PipelineOptionsT
-
+  def view_as(self, cls: Type[PipelineOptionsT]) -> PipelineOptionsT:
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::
@@ -487,13 +625,11 @@ class PipelineOptions(HasDisplayData):
     view._all_options = self._all_options
     return view
 
-  def _visible_option_list(self):
-    # type: () -> List[str]
+  def _visible_option_list(self) -> List[str]:
     return sorted(
         option for option in dir(self._visible_options) if option[0] != '_')
 
-  def __dir__(self):
-    # type: () -> List[str]
+  def __dir__(self) -> List[str]:
     return sorted(
         dir(type(self)) + list(self.__dict__) + self._visible_option_list())
 
@@ -536,11 +672,21 @@ class StandardOptions(PipelineOptions):
       'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
       'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
       'apache_beam.runners.portability.flink_runner.FlinkRunner',
+      'apache_beam.runners.portability.fn_api_runner.FnApiRunner',
       'apache_beam.runners.portability.portable_runner.PortableRunner',
       'apache_beam.runners.portability.prism_runner.PrismRunner',
       'apache_beam.runners.portability.spark_runner.SparkRunner',
       'apache_beam.runners.test.TestDirectRunner',
       'apache_beam.runners.test.TestDataflowRunner',
+  )
+
+  LOCAL_RUNNERS = (
+      'BundleBasedDirectRunner',
+      'DirectRunner',
+      'SwitchingDirectRunner',
+      'FnApiRunner',
+      'PrismRunner',
+      'TestDirectRunner',
   )
 
   KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in ALL_KNOWN_RUNNERS]
@@ -599,6 +745,8 @@ class StreamingOptions(PipelineOptions):
     parser.add_argument(
         '--update_compatibility_version',
         default=None,
+        nargs='?',
+        const=None,
         help='Attempt to produce a pipeline compatible with the given prior '
         'version of the Beam SDK. '
         'See for example, https://cloud.google.com/dataflow/docs/guides/'
@@ -643,9 +791,9 @@ def additional_option_ptransform_fn():
 
 
 # Optional type checks that aren't enabled by default.
-additional_type_checks = {
+additional_type_checks: Dict[str, Callable[[], None]] = {
     'ptransform_fn': additional_option_ptransform_fn,
-}  # type: Dict[str, Callable[[], None]]
+}
 
 
 def enable_all_additional_type_checks():
@@ -894,7 +1042,7 @@ class GoogleCloudOptions(PipelineOptions):
         '--dataflow_service_option',
         '--dataflow_service_options',
         dest='dataflow_service_options',
-        action='append',
+        action=_CommaSeparatedListAction,
         default=None,
         help=(
             'Options to configure the Dataflow service. These '
@@ -959,6 +1107,16 @@ class GoogleCloudOptions(PipelineOptions):
         action='store_true',
         help='Use blob generation when mutating blobs in GCSIO to '
         'mitigate race conditions at the cost of more HTTP requests.')
+    parser.add_argument(
+        '--gcs_custom_audit_entry',
+        '--gcs_custom_audit_entries',
+        dest='gcs_custom_audit_entries',
+        action=_GcsCustomAuditEntriesAction,
+        default=None,
+        help='Custom information to be attached to audit logs. '
+        'Entries are key value pairs separated by = '
+        '(e.g. --gcs_custom_audit_entry key=value) or a JSON string '
+        '(e.g. --gcs_custom_audit_entries=\'{ "user": "test", "id": "12" }\').')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -1141,8 +1299,7 @@ class WorkerOptions(PipelineOptions):
         type=str,
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
-        help=
-        ('If and how to autoscale the workerpool.'))
+        help=('If and how to autoscale the workerpool.'))
     parser.add_argument(
         '--worker_machine_type',
         '--machine_type',
@@ -1320,7 +1477,7 @@ class DebugOptions(PipelineOptions):
         '--experiment',
         '--experiments',
         dest='experiments',
-        action='append',
+        action=_CommaSeparatedListAction,
         default=None,
         help=(
             'Runners may provide a number of experimental features that can be '
@@ -1491,6 +1648,16 @@ class SetupOptions(PipelineOptions):
             'staged in the staging area (--staging_location option) and the '
             'workers will install them in same order they were specified on '
             'the command line.'))
+    parser.add_argument(
+        '--files_to_stage',
+        dest='files_to_stage',
+        action='append',
+        default=None,
+        help=(
+            'Local path to a file. During job submission, the files will be '
+            'staged in the staging area (--staging_location option) and then '
+            'workers will upload them to the worker specific staging location '
+            '(e.g. $SEMI_PERSISTENT_DIRECTORY/staged/ for portable runner.'))
     parser.add_argument(
         '--prebuild_sdk_container_engine',
         help=(
@@ -1674,12 +1841,16 @@ class JobServerOptions(PipelineOptions):
         action='append',
         default=[],
         help='JVM properties to pass to a Java job server.')
+    parser.add_argument(
+        '--jar_cache_dir',
+        default=None,
+        help='The location to store jar cache for job server.')
 
 
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.15', '1.16', '1.17', '1.18']
+  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -1771,6 +1942,13 @@ class PrismRunnerOptions(PipelineOptions):
         'downloading a zipped prism binary, for the current platform. If '
         'prism_location is set to a Github Release page URL, them it will use '
         'that release page as a base when constructing the download URL.')
+    parser.add_argument(
+        '--prism_log_level',
+        default="info",
+        choices=["debug", "info", "warn", "error"],
+        help=(
+            'Controls the log level in Prism. Values can be "debug", "info", '
+            '"warn", and "error". Default log level is "info".'))
 
 
 class TestOptions(PipelineOptions):
@@ -1818,9 +1996,6 @@ class TestDataflowOptions(PipelineOptions):
     )
 
 
-# TODO(silviuc): Add --files_to_stage option.
-# This could potentially replace the --requirements_file and --setup_file.
-
 # TODO(silviuc): Non-standard options. Keep them? If yes, add help too!
 # Remote execution must check that this option is not None.
 
@@ -1836,7 +2011,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides = []  # type: List[Dict[str, Any]]
+  overrides: List[Dict[str, Any]] = []
 
   def __init__(self, **options):
     self.options = options

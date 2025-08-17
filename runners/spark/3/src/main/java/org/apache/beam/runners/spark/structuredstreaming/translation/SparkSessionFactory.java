@@ -74,11 +74,11 @@ import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.resources.PipelineResources;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.spark.SparkConf;
@@ -269,9 +269,9 @@ public class SparkSessionFactory {
       // bounded windows and windowed value coders
       kryo.register(GlobalWindow.Coder.class);
       kryo.register(IntervalWindow.IntervalWindowCoder.class);
-      kryo.register(WindowedValue.FullWindowedValueCoder.class);
-      kryo.register(WindowedValue.ParamWindowedValueCoder.class);
-      kryo.register(WindowedValue.ValueOnlyWindowedValueCoder.class);
+      kryo.register(WindowedValues.FullWindowedValueCoder.class);
+      kryo.register(WindowedValues.ParamWindowedValueCoder.class);
+      kryo.register(WindowedValues.ValueOnlyWindowedValueCoder.class);
 
       // various others
       kryo.register(OffsetRange.Coder.class);

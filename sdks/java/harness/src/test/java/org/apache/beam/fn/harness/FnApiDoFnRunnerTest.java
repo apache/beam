@@ -19,8 +19,8 @@ package org.apache.beam.fn.harness;
 
 import static java.util.Arrays.asList;
 import static org.apache.beam.sdk.options.ExperimentalOptions.addExperiment;
-import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.timestampedValueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -46,18 +46,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.FnApiDoFnRunner.SplitResultsWithStopIndex;
-import org.apache.beam.fn.harness.FnApiDoFnRunner.WindowedSplitResult;
 import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
@@ -69,12 +61,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
@@ -112,12 +102,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -128,7 +113,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
@@ -144,8 +128,10 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.Durations;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -155,7 +141,6 @@ import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -268,16 +253,19 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -428,9 +416,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
@@ -441,7 +433,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           additionalPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -531,9 +523,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
@@ -544,7 +540,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           additionalPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -670,16 +666,20 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(
           Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -721,10 +721,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
-    @Ignore("https://github.com/apache/beam/issues/20872")
     public void testUsingMetrics() throws Exception {
+      MetricsEnvironment.setMetricsSupported(true);
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-      MetricsContainerImpl metricsContainer = metricsContainerRegistry.getUnboundContainer();
+      MetricsContainerImpl metricsContainer =
+          metricsContainerRegistry.getContainer(TEST_TRANSFORM_ID);
       Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
       FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
       IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
@@ -772,16 +773,20 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponents().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(
           Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -804,23 +809,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
       Iterables.getOnlyElement(context.getTearDownFunctions()).run();
       assertThat(mainOutputValues, empty());
 
-      List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+      List<MonitoringInfo> expected = new ArrayList<>();
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-      builder.setLabel(
-          MonitoringInfoConstants.Labels.PCOLLECTION, "Window.Into()/Window.Assign.out");
-      builder.setInt64SumValue(2);
-      expected.add(builder.build());
-
-      builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-      builder.setLabel(
-          MonitoringInfoConstants.Labels.PCOLLECTION,
-          "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
-      builder.setInt64SumValue(2);
-      expected.add(builder.build());
-
-      builder = new SimpleMonitoringInfoBuilder();
       builder
           .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
           .setLabel(
@@ -833,23 +823,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
       builder.setInt64SumValue(2);
       expected.add(builder.build());
 
-      builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE);
-      builder.setLabel(
-          MonitoringInfoConstants.Labels.PCOLLECTION, "Window.Into()/Window.Assign.out");
-      builder.setInt64DistributionValue(DistributionData.create(4, 2, 2, 2));
-      expected.add(builder.build());
-
-      builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(Urns.SAMPLED_BYTE_SIZE);
-      builder.setLabel(
-          MonitoringInfoConstants.Labels.PCOLLECTION,
-          "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
-      builder.setInt64DistributionValue(DistributionData.create(10, 2, 5, 5));
-      expected.add(builder.build());
-
       closeable.close();
-      List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
+      List<MonitoringInfo> result = new ArrayList<>();
       for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
         result.add(mi);
       }
@@ -902,6 +877,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     @Test
     public void testTimers() throws Exception {
+      MetricsEnvironment.setMetricsSupported(true);
+      MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+      MetricsContainerImpl metricsContainer =
+          metricsContainerRegistry.getContainer(TEST_TRANSFORM_ID);
+      Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
       dateTimeProvider.setDateTimeFixed(10000L);
 
       Pipeline p = Pipeline.create();
@@ -942,9 +922,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeStateClient)
               .processBundleInstructionId("57L")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .outboundAggregators(
                   ImmutableMap.of(ApiServiceDescriptor.getDefaultInstance(), aggregator))
               .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
@@ -953,7 +937,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -1124,6 +1108,32 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       .build())
               .getData(),
           fakeStateClient.getData());
+
+      List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+      builder
+          .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+          .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, TestTimerfulDoFn.class.getName())
+          .setLabel(MonitoringInfoConstants.Labels.NAME, TestTimerfulDoFn.USER_COUNTER_ELEMS_NAME);
+      builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
+      builder.setInt64SumValue(4);
+      expected.add(builder.build());
+
+      builder = new SimpleMonitoringInfoBuilder();
+      builder
+          .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+          .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, TestTimerfulDoFn.class.getName())
+          .setLabel(MonitoringInfoConstants.Labels.NAME, TestTimerfulDoFn.USER_COUNTER_TIMERS_NAME);
+      builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
+      builder.setInt64SumValue(15);
+      expected.add(builder.build());
+
+      closeable.close();
+      List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
+      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+        result.add(mi);
+      }
+      assertThat(result, containsInAnyOrder(expected.toArray()));
     }
 
     private <K> org.apache.beam.sdk.util.construction.Timer<K> timerInGlobalWindow(
@@ -1155,7 +1165,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     private <T> WindowedValue<T> valueInWindows(
         T value, BoundedWindow window, BoundedWindow... windows) {
-      return WindowedValue.of(
+      return WindowedValues.of(
           value,
           window.maxTimestamp(),
           ImmutableList.<BoundedWindow>builder().add(window).add(windows).build(),
@@ -1163,6 +1173,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
+      public static final String USER_COUNTER_TIMERS_NAME = "userCountedTimers";
+      public static final String USER_COUNTER_ELEMS_NAME = "userCountedElements";
+
+      private final Counter counterTimers =
+          Metrics.counter(TestTimerfulDoFn.class, USER_COUNTER_TIMERS_NAME);
+      private final Counter counterElems =
+          Metrics.counter(TestTimerfulDoFn.class, USER_COUNTER_ELEMS_NAME);
 
       @StateId("bag")
       private final StateSpec<BagState<String>> bagStateSpec = StateSpecs.bag(StringUtf8Coder.of());
@@ -1188,6 +1205,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterElems.inc();
         context.output(
             "key:"
                 + context.element().getKey()
@@ -1223,6 +1241,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterTimers.inc();
+
         context.output("key:" + key + " event" + Iterables.toString(bagState.read()));
         bagState.add("event");
         eventTimeTimer
@@ -1247,6 +1267,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterTimers.inc();
+
         context.output("key:" + key + " processing" + Iterables.toString(bagState.read()));
         bagState.add("processing");
 
@@ -1273,6 +1295,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterTimers.inc();
+
         context.output("key:" + key + " event-family" + Iterables.toString(bagState.read()));
         bagState.add("event-family");
 
@@ -1298,6 +1322,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterTimers.inc();
+
         context.output("key:" + key + " processing-family" + Iterables.toString(bagState.read()));
         bagState.add("processing-family");
 
@@ -1362,249 +1388,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
       fail("Expected registrar not found.");
     }
 
-    /**
-     * The trySplit testing of this splittable DoFn is done when processing the {@link
-     * NonWindowObservingTestSplittableDoFn#SPLIT_ELEMENT}. Always checkpoints at element {@link
-     * NonWindowObservingTestSplittableDoFn#CHECKPOINT_UPPER_BOUND}.
-     *
-     * <p>The expected thread flow is:
-     *
-     * <ul>
-     *   <li>splitting thread: {@link
-     *       NonWindowObservingTestSplittableDoFn#waitForSplitElementToBeProcessed()}
-     *   <li>process element thread: {@link
-     *       NonWindowObservingTestSplittableDoFn#splitElementProcessed()}
-     *   <li>splitting thread: perform try split
-     *   <li>splitting thread: {@link NonWindowObservingTestSplittableDoFn#trySplitPerformed()} *
-     *   <li>process element thread: {@link
-     *       NonWindowObservingTestSplittableDoFn#waitForTrySplitPerformed()}
-     * </ul>
-     */
-    static class NonWindowObservingTestSplittableDoFn extends DoFn<String, String> {
-      private static final ConcurrentMap<String, Latches> DOFN_INSTANCE_TO_LATCHES =
-          new ConcurrentHashMap<>();
-      private static final long SPLIT_ELEMENT = 3;
-      private static final long CHECKPOINT_UPPER_BOUND = 8;
-
-      static class Latches {
-        public Latches() {}
-
-        CountDownLatch blockProcessLatch = new CountDownLatch(0);
-        CountDownLatch processEnteredLatch = new CountDownLatch(1);
-        CountDownLatch splitElementProcessedLatch = new CountDownLatch(1);
-        CountDownLatch trySplitPerformedLatch = new CountDownLatch(1);
-        AtomicBoolean abortProcessing = new AtomicBoolean();
-      }
-
-      private Latches getLatches() {
-        return DOFN_INSTANCE_TO_LATCHES.computeIfAbsent(this.uuid, (uuid) -> new Latches());
-      }
-
-      public void splitElementProcessed() {
-        getLatches().splitElementProcessedLatch.countDown();
-      }
-
-      public void waitForSplitElementToBeProcessed() throws InterruptedException {
-        if (!getLatches().splitElementProcessedLatch.await(30, TimeUnit.SECONDS)) {
-          fail("Failed to wait for trySplit to occur.");
-        }
-      }
-
-      public void trySplitPerformed() {
-        getLatches().trySplitPerformedLatch.countDown();
-      }
-
-      public void waitForTrySplitPerformed() throws InterruptedException {
-        if (!getLatches().trySplitPerformedLatch.await(30, TimeUnit.SECONDS)) {
-          fail("Failed to wait for trySplit to occur.");
-        }
-      }
-
-      // Must be called before process is invoked. Will prevent process from doing anything until
-      // unblockProcess is
-      // called.
-      public void setupBlockProcess() {
-        getLatches().blockProcessLatch = new CountDownLatch(1);
-      }
-
-      public void enterProcessAndBlockIfEnabled() throws InterruptedException {
-        getLatches().processEnteredLatch.countDown();
-        if (!getLatches().blockProcessLatch.await(30, TimeUnit.SECONDS)) {
-          fail("Failed to wait for unblockProcess to occur.");
-        }
-      }
-
-      public void waitForProcessEntered() throws InterruptedException {
-        if (!getLatches().processEnteredLatch.await(5, TimeUnit.SECONDS)) {
-          fail("Failed to wait for process to begin.");
-        }
-      }
-
-      public void unblockProcess() throws InterruptedException {
-        getLatches().blockProcessLatch.countDown();
-      }
-
-      public void setAbortProcessing() {
-        getLatches().abortProcessing.set(true);
-      }
-
-      public boolean shouldAbortProcessing() {
-        return getLatches().abortProcessing.get();
-      }
-
-      private final String uuid;
-
-      private NonWindowObservingTestSplittableDoFn() {
-        this.uuid = UUID.randomUUID().toString();
-      }
-
-      @ProcessElement
-      public ProcessContinuation processElement(
-          ProcessContext context,
-          RestrictionTracker<OffsetRange, Long> tracker,
-          ManualWatermarkEstimator<Instant> watermarkEstimator)
-          throws Exception {
-        long checkpointUpperBound = CHECKPOINT_UPPER_BOUND;
-        long position = tracker.currentRestriction().getFrom();
-        boolean claimStatus = true;
-        while (!shouldAbortProcessing()) {
-          claimStatus = tracker.tryClaim(position);
-          if (!claimStatus) {
-            break;
-          } else if (position == SPLIT_ELEMENT) {
-            splitElementProcessed();
-            waitForTrySplitPerformed();
-          }
-          context.outputWithTimestamp(
-              context.element() + ":" + position,
-              GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(position)));
-          watermarkEstimator.setWatermark(
-              GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(position)));
-          position += 1L;
-          if (position == checkpointUpperBound) {
-            break;
-          }
-        }
-        if (!claimStatus) {
-          return ProcessContinuation.stop();
-        } else {
-          return ProcessContinuation.resume().withResumeDelay(Duration.millis(54321L));
-        }
-      }
-
-      @GetInitialRestriction
-      public OffsetRange restriction(@Element String element) {
-        return new OffsetRange(0, Integer.parseInt(element));
-      }
-
-      @NewTracker
-      public RestrictionTracker<OffsetRange, Long> newTracker(
-          @Restriction OffsetRange restriction) {
-        return new OffsetRangeTracker(restriction);
-      }
-
-      @SplitRestriction
-      public void splitRange(@Restriction OffsetRange range, OutputReceiver<OffsetRange> receiver) {
-        receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
-        receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
-      }
-
-      @TruncateRestriction
-      public TruncateResult<OffsetRange> truncateRestriction(@Restriction OffsetRange range)
-          throws Exception {
-        return TruncateResult.of(new OffsetRange(range.getFrom(), range.getTo() / 2));
-      }
-
-      @GetInitialWatermarkEstimatorState
-      public Instant getInitialWatermarkEstimatorState() {
-        return GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1));
-      }
-
-      @NewWatermarkEstimator
-      public WatermarkEstimators.Manual newWatermarkEstimator(
-          @WatermarkEstimatorState Instant watermark) {
-        return new WatermarkEstimators.Manual(watermark);
-      }
-    }
-
-    /**
-     * A window observing variant of {@link NonWindowObservingTestSplittableDoFn} which uses the
-     * side inputs to choose the checkpoint upper bound.
-     */
-    static class WindowObservingTestSplittableDoFn extends NonWindowObservingTestSplittableDoFn {
-
-      private final PCollectionView<String> singletonSideInput;
-      private static final long PROCESSED_WINDOW = 1;
-      private boolean splitAtTruncate = false;
-      private long processedWindowCount = 0;
-
-      private WindowObservingTestSplittableDoFn(PCollectionView<String> singletonSideInput) {
-        this.singletonSideInput = singletonSideInput;
-      }
-
-      private static WindowObservingTestSplittableDoFn forSplitAtTruncate(
-          PCollectionView<String> singletonSideInput) {
-        WindowObservingTestSplittableDoFn doFn =
-            new WindowObservingTestSplittableDoFn(singletonSideInput);
-        doFn.splitAtTruncate = true;
-        return doFn;
-      }
-
-      @Override
-      @ProcessElement
-      public ProcessContinuation processElement(
-          ProcessContext context,
-          RestrictionTracker<OffsetRange, Long> tracker,
-          ManualWatermarkEstimator<Instant> watermarkEstimator)
-          throws Exception {
-        enterProcessAndBlockIfEnabled();
-        long checkpointUpperBound = Long.parseLong(context.sideInput(singletonSideInput));
-        long position = tracker.currentRestriction().getFrom();
-        boolean claimStatus = true;
-        while (!shouldAbortProcessing()) {
-          claimStatus = tracker.tryClaim(position);
-          if (!claimStatus) {
-            break;
-          } else if (position == NonWindowObservingTestSplittableDoFn.SPLIT_ELEMENT) {
-            splitElementProcessed();
-            waitForTrySplitPerformed();
-          }
-          context.outputWithTimestamp(
-              context.element() + ":" + position,
-              GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(position)));
-          watermarkEstimator.setWatermark(
-              GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(position)));
-          position += 1L;
-          if (position == checkpointUpperBound) {
-            break;
-          }
-        }
-        if (!claimStatus) {
-          return ProcessContinuation.stop();
-        } else {
-          return ProcessContinuation.resume().withResumeDelay(Duration.millis(54321L));
-        }
-      }
-
-      @Override
-      public Duration getAllowedTimestampSkew() {
-        return Duration.millis(Long.MAX_VALUE);
-      }
-
-      @Override
-      @TruncateRestriction
-      public TruncateResult<OffsetRange> truncateRestriction(@Restriction OffsetRange range)
-          throws Exception {
-        // Waiting for split when we are on the second window.
-        if (splitAtTruncate && processedWindowCount == PROCESSED_WINDOW) {
-          splitElementProcessed();
-          waitForTrySplitPerformed();
-        }
-        processedWindowCount += 1;
-        return TruncateResult.of(new OffsetRange(range.getFrom(), range.getTo() / 2));
-      }
-    }
-
     @Test
     public void testProcessElementForSizedElementAndRestriction() throws Exception {
       Pipeline p = Pipeline.create();
@@ -1645,7 +1428,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -1678,9 +1461,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .splitListener(splitListener)
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -1688,7 +1475,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -1746,13 +1533,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertEquals(
             ImmutableMap.of(
                 "output",
-                org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+                org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                     .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                     .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                     .build()),
             residualRoot.getApplication().getOutputWatermarksMap());
         assertEquals(
-            org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Duration.newBuilder()
+            org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Duration.newBuilder()
                 .setSeconds(54)
                 .setNanos(321000000)
                 .build(),
@@ -1866,7 +1653,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertEquals(
             ImmutableMap.of(
                 "output",
-                org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+                org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                     .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                     .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                     .build()),
@@ -1935,7 +1722,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -1968,9 +1755,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .splitListener(splitListener)
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -1978,7 +1769,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -2076,7 +1867,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertEquals(
             ImmutableMap.of(
                 "output",
-                org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+                org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                     .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                     .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                     .build()),
@@ -2145,7 +1936,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -2178,9 +1969,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .splitListener(splitListener)
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -2188,7 +1983,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -2238,7 +2033,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             inputCoder.decode(residualRoot.getApplication().getElement().newInput()));
         assertThat(residualRoot.getApplication().getOutputWatermarksMap(), anEmptyMap());
         assertEquals(
-            org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Duration.newBuilder()
+            org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Duration.newBuilder()
                 .setSeconds(54)
                 .setNanos(321000000)
                 .build(),
@@ -2340,7 +2135,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -2372,9 +2167,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeClient)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .build())
               .splitListener(splitListener)
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -2382,7 +2180,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -2434,27 +2232,27 @@ public class FnApiDoFnRunnerTest implements Serializable {
             residualRoot.getApplication().getInputId());
         assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
         Instant expectedOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(7));
-        Map<String, org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp>
+        Map<String, org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp>
             expectedOutputWatmermarkMap =
                 ImmutableMap.of(
                     "output",
-                    org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+                    org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                         .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                         .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                         .build());
         Instant initialWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1));
-        Map<String, org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp>
+        Map<String, org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp>
             expectedOutputWatmermarkMapForUnprocessedWindows =
                 ImmutableMap.of(
                     "output",
-                    org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+                    org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                         .setSeconds(initialWatermark.getMillis() / 1000)
                         .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
                         .build());
         assertEquals(
             expectedOutputWatmermarkMap, residualRoot.getApplication().getOutputWatermarksMap());
         assertEquals(
-            org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Duration.newBuilder()
+            org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Duration.newBuilder()
                 .setSeconds(54)
                 .setNanos(321000000)
                 .build(),
@@ -2473,7 +2271,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
         assertEquals(
             decode(inputCoder, primaryRoot.getElement()),
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     KV.of(
                         "5",
@@ -2483,10 +2281,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     3.0),
                 firstValue.getTimestamp(),
                 window1,
-                firstValue.getPane()));
+                firstValue.getPaneInfo()));
         assertEquals(
             decode(inputCoder, residualRoot.getApplication().getElement()),
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     KV.of(
                         "5",
@@ -2496,10 +2294,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     2.0),
                 firstValue.getTimestamp(),
                 window1,
-                firstValue.getPane()));
+                firstValue.getPaneInfo()));
         assertEquals(
             decode(inputCoder, residualRootForUnprocessedWindows.getApplication().getElement()),
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     KV.of(
                         "5",
@@ -2509,7 +2307,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     5.0),
                 firstValue.getTimestamp(),
                 window2,
-                firstValue.getPane()));
+                firstValue.getPaneInfo()));
         splitListener.clear();
 
         // Check that before processing an element we don't report progress
@@ -2532,41 +2330,41 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertThat(
             mainOutputValues,
             contains(
-                WindowedValue.of(
+                WindowedValues.of(
                     "5:5",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(5)),
                     window1,
-                    firstValue.getPane()),
-                WindowedValue.of(
+                    firstValue.getPaneInfo()),
+                WindowedValues.of(
                     "5:6",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(6)),
                     window1,
-                    firstValue.getPane()),
-                WindowedValue.of(
+                    firstValue.getPaneInfo()),
+                WindowedValues.of(
                     "5:7",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(7)),
                     window1,
-                    firstValue.getPane()),
-                WindowedValue.of(
+                    firstValue.getPaneInfo()),
+                WindowedValues.of(
                     "2:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window1,
-                    firstValue.getPane()),
-                WindowedValue.of(
+                    firstValue.getPaneInfo()),
+                WindowedValues.of(
                     "2:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window1,
-                    firstValue.getPane()),
-                WindowedValue.of(
+                    firstValue.getPaneInfo()),
+                WindowedValues.of(
                     "2:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window2,
-                    firstValue.getPane()),
-                WindowedValue.of(
+                    firstValue.getPaneInfo()),
+                WindowedValues.of(
                     "2:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window2,
-                    firstValue.getPane())));
+                    firstValue.getPaneInfo())));
         assertTrue(splitListener.getPrimaryRoots().isEmpty());
         assertTrue(splitListener.getResidualRoots().isEmpty());
         mainOutputValues.clear();
@@ -2624,26 +2422,26 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertThat(
             mainOutputValues,
             contains(
-                WindowedValue.of(
+                WindowedValues.of(
                     "7:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window1,
-                    splitValue.getPane()),
-                WindowedValue.of(
+                    splitValue.getPaneInfo()),
+                WindowedValues.of(
                     "7:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window1,
-                    splitValue.getPane()),
-                WindowedValue.of(
+                    splitValue.getPaneInfo()),
+                WindowedValues.of(
                     "7:2",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)),
                     window1,
-                    splitValue.getPane()),
-                WindowedValue.of(
+                    splitValue.getPaneInfo()),
+                WindowedValues.of(
                     "7:3",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(3)),
                     window1,
-                    splitValue.getPane())));
+                    splitValue.getPaneInfo())));
 
         BundleApplication primaryRoot = Iterables.getOnlyElement(trySplitResult.getPrimaryRoots());
         assertEquals(2, trySplitResult.getResidualRoots().size());
@@ -2663,19 +2461,19 @@ public class FnApiDoFnRunnerTest implements Serializable {
             residualRootInUnprocessedWindows.getRequestedTimeDelay());
         Instant initialWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1));
         Instant expectedOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2));
-        Map<String, org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp>
+        Map<String, org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp>
             expectedOutputWatermarkMapInUnprocessedResiduals =
                 ImmutableMap.of(
                     "output",
-                    org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+                    org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                         .setSeconds(initialWatermark.getMillis() / 1000)
                         .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
                         .build());
-        Map<String, org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp>
+        Map<String, org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp>
             expectedOutputWatermarkMap =
                 ImmutableMap.of(
                     "output",
-                    org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+                    org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
                         .setSeconds(expectedOutputWatermark.getMillis() / 1000)
                         .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                         .build());
@@ -2707,7 +2505,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertEquals(
             expectedOutputWatermarkMap, residualRoot.getApplication().getOutputWatermarksMap());
         assertEquals(
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     KV.of(
                         "7",
@@ -2717,7 +2515,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     5.0),
                 splitValue.getTimestamp(),
                 window2,
-                splitValue.getPane()),
+                splitValue.getPaneInfo()),
             inputCoder.decode(
                 residualRootInUnprocessedWindows.getApplication().getElement().newInput()));
 
@@ -2750,653 +2548,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-    }
-
-    @Test
-    public void testProcessElementForPairWithRestriction() throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
-      valuePCollection.apply(
-          TEST_TRANSFORM_ID,
-          ParDo.of(new WindowObservingTestSplittableDoFn(singletonSideInputView))
-              .withSideInputs(singletonSideInputView));
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createSizedReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
-      context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      mainInput.accept(valueInGlobalWindow("5"));
-      mainInput.accept(valueInGlobalWindow("2"));
-      assertThat(
-          mainOutputValues,
-          contains(
-              valueInGlobalWindow(
-                  KV.of(
-                      "5",
-                      KV.of(
-                          new OffsetRange(0, 5),
-                          GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1))))),
-              valueInGlobalWindow(
-                  KV.of(
-                      "2",
-                      KV.of(
-                          new OffsetRange(0, 2),
-                          GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))))));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
-    }
-
-    @Test
-    public void testProcessElementForWindowedPairWithRestriction() throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
-      valuePCollection
-          .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
-          .apply(
-              TEST_TRANSFORM_ID,
-              ParDo.of(new WindowObservingTestSplittableDoFn(singletonSideInputView))
-                  .withSideInputs(singletonSideInputView));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createSizedReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
-      context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
-      WindowedValue<?> firstValue = valueInWindows("5", window1, window2);
-      WindowedValue<?> secondValue = valueInWindows("2", window1, window2);
-      mainInput.accept(firstValue);
-      mainInput.accept(secondValue);
-      assertThat(
-          mainOutputValues,
-          contains(
-              WindowedValue.of(
-                  KV.of(
-                      "5",
-                      KV.of(
-                          new OffsetRange(0, 5),
-                          GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      "5",
-                      KV.of(
-                          new OffsetRange(0, 5),
-                          GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      "2",
-                      KV.of(
-                          new OffsetRange(0, 2),
-                          GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
-                  secondValue.getTimestamp(),
-                  window1,
-                  secondValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      "2",
-                      KV.of(
-                          new OffsetRange(0, 2),
-                          GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
-                  secondValue.getTimestamp(),
-                  window2,
-                  secondValue.getPane())));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
-    }
-
-    @Test
-    public void testProcessElementForWindowedPairWithRestrictionWithNonWindowObservingOptimization()
-        throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      valuePCollection.apply(View.asSingleton());
-      valuePCollection
-          .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
-          .apply(TEST_TRANSFORM_ID, ParDo.of(new NonWindowObservingTestSplittableDoFn()));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createSizedReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
-      context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
-      WindowedValue<?> firstValue = valueInWindows("5", window1, window2);
-      WindowedValue<?> secondValue = valueInWindows("2", window1, window2);
-      mainInput.accept(firstValue);
-      mainInput.accept(secondValue);
-      // Ensure that each output element is in all the windows and not one per window.
-      assertThat(
-          mainOutputValues,
-          contains(
-              WindowedValue.of(
-                  KV.of(
-                      "5",
-                      KV.of(
-                          new OffsetRange(0, 5),
-                          GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
-                  firstValue.getTimestamp(),
-                  ImmutableList.of(window1, window2),
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      "2",
-                      KV.of(
-                          new OffsetRange(0, 2),
-                          GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
-                  secondValue.getTimestamp(),
-                  ImmutableList.of(window1, window2),
-                  secondValue.getPane())));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
-    }
-
-    @Test
-    public void testProcessElementForSplitAndSizeRestriction() throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
-      valuePCollection.apply(
-          TEST_TRANSFORM_ID,
-          ParDo.of(new WindowObservingTestSplittableDoFn(singletonSideInputView))
-              .withSideInputs(singletonSideInputView));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createSizedReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(
-                                  PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
-      Coder coder =
-          KvCoder.of(
-              KvCoder.of(
-                  StringUtf8Coder.of(), KvCoder.of(OffsetRange.Coder.of(), InstantCoder.of())),
-              DoubleCoder.of());
-      context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      mainInput.accept(
-          valueInGlobalWindow(
-              KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE))));
-      mainInput.accept(
-          valueInGlobalWindow(
-              KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE))));
-      assertThat(
-          mainOutputValues,
-          contains(
-              valueInGlobalWindow(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      2.0)),
-              valueInGlobalWindow(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      3.0)),
-              valueInGlobalWindow(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0)),
-              valueInGlobalWindow(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0))));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
-    }
-
-    @Test
-    public void testProcessElementForWindowedSplitAndSizeRestriction() throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
-      valuePCollection
-          .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
-          .apply(
-              TEST_TRANSFORM_ID,
-              ParDo.of(new WindowObservingTestSplittableDoFn(singletonSideInputView))
-                  .withSideInputs(singletonSideInputView));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createSizedReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(
-                                  PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
-      Coder coder =
-          KvCoder.of(
-              KvCoder.of(
-                  StringUtf8Coder.of(), KvCoder.of(OffsetRange.Coder.of(), InstantCoder.of())),
-              DoubleCoder.of());
-      context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
-      WindowedValue<?> firstValue =
-          valueInWindows(
-              KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-              window1,
-              window2);
-      WindowedValue<?> secondValue =
-          valueInWindows(
-              KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-              window1,
-              window2);
-      mainInput.accept(firstValue);
-      mainInput.accept(secondValue);
-      assertThat(
-          mainOutputValues,
-          contains(
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      2.0),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      3.0),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      2.0),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      3.0),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane())));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
-    }
-
-    @Test
-    public void
-        testProcessElementForWindowedSplitAndSizeRestrictionWithNonWindowObservingOptimization()
-            throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      valuePCollection
-          .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
-          .apply(TEST_TRANSFORM_ID, ParDo.of(new NonWindowObservingTestSplittableDoFn()));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createSizedReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(
-                                  PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
-      Coder coder =
-          KvCoder.of(
-              KvCoder.of(
-                  StringUtf8Coder.of(), KvCoder.of(OffsetRange.Coder.of(), InstantCoder.of())),
-              DoubleCoder.of());
-      context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
-      WindowedValue<?> firstValue =
-          valueInWindows(
-              KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-              window1,
-              window2);
-      WindowedValue<?> secondValue =
-          valueInWindows(
-              KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-              window1,
-              window2);
-      mainInput.accept(firstValue);
-      mainInput.accept(secondValue);
-      // Ensure that each output element is in all the windows and not one per window.
-      assertThat(
-          mainOutputValues,
-          contains(
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      2.0),
-                  firstValue.getTimestamp(),
-                  ImmutableList.of(window1, window2),
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      3.0),
-                  firstValue.getTimestamp(),
-                  ImmutableList.of(window1, window2),
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  ImmutableList.of(window1, window2),
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  ImmutableList.of(window1, window2),
-                  firstValue.getPane())));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
     }
 
     private static SplitResult createSplitResult(double fractionOfRemainder) {
@@ -3449,562 +2600,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
       public void accept(WindowedValue input) throws Exception {
         mainOutputValues.add(input);
       }
-    }
-
-    @Test
-    public void testProcessElementForTruncateAndSizeRestrictionForwardSplitWhenObservingWindows()
-        throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
-      WindowObservingTestSplittableDoFn doFn =
-          WindowObservingTestSplittableDoFn.forSplitAtTruncate(singletonSideInputView);
-      valuePCollection
-          .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
-          .apply(TEST_TRANSFORM_ID, ParDo.of(doFn).withSideInputs(singletonSideInputView));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createTruncateReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(
-                                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      RunnerApi.PCollection inputPCollection =
-          pProto.getComponents().getPcollectionsOrThrow(inputPCollectionId);
-      RehydratedComponents rehydratedComponents =
-          RehydratedComponents.forComponents(pProto.getComponents());
-      Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
-              CoderTranslation.fromProto(
-                  pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
-                  rehydratedComponents,
-                  TranslationContext.DEFAULT),
-              (Coder)
-                  CoderTranslation.fromProto(
-                      pProto
-                          .getComponents()
-                          .getCodersOrThrow(
-                              pProto
-                                  .getComponents()
-                                  .getWindowingStrategiesOrThrow(
-                                      inputPCollection.getWindowingStrategyId())
-                                  .getWindowCoderId()),
-                      rehydratedComponents,
-                      TranslationContext.DEFAULT));
-
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
-      Coder coder =
-          KvCoder.of(
-              KvCoder.of(
-                  StringUtf8Coder.of(), KvCoder.of(OffsetRange.Coder.of(), InstantCoder.of())),
-              DoubleCoder.of());
-      context.addPCollectionConsumer(
-          outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      assertThat(mainInput, instanceOf(HandlesSplits.class));
-
-      mainOutputValues.clear();
-      BoundedWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      BoundedWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
-      BoundedWindow window3 = new IntervalWindow(new Instant(7), new Instant(12));
-      // Setup and launch the trySplit thread.
-      ExecutorService executorService = Executors.newSingleThreadExecutor();
-      Future<HandlesSplits.SplitResult> trySplitFuture =
-          executorService.submit(
-              () -> {
-                try {
-                  doFn.waitForSplitElementToBeProcessed();
-                  HandlesSplits.SplitResult result = ((HandlesSplits) mainInput).trySplit(0);
-                  Assert.assertNotNull(result);
-                  return result;
-                } finally {
-                  doFn.trySplitPerformed();
-                }
-              });
-
-      WindowedValue<?> splitValue =
-          valueInWindows(
-              KV.of(
-                  KV.of("7", KV.of(new OffsetRange(0, 6), GlobalWindow.TIMESTAMP_MIN_VALUE)), 6.0),
-              window1,
-              window2,
-              window3);
-      mainInput.accept(splitValue);
-      HandlesSplits.SplitResult trySplitResult = trySplitFuture.get();
-
-      // We expect that there are outputs from window1 and window2
-      assertThat(
-          mainOutputValues,
-          contains(
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("7", KV.of(new OffsetRange(0, 3), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      3.0),
-                  splitValue.getTimestamp(),
-                  window1,
-                  splitValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("7", KV.of(new OffsetRange(0, 3), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      3.0),
-                  splitValue.getTimestamp(),
-                  window2,
-                  splitValue.getPane())));
-
-      SplitResult expectedElementSplit = createSplitResult(0);
-      BundleApplication expectedElementSplitPrimary =
-          Iterables.getOnlyElement(expectedElementSplit.getPrimaryRoots());
-      ByteStringOutputStream primaryBytes = new ByteStringOutputStream();
-      inputCoder.encode(
-          WindowedValue.of(
-              KV.of(
-                  KV.of("7", KV.of(new OffsetRange(0, 6), GlobalWindow.TIMESTAMP_MIN_VALUE)), 6.0),
-              splitValue.getTimestamp(),
-              window1,
-              splitValue.getPane()),
-          primaryBytes);
-      BundleApplication expectedWindowedPrimary =
-          BundleApplication.newBuilder()
-              .setElement(primaryBytes.toByteString())
-              .setInputId(ParDoTranslation.getMainInputName(pTransform))
-              .setTransformId(TEST_TRANSFORM_ID)
-              .build();
-      DelayedBundleApplication expectedElementSplitResidual =
-          Iterables.getOnlyElement(expectedElementSplit.getResidualRoots());
-      ByteStringOutputStream residualBytes = new ByteStringOutputStream();
-      inputCoder.encode(
-          WindowedValue.of(
-              KV.of(
-                  KV.of("7", KV.of(new OffsetRange(0, 6), GlobalWindow.TIMESTAMP_MIN_VALUE)), 6.0),
-              splitValue.getTimestamp(),
-              window3,
-              splitValue.getPane()),
-          residualBytes);
-      DelayedBundleApplication expectedWindowedResidual =
-          DelayedBundleApplication.newBuilder()
-              .setApplication(
-                  BundleApplication.newBuilder()
-                      .setElement(residualBytes.toByteString())
-                      .setInputId(ParDoTranslation.getMainInputName(pTransform))
-                      .setTransformId(TEST_TRANSFORM_ID)
-                      .build())
-              .build();
-      assertThat(
-          trySplitResult.getPrimaryRoots(),
-          contains(expectedWindowedPrimary, expectedElementSplitPrimary));
-      assertThat(
-          trySplitResult.getResidualRoots(),
-          contains(expectedWindowedResidual, expectedElementSplitResidual));
-    }
-
-    @Test
-    public void testProcessElementForTruncateAndSizeRestrictionForwardSplitWithoutObservingWindow()
-        throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      valuePCollection.apply(
-          TEST_TRANSFORM_ID, ParDo.of(new NonWindowObservingTestSplittableDoFn()));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createTruncateReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(
-                                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
-      Coder coder =
-          KvCoder.of(KvCoder.of(StringUtf8Coder.of(), OffsetRange.Coder.of()), DoubleCoder.of());
-      context.addPCollectionConsumer(
-          outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      assertThat(mainInput, instanceOf(HandlesSplits.class));
-
-      assertEquals(0.7, ((HandlesSplits) mainInput).getProgress(), 0.0);
-      assertEquals(createSplitResult(0.4), ((HandlesSplits) mainInput).trySplit(0.4));
-    }
-
-    @Test
-    public void testProcessElementForTruncateAndSizeRestriction() throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      valuePCollection.apply(
-          TEST_TRANSFORM_ID, ParDo.of(new NonWindowObservingTestSplittableDoFn()));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createTruncateReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(
-                                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
-      Coder coder =
-          KvCoder.of(
-              KvCoder.of(
-                  StringUtf8Coder.of(), KvCoder.of(OffsetRange.Coder.of(), InstantCoder.of())),
-              DoubleCoder.of());
-      context.addPCollectionConsumer(
-          outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      assertThat(mainInput, instanceOf(HandlesSplits.class));
-
-      mainInput.accept(
-          valueInGlobalWindow(
-              KV.of(
-                  KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                  5.0)));
-      mainInput.accept(
-          valueInGlobalWindow(
-              KV.of(
-                  KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                  2.0)));
-      assertThat(
-          mainOutputValues,
-          contains(
-              valueInGlobalWindow(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      2.0)),
-              valueInGlobalWindow(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0))));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
-    }
-
-    @Test
-    public void testProcessElementForWindowedTruncateAndSizeRestriction() throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
-      valuePCollection
-          .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
-          .apply(
-              TEST_TRANSFORM_ID,
-              ParDo.of(new WindowObservingTestSplittableDoFn(singletonSideInputView))
-                  .withSideInputs(singletonSideInputView));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createTruncateReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(
-                                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      FakeBeamFnStateClient fakeClient =
-          new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .beamFnStateClient(fakeClient)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
-      Coder coder =
-          KvCoder.of(
-              KvCoder.of(
-                  StringUtf8Coder.of(), KvCoder.of(OffsetRange.Coder.of(), InstantCoder.of())),
-              DoubleCoder.of());
-      context.addPCollectionConsumer(
-          outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      assertThat(mainInput, instanceOf(HandlesSplits.class));
-
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
-      WindowedValue<?> firstValue =
-          valueInWindows(
-              KV.of(
-                  KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)), 5.0),
-              window1,
-              window2);
-      WindowedValue<?> secondValue =
-          valueInWindows(
-              KV.of(
-                  KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)), 2.0),
-              window1,
-              window2);
-      mainInput.accept(firstValue);
-      mainInput.accept(secondValue);
-      assertThat(
-          mainOutputValues,
-          contains(
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      2.0),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      2.0),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane())));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
-    }
-
-    @Test
-    public void
-        testProcessElementForWindowedTruncateAndSizeRestrictionWithNonWindowObservingOptimization()
-            throws Exception {
-      Pipeline p = Pipeline.create();
-      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      valuePCollection
-          .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
-          .apply(TEST_TRANSFORM_ID, ParDo.of(new NonWindowObservingTestSplittableDoFn()));
-
-      RunnerApi.Pipeline pProto =
-          ProtoOverrides.updateTransform(
-              PTransformTranslation.PAR_DO_TRANSFORM_URN,
-              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
-              SplittableParDoExpander.createTruncateReplacement());
-      String expandedTransformId =
-          Iterables.find(
-                  pProto.getComponents().getTransformsMap().entrySet(),
-                  entry ->
-                      entry
-                              .getValue()
-                              .getSpec()
-                              .getUrn()
-                              .equals(
-                                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN)
-                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
-              .getKey();
-      RunnerApi.PTransform pTransform =
-          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
-      String inputPCollectionId =
-          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
-      String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
-
-      PTransformRunnerFactoryTestContext context =
-          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
-              .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .build();
-      List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
-      Coder coder =
-          KvCoder.of(
-              KvCoder.of(
-                  StringUtf8Coder.of(), KvCoder.of(OffsetRange.Coder.of(), InstantCoder.of())),
-              DoubleCoder.of());
-      context.addPCollectionConsumer(
-          outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
-
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
-
-      assertTrue(context.getStartBundleFunctions().isEmpty());
-      mainOutputValues.clear();
-
-      assertThat(
-          context.getPCollectionConsumers().keySet(),
-          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
-      FnDataReceiver<WindowedValue<?>> mainInput =
-          context.getPCollectionConsumer(inputPCollectionId);
-      assertThat(mainInput, instanceOf(HandlesSplits.class));
-
-      IntervalWindow window1 = new IntervalWindow(new Instant(5), new Instant(10));
-      IntervalWindow window2 = new IntervalWindow(new Instant(6), new Instant(11));
-      WindowedValue<?> firstValue =
-          valueInWindows(
-              KV.of(
-                  KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)), 5.0),
-              window1,
-              window2);
-      WindowedValue<?> secondValue =
-          valueInWindows(
-              KV.of(
-                  KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)), 2.0),
-              window1,
-              window2);
-      mainInput.accept(firstValue);
-      mainInput.accept(secondValue);
-      // Ensure that each output element is in all the windows and not one per window.
-      assertThat(
-          mainOutputValues,
-          contains(
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      2.0),
-                  firstValue.getTimestamp(),
-                  ImmutableList.of(window1, window2),
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      1.0),
-                  firstValue.getTimestamp(),
-                  ImmutableList.of(window1, window2),
-                  firstValue.getPane())));
-      mainOutputValues.clear();
-
-      assertTrue(context.getFinishBundleFunctions().isEmpty());
-      assertThat(mainOutputValues, empty());
-
-      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
-      assertThat(mainOutputValues, empty());
     }
 
     /**
@@ -4066,16 +2661,19 @@ public class FnApiDoFnRunnerTest implements Serializable {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-      Coder coder = StringUtf8Coder.of();
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new OutputFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       mainOutputValues.clear();
       FnDataReceiver<WindowedValue<?>> mainInput =
@@ -4125,15 +2723,18 @@ public class FnApiDoFnRunnerTest implements Serializable {
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .processBundleInstructionId("57")
-              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
-              .coders(pProto.getComponents().getCodersMap())
-              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
               .build();
-      Coder coder = StringUtf8Coder.of();
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new OutputFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       mainOutputValues.clear();
 
@@ -4161,25 +2762,24 @@ public class FnApiDoFnRunnerTest implements Serializable {
     private static final String PROCESS_INPUT_ID = "processInputId";
     private static final String TRUNCATE_INPUT_ID = "truncateInputId";
     private static final String PROCESS_OUTPUT_ID = "processOutputId";
-    private static final String TRUNCATE_OUTPUT_ID = "truncateOutputId";
 
     private KV<WindowedValue, WindowedValue> createSplitInWindow(
         OffsetRange primaryRestriction, OffsetRange residualRestriction, BoundedWindow window) {
       return KV.of(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   currentElement.getValue(),
                   KV.of(primaryRestriction, currentWatermarkEstimatorState)),
               currentElement.getTimestamp(),
               window,
-              currentElement.getPane()),
-          WindowedValue.of(
+              currentElement.getPaneInfo()),
+          WindowedValues.of(
               KV.of(
                   currentElement.getValue(),
                   KV.of(residualRestriction, watermarkAndState.getValue())),
               currentElement.getTimestamp(),
               window,
-              currentElement.getPane()));
+              currentElement.getPaneInfo()));
     }
 
     private KV<WindowedValue, WindowedValue> createSplitAcrossWindows(
@@ -4187,28 +2787,28 @@ public class FnApiDoFnRunnerTest implements Serializable {
       return KV.of(
           primaryWindows.isEmpty()
               ? null
-              : WindowedValue.of(
+              : WindowedValues.of(
                   KV.of(
                       currentElement.getValue(),
                       KV.of(currentRestriction, currentWatermarkEstimatorState)),
                   currentElement.getTimestamp(),
                   primaryWindows,
-                  currentElement.getPane()),
+                  currentElement.getPaneInfo()),
           residualWindows.isEmpty()
               ? null
-              : WindowedValue.of(
+              : WindowedValues.of(
                   KV.of(
                       currentElement.getValue(),
                       KV.of(currentRestriction, currentWatermarkEstimatorState)),
                   currentElement.getTimestamp(),
                   residualWindows,
-                  currentElement.getPane()));
+                  currentElement.getPaneInfo()));
     }
 
     private KV<WindowedValue, WindowedValue> createSplitWithSizeInWindow(
         OffsetRange primaryRestriction, OffsetRange residualRestriction, BoundedWindow window) {
       return KV.of(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   KV.of(
                       currentElement.getValue(),
@@ -4216,8 +2816,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   (double) (primaryRestriction.getTo() - primaryRestriction.getFrom())),
               currentElement.getTimestamp(),
               window,
-              currentElement.getPane()),
-          WindowedValue.of(
+              currentElement.getPaneInfo()),
+          WindowedValues.of(
               KV.of(
                   KV.of(
                       currentElement.getValue(),
@@ -4225,7 +2825,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   (double) (residualRestriction.getTo() - residualRestriction.getFrom())),
               currentElement.getTimestamp(),
               window,
-              currentElement.getPane()));
+              currentElement.getPaneInfo()));
     }
 
     private KV<WindowedValue, WindowedValue> createSplitWithSizeAcrossWindows(
@@ -4233,7 +2833,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       return KV.of(
           primaryWindows.isEmpty()
               ? null
-              : WindowedValue.of(
+              : WindowedValues.of(
                   KV.of(
                       KV.of(
                           currentElement.getValue(),
@@ -4241,10 +2841,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       (double) (currentRestriction.getTo() - currentRestriction.getFrom())),
                   currentElement.getTimestamp(),
                   primaryWindows,
-                  currentElement.getPane()),
+                  currentElement.getPaneInfo()),
           residualWindows.isEmpty()
               ? null
-              : WindowedValue.of(
+              : WindowedValues.of(
                   KV.of(
                       KV.of(
                           currentElement.getValue(),
@@ -4252,7 +2852,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       (double) (currentRestriction.getTo() - currentRestriction.getFrom())),
                   currentElement.getTimestamp(),
                   residualWindows,
-                  currentElement.getPane()));
+                  currentElement.getPaneInfo()));
     }
 
     @Before
@@ -4261,7 +2861,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       window2 = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
       window3 = new IntervalWindow(Instant.ofEpochMilli(20), Instant.ofEpochMilli(30));
       currentElement =
-          WindowedValue.of(
+          WindowedValues.of(
               "a",
               Instant.ofEpochMilli(57),
               ImmutableList.of(window1, window2, window3),
@@ -4273,34 +2873,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
-    public void testScaledProgress() throws Exception {
-      Progress elementProgress = Progress.from(2, 8);
-      // There is only one window.
-      Progress scaledResult = FnApiDoFnRunner.scaleProgress(elementProgress, 0, 1);
-      assertEquals(2, scaledResult.getWorkCompleted(), 0.0);
-      assertEquals(8, scaledResult.getWorkRemaining(), 0.0);
-
-      // We are at the first window of 3 in total.
-      scaledResult = FnApiDoFnRunner.scaleProgress(elementProgress, 0, 3);
-      assertEquals(2, scaledResult.getWorkCompleted(), 0.0);
-      assertEquals(28, scaledResult.getWorkRemaining(), 0.0);
-
-      // We are at the second window of 3 in total.
-      scaledResult = FnApiDoFnRunner.scaleProgress(elementProgress, 1, 3);
-      assertEquals(12, scaledResult.getWorkCompleted(), 0.0);
-      assertEquals(18, scaledResult.getWorkRemaining(), 0.0);
-
-      // We are at the last window of 3 in total.
-      scaledResult = FnApiDoFnRunner.scaleProgress(elementProgress, 2, 3);
-      assertEquals(22, scaledResult.getWorkCompleted(), 0.0);
-      assertEquals(8, scaledResult.getWorkRemaining(), 0.0);
-    }
-
-    @Test
-    public void testComputeSplitForProcessOrTruncateWithNullTrackerAndSplitDelegate()
-        throws Exception {
+    public void testComputeSplitForProcessWithNullTrackerAndSplitDelegate() throws Exception {
       expected.expect(IllegalArgumentException.class);
-      FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+      FnApiDoFnRunner.computeSplitForProcess(
           currentElement,
           currentRestriction,
           window1,
@@ -4315,10 +2890,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
-    public void testComputeSplitForProcessOrTruncateWithNotNullTrackerAndDelegate()
-        throws Exception {
+    public void testComputeSplitForProcessWithNotNullTrackerAndDelegate() throws Exception {
       expected.expect(IllegalArgumentException.class);
-      FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+      FnApiDoFnRunner.computeSplitForProcess(
           currentElement,
           currentRestriction,
           window1,
@@ -4333,10 +2907,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
-    public void testComputeSplitForProcessOrTruncateWithInvalidWatermarkAndState()
-        throws Exception {
+    public void testComputeSplitForProcessWithInvalidWatermarkAndState() throws Exception {
       expected.expect(NullPointerException.class);
-      FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+      FnApiDoFnRunner.computeSplitForProcess(
           currentElement,
           currentRestriction,
           window1,
@@ -4356,7 +2929,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
       tracker.tryClaim(30L);
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.<Instant>computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.<Instant>computeSplitForProcess(
               currentElement,
               currentRestriction,
               window1,
@@ -4389,7 +2962,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
       tracker.tryClaim(30L);
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.<Instant>computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.<Instant>computeSplitForProcess(
               currentElement,
               currentRestriction,
               window1,
@@ -4422,7 +2995,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
       tracker.tryClaim(30L);
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.<Instant>computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.<Instant>computeSplitForProcess(
               currentElement,
               currentRestriction,
               window1,
@@ -4455,7 +3028,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
       tracker.tryClaim(30L);
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.computeSplitForProcess(
               currentElement,
               currentRestriction,
               window2,
@@ -4490,7 +3063,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
       tracker.tryClaim(30L);
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.computeSplitForProcess(
               currentElement,
               currentRestriction,
               window3,
@@ -4524,7 +3097,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       tracker.tryClaim(100L);
       assertNull(tracker.trySplit(0.0));
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.computeSplitForProcess(
               currentElement,
               currentRestriction,
               window3,
@@ -4556,7 +3129,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       tracker.tryClaim(100L);
       assertNull(tracker.trySplit(0.0));
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.computeSplitForProcess(
               currentElement,
               currentRestriction,
               window3,
@@ -4577,7 +3150,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
       tracker.tryClaim(30L);
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.computeSplitForProcess(
               currentElement,
               currentRestriction,
               window2,
@@ -4608,7 +3181,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
       tracker.tryClaim(30L);
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.computeSplitForProcess(
               currentElement,
               currentRestriction,
               window2,
@@ -4639,7 +3212,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       OffsetRangeTracker tracker = new OffsetRangeTracker(currentRestriction);
       tracker.tryClaim(30L);
       SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
+          FnApiDoFnRunner.computeSplitForProcess(
               currentElement,
               currentRestriction,
               window2,
@@ -4681,353 +3254,18 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
-    public void testTrySplitForTruncateCheckpointOnFirstWindow() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult splitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(0.3, 0.0, splitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.0,
-              null,
-              splitDelegate,
-              null,
-              0,
-              3);
-      assertEquals(1, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(), ImmutableList.of(window2, window3));
-      assertEquals(splitResult, result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
-    public void testTrySplitForTruncateCheckpointOnFirstWindowAfterOneSplit() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult splitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(0.3, 0.0, splitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.0,
-              null,
-              splitDelegate,
-              null,
-              0,
-              2);
-      assertEquals(1, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(), ImmutableList.of(window2));
-      assertEquals(splitResult, result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
-    public void testTrySplitForTruncateSplitOnFirstWindow() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult splitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(0.3, 0.54, splitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.2,
-              null,
-              splitDelegate,
-              null,
-              0,
-              3);
-      assertEquals(1, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(), ImmutableList.of(window2, window3));
-      assertEquals(splitResult, result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
-    public void testTrySplitForTruncateSplitOnMiddleWindow() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult splitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(0.3, 0.34, splitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.2,
-              null,
-              splitDelegate,
-              null,
-              1,
-              3);
-      assertEquals(2, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window3));
-      assertEquals(splitResult, result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
-    public void testTrySplitForTruncateSplitOnLastWindow() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult splitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(0.3, 0.2, splitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.2,
-              null,
-              splitDelegate,
-              null,
-              2,
-              3);
-      assertEquals(3, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(window1, window2), ImmutableList.of());
-      assertEquals(splitResult, result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
-    public void testTrySplitForTruncateSplitOnFirstWindowFallback() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult unusedSplitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(1.0, 0.0, unusedSplitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.0,
-              null,
-              splitDelegate,
-              null,
-              0,
-              3);
-      assertEquals(1, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
-      assertNull(result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
-    public void testTrySplitForTruncateSplitOnLastWindowWhenNoElementSplit() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      HandlesSplits splitDelegate = createSplitDelegate(1.0, 0.0, null);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.0,
-              null,
-              splitDelegate,
-              null,
-              2,
-              3);
-      assertNull(result);
-    }
-
-    @Test
-    public void testTrySplitForTruncateOnWindowBoundaryRoundUp() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult unusedSplitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(0.3, 0.0, unusedSplitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.6,
-              null,
-              splitDelegate,
-              null,
-              0,
-              3);
-      assertEquals(2, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(window1, window2), ImmutableList.of(window3));
-      assertNull(result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
-    public void testTrySplitForTruncateOnWindowBoundaryRoundDown() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult unusedSplitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(0.3, 0.0, unusedSplitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.3,
-              null,
-              splitDelegate,
-              null,
-              0,
-              3);
-      assertEquals(1, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window2, window3));
-      assertNull(result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
-    public void testTrySplitForTruncateOnWindowBoundaryRoundDownOnLastWindow() throws Exception {
-      List<BoundedWindow> windows = ImmutableList.copyOf(currentElement.getWindows());
-      SplitResult unusedSplitResult =
-          SplitResult.of(
-              ImmutableList.of(BundleApplication.getDefaultInstance()),
-              ImmutableList.of(DelayedBundleApplication.getDefaultInstance()));
-      HandlesSplits splitDelegate = createSplitDelegate(0.3, 0.0, unusedSplitResult);
-      SplitResultsWithStopIndex result =
-          FnApiDoFnRunner.computeSplitForProcessOrTruncate(
-              currentElement,
-              currentRestriction,
-              window1,
-              windows,
-              currentWatermarkEstimatorState,
-              0.6,
-              null,
-              splitDelegate,
-              null,
-              0,
-              3);
-      assertEquals(2, result.getNewWindowStopIndex());
-      KV<WindowedValue, WindowedValue> expectedWindowSplit =
-          createSplitAcrossWindows(ImmutableList.of(window1, window2), ImmutableList.of(window3));
-      assertNull(result.getDownstreamSplit());
-      assertNull(result.getWindowSplit().getPrimarySplitRoot());
-      assertNull(result.getWindowSplit().getResidualSplitRoot());
-      assertEquals(
-          expectedWindowSplit.getKey(),
-          result.getWindowSplit().getPrimaryInFullyProcessedWindowsRoot());
-      assertEquals(
-          expectedWindowSplit.getValue(),
-          result.getWindowSplit().getResidualInUnprocessedWindowsRoot());
-    }
-
-    @Test
     public void testConstructSplitResultWithInvalidElementSplits() throws Exception {
       expected.expect(IllegalArgumentException.class);
       FnApiDoFnRunner.constructSplitResult(
           WindowedSplitResult.forRoots(
               null,
-              WindowedValue.valueInGlobalWindow("elementPrimary"),
-              WindowedValue.valueInGlobalWindow("elementResidual"),
+              valueInGlobalWindow("elementPrimary"),
+              valueInGlobalWindow("elementResidual"),
               null),
           HandlesSplits.SplitResult.of(
               ImmutableList.of(BundleApplication.getDefaultInstance()),
               ImmutableList.of(DelayedBundleApplication.getDefaultInstance())),
-          WindowedValue.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
+          WindowedValues.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
           Instant.now(),
           null,
           "ptransformId",
@@ -5042,58 +3280,15 @@ public class FnApiDoFnRunnerTest implements Serializable {
           KvCoder.of(
               KvCoder.of(elementCoder, KvCoder.of(restrictionCoder, watermarkStateCoder)),
               DoubleCoder.of());
-      return WindowedValue.getFullCoder(inputCoder, windowCoder);
+      return WindowedValues.getFullCoder(inputCoder, windowCoder);
     }
 
-    private HandlesSplits.SplitResult getProcessElementSplit(String transformId, String inputId) {
-      return SplitResult.of(
-          ImmutableList.of(
-              BundleApplication.newBuilder()
-                  .setTransformId(transformId)
-                  .setInputId(inputId)
-                  .build()),
-          ImmutableList.of(
-              DelayedBundleApplication.newBuilder()
-                  .setApplication(
-                      BundleApplication.newBuilder()
-                          .setTransformId(transformId)
-                          .setInputId(inputId)
-                          .build())
-                  .setRequestedTimeDelay(Durations.fromMillis(1000L))
-                  .build()));
-    }
-
-    private org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp toTimestamp(
+    private org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp toTimestamp(
         Instant time) {
-      return org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp.newBuilder()
+      return org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp.newBuilder()
           .setSeconds(time.getMillis() / 1000)
           .setNanos((int) (time.getMillis() % 1000) * 1000000)
           .build();
-    }
-
-    @Test
-    public void testConstructSplitResultWithElementSplitFromDelegate() throws Exception {
-      Coder fullInputCoder =
-          getFullInputCoder(
-              StringUtf8Coder.of(),
-              OffsetRange.Coder.of(),
-              InstantCoder.of(),
-              IntervalWindow.getCoder());
-      HandlesSplits.SplitResult elementSplit =
-          getProcessElementSplit(PROCESS_TRANSFORM_ID, PROCESS_INPUT_ID);
-      HandlesSplits.SplitResult result =
-          FnApiDoFnRunner.constructSplitResult(
-              null,
-              elementSplit,
-              fullInputCoder,
-              null,
-              null,
-              TRUNCATE_TRANSFORM_ID,
-              TRUNCATE_INPUT_ID,
-              ImmutableList.of(TRUNCATE_OUTPUT_ID),
-              null);
-      assertEquals(elementSplit.getPrimaryRoots(), result.getPrimaryRoots());
-      assertEquals(elementSplit.getResidualRoots(), result.getResidualRoots());
     }
 
     @Test
@@ -5171,7 +3366,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertEquals(1, result.getResidualRoots().size());
       DelayedBundleApplication residualRoot = result.getResidualRoots().get(0);
       assertEquals(
-          org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Duration.getDefaultInstance(),
+          org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Duration.getDefaultInstance(),
           residualRoot.getRequestedTimeDelay());
       assertEquals(PROCESS_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
       assertEquals(PROCESS_INPUT_ID, residualRoot.getApplication().getInputId());
@@ -5226,7 +3421,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       DelayedBundleApplication windowResidual = result.getResidualRoots().get(0);
       DelayedBundleApplication elementResidual = result.getResidualRoots().get(1);
       assertEquals(
-          org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Duration.getDefaultInstance(),
+          org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Duration.getDefaultInstance(),
           windowResidual.getRequestedTimeDelay());
       assertEquals(PROCESS_TRANSFORM_ID, windowResidual.getApplication().getTransformId());
       assertEquals(PROCESS_INPUT_ID, windowResidual.getApplication().getInputId());
@@ -5245,56 +3440,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertEquals(
           elementSplit.getValue(),
           fullInputCoder.decode(elementResidual.getApplication().getElement().newInput()));
-    }
-
-    @Test
-    public void testConstructSplitResultWithElementAndWindowSplitFromTruncate() throws Exception {
-      Coder fullInputCoder =
-          getFullInputCoder(
-              StringUtf8Coder.of(),
-              OffsetRange.Coder.of(),
-              InstantCoder.of(),
-              IntervalWindow.getCoder());
-      KV<WindowedValue, WindowedValue> windowSplit =
-          createSplitWithSizeAcrossWindows(ImmutableList.of(window1), ImmutableList.of(window3));
-      HandlesSplits.SplitResult elementSplit =
-          getProcessElementSplit(PROCESS_TRANSFORM_ID, PROCESS_INPUT_ID);
-      HandlesSplits.SplitResult result =
-          FnApiDoFnRunner.constructSplitResult(
-              WindowedSplitResult.forRoots(
-                  windowSplit.getKey(), null, null, windowSplit.getValue()),
-              elementSplit,
-              fullInputCoder,
-              initialWatermark,
-              watermarkAndState,
-              TRUNCATE_TRANSFORM_ID,
-              TRUNCATE_INPUT_ID,
-              ImmutableList.of(TRUNCATE_OUTPUT_ID),
-              Duration.millis(100L));
-      assertEquals(2, result.getPrimaryRoots().size());
-      BundleApplication windowPrimary = result.getPrimaryRoots().get(0);
-      BundleApplication elementPrimary = result.getPrimaryRoots().get(1);
-      assertEquals(TRUNCATE_TRANSFORM_ID, windowPrimary.getTransformId());
-      assertEquals(TRUNCATE_INPUT_ID, windowPrimary.getInputId());
-      assertEquals(
-          windowSplit.getKey(), fullInputCoder.decode(windowPrimary.getElement().newInput()));
-      assertEquals(elementSplit.getPrimaryRoots().get(0), elementPrimary);
-
-      assertEquals(2, result.getResidualRoots().size());
-      DelayedBundleApplication windowResidual = result.getResidualRoots().get(0);
-      DelayedBundleApplication elementResidual = result.getResidualRoots().get(1);
-      assertEquals(
-          org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Duration.getDefaultInstance(),
-          windowResidual.getRequestedTimeDelay());
-      assertEquals(TRUNCATE_TRANSFORM_ID, windowResidual.getApplication().getTransformId());
-      assertEquals(TRUNCATE_INPUT_ID, windowResidual.getApplication().getInputId());
-      assertEquals(
-          toTimestamp(initialWatermark),
-          windowResidual.getApplication().getOutputWatermarksMap().get(TRUNCATE_OUTPUT_ID));
-      assertEquals(
-          windowSplit.getValue(),
-          fullInputCoder.decode(windowResidual.getApplication().getElement().newInput()));
-      assertEquals(elementSplit.getResidualRoots().get(0), elementResidual);
     }
   }
 }

@@ -35,8 +35,8 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -80,7 +80,7 @@ public class BeamSqlEnvRunner {
 
   /**
    * Register all tables into BeamSqlEnv, set their schemas, and set the locations where their
-   * corresponding data are stored. Currently this method is not supported by ZetaSQL planner.
+   * corresponding data are stored. ZetaSQL planner is not supported.
    */
   @SuppressWarnings("unused")
   private static void registerAllTablesByBeamSqlEnv(BeamSqlEnv env, String dataSize)
@@ -99,7 +99,7 @@ public class BeamSqlEnvRunner {
    * their corresponding data are stored.
    */
   private static void registerAllTablesByInMemoryMetaStore(
-      InMemoryMetaStore inMemoryMetaStore, String dataSize) throws Exception {
+      InMemoryCatalogManager inMemoryCatalogManager, String dataSize) throws Exception {
     ObjectNode properties = TableUtils.emptyProperties();
     properties.put("csvformat", "InformixUnload");
 
@@ -117,7 +117,7 @@ public class BeamSqlEnvRunner {
               .properties(properties)
               .type("text")
               .build();
-      inMemoryMetaStore.createTable(table);
+      inMemoryCatalogManager.currentCatalog().metaStore().createTable(table);
     }
   }
 
@@ -158,8 +158,8 @@ public class BeamSqlEnvRunner {
    * @throws Exception
    */
   public static void runUsingBeamSqlEnv(String[] args) throws Exception {
-    InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
-    inMemoryMetaStore.registerProvider(new TextTableProvider());
+    InMemoryCatalogManager inMemoryCatalogManager = new InMemoryCatalogManager();
+    inMemoryCatalogManager.registerTableProvider(new TextTableProvider());
 
     TpcdsOptions tpcdsOptions =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcdsOptions.class);
@@ -174,11 +174,11 @@ public class BeamSqlEnvRunner {
 
     // Directly create all tables and register them into inMemoryMetaStore before creating
     // BeamSqlEnv object.
-    registerAllTablesByInMemoryMetaStore(inMemoryMetaStore, dataSize);
+    registerAllTablesByInMemoryMetaStore(inMemoryCatalogManager, dataSize);
 
     BeamSqlPipelineOptions beamSqlPipelineOptions = tpcdsOptions.as(BeamSqlPipelineOptions.class);
     BeamSqlEnv env =
-        BeamSqlEnv.builder(inMemoryMetaStore)
+        BeamSqlEnv.builder(inMemoryCatalogManager)
             .setPipelineOptions(beamSqlPipelineOptions)
             .setQueryPlannerClassName(beamSqlPipelineOptions.getPlannerName())
             .build();

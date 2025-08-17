@@ -217,8 +217,11 @@ async function processPull(
         );
         const availableReviewers =
           reviewerConfig.getReviewersForLabel(labelOfReviewer);
+        const fallbackReviewers =
+          reviewerConfig.getFallbackReviewers();
         const chosenCommitter = await reviewersState.assignNextCommitter(
-          availableReviewers
+          availableReviewers,
+          fallbackReviewers
         );
         prState.reviewersAssignedForLabels[labelOfReviewer] = chosenCommitter;
         prState.committerAssigned = true;

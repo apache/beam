@@ -59,7 +59,7 @@ import argparse
 import logging
 import re
 import sys
-from typing import Iterable
+from collections.abc import Iterable
 from typing import Optional
 from typing import Text
 import uuid

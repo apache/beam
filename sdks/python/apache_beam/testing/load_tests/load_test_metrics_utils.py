@@ -287,8 +287,8 @@ class MetricsReader(object):
     if not extra_metrics:
       extra_metrics = {}
     return [
-        Metric(ts, metric_id, v, label=k).as_dict() for k,
-        v in extra_metrics.items()
+        Metric(ts, metric_id, v, label=k).as_dict()
+        for k, v in extra_metrics.items()
     ]
 
   def publish_values(self, labeled_values):
@@ -299,8 +299,7 @@ class MetricsReader(object):
     """
     metric_dicts = [
         Metric(time.time(), uuid.uuid4().hex, value, label=label).as_dict()
-        for label,
-        value in labeled_values
+        for label, value in labeled_values
     ]
 
     for publisher in self.publishers:

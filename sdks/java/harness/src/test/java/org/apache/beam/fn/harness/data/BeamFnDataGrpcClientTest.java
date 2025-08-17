@@ -18,19 +18,22 @@
 package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -48,14 +51,15 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,7 +69,7 @@ import org.junit.runners.JUnit4;
 public class BeamFnDataGrpcClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
-          WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+          WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
   private static final String INSTRUCTION_ID_A = "12L";
   private static final String INSTRUCTION_ID_B = "56L";
   private static final String TRANSFORM_ID_A = "34L";
@@ -276,6 +280,93 @@ public class BeamFnDataGrpcClientTest {
       assertThat(inboundServerValues, empty());
       // The consumer should have only been invoked once
       assertEquals(1, consumerInvoked.get());
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void testForInboundConsumerThatIsPoisoned() throws Exception {
+    CountDownLatch waitForClientToConnect = new CountDownLatch(1);
+    CountDownLatch receivedAElement = new CountDownLatch(1);
+    Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
+    Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
+    AtomicReference<StreamObserver<BeamFnApi.Elements>> outboundServerObserver =
+        new AtomicReference<>();
+    CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
+        TestStreams.withOnNext(inboundServerValues::add).build();
+
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID())
+            .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.Elements> data(
+                      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    waitForClientToConnect.countDown();
+                    return inboundServerObserver;
+                  }
+                })
+            .build();
+    server.start();
+
+    try {
+      ManagedChannel channel =
+          InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+
+      BeamFnDataGrpcClient clientFactory =
+          new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.create(),
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel,
+              OutboundObserverFactory.trivial());
+
+      BeamFnDataInboundObserver observerA =
+          BeamFnDataInboundObserver.forConsumers(
+              Arrays.asList(
+                  DataEndpoint.create(
+                      TRANSFORM_ID_A,
+                      CODER,
+                      (WindowedValue<String> elem) -> {
+                        receivedAElement.countDown();
+                        inboundValuesA.add(elem);
+                      })),
+              Collections.emptyList());
+      CompletableFuture<Void> future =
+          CompletableFuture.runAsync(
+              () -> {
+                try {
+                  observerA.awaitCompletion();
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
+
+      clientFactory.registerReceiver(
+          INSTRUCTION_ID_A, Arrays.asList(apiServiceDescriptor), observerA);
+
+      waitForClientToConnect.await();
+      outboundServerObserver.get().onNext(ELEMENTS_B_1);
+      clientFactory.poisonInstructionId(INSTRUCTION_ID_B);
+
+      outboundServerObserver.get().onNext(ELEMENTS_B_1);
+      outboundServerObserver.get().onNext(ELEMENTS_A_1);
+      assertTrue(receivedAElement.await(5, TimeUnit.SECONDS));
+
+      clientFactory.poisonInstructionId(INSTRUCTION_ID_A);
+      try {
+        future.get();
+        fail(); // We expect the awaitCompletion to fail due to closing.
+      } catch (Exception ignored) {
+      }
+
+      outboundServerObserver.get().onNext(ELEMENTS_A_2);
+
+      assertThat(inboundValuesA, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
     } finally {
       server.shutdownNow();
     }

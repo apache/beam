@@ -43,7 +43,7 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
   public static final Set<String> VALID_START_OFFSET_VALUES = Sets.newHashSet("earliest", "latest");
 
-  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON,PROTO";
+  public static final String VALID_FORMATS_STR = "RAW,STRING,AVRO,JSON,PROTO";
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 
@@ -71,6 +71,9 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     } else if (dataFormat != null && dataFormat.equals("RAW")) {
       checkArgument(
           inputSchema == null, "To read from Kafka in RAW format, you can't provide a schema.");
+    } else if (dataFormat != null && dataFormat.equals("STRING")) {
+      checkArgument(
+          inputSchema == null, "To read from Kafka in STRING format, you can't provide a schema.");
     } else if (dataFormat != null && dataFormat.equals("JSON")) {
       checkNotNull(inputSchema, "To read from Kafka in JSON format, you must provide a schema.");
     } else if (dataFormat != null && dataFormat.equals("PROTO")) {

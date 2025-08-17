@@ -29,7 +29,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -41,9 +45,11 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -54,6 +60,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 class DataflowMetrics extends MetricResults {
+
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);
   /**
    * Client for the Dataflow service. This can be used to query the service for information about
@@ -103,12 +110,14 @@ class DataflowMetrics extends MetricResults {
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
     ImmutableList<MetricResult<GaugeResult>> gauges = ImmutableList.of();
     ImmutableList<MetricResult<StringSetResult>> stringSets = ImmutableList.of();
+    ImmutableList<MetricResult<BoundedTrieResult>> boundedTries = ImmutableList.of();
     JobMetrics jobMetrics;
     try {
       jobMetrics = getJobMetrics();
     } catch (IOException e) {
       LOG.warn("Unable to query job metrics.\n");
-      return MetricQueryResults.create(counters, distributions, gauges, stringSets);
+      return MetricQueryResults.create(
+          counters, distributions, gauges, stringSets, boundedTries, Collections.emptyList());
     }
     metricUpdates = firstNonNull(jobMetrics.getMetrics(), Collections.emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
@@ -127,11 +136,13 @@ class DataflowMetrics extends MetricResults {
     return result;
   }
 
-  private static class DataflowMetricResultExtractor {
+  @VisibleForTesting
+  static class DataflowMetricResultExtractor {
     private final ImmutableList.Builder<MetricResult<Long>> counterResults;
     private final ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults;
     private final ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults;
     private final ImmutableList.Builder<MetricResult<StringSetResult>> stringSetResults;
+    private final ImmutableList.Builder<MetricResult<BoundedTrieResult>> boundedTrieResults;
     private final boolean isStreamingJob;
 
     DataflowMetricResultExtractor(boolean isStreamingJob) {
@@ -139,6 +150,7 @@ class DataflowMetrics extends MetricResults {
       distributionResults = ImmutableList.builder();
       gaugeResults = ImmutableList.builder();
       stringSetResults = ImmutableList.builder();
+      boundedTrieResults = ImmutableList.builder();
       /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
        * In Dataflow batch jobs, only COMMITTED metrics are available, but
        * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
@@ -167,6 +179,9 @@ class DataflowMetrics extends MetricResults {
         // stringset metric
         StringSetResult value = getStringSetValue(committed);
         stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
+      } else if (committed.getBoundedTrie() != null && attempted.getBoundedTrie() != null) {
+        BoundedTrieResult value = getBoundedTrieValue(committed);
+        boundedTrieResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else {
         // This is exceptionally unexpected. We expect matching user metrics to only have the
         // value types provided by the Metrics API.
@@ -194,6 +209,23 @@ class DataflowMetrics extends MetricResults {
       return StringSetResult.create(ImmutableSet.copyOf(((Collection) metricUpdate.getSet())));
     }
 
+    private BoundedTrieResult getBoundedTrieValue(MetricUpdate metricUpdate) {
+      BoundedTrieData trieData = null;
+      Object trieFromResponse = metricUpdate.getBoundedTrie();
+      // Fail-safely cast Trie returned by dataflow API to BoundedTrieResult
+      if (trieFromResponse instanceof BoundedTrie) {
+        trieData = BoundedTrieData.fromProto((BoundedTrie) trieFromResponse);
+      } else if (trieFromResponse instanceof ArrayMap) {
+        trieData = trieFromArrayMap((ArrayMap) trieFromResponse);
+      }
+
+      if (trieData != null) {
+        return BoundedTrieResult.create(trieData.extractResult().getResult());
+      } else {
+        return BoundedTrieResult.empty();
+      }
+    }
+
     private DistributionResult getDistributionValue(MetricUpdate metricUpdate) {
       if (metricUpdate.getDistribution() == null) {
         return DistributionResult.IDENTITY_ELEMENT;
@@ -204,6 +236,62 @@ class DataflowMetrics extends MetricResults {
       long max = checkArgumentNotNull(((Number) distributionMap.get("max"))).longValue();
       long sum = checkArgumentNotNull(((Number) distributionMap.get("sum"))).longValue();
       return DistributionResult.create(sum, count, min, max);
+    }
+
+    /** Translate ArrayMap returned by Dataflow API client to BoundedTrieData. */
+    @VisibleForTesting
+    static BoundedTrieData trieFromArrayMap(ArrayMap fieldsMap) {
+      int bound = 0;
+      List<String> singleton = null;
+      Object maybeBound = fieldsMap.get("bound");
+      if (maybeBound instanceof Number) {
+        bound = ((Number) maybeBound).intValue();
+      }
+      Object maybeSingleton = fieldsMap.get("singleton");
+      if (maybeSingleton instanceof List) {
+        List valueList = (List) maybeSingleton;
+        ImmutableList.Builder<String> builder = ImmutableList.builder();
+        for (Object stringValue : valueList) {
+          builder.add((String) stringValue);
+        }
+        singleton = builder.build();
+      }
+      Object maybeRoot = fieldsMap.get("root");
+      BoundedTrieData.BoundedTrieNode root = null;
+      if (maybeRoot instanceof Map) {
+        root = trieNodeFromMap((Map) maybeRoot);
+      }
+      return new BoundedTrieData(singleton, root, bound);
+    }
+
+    /** Translate Map returned by Dataflow API client to BoundedTrieData.BoundedTrieNode. */
+    private static BoundedTrieData.BoundedTrieNode trieNodeFromMap(Map fieldsMap) {
+      boolean truncated = false;
+      Object mayTruncated = fieldsMap.get("truncated");
+      if (mayTruncated instanceof Boolean) {
+        truncated = (boolean) mayTruncated;
+      }
+      int childrenSize = 0;
+      ImmutableMap.Builder<String, BoundedTrieData.BoundedTrieNode> builder =
+          ImmutableMap.builder();
+      Object maybeChildren = fieldsMap.get("children");
+      if (maybeChildren instanceof Map) {
+        Map allChildren = (Map) maybeChildren;
+        for (Object maybeChildValue : allChildren.entrySet()) {
+          Map.Entry childValue = (Map.Entry) maybeChildValue;
+          Object maybeChild = childValue.getValue();
+          if (maybeChild instanceof Map) {
+            BoundedTrieData.BoundedTrieNode child = trieNodeFromMap((Map) maybeChild);
+            Object maybeKey = childValue.getKey();
+            if (maybeKey instanceof String) {
+              builder.put((String) maybeKey, child);
+            }
+            childrenSize += child.getSize();
+          }
+        }
+      }
+      Map<String, BoundedTrieData.BoundedTrieNode> children = builder.build();
+      return new BoundedTrieData.BoundedTrieNode(children, truncated, Math.max(1, childrenSize));
     }
 
     public Iterable<MetricResult<DistributionResult>> getDistributionResults() {
@@ -218,8 +306,12 @@ class DataflowMetrics extends MetricResults {
       return gaugeResults.build();
     }
 
-    public Iterable<MetricResult<StringSetResult>> geStringSetResults() {
+    public Iterable<MetricResult<StringSetResult>> getStringSetResults() {
       return stringSetResults.build();
+    }
+
+    public Iterable<MetricResult<BoundedTrieResult>> getBoundedTrieResults() {
+      return boundedTrieResults.build();
     }
   }
 
@@ -386,7 +478,9 @@ class DataflowMetrics extends MetricResults {
           extractor.getCounterResults(),
           extractor.getDistributionResults(),
           extractor.getGaugeResults(),
-          extractor.geStringSetResults());
+          extractor.getStringSetResults(),
+          extractor.getBoundedTrieResults(),
+          Collections.emptyList());
     }
   }
 }

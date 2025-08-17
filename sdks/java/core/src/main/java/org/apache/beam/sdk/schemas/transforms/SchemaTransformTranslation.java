@@ -32,7 +32,7 @@ import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

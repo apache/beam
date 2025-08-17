@@ -18,6 +18,7 @@ package jobservices
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"net"
 	"os"
@@ -27,7 +28,7 @@ import (
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
-	"golang.org/x/exp/slog"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"google.golang.org/grpc"
 )
 
@@ -42,7 +43,7 @@ type Server struct {
 	server *grpc.Server
 
 	// Job Management
-	mu    sync.Mutex
+	mu    sync.RWMutex
 	index uint32 // Use with atomics.
 	jobs  map[string]*Job
 
@@ -53,12 +54,15 @@ type Server struct {
 	terminatedJobCount uint32 // Use with atomics.
 	idleTimeout        time.Duration
 	cancelFn           context.CancelCauseFunc
+	logger             *slog.Logger
 
 	// execute defines how a job is executed.
 	execute func(*Job)
 
 	// Artifact hack
 	artifacts map[string][]byte
+
+	mw *worker.MultiplexW
 }
 
 // NewServer acquires the indicated port.
@@ -71,8 +75,9 @@ func NewServer(port int, execute func(*Job)) *Server {
 		lis:     lis,
 		jobs:    make(map[string]*Job),
 		execute: execute,
+		logger:  slog.Default(), // TODO substitute with a configured logger.
 	}
-	slog.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
+	s.logger.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 	}
@@ -80,6 +85,9 @@ func NewServer(port int, execute func(*Job)) *Server {
 	jobpb.RegisterJobServiceServer(s.server, s)
 	jobpb.RegisterArtifactStagingServiceServer(s.server, s)
 	jobpb.RegisterArtifactRetrievalServiceServer(s.server, s)
+
+	s.mw = worker.NewMultiplexW(lis, s.server, s.logger)
+
 	return s
 }
 

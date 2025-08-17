@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.LOCALHOST;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.localhostChannel;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.LOCALHOST;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.localhostChannel;
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
@@ -53,8 +52,6 @@ import org.slf4j.LoggerFactory;
 public class GrpcDispatcherClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDispatcherClient.class);
-  static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_ISOLATED_CHANNELS =
-      "streaming_engine_use_job_settings_for_isolated_channels";
   private final CountDownLatch onInitializedEndpoints;
 
   /**
@@ -80,18 +77,12 @@ public class GrpcDispatcherClient {
       DispatcherStubs initialDispatcherStubs,
       Random rand) {
     this.windmillStubFactoryFactory = windmillStubFactoryFactory;
-    if (DataflowRunner.hasExperiment(
-        options, STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_ISOLATED_CHANNELS)) {
-      if (options.getUseWindmillIsolatedChannels() != null) {
-        this.useIsolatedChannels.set(options.getUseWindmillIsolatedChannels());
-        this.reactToIsolatedChannelsJobSetting = false;
-      } else {
-        this.useIsolatedChannels.set(false);
-        this.reactToIsolatedChannelsJobSetting = true;
-      }
-    } else {
-      this.useIsolatedChannels.set(Boolean.TRUE.equals(options.getUseWindmillIsolatedChannels()));
+    if (options.getUseWindmillIsolatedChannels() != null) {
+      this.useIsolatedChannels.set(options.getUseWindmillIsolatedChannels());
       this.reactToIsolatedChannelsJobSetting = false;
+    } else {
+      this.useIsolatedChannels.set(false);
+      this.reactToIsolatedChannelsJobSetting = true;
     }
     this.windmillStubFactory.set(
         windmillStubFactoryFactory.makeWindmillStubFactory(useIsolatedChannels.get()));
@@ -159,6 +150,8 @@ public class GrpcDispatcherClient {
       }
     }
 
+    LOG.info("Windmill Service endpoint initialized after {} seconds.", secondsWaited);
+
     ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         dispatcherStubs.get().windmillMetadataServiceStubs();
 
@@ -169,15 +162,6 @@ public class GrpcDispatcherClient {
 
   private synchronized <T> T randomlySelectNextStub(List<T> stubs) {
     return stubs.get(rand.nextInt(stubs.size()));
-  }
-
-  /**
-   * Returns whether the {@link DispatcherStubs} have been set. Once initially set, {@link
-   * #dispatcherStubs} will always have a value as empty updates will trigger an {@link
-   * IllegalStateException}.
-   */
-  public boolean hasInitializedEndpoints() {
-    return dispatcherStubs.get().hasInitializedEndpoints();
   }
 
   public void onJobConfig(StreamingGlobalConfig config) {
@@ -199,7 +183,7 @@ public class GrpcDispatcherClient {
 
   public synchronized void consumeWindmillDispatcherEndpoints(
       ImmutableSet<HostAndPort> dispatcherEndpoints) {
-    consumeWindmillDispatcherEndpoints(dispatcherEndpoints, /*forceRecreateStubs=*/ false);
+    consumeWindmillDispatcherEndpoints(dispatcherEndpoints, /* forceRecreateStubs= */ false);
   }
 
   private synchronized void consumeWindmillDispatcherEndpoints(
@@ -287,14 +271,6 @@ public class GrpcDispatcherClient {
 
       return windmillStubFactory.createWindmillMetadataServiceStub(
           WindmillServiceAddress.create(endpoint));
-    }
-
-    private int size() {
-      return dispatcherEndpoints().size();
-    }
-
-    private boolean hasInitializedEndpoints() {
-      return size() > 0;
     }
 
     abstract ImmutableSet<HostAndPort> dispatcherEndpoints();

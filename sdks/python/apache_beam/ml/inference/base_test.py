@@ -23,12 +23,11 @@ import sys
 import tempfile
 import time
 import unittest
+from collections.abc import Iterable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import pytest
@@ -773,9 +772,8 @@ class RunInferenceBaseTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
-      expected = [
-          (i, ((example * 2) + 1) * 2) for i, example in enumerate(examples)
-      ]
+      expected = [(i, ((example * 2) + 1) * 2)
+                  for i, example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInference(
           base.KeyedModelHandler(FakeModelHandler()).with_preprocess_fn(
@@ -793,9 +791,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
       expected = [((2 * example) + 1) * 2 for example in examples]
-      keyed_expected = [
-          (i, ((2 * example) + 1) * 2) for i, example in enumerate(examples)
-      ]
+      keyed_expected = [(i, ((2 * example) + 1) * 2)
+                        for i, example in enumerate(examples)]
       model_handler = base.MaybeKeyedModelHandler(FakeModelHandler())
 
       pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)
@@ -953,7 +950,11 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_increment_failed_batches_counter(self):
     with self.assertRaises(ValueError):
-      with TestPipeline() as pipeline:
+      # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+      # metrics filtering which doesn't work on Prism yet because Prism renames
+      # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+      # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+      with TestPipeline('FnApiRunner') as pipeline:
         examples = [7]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         _ = pcoll | base.RunInference(FakeModelHandlerExpectedInferenceArgs())
@@ -1043,20 +1044,20 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_unkeyed_examples_with_keyed_model_handler(self):
     pipeline = TestPipeline()
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "object is not iterable"):
       examples = [1, 3, 5]
       model_handler = base.KeyedModelHandler(FakeModelHandler())
       _ = (
           pipeline | 'Unkeyed' >> beam.Create(examples)
           | 'RunUnkeyed' >> base.RunInference(model_handler))
-      pipeline.run()
+      pipeline.run().wait_until_finish()
 
   def test_run_inference_keyed_examples_with_unkeyed_model_handler(self):
     pipeline = TestPipeline()
     examples = [1, 3, 5]
     keyed_examples = [(i, example) for i, example in enumerate(examples)]
     model_handler = FakeModelHandler()
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "can only concatenate tuple"):
       _ = (
           pipeline | 'keyed' >> beam.Create(keyed_examples)
           | 'RunKeyed' >> base.RunInference(model_handler))
@@ -1081,7 +1082,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           self,
           batch: Sequence[int],
           model: FakeModel,
-          inference_args: Optional[Dict[str, Any]] = None) -> Iterable[int]:
+          inference_args: Optional[dict[str, Any]] = None) -> Iterable[int]:
         yield 0
 
       def get_num_bytes(self, batch: Sequence[int]) -> int:
@@ -1097,7 +1098,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         return {}
 
       def validate_inference_args(
-          self, inference_args: Optional[Dict[str, Any]]):
+          self, inference_args: Optional[dict[str, Any]]):
         pass
 
     # This test passes if calling these methods does not cause
@@ -1229,7 +1230,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         for e in element:
           yield e
 
-    with TestPipeline() as pipeline:
+    # This test relies on poorly defined side input semantics which vary
+    # across runners (including prism). Pinning to FnApiRunner which
+    # consistently guarantees output.
+    with TestPipeline('FnApiRunner') as pipeline:
       side_input = (
           pipeline
           |
@@ -1327,7 +1331,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         for e in element:
           yield e
 
-    with TestPipeline() as pipeline:
+    # This test relies on poorly defined side input semantics which vary
+    # across runners (including prism). Pinning to FnApiRunner which
+    # consistently guarantees output.
+    with TestPipeline('FnApiRunner') as pipeline:
       side_input = (
           pipeline
           |
@@ -1428,7 +1435,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         for e in element:
           yield e
 
-    with TestPipeline() as pipeline:
+    # This test relies on poorly defined side input semantics which vary
+    # across runners (including prism). Pinning to FnApiRunner which
+    # consistently guarantees output.
+    with TestPipeline('FnApiRunner') as pipeline:
       side_input = (
           pipeline
           |
@@ -1503,7 +1513,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         for e in element:
           yield e
 
-    with TestPipeline() as pipeline:
+    # This test relies on poorly defined side input semantics which vary
+    # across runners (including prism). Pinning to FnApiRunner which
+    # consistently guarantees output.
+    with TestPipeline('FnApiRunner') as pipeline:
       side_input = (
           pipeline
           |
@@ -1868,6 +1881,189 @@ class RunInferenceBaseTest(unittest.TestCase):
     tags = ms.get_tags_for_garbage_collection()
 
     self.assertEqual(0, len(tags))
+
+
+def _always_retry(e: Exception) -> bool:
+  return True
+
+
+class FakeRemoteModelHandler(base.RemoteModelHandler[int, int, FakeModel]):
+  def __init__(
+      self,
+      clock=None,
+      min_batch_size=1,
+      max_batch_size=9999,
+      retry_filter=_always_retry,
+      **kwargs):
+    self._fake_clock = clock
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._env_vars = kwargs.get('env_vars', {})
+    self._multi_process_shared = multi_process_shared
+    super().__init__(
+        namespace='FakeRemoteModelHandler', retry_filter=retry_filter)
+
+  def create_client(self):
+    return FakeModel()
+
+  def request(self, batch, model, inference_args=None) -> Iterable[int]:
+    responses = []
+    for example in batch:
+      responses.append(model.predict(example))
+    return responses
+
+  def batch_elements_kwargs(self):
+    return {
+        'min_batch_size': self._min_batch_size,
+        'max_batch_size': self._max_batch_size
+    }
+
+
+class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
+                                                                int,
+                                                                FakeModel]):
+  def __init__(
+      self,
+      clock=None,
+      min_batch_size=1,
+      max_batch_size=9999,
+      retry_filter=_always_retry,
+      **kwargs):
+    self._fake_clock = clock
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._env_vars = kwargs.get('env_vars', {})
+    super().__init__(
+        namespace='FakeRemoteModelHandler',
+        retry_filter=retry_filter,
+        num_retries=2,
+        throttle_delay_secs=1)
+
+  def create_client(self):
+    return FakeModel()
+
+  def request(self, batch, model, inference_args=None) -> Iterable[int]:
+    raise Exception
+
+  def batch_elements_kwargs(self):
+    return {
+        'min_batch_size': self._min_batch_size,
+        'max_batch_size': self._max_batch_size
+    }
+
+
+class FakeFailsOnceRemoteModelHandler(base.RemoteModelHandler[int,
+                                                              int,
+                                                              FakeModel]):
+  def __init__(
+      self,
+      clock=None,
+      min_batch_size=1,
+      max_batch_size=9999,
+      retry_filter=_always_retry,
+      **kwargs):
+    self._fake_clock = clock
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._env_vars = kwargs.get('env_vars', {})
+    self._should_fail = True
+    super().__init__(
+        namespace='FakeRemoteModelHandler',
+        retry_filter=retry_filter,
+        num_retries=2,
+        throttle_delay_secs=1)
+
+  def create_client(self):
+    return FakeModel()
+
+  def request(self, batch, model, inference_args=None) -> Iterable[int]:
+    if self._should_fail:
+      self._should_fail = False
+      raise Exception
+    else:
+      self._should_fail = True
+      responses = []
+      for example in batch:
+        responses.append(model.predict(example))
+      return responses
+
+  def batch_elements_kwargs(self):
+    return {
+        'min_batch_size': self._min_batch_size,
+        'max_batch_size': self._max_batch_size
+    }
+
+
+class RunInferenceRemoteTest(unittest.TestCase):
+  def test_normal_model_execution(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeRemoteModelHandler())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_repeated_requests_fail(self):
+    test_pipeline = TestPipeline()
+    with self.assertRaises(Exception):
+      _ = (
+          test_pipeline
+          | beam.Create([1, 2, 3, 4])
+          | base.RunInference(FakeAlwaysFailsRemoteModelHandler()))
+      test_pipeline.run()
+
+  def test_works_on_retry(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeFailsOnceRemoteModelHandler())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_exception_on_load_model_override(self):
+    with self.assertRaises(Exception):
+
+      class _(base.RemoteModelHandler[int, int, FakeModel]):
+        def __init__(self, clock=None, retry_filter=_always_retry, **kwargs):
+          self._fake_clock = clock
+          self._min_batch_size = 1
+          self._max_batch_size = 1
+          self._env_vars = kwargs.get('env_vars', {})
+          super().__init__(
+              namespace='FakeRemoteModelHandler', retry_filter=retry_filter)
+
+        def load_model(self):
+          return FakeModel()
+
+        def request(self, batch, model, inference_args=None) -> Iterable[int]:
+          responses = []
+          for example in batch:
+            responses.append(model.predict(example))
+          return responses
+
+  def test_exception_on_run_inference_override(self):
+    with self.assertRaises(Exception):
+
+      class _(base.RemoteModelHandler[int, int, FakeModel]):
+        def __init__(self, clock=None, retry_filter=_always_retry, **kwargs):
+          self._fake_clock = clock
+          self._min_batch_size = 1
+          self._max_batch_size = 1
+          self._env_vars = kwargs.get('env_vars', {})
+          super().__init__(
+              namespace='FakeRemoteModelHandler', retry_filter=retry_filter)
+
+        def create_client(self):
+          return FakeModel()
+
+        def run_inference(self,
+                          batch,
+                          model,
+                          inference_args=None) -> Iterable[int]:
+          responses = []
+          for example in batch:
+            responses.append(model.predict(example))
+          return responses
 
 
 if __name__ == '__main__':

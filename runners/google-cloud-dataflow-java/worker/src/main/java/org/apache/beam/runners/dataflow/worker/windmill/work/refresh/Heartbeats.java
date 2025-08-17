@@ -21,12 +21,14 @@ import com.google.auto.value.AutoValue;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 
 /** Heartbeat requests and the work that was used to generate the heartbeat requests. */
+@Internal
 @AutoValue
-abstract class Heartbeats {
+public abstract class Heartbeats {
 
   static Heartbeats.Builder builder() {
     return new AutoValue_Heartbeats.Builder();

@@ -23,7 +23,10 @@ import collections
 import glob
 import io
 import tempfile
+from typing import Any
 from typing import Iterable
+from typing import List
+from typing import NamedTuple
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -35,6 +38,8 @@ from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.util import CoGroupByKey
+from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
+from apache_beam.utils.windowed_value import PaneInfo
 
 __all__ = [
     'assert_that',
@@ -45,6 +50,7 @@ __all__ = [
     'matches_all',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
+    'row_namedtuple_equals_fn',
     'TestWindowedValue',
 ]
 
@@ -56,8 +62,11 @@ class BeamAssertException(Exception):
 
 
 # Used for reifying timestamps and windows for assert_that matchers.
-TestWindowedValue = collections.namedtuple(
-    'TestWindowedValue', 'value timestamp windows')
+class TestWindowedValue(NamedTuple):
+  value: Any
+  timestamp: Any
+  windows: List
+  pane_info: PaneInfo = PANE_INFO_UNKNOWN
 
 
 def contains_in_any_order(iterable):
@@ -159,7 +168,7 @@ def equal_to(expected, equals_fn=None):
     # collection. It can also raise false negatives for types that don't have
     # a deterministic sort order, like pyarrow Tables as of 0.14.1
     if not equals_fn:
-      equals_fn = lambda e, a: e == a
+      equals_fn = row_namedtuple_equals_fn
       try:
         sorted_expected = sorted(expected)
         sorted_actual = sorted(actual)
@@ -192,6 +201,33 @@ def equal_to(expected, equals_fn=None):
       raise BeamAssertException(msg)
 
   return _equal
+
+
+def row_namedtuple_equals_fn(expected, actual, fallback_equals_fn=None):
+  """
+  equals_fn which can be used by equal_to which treats Rows and
+  NamedTuples as equivalent types. This can be useful since Beam converts
+  Rows to NamedTuples when they are sent across portability layers, so a Row
+  may be converted to a NamedTuple automatically by Beam.
+  """
+  if fallback_equals_fn is None:
+    fallback_equals_fn = lambda e, a: e == a
+  if type(expected) is not pvalue.Row and not _is_named_tuple(expected):
+    return fallback_equals_fn(expected, actual)
+  if type(actual) is not pvalue.Row and not _is_named_tuple(actual):
+    return fallback_equals_fn(expected, actual)
+
+  expected_dict = expected._asdict()
+  actual_dict = actual._asdict()
+  if len(expected_dict) != len(actual_dict):
+    return False
+  for k, v in expected_dict.items():
+    if k not in actual_dict:
+      return False
+    if not row_namedtuple_equals_fn(v, actual_dict[k]):
+      return False
+
+  return True
 
 
 def matches_all(expected):
@@ -266,7 +302,12 @@ def assert_that(
     # The pipeline was already run. The user most likely called assert_that
     # after the pipeleline context.
     raise RuntimeError(
-        'assert_that must be used within a beam.Pipeline context')
+        'assert_that must be used within a beam.Pipeline context. ' +
+        'Prior to Beam 2.60.0, asserts outside of the context of a pipeline ' +
+        'were silently ignored, starting with Beam 2.60.0 this is no longer ' +
+        'allowed. To fix, move your assert_that call into your pipeline ' +
+        'context so that it is added before the pipeline is run. For more ' +
+        'information, see https://github.com/apache/beam/pull/30771')
 
   # Usually, the uniqueness of the label is left to the pipeline
   # writer to guarantee. Since we're in a testing context, we'll
@@ -285,11 +326,15 @@ def assert_that(
 
   class ReifyTimestampWindow(DoFn):
     def process(
-        self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
+        self,
+        element,
+        timestamp=DoFn.TimestampParam,
+        window=DoFn.WindowParam,
+        pane_info=DoFn.PaneInfoParam):
       # This returns TestWindowedValue instead of
       # beam.utils.windowed_value.WindowedValue because ParDo will extract
       # the timestamp and window out of the latter.
-      return [TestWindowedValue(element, timestamp, [window])]
+      return [TestWindowedValue(element, timestamp, [window], pane_info)]
 
   class AddWindow(DoFn):
     def process(self, element, window=DoFn.WindowParam):
@@ -313,7 +358,7 @@ def assert_that(
       # PCollection is empty.
       plain_actual = ((keyed_singleton, keyed_actual)
                       | 'Group' >> CoGroupByKey()
-                      | 'Unkey' >> Map(lambda k_values: k_values[1][1]))
+                      | 'Unkey' >> Map(lambda k_values: list(k_values[1][1])))
 
       if not use_global_window:
         plain_actual = plain_actual | 'AddWindow' >> ParDo(AddWindow())
@@ -367,6 +412,12 @@ def _sort_lists(result):
     return sorted(result)
   else:
     return result
+
+
+def _is_named_tuple(obj) -> bool:
+  return (
+      isinstance(obj, tuple) and hasattr(obj, '_asdict') and
+      hasattr(obj, '_fields'))
 
 
 # A utility transform that recursively sorts lists for easier testing.

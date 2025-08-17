@@ -1,0 +1,52 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Refresh Looker Performance Metrics
+
+on:
+  workflow_dispatch:
+    inputs:
+      READ_ONLY:
+        description: 'Run in read-only mode'
+        required: false
+        default: 'true'
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  LOOKERSDK_BASE_URL: ${{ secrets.LOOKERSDK_BASE_URL }}
+  LOOKERSDK_CLIENT_ID: ${{ secrets.LOOKERSDK_CLIENT_ID }}
+  LOOKERSDK_CLIENT_SECRET: ${{ secrets.LOOKERSDK_CLIENT_SECRET }}
+  GCS_BUCKET: 'public_looker_explores_us_a3853f40'
+  READ_ONLY: ${{ inputs.READ_ONLY }}
+
+jobs:
+  refresh_looker_metrics:
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - run: pip install requests google-cloud-storage looker-sdk
+      - name: Authenticate on GCP
+        uses: google-github-actions/auth@v2
+        with:
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - run: python .test-infra/tools/refresh_looker_metrics.py

@@ -29,7 +29,6 @@ import static org.junit.Assert.assertFalse;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +66,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -221,11 +221,6 @@ public final class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public long getAndResetThrottleTime() {
-    return 0;
-  }
-
-  @Override
   public GetWorkStream getWorkStream(Windmill.GetWorkRequest request, WorkItemReceiver receiver) {
     LOG.debug("getWorkStream: {}", request.toString());
     Instant startTime = Instant.now();
@@ -237,6 +232,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
+      public void start() {}
+
+      @Override
       public void shutdown() {}
 
       @Override
@@ -245,16 +243,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void adjustBudget(long itemsDelta, long bytesDelta) {
+      public void setBudget(GetWorkBudget newBudget) {
         // no-op.
-      }
-
-      @Override
-      public GetWorkBudget remainingBudget() {
-        return GetWorkBudget.builder()
-            .setItems(request.getMaxItems())
-            .setBytes(request.getMaxBytes())
-            .build();
       }
 
       @Override
@@ -263,7 +253,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
           Windmill.GetWorkResponse response = workToOffer.get(null);
           if (response == null) {
             try {
-              sleepMillis(500);
+              sleepMillis(100);
             } catch (InterruptedException e) {
               halfClose();
               Thread.currentThread().interrupt();
@@ -280,7 +270,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
                   inputDataWatermark,
                   Instant.now(),
                   workItem,
-                  Collections.singletonList(
+                  workItem.getSerializedSize(),
+                  ImmutableList.of(
                       LatencyAttribution.newBuilder()
                           .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
                           .setTotalDurationMillis(1000)
@@ -306,6 +297,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public String backendWorkerToken() {
         return "";
       }
+
+      @Override
+      public void start() {}
 
       @Override
       public void shutdown() {}
@@ -387,6 +381,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public String backendWorkerToken() {
         return "";
       }
+
+      @Override
+      public void start() {}
 
       @Override
       public void shutdown() {}
@@ -518,9 +515,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> waitForDroppedCommits(
       int droppedCommits) {
     LOG.debug("waitForDroppedCommits: {}", droppedCommits);
-    int maxTries = 10;
+    int maxTries = 100;
     while (maxTries-- > 0 && droppedStreamingCommits.size() < droppedCommits) {
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
     assertEquals(droppedCommits, droppedStreamingCommits.size());
     return droppedStreamingCommits;

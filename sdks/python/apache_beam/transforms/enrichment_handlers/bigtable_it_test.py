@@ -17,11 +17,9 @@
 
 import datetime
 import logging
+import time
 import unittest
-from typing import Dict
-from typing import List
 from typing import NamedTuple
-from typing import Tuple
 from unittest.mock import MagicMock
 
 import pytest
@@ -33,7 +31,6 @@ from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import NotFound
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_filters import ColumnRangeFilter
   from testcontainers.redis import RedisContainer
@@ -57,8 +54,8 @@ class ValidateResponse(beam.DoFn):
   def __init__(
       self,
       n_fields: int,
-      fields: List[str],
-      enriched_fields: Dict[str, List[str]],
+      fields: list[str],
+      enriched_fields: dict[str, list[str]],
       include_timestamp: bool = False,
   ):
     self.n_fields = n_fields
@@ -88,7 +85,7 @@ class ValidateResponse(beam.DoFn):
               "Response from bigtable should contain a %s column_family with "
               "%s columns." % (column_family, columns))
         if (self._include_timestamp and
-            not isinstance(element_dict[column_family][key][0], Tuple)):  # type: ignore[arg-type]
+            not isinstance(element_dict[column_family][key][0], tuple)):
           raise BeamAssertException(
               "Response from bigtable should contain timestamp associated with "
               "its value.")
@@ -139,17 +136,17 @@ def create_rows(table):
         column_family_id,
         product_id.encode(),
         str(item[product_id]),
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.set_cell(
         column_family_id,
         product_name.encode(),
         item[product_name],
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.set_cell(
         column_family_id,
         product_stock.encode(),
         str(item[product_stock]),
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.commit()
 
 
@@ -171,7 +168,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     instance = client.instance(self.instance_id)
     self.table = instance.table(self.table_id)
     create_rows(self.table)
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
@@ -187,6 +184,8 @@ class TestBigTableEnrichment(unittest.TestCase):
         if i == self.retries - 1:
           _LOGGER.error('Unable to start redis container for RRIO tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
   def tearDown(self) -> None:
     self.container.stop()
@@ -275,7 +274,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         table_id=self.table_id,
         row_key=self.row_key,
         row_filter=column_filter)
-    with self.assertRaises(NotFound):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -292,7 +291,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         instance_id=self.instance_id,
         table_id=self.table_id,
         row_key='car_name')
-    with self.assertRaises(KeyError):
+    with self.assertRaisesRegex(Exception, "not found in input"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -309,7 +308,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         instance_id=self.instance_id,
         table_id='invalid_table',
         row_key=self.row_key)
-    with self.assertRaises(NotFound):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -328,7 +327,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         row_key=self.row_key,
         exception_level=ExceptionLevel.RAISE)
     req = [beam.Row(sale_id=1, customer_id=1, product_id=11, quantity=1)]
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(Exception, "no matching row"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline

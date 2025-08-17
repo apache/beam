@@ -32,9 +32,10 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -159,18 +160,18 @@ public class TestStreamEvaluatorFactoryTest {
             .commit(Instant.now())
             .getElements(),
         Matchers.containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(1),
-            WindowedValue.valueInGlobalWindow(2),
-            WindowedValue.valueInGlobalWindow(3)));
+            WindowedValues.valueInGlobalWindow(1),
+            WindowedValues.valueInGlobalWindow(2),
+            WindowedValues.valueInGlobalWindow(3)));
 
     assertThat(
         Iterables.getOnlyElement(thirdResult.getOutputBundles())
             .commit(Instant.now())
             .getElements(),
         Matchers.containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(4),
-            WindowedValue.valueInGlobalWindow(5),
-            WindowedValue.valueInGlobalWindow(6)));
+            WindowedValues.valueInGlobalWindow(4),
+            WindowedValues.valueInGlobalWindow(5),
+            WindowedValues.valueInGlobalWindow(6)));
 
     assertThat(fifthResult.getOutputBundles(), Matchers.emptyIterable());
     assertThat(fifthResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));

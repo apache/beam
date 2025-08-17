@@ -17,22 +17,78 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import com.google.auto.value.AutoValue;
+import com.solacesystems.jcsmp.BytesXMLMessage;
+import org.apache.beam.sdk.io.solace.MockProducer.MockFailedProducer;
+import org.apache.beam.sdk.io.solace.MockProducer.MockSuccessProducer;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class MockSessionServiceFactory extends SessionServiceFactory {
-  SessionService sessionService;
+@AutoValue
+public abstract class MockSessionServiceFactory extends SessionServiceFactory {
+  public abstract @Nullable SubmissionMode mode();
 
-  public MockSessionServiceFactory(SessionService clientService) {
-    this.sessionService = clientService;
+  public abstract @Nullable SerializableFunction<Integer, BytesXMLMessage> recordFn();
+
+  public abstract int minMessagesReceived();
+
+  public abstract SessionServiceType sessionServiceType();
+
+  public static Builder builder() {
+    return new AutoValue_MockSessionServiceFactory.Builder()
+        .minMessagesReceived(0)
+        .sessionServiceType(SessionServiceType.WITH_SUCCEEDING_PRODUCER);
   }
 
   public static SessionServiceFactory getDefaultMock() {
-    return new MockSessionServiceFactory(new MockEmptySessionService());
+    return MockSessionServiceFactory.builder().build();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder mode(@Nullable SubmissionMode mode);
+
+    public abstract Builder recordFn(
+        @Nullable SerializableFunction<Integer, BytesXMLMessage> recordFn);
+
+    public abstract Builder minMessagesReceived(int minMessagesReceived);
+
+    public abstract Builder sessionServiceType(SessionServiceType sessionServiceType);
+
+    public abstract MockSessionServiceFactory build();
   }
 
   @Override
   public SessionService create() {
-    return sessionService;
+    switch (sessionServiceType()) {
+      case EMPTY:
+        return MockEmptySessionService.create();
+      case WITH_SUCCEEDING_PRODUCER:
+        return MockSessionService.builder()
+            .recordFn(recordFn())
+            .minMessagesReceived(minMessagesReceived())
+            .mode(mode())
+            .mockProducerFn(MockSuccessProducer::new)
+            .build();
+      case WITH_FAILING_PRODUCER:
+        return MockSessionService.builder()
+            .recordFn(recordFn())
+            .minMessagesReceived(minMessagesReceived())
+            .mode(mode())
+            .mockProducerFn(MockFailedProducer::new)
+            .build();
+      default:
+        throw new RuntimeException(
+            String.format("Unknown sessionServiceType: %s", sessionServiceType().name()));
+    }
+  }
+
+  public enum SessionServiceType {
+    EMPTY,
+    WITH_SUCCEEDING_PRODUCER,
+    WITH_FAILING_PRODUCER
   }
 }

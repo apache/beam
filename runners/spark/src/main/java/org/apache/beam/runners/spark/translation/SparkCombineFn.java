@@ -49,11 +49,12 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -244,7 +245,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
     public Collection<WindowedValue<AccumT>> extractOutput() {
       if (windowAccumulator != null) {
         return Collections.singletonList(
-            WindowedValue.of(
+            WindowedValues.of(
                 windowAccumulator, accTimestamp, accWindow, PaneInfo.ON_TIME_AND_ONLY_FIRING));
       }
       return Collections.emptyList();
@@ -309,7 +310,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
               }
               AccumT result = context.combineFn.addInput(acc, toValue(v), ctx);
               Instant timestampCombined = combiner.combine(windowTimestamp, timestamp);
-              return WindowedValue.of(result, timestampCombined, window, PaneInfo.NO_FIRING);
+              return WindowedValues.of(result, timestampCombined, window, PaneInfo.NO_FIRING);
             });
       }
       mergeWindows(context);
@@ -327,7 +328,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
               // merge
               this.map.put(
                   window,
-                  WindowedValue.of(
+                  WindowedValues.of(
                       context.combineFn.mergeAccumulators(
                           Lists.newArrayList(thisAcc.getValue(), acc.getValue()),
                           context.ctxtForValue(acc)),
@@ -442,7 +443,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
                 toBeMerged.forEach(this.map::remove);
                 this.map.put(
                     mergeResult.getKey(),
-                    WindowedValue.of(
+                    WindowedValues.of(
                         mergeResult.getValue(),
                         mergedInstant,
                         mergeResult.getKey(),
@@ -504,7 +505,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
         WindowedAccumulator.Type type) {
 
       this.toValue = toValue;
-      this.accumCoder = WindowedValue.FullWindowedValueCoder.of(accumCoder, windowCoder);
+      this.accumCoder = WindowedValues.FullWindowedValueCoder.of(accumCoder, windowCoder);
       this.windowComparator = windowComparator;
       this.wrap = IterableCoder.of(this.accumCoder);
       this.type = type;
@@ -524,7 +525,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
         } else {
           outStream.write(1);
           accumCoder.encode(
-              WindowedValue.of(
+              WindowedValues.of(
                   swwa.windowAccumulator, swwa.accTimestamp, swwa.accWindow, PaneInfo.NO_FIRING),
               outStream);
         }
@@ -809,9 +810,6 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
   }
 
   private static BoundedWindow getWindow(WindowedValue<?> value) {
-    if (value.isSingleWindowedValue()) {
-      return ((WindowedValue.SingleWindowedValue) value).getWindow();
-    }
     return Iterables.getOnlyElement(value.getWindows());
   }
 

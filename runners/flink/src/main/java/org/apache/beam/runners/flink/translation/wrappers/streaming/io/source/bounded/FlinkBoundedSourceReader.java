@@ -32,7 +32,8 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -100,6 +101,11 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
   @Override
   public InputStatus pollNext(ReaderOutput<WindowedValue<T>> output) throws Exception {
     checkExceptionAndMaybeThrow();
+
+    if (currentReader == null && currentSplitId == -1) {
+      context.sendSplitRequest();
+    }
+
     if (currentReader == null && !moveToNextNonEmptyReader()) {
       // Nothing to read for now.
       if (noMoreSplits()) {
@@ -120,7 +126,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
       final @Nonnull Source.Reader<T> splitReader = currentReader;
       T record = splitReader.getCurrent();
       WindowedValue<T> windowedValue =
-          WindowedValue.of(
+          WindowedValues.of(
               record, splitReader.getCurrentTimestamp(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
 
       if (timestampExtractor == null) {
@@ -137,6 +143,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
         LOG.debug("Finished reading from {}", currentSplitId);
         currentReader = null;
         currentSplitId = -1;
+        context.sendSplitRequest();
       }
       // Always return MORE_AVAILABLE here regardless of the availability of next record. If there
       // is no more

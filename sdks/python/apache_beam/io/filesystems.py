@@ -125,7 +125,7 @@ class FileSystems(object):
 
   @staticmethod
   def get_filesystem(path):
-    # type: (str) -> FileSystems
+    # type: (str) -> FileSystem
 
     """Get the correct filesystem for the specified path
     """
@@ -392,12 +392,20 @@ class FileSystems(object):
 
   @staticmethod
   def report_source_lineage(path):
-    """Report source :class:`~apache_beam.metrics.metric.Lineage`."""
-    filesystem = FileSystems.get_filesystem(path)
-    filesystem.report_lineage(path, Lineage.sources())
+    """
+    Report source :class:`~apache_beam.metrics.metric.Lineage`.
+
+    Args:
+      path: string path to be reported.
+    """
+    FileSystems.get_filesystem(path).report_lineage(path, Lineage.sources())
 
   @staticmethod
   def report_sink_lineage(path):
-    """Report sink :class:`~apache_beam.metrics.metric.Lineage`."""
-    filesystem = FileSystems.get_filesystem(path)
-    filesystem.report_lineage(path, Lineage.sinks())
+    """
+    Report sink :class:`~apache_beam.metrics.metric.Lineage`.
+
+    Args:
+      path: string path to be reported.
+    """
+    FileSystems.get_filesystem(path).report_lineage(path, Lineage.sinks())

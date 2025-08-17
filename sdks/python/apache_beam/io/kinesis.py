@@ -44,12 +44,14 @@
   pipeline.
 
   * Install Java runtime in the computer from where the pipeline is constructed
-    and make sure that 'java' command is available.
+    and make sure that 'java' command is available or set JAVA_HOME environment
+    variable.
 
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) a expansion service jar and use
   that to expand transforms. Currently Kinesis transforms use the
-  'beam-sdks-java-io-kinesis-expansion-service' jar for this purpose.
+  'beam-sdks-java-io-amazon-web-services2-expansion-service' jar for this
+  purpose.
 
   *Option 2: specify a custom expansion service*
 
@@ -81,7 +83,6 @@
 
 import logging
 import time
-from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 
@@ -99,7 +100,7 @@ __all__ = [
 
 def default_io_expansion_service():
   return BeamJarExpansionService(
-      'sdks:java:io:kinesis:expansion-service:shadowJar')
+      'sdks:java:io:amazon-web-services2:expansion-service:shadowJar')
 
 
 WriteToKinesisSchema = NamedTuple(
@@ -112,7 +113,10 @@ WriteToKinesisSchema = NamedTuple(
         ('partition_key', str),
         ('service_endpoint', Optional[str]),
         ('verify_certificate', Optional[bool]),
-        ('producer_properties', Optional[Mapping[str, str]]),
+        ('aggregation_enabled', Optional[bool]),
+        ('aggregation_max_bytes', Optional[int]),
+        ('aggregation_max_buffered_time', Optional[int]),
+        ('aggregation_shard_refresh_interval', Optional[int]),
     ],
 )
 
@@ -123,7 +127,7 @@ class WriteToKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_write:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_write:v2'
 
   def __init__(
       self,
@@ -136,6 +140,10 @@ class WriteToKinesis(ExternalTransform):
       verify_certificate=None,
       producer_properties=None,
       expansion_service=None,
+      aggregation_enabled=None,
+      aggregation_max_bytes=51200,
+      aggregation_max_buffered_time=100,
+      aggregation_shard_refresh_interval=2,
   ):
     """
     Initializes a write operation to Kinesis.
@@ -148,11 +156,22 @@ class WriteToKinesis(ExternalTransform):
     :param verify_certificate: Enable or disable certificate verification.
         Never set to False on production. True by default.
     :param partition_key: Specify default partition key.
-    :param producer_properties: Specify the configuration properties for Kinesis
-        Producer Library (KPL) as dictionary.
-        Example: {'CollectionMaxCount': '1000', 'ConnectTimeout': '10000'}
+    :param producer_properties: (Deprecated) This option no longer is available
+        since the AWS IOs upgraded to v2. Trying to set it will lead to an
+        error. For more info, see https://github.com/apache/beam/issues/33430.
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param aggregation_enabled: Enable or disable aggregation.
+    :param aggregation_max_bytes: Maximum number of bytes to buffer before
+        sending a batch of records. Defaults to 51200.
+    :param aggregation_max_buffered_time: Maximum time(millisecond) to buffer
+        records before sending a batch of records. Defaults to 100.
+    :param aggregation_shard_refresh_interval: Interval in minutes to refresh
+        the shard map. Defaults to 2.
     """
+    if producer_properties is not None:
+      raise ValueError(
+          'producer_properties is no longer supported and will be removed ' +
+          'in a future release.')
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -164,7 +183,11 @@ class WriteToKinesis(ExternalTransform):
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
                 verify_certificate=verify_certificate,
-                producer_properties=producer_properties,
+                aggregation_enabled=aggregation_enabled,
+                aggregation_max_bytes=aggregation_max_bytes,
+                aggregation_max_buffered_time=aggregation_max_buffered_time,
+                aggregation_shard_refresh_interval=
+                aggregation_shard_refresh_interval,
             )),
         expansion_service or default_io_expansion_service(),
     )
@@ -199,7 +222,7 @@ class ReadDataFromKinesis(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:transform:org.apache.beam:kinesis_read_data:v1'
+  URN = 'beam:transform:org.apache.beam:kinesis_read_data:v2'
 
   def __init__(
       self,

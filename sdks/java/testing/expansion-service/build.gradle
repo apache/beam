@@ -49,7 +49,8 @@ task buildTestExpansionServiceJar(type: ShadowJar) {
   mergeServiceFiles()
   manifest {
     attributes(
-            'Main-Class': 'org.apache.beam.sdk.expansion.service.ExpansionService'
+            'Main-Class': 'org.apache.beam.sdk.expansion.service.ExpansionService',
+            "Multi-Release": true
     )
   }
   exclude "META-INF/INDEX.LIST"

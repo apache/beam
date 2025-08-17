@@ -273,6 +273,52 @@ pipeline:
         path: /path/to/output.json
 ```
 
+If a `chain` pipeline has required error consumption or needs additional
+transforms not supported in a typical `chain` context, use an
+`extra_transforms` block.
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: /path/to/input*.csv
+
+    - type: MapToFields
+      name: SomeStep
+      config:
+        language: python
+        fields:
+          col1: col1
+          # This could raise a divide-by-zero error.
+          ratio: col2 / col3
+        error_handling:
+          output: errors
+
+    - type: MapToFields
+      name: AnotherStep
+      config:
+        language: python
+        fields:
+          col1: col1
+          # This could raise a divide-by-zero error.
+          inverse_ratio: 1 / ratio
+        error_handling:
+          output: errors
+
+    - type: WriteToJson
+      config:
+        path: /path/to/output.json
+
+  extra_transforms:
+    - type: WriteToJson
+      name: WriteErrors
+      input: [SomeStep.errors, AnotherStep.errors]
+      config:
+        path: /path/to/errors.json
+```
+
 ### Source and sink transforms
 
 As syntactic sugar, you can name the first and last transforms in your pipeline
@@ -623,58 +669,6 @@ options:
   streaming: true
 ```
 
-
-## Providers
-
-Though we aim to offer a large suite of built-in transforms, it is inevitable
-that people will want to author their own. This is made possible
-through the notion of Providers which leverage expansion services and
-schema transforms.
-
-For example, you could build a jar that vends a
-[cross language transform](https://beam.apache.org/documentation/sdks/python-multi-language-pipelines/)
-or [schema transform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/schemas/transforms/SchemaTransformProvider.html)
-and then use it in a transform as follows
-
-```
-pipeline:
-  type: chain
-  source:
-    type: ReadFromCsv
-    config:
-      path: /path/to/input*.csv
-
-  transforms:
-    - type: MyCustomTransform
-      config:
-        arg: whatever
-
-  sink:
-    type: WriteToJson
-    config:
-      path: /path/to/output.json
-
-providers:
-  - type: javaJar
-    config:
-       jar: /path/or/url/to/myExpansionService.jar
-    transforms:
-       MyCustomTransform: "urn:registered:in:expansion:service"
-```
-
-Arbitrary Python transforms can be provided as well, using the syntax
-
-```
-providers:
-  - type: pythonPackage
-    config:
-       packages:
-           - my_pypi_package>=version
-           - /path/to/local/package.zip
-    transforms:
-       MyCustomTransform: "pkg.subpkg.PTransformClassOrCallable"
-```
-
 ## Pipeline options
 
 [Pipeline options](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options)
@@ -704,6 +698,49 @@ pipeline:
 options:
   streaming: true
 ```
+
+## Jinja Templatization
+
+It is a common to want to run a single Beam pipeline in different contexts
+and/or with different configurations.
+When running a YAML pipeline using `apache_beam.yaml.main` or via gcloud,
+the yaml file can be parameterized with externally provided variables using
+the [jinja variable syntax](https://jinja.palletsprojects.com/en/stable/templates/#variables).
+The values are then passed via a `--jinja_variables` command line flag.
+
+For example, one could start a pipeline with
+
+```
+pipeline:
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: {{input_pattern}}
+```
+
+and then run it with
+
+```sh
+python -m apache_beam.yaml.main \
+    --yaml_pipeline_file=pipeline.yaml \
+    --jinja_variables='{"input_pattern": "gs://path/to/this/runs/files*.csv"}'
+```
+
+Arbitrary [jinja control structures](https://jinja.palletsprojects.com/en/stable/templates/#list-of-control-structures),
+such as looping and conditionals, can be used as well if desired as long as the
+output results in a valid Beam YAML pipeline.
+
+We also expose the [`datetime`](https://docs.python.org/3/library/datetime.html)
+module as a variable by default, which can be particularly useful in reading
+or writing dated sources and sinks, e.g.
+
+```
+- type: WriteToJson
+  config:
+    path: "gs://path/to/{{ datetime.datetime.now().strftime('%Y/%m/%d') }}/dated-output.json"
+```
+
+would write to files like `gs://path/to/2016/08/04/dated-output*.json`.
 
 ## Other Resources
 

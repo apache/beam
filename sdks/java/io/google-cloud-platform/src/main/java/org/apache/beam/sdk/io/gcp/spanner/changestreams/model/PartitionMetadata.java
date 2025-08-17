@@ -61,7 +61,7 @@ public class PartitionMetadata implements Serializable {
   }
 
   private String partitionToken;
-  private HashSet<String> parentTokens;
+  @Nullable @org.apache.avro.reflect.Nullable private HashSet<String> parentTokens;
 
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
@@ -98,7 +98,7 @@ public class PartitionMetadata implements Serializable {
 
   public PartitionMetadata(
       String partitionToken,
-      HashSet<String> parentTokens,
+      @Nullable HashSet<String> parentTokens,
       Timestamp startTimestamp,
       Timestamp endTimestamp,
       long heartbeatMillis,
@@ -130,7 +130,7 @@ public class PartitionMetadata implements Serializable {
    * The unique partition identifiers of the parent partitions where this child partition originated
    * from.
    */
-  public HashSet<String> getParentTokens() {
+  public @Nullable HashSet<String> getParentTokens() {
     return parentTokens;
   }
 
@@ -269,7 +269,7 @@ public class PartitionMetadata implements Serializable {
   public static class Builder {
 
     private String partitionToken;
-    private HashSet<String> parentTokens;
+    @Nullable private HashSet<String> parentTokens;
     private Timestamp startTimestamp;
     private Timestamp endTimestamp;
     private Long heartbeatMillis;
@@ -303,7 +303,7 @@ public class PartitionMetadata implements Serializable {
     }
 
     /** Sets the collection of parent partition identifiers. */
-    public Builder setParentTokens(HashSet<String> parentTokens) {
+    public Builder setParentTokens(@Nullable HashSet<String> parentTokens) {
       this.parentTokens = parentTokens;
       return this;
     }
@@ -376,7 +376,6 @@ public class PartitionMetadata implements Serializable {
      */
     public PartitionMetadata build() {
       Preconditions.checkState(partitionToken != null, "partitionToken");
-      Preconditions.checkState(parentTokens != null, "parentTokens");
       Preconditions.checkState(startTimestamp != null, "startTimestamp");
       Preconditions.checkState(heartbeatMillis != null, "heartbeatMillis");
       Preconditions.checkState(state != null, "state");

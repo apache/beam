@@ -21,13 +21,16 @@ import static org.junit.Assert.*;
 
 import java.io.InputStream;
 import java.io.SequenceInputStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -45,8 +48,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetD
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo.Event;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -55,7 +56,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequest;
@@ -71,26 +71,26 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillApplianceGrpc;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptors;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Deadline;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientInterceptors;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Deadline;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -115,8 +115,13 @@ public class GrpcWindmillServerTest {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final long clientId = 10L;
+  private final Set<ManagedChannel> openedChannels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
@@ -131,16 +136,18 @@ public class GrpcWindmillServerTest {
   @After
   public void tearDown() throws Exception {
     server.shutdownNow();
+    openedChannels.forEach(ManagedChannel::shutdownNow);
   }
 
   private void startServerAndClient(List<String> experiments) throws Exception {
     String name = "Fake server for " + getClass();
     this.server =
-        InProcessServerBuilder.forName(name)
-            .fallbackHandlerRegistry(serviceRegistry)
-            .executor(Executors.newFixedThreadPool(1))
-            .build()
-            .start();
+        grpcCleanup.register(
+            InProcessServerBuilder.forName(name)
+                .fallbackHandlerRegistry(serviceRegistry)
+                .executor(Executors.newFixedThreadPool(1))
+                .build()
+                .start());
 
     this.client =
         GrpcWindmillServer.newTestInstance(
@@ -149,7 +156,12 @@ public class GrpcWindmillServerTest {
             clientId,
             new FakeWindmillStubFactoryFactory(
                 new FakeWindmillStubFactory(
-                    () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name)))));
+                    () -> {
+                      ManagedChannel channel =
+                          grpcCleanup.register(WindmillChannels.inProcessChannel(name));
+                      openedChannels.add(channel);
+                      return channel;
+                    })));
   }
 
   private <Stream extends StreamObserver> void maybeInjectError(Stream stream) {
@@ -280,7 +292,7 @@ public class GrpcWindmillServerTest {
                       StreamingGetWorkResponseChunk.Builder builder =
                           StreamingGetWorkResponseChunk.newBuilder()
                               .setStreamId(id)
-                              .setSerializedWorkItem(serializedResponse.substring(i, end))
+                              .addSerializedWorkItem(serializedResponse.substring(i, end))
                               .setRemainingBytesForWorkItem(serializedResponse.size() - end);
 
                       if (i == 0) {
@@ -325,7 +337,8 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 WorkItem workItem,
-                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
+                long serializedWorkItemSize,
+                ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
@@ -338,7 +351,141 @@ public class GrpcWindmillServerTest {
   }
 
   @Test
-  @SuppressWarnings("FutureReturnValueIgnored")
+  public void testStreamingGetWorkBatchedGetWorkResponse() throws Exception {
+    ConcurrentHashMap<Long, Boolean> sentResponseIds = new ConcurrentHashMap<>();
+    // This fake server returns an infinite stream of identical WorkItems, obeying the request size
+    // limits set by the client.
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          @Override
+          public StreamObserver<StreamingGetWorkRequest> getWorkStream(
+              StreamObserver<StreamingGetWorkResponseChunk> responseObserver) {
+            return new StreamObserver<StreamingGetWorkRequest>() {
+              final ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
+              boolean sawHeader = false;
+
+              @Override
+              public void onNext(StreamingGetWorkRequest request) {
+                maybeInjectError(responseObserver);
+
+                try {
+                  long maxItems;
+                  if (!sawHeader) {
+                    errorCollector.checkThat(
+                        request.getRequest(),
+                        Matchers.equalTo(
+                            GetWorkRequest.newBuilder()
+                                .setClientId(10)
+                                .setJobId("job")
+                                .setProjectId("project")
+                                .setWorkerId("worker")
+                                .setMaxItems(10)
+                                .setMaxBytes(10000)
+                                .build()));
+                    sawHeader = true;
+                    maxItems = request.getRequest().getMaxItems();
+                  } else {
+                    maxItems = request.getRequestExtension().getMaxItems();
+                  }
+
+                  ArrayDeque<ByteString> serializedResponses = new ArrayDeque<>((int) maxItems);
+                  for (int item = 0; item < maxItems; item++) {
+                    long id = ThreadLocalRandom.current().nextLong();
+                    ByteString serializedResponse =
+                        WorkItem.newBuilder()
+                            .setKey(ByteString.copyFromUtf8("somewhat_long_key"))
+                            .setWorkToken(id)
+                            .setShardingKey(id)
+                            .build()
+                            .toByteString();
+                    serializedResponses.push(serializedResponse);
+                    sentResponseIds.put(id, true);
+                  }
+
+                  int loop = 0;
+                  // Send a mix of chunks with single messages and partial messages
+                  while (serializedResponses.size() > 0) {
+                    StreamingGetWorkResponseChunk.Builder responseChunk =
+                        StreamingGetWorkResponseChunk.newBuilder()
+                            .setStreamId(ThreadLocalRandom.current().nextLong())
+                            .setComputationMetadata(
+                                ComputationWorkItemMetadata.newBuilder()
+                                    .setComputationId("comp")
+                                    .setDependentRealtimeInputWatermark(17000)
+                                    .setInputDataWatermark(18000));
+                    int loopVariant = loop % 3;
+                    if (loopVariant < 1) {
+                      responseChunk.addSerializedWorkItem(serializedResponses.pop());
+                    }
+                    if (serializedResponses.size() > 0 && loopVariant < 2) {
+                      ByteString serializedResponse = serializedResponses.pop();
+                      int end = serializedResponse.size() / 2;
+                      responseChunk.addSerializedWorkItem(serializedResponse.substring(0, end));
+                      responseChunk.setRemainingBytesForWorkItem(serializedResponse.size() - end);
+                      try {
+                        responseObserver.onNext(responseChunk.build());
+                      } catch (IllegalStateException e) {
+                        // Client closed stream, we're done.
+                        return;
+                      }
+                      responseChunk.clearSerializedWorkItem();
+                      responseChunk.clearRemainingBytesForWorkItem();
+
+                      responseChunk.addSerializedWorkItem(serializedResponse.substring(end));
+                    }
+                    if (serializedResponses.size() > 0 && loopVariant < 3) {
+                      responseChunk.addSerializedWorkItem(serializedResponses.pop());
+                    }
+                    try {
+                      responseObserver.onNext(responseChunk.build());
+                    } catch (IllegalStateException e) {
+                      // Client closed stream, we're done.
+                      return;
+                    }
+                    ++loop;
+                  }
+                } catch (Exception e) {
+                  errorCollector.addError(e);
+                }
+              }
+
+              @Override
+              public void onError(Throwable throwable) {}
+
+              @Override
+              public void onCompleted() {
+                injector.cancel();
+                responseObserver.onCompleted();
+              }
+            };
+          }
+        });
+
+    // Read the stream of WorkItems until 100 of them are received.
+    CountDownLatch latch = new CountDownLatch(100);
+    GetWorkStream stream =
+        client.getWorkStream(
+            GetWorkRequest.newBuilder().setClientId(10).setMaxItems(10).setMaxBytes(10000).build(),
+            (String computation,
+                @Nullable Instant inputDataWatermark,
+                Instant synchronizedProcessingTime,
+                WorkItem workItem,
+                long serializedWorkItemSize,
+                ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
+              assertEquals(inputDataWatermark, new Instant(18));
+              assertEquals(synchronizedProcessingTime, new Instant(17));
+              assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
+              assertTrue(sentResponseIds.containsKey(workItem.getWorkToken()));
+              sentResponseIds.remove(workItem.getWorkToken());
+              latch.countDown();
+            });
+    assertTrue(latch.await(30, TimeUnit.SECONDS));
+
+    stream.halfClose();
+    assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
+  }
+
+  @Test
   public void testStreamingGetData() throws Exception {
     // This server responds to GetDataRequests with responses that mirror the requests.
     serviceRegistry.addService(
@@ -460,8 +607,9 @@ public class GrpcWindmillServerTest {
                       "Sending batched response of {} ids", responseBuilder.getRequestIdCount());
                   try {
                     responseObserver.onNext(responseBuilder.build());
-                  } catch (IllegalStateException e) {
+                  } catch (Exception e) {
                     // Stream is already closed.
+                    LOG.warn(Arrays.toString(e.getStackTrace()));
                   }
                   responseBuilder.clear();
                 }
@@ -478,18 +626,26 @@ public class GrpcWindmillServerTest {
     for (int i = 0; i < 100; ++i) {
       final String key = "key" + i;
       final String s = i % 5 == 0 ? largeString(i) : "tag";
-      executor.submit(
+      executor.execute(
           () -> {
-            errorCollector.checkThat(
-                stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
-                Matchers.equalTo(makeGetDataResponse(s)));
+            try {
+              errorCollector.checkThat(
+                  stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
+                  Matchers.equalTo(makeGetDataResponse(s)));
+            } catch (WindmillStreamShutdownException e) {
+              throw new RuntimeException(e);
+            }
             done.countDown();
           });
       executor.execute(
           () -> {
-            errorCollector.checkThat(
-                stream.requestGlobalData(makeGlobalDataRequest(key)),
-                Matchers.equalTo(makeGlobalDataResponse(key)));
+            try {
+              errorCollector.checkThat(
+                  stream.requestGlobalData(makeGlobalDataRequest(key)),
+                  Matchers.equalTo(makeGlobalDataResponse(key)));
+            } catch (WindmillStreamShutdownException e) {
+              throw new RuntimeException(e);
+            }
             done.countDown();
           });
     }
@@ -1082,215 +1238,6 @@ public class GrpcWindmillServerTest {
         receivedAllHeartbeatRequests = true;
       }
     }
-  }
-
-  @Test
-  public void testThrottleSignal() throws Exception {
-    // This server responds with work items until the throttleMessage limit is hit at which point it
-    // returns RESOURCE_EXHAUSTED errors for throttleTime msecs after which it resumes sending
-    // work items.
-    final int throttleTime = 2000;
-    final int throttleMessage = 15;
-    serviceRegistry.addService(
-        new CloudWindmillServiceV1Alpha1ImplBase() {
-          long throttleStartTime = -1;
-          int messageCount = 0;
-
-          @Override
-          public StreamObserver<StreamingGetWorkRequest> getWorkStream(
-              StreamObserver<StreamingGetWorkResponseChunk> responseObserver) {
-            return new StreamObserver<StreamingGetWorkRequest>() {
-              boolean sawHeader = false;
-
-              @Override
-              public void onNext(StreamingGetWorkRequest request) {
-                messageCount++;
-                // If we are at the throttleMessage limit or we are currently throttling send an
-                // error.
-                if (messageCount == throttleMessage || throttleStartTime != -1) {
-                  // If throttling has not started yet then start it.
-                  if (throttleStartTime == -1) {
-                    throttleStartTime = Instant.now().getMillis();
-                  }
-                  // If throttling has started and it has been throttleTime since we started
-                  // throttling stop throttling.
-                  if (throttleStartTime != -1
-                      && ((Instant.now().getMillis() - throttleStartTime) > throttleTime)) {
-                    throttleStartTime = -1;
-                  }
-                  StatusRuntimeException error =
-                      new StatusRuntimeException(Status.RESOURCE_EXHAUSTED);
-                  responseObserver.onError(error);
-                  return;
-                }
-                // We are not throttling this message so respond as normal.
-                try {
-                  long maxItems;
-                  if (!sawHeader) {
-                    sawHeader = true;
-                    maxItems = request.getRequest().getMaxItems();
-                  } else {
-                    maxItems = request.getRequestExtension().getMaxItems();
-                  }
-
-                  for (int item = 0; item < maxItems; item++) {
-                    long id = ThreadLocalRandom.current().nextLong();
-                    ByteString serializedResponse =
-                        WorkItem.newBuilder()
-                            .setKey(ByteString.copyFromUtf8("somewhat_long_key"))
-                            .setWorkToken(id)
-                            .setShardingKey(id)
-                            .build()
-                            .toByteString();
-
-                    StreamingGetWorkResponseChunk.Builder builder =
-                        StreamingGetWorkResponseChunk.newBuilder()
-                            .setStreamId(id)
-                            .setSerializedWorkItem(serializedResponse)
-                            .setRemainingBytesForWorkItem(0)
-                            .setComputationMetadata(
-                                ComputationWorkItemMetadata.newBuilder()
-                                    .setComputationId("computation")
-                                    .setInputDataWatermark(1L)
-                                    .setDependentRealtimeInputWatermark(1L)
-                                    .build());
-                    try {
-                      responseObserver.onNext(builder.build());
-                    } catch (IllegalStateException e) {
-                      // Client closed stream, we're done.
-                      return;
-                    }
-                  }
-                } catch (Exception e) {
-                  errorCollector.addError(e);
-                }
-              }
-
-              @Override
-              public void onError(Throwable throwable) {}
-
-              @Override
-              public void onCompleted() {
-                responseObserver.onCompleted();
-              }
-            };
-          }
-        });
-
-    // Read the stream of WorkItems until 100 of them are received.
-    CountDownLatch latch = new CountDownLatch(100);
-    GetWorkStream stream =
-        client.getWorkStream(
-            GetWorkRequest.newBuilder().setClientId(10).setMaxItems(3).setMaxBytes(10000).build(),
-            (String computation,
-                @Nullable Instant inputDataWatermark,
-                Instant synchronizedProcessingTime,
-                Windmill.WorkItem workItem,
-                Collection<LatencyAttribution> getWorkStreamLatencies) -> latch.countDown());
-    // Wait for 100 items or 30 seconds.
-    assertTrue(latch.await(30, TimeUnit.SECONDS));
-    // Confirm that we report at least as much throttle time as our server sent errors for.  We will
-    // actually report more due to backoff in restarting streams.
-    assertTrue(this.client.getAndResetThrottleTime() > throttleTime);
-
-    stream.halfClose();
-    assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
-  }
-
-  @Test
-  public void testGetWorkTimingInfosTracker() throws Exception {
-    GetWorkTimingInfosTracker tracker = new GetWorkTimingInfosTracker(() -> 50);
-    List<GetWorkStreamTimingInfo> infos = new ArrayList<>();
-    for (int i = 0; i <= 3; i++) {
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_CREATION_START)
-              .setTimestampUsec(0)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_CREATION_END)
-              .setTimestampUsec(10000)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_RECEIVED_BY_DISPATCHER)
-              .setTimestampUsec((i + 11) * 1000)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_FORWARDED_BY_DISPATCHER)
-              .setTimestampUsec((i + 16) * 1000)
-              .build());
-      tracker.addTimingInfo(infos);
-      infos.clear();
-    }
-    // durations for each chunk:
-    // GET_WORK_IN_WINDMILL_WORKER: 10, 10, 10, 10
-    // GET_WORK_IN_TRANSIT_TO_DISPATCHER: 1, 2, 3, 4 -> sum to 10
-    // GET_WORK_IN_TRANSIT_TO_USER_WORKER: 34, 33, 32, 31 -> sum to 130
-    Map<State, LatencyAttribution> latencies = new HashMap<>();
-    List<LatencyAttribution> attributions = tracker.getLatencyAttributions();
-    assertEquals(3, attributions.size());
-    for (LatencyAttribution attribution : attributions) {
-      latencies.put(attribution.getState(), attribution);
-    }
-    assertEquals(10L, latencies.get(State.GET_WORK_IN_WINDMILL_WORKER).getTotalDurationMillis());
-    // elapsed time from 10 -> 50;
-    long elapsedTime = 40;
-    // sumDurations: 1 + 2 + 3 + 4 + 34 + 33 + 32 + 31;
-    long sumDurations = 140;
-    assertEquals(
-        Math.min(4, (long) (elapsedTime * (10.0 / sumDurations))),
-        latencies.get(State.GET_WORK_IN_TRANSIT_TO_DISPATCHER).getTotalDurationMillis());
-    assertEquals(
-        Math.min(34, (long) (elapsedTime * (130.0 / sumDurations))),
-        latencies.get(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER).getTotalDurationMillis());
-  }
-
-  @Test
-  public void testGetWorkTimingInfosTracker_ClockSkew() throws Exception {
-    int skewMicros = 50 * 1000;
-    GetWorkTimingInfosTracker tracker = new GetWorkTimingInfosTracker(() -> 50);
-    List<GetWorkStreamTimingInfo> infos = new ArrayList<>();
-    for (int i = 0; i <= 3; i++) {
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_CREATION_START)
-              .setTimestampUsec(skewMicros)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_CREATION_END)
-              .setTimestampUsec(10000 + skewMicros)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_RECEIVED_BY_DISPATCHER)
-              .setTimestampUsec((i + 11) * 1000 + skewMicros)
-              .build());
-      infos.add(
-          GetWorkStreamTimingInfo.newBuilder()
-              .setEvent(Event.GET_WORK_FORWARDED_BY_DISPATCHER)
-              .setTimestampUsec((i + 16) * 1000 + skewMicros)
-              .build());
-      tracker.addTimingInfo(infos);
-      infos.clear();
-    }
-    // durations for each chunk:
-    // GET_WORK_IN_WINDMILL_WORKER: 10, 10, 10, 10
-    // GET_WORK_IN_TRANSIT_TO_DISPATCHER: 1, 2, 3, 4 -> sum to 10
-    // GET_WORK_IN_TRANSIT_TO_USER_WORKER: not observed due to skew
-    Map<State, LatencyAttribution> latencies = new HashMap<>();
-    List<LatencyAttribution> attributions = tracker.getLatencyAttributions();
-    assertEquals(2, attributions.size());
-    for (LatencyAttribution attribution : attributions) {
-      latencies.put(attribution.getState(), attribution);
-    }
-    assertEquals(10L, latencies.get(State.GET_WORK_IN_WINDMILL_WORKER).getTotalDurationMillis());
-    assertEquals(
-        4L, latencies.get(State.GET_WORK_IN_TRANSIT_TO_DISPATCHER).getTotalDurationMillis());
-    assertNull(latencies.get(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER));
   }
 
   class ResponseErrorInjector<Stream extends StreamObserver> {

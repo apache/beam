@@ -64,7 +64,7 @@ except ImportError:
   DockerContainer = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
-LOCALSTACK_VERSION = '0.11.3'
+LOCALSTACK_VERSION = '3.8.1'
 NUM_RECORDS = 10
 MAX_READ_TIME = 5 * 60 * 1000  # 5min
 NOW_SECONDS = time.time()
@@ -95,6 +95,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
     # TODO: remove this test once
     # https://github.com/apache/beam/issues/20416 is resolved
     self.run_kinesis_write()
+    self.run_kinesis_write_with_aggregation()
     records = self.kinesis_helper.read_from_stream(self.aws_kinesis_stream)
     self.assertEqual(
         sorted(records),
@@ -116,9 +117,26 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
               region=self.aws_region,
               service_endpoint=self.aws_service_endpoint,
               verify_certificate=(not self.use_localstack),
+              partition_key='1'))
+
+  def run_kinesis_write_with_aggregation(self):
+    with TestPipeline(options=PipelineOptions(self.pipeline_args)) as p:
+      p.not_use_test_runner_api = True
+      _ = (
+          p
+          | 'Impulse' >> beam.Impulse()
+          | 'Generate' >> beam.FlatMap(lambda x: range(NUM_RECORDS))  # pylint: disable=bad-option-value
+          | 'Map to bytes' >>
+          beam.Map(lambda x: RECORD + str(x).encode()).with_output_types(bytes)
+          | 'WriteToKinesis' >> WriteToKinesis(
+              stream_name=self.aws_kinesis_stream,
+              aws_access_key=self.aws_access_key,
+              aws_secret_key=self.aws_secret_key,
+              region=self.aws_region,
+              service_endpoint=self.aws_service_endpoint,
+              verify_certificate=(not self.use_localstack),
               partition_key='1',
-              producer_properties=self.producer_properties,
-          ))
+              aggregation_enabled=True))
 
   def run_kinesis_read(self):
     records = [RECORD + str(i).encode() for i in range(NUM_RECORDS)]
@@ -145,12 +163,11 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
 
   def set_localstack(self):
     self.localstack = DockerContainer('localstack/localstack:{}'
-                                      .format(LOCALSTACK_VERSION))\
-      .with_env('SERVICES', 'kinesis')\
-      .with_env('KINESIS_PORT', '4568')\
-      .with_env('USE_SSL', 'true')\
-      .with_exposed_ports(4568)\
-      .with_volume_mapping('/var/run/docker.sock', '/var/run/docker.sock', 'rw')
+                                  .format(LOCALSTACK_VERSION))\
+      .with_bind_ports(4566, 4566)
+
+    for i in range(4510, 4560):
+      self.localstack = self.localstack.with_bind_ports(i, i)
 
     # Repeat if ReadTimeout is raised.
     for i in range(4):
@@ -164,7 +181,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
 
     self.aws_service_endpoint = 'https://{}:{}'.format(
         self.localstack.get_container_host_ip(),
-        self.localstack.get_exposed_port('4568'),
+        self.localstack.get_exposed_port('4566'),
     )
 
   def setUp(self):
@@ -219,10 +236,6 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
     self.aws_service_endpoint = known_args.aws_service_endpoint
     self.use_localstack = not known_args.use_real_aws
     self.expansion_service = known_args.expansion_service
-    self.producer_properties = {
-        'CollectionMaxCount': str(NUM_RECORDS),
-        'ConnectTimeout': str(MAX_READ_TIME),
-    }
 
     if self.use_localstack:
       self.set_localstack()

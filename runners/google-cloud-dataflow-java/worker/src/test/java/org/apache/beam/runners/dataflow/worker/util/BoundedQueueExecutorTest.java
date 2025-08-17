@@ -24,17 +24,18 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -42,14 +43,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 /** Unit tests for {@link org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class BoundedQueueExecutorTest {
+
+  @Parameterized.Parameter public boolean useFairMonitor;
+
+  @Parameterized.Parameters(name = "useFairMonitor = {0}")
+  public static Collection<Object[]> useFairMonitor() {
+    return Arrays.asList(new Object[][] {{false}, {true}});
+  }
+
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
   private static final int DEFAULT_MAX_THREADS = 2;
   private static final int DEFAULT_THREAD_EXPIRATION_SEC = 60;
@@ -57,22 +66,24 @@ public class BoundedQueueExecutorTest {
   private BoundedQueueExecutor executor;
 
   private static ExecutableWork createWork(Consumer<Work> executeWorkFn) {
+    WorkItem workItem =
+        WorkItem.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(1)
+            .setWorkToken(33)
+            .setCacheToken(1)
+            .build();
     return ExecutableWork.create(
         Work.create(
-            Windmill.WorkItem.newBuilder()
-                .setKey(ByteString.EMPTY)
-                .setShardingKey(1)
-                .setWorkToken(33)
-                .setCacheToken(1)
-                .build(),
+            workItem,
+            workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
                 "computationId",
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
-            Instant::now,
-            Collections.emptyList()),
+            Instant::now),
         executeWorkFn);
   }
 
@@ -99,7 +110,8 @@ public class BoundedQueueExecutorTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            useFairMonitor);
   }
 
   @Test
@@ -160,9 +172,10 @@ public class BoundedQueueExecutorTest {
 
     // Stop m1 so there are available bytes for m2 to run.
     processStop1.countDown();
+    // m2 should be able to start execution
     processStart2.await();
-    // m2 started.
-    assertEquals(Thread.State.TERMINATED, m2Runner.getState());
+    // ensure that the execute() call scheduling m2 returns even if the completion of m2 is blocked.
+    m2Runner.join();
     processStop2.countDown();
     executor.shutdown();
   }
@@ -244,7 +257,8 @@ public class BoundedQueueExecutorTest {
   }
 
   @Test
-  public void testRecordTotalTimeMaxActiveThreadsUsedWhenMaximumPoolSizeUpdated() throws Exception {
+  public void testRecordTotalTimeMaxActiveThreadsUsedWhenMaximumPoolSizeIsIncreased()
+      throws Exception {
     CountDownLatch processStart1 = new CountDownLatch(1);
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
@@ -285,6 +299,58 @@ public class BoundedQueueExecutorTest {
   }
 
   @Test
+  public void testRecordTotalTimeMaxActiveThreadsUsedWhenMaximumPoolSizeIsReduced()
+      throws Exception {
+    CountDownLatch processStart1 = new CountDownLatch(1);
+    CountDownLatch processStop1 = new CountDownLatch(1);
+    CountDownLatch processStart2 = new CountDownLatch(1);
+    CountDownLatch processStop2 = new CountDownLatch(1);
+    CountDownLatch processStart3 = new CountDownLatch(1);
+    CountDownLatch processStop3 = new CountDownLatch(1);
+    Runnable m1 = createSleepProcessWorkFn(processStart1, processStop1);
+    Runnable m2 = createSleepProcessWorkFn(processStart2, processStop2);
+    Runnable m3 = createSleepProcessWorkFn(processStart3, processStop3);
+
+    // Initial state.
+    assertEquals(0, executor.activeCount());
+    assertEquals(2, executor.getMaximumPoolSize());
+
+    // m1 is accepted.
+    executor.execute(m1, 1);
+    processStart1.await();
+    assertEquals(1, executor.activeCount());
+    assertEquals(2, executor.getMaximumPoolSize());
+    assertEquals(0L, executor.allThreadsActiveTime());
+
+    processStop1.countDown();
+    while (executor.activeCount() != 0) {
+      // Waiting for all threads to be ended.
+      Thread.sleep(200);
+    }
+
+    // Reduce max pool size to 1
+    executor.setMaximumPoolSize(1, 105);
+
+    assertEquals(0, executor.activeCount());
+    executor.execute(m2, 1);
+    processStart2.await();
+    Thread.sleep(100);
+    assertEquals(1, executor.activeCount());
+    assertEquals(1, executor.getMaximumPoolSize());
+    processStop2.countDown();
+
+    while (executor.activeCount() != 0) {
+      // Waiting for all threads to be ended.
+      Thread.sleep(200);
+    }
+
+    // allThreadsActiveTime() should be recorded
+    // since when the second task was running it reached the new max pool size.
+    assertThat(executor.allThreadsActiveTime(), greaterThan(0L));
+    executor.shutdown();
+  }
+
+  @Test
   public void testRenderSummaryHtml() {
     String expectedSummaryHtml =
         "Worker Threads: 0/2<br>/n"
@@ -292,41 +358,5 @@ public class BoundedQueueExecutorTest {
             + "Work Queue Size: 0/102<br>/n"
             + "Work Queue Bytes: 0/10000000<br>/n";
     assertEquals(expectedSummaryHtml, executor.summaryHtml());
-  }
-
-  @Test
-  public void testExecute_updatesThreadNameForExecutableWork() throws InterruptedException {
-    CountDownLatch waitForWorkExecution = new CountDownLatch(1);
-    ExecutableWork executableWork =
-        createWork(
-            work -> {
-              assertTrue(
-                  Thread.currentThread()
-                      .getName()
-                      .contains(
-                          BoundedQueueExecutor.debugFormattedWorkToken(
-                              work.getWorkItem().getWorkToken())));
-              waitForWorkExecution.countDown();
-            });
-    executor.execute(executableWork, executableWork.getWorkItem().getSerializedSize());
-    waitForWorkExecution.await();
-  }
-
-  @Test
-  public void testForceExecute_updatesThreadNameForExecutableWork() throws InterruptedException {
-    CountDownLatch waitForWorkExecution = new CountDownLatch(1);
-    ExecutableWork executableWork =
-        createWork(
-            work -> {
-              assertTrue(
-                  Thread.currentThread()
-                      .getName()
-                      .contains(
-                          BoundedQueueExecutor.debugFormattedWorkToken(
-                              work.getWorkItem().getWorkToken())));
-              waitForWorkExecution.countDown();
-            });
-    executor.forceExecute(executableWork, executableWork.getWorkItem().getSerializedSize());
-    waitForWorkExecution.await();
   }
 }

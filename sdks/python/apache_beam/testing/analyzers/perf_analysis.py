@@ -68,7 +68,9 @@ def get_test_config_container(
   )
 
 
-def get_change_point_config(params: Dict[str, Any], ) -> ChangePointConfig:
+def get_change_point_config(
+    params: Dict[str, Any],
+) -> ChangePointConfig:
   """
   Args:
     params: Dict containing parameters to run change point analysis.
@@ -81,7 +83,10 @@ def get_change_point_config(params: Dict[str, Any], ) -> ChangePointConfig:
           constants._DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS),
       num_runs_in_change_point_window=params.get(
           'num_runs_in_change_point_window',
-          constants._DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW))
+          constants._DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW),
+      median_abs_deviation_threshold=params.get(
+          'median_abs_deviation_threshold',
+          constants._DEFAULT_MEDIAN_ABS_DEVIATION_THRESHOLD))
 
 
 def run_change_point_analysis(
@@ -128,7 +133,9 @@ def run_change_point_analysis(
   timestamps = metric_container.timestamps
 
   change_point_index = find_latest_change_point_index(
-      metric_values=metric_values)
+      metric_values=metric_values,
+      median_abs_deviation_threshold=change_point_config.
+      median_abs_deviation_threshold)
   if not change_point_index:
     logging.info(
         "Change point is not detected for the test ID %s" %

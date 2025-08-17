@@ -31,7 +31,7 @@ import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +79,14 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     for (int i = 0, size = apiServiceDescriptors.size(); i < size; i++) {
       BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptors.get(i));
       client.unregisterConsumer(instructionId);
+    }
+  }
+
+  @Override
+  public void poisonInstructionId(String instructionId) {
+    LOG.debug("Poisoning instruction {}", instructionId);
+    for (BeamFnDataGrpcMultiplexer client : multiplexerCache.values()) {
+      client.poisonInstructionId(instructionId);
     }
   }
 

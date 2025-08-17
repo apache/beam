@@ -36,9 +36,11 @@ import com.google.cloud.bigquery.InsertAllRequest.RowToInsert;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TimePartitioning;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
@@ -47,6 +49,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Answers;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -62,6 +66,8 @@ public class BigQueryResourceManagerTest {
 
   private Schema schema;
   private RowToInsert rowToInsert;
+  private TimePartitioning timePartition;
+  private static final String PARTITION_FIELD = "time"; //  name of column to use for partitioning
   private static final String TABLE_NAME = "table-name";
   private static final String DATASET_ID = "dataset-id";
   private static final String TEST_ID = "test-id";
@@ -70,10 +76,14 @@ public class BigQueryResourceManagerTest {
 
   private BigQueryResourceManager testManager;
 
+  @Captor private ArgumentCaptor<TableInfo> tableCaptor;
+
   @Before
   public void setUp() {
     schema = Schema.of(Field.of("name", StandardSQLTypeName.STRING));
     rowToInsert = RowToInsert.of("1", ImmutableMap.of("name", "Jake"));
+    timePartition =
+        TimePartitioning.newBuilder(TimePartitioning.Type.HOUR).setField(PARTITION_FIELD).build();
     testManager = new BigQueryResourceManager(TEST_ID, PROJECT_ID, bigQuery);
   }
 
@@ -161,6 +171,75 @@ public class BigQueryResourceManagerTest {
     testManager.createTable(TABLE_NAME, schema);
 
     verify(bigQuery).create(any(DatasetInfo.class));
+  }
+
+  @Test
+  public void testCreateTimePartitionedTableShouldThrowErrorWhenTableNameIsNotValid() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testManager.createTimePartitionedTable("", schema, timePartition));
+  }
+
+  @Test
+  public void testCreateTimePartitionedTableShouldThrowErrorWhenSchemaIsNull() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testManager.createTimePartitionedTable(TABLE_NAME, null, timePartition));
+  }
+
+  @Test
+  public void testCreateTimePartitionedTableShouldThrowErrorWhenPartitionInfoIsNull() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, null));
+  }
+
+  @Test
+  public void testCreateTimePartitionedTableShouldCreateDatasetWhenDatasetDoesNotExist() {
+    when(bigQuery.create(any(DatasetInfo.class)).getDatasetId().getDataset())
+        .thenReturn(DATASET_ID);
+    when(bigQuery.getTable(any())).thenReturn(null);
+
+    testManager.createTimePartitionedTable(TABLE_NAME, schema, timePartition);
+
+    verify(bigQuery).create(any(DatasetInfo.class));
+  }
+
+  @Test
+  public void testCreateTimePartitionedTableShouldThrowErrorWhenCreateFails() {
+    testManager.createDataset(DATASET_ID);
+    when(bigQuery.create(any(TableInfo.class))).thenThrow(BigQueryException.class);
+
+    assertThrows(
+        BigQueryResourceManagerException.class,
+        () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, timePartition));
+  }
+
+  @Test
+  public void testCreateTimePartitionedTableShouldThrowErrorWhenTableExists() {
+    testManager.createDataset(DATASET_ID);
+
+    when(bigQuery.getTable(any())).thenReturn(any());
+
+    assertThrows(
+        BigQueryResourceManagerException.class,
+        () -> testManager.createTimePartitionedTable(TABLE_NAME, schema, timePartition));
+  }
+
+  @Test
+  public void testCreateTimePartitionedTableShouldWorkWhenBigQueryDoesNotThrowAnyError() {
+    when(bigQuery.create(any(DatasetInfo.class)).getDatasetId().getDataset())
+        .thenReturn(DATASET_ID);
+    when(bigQuery.getTable(any())).thenReturn(null);
+
+    testManager.createTimePartitionedTable(TABLE_NAME, schema, timePartition);
+
+    verify(bigQuery).create(any(TableInfo.class));
+    verify(bigQuery).create(tableCaptor.capture());
+    TableInfo capturedTableInfo = tableCaptor.getValue();
+    StandardTableDefinition capturedTableDefinition = capturedTableInfo.getDefinition();
+    TimePartitioning capturedTimePartitioning = capturedTableDefinition.getTimePartitioning();
+    assertThat(capturedTimePartitioning).isEqualTo(timePartition);
   }
 
   @Test

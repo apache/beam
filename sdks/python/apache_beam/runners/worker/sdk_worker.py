@@ -174,8 +174,8 @@ class SdkHarness(object):
       data_sampler=None,  # type: Optional[data_sampler.DataSampler]
       # Unrecoverable SDK harness initialization error (if any)
       # that should be reported to the runner when proocessing the first bundle.
-      deferred_exception=None, # type: Optional[Exception]
-      runner_capabilities=frozenset(), # type: FrozenSet[str]
+      deferred_exception=None,  # type: Optional[Exception]
+      runner_capabilities=frozenset(),  # type: FrozenSet[str]
   ):
     # type: (...) -> None
     self._alive = True
@@ -201,7 +201,9 @@ class SdkHarness(object):
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
         credentials, self._worker_id, data_buffer_time_limit_ms)
     self._state_handler_factory = GrpcStateHandlerFactory(
-        self._state_cache, credentials)
+        state_cache=self._state_cache,
+        credentials=credentials,
+        worker_id=self._worker_id)
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
@@ -359,8 +361,7 @@ class SdkHarness(object):
     ).to_runner_api_monitoring_infos(None).values()
     self._execute(
         lambda: beam_fn_api_pb2.InstructionResponse(
-            instruction_id=request.instruction_id,
-            harness_monitoring_infos=(
+            instruction_id=request.instruction_id, harness_monitoring_infos=(
                 beam_fn_api_pb2.HarnessMonitoringInfosResponse(
                     monitoring_data={
                         SHORT_ID_CACHE.get_short_id(info): info.payload
@@ -372,8 +373,8 @@ class SdkHarness(object):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
     self._execute(
         lambda: beam_fn_api_pb2.InstructionResponse(
-            instruction_id=request.instruction_id,
-            monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataResponse(
+            instruction_id=request.instruction_id, monitoring_infos=
+            beam_fn_api_pb2.MonitoringInfosMetadataResponse(
                 monitoring_info=SHORT_ID_CACHE.get_infos(
                     request.monitoring_infos.monitoring_info_id))),
         request)
@@ -447,7 +448,7 @@ class BundleProcessorCache(object):
     self.known_not_running_instruction_ids = collections.OrderedDict(
     )  # type: collections.OrderedDict[str, bool]
     self.failed_instruction_ids = collections.OrderedDict(
-    )  # type: collections.OrderedDict[str, bool]
+    )  # type: collections.OrderedDict[str, Exception]
     self.active_bundle_processors = {
     }  # type: Dict[str, Tuple[str, bundle_processor.BundleProcessor]]
     self.cached_bundle_processors = collections.defaultdict(
@@ -536,9 +537,11 @@ class BundleProcessorCache(object):
     """
     with self._lock:
       if instruction_id in self.failed_instruction_ids:
+        e = self.failed_instruction_ids[instruction_id]
         raise RuntimeError(
             'Bundle processing associated with %s has failed. '
-            'Check prior failing response for details.' % instruction_id)
+            'Check prior failing response and attached exception for details.' %
+            instruction_id) from e
       processor = self.active_bundle_processors.get(
           instruction_id, (None, None))[-1]
       if processor:
@@ -547,14 +550,14 @@ class BundleProcessorCache(object):
         return None
       raise RuntimeError('Unknown process bundle id %s.' % instruction_id)
 
-  def discard(self, instruction_id):
-    # type: (str) -> None
+  def discard(self, instruction_id, exception):
+    # type: (str, Exception) -> None
 
     """
     Marks the instruction id as failed shutting down the ``BundleProcessor``.
     """
     with self._lock:
-      self.failed_instruction_ids[instruction_id] = True
+      self.failed_instruction_ids[instruction_id] = exception
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
         self.failed_instruction_ids.popitem(last=False)
       processor = self.active_bundle_processors[instruction_id][1]
@@ -598,7 +601,7 @@ class BundleProcessorCache(object):
       self.periodic_shutdown = None
 
     for instruction_id in list(self.active_bundle_processors.keys()):
-      self.discard(instruction_id)
+      self.discard(instruction_id, RuntimeError('Shutdown invoked'))
     for cached_bundle_processors in self.cached_bundle_processors.values():
       BundleProcessorCache._shutdown_cached_bundle_processors(
           cached_bundle_processors)
@@ -707,9 +710,9 @@ class SdkWorker(object):
       if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
       return response
-    except:  # pylint: disable=bare-except
+    except Exception as e:  # pylint: disable=bare-except
       # Don't re-use bundle processors on failure.
-      self.bundle_processor_cache.discard(instruction_id)
+      self.bundle_processor_cache.discard(instruction_id, e)
       raise
 
   def process_bundle_split(
@@ -778,8 +781,8 @@ class SdkWorker(object):
         self.bundle_processor_cache.release(request.instruction_id)
         return beam_fn_api_pb2.InstructionResponse(
             instruction_id=instruction_id, finalize_bundle=finalize_response)
-      except:
-        self.bundle_processor_cache.discard(request.instruction_id)
+      except Exception as e:
+        self.bundle_processor_cache.discard(request.instruction_id, e)
         raise
     # We can reach this state if there was an erroneous request to finalize
     # the bundle while it is being initialized or has already been finalized
@@ -893,13 +896,14 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 
   Caches the created channels by ``state descriptor url``.
   """
-  def __init__(self, state_cache, credentials=None):
-    # type: (StateCache, Optional[grpc.ChannelCredentials]) -> None
+  def __init__(self, state_cache, credentials=None, worker_id=None):
+    # type: (StateCache, Optional[grpc.ChannelCredentials], Optional[str]) -> None
     self._state_handler_cache = {}  # type: Dict[str, CachingStateHandler]
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
     self._credentials = credentials
     self._state_cache = state_cache
+    self._worker_id = worker_id
 
   def create_state_handler(self, api_service_descriptor):
     # type: (endpoints_pb2.ApiServiceDescriptor) -> CachingStateHandler
@@ -926,7 +930,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
           _LOGGER.info('State channel established.')
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(
-              grpc_channel, WorkerIdInterceptor())
+              grpc_channel, WorkerIdInterceptor(self._worker_id))
           self._state_handler_cache[url] = GlobalCachingStateHandler(
               self._state_cache,
               GrpcStateHandler(
@@ -1294,10 +1298,11 @@ class GlobalCachingStateHandler(CachingStateHandler):
       if not continuation_token:
         break
 
-  def _get_raw(self,
+  def _get_raw(
+      self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token  # type: Optional[bytes]
-               ):
+  ):
     # type: (...) -> Tuple[coder_impl.create_InputStream, Optional[bytes]]
 
     """Call underlying get_raw with performance statistics and detection."""
@@ -1335,8 +1340,8 @@ class GlobalCachingStateHandler(CachingStateHandler):
         return self._context.user_state_cache_token
       else:
         return self._context.bundle_cache_token
-    elif state_key.WhichOneof('type').endswith('_side_input'):
-      side_input = getattr(state_key, state_key.WhichOneof('type'))
+    elif state_key.WhichOneof('type').endswith('_side_input'):  # type: ignore[union-attr]
+      side_input = getattr(state_key, state_key.WhichOneof('type'))  # type: ignore[arg-type]
       return self._context.side_input_cache_tokens.get(
           (side_input.transform_id, side_input.side_input_id),
           self._context.bundle_cache_token)

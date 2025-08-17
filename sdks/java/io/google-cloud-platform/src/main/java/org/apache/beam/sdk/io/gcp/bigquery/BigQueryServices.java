@@ -213,7 +213,7 @@ public interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
 
     @Nullable
-    WriteStream getWriteStream(String writeStream);
+    TableSchema getWriteStreamSchema(String writeStream);
 
     /**
      * Create an append client for a given Storage API write stream. The stream must be created

@@ -29,7 +29,6 @@ from typing import Any
 from typing import DefaultDict
 from typing import Dict
 from typing import FrozenSet
-from typing import Hashable
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -115,15 +114,16 @@ class ConsumerSet(Receiver):
   ConsumerSet are attached to the outputting Operation.
   """
   @staticmethod
-  def create(counter_factory,
-             step_name,  # type: str
-             output_index,
-             consumers,  # type: List[Operation]
-             coder,
-             producer_type_hints,
-             producer_batch_converter, # type: Optional[BatchConverter]
-             output_sampler=None,  # type: Optional[OutputSampler]
-             ):
+  def create(
+      counter_factory,
+      step_name,  # type: str
+      output_index,
+      consumers,  # type: List[Operation]
+      coder,
+      producer_type_hints,
+      producer_batch_converter,  # type: Optional[BatchConverter]
+      output_sampler=None,  # type: Optional[OutputSampler]
+  ):
     # type: (...) -> ConsumerSet
     if len(consumers) == 1:
       consumer = consumers[0]
@@ -152,16 +152,16 @@ class ConsumerSet(Receiver):
         producer_batch_converter,
         output_sampler)
 
-  def __init__(self,
-               counter_factory,
-               step_name,  # type: str
-               output_index,
-               consumers,
-               coder,
-               producer_type_hints,
-               producer_batch_converter,
-               output_sampler
-               ):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,  # type: str
+      output_index,
+      consumers,
+      coder,
+      producer_type_hints,
+      producer_batch_converter,
+      output_sampler):
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
         step_name,
@@ -238,15 +238,15 @@ class ConsumerSet(Receiver):
 class SingletonElementConsumerSet(ConsumerSet):
   """ConsumerSet representing a single consumer that can only process elements
   (not batches)."""
-  def __init__(self,
-               counter_factory,
-               step_name,
-               output_index,
-               consumer,  # type: Operation
-               coder,
-               producer_type_hints,
-               output_sampler
-               ):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,
+      output_index,
+      consumer,  # type: Operation
+      coder,
+      producer_type_hints,
+      output_sampler):
     super().__init__(
         counter_factory,
         step_name,
@@ -284,15 +284,16 @@ class GeneralPurposeConsumerSet(ConsumerSet):
   """
   MAX_BATCH_SIZE = 4096
 
-  def __init__(self,
-               counter_factory,
-               step_name,  # type: str
-               output_index,
-               coder,
-               producer_type_hints,
-               consumers,  # type: List[Operation]
-               producer_batch_converter,
-               output_sampler):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,  # type: str
+      output_index,
+      coder,
+      producer_type_hints,
+      consumers,  # type: List[Operation]
+      producer_batch_converter,
+      output_sampler):
     super().__init__(
         counter_factory,
         step_name,
@@ -414,13 +415,13 @@ class Operation(object):
   An operation can have one or more outputs and for each output it can have
   one or more receiver operations that will take that as input.
   """
-
-  def __init__(self,
-               name_context,  # type: common.NameContext
-               spec,
-               counter_factory,
-               state_sampler  # type: StateSampler
-              ):
+  def __init__(
+      self,
+      name_context,  # type: common.NameContext
+      spec,
+      counter_factory,
+      state_sampler  # type: StateSampler
+  ):
     """Initializes a worker operation instance.
 
     Args:
@@ -489,8 +490,8 @@ class Operation(object):
                 coder,
                 self._get_runtime_performance_hints(),
                 self.get_output_batch_converter(),
-                get_output_sampler(i)) for i,
-            coder in enumerate(self.spec.output_coders)
+                get_output_sampler(i))
+            for i, coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
 
@@ -793,15 +794,15 @@ OpInputInfo = NamedTuple(
 
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
-
-  def __init__(self,
-               name,  # type: common.NameContext
-               spec,  # operation_specs.WorkerDoFn  # need to fix this type
-               counter_factory,
-               sampler,
-               side_input_maps=None,
-               user_state_context=None,
-              ):
+  def __init__(
+      self,
+      name,  # type: common.NameContext
+      spec,  # operation_specs.WorkerDoFn  # need to fix this type
+      counter_factory,
+      sampler,
+      side_input_maps=None,
+      user_state_context=None,
+  ):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.user_state_context = user_state_context
@@ -1280,33 +1281,37 @@ class PGBKCVOperation(Operation):
       # pylint: disable=unidiomatic-typecheck
       # Optimization for the global window case.
       if self.is_default_windowing:
-        wkey = key  # type: Hashable
+        self.add_key_value(key, value, None)
       else:
-        wkey = tuple(wkv.windows), key
-      entry = self.table.get(wkey, None)
-      if entry is None:
-        if self.key_count >= self.max_keys:
-          target = self.key_count * 9 // 10
-          old_wkeys = []
-          # TODO(robertwb): Use an LRU cache?
-          for old_wkey, old_wvalue in self.table.items():
-            old_wkeys.append(old_wkey)  # Can't mutate while iterating.
-            self.output_key(old_wkey, old_wvalue[0], old_wvalue[1])
-            self.key_count -= 1
-            if self.key_count <= target:
-              break
-          for old_wkey in reversed(old_wkeys):
-            del self.table[old_wkey]
-        self.key_count += 1
-        # We save the accumulator as a one element list so we can efficiently
-        # mutate when new values are added without searching the cache again.
-        entry = self.table[wkey] = [self.combine_fn.create_accumulator(), None]
-        if not self.is_default_windowing:
-          # Conditional as the timestamp attribute is lazily initialized.
-          entry[1] = wkv.timestamp
-      entry[0] = self.combine_fn_add_input(entry[0], value)
-      if not self.is_default_windowing and self.timestamp_combiner:
-        entry[1] = self.timestamp_combiner.combine(entry[1], wkv.timestamp)
+        for window in wkv.windows:
+          self.add_key_value((window, key),
+                             value,
+                             wkv.timestamp if self.timestamp_combiner else None)
+
+  def add_key_value(self, wkey, value, timestamp):
+    entry = self.table.get(wkey, None)
+    if entry is None:
+      if self.key_count >= self.max_keys:
+        target = self.key_count * 9 // 10
+        old_wkeys = []
+        # TODO(robertwb): Use an LRU cache?
+        for old_wkey, old_wvalue in self.table.items():
+          old_wkeys.append(old_wkey)  # Can't mutate while iterating.
+          self.output_key(old_wkey, old_wvalue[0], old_wvalue[1])
+          self.key_count -= 1
+          if self.key_count <= target:
+            break
+        for old_wkey in reversed(old_wkeys):
+          del self.table[old_wkey]
+      self.key_count += 1
+      # We save the accumulator as a one element list so we can efficiently
+      # mutate when new values are added without searching the cache again.
+      entry = self.table[wkey] = [
+          self.combine_fn.create_accumulator(), timestamp
+      ]
+    entry[0] = self.combine_fn_add_input(entry[0], value)
+    if not self.is_default_windowing and self.timestamp_combiner:
+      entry[1] = self.timestamp_combiner.combine(entry[1], timestamp)
 
   def finish(self):
     # type: () -> None
@@ -1331,10 +1336,10 @@ class PGBKCVOperation(Operation):
     if self.is_default_windowing:
       self.output(_globally_windowed_value.with_value((wkey, value)))
     else:
-      windows, key = wkey
+      window, key = wkey
       if self.timestamp_combiner is None:
-        timestamp = windows[0].max_timestamp()
-      self.output(WindowedValue((key, value), timestamp, windows))
+        timestamp = window.max_timestamp()
+      self.output(WindowedValue((key, value), timestamp, (window, )))
 
 
 class FlattenOperation(Operation):

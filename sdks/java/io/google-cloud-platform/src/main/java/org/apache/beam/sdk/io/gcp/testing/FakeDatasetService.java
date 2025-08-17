@@ -538,7 +538,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
                     row,
                     rowList.get(i).getTimestamp(),
                     rowList.get(i).getWindow(),
-                    rowList.get(i).getPane()));
+                    rowList.get(i).getPaneInfo()));
           }
         } else {
           errorContainer.add(
@@ -590,11 +590,11 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
 
   @Override
   @Nullable
-  public WriteStream getWriteStream(String streamName) {
+  public com.google.cloud.bigquery.storage.v1.TableSchema getWriteStreamSchema(String streamName) {
     synchronized (FakeDatasetService.class) {
       @Nullable Stream stream = writeStreams.get(streamName);
       if (stream != null) {
-        return stream.toWriteStream();
+        return stream.toWriteStream().getTableSchema();
       }
     }
     // TODO(relax): Return the exact error that BigQuery returns.

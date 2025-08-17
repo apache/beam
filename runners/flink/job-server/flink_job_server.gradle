@@ -171,7 +171,6 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
         excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
         excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
         excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
@@ -277,6 +276,12 @@ createCrossLanguageValidatesRunnerTask(
     "--endpoint localhost:${jobPort}",
   ],
 )
+
+shadowJar {
+    manifest {
+        attributes(["Multi-Release": true])
+    }
+}
 
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.
 tasks.register("miniCluster", Jar) {

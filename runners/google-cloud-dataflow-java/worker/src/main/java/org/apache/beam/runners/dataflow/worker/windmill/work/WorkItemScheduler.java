@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work;
 
-import java.util.Collection;
 import javax.annotation.CheckReturnValue;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 @FunctionalInterface
 @CheckReturnValue
@@ -40,7 +40,8 @@ public interface WorkItemScheduler {
    */
   void scheduleWork(
       WorkItem workItem,
+      long serializedWorkItemSize,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
-      Collection<LatencyAttribution> getWorkStreamLatencies);
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies);
 }

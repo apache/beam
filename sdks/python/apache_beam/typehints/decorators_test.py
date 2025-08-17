@@ -20,7 +20,6 @@
 # pytype: skip-file
 
 import functools
-import sys
 import typing
 import unittest
 
@@ -70,14 +69,7 @@ class IOTypeHintsTest(unittest.TestCase):
   def test_from_callable_method_descriptor(self):
     # from_callable() injects an annotation in this special type of builtin.
     th = decorators.IOTypeHints.from_callable(str.strip)
-    if sys.version_info >= (3, 7):
-      self.assertEqual(th.input_types, ((str, Any), {}))
-    else:
-      self.assertEqual(
-          th.input_types,
-          ((str, decorators._ANY_VAR_POSITIONAL), {
-              '__unknown__keywords': decorators._ANY_VAR_KEYWORD
-          }))
+    self.assertEqual(th.input_types, ((str, Any), {}))
     self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_strip_iterable_not_simple_output_noop(self):
@@ -139,6 +131,7 @@ class IOTypeHintsTest(unittest.TestCase):
   def test_strip_iterable(self):
     self._test_strip_iterable(None, None)
     self._test_strip_iterable(typehints.Any, typehints.Any)
+    self._test_strip_iterable(T, typehints.Any)
     self._test_strip_iterable(typehints.Iterable[str], str)
     self._test_strip_iterable(typehints.List[str], str)
     self._test_strip_iterable(typehints.Iterator[str], str)
@@ -409,7 +402,7 @@ class DecoratorsTest(unittest.TestCase):
       return a
 
     with self.assertRaisesRegex(TypeCheckError,
-                                r'requires .*int.* but got .*str'):
+                                r'requires .*int.* but was applied .*str'):
       _ = ['a', 'b', 'c'] | Map(fn)
 
     # Same pipeline doesn't raise without annotations on fn.
@@ -423,7 +416,7 @@ class DecoratorsTest(unittest.TestCase):
     _ = [1, 2, 3] | Map(fn)  # Doesn't raise - correct types.
 
     with self.assertRaisesRegex(TypeCheckError,
-                                r'requires .*int.* but got .*str'):
+                                r'requires .*int.* but was applied .*str'):
       _ = ['a', 'b', 'c'] | Map(fn)
 
     @decorators.no_annotations

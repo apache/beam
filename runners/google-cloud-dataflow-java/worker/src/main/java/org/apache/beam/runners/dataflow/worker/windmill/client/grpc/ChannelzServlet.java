@@ -33,9 +33,9 @@ import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.channelz.v1.*;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.protobuf.services.ChannelzService;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.channelz.v1.*;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.protobuf.services.ChannelzService;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
@@ -278,7 +278,11 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
 
       @Override
       public void onCompleted() {
-        future.set(response);
+        if (response == null) {
+          future.setException(new IllegalStateException("No response"));
+        } else {
+          future.set(response);
+        }
       }
     };
   }

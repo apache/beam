@@ -46,6 +46,7 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import MAX_INSERT_RETRIES
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -172,8 +173,8 @@ class TestTableRowJsonCoder(unittest.TestCase):
         '"g": "LINESTRING(1 2, 3 4, 5 6, 7 8)"}')
     schema = bigquery.TableSchema(
         fields=[
-            bigquery.TableFieldSchema(name=k, type=v) for k,
-            v in schema_definition
+            bigquery.TableFieldSchema(name=k, type=v)
+            for k, v in schema_definition
         ])
     coder = TableRowJsonCoder(table_schema=schema)
 
@@ -211,8 +212,8 @@ class TestTableRowJsonCoder(unittest.TestCase):
       schema_definition = [('f', 'FLOAT')]
       schema = bigquery.TableSchema(
           fields=[
-              bigquery.TableFieldSchema(name=k, type=v) for k,
-              v in schema_definition
+              bigquery.TableFieldSchema(name=k, type=v)
+              for k, v in schema_definition
           ])
       coder = TableRowJsonCoder(table_schema=schema)
       test_row = bigquery.TableRow(
@@ -445,13 +446,14 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_create_temp_dataset_exception(self, exception_type, error_message):
 
+    # Uses the FnApiRunner to ensure errors are mocked/passed through correctly
     with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
                            'Insert'),\
       mock.patch.object(BigQueryWrapper,
                         'get_or_create_dataset') as mock_insert, \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc,\
-      beam.Pipeline() as p:
+      beam.Pipeline('FnApiRunner') as p:
 
       mock_insert.side_effect = exception_type(error_message)
 
@@ -461,7 +463,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           gcs_location='gs://temp_location')
 
     mock_insert.assert_called()
-    self.assertIn(error_message, exc.exception.args[0])
+    self.assertIn(error_message, str(exc.exception))
 
   @parameterized.expand([
       # read without exception
@@ -514,6 +516,9 @@ class TestReadFromBigQuery(unittest.TestCase):
       numBytes = 5
       schema = DummySchema()
 
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch('time.sleep'), \
             mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
                               'Get') as mock_get_table, \
@@ -525,7 +530,7 @@ class TestReadFromBigQuery(unittest.TestCase):
                               'match'), \
             mock.patch.object(FileSystems,
                               'delete'), \
-            beam.Pipeline() as p:
+            beam.Pipeline('FnApiRunner') as p:
       call_counter = 0
 
       def store_callback(unused_request):
@@ -675,6 +680,9 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_query_job_exception(self, exception_type, error_message):
 
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # mocking which prism doesn't seem to fully handle correctly (mocks get
+    # mixed between test runs). Pinning to FnApiRunner for now.
     with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
                            'estimate_size') as mock_estimate,\
       mock.patch.object(BigQueryWrapper,
@@ -684,7 +692,7 @@ class TestReadFromBigQuery(unittest.TestCase):
       mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Get'), \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc, \
-      beam.Pipeline() as p:
+      beam.Pipeline('FnApiRunner') as p:
 
       mock_estimate.return_value = None
       mock_query_location.return_value = None
@@ -726,14 +734,17 @@ class TestReadFromBigQuery(unittest.TestCase):
           gcs_location="gs://temp_location")
 
     mock_query_job.assert_called()
-    self.assertIn(error_message, exc.exception.args[0])
+    self.assertIn(error_message, str(exc.exception))
 
   def test_read_direct_lineage(self):
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch.object(bigquery_tools.BigQueryWrapper,
                         '_bigquery_client'),\
          mock.patch.object(bq_storage.BigQueryReadClient,
                         'create_read_session'),\
-        beam.Pipeline() as p:
+        beam.Pipeline('FnApiRunner') as p:
 
       _ = p | ReadFromBigQuery(
           method=ReadFromBigQuery.Method.DIRECT_READ,
@@ -743,8 +754,11 @@ class TestReadFromBigQuery(unittest.TestCase):
         set(["bigquery:project.dataset.table"]))
 
   def test_read_all_lineage(self):
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch.object(_BigQueryReadSplit, '_export_files') as export, \
-                            beam.Pipeline() as p:
+                            beam.Pipeline('FnApiRunner') as p:
 
       export.return_value = (None, [])
 
@@ -962,13 +976,12 @@ class TestWriteToBigQuery(unittest.TestCase):
     schema = value_provider.StaticValueProvider(str, '"a:str"')
 
     original = WriteToBigQuery(
-        table=lambda _,
-        side_input: side_input['table'],
+        table=lambda _, side_input: side_input['table'],
         table_side_inputs=(table_record_pcv, ),
         schema=schema)
 
     # pylint: disable=expression-not-assigned
-    p | 'MyWriteToBigQuery' >> original
+    p | beam.Create([]) | 'MyWriteToBigQuery' >> original
 
     # Run the pipeline through to generate a pipeline proto from an empty
     # context. This ensures that the serialization code ran.
@@ -978,8 +991,7 @@ class TestWriteToBigQuery(unittest.TestCase):
 
     # Find the transform from the context.
     write_to_bq_id = [
-        k for k,
-        v in pipeline_proto.components.transforms.items()
+        k for k, v in pipeline_proto.components.transforms.items()
         if v.unique_name == 'MyWriteToBigQuery'
     ][0]
     deserialized_node = context.transforms.get_by_id(write_to_bq_id)
@@ -1094,6 +1106,23 @@ class TestWriteToBigQuery(unittest.TestCase):
       expected_failed_rows = [(table, rows[2])]
       assert_that(failed_rows.failed_rows, equal_to(expected_failed_rows))
     self.assertEqual(2, mock_insert.call_count)
+
+  def test_max_retries_exceeds_limit(self):
+    table = 'project:dataset.table'
+    rows = [{'columnA': 'value1'}, {'columnA': 'value2'}]
+    with beam.Pipeline() as p:
+      data = p | beam.Create(rows)
+
+      with self.assertRaises(ValueError) as context:
+        _ = data | 'WriteToBQ' >> WriteToBigQuery(
+            table=table,
+            schema='columnA:STRING',
+            method='STREAMING_INSERTS',
+            max_retries=MAX_INSERT_RETRIES + 1  # Exceeds the limit of 10000
+        )
+
+        self.assertIn(
+            'max_retries cannot be more than 10000', str(context.exception))
 
   @parameterized.expand([
       param(
@@ -1219,25 +1248,27 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
       # failed rows
       param(
           insert_response=[
-            exceptions.TooManyRequests if exceptions else None,
-            None],
-          error_reason='Too Many Requests', # not in _NON_TRANSIENT_ERRORS
+              exceptions.TooManyRequests if exceptions else None, None
+          ],
+          error_reason='Too Many Requests',  # not in _NON_TRANSIENT_ERRORS
           failed_rows=[]),
       # reason not in _NON_TRANSIENT_ERRORS for row 1 on both attempts, sent to
       # failed rows after hitting max_retries
       param(
           insert_response=[
-            exceptions.InternalServerError if exceptions else None,
-            exceptions.InternalServerError if exceptions else None],
-          error_reason='Internal Server Error', # not in _NON_TRANSIENT_ERRORS
+              exceptions.InternalServerError if exceptions else None,
+              exceptions.InternalServerError if exceptions else None
+          ],
+          error_reason='Internal Server Error',  # not in _NON_TRANSIENT_ERRORS
           failed_rows=['value1', 'value3', 'value5']),
       # reason in _NON_TRANSIENT_ERRORS for row 1 on both attempts, sent to
       # failed_rows after hitting max_retries
       param(
           insert_response=[
-            exceptions.Forbidden if exceptions else None,
-            exceptions.Forbidden if exceptions else None],
-          error_reason='Forbidden', # in _NON_TRANSIENT_ERRORS
+              exceptions.Forbidden if exceptions else None,
+              exceptions.Forbidden if exceptions else None
+          ],
+          error_reason='Forbidden',  # in _NON_TRANSIENT_ERRORS
           failed_rows=['value1', 'value3', 'value5']),
   ])
   def test_insert_rows_json_exception_retry_always(
@@ -1363,63 +1394,63 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
   @parameterized.expand([
       param(
           exception_type=exceptions.DeadlineExceeded if exceptions else None,
-          error_reason='Deadline Exceeded', # not in _NON_TRANSIENT_ERRORS
+          error_reason='Deadline Exceeded',  # not in _NON_TRANSIENT_ERRORS
           failed_values=[],
           expected_call_count=2),
       param(
           exception_type=exceptions.Conflict if exceptions else None,
-          error_reason='Conflict', # not in _NON_TRANSIENT_ERRORS
+          error_reason='Conflict',  # not in _NON_TRANSIENT_ERRORS
           failed_values=[],
           expected_call_count=2),
       param(
           exception_type=exceptions.TooManyRequests if exceptions else None,
-          error_reason='Too Many Requests', # not in _NON_TRANSIENT_ERRORS
+          error_reason='Too Many Requests',  # not in _NON_TRANSIENT_ERRORS
           failed_values=[],
           expected_call_count=2),
       param(
           exception_type=exceptions.InternalServerError if exceptions else None,
-          error_reason='Internal Server Error', # not in _NON_TRANSIENT_ERRORS
+          error_reason='Internal Server Error',  # not in _NON_TRANSIENT_ERRORS
           failed_values=[],
           expected_call_count=2),
       param(
           exception_type=exceptions.BadGateway if exceptions else None,
-          error_reason='Bad Gateway', # not in _NON_TRANSIENT_ERRORS
+          error_reason='Bad Gateway',  # not in _NON_TRANSIENT_ERRORS
           failed_values=[],
           expected_call_count=2),
       param(
           exception_type=exceptions.ServiceUnavailable if exceptions else None,
-          error_reason='Service Unavailable', # not in _NON_TRANSIENT_ERRORS
+          error_reason='Service Unavailable',  # not in _NON_TRANSIENT_ERRORS
           failed_values=[],
           expected_call_count=2),
       param(
           exception_type=exceptions.GatewayTimeout if exceptions else None,
-          error_reason='Gateway Timeout', # not in _NON_TRANSIENT_ERRORS
+          error_reason='Gateway Timeout',  # not in _NON_TRANSIENT_ERRORS
           failed_values=[],
           expected_call_count=2),
       param(
           exception_type=exceptions.BadRequest if exceptions else None,
-          error_reason='Bad Request', # in _NON_TRANSIENT_ERRORS
+          error_reason='Bad Request',  # in _NON_TRANSIENT_ERRORS
           failed_values=['value1', 'value2'],
           expected_call_count=1),
       param(
           exception_type=exceptions.Unauthorized if exceptions else None,
-          error_reason='Unauthorized', # in _NON_TRANSIENT_ERRORS
+          error_reason='Unauthorized',  # in _NON_TRANSIENT_ERRORS
           failed_values=['value1', 'value2'],
           expected_call_count=1),
       param(
           exception_type=exceptions.Forbidden if exceptions else None,
-          error_reason='Forbidden', # in _NON_TRANSIENT_ERRORS
+          error_reason='Forbidden',  # in _NON_TRANSIENT_ERRORS
           failed_values=['value1', 'value2'],
           expected_call_count=1),
       param(
           exception_type=exceptions.NotFound if exceptions else None,
-          error_reason='Not Found', # in _NON_TRANSIENT_ERRORS
+          error_reason='Not Found',  # in _NON_TRANSIENT_ERRORS
           failed_values=['value1', 'value2'],
           expected_call_count=1),
       param(
           exception_type=exceptions.MethodNotImplemented
-            if exceptions else None,
-          error_reason='Not Implemented', # in _NON_TRANSIENT_ERRORS
+          if exceptions else None,
+          error_reason='Not Implemented',  # in _NON_TRANSIENT_ERRORS
           failed_values=['value1', 'value2'],
           expected_call_count=1),
   ])
@@ -1536,7 +1567,9 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
         exception_type(error_message), exception_type(error_message), []
     ]
 
-    with beam.Pipeline() as p:
+    # This relies on DirectRunner-specific mocking behavior which can be
+    # inconsistent on Prism
+    with beam.Pipeline('FnApiRunner') as p:
       _ = (
           p
           | beam.Create([{
@@ -1911,6 +1944,147 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
           | beam.Map(lambda x: x[1]['columnA']))
 
       assert_that(failed_values, equal_to(failed_rows))
+
+
+def test_with_batched_input_exceeds_size_limit(self):
+  from apache_beam.utils.windowed_value import WindowedValue
+  from apache_beam.transforms import window
+
+  client = mock.Mock()
+  client.tables.Get.return_value = bigquery.Table(
+      tableReference=bigquery.TableReference(
+          projectId='project-id', datasetId='dataset_id', tableId='table_id'))
+  client.insert_rows_json.return_value = []
+  fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+      batch_size=10,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+      kms_key=None,
+      with_batched_input=True,
+      max_insert_payload_size=500,  # Small size to trigger the check
+      test_client=client)
+
+  fn.start_bundle()
+
+  # Create rows where the third one exceeds the size limit
+  rows = [
+      ({
+          'month': 1
+      }, 'insertid1'),
+      ({
+          'month': 2
+      }, 'insertid2'),
+      ({
+          'columnA': 'large_string' * 100
+      }, 'insertid3')  # This exceeds 500 bytes
+  ]
+
+  # Create a windowed value for testing
+  test_window = window.GlobalWindow()
+  test_timestamp = window.MIN_TIMESTAMP
+  windowed_value = WindowedValue(None, test_timestamp, [test_window])
+
+  # Process the batched input
+  result = fn.process(('project-id:dataset_id.table_id', rows), windowed_value)
+
+  # Convert generator to list to check results
+  failed_rows = list(result)
+
+  # Should have 2 failed outputs (FAILED_ROWS_WITH_ERRORS and FAILED_ROWS)
+  self.assertEqual(len(failed_rows), 2)
+
+  # Check that the large row was sent to DLQ
+  failed_with_errors = [
+      r for r in failed_rows if r.tag == fn.FAILED_ROWS_WITH_ERRORS
+  ]
+  failed_without_errors = [r for r in failed_rows if r.tag == fn.FAILED_ROWS]
+
+  self.assertEqual(len(failed_with_errors), 1)
+  self.assertEqual(len(failed_without_errors), 1)
+
+  # Verify the error message
+  destination, row, error = failed_with_errors[0].value.value
+  self.assertEqual(destination, 'project-id:dataset_id.table_id')
+  self.assertEqual(row, {'columnA': 'large_string' * 100})
+  self.assertIn('exceeds the maximum insert payload size', error)
+
+  # Verify that only the valid rows were sent to BigQuery
+  self.assertTrue(client.insert_rows_json.called)
+  # Check that the rows were inserted (might be in multiple batches)
+  total_rows = []
+  for call in client.insert_rows_json.call_args_list:
+    total_rows.extend(call[1]['json_rows'])
+
+  self.assertEqual(len(total_rows), 2)
+  self.assertEqual(total_rows[0], {'month': 1})
+  self.assertEqual(total_rows[1], {'month': 2})
+
+
+def test_with_batched_input_splits_large_batch(self):
+  from apache_beam.utils.windowed_value import WindowedValue
+  from apache_beam.transforms import window
+
+  client = mock.Mock()
+  client.tables.Get.return_value = bigquery.Table(
+      tableReference=bigquery.TableReference(
+          projectId='project-id', datasetId='dataset_id', tableId='table_id'))
+  client.insert_rows_json.return_value = []
+  create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+  write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+  fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+      batch_size=10,
+      create_disposition=create_disposition,
+      write_disposition=write_disposition,
+      kms_key=None,
+      with_batched_input=True,
+      max_insert_payload_size=800,  # Small size to force batch splitting
+      test_client=client)
+
+  fn.start_bundle()
+
+  # Create rows that together exceed the batch size limit.
+  # Each row with 'data' * 10 is about 200 bytes
+  # So 2 rows should fit, 3rd should cause flush.
+  rows = [
+      ({
+          'data': 'x' * 10
+      }, 'insertid1'),
+      ({
+          'data': 'y' * 10
+      }, 'insertid2'),
+      ({
+          'data': 'z' * 10
+      }, 'insertid3'),  # This should go in second batch
+  ]
+
+  # Create a windowed value for testing
+  test_window = window.GlobalWindow()
+  test_timestamp = window.MIN_TIMESTAMP
+  windowed_value = WindowedValue(None, test_timestamp, [test_window])
+
+  # Process the batched input
+  result = fn.process(('project-id:dataset_id.table_id', rows), windowed_value)
+
+  # Convert generator to list (should be empty as no failures)
+  failed_rows = list(result)
+  self.assertEqual(len(failed_rows), 0)
+
+  # With 800 byte limit and ~341 byte rows
+  # we should be able to fit 2 rows per batch.
+  # So we expect 2 calls: [row1, row2] and [row3]
+  self.assertEqual(client.insert_rows_json.call_count, 2)
+
+  # Check first batch (2 rows)
+  first_call = client.insert_rows_json.call_args_list[0][1]
+  self.assertEqual(len(first_call['json_rows']), 2)
+  self.assertEqual(first_call['json_rows'][0], {'data': 'x' * 10})
+  self.assertEqual(first_call['json_rows'][1], {'data': 'y' * 10})
+
+  # Check second batch (1 row)
+  second_call = client.insert_rows_json.call_args_list[1][1]
+  self.assertEqual(len(second_call['json_rows']), 1)
+  self.assertEqual(second_call['json_rows'][0], {'data': 'z' * 10})
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -2460,12 +2634,10 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
       r = (
           input
           | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-              table=lambda x,
-              tables:
+              table=lambda x, tables:
               (tables['table1'] if 'language' in x else tables['table2']),
               table_side_inputs=(table_record_pcv, ),
-              schema=lambda dest,
-              table_map: table_map.get(dest, None),
+              schema=lambda dest, table_map: table_map.get(dest, None),
               schema_side_inputs=(schema_table_pcv, ),
               insert_retry_strategy=RetryStrategy.RETRY_ON_TRANSIENT_ERROR,
               method='STREAMING_INSERTS'))
@@ -2665,8 +2837,7 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
           input
           | 'WriteToBigQuery' >> beam.io.gcp.bigquery.WriteToBigQuery(
               table='%s:%s' % (self.project, self.output_table),
-              schema=lambda _,
-              schema: schema,
+              schema=lambda _, schema: schema,
               schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
               method='FILE_LOADS',
               temp_file_format=bigquery_tools.FileFormat.AVRO,

@@ -22,7 +22,6 @@ import tempfile
 import unittest
 import zipfile
 from typing import Any
-from typing import Tuple
 
 try:
   import datatable
@@ -53,7 +52,7 @@ def _compare_prediction_result(a: PredictionResult, b: PredictionResult):
     example_equal = numpy.array_equal(a.example.todense(), b.example.todense())
 
   else:
-    example_equal = numpy.array_equal(a.example, b.example)
+    example_equal = numpy.array_equal(a.example, b.example)  # type: ignore[arg-type]
   if isinstance(a.inference, dict):
     return all(
         x == y for x, y in zip(a.inference.values(),
@@ -62,7 +61,7 @@ def _compare_prediction_result(a: PredictionResult, b: PredictionResult):
 
 
 def _compare_keyed_prediction_result(
-    a: Tuple[Any, PredictionResult], b: Tuple[Any, PredictionResult]):
+    a: tuple[Any, PredictionResult], b: tuple[Any, PredictionResult]):
   a_key, a_val = a
   b_key, b_val = b
   keys_equal = a_key == b_key

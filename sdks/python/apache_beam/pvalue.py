@@ -33,6 +33,7 @@ from typing import Any
 from typing import Dict
 from typing import Generic
 from typing import Iterator
+from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
@@ -426,8 +427,7 @@ class _UnpickledSideInput(AsSideInput):
 
   def _view_options(self):
     return {
-        'data': self._data,
-        # For non-fn-api runners.
+        'data': self._data,  # For non-fn-api runners.
         'window_mapping_fn': self._data.window_mapping_fn,
         'coder': self._windowed_coder(),
     }
@@ -544,8 +544,7 @@ class AsIter(AsSideInput):
   def _side_input_data(self) -> SideInputData:
     return SideInputData(
         common_urns.side_inputs.ITERABLE.urn,
-        self._window_mapping_fn,
-        lambda iterable: iterable)
+        self._window_mapping_fn, lambda iterable: iterable)
 
   @property
   def element_type(self):
@@ -620,8 +619,7 @@ class AsMultiMap(AsSideInput):
   def _side_input_data(self) -> SideInputData:
     return SideInputData(
         common_urns.side_inputs.MULTIMAP.urn,
-        self._window_mapping_fn,
-        lambda x: x)
+        self._window_mapping_fn, lambda x: x)
 
   def requires_keyed_input(self):
     return True
@@ -678,11 +676,15 @@ class Row(object):
     return hash(self.__dict__.items())
 
   def __eq__(self, other):
+    if type(self) == type(other):
+      other_dict = other.__dict__
+    elif type(other) == type(NamedTuple):
+      other_dict = other._asdict()
+    else:
+      return False
     return (
-        type(self) == type(other) and
-        len(self.__dict__) == len(other.__dict__) and all(
-            s == o for s,
-            o in zip(self.__dict__.items(), other.__dict__.items())))
+        len(self.__dict__) == len(other_dict) and
+        all(s == o for s, o in zip(self.__dict__.items(), other_dict.items())))
 
   def __reduce__(self):
     return _make_Row, tuple(self.__dict__.items())

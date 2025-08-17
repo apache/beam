@@ -19,27 +19,15 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 
 import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
-import java.net.Inet6Address;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Used to create channels to communicate with Streaming Engine via gRpc. */
 @AutoOneOf(WindmillServiceAddress.Kind.class)
 public abstract class WindmillServiceAddress {
-  public static WindmillServiceAddress create(Inet6Address ipv6Address) {
-    return AutoOneOf_WindmillServiceAddress.ipv6(ipv6Address);
-  }
 
   public static WindmillServiceAddress create(HostAndPort gcpServiceAddress) {
     return AutoOneOf_WindmillServiceAddress.gcpServiceAddress(gcpServiceAddress);
   }
-
-  public abstract Kind getKind();
-
-  public abstract Inet6Address ipv6();
-
-  public abstract HostAndPort gcpServiceAddress();
-
-  public abstract AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress();
 
   public static WindmillServiceAddress create(
       AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress) {
@@ -47,10 +35,20 @@ public abstract class WindmillServiceAddress {
         authenticatedGcpServiceAddress);
   }
 
+  public abstract Kind getKind();
+
+  public abstract HostAndPort gcpServiceAddress();
+
+  public abstract AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress();
+
+  public final HostAndPort getServiceAddress() {
+    return getKind() == WindmillServiceAddress.Kind.GCP_SERVICE_ADDRESS
+        ? gcpServiceAddress()
+        : authenticatedGcpServiceAddress().gcpServiceAddress();
+  }
+
   public enum Kind {
-    IPV6,
     GCP_SERVICE_ADDRESS,
-    // TODO(m-trieu): Use for direct connections when ALTS is enabled.
     AUTHENTICATED_GCP_SERVICE_ADDRESS
   }
 

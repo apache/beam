@@ -19,6 +19,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths:
+      - "buildSrc/**"
       - 'model/**'
       - 'sdks/java/**'
       - 'runners/**'
@@ -146,7 +147,7 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -159,7 +160,7 @@ jobs:
       matrix:
         job_name: [beam_PreCommit_Java]
         job_phrase: [Run Java PreCommit]
-    timeout-minutes: 120
+    timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -176,6 +177,9 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+          disable-cache: true
       - name: run Java PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -197,6 +201,7 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v4
         if: always()

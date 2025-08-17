@@ -31,7 +31,8 @@ public interface EventExaminer<EventT, StateT extends MutableState<EventT, ?>>
     extends Serializable {
 
   /**
-   * Is this event the first expected event for the given key and window?
+   * Is this event the first expected event for the given key and window if the per key sequence is
+   * used? In case of global sequence it determines the first global sequence event.
    *
    * @param sequenceNumber the sequence number of the event as defined by the key of the input
    *     PCollection to {@link OrderedEventProcessor}
@@ -41,8 +42,8 @@ public interface EventExaminer<EventT, StateT extends MutableState<EventT, ?>>
   boolean isInitialEvent(long sequenceNumber, EventT event);
 
   /**
-   * If the event was the first event in the sequence, create the state to hold the required data
-   * needed for processing. This data will be persisted.
+   * If the event was the first event for a given key, create the state to hold the required data
+   * needed for processing. This data will be persisted in a Beam state.
    *
    * @param event the first event in the sequence.
    * @return the state to persist.
@@ -52,6 +53,8 @@ public interface EventExaminer<EventT, StateT extends MutableState<EventT, ?>>
 
   /**
    * Is this event the last expected event for a given key and window?
+   *
+   * <p>Note, this method is not used yet with global sequences.
    *
    * @param sequenceNumber of the event
    * @param event being processed

@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.StringSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -73,6 +72,14 @@ public class StringSetCell implements StringSet, MetricCell<StringSetData> {
     return setValue.get();
   }
 
+  // Used by Streaming metric container to extract deltas since streaming metrics are
+  // reported as deltas rather than cumulative as in batch.
+  // For delta we take the current value then reset the cell to empty so the next call only see
+  // delta/updates from last call.
+  public StringSetData getAndReset() {
+    return setValue.getAndUpdate(unused -> StringSetData.empty());
+  }
+
   @Override
   public MetricName getName() {
     return name;
@@ -101,11 +108,15 @@ public class StringSetCell implements StringSet, MetricCell<StringSetData> {
     if (this.setValue.get().stringSet().contains(value)) {
       return;
     }
-    update(StringSetData.create(ImmutableSet.of(value)));
+    add(new String[] {value});
   }
 
   @Override
   public void add(String... values) {
-    update(StringSetData.create(ImmutableSet.copyOf(values)));
+    StringSetData original;
+    do {
+      original = setValue.get();
+    } while (!setValue.compareAndSet(original, original.addAll(values)));
+    dirty.afterModification();
   }
 }

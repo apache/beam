@@ -23,6 +23,10 @@ import collections
 import enum
 import logging
 import math
+import pickle
+import subprocess
+import sys
+import textwrap
 import unittest
 from decimal import Decimal
 from typing import Any
@@ -53,7 +57,7 @@ try:
 except ImportError:
   dataclasses = None  # type: ignore
 
-MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+MyNamedTuple = collections.namedtuple('A', ['x', 'y'])  # type: ignore[name-match]
 MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
 
 
@@ -163,7 +167,7 @@ class CodersTest(unittest.TestCase):
         coders.BigEndianShortCoder,
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
-        coders.BigIntegerCoder, # tested in DecimalCoder
+        coders.BigIntegerCoder,  # tested in DecimalCoder
         coders.TimestampPrefixingOpaqueWindowCoder,
     ])
     cls.seen_nested -= set(
@@ -214,6 +218,13 @@ class CodersTest(unittest.TestCase):
   def test_pickle_coder(self):
     coder = coders.PickleCoder()
     self.check_coder(coder, *self.test_values)
+
+  def test_cloudpickle_pickle_coder(self):
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
+    self.check_coder(coders.CloudpickleCoder(), 'a', 1, cell_value)
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), coders.CloudpickleCoder())),
+        (1, cell_value))
 
   def test_memoizing_pickle_coder(self):
     coder = coders._MemoizingPickleCoder()
@@ -318,6 +329,20 @@ class CodersTest(unittest.TestCase):
             for k in range(0, int(math.log(MAX_64_BIT_INT)))
         ])
 
+  def test_varint32_coder(self):
+    # Small ints.
+    self.check_coder(coders.VarInt32Coder(), *range(-10, 10))
+    # Multi-byte encoding starts at 128
+    self.check_coder(coders.VarInt32Coder(), *range(120, 140))
+    # Large values
+    MAX_32_BIT_INT = 0x7fffffff
+    self.check_coder(
+        coders.VarIntCoder(),
+        *[
+            int(math.pow(-1, k) * math.exp(k))
+            for k in range(0, int(math.log(MAX_32_BIT_INT)))
+        ])
+
   def test_float_coder(self):
     self.check_coder(
         coders.FloatCoder(), *[float(0.1 * x) for x in range(-100, 100)])
@@ -347,6 +372,18 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coders.TupleCoder((coders.IntervalWindowCoder(), )),
         (window.IntervalWindow(0, 10), ))
+
+  def test_paneinfo_window_coder(self):
+    self.check_coder(
+        coders.PaneInfoCoder(),
+        *[
+            windowed_value.PaneInfo(
+                is_first=y == 0,
+                is_last=y == 9,
+                timing=windowed_value.PaneInfoTiming.EARLY,
+                index=y,
+                nonspeculative_index=-1) for y in range(0, 10)
+        ])
 
   def test_timestamp_coder(self):
     self.check_coder(
@@ -525,6 +562,7 @@ class CodersTest(unittest.TestCase):
   def test_param_windowed_value_coder(self):
     from apache_beam.transforms.window import IntervalWindow
     from apache_beam.utils.windowed_value import PaneInfo
+    # pylint: disable=too-many-function-args
     wv = windowed_value.create(
         b'',
         # Milliseconds to microseconds
@@ -571,6 +609,150 @@ class CodersTest(unittest.TestCase):
                 "abc",
                 1, (window.IntervalWindow(11, 21), ),
                 PaneInfo(True, False, 1, 2, 3))))
+
+  def test_cross_process_encoding_of_special_types_is_deterministic(self):
+    """Test cross-process determinism for all special deterministic types"""
+
+    if sys.executable is None:
+      self.skipTest('No Python interpreter found')
+
+    # pylint: disable=line-too-long
+    script = textwrap.dedent(
+        '''\
+        import pickle
+        import sys
+        import collections
+        import enum
+        import logging
+
+        from apache_beam.coders import coders
+        from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+        from typing import NamedTuple
+
+        try:
+            import dataclasses
+        except ImportError:
+            dataclasses = None
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            stream=sys.stderr,
+            force=True
+        )
+
+        # Define all the special types that encode_special_deterministic handles
+        MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+        MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
+
+        class MyEnum(enum.Enum):
+            E1 = 5
+            E2 = enum.auto()
+            E3 = 'abc'
+
+        MyIntEnum = enum.IntEnum('MyIntEnum', 'I1 I2 I3')
+        MyIntFlag = enum.IntFlag('MyIntFlag', 'F1 F2 F3')
+        MyFlag = enum.Flag('MyFlag', 'F1 F2 F3')
+
+        if dataclasses is not None:
+            @dataclasses.dataclass(frozen=True)
+            class FrozenDataClass:
+                a: int
+                b: int
+
+        class DefinesGetAndSetState:
+            def __init__(self, value):
+                self.value = value
+
+            def __getstate__(self):
+                return self.value
+
+            def __setstate__(self, value):
+                self.value = value
+
+            def __eq__(self, other):
+                return type(other) is type(self) and other.value == self.value
+        
+        # Test cases for all special deterministic types
+        # NOTE: When this script run in a subprocess the module is considered
+        #  __main__. Dill cannot pickle enums in __main__ because it
+        # needs to define a way to create the type if it does not exist
+        # in the session, and reaches recursion depth limits.
+        test_cases = [
+            ("proto_message", test_message.MessageA(field1='value')),
+            ("named_tuple_simple", MyNamedTuple(1, 2)),
+            ("typed_named_tuple", MyTypedNamedTuple(1, 'a')),
+            ("named_tuple_list", [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')]),
+            # ("enum_single", MyEnum.E1),
+            # ("enum_list", list(MyEnum)),
+            # ("int_enum_list", list(MyIntEnum)),
+            # ("int_flag_list", list(MyIntFlag)),
+            # ("flag_list", list(MyFlag)),
+            ("getstate_setstate_simple", DefinesGetAndSetState(1)),
+            ("getstate_setstate_complex", DefinesGetAndSetState((1, 2, 3))),
+            ("getstate_setstate_list", [DefinesGetAndSetState(1), DefinesGetAndSetState((1, 2, 3))]),
+        ]
+
+        if dataclasses is not None:
+            test_cases.extend([
+                ("frozen_dataclass", FrozenDataClass(1, 2)),
+                ("frozen_dataclass_list", [FrozenDataClass(1, 2), FrozenDataClass(3, 4)]),
+            ])
+
+        coder = coders.FastPrimitivesCoder()
+        deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
+        
+        results = {}
+        for test_name, value in test_cases:
+            try:
+                encoded = deterministic_coder.encode(value)
+                results[test_name] = encoded
+            except Exception as e:
+              logging.warning("Encoding failed with %s", e)
+              sys.exit(1)
+        
+        sys.stdout.buffer.write(pickle.dumps(results))
+                
+        
+    ''')
+
+    def run_subprocess():
+      result = subprocess.run([sys.executable, '-c', script],
+                              capture_output=True,
+                              timeout=30,
+                              check=False)
+
+      self.assertEqual(
+          0, result.returncode, f"Subprocess failed: {result.stderr}")
+      return pickle.loads(result.stdout)
+
+    results1 = run_subprocess()
+    results2 = run_subprocess()
+
+    coder = coders.FastPrimitivesCoder()
+    deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
+
+    for test_name in results1:
+      data1 = results1[test_name]
+      data2 = results2[test_name]
+
+      self.assertEqual(
+          data1, data2, f"Cross-process encoding differs for {test_name}")
+      self.assertGreater(len(data1), 1)
+
+      try:
+        decoded1 = deterministic_coder.decode(data1)
+        decoded2 = deterministic_coder.decode(data2)
+      except Exception as e:
+        logging.warning("Could not decode %s data due to %s", test_name, e)
+        continue
+
+      self.assertEqual(
+          decoded1, decoded2, f"Cross-process decoding differs for {test_name}")
+      self.assertIsInstance(
+          decoded1,
+          type(decoded2),
+          f"Cross-process decoding differs for {test_name}")
 
   def test_proto_coder(self):
     # For instructions on how these test proto message were generated,
@@ -672,9 +854,14 @@ class CodersTest(unittest.TestCase):
 
   def test_map_coder(self):
     values = [
-        {1: "one", 300: "three hundred"}, # force yapf to be nice
+        {
+            1: "one", 300: "three hundred"
+        },  # force yapf to be nice
         {},
-        {i: str(i) for i in range(5000)}
+        {
+            i: str(i)
+            for i in range(5000)
+        }
     ]
     map_coder = coders.MapCoder(coders.VarIntCoder(), coders.StrUtf8Coder())
     self.check_coder(map_coder, *values)
@@ -768,6 +955,14 @@ class CodersTest(unittest.TestCase):
       self.assertEqual(
           test_encodings[idx],
           base64.b64encode(test_coder.encode(value)).decode().rstrip("="))
+
+  def test_OrderedUnionCoder(self):
+    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
+                                           (int, coders.VarIntCoder()),
+                                           fallback_coder=coders.FloatCoder())
+    self.check_coder(test_coder, 's')
+    self.check_coder(test_coder, 123)
+    self.check_coder(test_coder, 1.5)
 
 
 if __name__ == '__main__':

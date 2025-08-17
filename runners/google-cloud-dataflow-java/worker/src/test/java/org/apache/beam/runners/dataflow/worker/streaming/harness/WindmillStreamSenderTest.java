@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -36,12 +36,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -65,7 +64,11 @@ public class WindmillStreamSenderTest {
                       .build())
               .build());
   private final WorkItemScheduler workItemScheduler =
-      (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
+      (workItem,
+          serializedWorkItemSize,
+          watermarks,
+          processingContext,
+          getWorkStreamLatencies) -> {};
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private WindmillConnection connection;
@@ -78,7 +81,7 @@ public class WindmillStreamSenderTest {
     grpcCleanup.register(inProcessChannel);
     connection =
         WindmillConnection.builder()
-            .setStub(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+            .setStubSupplier(() -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
             .build();
   }
 
@@ -96,7 +99,7 @@ public class WindmillStreamSenderTest {
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
-    windmillStreamSender.startStreams();
+    windmillStreamSender.start();
 
     verify(streamFactory)
         .createDirectGetWorkStream(
@@ -107,14 +110,13 @@ public class WindmillStreamSenderTest {
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
-            any(ThrottleTimer.class),
             any(),
             any(),
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory).createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class));
-    verify(streamFactory).createCommitWorkStream(eq(connection.stub()), any(ThrottleTimer.class));
+    verify(streamFactory).createDirectGetDataStream(eq(connection));
+    verify(streamFactory).createDirectCommitWorkStream(eq(connection));
   }
 
   @Test
@@ -126,9 +128,9 @@ public class WindmillStreamSenderTest {
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
-    windmillStreamSender.startStreams();
-    windmillStreamSender.startStreams();
-    windmillStreamSender.startStreams();
+    windmillStreamSender.start();
+    windmillStreamSender.start();
+    windmillStreamSender.start();
 
     verify(streamFactory, times(1))
         .createDirectGetWorkStream(
@@ -139,16 +141,13 @@ public class WindmillStreamSenderTest {
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
-            any(ThrottleTimer.class),
             any(),
             any(),
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory, times(1))
-        .createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class));
-    verify(streamFactory, times(1))
-        .createCommitWorkStream(eq(connection.stub()), any(ThrottleTimer.class));
+    verify(streamFactory, times(1)).createDirectGetDataStream(eq(connection));
+    verify(streamFactory, times(1)).createDirectCommitWorkStream(eq(connection));
   }
 
   @Test
@@ -160,10 +159,10 @@ public class WindmillStreamSenderTest {
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
-    Thread startStreamThread = new Thread(windmillStreamSender::startStreams);
+    Thread startStreamThread = new Thread(windmillStreamSender::start);
     startStreamThread.start();
 
-    windmillStreamSender.startStreams();
+    windmillStreamSender.start();
 
     startStreamThread.join();
 
@@ -176,26 +175,13 @@ public class WindmillStreamSenderTest {
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
-            any(ThrottleTimer.class),
             any(),
             any(),
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory, times(1))
-        .createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class));
-    verify(streamFactory, times(1))
-        .createCommitWorkStream(eq(connection.stub()), any(ThrottleTimer.class));
-  }
-
-  @Test
-  public void testCloseAllStreams_doesNotCloseUnstartedStreams() {
-    WindmillStreamSender windmillStreamSender =
-        newWindmillStreamSender(GetWorkBudget.builder().setBytes(1L).setItems(1L).build());
-
-    windmillStreamSender.closeAllStreams();
-
-    verifyNoInteractions(streamFactory);
+    verify(streamFactory, times(1)).createDirectGetDataStream(eq(connection));
+    verify(streamFactory, times(1)).createDirectCommitWorkStream(eq(connection));
   }
 
   @Test
@@ -212,16 +198,14 @@ public class WindmillStreamSenderTest {
     when(mockStreamFactory.createDirectGetWorkStream(
             eq(connection),
             eq(getWorkRequestWithBudget),
-            any(ThrottleTimer.class),
             any(),
             any(),
             any(),
             eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
 
-    when(mockStreamFactory.createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class)))
-        .thenReturn(mockGetDataStream);
-    when(mockStreamFactory.createCommitWorkStream(eq(connection.stub()), any(ThrottleTimer.class)))
+    when(mockStreamFactory.createDirectGetDataStream(eq(connection))).thenReturn(mockGetDataStream);
+    when(mockStreamFactory.createDirectCommitWorkStream(eq(connection)))
         .thenReturn(mockCommitWorkStream);
 
     WindmillStreamSender windmillStreamSender =
@@ -229,12 +213,65 @@ public class WindmillStreamSenderTest {
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build(),
             mockStreamFactory);
 
-    windmillStreamSender.startStreams();
-    windmillStreamSender.closeAllStreams();
+    windmillStreamSender.start();
+    windmillStreamSender.close();
 
     verify(mockGetWorkStream).shutdown();
     verify(mockGetDataStream).shutdown();
     verify(mockCommitWorkStream).shutdown();
+  }
+
+  @Test
+  public void testCloseAllStreams_doesNotStartStreamsAfterClose() {
+    long itemBudget = 1L;
+    long byteBudget = 1L;
+    GetWorkRequest getWorkRequestWithBudget =
+        GET_WORK_REQUEST.toBuilder().setMaxItems(itemBudget).setMaxBytes(byteBudget).build();
+    GrpcWindmillStreamFactory mockStreamFactory = mock(GrpcWindmillStreamFactory.class);
+    GetWorkStream mockGetWorkStream = mock(GetWorkStream.class);
+    GetDataStream mockGetDataStream = mock(GetDataStream.class);
+    CommitWorkStream mockCommitWorkStream = mock(CommitWorkStream.class);
+
+    when(mockStreamFactory.createDirectGetWorkStream(
+            eq(connection),
+            eq(getWorkRequestWithBudget),
+            any(),
+            any(),
+            any(),
+            eq(workItemScheduler)))
+        .thenReturn(mockGetWorkStream);
+
+    when(mockStreamFactory.createDirectGetDataStream(eq(connection))).thenReturn(mockGetDataStream);
+    when(mockStreamFactory.createDirectCommitWorkStream(eq(connection)))
+        .thenReturn(mockCommitWorkStream);
+
+    WindmillStreamSender windmillStreamSender =
+        newWindmillStreamSender(
+            GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build(),
+            mockStreamFactory);
+
+    windmillStreamSender.close();
+
+    verify(mockGetWorkStream, times(0)).start();
+    verify(mockGetDataStream, times(0)).start();
+    verify(mockCommitWorkStream, times(0)).start();
+
+    verify(mockGetWorkStream).shutdown();
+    verify(mockGetDataStream).shutdown();
+    verify(mockCommitWorkStream).shutdown();
+  }
+
+  @Test
+  public void testStartStream_afterCloseThrows() {
+    long itemBudget = 1L;
+    long byteBudget = 1L;
+
+    WindmillStreamSender windmillStreamSender =
+        newWindmillStreamSender(
+            GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
+
+    windmillStreamSender.close();
+    assertThrows(IllegalStateException.class, windmillStreamSender::start);
   }
 
   private WindmillStreamSender newWindmillStreamSender(GetWorkBudget budget) {

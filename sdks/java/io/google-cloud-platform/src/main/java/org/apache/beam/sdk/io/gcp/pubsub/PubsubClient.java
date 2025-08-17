@@ -507,6 +507,9 @@ public abstract class PubsubClient implements Closeable {
   /** Return a list of topics for {@code project}. */
   public abstract List<TopicPath> listTopics(ProjectPath project) throws IOException;
 
+  /** Return {@literal true} if {@code topic} exists. */
+  public abstract boolean isTopicExists(TopicPath topic) throws IOException;
+
   /** Create {@code subscription} to {@code topic}. */
   public abstract void createSubscription(
       TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException;

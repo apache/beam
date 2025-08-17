@@ -43,9 +43,6 @@
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
-  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*TableScanConverter\.java" />
-  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ExpressionConverter\.java" />
-  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*BeamZetaSqlCatalog\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*pubsublite.*BufferingPullSubscriberTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*cdap.*Plugin\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*cdap.*PluginConfigInstantiationUtils\.java" />
@@ -62,21 +59,13 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*ml.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*gcp.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*DummyRateLimitPolicy\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAdsV17\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAdsV17Test\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*googleads.*GoogleAds.*\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakeBatchTransactionId\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakePartitionFactory\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*pubsublite.RowHandler.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*ProtoPayloadSerializerProvider.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*datacatalog.*DataCatalogTableProvider\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*DateTimeUtils\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtils\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlDialectSpecTest\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlTimeFunctionsTest\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtilsTest\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*TableResolutionTest\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSQLPushDownTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*datatokenization.*BigTableIO\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*aws2.*kinesis.*RecordsAggregator\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*testinfra.*pipelines.*" />

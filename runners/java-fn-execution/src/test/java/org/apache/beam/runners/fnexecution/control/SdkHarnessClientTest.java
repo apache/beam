@@ -26,9 +26,9 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -82,13 +82,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
@@ -143,7 +144,7 @@ public class SdkHarnessClientTest {
             .putAllWindowingStrategies(userProto.getComponents().getWindowingStrategiesMap())
             .putAllCoders(userProto.getComponents().getCodersMap());
     RunnerApi.Coder fullValueCoder =
-        CoderTranslation.toProto(WindowedValue.getFullCoder(StringUtf8Coder.of(), Coder.INSTANCE))
+        CoderTranslation.toProto(WindowedValues.getFullCoder(StringUtf8Coder.of(), Coder.INSTANCE))
             .getCoder();
     pbdBuilder.putCoders("wire_coder", fullValueCoder);
 
@@ -515,18 +516,18 @@ public class SdkHarnessClientTest {
             BundleProgressHandler.ignored())) {
       FnDataReceiver<WindowedValue<?>> bundleInputReceiver =
           Iterables.getOnlyElement(activeBundle.getInputReceivers().values());
-      bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("foo"));
-      bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("bar"));
-      bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("baz"));
+      bundleInputReceiver.accept(WindowedValues.valueInGlobalWindow("foo"));
+      bundleInputReceiver.accept(WindowedValues.valueInGlobalWindow("bar"));
+      bundleInputReceiver.accept(WindowedValues.valueInGlobalWindow("baz"));
     }
 
     // The bundle can be a simple function of some sort, but needs to be complete.
     assertThat(
         outputs,
         containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow("spam"),
-            WindowedValue.valueInGlobalWindow("ham"),
-            WindowedValue.valueInGlobalWindow("eggs")));
+            WindowedValues.valueInGlobalWindow("spam"),
+            WindowedValues.valueInGlobalWindow("ham"),
+            WindowedValues.valueInGlobalWindow("eggs")));
   }
 
   @Test

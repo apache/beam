@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.extensions.ordered;
 
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
@@ -29,9 +31,14 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * The result of the ordered processing. Two PCollections are returned:
+ * The result of the ordered processing. Three PCollections are returned:
  * <li>output - the key/value of the mutated states
+ * <li>unprocessedEvents - the key/value of the events that failed to be processed and the failure
+ *     reason
  * <li>processingStatuses - the key/value of the status of processing for a particular key
+ *
+ *     <p>In case of global sequence processing, the result also contains PCollectionView of the
+ *     latest contiguous sequence range
  *
  * @param <KeyT>
  * @param <ResultT>
@@ -48,6 +55,8 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       unprocessedEventPCollection;
   private final TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag;
 
+  private final @Nullable PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRange;
+
   OrderedEventProcessorResult(
       Pipeline pipeline,
       PCollection<KV<KeyT, ResultT>> outputPCollection,
@@ -57,6 +66,27 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventPCollection,
       TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag) {
 
+    this(
+        pipeline,
+        outputPCollection,
+        outputPCollectionTupleTag,
+        eventProcessingStatusPCollection,
+        eventProcessingStatusTupleTag,
+        unprocessedEventPCollection,
+        unprocessedEventTupleTag,
+        null);
+  }
+
+  OrderedEventProcessorResult(
+      Pipeline pipeline,
+      PCollection<KV<KeyT, ResultT>> outputPCollection,
+      TupleTag<KV<KeyT, ResultT>> outputPCollectionTupleTag,
+      PCollection<KV<KeyT, OrderedProcessingStatus>> eventProcessingStatusPCollection,
+      TupleTag<KV<KeyT, OrderedProcessingStatus>> eventProcessingStatusTupleTag,
+      PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventPCollection,
+      TupleTag<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
+      @Nullable PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRange) {
+
     this.pipeline = pipeline;
     this.outputPCollection = outputPCollection;
     this.outputPCollectionTupleTag = outputPCollectionTupleTag;
@@ -64,6 +94,7 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
     this.eventProcessingStatusTupleTag = eventProcessingStatusTupleTag;
     this.unprocessedEventPCollection = unprocessedEventPCollection;
     this.unprocessedEventTupleTag = unprocessedEventTupleTag;
+    this.latestContiguousRange = latestContiguousRange;
   }
 
   private final Pipeline pipeline;
@@ -101,7 +132,17 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
     return outputPCollection;
   }
 
+  /** @return events which failed to process, including the reasons for failure. */
   public PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEvents() {
     return unprocessedEventPCollection;
+  }
+
+  /**
+   * @return a view to a calculated side input with the last contiguous range. Note: an iterator is
+   *     returned instead of a single value. Use {@link
+   *     ContiguousSequenceRange#largestRange(Iterable)} to get the largest range.
+   */
+  public @Nullable PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRange() {
+    return latestContiguousRange;
   }
 }

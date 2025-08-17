@@ -70,6 +70,12 @@ public class HistogramCell
     dirty.afterModification();
   }
 
+  @Override
+  public void update(HistogramData data) {
+    this.value.update(data);
+    dirty.afterModification();
+  }
+
   // TODO(https://github.com/apache/beam/issues/20853): Update this function to allow incrementing
   // the infinite buckets as well.
   // and remove the incTopBucketCount and incBotBucketCount methods.

@@ -34,7 +34,7 @@ test {
   jvmArgs "-Dtest.build.data.basedirectory=build/test-data"
 }
 
-def hbase_version = "2.5.5"
+def hbase_version = "2.6.1-hadoop3"
 
 dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
@@ -46,12 +46,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
-  testImplementation library.java.hadoop_minicluster
-  testImplementation library.java.hadoop_hdfs
-  testImplementation library.java.hadoop_common
+  // shaded-testing-utils has shaded all Hadoop/HBase dependencies
   testImplementation("org.apache.hbase:hbase-shaded-testing-util:$hbase_version")
-  testImplementation "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
-  testImplementation "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
-

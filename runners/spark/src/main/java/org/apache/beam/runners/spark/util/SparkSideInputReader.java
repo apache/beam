@@ -19,11 +19,14 @@ package org.apache.beam.runners.spark.util;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
@@ -31,10 +34,10 @@ import org.apache.beam.sdk.transforms.Materializations.IterableView;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -66,9 +69,11 @@ public class SparkSideInputReader implements SideInputReader {
     // --- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
     // now that we've obtained the appropriate sideInputWindow, all that's left is to filter by it.
+    final SideInputBroadcast<?> sideInputBroadcast = windowedBroadcastHelper.getValue();
     Iterable<WindowedValue<?>> availableSideInputs =
-        (Iterable<WindowedValue<?>>) windowedBroadcastHelper.getValue().getValue();
-    Iterable<?> sideInputForWindow =
+        (Iterable<WindowedValue<?>>) sideInputBroadcast.getValue();
+
+    final Stream<WindowedValue<?>> stream =
         StreamSupport.stream(availableSideInputs.spliterator(), false)
             .filter(
                 sideInputCandidate -> {
@@ -76,11 +81,9 @@ public class SparkSideInputReader implements SideInputReader {
                     return false;
                   }
                   return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
-                })
-            .collect(Collectors.toList())
-            .stream()
-            .map(WindowedValue::getValue)
-            .collect(Collectors.toList());
+                });
+    final List<?> sideInputForWindow =
+        this.getSideInputForWindow(sideInputBroadcast.getSparkPCollectionViewType(), stream);
 
     switch (view.getViewFn().getMaterialization().getUrn()) {
       case Materializations.ITERABLE_MATERIALIZATION_URN:
@@ -100,6 +103,46 @@ public class SparkSideInputReader implements SideInputReader {
             String.format(
                 "Unknown side input materialization format requested '%s'",
                 view.getViewFn().getMaterialization().getUrn()));
+    }
+  }
+
+  /**
+   * Extracts side input values from windowed values based on the collection view type.
+   *
+   * <p>For {@link SparkPCollectionView.Type#STATIC} view types, simply extracts the value from each
+   * {@link WindowedValue}.
+   *
+   * <p>For {@link SparkPCollectionView.Type#STREAMING} view types, performs additional processing
+   * by flattening any List values, as streaming side inputs arrive as collections that need to be
+   * processed individually.
+   *
+   * @param sparkPCollectionViewType the type of PCollection view (STATIC or STREAMING)
+   * @param stream the stream of WindowedValues filtered for the current window
+   * @return a list of extracted side input values
+   */
+  private List<?> getSideInputForWindow(
+      SparkPCollectionView.Type sparkPCollectionViewType, Stream<WindowedValue<?>> stream) {
+    switch (sparkPCollectionViewType) {
+      case STATIC:
+        return stream.map(WindowedValue::getValue).collect(Collectors.toList());
+      case STREAMING:
+        return stream
+            .flatMap(
+                (WindowedValue<?> windowedValue) -> {
+                  final Object value = windowedValue.getValue();
+                  // Streaming side inputs arrive as List collections.
+                  // These lists need to be flattened to process each element individually.
+                  if (value instanceof List) {
+                    final List<?> list = (List) value;
+                    return list.stream();
+                  } else {
+                    return Stream.of(value);
+                  }
+                })
+            .collect(Collectors.toList());
+      default:
+        throw new IllegalStateException(
+            String.format("Unknown pcollection view type %s", sparkPCollectionViewType));
     }
   }
 

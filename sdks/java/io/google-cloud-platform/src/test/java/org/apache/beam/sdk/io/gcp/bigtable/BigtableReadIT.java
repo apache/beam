@@ -39,7 +39,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -155,9 +154,7 @@ public class BigtableReadIT {
     if (options.getRunner().getName().contains("DirectRunner")) {
       assertThat(
           Lineage.query(r.metrics(), Lineage.Type.SOURCE),
-          hasItem(
-              Lineage.getFqName(
-                  "bigtable", ImmutableList.of(project, options.getInstanceId(), tableId))));
+          hasItem(String.format("bigtable:%s.%s.%s", project, options.getInstanceId(), tableId)));
     }
   }
 }

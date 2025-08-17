@@ -423,9 +423,7 @@ public class BigtableWriteIT implements Serializable {
     if (options.getRunner().getName().contains("DirectRunner")) {
       assertThat(
           Lineage.query(r.metrics(), Lineage.Type.SINK),
-          hasItem(
-              Lineage.getFqName(
-                  "bigtable", ImmutableList.of(project, options.getInstanceId(), tableId))));
+          hasItem(String.format("bigtable:%s.%s.%s", project, options.getInstanceId(), tableId)));
     }
   }
 }

@@ -312,7 +312,7 @@ task runPerformanceTest {
       workingDir "${project.rootDir}/sdks/python"
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
-              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=1800"
+              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=3600"
     }
   }
 }
@@ -380,6 +380,30 @@ task validatesContainer() {
   }
 }
 
+task validatesDistrolessContainer() {
+  def imageURL = "gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk_distroless:${project.sdk_version}"
+
+  doLast {
+    exec {
+        def testTarget = "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
+      def argMap = [
+              "output"             : "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
+              "project"            : "apache-beam-testing",
+              "region"             : "us-central1",
+              "runner"             : "TestDataflowRunner",
+              "sdk_container_image": "${imageURL}",
+              "sdk_location"       : "container",
+              "staging_location"   : "gs://temp-storage-for-end-to-end-tests/staging-it",
+              "temp_location"      : "gs://temp-storage-for-end-to-end-tests/temp-it",
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      workingDir = "${rootDir}/sdks/python"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pytest ${testTarget} --test-pipeline-options=\"${cmdArgs}\""
+    }
+  }
+}
+
 task validatesContainerARM() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
@@ -435,7 +459,7 @@ def vllmTests = tasks.create("vllmTests") {
     // TODO(https://github.com/apache/beam/issues/22651): Build docker image for VLLM tests during Run time.
     // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
     // declaration for this project.
-    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile
+    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile.old
     "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
@@ -485,6 +509,33 @@ task vertexAIInferenceTest {
     }
 }
 
+// Vertex AI RunInference IT tests
+task geminiInferenceTest {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/gemini_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "GeminiTests-df-py${pythonVersionSuffix}",
+          "collect": "gemini_postcommit" ,
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
 
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
@@ -543,13 +594,16 @@ task mockAPITests {
 }
 
 // add all RunInference E2E tests that run on DataflowRunner
-// As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
-// contains Python 3.8.
+// As of now, this test suite is enable in py310 suite as the base NVIDIA image used for Tensor RT
+// contains Python 3.10.
 // TODO: https://github.com/apache/beam/issues/22651
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
-  'tensorRTtests',
+  // TODO(https://github.com/apache/beam/issues/33078): restore the tensorRT tests once the staged
+  // model is fixed.
+  // 'tensorRTtests',
   'vertexAIInferenceTest',
+  'geminiInferenceTest',
   'mockAPITests',
   ]
 }
@@ -575,7 +629,7 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--project=${gcpProject}",
         "--region=${gcpRegion}",
         "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
-        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
+        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest"
       ],
       pytestOptions: basicPytestOpts,
       additionalDeps: taskMetadata.additionalDeps,

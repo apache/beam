@@ -30,6 +30,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Function;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
+import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
@@ -48,6 +49,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -207,6 +210,11 @@ public class SideInputStateFetcher {
     ByteStringOutputStream windowStream = new ByteStringOutputStream();
     windowCoder.encode(sideWindow, windowStream);
 
+    Instant firingDeadline =
+        Ordering.natural()
+            .min(
+                sideWindowStrategy.getTrigger().getWatermarkThatGuaranteesFiring(sideWindow),
+                LateDataUtils.garbageCollectionTime(sideWindow, sideWindowStrategy));
     GlobalDataRequest request =
         GlobalDataRequest.newBuilder()
             .setDataId(
@@ -216,8 +224,7 @@ public class SideInputStateFetcher {
                     .build())
             .setStateFamily(stateFamily)
             .setExistenceWatermarkDeadline(
-                WindmillTimeUtils.harnessToWindmillTimestamp(
-                    sideWindowStrategy.getTrigger().getWatermarkThatGuaranteesFiring(sideWindow)))
+                WindmillTimeUtils.harnessToWindmillTimestamp(firingDeadline))
             .build();
 
     try (Closeable ignored = scopedReadStateSupplier.get()) {

@@ -201,7 +201,7 @@ class MetricsTest(unittest.TestCase):
     # Verify user distribution counter.
     metric_results = res.metrics().query()
     matcher = MetricResultMatcher(
-        step='ApplyPardo',
+        step=hc.contains_string('ApplyPardo'),
         namespace=hc.contains_string('SomeDoFn'),
         name='element_dist',
         committed=DistributionMatcher(
@@ -209,8 +209,7 @@ class MetricsTest(unittest.TestCase):
             count_value=hc.greater_than_or_equal_to(0),
             min_value=hc.greater_than_or_equal_to(0),
             max_value=hc.greater_than_or_equal_to(0)))
-    hc.assert_that(
-        metric_results['distributions'], hc.contains_inanyorder(matcher))
+    hc.assert_that(metric_results['distributions'], hc.has_item(matcher))
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
@@ -268,6 +267,22 @@ class LineageTest(unittest.TestCase):
       self.assertEqual(
           "apache:beam:" + v + '.' + v,
           Lineage.get_fq_name("apache", k, k, subtype="beam"))
+
+  def test_add(self):
+    lineage = Lineage(Lineage.SOURCE)
+    added = set()
+    # override
+    lineage.metric = added
+    lineage.add("s", "1", "2")
+    lineage.add("s:3.4")
+    lineage.add("s", "5", "6.7")
+    lineage.add("s", "1", "2", subtype="t")
+    lineage.add("sys", "seg1", "seg2", "seg3/part2/part3", last_segment_sep='/')
+    self.assertSetEqual(
+        added,
+        {('s:', '1.', '2'), ('s:3.4:', ), ('s:', '5.', '6.7'),
+         ('s:', 't:', '1.', '2'),
+         ('sys:', 'seg1.', 'seg2.', 'seg3/', 'part2/', 'part3')})
 
 
 if __name__ == '__main__':

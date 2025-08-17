@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -28,9 +30,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -41,6 +44,9 @@ import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +88,7 @@ public class GroupNonMergingWindowsFunctions {
           Partitioner partitioner) {
     final Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
     FullWindowedValueCoder<KV<K, V>> windowedKvCoder =
-        WindowedValue.FullWindowedValueCoder.of(KvCoder.of(keyCoder, valueCoder), windowCoder);
+        WindowedValues.FullWindowedValueCoder.of(KvCoder.of(keyCoder, valueCoder), windowCoder);
     JavaPairRDD<ByteArray, byte[]> windowInKey =
         bringWindowToKey(
             rdd, keyCoder, windowCoder, wv -> CoderHelpers.toByteArray(wv, windowedKvCoder));
@@ -126,7 +132,8 @@ public class GroupNonMergingWindowsFunctions {
                 final W window = (W) Iterables.getOnlyElement(item.getWindows());
                 final byte[] windowBytes = CoderHelpers.toByteArray(window, windowCoder);
                 WindowedValue<KV<K, V>> valueOut =
-                    WindowedValue.of(item.getValue(), item.getTimestamp(), window, item.getPane());
+                    WindowedValues.of(
+                        item.getValue(), item.getTimestamp(), window, item.getPaneInfo());
                 final ByteArray windowedKey = new ByteArray(Bytes.concat(keyBytes, windowBytes));
                 return new Tuple2<>(windowedKey, mappingFn.apply(valueOut));
               });
@@ -174,7 +181,7 @@ public class GroupNonMergingWindowsFunctions {
         Iterator<Tuple2<ByteArray, byte[]>> inner,
         Coder<K> keyCoder,
         WindowingStrategy<?, W> windowingStrategy,
-        WindowedValue.FullWindowedValueCoder<KV<K, V>> windowedValueCoder)
+        WindowedValues.FullWindowedValueCoder<KV<K, V>> windowedValueCoder)
         throws Coder.NonDeterministicException {
 
       this.inner = Iterators.peekingIterator(inner);
@@ -253,15 +260,18 @@ public class GroupNonMergingWindowsFunctions {
       final Instant timestamp =
           windowingStrategy.getTimestampCombiner().assign(window, windowedValue.getTimestamp());
       // BEAM-7341: Elements produced by GbK are always ON_TIME and ONLY_FIRING
-      return WindowedValue.of(
+      return WindowedValues.of(
           KV.of(key, value), timestamp, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
     }
   }
 
   /**
-   * Group all values with a given key for that composite key with Spark's groupByKey, dropping the
-   * Window (which must be GlobalWindow) and returning the grouped result in the appropriate global
-   * window.
+   * Groups values with a given key using Spark's combineByKey operation in the Global Window
+   * context. The window information (which must be GlobalWindow) is dropped during processing, and
+   * the grouped results are returned in the appropriate global window with the maximum timestamp.
+   *
+   * <p>This implementation uses {@link JavaPairRDD#combineByKey} for better performance compared to
+   * {@link JavaPairRDD#groupByKey}, as it allows for local aggregation before shuffle operations.
    */
   static <K, V, W extends BoundedWindow>
       JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
@@ -269,23 +279,70 @@ public class GroupNonMergingWindowsFunctions {
           Coder<K> keyCoder,
           Coder<V> valueCoder,
           Partitioner partitioner) {
-    JavaPairRDD<ByteArray, byte[]> rawKeyValues =
-        rdd.mapToPair(
-            wv ->
-                new Tuple2<>(
-                    new ByteArray(CoderHelpers.toByteArray(wv.getValue().getKey(), keyCoder)),
-                    CoderHelpers.toByteArray(wv.getValue().getValue(), valueCoder)));
-    return rawKeyValues
-        .groupByKey()
-        .map(
-            kvs ->
-                WindowedValue.timestampedValueInGlobalWindow(
-                    KV.of(
-                        CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
-                        Iterables.transform(
-                            kvs._2,
-                            encodedValue -> CoderHelpers.fromByteArray(encodedValue, valueCoder))),
-                    GlobalWindow.INSTANCE.maxTimestamp(),
-                    PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    final JavaPairRDD<ByteArray, byte[]> rawKeyValues =
+        rdd.mapPartitionsToPair(
+            (Iterator<WindowedValue<KV<K, V>>> iter) ->
+                Iterators.transform(
+                    iter,
+                    (WindowedValue<KV<K, V>> wv) -> {
+                      final ByteArray keyBytes =
+                          new ByteArray(CoderHelpers.toByteArray(wv.getValue().getKey(), keyCoder));
+                      final byte[] valueBytes =
+                          CoderHelpers.toByteArray(wv.getValue().getValue(), valueCoder);
+                      return Tuple2.apply(keyBytes, valueBytes);
+                    }));
+
+    JavaPairRDD<ByteArray, List<byte[]>> combined = combineByKey(rawKeyValues, partitioner).cache();
+
+    return combined.mapPartitions(
+        (Iterator<Tuple2<ByteArray, List<byte[]>>> iter) ->
+            Iterators.transform(
+                iter,
+                kvs ->
+                    WindowedValues.timestampedValueInGlobalWindow(
+                        KV.of(
+                            CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
+                            Iterables.transform(
+                                kvs._2(),
+                                encodedValue ->
+                                    CoderHelpers.fromByteArray(encodedValue, valueCoder))),
+                        GlobalWindow.INSTANCE.maxTimestamp(),
+                        PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+  }
+
+  /**
+   * Combines values by key using Spark's {@link JavaPairRDD#combineByKey} operation.
+   *
+   * @param rawKeyValues Input RDD of key-value pairs
+   * @param partitioner Optional custom partitioner for data distribution
+   * @return RDD with values combined into Lists per key
+   */
+  static JavaPairRDD<ByteArray, List<byte[]>> combineByKey(
+      JavaPairRDD<ByteArray, byte[]> rawKeyValues, @Nullable Partitioner partitioner) {
+
+    final Function<byte[], List<byte[]>> createCombiner =
+        value -> {
+          List<byte[]> list = new ArrayList<>();
+          list.add(value);
+          return list;
+        };
+
+    final Function2<List<byte[]>, byte[], List<byte[]>> mergeValues =
+        (list, value) -> {
+          list.add(value);
+          return list;
+        };
+
+    final Function2<List<byte[]>, List<byte[]>, List<byte[]>> mergeCombiners =
+        (list1, list2) -> {
+          list1.addAll(list2);
+          return list1;
+        };
+
+    if (partitioner == null) {
+      return rawKeyValues.combineByKey(createCombiner, mergeValues, mergeCombiners);
+    }
+
+    return rawKeyValues.combineByKey(createCombiner, mergeValues, mergeCombiners, partitioner);
   }
 }

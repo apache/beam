@@ -23,7 +23,6 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
-import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,7 +36,6 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
   private static final String URN = "beam:external:java:sql:v1";
   private static final ImmutableMap<String, Class<? extends QueryPlanner>> DIALECTS =
       ImmutableMap.<String, Class<? extends QueryPlanner>>builder()
-          .put("zetasql", ZetaSQLQueryPlanner.class)
           .put("calcite", CalciteQueryPlanner.class)
           .build();
 
@@ -50,6 +48,7 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
   public static class Configuration {
     String query = "";
     @Nullable String dialect;
+    @Nullable String ddl;
 
     public void setQuery(String query) {
       this.query = query;
@@ -57,6 +56,10 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
 
     public void setDialect(@Nullable String dialect) {
       this.dialect = dialect;
+    }
+
+    public void setDdl(@Nullable String ddl) {
+      this.ddl = ddl;
     }
   }
 
@@ -75,6 +78,10 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
                   configuration.dialect, DIALECTS.keySet()));
         }
         transform = transform.withQueryPlannerClass(queryPlanner);
+      }
+      // Add any DDL string
+      if (configuration.ddl != null) {
+        transform = transform.withDdlString(configuration.ddl);
       }
       return transform;
     }

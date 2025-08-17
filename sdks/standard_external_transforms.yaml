@@ -19,7 +19,7 @@
 # configuration in /sdks/standard_expansion_services.yaml.
 # Refer to gen_xlang_wrappers.py for more info.
 #
-# Last updated on: 2024-08-27
+# Last updated on: 2025-06-05
 
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: 'Outputs a PCollection of Beam Rows, each containing a single INT64
@@ -34,19 +34,84 @@
   destinations:
     python: apache_beam/io
   fields:
-    end:
-      description: The maximum number to generate (exclusive). Will be an unbounded
-        sequence if left unspecified.
-      nullable: true
-      type: numpy.int64
-    rate:
-      description: Specifies the rate to generate a given number of elements per a
-        given number of seconds. Applicable only to unbounded sequences.
-      nullable: true
-      type: Row(elements=<class 'numpy.int64'>, seconds=typing.Optional[numpy.int64])
-    start:
-      description: The minimum number to generate (inclusive).
-      nullable: false
-      type: numpy.int64
+  - description: The maximum number to generate (exclusive). Will be an unbounded
+      sequence if left unspecified.
+    name: end
+    nullable: true
+    type: int64
+  - description: Specifies the rate to generate a given number of elements per a given
+      number of seconds. Applicable only to unbounded sequences.
+    name: rate
+    nullable: true
+    type: Row(elements=<class 'int64'>, seconds=typing.Optional[int64])
+  - description: The minimum number to generate (inclusive).
+    name: start
+    nullable: false
+    type: int64
   identifier: beam:schematransform:org.apache.beam:generate_sequence:v1
   name: GenerateSequence
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: ''
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: Decompression type to use when reading input files.
+    name: compression
+    nullable: false
+    type: str
+  - description: This option specifies whether and where to output unwritable rows.
+    name: error_handling
+    nullable: true
+    type: Row(output=<class 'str'>)
+  - description: Filename or file pattern used to find input files.
+    name: file_pattern
+    nullable: false
+    type: str
+  - description: Validate file pattern.
+    name: validate
+    nullable: false
+    type: boolean
+  identifier: beam:schematransform:org.apache.beam:tfrecord_read:v1
+  name: TfrecordRead
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: ''
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: Option to indicate the output sink's compression type. Default is
+      NONE.
+    name: compression
+    nullable: false
+    type: str
+  - description: This option specifies whether and where to output unwritable rows.
+    name: error_handling
+    nullable: true
+    type: Row(output=<class 'str'>)
+  - description: The suffix of each file written, combined with prefix and shardTemplate.
+    name: filename_suffix
+    nullable: true
+    type: str
+  - description: Maximum number of writers created in a bundle before spilling to
+      shuffle.
+    name: max_num_writers_per_bundle
+    nullable: true
+    type: int32
+  - description: Whether to skip the spilling of data caused by having maxNumWritersPerBundle.
+    name: no_spilling
+    nullable: true
+    type: boolean
+  - description: The number of shards to use, or 0 for automatic.
+    name: num_shards
+    nullable: false
+    type: int32
+  - description: The directory to which files will be written.
+    name: output_prefix
+    nullable: false
+    type: str
+  - description: The shard template of each file written, combined with prefix and
+      suffix.
+    name: shard_template
+    nullable: true
+    type: str
+  identifier: beam:schematransform:org.apache.beam:tfrecord_write:v1
+  name: TfrecordWrite

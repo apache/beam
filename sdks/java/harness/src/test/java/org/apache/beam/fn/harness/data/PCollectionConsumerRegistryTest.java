@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -47,8 +47,9 @@ import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.debug.DataSampler;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
+import org.apache.beam.fn.harness.logging.LoggingClient;
+import org.apache.beam.fn.harness.logging.LoggingClientFactory;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
@@ -70,17 +71,17 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.After;
 import org.junit.Before;
@@ -129,7 +130,8 @@ public class PCollectionConsumerRegistryTest {
 
   @Before
   public void setUp() throws Exception {
-    sampler = new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+    sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
   }
 
   @After
@@ -631,7 +633,7 @@ public class PCollectionConsumerRegistryTest {
 
     // This section is to set up the StateSampler with the expected metadata.
     ExecutionStateSampler sampler =
-        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
     ExecutionStateSampler.ExecutionStateTracker stateTracker = sampler.create();
     stateTracker.start("process-bundle");
     ExecutionStateSampler.ExecutionState state =
@@ -647,8 +649,8 @@ public class PCollectionConsumerRegistryTest {
     // Start the test within the logging context. This reroutes logging through to the boiler-plate
     // that was set up
     // earlier.
-    try (BeamFnLoggingClient ignored =
-        BeamFnLoggingClient.createAndStart(
+    try (LoggingClient ignored =
+        LoggingClientFactory.createAndStart(
             PipelineOptionsFactory.create(),
             apiServiceDescriptor,
             (Endpoints.ApiServiceDescriptor descriptor) -> channel)) {

@@ -62,13 +62,11 @@ dependencies {
     implementation library.java.avro
     implementation library.java.joda_time
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.vendored_calcite_1_28_0
+    implementation library.java.vendored_calcite_1_40_0
     implementation library.java.commons_csv
     implementation library.java.slf4j_api
-    implementation "com.googlecode.json-simple:json-simple:1.1.1"
     implementation library.java.jackson_databind
     implementation project(":sdks:java:extensions:sql")
-    implementation project(":sdks:java:extensions:sql:zetasql")
     implementation project(":sdks:java:io:parquet")
     implementation project(":sdks:java:extensions:google-cloud-platform-core")
     implementation project(":sdks:java:testing:test-utils")
@@ -78,8 +76,9 @@ dependencies {
     implementation project(":runners:google-cloud-dataflow-java")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testRuntimeOnly library.java.slf4j_jdk14
-    testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:google-cloud-platform")
     testImplementation project(path: ":sdks:java:testing:test-utils")
+    testImplementation library.java.junit
     gradleRun project(project.path)
     gradleRun project(path: tpcdsRunnerDependency, configuration: runnerConfiguration)
 }

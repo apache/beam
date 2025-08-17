@@ -35,7 +35,7 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -137,12 +137,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
       ByteString keyBytes = keyStream.toByteString();
       // Leaving data blank means that we delete the tag.
-      commitBuilder
-          .addValueUpdatesBuilder()
-          .setTag(keyBytes)
-          .setStateFamily(stateFamily)
-          .getValueBuilder()
-          .setTimestamp(Long.MAX_VALUE);
+      commitBuilder.addValueUpdatesBuilder().setTag(keyBytes).setStateFamily(stateFamily);
 
       V cachedValue = cachedValues.remove(key);
       if (cachedValue != null) {

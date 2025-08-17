@@ -20,6 +20,10 @@
 <!--
 # [2.XX.X] - Unreleased
 
+## Beam 3.0.0 Development Highlights
+
+* New highly anticipated feature ([X](https://github.com/apache/beam/issues/X)) to address Milestone Y ([#Y](https://github.com/apache/beam/issues/Y)).
+
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
@@ -46,28 +50,428 @@
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
+* ([#X](https://github.com/apache/beam/issues/X)).
+-->
+
+# [2.68.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* BigtableRead Connector for BeamYaml added with new Config Param ([#35696](https://github.com/apache/beam/pull/35696))
+* Introduced a dedicated module for JUnit-based testing support: `sdks/java/testing/junit`, which provides `TestPipelineExtension` for JUnit 5 while maintaining backward compatibility with existing JUnit 4 `TestRule`-based tests (Java) ([#18733](https://github.com/apache/beam/issues/18733), [#35688](https://github.com/apache/beam/pull/35688)).
+  - To use JUnit 5 with Beam tests, add a test-scoped dependency on `org.apache.beam:beam-sdks-java-testing-junit`.
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Previously deprecated Beam ZetaSQL component has been removed ([#34423](https://github.com/apache/beam/issues/34423)).
+  ZetaSQL users could migrate to Calcite SQL with BigQuery dialect enabled.
+* Upgraded Beam vendored Calcite to 1.40.0 for Beam SQL ([#35483](https://github.com/apache/beam/issues/35483)), which
+  improves support for BigQuery and other SQL dialects. Note: Minor behavior changes are observed such as output
+  significant digits related to casting.
+* [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* Python SDK native SpannerIO (apache_beam/io/gcp/experimental/spannerio) is deprecated. Use cross-language wrapper
+  (apache_beam/io/gcp/spanner) instead (Python) ([#35860](https://github.com/apache/beam/issues/35860)).
+
+## Bugfixes
+
+* (Python) Fixed Java YAML provider fails on Windows ([#35617](https://github.com/apache/beam/issues/35617)).
+* Fixed BigQueryIO creating temporary datasets in wrong project when temp_dataset is specified with a different project than the pipeline project. For some jobs, temporary datasets will now be created in the correct project (Python) ([#35813](https://github.com/apache/beam/issues/35813)).
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
--->
 
-# [2.60.0] - Unreleased
+# [2.67.0] - 2025-08-12
+
+## Highlights
+
+## I/Os
+
+* Debezium IO upgraded to 3.1.1 requires Java 17 (Java) ([#34747](https://github.com/apache/beam/issues/34747)).
+* Add support for streaming writes in IOBase (Python)
+* Add IT test for streaming writes for IOBase (Python)
+* Implement support for streaming writes in FileBasedSink (Python)
+* Expose support for streaming writes in AvroIO (Python)
+* Expose support for streaming writes in ParquetIO (Python)
+* Expose support for streaming writes in TextIO (Python)
+* Expose support for streaming writes in TFRecordsIO (Python)
+
+## New Features / Improvements
+
+* Added support for Processing time Timer in the Spark Classic runner ([#33633](https://github.com/apache/beam/issues/33633)).
+* Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/35397)).
+* [IcebergIO] Create tables with a specified table properties ([#35496](https://github.com/apache/beam/pull/35496))
+* Add support for comma-separated options in Python SDK (Python) ([#35580](https://github.com/apache/beam/pull/35580)).
+  Python SDK now supports comma-separated values for experiments and dataflow_service_options,
+  matching Java SDK behavior while maintaining backward compatibility.
+* Milvus enrichment handler added (Python) ([#35216](https://github.com/apache/beam/pull/35216)).
+  Beam now supports Milvus enrichment handler capabilities for vector, keyword,
+  and hybrid search operations.
+* [Beam SQL] Add support for DATABASEs, with an implementation for Iceberg ([#35637](https://github.com/apache/beam/issues/35637))
+* Respect BatchSize and MaxBufferingDuration when using `JdbcIO.WriteWithResults`. Previously, these settings were ignored ([#35669](https://github.com/apache/beam/pull/35669)).
+* BigTableWrite Connector for BeamYaml added with mutation feature ([#35435](https://github.com/apache/beam/pull/35435))
+
+
+## Breaking Changes
+
+* Go: The pubsubio.Read transform now accepts ReadOptions as a value type instead of a pointer, and requires exactly one of Topic or Subscription to be set (they are mutually exclusive). Additionally, the ReadOptions struct now includes a Topic field for specifying the topic directly, replacing the previous topic parameter in the Read function signature ([#35369](https://github.com/apache/beam/pull/35369)).
+* SQL: The `ParquetTable` external table provider has changed its handling of the `LOCATION` property. To read from a directory, the path must now end with a trailing slash (e.g., `LOCATION '/path/to/data/'`). Previously, a trailing slash was not required. This change was made to enable support for glob patterns and single-file paths ([#35582](https://github.com/apache/beam/pull/35582)).
+
+## Bugfixes
+
+* [YAML] Fixed handling of missing optional fields in JSON parsing ([#35179](https://github.com/apache/beam/issues/35179)).
+* [Python] Fix WriteToBigQuery transform using CopyJob does not work with WRITE_TRUNCATE write disposition ([#34247](https://github.com/apache/beam/issues/34247))
+* [Python] Fixed dicomio tags mismatch in integration tests ([#30760](https://github.com/apache/beam/issues/30760)).
+* [Java] Fixed spammy logging issues that affected versions 2.64.0 to 2.66.0.
+
+## Known Issues
+
+* ([#35666](https://github.com/apache/beam/issues/35666)). YAML Flatten incorrectly drops fields when input PCollections' schema are different. This issue exists for all versions since 2.52.0.
+
+# [2.66.0] - 2025-07-01
+
+## Beam 3.0.0 Development Highlights
+
+* [Java] Java 8 support is now deprecated. It is still supported until Beam 3.
+  From now, pipeline submitted by Java 8 client uses Java 11 SDK container for
+  remote pipeline execution ([35064](https://github.com/apache/beam/pull/35064)).
+
+## Highlights
+
+* [Python] Several quality-of-life improvements to the vLLM model handler. If you use Beam RunInference with vLLM model handlers, we strongly recommend updating past this release.
+
+## I/Os
+
+* [IcebergIO] Now available with Beam SQL! ([#34799](https://github.com/apache/beam/pull/34799))
+* [IcebergIO] Support reading with column pruning ([#34856](https://github.com/apache/beam/pull/34856))
+* [IcebergIO] Support reading with pushdown filtering ([#34827](https://github.com/apache/beam/pull/34827))
+* [IcebergIO] Create tables with a specified partition spec ([#34966](https://github.com/apache/beam/pull/34966), [#35268](https://github.com/apache/beam/pull/35268))
+* [IcebergIO] Dynamically create namespaces if needed ([#35228](https://github.com/apache/beam/pull/35228))
+
+## New Features / Improvements
+* [Beam SQL] Introducing Beam Catalogs ([#35223](https://github.com/apache/beam/pull/35223))
+* Adding Google Storage Requests Pays feature (Golang)([#30747](https://github.com/apache/beam/issues/30747)).
+* [Python] Prism runner now auto-enabled for some Python pipelines using the direct runner ([#34921](https://github.com/apache/beam/pull/34921)).
+* [YAML] WriteToTFRecord and ReadFromTFRecord Beam YAML support
+* Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration ([#34495](https://github.com/apache/beam/pull/34495)).
+* [Python] Adding GCP Spanner Change Stream support for Python (apache_beam.io.gcp.spanner). ([#24103] https://github.com/apache/beam/issues/24103).
+
+## Breaking Changes
+
+* Yapf version upgraded to 0.43.0 for formatting (Python) ([#34801](https://github.com/apache/beam/pull/34801/)).
+* Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration ([#34495](https://github.com/apache/beam/pull/34495)).
+* Python: Argument abbreviation is no longer enabled within Beam. If you previously abbreviated arguments (e.g. `--r` for `--runner`), you will now need to specify the whole argument ([#34934](https://github.com/apache/beam/pull/34934)).
+* Java: Users of ReadFromKafkaViaSDF transform might encounter pipeline graph compatibility issues when updating the pipeline. To mitigate, set the `updateCompatibilityVersion` option to the SDK version used for the original pipeline, example `--updateCompatabilityVersion=2.64.0`
+* Python: Updated `AlloyDBVectorWriterConfig` API to align with new `PostgresVectorWriter` transform. Heres a quick guide to update your code: ([#35225](https://github.com/apache/beam/issues/35225))
+
+## Bugfixes
+
+* (Java) Fixed CassandraIO ReadAll does not let a pipeline handle or retry exceptions ([#34191](https://github.com/apache/beam/pull/34191)).
+* [Python] Fixed vLLM model handlers breaking Beam logging. ([#35053](https://github.com/apache/beam/pull/35053)).
+* [Python] Fixed vLLM connection leaks that caused a throughput bottleneck and underutilization of GPU ([#35053](https://github.com/apache/beam/pull/35053)).
+* [Python] Fixed vLLM server recovery mechanism in the event of a process termination ([#35234](https://github.com/apache/beam/pull/35234)).
+* (Python) Fixed cloudpickle overwriting class states every time loading a same object of dynamic class ([#35062](https://github.com/apache/beam/issues/35062)).
+* [Python] Fixed pip install apache-beam[interactive] causes crash on google colab ([#35148](https://github.com/apache/beam/pull/35148)).
+* [IcebergIO] Fixed Beam <-> Iceberg conversion logic for arrays of structs and maps of structs ([#35230](https://github.com/apache/beam/pull/35230)).
+
+## Known Issues
+* [Java] Using histogram metrics can cause spammy logs. To mitigate this issue, filter worker startup logs, or upgrade to 2.67.0.
+
+# [2.65.0] - 2025-05-12
+
+## I/Os
+
+* Upgraded GoogleAdsAPI to v19 for GoogleAdsIO (Java) ([#34497](https://github.com/apache/beam/pull/34497)). Changed PTransform method from version-specified (`v17()`) to `current()` for better backward compatibility in the future.
+* Added support for writing to Pubsub with ordering keys (Java) ([#21162](https://github.com/apache/beam/issues/21162))
+
+## New Features / Improvements
+
+* Added support for streaming side-inputs in the Spark Classic runner ([#18136](https://github.com/apache/beam/issues/18136)).
+
+## Breaking Changes
+
+* [Python] Cloudpickle is set as the default `pickle_library`, where previously
+  dill was the default in [#34695](https://github.com/apache/beam/pull/34695).
+  For known issues, reporting new issues, and understanding cloudpickle
+  behavior refer to [#34903](https://github.com/apache/beam/issues/34903).
+* [Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
+  after reshuffle. To opt out of this change, set the
+  update_compatibility_version to a previous Beam version e.g. "2.64.0".
+([#34348](https://github.com/apache/beam/pull/34348))
+* [Python] PaneInfo is encoded by PaneInfoCoder, where previously PaneInfo was
+  encoded with FastPrimitivesCoder falling back to PickleCoder. This only
+  affects cases where PaneInfo is directly stored as an element.
+  ([#34824](https://github.com/apache/beam/pull/34824))
+* [Python] BigQueryFileLoads now adds a Reshuffle before triggering load jobs.
+  This fixes a bug where there can be data loss in a streaming pipeline if there
+  is a pending load job during autoscaling. To opt out of this change, set the
+  update_compatibility_version to a previous Beam version e.g. "2.64.0".
+([#34657](https://github.com/apache/beam/pull/34657))
+* [YAML] Kafka source and sink will be automatically replaced with compatible managed transforms.
+  For older Beam versions, streaming update compatiblity can be maintained by specifying the pipeline
+  option `update_compatibility_version` ([#34767](https://github.com/apache/beam/issues/34767)).
+
+## Deprecations
+
+* Beam ZetaSQL is deprecated and will be removed no earlier than Beam 2.68.0 ([#34423](https://github.com/apache/beam/issues/34423)).
+  Users are recommended to switch to [Calcite SQL](https://beam.apache.org/documentation/dsls/sql/calcite/overview/) dialect.
+
+## Bugfixes
+
+* Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers ([#34089](https://github.com/apache/beam/issues/34089))
+* (Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer<Row> interface([#34505](https://github.com/apache/beam/pull/34505))
+* [Python] `TypedDict` typehints are now compatible with `Mapping` and `Dict` type annotations.
+
+## Security Fixes
+
+* Fixed [CVE-2025-30065](https://www.cve.org/CVERecord?id=CVE-2025-30065) (Java) ([#34573](https://github.com/apache/beam/pull/34573))
+
+## Known Issues
+
+* [Python] GroupIntoBatches may fail in streaming pipelines. This is caused by cloudpickle. To mitigate this issue specify `pickle_library=dill` in pipeline options ([#35062](https://github.com/apache/beam/issues/35062))
+* [Python] vLLM breaks dataflow logging. To mitigate this issue, set the `VLLM_CONFIGURE_LOGGING=0` environment variable in your custom container.
+* [Python] vLLM leaks connections causing a throughput bottleneck and underutilization of GPU. To mitigate this issue increase the number of `number_of_worker_harness_threads`.
+* [Java] Using histogram metrics can cause spammy logs. To mitigate this issue, filter worker startup logs, or upgrade to 2.67.0.
+
+# [2.64.0] - 2025-03-31
+
+## Highlights
+
+* Managed API for [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html) and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed) supports [key I/O connectors](https://beam.apache.org/documentation/io/connectors/) Iceberg, Kafka, and BigQuery.
+
+## I/Os
+
+* [Java] Use API compatible with both com.google.cloud.bigdataoss:util 2.x and 3.x in BatchLoads ([#34105](https://github.com/apache/beam/pull/34105))
+* [IcebergIO] Added new CDC source for batch and streaming, available as `Managed.ICEBERG_CDC` ([#33504](https://github.com/apache/beam/pull/33504))
+* [IcebergIO] Address edge case where bundle retry following a successful data commit results in data duplication ([#34264](https://github.com/apache/beam/pull/34264))
+* [Java&Python] Add explicit schema support to JdbcIO read and xlang transform ([#23029](https://github.com/apache/beam/issues/23029))
+
+## New Features / Improvements
+
+* [Python] Support custom coders in Reshuffle ([#29908](https://github.com/apache/beam/issues/29908), [#33356](https://github.com/apache/beam/issues/33356)).
+* [Java] Upgrade SLF4J to 2.0.16. Update default Spark version to 3.5.0. ([#33574](https://github.com/apache/beam/pull/33574))
+* [Java] Support for `--add-modules` JVM option is added through a new pipeline option `JdkAddRootModules`. This allows extending the module graph with optional modules such as SDK incubator modules. Sample usage: `<pipeline invocation> --jdkAddRootModules=jdk.incubator.vector` ([#30281](https://github.com/apache/beam/issues/30281)).
+* Managed API for [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html) and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed) supports [key I/O connectors](https://beam.apache.org/documentation/io/connectors/) Iceberg, Kafka, and BigQuery.
+* [YAML] Beam YAML UDFs (such as those used in MapToFields) can now have declared dependencies
+  (e.g. pypi packages for Python, or extra jars for Java).
+* Prism now supports event time triggers for most common cases. ([#31438](https://github.com/apache/beam/issues/31438))
+  * Prism does not yet support triggered side inputs, or triggers on merging windows (such as session windows).
+
+## Breaking Changes
+
+* [Python] Reshuffle now correctly respects user-specified type hints, fixing a previous bug where it might use FastPrimitivesCoder wrongly. This change could break pipelines with incorrect type hints in Reshuffle. If you have issues after upgrading, temporarily set update_compatibility_version to a previous Beam version to use the old behavior. The recommended solution is to fix the type hints in your code. ([#33932](https://github.com/apache/beam/pull/33932))
+* [Java] SparkReceiver 2 has been moved to SparkReceiver 3 that supports Spark 3.x. ([#33574](https://github.com/apache/beam/pull/33574))
+* [Python] Correct parsing of `collections.abc.Sequence` type hints was added, which can lead to pipelines failing type hint checks that were previously passing erroneously. These issues will be most commonly seen trying to consume a PCollection with a `Sequence` type hint after a GroupByKey or a CoGroupByKey. ([#33999](https://github.com/apache/beam/pull/33999)).
+
+## Bugfixes
+
+* (Python) Fixed occasional pipeline stuckness that was affecting Python 3.11 users ([#33966](https://github.com/apache/beam/issues/33966)).
+* (Java) Fixed TIME field encodings for BigQuery Storage API writes on GenericRecords ([#34059](https://github.com/apache/beam/pull/34059)).
+* (Java) Fixed a race condition in JdbcIO which could cause hangs trying to acquire a connection ([#34058](https://github.com/apache/beam/pull/34058)).
+* (Java) Fix BigQuery Storage Write compatibility with Avro 1.8 ([#34281](https://github.com/apache/beam/pull/34281)).
+* Fixed checkpoint recovery and streaming behavior in Spark Classic and Portable runner's Flatten transform by replacing queueStream with SingleEmitInputDStream ([#34080](https://github.com/apache/beam/pull/34080), [#18144](https://github.com/apache/beam/issues/18144), [#20426](https://github.com/apache/beam/issues/20426))
+* (Java) Fixed Read caching of UnboundedReader objects to effectively cache across multiple DoFns and avoid checkpointing unstarted reader. [#34146](https://github.com/apache/beam/pull/34146) [#33901](https://github.com/apache/beam/pull/33901)
+
+## Known Issues
+
+* (Java) Current version of protobuf has a [bug](https://github.com/protocolbuffers/protobuf/issues/20599) leading to incompatibilities with clients using older versions of Protobuf ([example issue](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/2191)). This issue has been seen in SpannerIO in particular. Tracked in [#34452](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34452).
+* (Java) When constructing `SpannerConfig` for `SpannerIO`, calling `withHost` with a null or empty host will now result in a Null Pointer Exception (`java.lang.NullPointerException: Cannot invoke "java.lang.CharSequence.length()" because "this.text" is null`). See https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34489 for context.
+* [Java] Using histogram metrics can cause spammy logs. To mitigate this issue, filter worker startup logs, or upgrade to 2.67.0.
+
+# [2.63.0] - 2025-02-18
+
+## I/Os
+
+* Support gcs-connector 3.x+ in GcsUtil ([#33368](https://github.com/apache/beam/pull/33368))
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Introduced `--groupFilesFileLoad` pipeline option to mitigate side-input related issues in BigQueryIO
+  batch FILE_LOAD on certain runners (including Dataflow Runner V2) (Java) ([#33587](https://github.com/apache/beam/pull/33587)).
+
+## New Features / Improvements
+
+* Add BigQuery vector/embedding ingestion and enrichment components to apache_beam.ml.rag (Python) ([#33413](https://github.com/apache/beam/pull/33413)).
+* Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)).
+* [GCSIO] Added retry logic to each batch method of the GCS IO (Python) ([#33539](https://github.com/apache/beam/pull/33539))
+* [GCSIO] Enable recursive deletion for GCSFileSystem Paths (Python) ([#33611](https://github.com/apache/beam/pull/33611)).
+* External, Process based Worker Pool support added to the Go SDK container. ([#33572](https://github.com/apache/beam/pull/33572))
+  * This is used to enable sidecar containers to run SDK workers for some runners.
+  * See https://beam.apache.org/documentation/runtime/sdk-harness-config/ for details.
+* Support the Process Environment for execution in the Go SDK. ([#33651](https://github.com/apache/beam/pull/33651))
+* Prism
+  * Prism now uses the same single port for both pipeline submission and execution on workers. Requests are differentiated by worker-id. ([#33438](https://github.com/apache/beam/pull/33438))
+    * This avoids port starvation and provides clarity on port use when running Prism in non-local environments.
+  * Support for @RequiresTimeSortedInputs added. ([#33513](https://github.com/apache/beam/issues/33513))
+  * Initial support for AllowedLateness added. ([#33542](https://github.com/apache/beam/pull/33542))
+  * The Go SDK's inprocess Prism runner (AKA the Go SDK default runner) now supports non-loopback mode environment types. ([#33572](https://github.com/apache/beam/pull/33572))
+  * Support the Process Environment for execution in Prism ([#33651](https://github.com/apache/beam/pull/33651))
+  * Support the AnyOf Environment for execution in Prism ([#33705](https://github.com/apache/beam/pull/33705))
+     * This improves support for developing Xlang pipelines, when using a compatible cross language service.
+* Partitions are now configurable for the DaskRunner in the Python SDK ([#33805](https://github.com/apache/beam/pull/33805)).
+* [Dataflow Streaming] Enable Windmill GetWork Response Batching by default ([#33847](https://github.com/apache/beam/pull/33847)).
+  * With this change user workers will request batched GetWork responses from backend and backend will send multiple WorkItems in the same response proto.
+  * The feature can be disabled by passing `--windmillRequestBatchedGetWorkResponse=false`
+* Added supports for staging arbitrary files via `--files_to_stage` flag (Python) ([#34208](https://github.com/apache/beam/pull/34208))
+## Breaking Changes
+
+* AWS V1 I/Os have been removed (Java). As part of this, x-lang Python Kinesis I/O has been updated to consume the V2 IO and it also no longer supports setting producer_properties ([#33430](https://github.com/apache/beam/issues/33430)).
+* Upgraded to protobuf 4 (Java) ([#33192](https://github.com/apache/beam/issues/33192)), but forced Debezium IO to use protobuf 3 ([#33541](https://github.com/apache/beam/issues/33541) because Debezium clients are not protobuf 4 compatible. This may cause conflicts when using clients which are only compatible with protobuf 4.
+* Minimum Go version for Beam Go updated to 1.22.10 ([#33609](https://github.com/apache/beam/pull/33609))
+
+## Bugfixes
+
+* Fix data loss issues when reading gzipped files with TextIO (Python) ([#18390](https://github.com/apache/beam/issues/18390), [#31040](https://github.com/apache/beam/issues/31040)).
+* [BigQueryIO] Fixed an issue where Storage Write API sometimes doesn't pick up auto-schema updates ([#33231](https://github.com/apache/beam/pull/33231))
+* Prism
+  * Fixed an edge case where Bundle Finalization might not become enabled. ([#33493](https://github.com/apache/beam/issues/33493)).
+  * Fixed session window aggregation, which wasn't being performed per-key. ([#33542](https://github.com/apache/beam/issues/33542)).)
+* [Dataflow Streaming Appliance] Fixed commits failing with KeyCommitTooLargeException when a key outputs >180MB of results. [#33588](https://github.com/apache/beam/issues/33588).
+* Fixed a Dataflow template creation issue that ignores template file creation errors (Java) ([#33636](https://github.com/apache/beam/issues/33636))
+* Correctly documented Pane Encodings in the portability protocols ([#33840](https://github.com/apache/beam/issues/33840)).
+* Fixed the user mailing list address ([#26013](https://github.com/apache/beam/issues/26013)).
+* Fixed the contributing prerequisites link ([#33903](https://github.com/apache/beam/issues/33903)).
+
+## Known Issues
+
+* (Java) Current version of protobuf has a [bug](https://github.com/protocolbuffers/protobuf/issues/20599) leading to incompatibilities with clients using older versions of Protobuf ([example issue](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/2191)). This issue has been seen in SpannerIO in particular. Tracked in [#34452](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34452).
+* (Java) Coders that extend CustomCoder (excluding SchemaCoder and RowCoder) are update incompatible with previous versions of the same transform (Java) on some runners. This includes PubSubIO's read ([#34933](https://github.com/apache/beam/issues/34933)).
+
+# [2.62.0] - 2025-01-21
+
+## I/Os
+
+* gcs-connector config options can be set via GcsOptions (Java) ([#32769](https://github.com/apache/beam/pull/32769)).
+* [Managed Iceberg] Support partitioning by time (year, month, day, hour) for types `date`, `time`, `timestamp`, and `timestamp(tz)` ([#32939](https://github.com/apache/beam/pull/32939))
+* Upgraded the default version of Hadoop dependencies to 3.4.1. Hadoop 2.10.2 is still supported (Java) ([#33011](https://github.com/apache/beam/issues/33011)).
+* [BigQueryIO] Create managed BigLake tables dynamically ([#33125](https://github.com/apache/beam/pull/33125))
+
+## New Features / Improvements
+
+* Added support for stateful processing in Spark Runner for streaming pipelines. Timer functionality is not yet supported and will be implemented in a future release ([#33237](https://github.com/apache/beam/issues/33237)).
+* The datetime module is now available for use in jinja templatization for yaml.
+* Improved batch performance of SparkRunner's GroupByKey ([#20943](https://github.com/apache/beam/pull/20943)).
+* Support OnWindowExpiration in Prism ([#32211](https://github.com/apache/beam/issues/32211)).
+  * This enables initial Java GroupIntoBatches support.
+* Support OrderedListState in Prism ([#32929](https://github.com/apache/beam/issues/32929)).
+* Add apache_beam.ml.rag package with RAG types, base chunking, LangChain chunking and HuggingFace embedding components (Python) ([#33364](https://github.com/apache/beam/pull/33364)).
+
+## Breaking Changes
+
+* Upgraded ZetaSQL to 2024.11.1 ([#32902](https://github.com/apache/beam/pull/32902)). Java11+ is now needed if Beam's ZetaSQL component is used.
+
+## Bugfixes
+
+* Fixed EventTimeTimer ordering in Prism. ([#32222](https://github.com/apache/beam/issues/32222)).
+* [Managed Iceberg] Fixed a bug where DataFile metadata was assigned incorrect partition values ([#33549](https://github.com/apache/beam/pull/33549)).
+
+## Security Fixes
+
+* Fixed (CVE-2024-47561)[https://www.cve.org/CVERecord?id=CVE-2024-47561] (Java) by upgrading Avro version to 1.11.4
+
+## Known Issues
+
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
+* [Python] If you are using the official Apache Beam Python containers for version 2.62.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project's dependency list. ([#33639](https://github.com/apache/beam/issues/33639)).
+* [Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs >180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+  * fix will be released with 2.63.0. [#33588](https://github.com/apache/beam/issues/33588).
+  * To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable [Streaming Engine](https://cloud.google.com/dataflow/docs/streaming-engine#use).
+
+# [2.61.0] - 2024-11-25
+
+## Highlights
+
+* [Python] Introduce Managed Transforms API ([#31495](https://github.com/apache/beam/pull/31495))
+* Flink 1.19 support added ([#32648](https://github.com/apache/beam/pull/32648))
+
+## I/Os
+
+* [Managed Iceberg] Support creating tables if needed ([#32686](https://github.com/apache/beam/pull/32686))
+* [Managed Iceberg] Now available in Python SDK ([#31495](https://github.com/apache/beam/pull/31495))
+* [Managed Iceberg] Add support for TIMESTAMP, TIME, and DATE types ([#32688](https://github.com/apache/beam/pull/32688))
+* BigQuery CDC writes are now available in Python SDK, only supported when using StorageWrite API at least once mode ([#32527](https://github.com/apache/beam/issues/32527))
+* [Managed Iceberg] Allow updating table partition specs during pipeline runtime ([#32879](https://github.com/apache/beam/pull/32879))
+* Added BigQueryIO as a Managed IO ([#31486](https://github.com/apache/beam/pull/31486))
+* Support for writing to [Solace messages queues](https://solace.com/) (`SolaceIO.Write`) added (Java) ([#31905](https://github.com/apache/beam/issues/31905)).
+
+## New Features / Improvements
+
+* Added support for read with metadata in MqttIO (Java) ([#32195](https://github.com/apache/beam/issues/32195))
+* Added support for processing events which use a global sequence to "ordered" extension (Java) ([#32540](https://github.com/apache/beam/pull/32540))
+* Add new meta-transform FlattenWith and Tee that allow one to introduce branching
+  without breaking the linear/chaining style of pipeline construction.
+* Use Prism as a fallback to the Python Portable runner when running a pipeline with the Python Direct runner ([#32876](https://github.com/apache/beam/pull/32876))
+
+## Deprecations
+
+* Removed support for Flink 1.15 and 1.16
+* Removed support for Python 3.8
+
+## Bugfixes
+
+* (Java) Fixed tearDown not invoked when DoFn throws on Portable Runners ([#18592](https://github.com/apache/beam/issues/18592), [#31381](https://github.com/apache/beam/issues/31381)).
+* (Java) Fixed protobuf error with MapState.remove() in Dataflow Streaming Java Legacy Runner without Streaming Engine ([#32892](https://github.com/apache/beam/issues/32892)).
+* Adding flag to support conditionally disabling auto-commit in JdbcIO ReadFn ([#31111](https://github.com/apache/beam/issues/31111))
+* (Python) Fixed BigQuery Enrichment bug that can lead to multiple conditions returning duplicate rows, batching returning incorrect results and conditions not scoped by row during batching ([#32780](https://github.com/apache/beam/pull/32780)).
+
+## Known Issues
+
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
+* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
+  * Fixed in 2.62.0
+* [Python] If you are using the official Apache Beam Python containers for version 2.61.0, be aware that they include NumPy version 1.26.4. It is strongly recommended that you explicitly specify numpy==1.26.4 in your project's dependency list. ([#33639](https://github.com/apache/beam/issues/33639)).
+* [Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs >180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+  * fix will be released with 2.63.0. [#33588](https://github.com/apache/beam/issues/33588).
+  * To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable [Streaming Engine](https://cloud.google.com/dataflow/docs/streaming-engine#use).
+
+# [2.60.0] - 2024-10-17
 
 ## Highlights
 
 * Added support for using vLLM in the RunInference transform (Python) ([#32528](https://github.com/apache/beam/issues/32528))
+* [Managed Iceberg] Added support for streaming writes ([#32451](https://github.com/apache/beam/pull/32451))
+* [Managed Iceberg] Added auto-sharding for streaming writes ([#32612](https://github.com/apache/beam/pull/32612))
+* [Managed Iceberg] Added support for writing to dynamic destinations ([#32565](https://github.com/apache/beam/pull/32565))
+
+## I/Os
+
+* PubsubIO can validate that the Pub/Sub topic exists before running the Read/Write pipeline (Java) ([#32465](https://github.com/apache/beam/pull/32465))
 
 ## New Features / Improvements
 
 * Dataflow worker can install packages from Google Artifact Registry Python repositories (Python) ([#32123](https://github.com/apache/beam/issues/32123)).
 * Added support for Zstd codec in SerializableAvroCodecFactory (Java) ([#32349](https://github.com/apache/beam/issues/32349))
 * Added support for using vLLM in the RunInference transform (Python) ([#32528](https://github.com/apache/beam/issues/32528))
+* Prism release binaries and container bootloaders are now being built with the latest Go 1.23 patch. ([#32575](https://github.com/apache/beam/pull/32575))
+* Prism
+  * Prism now supports Bundle Finalization. ([#32425](https://github.com/apache/beam/pull/32425))
 * Significantly improved performance of Kafka IO reads that enable [commitOffsetsInFinalize](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.Read.html#commitOffsetsInFinalize--) by removing the data reshuffle from SDF implementation.  ([#31682](https://github.com/apache/beam/pull/31682)).
+* Added support for dynamic writing in MqttIO (Java) ([#19376](https://github.com/apache/beam/issues/19376))
+* Optimized Spark Runner parDo transform evaluator (Java) ([#32537](https://github.com/apache/beam/issues/32537))
+* [Managed Iceberg] More efficient manifest file writes/commits ([#32666](https://github.com/apache/beam/issues/32666))
 
 ## Breaking Changes
 
+* In Python, assert_that now throws if it is not in a pipeline context instead of silently succeeding ([#30771](https://github.com/apache/beam/pull/30771))
 * In Python and YAML, ReadFromJson now override the dtype from None to
   an explicit False.  Most notably, string values like `"123"` are preserved
   as strings rather than silently coerced (and possibly truncated) to numeric
@@ -85,9 +489,20 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 * (Java) Fixed custom delimiter issues in TextIO ([#32249](https://github.com/apache/beam/issues/32249), [#32251](https://github.com/apache/beam/issues/32251)).
 * (Java, Python, Go) Fixed PeriodicSequence backlog bytes reporting, which was preventing Dataflow Runner autoscaling from functioning properly ([#32506](https://github.com/apache/beam/issues/32506)).
 * (Java) Fix improper decoding of rows with schemas containing nullable fields when encoded with a schema with equal encoding positions but modified field order. ([#32388](https://github.com/apache/beam/issues/32388)).
+* (Java) Skip close on bundles in BigtableIO.Read ([#32661](https://github.com/apache/beam/pull/32661), [#32759](https://github.com/apache/beam/pull/32759)).
 
-## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+## Known Issues
+
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
+* BigQuery Enrichment (Python):  The following issues are present when using the BigQuery enrichment transform ([#32780](https://github.com/apache/beam/pull/32780)):
+  * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
+  * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
+  * Fixed in 2.61.0.
+* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
+  * Fixed in 2.62.0
+* [Dataflow Streaming Appliance] Commits fail with KeyCommitTooLargeException when a key outputs >180MB of results. Bug affects versions 2.60.0 to 2.62.0,
+  * fix will be released with 2.63.0. [#33588](https://github.com/apache/beam/issues/33588).
+  * To resolve this issue, downgrade to 2.59.0 or upgrade to 2.63.0 or enable [Streaming Engine](https://cloud.google.com/dataflow/docs/streaming-engine#use).
 
 # [2.59.0] - 2024-09-11
 
@@ -126,10 +541,21 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
 ## Known Issues
 
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * Prism is under active development and does not yet support all pipelines. See [#29650](https://github.com/apache/beam/issues/29650) for progress.
    * In the 2.59.0 release, Prism passes most runner validations tests with the exceptions of pipelines using the following features:
    OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders. Processing Time timers do not yet have real time support.
    * If your pipeline is having difficulty with the Python or Java direct runners, but runs well on Prism, please let us know.
+
+* Java file-based IOs read or write lots (100k+) files could experience slowness and/or broken metrics visualization on Dataflow UI [#32649](https://github.com/apache/beam/issues/32649).
+* BigQuery Enrichment (Python):  The following issues are present when using the BigQuery enrichment transform ([#32780](https://github.com/apache/beam/pull/32780)):
+  * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
+  * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
+  * Fixed in 2.61.0.
+* [Managed Iceberg] DataFile metadata is assigned incorrect partition values ([#33497](https://github.com/apache/beam/issues/33497)).
+  * Fixed in 2.62.0
+* [FileBasedIO] StringSet metrics can grow unlimitedly large when pipeline involves read/write large number of files, and degrading functionalities such us metrics monitoring and Dataflow job upgrade.
+  * Mitigated in 2.60.0 ([#32649](https://github.com/apache/beam/issues/32649)).
 
 # [2.58.1] - 2024-08-15
 
@@ -141,6 +567,10 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
 * Large Dataflow graphs using runner v2, or pipelines explicitly enabling the `upload_graph` experiment, will fail at construction time ([#32159](https://github.com/apache/beam/issues/32159)).
 * Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue ([#32169](https://github.com/apache/beam/issues/32169)). The issue will be fixed in 2.59.0 ([#32135](https://github.com/apache/beam/pull/32135)). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.
+* BigQuery Enrichment (Python):  The following issues are present when using the BigQuery enrichment transform ([#32780](https://github.com/apache/beam/pull/32780)):
+  * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
+  * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
+  * Fixed in 2.61.0.
 
 # [2.58.0] - 2024-08-06
 
@@ -172,6 +602,10 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 * Large Dataflow graphs using runner v2, or pipelines explicitly enabling the `upload_graph` experiment, will fail at construction time ([#32159](https://github.com/apache/beam/issues/32159)).
 * Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue ([#32169](https://github.com/apache/beam/issues/32169)). The issue will be fixed in 2.59.0 ([#32135](https://github.com/apache/beam/pull/32135)). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.
 * [KafkaIO] Records read with `ReadFromKafkaViaSDF` are redistributed and may contain duplicates regardless of the configuration. This affects Java pipelines with Dataflow v2 runner and xlang pipelines reading from Kafka, ([#32196](https://github.com/apache/beam/issues/32196))
+* BigQuery Enrichment (Python):  The following issues are present when using the BigQuery enrichment transform ([#32780](https://github.com/apache/beam/pull/32780)):
+  * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
+  * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
+  * Fixed in 2.61.0.
 
 # [2.57.0] - 2024-06-26
 
@@ -228,6 +662,10 @@ when running on 3.8. ([#31192](https://github.com/apache/beam/issues/31192))
 
 * Large Dataflow graphs using runner v2, or pipelines explicitly enabling the `upload_graph` experiment, will fail at construction time ([#32159](https://github.com/apache/beam/issues/32159)).
 * Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue ([#32169](https://github.com/apache/beam/issues/32169)). The issue will be fixed in 2.59.0 ([#32135](https://github.com/apache/beam/pull/32135)). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.
+* BigQuery Enrichment (Python):  The following issues are present when using the BigQuery enrichment transform ([#32780](https://github.com/apache/beam/pull/32780)):
+  * Duplicate Rows: Multiple conditions may be applied incorrectly, leading to the duplication of rows in the output.
+  * Incorrect Results with Batched Requests: Conditions may not be correctly scoped to individual rows within the batch, potentially causing inaccurate results.
+  * Fixed in 2.61.0.
 
 # [2.56.0] - 2024-05-01
 
@@ -437,6 +875,7 @@ classes finally moved to `extensions/avro`. In case if it's still required to us
 as a workaround, a copy of "old" `CountingSource` class should be placed into a project code and used directly
 ([#25252](https://github.com/apache/beam/issues/25252)).
 * Renamed `host` to `firestoreHost` in `FirestoreOptions` to avoid potential conflict of command line arguments (Java) ([#29201](https://github.com/apache/beam/pull/29201)).
+* Transforms which use `SnappyCoder` are update incompatible with previous versions of the same transform (Java) on some runners. This includes PubSubIO's read ([#28655](https://github.com/apache/beam/pull/28655#issuecomment-2407839769)).
 
 ## Bugfixes
 
@@ -454,6 +893,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * MLTransform drops the identical elements in the output PCollection. For any duplicate elements, a single element will be emitted downstream. ([#29600](https://github.com/apache/beam/issues/29600)).
 * Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the `--max_cache_memory_usage_mb=0` pipeline option. (Python) ([#30360](https://github.com/apache/beam/issues/30360)).
 * Users who lauch Python pipelines in an environment without internet access and use the `--setup_file` pipeline option might experience an increase in pipeline submission time. This has been fixed in 2.56.0 ([#31070](https://github.com/apache/beam/pull/31070)).
+* Transforms which use `SnappyCoder` are update incompatible with previous versions of the same transform (Java) on some runners. This includes PubSubIO's read ([#28655](https://github.com/apache/beam/pull/28655#issuecomment-2407839769)).
 
 # [2.51.0] - 2023-10-03
 

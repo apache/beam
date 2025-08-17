@@ -37,7 +37,7 @@ project.tasks.register("preCommitPyCoverage") {
 }
 
 // Dep Postcommit runs test suites that evaluate compatibility of particular
-// dependencies. It is exercised on a single Python version.
+// dependencies. Each suite is exercised on at most one python version.
 //
 // Should still leave at least one version in PreCommit unless the marked tests
 // are also exercised by existing PreCommit
@@ -84,6 +84,14 @@ postCommitPyDep.dependsOn "testPy39pyarrow-15"
 toxTask "testPy39pyarrow-16", "py39-pyarrow-16", "${posargs}"
 test.dependsOn "testPy39pyarrow-16"
 postCommitPyDep.dependsOn "testPy39pyarrow-16"
+
+toxTask "testPy39pyarrow-17", "py39-pyarrow-17", "${posargs}"
+test.dependsOn "testPy39pyarrow-17"
+postCommitPyDep.dependsOn "testPy39pyarrow-17"
+
+toxTask "testPy39pyarrow-18", "py39-pyarrow-18", "${posargs}"
+test.dependsOn "testPy39pyarrow-18"
+postCommitPyDep.dependsOn "testPy39pyarrow-18"
 
 // Create a test task for each supported minor version of pandas
 toxTask "testPy39pandas-14", "py39-pandas-14", "${posargs}"
@@ -158,13 +166,17 @@ toxTask "testPy39transformers-428", "py39-transformers-428", "${posargs}"
 test.dependsOn "testPy39transformers-428"
 postCommitPyDep.dependsOn "testPy39transformers-428"
 
-toxTask "testPy39transformers-429", "py39-transformers-429", "${posargs}"
-test.dependsOn "testPy39transformers-429"
-postCommitPyDep.dependsOn "testPy39transformers-429"
+toxTask "testPy39transformers-447", "py39-transformers-447", "${posargs}"
+test.dependsOn "testPy39transformers-447"
+postCommitPyDep.dependsOn "testPy39transformers-447"
 
-toxTask "testPy39transformers-430", "py39-transformers-430", "${posargs}"
-test.dependsOn "testPy39transformers-430"
-postCommitPyDep.dependsOn "testPy39transformers-430"
+toxTask "testPy39transformers-448", "py39-transformers-448", "${posargs}"
+test.dependsOn "testPy39transformers-448"
+postCommitPyDep.dependsOn "testPy39transformers-448"
+
+toxTask "testPy39transformers-latest", "py39-transformers-latest", "${posargs}"
+test.dependsOn "testPy39transformers-latest"
+postCommitPyDep.dependsOn "testPy39transformers-latest"
 
 toxTask "testPy39embeddingsMLTransform", "py39-embeddings", "${posargs}"
 test.dependsOn "testPy39embeddingsMLTransform"

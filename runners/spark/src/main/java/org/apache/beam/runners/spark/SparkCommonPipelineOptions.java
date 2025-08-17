@@ -63,6 +63,15 @@ public interface SparkCommonPipelineOptions
 
   void setEnableSparkMetricSinks(Boolean enableSparkMetricSinks);
 
+  @Description(
+      "When set to true, runner will try to prefer GroupByKey translation which can handle huge values and "
+          + "does not require them to fit into memory. This will most likely have performance impact "
+          + "for pipelines which does not work with huge values, hence it is disabled by default.")
+  @Default.Boolean(false)
+  Boolean getPreferGroupByKeyToHandleHugeValues();
+
+  void setPreferGroupByKeyToHandleHugeValues(Boolean preferGroupByKeyToHandleHugeValues);
+
   /**
    * Returns the default checkpoint directory of /tmp/${job.name}. For testing purposes only.
    * Production applications should use a reliable filesystem such as HDFS/S3/GS.

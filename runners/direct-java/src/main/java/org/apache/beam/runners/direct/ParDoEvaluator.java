@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
@@ -42,10 +41,11 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
@@ -61,7 +61,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         ReadyCheckingSideInputReader sideInputReader,
-        OutputManager outputManager,
+        WindowedValueMultiReceiver outputManager,
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         DirectStepContext stepContext,
@@ -287,7 +287,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         .build();
   }
 
-  static class BundleOutputManager implements OutputManager {
+  static class BundleOutputManager implements WindowedValueMultiReceiver {
     private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
 
     public static BundleOutputManager create(Map<TupleTag<?>, UncommittedBundle<?>> outputBundles) {
@@ -298,11 +298,10 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       this.bundles = bundles;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+    public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
       checkArgument(bundles.containsKey(tag), "Unknown output tag %s", tag);
-      ((UncommittedBundle) bundles.get(tag)).add(output);
+      (bundles.get(tag)).add((WindowedValue) output);
     }
   }
 }

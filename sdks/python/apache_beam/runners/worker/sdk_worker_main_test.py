@@ -160,7 +160,7 @@ class SdkWorkerMainTest(unittest.TestCase):
 
   def test__set_log_level_overrides(self):
     test_cases = [
-        ([], {}), # not provided, as a smoke test
+        ([], {}),  # not provided, as a smoke test
         (
             # single overrides
             ['{"fake_module_1a.b":"DEBUG","fake_module_1c.d":"INFO"}'],
@@ -168,8 +168,7 @@ class SdkWorkerMainTest(unittest.TestCase):
                 "fake_module_1a.b": logging.DEBUG,
                 "fake_module_1a.b.f": logging.DEBUG,
                 "fake_module_1c.d": logging.INFO
-            }
-        ),
+            }),
         (
             # multiple overrides, the last takes precedence
             [
@@ -183,8 +182,7 @@ class SdkWorkerMainTest(unittest.TestCase):
                 "fake_module_2c.d": logging.ERROR,
                 "fake_module_2c.d.e": 15,
                 "fake_module_2c.d.f": logging.ERROR
-            }
-        )
+            })
     ]
     for case, expected in test_cases:
       overrides = self._overrides_case_to_option_dict(case)

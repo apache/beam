@@ -158,8 +158,8 @@ async def check_workflow_flakiness(workflow):
     if not len(workflow.runs):
         return False
 
-    three_months_ago_datetime = datetime.now() - timedelta(days=90)
-    workflow_runs = [run for run in workflow.runs if run.started_at > three_months_ago_datetime]
+    one_month_ago_datetime = datetime.now() - timedelta(days=30)
+    workflow_runs = [run for run in workflow.runs if run.started_at > one_month_ago_datetime]
 
     url = f"https://api.github.com/repos/{GIT_ORG}/beam/issues"
     headers = {"Authorization": get_token()}
@@ -187,7 +187,13 @@ async def check_workflow_flakiness(workflow):
         success_rate -= len(failed_runs) / len(workflow_runs)
 
     print(f"Success rate: {success_rate}")
-    return True if success_rate < workflow.threshold else False
+
+    # Check if last 5 runs are all failures
+    last_5_failed = len(workflow_runs) >= 5 and all(run.status == "failure" for run in workflow_runs[:5])
+    if last_5_failed:
+        print(f"The last 5 workflow runs for {workflow.name} have all failed")
+
+    return success_rate < workflow.threshold or last_5_failed
 
 
 def github_workflows_dashboard_sync(request):
@@ -307,7 +313,7 @@ async def fetch_workflow_runs():
     number_of_entries_per_page = 100  # The number of results per page (max 100)
     params = {"branch": "master", "page": page, "per_page": number_of_entries_per_page}
     concurrent_requests = 30  # Number of requests to send simultaneously
-    start = datetime.now() - timedelta(days=90)
+    start = datetime.now() - timedelta(days=30)
     earliest_run_creation_date = start.strftime('%Y-%m-%d')
     semaphore = asyncio.Semaphore(concurrent_requests)
 

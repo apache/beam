@@ -43,10 +43,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Pub/Sub reads configured using
@@ -313,19 +310,17 @@ public class PubsubReadSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "beam:schematransform:org.apache.beam:pubsub_read:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.emptyList();
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Arrays.asList("output", "errors");
   }
 }
