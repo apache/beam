@@ -124,10 +124,6 @@ public final class StreamingWorkerStatusPages {
                 new ThreadFactoryBuilder().setNameFormat(DUMP_STATUS_PAGES_EXECUTOR).build()));
   }
 
-  public void updateChannelCache(@Nullable ChannelCache channelCache) {
-    this.channelCache = channelCache;
-  }
-
   public void start(DataflowWorkerHarnessOptions options) {
     statusPages.addServlet(stateCache.statusServlet());
     statusPages.addServlet(newSpecServlet());

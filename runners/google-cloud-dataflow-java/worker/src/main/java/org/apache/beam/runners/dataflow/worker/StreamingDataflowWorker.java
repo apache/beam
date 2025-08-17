@@ -172,7 +172,7 @@ public final class StreamingDataflowWorker {
       "windmill_bounded_queue_executor_use_fair_monitor";
 
   private final WindmillStateCache stateCache;
-  private final StreamingWorkerStatusPages statusPages;
+  private StreamingWorkerStatusPages statusPages;
   private final ComputationConfig.Fetcher configFetcher;
   private final ComputationStateCache computationStateCache;
   private final BoundedQueueExecutor workUnitExecutor;
@@ -189,7 +189,10 @@ public final class StreamingDataflowWorker {
   private Consumer<PrintWriter> getDataStatusProvider;
   private Supplier<Long> currentActiveCommitBytesProvider;
   private @Nullable ChannelzServlet channelzServlet;
+  private @Nullable ChannelCache channelCache;
+  private Supplier<Instant> clock;
   private final GrpcDispatcherClient dispatcherClient;
+  private final ExecutorService harnessSwitchExecutor;
 
   private StreamingDataflowWorker(
       WindmillServerStub windmillServer,
@@ -222,6 +225,10 @@ public final class StreamingDataflowWorker {
             Executors.newCachedThreadPool());
     this.options = options;
     this.workUnitExecutor = workUnitExecutor;
+    this.harnessSwitchExecutor =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder().setNameFormat("HarnessSwtichExecutor").build());
+    this.clock = clock;
     this.memoryMonitor = BackgroundMemoryMonitor.create(memoryMonitor);
     this.numCommitThreads =
         options.isEnableStreamingEngine()
@@ -247,9 +254,8 @@ public final class StreamingDataflowWorker {
             stageInfoMap);
     ThrottlingGetDataMetricTracker getDataMetricTracker =
         new ThrottlingGetDataMetricTracker(memoryMonitor);
-    // Status page members. Different implementations on whether the harness is streaming engine
+    // Different implementations on whether the harness is streaming engine
     // direct path, streaming engine cloud path, or streaming appliance.
-    ChannelCache channelCache = null;
     if (options.isEnableStreamingEngine()) {
       if (options.getIsWindmillServiceDirectPathEnabled()) {
         FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
@@ -260,15 +266,8 @@ public final class StreamingDataflowWorker {
                 streamingWorkScheduler,
                 getDataMetricTracker,
                 memoryMonitor,
-                channelCache,
                 this.dispatcherClient);
         this.streamingWorkerHarness.set(fanOutStreamingEngineWorkerHarness);
-        this.getDataStatusProvider = getDataMetricTracker::printHtml;
-        this.currentActiveCommitBytesProvider =
-            fanOutStreamingEngineWorkerHarness::currentActiveCommitBytes;
-        this.channelzServlet =
-            createChannelzServlet(
-                options, fanOutStreamingEngineWorkerHarness::currentWindmillEndpoints);
       } else {
         StreamingWorkerHarness singleSourceWorkerHarness =
             createSingleSourceWorkerHarness(
@@ -300,7 +299,6 @@ public final class StreamingDataflowWorker {
 
       getDataStatusProvider = getDataClient::printHtml;
       currentActiveCommitBytesProvider = workCommitter::currentActiveCommitBytes;
-
       this.streamingWorkerHarness.set(
           SingleSourceWorkerHarness.builder()
               .setStreamingWorkScheduler(streamingWorkScheduler)
@@ -312,27 +310,27 @@ public final class StreamingDataflowWorker {
               .setGetWorkSender(getWorkSender)
               .build());
     }
-
     configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
             streamingGlobalConfig -> {
-              // verify that global config only applies to streaming engine
+              // TODO: confirm that global config only applies to streaming engine
               ConnectivityType connectivityType =
                   streamingGlobalConfig.userWorkerJobSettings().getConnectivityType();
               if (connectivityType != ConnectivityType.CONNECTIVITY_TYPE_DEFAULT) {
                 LOG.debug("Switching to connectivityType: {}.", connectivityType);
-                switchStreamingWorkerHarness(
-                    connectivityType,
-                    clientId,
-                    options,
-                    windmillStreamFactory,
-                    streamingWorkScheduler,
-                    getDataMetricTracker,
-                    memoryMonitor,
-                    channelCache,
-                    this.dispatcherClient,
-                    windmillServer);
+                harnessSwitchExecutor.execute(
+                    () ->
+                        switchStreamingWorkerHarness(
+                            connectivityType,
+                            clientId,
+                            options,
+                            windmillStreamFactory,
+                            streamingWorkScheduler,
+                            getDataMetricTracker,
+                            memoryMonitor,
+                            this.dispatcherClient,
+                            windmillServer));
               }
             });
     this.workerStatusReporter = streamingWorkerStatusReporter;
@@ -377,47 +375,56 @@ public final class StreamingDataflowWorker {
       StreamingWorkScheduler streamingWorkScheduler,
       ThrottlingGetDataMetricTracker getDataMetricTracker,
       MemoryMonitor memoryMonitor,
-      ChannelCache channelCache,
       GrpcDispatcherClient dispatcherClient) {
-
     WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
-    channelCache = channelCache == null ? createChannelCache(options, configFetcher) : channelCache;
-
-    return FanOutStreamingEngineWorkerHarness.create(
-        createJobHeader(options, clientId),
-        GetWorkBudget.builder()
-            .setItems(chooseMaxBundlesOutstanding(options))
-            .setBytes(MAX_GET_WORK_FETCH_BYTES)
-            .build(),
-        windmillStreamFactory,
-        (workItem, serializedWorkItemSize, watermarks, processingContext, getWorkStreamLatencies) ->
-            computationStateCache
-                .get(processingContext.computationId())
-                .ifPresent(
-                    computationState -> {
-                      memoryMonitor.waitForResources("GetWork");
-                      streamingWorkScheduler.scheduleWork(
-                          computationState,
-                          workItem,
-                          serializedWorkItemSize,
-                          watermarks,
-                          processingContext,
-                          getWorkStreamLatencies);
-                    }),
-        ChannelCachingRemoteStubFactory.create(options.getGcpCredential(), channelCache),
-        GetWorkBudgetDistributors.distributeEvenly(),
-        Preconditions.checkNotNull(dispatcherClient),
-        commitWorkStream ->
-            StreamingEngineWorkCommitter.builder()
-                // Share the commitByteSemaphore across all created workCommitters.
-                .setCommitByteSemaphore(maxCommitByteSemaphore)
-                .setBackendWorkerToken(commitWorkStream.backendWorkerToken())
-                .setOnCommitComplete(this::onCompleteCommit)
-                .setNumCommitSenders(Math.max(options.getWindmillServiceCommitThreads(), 1))
-                .setCommitWorkStreamFactory(
-                    () -> CloseableStream.create(commitWorkStream, () -> {}))
+    this.channelCache = createChannelCache(options, configFetcher);
+    this.getDataStatusProvider = getDataMetricTracker::printHtml;
+    FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
+        FanOutStreamingEngineWorkerHarness.create(
+            createJobHeader(options, clientId),
+            GetWorkBudget.builder()
+                .setItems(chooseMaxBundlesOutstanding(options))
+                .setBytes(MAX_GET_WORK_FETCH_BYTES)
                 .build(),
-        getDataMetricTracker);
+            windmillStreamFactory,
+            (workItem,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                getWorkStreamLatencies) ->
+                computationStateCache
+                    .get(processingContext.computationId())
+                    .ifPresent(
+                        computationState -> {
+                          memoryMonitor.waitForResources("GetWork");
+                          streamingWorkScheduler.scheduleWork(
+                              computationState,
+                              workItem,
+                              serializedWorkItemSize,
+                              watermarks,
+                              processingContext,
+                              getWorkStreamLatencies);
+                        }),
+            ChannelCachingRemoteStubFactory.create(options.getGcpCredential(), channelCache),
+            GetWorkBudgetDistributors.distributeEvenly(),
+            Preconditions.checkNotNull(dispatcherClient),
+            commitWorkStream ->
+                StreamingEngineWorkCommitter.builder()
+                    // Share the commitByteSemaphore across all created workCommitters.
+                    .setCommitByteSemaphore(maxCommitByteSemaphore)
+                    .setBackendWorkerToken(commitWorkStream.backendWorkerToken())
+                    .setOnCommitComplete(this::onCompleteCommit)
+                    .setNumCommitSenders(Math.max(options.getWindmillServiceCommitThreads(), 1))
+                    .setCommitWorkStreamFactory(
+                        () -> CloseableStream.create(commitWorkStream, () -> {}))
+                    .build(),
+            getDataMetricTracker);
+    this.currentActiveCommitBytesProvider =
+        fanOutStreamingEngineWorkerHarness::currentActiveCommitBytes;
+    this.channelzServlet =
+        createChannelzServlet(
+            options, fanOutStreamingEngineWorkerHarness::currentWindmillEndpoints);
+    return fanOutStreamingEngineWorkerHarness;
   }
 
   private StreamingWorkerHarness createSingleSourceWorkerHarness(
@@ -461,6 +468,7 @@ public final class StreamingDataflowWorker {
     this.currentActiveCommitBytesProvider = workCommitter::currentActiveCommitBytes;
     this.channelzServlet =
         createChannelzServlet(options, windmillServer::getWindmillServiceEndpoints);
+    this.channelCache = null;
 
     return SingleSourceWorkerHarness.builder()
         .setStreamingWorkScheduler(streamingWorkScheduler)
@@ -481,11 +489,14 @@ public final class StreamingDataflowWorker {
       StreamingWorkScheduler streamingWorkScheduler,
       ThrottlingGetDataMetricTracker getDataMetricTracker,
       MemoryMonitor memoryMonitor,
-      ChannelCache channelCache,
       GrpcDispatcherClient dispatcherClient,
       WindmillServerStub windmillServer) {
+    // Stop the current status pages before switching the harness.
+    this.statusPages.stop();
+    LOG.debug("Stopped StreamingWorkerStatusPages before switching connectivity type.");
     if (connectivityType == ConnectivityType.CONNECTIVITY_TYPE_DIRECTPATH) {
       if (!(this.streamingWorkerHarness.get() instanceof FanOutStreamingEngineWorkerHarness)) {
+        LOG.info("Switching connectivity type from CLOUDPATH to DIRECTPATH");
         LOG.debug("Shutting down to SingleSourceWorkerHarness");
         this.streamingWorkerHarness.get().shutdown();
         FanOutStreamingEngineWorkerHarness fanoutStreamingWorkerHarness =
@@ -496,20 +507,15 @@ public final class StreamingDataflowWorker {
                 streamingWorkScheduler,
                 getDataMetricTracker,
                 memoryMonitor,
-                channelCache,
                 dispatcherClient);
         this.streamingWorkerHarness.set(fanoutStreamingWorkerHarness);
-        this.getDataStatusProvider = getDataMetricTracker::printHtml;
-        this.currentActiveCommitBytesProvider =
-            fanoutStreamingWorkerHarness::currentActiveCommitBytes;
-        this.channelzServlet =
-            createChannelzServlet(options, fanoutStreamingWorkerHarness::currentWindmillEndpoints);
         streamingWorkerHarness.get().start();
         LOG.debug("Started FanOutStreamingEngineWorkerHarness");
         return;
       }
-    } else {
+    } else if (connectivityType == ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH) {
       if (!(streamingWorkerHarness.get() instanceof SingleSourceWorkerHarness)) {
+        LOG.info("Switching connectivity type from DIRECTPATH to CLOUDPATH");
         LOG.debug("Shutting down to FanOutStreamingEngineWorkerHarness");
         streamingWorkerHarness.get().shutdown();
         streamingWorkerHarness.set(
@@ -525,6 +531,22 @@ public final class StreamingDataflowWorker {
         return;
       }
     }
+    this.statusPages =
+        createStatusPageBuilder(options, windmillStreamFactory, memoryMonitor)
+            .setClock(this.clock)
+            .setClientId(clientId)
+            .setIsRunning(running)
+            .setStateCache(stateCache)
+            .setComputationStateCache(this.computationStateCache)
+            .setWorkUnitExecutor(workUnitExecutor)
+            .setGlobalConfigHandle(configFetcher.getGlobalConfigHandle())
+            .setChannelzServlet(this.channelzServlet)
+            .setGetDataStatusProvider(this.getDataStatusProvider)
+            .setCurrentActiveCommitBytes(this.currentActiveCommitBytesProvider)
+            .setChannelCache(this.channelCache)
+            .build();
+    this.statusPages.start(options);
+    LOG.info("Started new StreamingWorkerStatusPages instance.");
   }
 
   private static StreamingWorkerStatusPages.Builder createStatusPageBuilder(
@@ -1043,6 +1065,7 @@ public final class StreamingDataflowWorker {
       streamingWorkerHarness.get().shutdown();
       memoryMonitor.shutdown();
       workUnitExecutor.shutdown();
+      harnessSwitchExecutor.shutdown();
       computationStateCache.closeAndInvalidateAll();
       workerStatusReporter.stop();
     } catch (Exception e) {
