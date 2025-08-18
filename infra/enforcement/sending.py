@@ -47,7 +47,8 @@ class SendingClient:
         self.github_repo = github_repo
         self.headers = {
             "Authorization": f"Bearer {github_token}",
-            "X-GitHub-Api-Version": "2022-11-28"
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Accept": "application/vnd.github+json"
         }
 
         self.smtp_server = smtp_server
@@ -71,10 +72,7 @@ class SendingClient:
             requests.Response: The response from the API.
         """
         url = f"{self.github_api_url}/{endpoint}"
-        headers = self.headers.copy()
-        headers["Accept"] = "application/vnd.github+json"
-        
-        response = requests.request(method, url, headers=headers, json=json)
+        response = requests.request(method, url, headers=self.headers, json=json)
         
         if not response.ok:
             self.logger.error(f"Failed GitHub API request to {endpoint}: {response.status_code} - {response.text}")
@@ -165,4 +163,15 @@ class SendingClient:
             new_issue = self.create_issue(title, body)
             announcement += f"\n\nRelated GitHub Issue: {new_issue.html_url}"
             self._send_email(title, announcement, recipient)
+
+    def print_announcement(self, title: str, body: str, recipient: str, announcement: str) -> None:
+        """
+        This method prints the data instead of sending the email or creating an issue.
+        This is used for testing.
+        """
+        self.logger.info("Printing announcement...")
+        print(f"Title: {title}")
+        print(f"Body: {body}")
+        print(f"Recipient: {recipient}")
+        print(f"Announcement: {announcement}")
 
