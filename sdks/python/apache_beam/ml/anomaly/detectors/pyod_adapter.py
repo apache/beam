@@ -70,10 +70,10 @@ class PyODModelHandler(ModelHandler[beam.Row,
     return pickle.load(file)
 
   def run_inference(
-      self,
-      batch: Sequence[beam.Row],
-      model: PyODBaseDetector,
-      inference_args: Optional[dict[str, Any]] = None
+    self,
+    batch: Sequence[beam.Row],
+    model: PyODBaseDetector,
+    inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     def _flatten_row(row_values):
       for value in row_values:
@@ -82,13 +82,20 @@ class PyODModelHandler(ModelHandler[beam.Row,
         else:
           yield value
 
-    np_batch = [np.fromiter(_flatten_row(row), dtype=np.float64) for row in batch]
+    np_batch = [
+      np.fromiter(_flatten_row(row), dtype=np.float64)
+      for row in batch
+    ]
 
     # stack a batch of samples into a 2-D array for better performance
     vectorized_batch = np.stack(np_batch, axis=0)
     predictions = model.decision_function(vectorized_batch)
 
-    return _convert_to_result(batch, predictions, model_id=self._model_uri)
+    return _convert_to_result(
+      batch,
+      predictions,
+      model_id=self._model_uri
+    )
 
 
 class PyODFactory():
@@ -110,5 +117,8 @@ class PyODFactory():
     assert (isinstance(m, PyODBaseDetector))
     threshold = float(m.threshold_)
     detector = OfflineDetector(
-        model_handler, threshold_criterion=FixedThreshold(threshold), **kwargs)  # type: ignore[arg-type]
+        model_handler, 
+        threshold_criterion=FixedThreshold(threshold), 
+        **kwargs
+    )  # type: ignore[arg-type]
     return detector
