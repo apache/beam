@@ -87,9 +87,9 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
     }
 
     final @Nullable Map<String, String> attributes = message.getAttributeMap();
-    if (message.getPayload().length == 0 && (attributes == null || attributes.isEmpty())) {
+    if (payloadSize == 0 && (attributes == null || attributes.isEmpty())) {
       throw new IllegalArgumentException(
-          "Pubsub message must contain a non-empty payload or at least one attribute. ");
+          "Pubsub message must contain a non-empty payload or at least one attribute.");
     }
 
     if (attributes != null) {
