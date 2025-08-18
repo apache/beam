@@ -108,7 +108,9 @@ jsonschema-specifications==2025.4.1
 keyring==25.6.0
 keyrings.google-artifactregistry-auth==1.1.2
 MarkupSafe==3.0.2
-milvus==2.3.5
+ujson==5.8.0
+milvus-lite==2.5.1
+pymilvus==2.5.10
 mmh3==5.2.0
 mock==5.2.0
 more-itertools==10.7.0

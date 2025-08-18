@@ -121,7 +121,9 @@ Markdown==3.8.2
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
-milvus==2.3.5
+ujson==5.8.0
+milvus-lite==2.5.1
+pymilvus==2.5.10
 ml-dtypes==0.3.2
 mmh3==5.2.0
 mock==5.2.0
