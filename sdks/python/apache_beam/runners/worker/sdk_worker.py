@@ -235,7 +235,7 @@ class SdkHarness(object):
             enable_heap_dump,
             element_processing_timeout_minutes=self.
             _element_processing_timeout_minutes
-        )  # type: Optional[FnApiWorkerStatusHandler]
+        )
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(
