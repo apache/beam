@@ -1,0 +1,275 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: "Start and Prepare DinD"
+description: "Launch, verify, and prepare a Docker-in-Docker environment."
+inputs:
+  # --- Core DinD Config ---
+  container-name:
+    description: "Name for the DinD container."
+    default: dind-daemon
+  bind-address:
+    default: 127.0.0.1
+  port:
+    default: "2375"
+  storage-volume:
+    default: dind-storage
+  execroot-volume:
+    default: dind-execroot
+  ephemeral-volumes:
+    description: "Generate unique per-run volume names (recommended)."
+    default: "true"
+  auto-prune-dangling:
+    description: "Prune dangling ephemeral DinD volumes from previous runs."
+    default: "true"
+  tmpfs-run-size:
+    default: 1g
+  tmpfs-varrun-size:
+    default: 1g
+  storage-driver:
+    default: overlay2
+  additional-dockerd-args:
+    default: ""
+  use-host-network:
+    description: "Run DinD with --network host instead of publishing a TCP port."
+    default: "false"
+
+  # --- Health & Wait Config ---
+  health-interval:
+    default: 2s
+  health-retries:
+    default: "60"
+  health-start-period:
+    default: 10s
+  wait-timeout:
+    default: "180"
+
+  # --- NEW: Optional Setup & Verification Steps ---
+  cleanup-dind-on-start:
+    description: "Run 'docker system prune' inside DinD immediately after it starts."
+    default: "true"
+  smoke-test-port-mapping:
+    description: "Run a quick test to ensure port mapping from DinD is working."
+    default: "true"
+  prime-testcontainers:
+    description: "Start and stop a small container via the testcontainers library to prime Ryuk."
+    default: "false"
+
+  # --- Output Config ---
+  export-gh-env:
+    description: "Also write DOCKER_HOST and DIND_IP to $GITHUB_ENV for the rest of the job."
+    default: "false"
+
+outputs:
+  docker-host:
+    description: "The TCP address for the DinD daemon (e.g., tcp://127.0.0.1:2375)."
+    value: ${{ steps.set-output.outputs.docker-host }}
+  dind-ip:
+    description: "The discovered bridge IP address of the DinD container."
+    value: ${{ steps.discover-ip.outputs.dind-ip }}
+  container-name:
+    description: "The name of the running DinD container."
+    value: ${{ inputs.container-name || 'dind-daemon' }}
+  storage-volume:
+    value: ${{ steps.set-output.outputs.storage_volume }}
+  execroot-volume:
+    value: ${{ steps.set-output.outputs.execroot_volume }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prune old dangling ephemeral DinD volumes
+      if: ${{ inputs.auto-prune-dangling == 'true' }}
+      shell: bash
+      run: |
+        docker volume ls -q \
+          --filter "label=com.github.dind=1" \
+          --filter "label=com.github.repo=${GITHUB_REPOSITORY}" \
+          --filter "dangling=true" | xargs -r docker volume rm || true
+
+    - name: Start docker:dind
+      shell: bash
+      run: |
+        # (Your original 'Start docker:dind' script is perfect here - no changes needed)
+        set -euo pipefail
+        NAME="${{ inputs.container-name || 'dind-daemon' }}"
+        BIND="${{ inputs.bind-address || '127.0.0.1' }}"
+        PORT="${{ inputs.port || '2375' }}"
+        SD="${{ inputs.storage-driver || 'overlay2' }}"
+        TRS="${{ inputs.tmpfs-run-size || '1g' }}"
+        TVRS="${{ inputs.tmpfs-varrun-size || '1g' }}"
+        HI="${{ inputs.health-interval || '2s' }}"
+        HR="${{ inputs.health-retries || '60' }}"
+        HSP="${{ inputs.health-start-period || '10s' }}"
+        EXTRA="${{ inputs.additional-dockerd-args }}"
+        USE_HOST_NET="${{ inputs.use-host-network || 'false' }}"
+
+        if [[ "${{ inputs.ephemeral-volumes }}" == "true" ]]; then
+          SUFFIX="${GITHUB_RUN_ID:-0}-${GITHUB_RUN_ATTEMPT:-0}-${GITHUB_JOB:-job}"
+          STORAGE_VOL="dind-storage-${SUFFIX}"
+          EXECROOT_VOL="dind-execroot-${SUFFIX}"
+        else
+          STORAGE_VOL="${{ inputs.storage-volume || 'dind-storage' }}"
+          EXECROOT_VOL="${{ inputs.execroot-volume || 'dind-execroot' }}"
+        fi
+
+        docker volume create --name "${STORAGE_VOL}" --label "com.github.dind=1" --label "com.github.repo=${GITHUB_REPOSITORY}" >/dev/null
+        docker volume create --name "${EXECROOT_VOL}" --label "com.github.dind=1" --label "com.github.repo=${GITHUB_REPOSITORY}" >/dev/null
+        docker rm -f -v "$NAME" 2>/dev/null || true
+
+        NET_ARGS=""
+        PUBLISH_ARGS="-p ${BIND}:${PORT}:${PORT}"
+        if [[ "${USE_HOST_NET}" == "true" ]]; then
+          NET_ARGS="--network host"
+          PUBLISH_ARGS=""
+        fi
+
+        docker run -d --privileged --name "$NAME" \
+          --cgroupns=host \
+          -e DOCKER_TLS_CERTDIR= \
+          ${NET_ARGS} \
+          ${PUBLISH_ARGS} \
+          -v "${STORAGE_VOL}:/var/lib/docker" \
+          -v "${EXECROOT_VOL}:/execroot" \
+          --tmpfs /run:rw,exec,size=${TRS} \
+          --tmpfs /var/run:rw,exec,size=${TVRS} \
+          --label "com.github.dind=1" \
+          --health-cmd='docker info > /dev/null' \
+          --health-interval=${HI} \
+          --health-retries=${HR} \
+          --health-start-period=${HSP} \
+          docker:dind \
+            --host=tcp://0.0.0.0:${PORT} \
+            --host=unix:///var/run/docker.sock \
+            --storage-driver=${SD} \
+            --exec-root=/execroot ${EXTRA}
+
+        {
+          echo "STORAGE_VOL=${STORAGE_VOL}"
+          echo "EXECROOT_VOL=${EXECROOT_VOL}"
+        } >> "$GITHUB_ENV"
+
+    - name: Wait for DinD daemon
+      shell: bash
+      run: |
+        set -euo pipefail
+        NAME="${{ inputs.container-name || 'dind-daemon' }}"
+        HOST="${{ inputs.bind-address || '127.0.0.1' }}"
+        PORT="${{ inputs.port || '2375' }}"
+        TIMEOUT="${{ inputs.wait-timeout || '180' }}"
+        echo "Waiting for Docker-in-Docker to be ready..."
+        if ! timeout ${TIMEOUT}s bash -c 'until docker -H "tcp://'"${HOST}"':'"${PORT}"'" info >/dev/null 2>&1; do sleep 2; done'; then
+          echo "::error::DinD failed to start within ${TIMEOUT}s."
+          docker logs "$NAME" || true
+          exit 1
+        fi
+        echo "DinD is ready."
+        docker -H "tcp://${HOST}:${PORT}" info --format 'Daemon OK → OS={{.OperatingSystem}} Version={{.ServerVersion}}'
+
+    - id: set-output
+      shell: bash
+      run: |
+        HOST="${{ inputs.bind-address || '127.0.0.1' }}"
+        PORT="${{ inputs.port || '2375' }}"
+        echo "docker-host=tcp://${HOST}:${PORT}" >> "$GITHUB_OUTPUT"
+        echo "storage_volume=${STORAGE_VOL:-}" >> "$GITHUB_OUTPUT"
+        echo "execroot_volume=${EXECROOT_VOL:-}" >> "$GITHUB_OUTPUT"
+
+    # --- NEW: Integrated Setup & Verification Steps ---
+
+    - name: Cleanup DinD Environment
+      if: ${{ inputs.cleanup-dind-on-start == 'true' }}
+      shell: bash
+      run: |
+        echo "Performing initial cleanup of DinD environment..."
+        DIND_HOST="${{ steps.set-output.outputs.docker-host }}"
+        docker -H "${DIND_HOST}" system prune -af --volumes
+        docker -H "${DIND_HOST}" image prune -af
+
+    - id: discover-ip
+      name: Discover DinD Container IP
+      shell: bash
+      run: |
+        set -euo pipefail
+        NAME="${{ inputs.container-name || 'dind-daemon' }}"
+        
+        # Use host daemon to inspect the DinD container
+        nm=$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$NAME")
+        echo "DinD NetworkMode=${nm}"
+
+        # Try to find the bridge network IP
+        ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$NAME" || true)
+        
+        # If still empty, likely host networking -> use loopback
+        if [[ -z "${ip}" || "${nm}" == "host" ]]; then
+          echo "No bridge IP found or using host network. Falling back to 127.0.0.1."
+          ip="127.0.0.1"
+        fi
+        
+        echo "Discovered DinD IP: ${ip}"
+        echo "dind-ip=${ip}" >> "$GITHUB_OUTPUT"
+
+    - name: Smoke Test Port Mapping
+      if: ${{ inputs.smoke-test-port-mapping == 'true' }}
+      env:
+        DOCKER_HOST: ${{ steps.set-output.outputs.docker-host }}
+        DIND_IP: ${{ steps.discover-ip.outputs.dind-ip }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Running port mapping smoke test..."
+        docker pull redis:7.2-alpine
+        cid=$(docker run -d -p 0:6379 --name redis-smoke redis:7-alpine)
+        hostport=$(docker port redis-smoke 6379/tcp | sed 's/.*://')
+        echo "Redis container started, mapped to host port ${hostport}"
+        echo "Probing connection to ${DIND_IP}:${hostport} ..."
+        
+        timeout 5 bash -c 'exec 3<>/dev/tcp/$DIND_IP/'"$hostport"
+        if [[ $? -eq 0 ]]; then
+          echo "TCP connection successful. Port mapping is working."
+        else
+          echo "::error::Failed to connect to mapped port on ${DIND_IP}:${hostport}"
+          docker logs redis-smoke
+          exit 1
+        fi
+        docker rm -f "$cid"
+
+    - name: Prime Testcontainers (Ryuk)
+      if: ${{ inputs.prime-testcontainers == 'true' }}
+      env:
+        DOCKER_HOST: ${{ steps.set-output.outputs.docker-host }}
+        TESTCONTAINERS_HOST_OVERRIDE: ${{ steps.discover-ip.outputs.dind-ip }}
+      shell: bash
+      run: |
+        echo "Priming Testcontainers/Ryuk..."
+        python -m pip install -q --upgrade pip testcontainers
+        # Use a tiny image for a fast and stable prime
+        docker pull alpine:3.19
+        python - <<'PY'
+        from testcontainers.core.container import DockerContainer
+        c = DockerContainer("alpine:3.19").with_command("true")
+        c.start()
+        c.stop()
+        print("Ryuk primed and ready.")
+        PY
+
+    - name: Export Environment Variables
+      if: ${{ inputs.export-gh-env == 'true' }}
+      shell: bash
+      run: |
+        echo "DOCKER_HOST=${{ steps.set-output.outputs.docker-host }}" >> "$GITHUB_ENV"
+        echo "DIND_IP=${{ steps.discover-ip.outputs.dind-ip }}" >> "$GITHUB_ENV"
