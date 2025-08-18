@@ -373,7 +373,7 @@ public class FileIO {
   public static MatchAll matchAll() {
     return new AutoValue_FileIO_MatchAll.Builder()
         .setConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
-            .setAvoidReshuffle(false)
+            .setOutputParallelization(false)
         .build();
   }
 
@@ -680,7 +680,7 @@ public class FileIO {
 
       abstract MatchAll build();
 
-      abstract Builder setAvoidReshuffle(boolean b);
+      abstract Builder setOutputParallelization(boolean b);
     }
 
     /** Like {@link Match#withConfiguration}. */
@@ -689,11 +689,11 @@ public class FileIO {
     }
 
     public MatchAll avoidReshuffle() {
-      return toBuilder().setAvoidReshuffle(true).build();
+      return toBuilder().setOutputParallelization(true).build();
     }
 
-    public MatchAll withAvoidReshuffle(boolean avoidReshuffle) {
-      return toBuilder().setAvoidReshuffle(avoidReshuffle).build();
+    public MatchAll withOutputParallelization(boolean avoidReshuffle) {
+      return toBuilder().setOutputParallelization(avoidReshuffle).build();
     }
 
     /** Like {@link Match#withEmptyMatchTreatment}. */
