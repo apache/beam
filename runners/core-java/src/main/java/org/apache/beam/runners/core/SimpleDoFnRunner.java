@@ -54,7 +54,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -341,8 +340,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           OutputT output,
           Instant timestamp,
           BoundedWindow window,
-          ElementMetadata elementMetadata) {
-        output(mainOutputTag, output, timestamp, window, elementMetadata);
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
+        output(mainOutputTag, output, timestamp, window, currentRecordId, currentRecordOffset);
       }
 
       @Override
@@ -351,9 +351,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           T output,
           Instant timestamp,
           BoundedWindow window,
-          ElementMetadata elementMetadata) {
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
         outputWindowedValue(
-            tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING, elementMetadata));
+            tag,
+            WindowedValues.of(
+                output,
+                timestamp,
+                Collections.singletonList(window),
+                PaneInfo.NO_FIRING,
+                currentRecordId,
+                currentRecordOffset));
       }
     }
 
@@ -454,8 +462,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
-      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, elementMetadata);
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
     }
 
     @Override
@@ -489,9 +505,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -500,8 +519,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public ElementMetadata elementMetadata() {
-      return elem.getElementMetadata();
+    public String currentRecordId() {
+      return elem.getCurrentRecordId();
+    }
+
+    @Override
+    public Long currentRecordOffset() {
+      return elem.getCurrentRecordOffset();
     }
 
     public Collection<? extends BoundedWindow> windows() {
@@ -921,8 +945,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
-      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, elementMetadata);
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
     }
 
     @Override
@@ -957,10 +989,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       checkTimestamp(timestamp(), timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -1173,8 +1208,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
-      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, elementMetadata);
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
     }
 
     @Override
@@ -1209,10 +1252,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       checkTimestamp(this.timestamp, timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override

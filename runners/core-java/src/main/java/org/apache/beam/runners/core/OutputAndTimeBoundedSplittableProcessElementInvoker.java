@@ -383,17 +383,17 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       return element.getPaneInfo();
     }
 
-      @Override
-      public String currentRecordId() {
-          return element.getCurrentRecordId();
-      }
+    @Override
+    public String currentRecordId() {
+      return element.getCurrentRecordId();
+    }
 
-      @Override
-      public Long currentRecordOffset() {
-          return element.getCurrentRecordOffset();
-      }
+    @Override
+    public Long currentRecordOffset() {
+      return element.getCurrentRecordOffset();
+    }
 
-      @Override
+    @Override
     public PipelineOptions getPipelineOptions() {
       return pipelineOptions;
     }
@@ -434,7 +434,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
       outputReceiver.output(
-          mainOutputTag, WindowedValues.of(value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+          mainOutputTag,
+          WindowedValues.of(
+              value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -472,7 +474,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
       outputReceiver.output(
-          tag, WindowedValues.of(value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+          tag,
+          WindowedValues.of(
+              value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     private void noteOutput() {

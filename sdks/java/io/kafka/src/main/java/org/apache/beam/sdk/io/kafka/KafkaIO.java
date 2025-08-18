@@ -97,7 +97,6 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.util.construction.TransformUpgrader;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -1914,14 +1913,19 @@ public class KafkaIO {
       public void processElement(ProcessContext pc) {
         KafkaRecord<K, V> element = pc.element();
         Long offset = null;
-          String uniqueId = null;
+        String uniqueId = null;
         if (element != null) {
-           offset = element.getOffset();
-           uniqueId =
+          offset = element.getOffset();
+          uniqueId =
               (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
         }
         pc.outputWindowedValue(
-            element, pc.timestamp(), Lists.newArrayList(GlobalWindow.INSTANCE), pc.pane(), uniqueId, offset);
+            element,
+            pc.timestamp(),
+            Lists.newArrayList(GlobalWindow.INSTANCE),
+            pc.pane(),
+            uniqueId,
+            offset);
       }
     }
 
