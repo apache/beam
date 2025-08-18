@@ -14,66 +14,13 @@
 # limitations under the License.
     
 # Service Account Keys
-# Generated on 2025-08-13 18:27:14 UTC
+# This file contains the service account for the project, the account id
+# and the users authorized to use it
+# service_accounts:
+# - account_id: account_id
+#   display_name: account_@project_id.iam.gserviceaccount.com
+#   authorized_users:
+#     - email: "user1@google.com"
+#     - email: "user2@google.com"
 
 service_accounts:
-- account_id: github-self-hosted-runners
-  display_name: github-self-hosted-runners@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: tf-test-dataflow-uzgihx18zf-1
-  display_name: tf-test-dataflow-uzgihx18zf-1@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: secrets-manager
-  display_name: secrets-manager@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: dannymccormick-test
-  display_name: dannymccormick-test@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: riteshghorse
-  display_name: riteshghorse@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: ahmedabualsaud
-  display_name: ahmedabualsaud@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: ml-pipelines-google-vision
-  display_name: ml-pipelines-google-vision@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: danoliveira-release
-  display_name: danoliveira-release@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: prod-playground-sa-cf
-  display_name: prod-playground-sa-cf@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: beam-storage
-  display_name: beam-storage@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: beam-wheels-travis
-  display_name: beam-wheels-travis@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: bigquery-admin
-  display_name: bigquery-admin@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: allows-impersonation-new
-  display_name: allows-impersonation-new@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: beam-metrics-posgresql-kube
-  display_name: beam-metrics-posgresql-kube@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: da-pipelines
-  display_name: da-pipelines@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: johnjcasey-gha-service-account
-  display_name: johnjcasey-gha-service-account@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: firebase-adminsdk-dpfsw
-  display_name: firebase-adminsdk-dpfsw@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: apache-beam-testing@appspot.gserviceaccount.com
-  display_name: apache-beam-testing@appspot.gserviceaccount.com
-  authorized_users: []
-- account_id: rrio-tests-63de9ae8
-  display_name: rrio-tests-63de9ae8@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
-- account_id: prod-playground-sa
-  display_name: prod-playground-sa@apache-beam-testing.iam.gserviceaccount.com
-  authorized_users: []
