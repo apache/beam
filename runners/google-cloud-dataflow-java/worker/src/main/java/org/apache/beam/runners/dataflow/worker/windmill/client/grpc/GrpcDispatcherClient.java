@@ -21,7 +21,6 @@ import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.localhostChannel;
 
 import com.google.auto.value.AutoValue;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -142,9 +141,8 @@ public class GrpcDispatcherClient {
           break;
         }
         LOG.info(
-            "Blocking until Windmill Service endpoint has been set. "
-                + "Currently waited for {}.",
-                Duration.between(startTime, Instant.now()));
+            "Blocking until Windmill Service endpoint has been set. " + "Currently waited for {}.",
+            Duration.between(startTime, Instant.now()));
       } catch (InterruptedException e) {
         LOG.error(
             "Interrupted while waiting for initial Windmill Service endpoints. "
