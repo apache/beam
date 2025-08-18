@@ -73,6 +73,7 @@ import typing
 from collections import abc
 
 from beartype.door import is_subhint
+from beartype.roar import BeartypeDoorException
 
 __all__ = [
     'Any',
@@ -1526,7 +1527,7 @@ def is_consistent_with(sub, base):
     return False
   try:
     return is_subhint(sub, base)
-  except:
+  except (BeartypeDoorException):
     return False
 
 
