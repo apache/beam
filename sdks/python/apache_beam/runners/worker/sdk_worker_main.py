@@ -226,7 +226,7 @@ def flush_fn_log_handler(err_msg):
   _LOGGER.error(err_msg + 'The SDK harness will be terminated.')
   if _FN_LOG_HANDLER:
     _FN_LOG_HANDLER.close()
-    sys.exit(1)
+  sys.exit(1)
 
 def _load_pipeline_options(options_json):
   if options_json is None:

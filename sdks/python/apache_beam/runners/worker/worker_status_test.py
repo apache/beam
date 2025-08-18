@@ -97,24 +97,39 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
 
     now = time.time()
     with mock.patch('logging.Logger.warning') as warn_mock:
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now
-        bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
-        self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
-        bundle_id_template = warn_mock.call_args[0][1]
-        step_name_template = warn_mock.call_args[0][2]
-        processing_template = warn_mock.call_args[0][3]
-        traceback = warn_mock.call_args = warn_mock.call_args[0][4]
+      with mock.patch('apache_beam.runners.worker.sdk_worker_main.flush_fn_log_handler') as flush_mock:
+        with mock.patch('time.time') as time_mock:
+          time_mock.return_value = now
+          bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
+          self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
+          bundle_id_template = warn_mock.call_args[0][1]
+          step_name_template = warn_mock.call_args[0][2]
+          processing_template = warn_mock.call_args[0][3]
+          traceback = warn_mock.call_args = warn_mock.call_args[0][4]
 
-        self.assertIn('bundle-id', bundle_id_template)
-        self.assertIn('step_name', step_name_template)
-        self.assertEqual(21 * 60, processing_template)
-        self.assertIn('test_log_lull_in_bundle_processor', traceback)
+          self.assertIn('bundle-id', bundle_id_template)
+          self.assertIn('step_name', step_name_template)
+          self.assertEqual(21 * 60, processing_template)
+          self.assertIn('test_log_lull_in_bundle_processor', traceback)
+          flush_mock.assert_called_once()
 
-      with mock.patch('time.time') as time_mock:
-        time_mock.return_value = now + 6 * 60  # 6 minutes
-        bundle_id, sampler_info = get_state_sampler_info_for_lull(3 * 60)
-        self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
+        with mock.patch('time.time') as time_mock:
+          time_mock.return_value = now + 6 * 60  # 6 minutes
+          bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
+          self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
+          self.assertEqual(flush_mock.call_count, 2)
+
+        with mock.patch('time.time') as time_mock:
+          time_mock.return_value = now + 21 * 60  # 21 minutes
+          bundle_id, sampler_info = get_state_sampler_info_for_lull(10 * 60)
+          self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
+          self.assertEqual(flush_mock.call_count, 2)
+
+        with mock.patch('time.time') as time_mock:
+          time_mock.return_value = now + 42 * 60  # 21 minutes after previous one
+          bundle_id, sampler_info = get_state_sampler_info_for_lull(11 * 60)
+          self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
+          self.assertEqual(flush_mock.call_count, 3)
 
 class HeapDumpTest(unittest.TestCase):
   @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)
