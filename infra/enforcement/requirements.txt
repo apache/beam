@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -12,15 +13,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-    
-# Service Account Keys
-# This file contains the service account for the project, the account id
-# and the users authorized to use it
-# service_accounts:
-# - account_id: account_id
-#   display_name: account_@project_id.iam.gserviceaccount.com
-#   authorized_users:
-#     - email: "user1@google.com"
-#     - email: "user2@google.com"
 
-service_accounts:
+# This file is used to install the dependencies for the infrastructure
+
+PyYAML==6.0.2
+google-cloud-iam==2.19.0
+google-cloud-resource-manager==1.14.1
+google-cloud-secret-manager==2.24.0
+google-crc32c==1.7.1

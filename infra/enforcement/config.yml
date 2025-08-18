@@ -12,15 +12,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-    
-# Service Account Keys
-# This file contains the service account for the project, the account id
-# and the users authorized to use it
-# service_accounts:
-# - account_id: account_id
-#   display_name: account_@project_id.iam.gserviceaccount.com
-#   authorized_users:
-#     - email: "user1@google.com"
-#     - email: "user2@google.com"
 
-service_accounts:
+# Project ID
+project_id: apache-beam-testing
+
+# Logging
+logging:
+  level: DEBUG
+  format: "[%(asctime)s] %(levelname)s: %(message)s"
+
+# IAM
+
+# Working users file
+users_file: ../iam/users.yml
+
+# Service Account Keys
+service_account_keys_file: ../keys/keys.yaml
+
+# Action to perform when running the script
+# Options:
+#   - check: Check compliance and report issues (default)
+#   - issue: Create GitHub issue if compliance violations are found
+#   - generate: Generate new compliance file based on current IAM policy
+action: check
