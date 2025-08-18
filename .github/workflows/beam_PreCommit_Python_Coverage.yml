@@ -64,7 +64,7 @@ jobs:
       matrix:
         job_name: [beam_PreCommit_Python_Coverage]
         job_phrase: [Run Python_Coverage PreCommit]
-    timeout-minutes: 240
+    timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
