@@ -72,6 +72,8 @@ import types
 import typing
 from collections import abc
 
+from beartype.door import is_subhint
+
 __all__ = [
     'Any',
     'Union',
@@ -1522,7 +1524,10 @@ def is_consistent_with(sub, base):
     # Cannot check unsupported parameterized generic which will cause issubclass
     # to fail with an exception.
     return False
-  return issubclass(sub, base)
+  try:
+    return is_subhint(sub, base)
+  except:
+    return False
 
 
 def regex_consistency(sub, base) -> bool:
