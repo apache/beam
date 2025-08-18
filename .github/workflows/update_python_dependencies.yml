@@ -83,10 +83,10 @@ jobs:
           # then get the num days % 42 (our release cadence is 42 days).
           # This will ensure it only runs the week after a release branch has been cut.
           days_diff=$(( ($(date +%s) - $(date --date="240306" +%s) )/(60*60*24)%42 ))
-          if [[ $GH_EVENT != 'workflow_dispatch' && $days_diff -gt 6 ]]; then
-            echo "Exiting early. We only update dependencies the week after we cut the release"
-            exit 0
-          fi
+          # if [[ $GH_EVENT != 'workflow_dispatch' && $days_diff -gt 6 ]]; then
+          #  echo "Exiting early. We only update dependencies the week after we cut the release"
+          #  exit 0
+          # fi
           branchName=weekly_update_python_dependencies_$(date +%s)
           git checkout -b $branchName
           git add -A
