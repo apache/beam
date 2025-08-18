@@ -676,6 +676,8 @@ public class FileIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+      protected boolean outputParallelization;
+
       abstract Builder setConfiguration(MatchConfiguration configuration);
 
       abstract MatchAll build();
@@ -688,12 +690,12 @@ public class FileIO {
       return toBuilder().setConfiguration(configuration).build();
     }
 
-    public MatchAll avoidReshuffle() {
+    public MatchAll outputParallelization() {
       return toBuilder().setOutputParallelization(true).build();
     }
 
-    public MatchAll withOutputParallelization(boolean avoidReshuffle) {
-      return toBuilder().setOutputParallelization(avoidReshuffle).build();
+    public MatchAll withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
     /** Like {@link Match#withEmptyMatchTreatment}. */
@@ -736,14 +738,14 @@ public class FileIO {
         }
       }
       // Apply Reshuffle conditionally based on the new flag
-      if (getAvoidReshuffle()) {
+      if (getOutputParallelization()) {
         return res; // No reshuffle
       } else {
         return res.apply(Reshuffle.viaRandomKey());
       }
     }
 
-    public abstract boolean getAvoidReshuffle();
+    public abstract boolean getOutputParallelization();
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
