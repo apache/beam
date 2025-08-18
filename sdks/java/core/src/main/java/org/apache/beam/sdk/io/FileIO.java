@@ -373,10 +373,9 @@ public class FileIO {
   public static MatchAll matchAll() {
     return new AutoValue_FileIO_MatchAll.Builder()
         .setConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
-            .setOutputParallelization(false)
+        .setOutputParallelization(false)
         .build();
   }
-
 
   /**
    * Converts each result of {@link #match} or {@link #matchAll} to a {@link ReadableFile} which can
