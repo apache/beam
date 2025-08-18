@@ -225,7 +225,7 @@ class SdkHarness(object):
         fns=self._fns,
         data_sampler=self.data_sampler,
     )
-
+    self._status_handler = None  # type: Optional[FnApiWorkerStatusHandler]
     if status_address:
       try:
         self._status_handler = FnApiWorkerStatusHandler(
