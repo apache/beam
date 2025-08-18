@@ -159,7 +159,13 @@ public class WindowedValues {
    */
   public static <OldT, NewT> WindowedValue<NewT> withValue(
       WindowedValue<OldT> windowedValue, NewT newValue) {
-    return windowedValue.withValue(newValue);
+    return WindowedValues.of(
+        newValue,
+        windowedValue.getTimestamp(),
+        windowedValue.getWindows(),
+        windowedValue.getPaneInfo(),
+        windowedValue.getCurrentRecordId(),
+        windowedValue.getCurrentRecordOffset());
   }
 
   public static <T> boolean equals(
