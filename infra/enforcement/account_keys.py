@@ -19,11 +19,11 @@ import sys
 import yaml
 import argparse
 import os
-import requests
-from typing import List, Dict, TypedDict
+from typing import List, Dict, TypedDict, Optional
 from google.cloud import secretmanager
 from google.cloud import iam_admin_v1
 from google.cloud.iam_admin_v1 import types
+from sending import SendingClient
 
 SECRET_MANAGER_LABEL = "beam-infra-secret-manager"
 
@@ -41,10 +41,11 @@ class ServiceAccountsConfig(TypedDict):
 CONFIG_FILE = "config.yml"
 
 class AccountKeysPolicyComplianceCheck:
-    def __init__(self, project_id: str, service_account_keys_file: str, logger: logging.Logger):
+    def __init__(self, project_id: str, service_account_keys_file: str, logger: logging.Logger, sending_client: Optional[SendingClient] = None):
         self.project_id = project_id
         self.service_account_keys_file = service_account_keys_file
         self.logger = logger
+        self.sending_client = sending_client
         self.secret_client = secretmanager.SecretManagerServiceClient()
         self.service_account_client = iam_admin_v1.IAMClient()
 
@@ -190,7 +191,7 @@ class AccountKeysPolicyComplianceCheck:
             with open(self.service_account_keys_file, "r") as file:
                 keys = yaml.safe_load(file)
 
-                if not keys:
+                if not keys or keys.get("service_accounts") is None:
                     return {"service_accounts": []}
 
                 return keys
@@ -251,12 +252,11 @@ class AccountKeysPolicyComplianceCheck:
         """
 
         service_account_data = self._read_service_account_keys()
-        file_service_accounts = service_account_data.get("service_accounts", [])
+        file_service_accounts = service_account_data.get("service_accounts")
 
         if not file_service_accounts:
-            error_msg = f"No service account keys found in the {self.service_account_keys_file}."
-            self.logger.info(error_msg)
-            raise RuntimeError(error_msg)
+            file_service_accounts = []
+            self.logger.info(f"No service account keys found in the {self.service_account_keys_file}.")
         
         compliance_issues = []
 
@@ -298,12 +298,46 @@ class AccountKeysPolicyComplianceCheck:
 
         return compliance_issues
 
-    def create_github_issue(self) -> None:
-        # Implement GitHub issue creation logic here
+    def create_announcement(self, recipient: str) -> None:
+        """
+        Creates an announcement about compliance issues using the SendingClient.
+
+        Args:
+            recipient (str): The email address of the announcement recipient.
+        """
+        if not self.sending_client:
+            raise ValueError("SendingClient is required for creating announcements")
+            
         diff = self.check_compliance()
 
         if not diff:
-            self.logger.info("No compliance issues found.")
+            self.logger.info("No compliance issues found, no announcement will be created.")
+            return  
+
+        title = f"Account Keys Compliance Issue Detected"
+        body = f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
+        for issue in diff:
+            body += f"- {issue}\n"
+
+        announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the Account Keys policy for project {self.project_id}.\n\n"
+        announcement += f"We found {len(diff)} compliance issue(s) that need your attention.\n"
+        announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+
+        self.sending_client.create_announcement(title, body, recipient, announcement)
+
+    def print_announcement(self, recipient: str) -> None:
+        """
+        Prints announcement details instead of sending them (for testing purposes).
+        Args:
+            recipient (str): The email address of the announcement recipient.
+        """
+        if not self.sending_client:
+            raise ValueError("SendingClient is required for printing announcements")
+            
+        diff = self.check_compliance()
+
+        if not diff:
+            self.logger.info("No compliance issues found, no announcement will be printed.")
             return
 
         title = f"Account Keys Compliance Issue Detected"
@@ -311,27 +345,11 @@ class AccountKeysPolicyComplianceCheck:
         for issue in diff:
             body += f"- {issue}\n"
 
-        repo = os.getenv("GITHUB_REPOSITORY", "apache/beam")
-        token = os.getenv("GITHUB_TOKEN")
+        announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the Account Keys policy for project {self.project_id}.\n\n"
+        announcement += f"We found {len(diff)} compliance issue(s) that need your attention.\n"
+        announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
 
-        url = f"https://api.github.com/repos/{repo}/issues"
-
-        headers = {
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-
-        payload = {
-            "title": title,
-            "body": body
-        }
-
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code == 201:
-            self.logger.info(f"Successfully created GitHub issue: {title}")
-        else:
-            self.logger.error(f"Failed to create GitHub issue: {response.content}")
-            raise RuntimeError("Failed to create GitHub issue.")
+        self.sending_client.print_announcement(title, body, recipient, announcement)
 
     def generate_compliance(self) -> None:
         """
@@ -417,13 +435,22 @@ def config_process() -> Dict[str, str]:
     config_res["service_account_keys_file"] = config.get("service_account_keys_file", "../keys/keys.yaml")
     config_res["action"] = config.get("action", "check")
 
+    # SendingClient configuration
+    config_res["github_token"] = os.getenv("GITHUB_TOKEN", "")
+    config_res["github_repo"] = os.getenv("GITHUB_REPOSITORY", "apache/beam")
+    config_res["smtp_server"] = os.getenv("SMTP_SERVER", "")
+    config_res["smtp_port"] = os.getenv("SMTP_PORT", 587)
+    config_res["email"] = os.getenv("EMAIL_ADDRESS", "")
+    config_res["password"] = os.getenv("EMAIL_PASSWORD", "")
+    config_res["recipient"] = os.getenv("EMAIL_RECIPIENT", "")
+
     return config_res
 
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Account Keys Compliance Checker")
-    parser.add_argument("--action", choices=["check", "issue", "generate"], 
-                       help="Action to perform: check compliance, create GitHub issue, or generate new compliance")
+    parser.add_argument("--action", choices=["check", "announce", "print", "generate"], 
+                       help="Action to perform: check compliance, create announcement, print announcement, or generate new compliance")
     args = parser.parse_args()
 
     config = config_process()
@@ -435,8 +462,33 @@ def main():
                         format=config["logging_format"])
     logger = logging.getLogger("AccountKeysPolicyComplianceCheck")
 
+    # Create SendingClient if needed for announcement actions
+    sending_client = None
+    if action in ["announce", "print"]:
+        try:
+            # Provide default values for testing, especially for print action
+            github_token = config["github_token"] or "dummy-token"
+            github_repo = config["github_repo"] or "dummy/repo"
+            smtp_server = config["smtp_server"] or "dummy-server"
+            smtp_port = int(config["smtp_port"]) if config["smtp_port"] else 587
+            email = config["email"] or "dummy@example.com"
+            password = config["password"] or "dummy-password"
+            
+            sending_client = SendingClient(
+                logger=logger,
+                github_token=github_token,
+                github_repo=github_repo,
+                smtp_server=smtp_server,
+                smtp_port=smtp_port,
+                email=email,
+                password=password
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize SendingClient: {e}")
+            return 1
+
     logger.info(f"Starting Account Keys policy compliance check with action: {action}")
-    account_keys_checker = AccountKeysPolicyComplianceCheck(config["project_id"], config["service_account_keys_file"], logger)
+    account_keys_checker = AccountKeysPolicyComplianceCheck(config["project_id"], config["service_account_keys_file"], logger, sending_client)
 
     try:
         if action == "check":
@@ -447,9 +499,14 @@ def main():
                     logger.warning(issue)
             else:
                 logger.info("Account Keys policy is compliant.")
-        elif action == "issue":
-            logger.info("Creating GitHub issue for compliance violations...")
-            account_keys_checker.create_github_issue()
+        elif action == "announce":
+            logger.info("Creating announcement for compliance violations...")
+            recipient = config["recipient"] or "admin@example.com"
+            account_keys_checker.create_announcement(recipient)
+        elif action == "print":
+            logger.info("Printing announcement for compliance violations...")
+            recipient = config["recipient"] or "admin@example.com"
+            account_keys_checker.print_announcement(recipient)
         elif action == "generate":
             logger.info("Generating new compliance based on current Account Keys policy...")
             account_keys_checker.generate_compliance()

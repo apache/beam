@@ -170,8 +170,10 @@ class SendingClient:
         This is used for testing.
         """
         self.logger.info("Printing announcement...")
-        print(f"Title: {title}")
-        print(f"Body: {body}")
+        print(f"Simulating email sending...")
         print(f"Recipient: {recipient}")
         print(f"Announcement: {announcement}")
 
+        print("\nSimulating GitHub issue creation...")
+        print(f"Title: {title}")
+        print(f"Body: {body}")
