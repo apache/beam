@@ -1913,15 +1913,15 @@ public class KafkaIO {
       @ProcessElement
       public void processElement(ProcessContext pc) {
         KafkaRecord<K, V> element = pc.element();
-        ElementMetadata em = null;
+        Long offset = null;
+          String uniqueId = null;
         if (element != null) {
-          long offset = element.getOffset();
-          String uniqueId =
+           offset = element.getOffset();
+           uniqueId =
               (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
-          em = ElementMetadata.create(uniqueId, offset);
         }
         pc.outputWindowedValue(
-            element, pc.timestamp(), Lists.newArrayList(GlobalWindow.INSTANCE), pc.pane(), em);
+            element, pc.timestamp(), Lists.newArrayList(GlobalWindow.INSTANCE), pc.pane(), uniqueId, offset);
       }
     }
 

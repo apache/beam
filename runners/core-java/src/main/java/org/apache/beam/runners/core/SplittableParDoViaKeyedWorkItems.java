@@ -52,7 +52,6 @@ import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.SplittableParDo.ProcessKeyedElements;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -669,7 +668,8 @@ public class SplittableParDoViaKeyedWorkItems {
                 OutputT output,
                 Instant timestamp,
                 BoundedWindow window,
-                ElementMetadata elementMetadata) {
+                @Nullable String currentRecordId,
+                @Nullable Long currentRecordOffset) {
               throwUnsupportedOutput();
             }
 
@@ -679,7 +679,8 @@ public class SplittableParDoViaKeyedWorkItems {
                 T output,
                 Instant timestamp,
                 BoundedWindow window,
-                ElementMetadata elementMetadata) {
+                @Nullable String currentRecordId,
+                @Nullable Long currentRecordOffset) {
               throwUnsupportedOutput();
             }
 

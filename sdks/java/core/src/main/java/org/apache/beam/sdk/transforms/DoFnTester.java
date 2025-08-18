@@ -49,7 +49,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -214,7 +213,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     try {
       final DoFn<InputT, OutputT>.ProcessContext processContext =
           createProcessContext(
-              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING, null));
+              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING, null, null));
       fnInvoker.invokeProcessElement(
           new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
 
@@ -479,7 +478,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         @Override
         public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
           getMutableOutput(tag)
-              .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING, null));
+              .add(
+                  ValueInSingleWindow.of(
+                      output, timestamp, window, PaneInfo.NO_FIRING, null, null));
         }
 
         @Override
@@ -487,8 +488,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             OutputT output,
             Instant timestamp,
             BoundedWindow window,
-            ElementMetadata elementMetadata) {
-          output(mainOutputTag, output, timestamp, window, elementMetadata);
+            @Nullable String currentRecordId,
+            @Nullable Long currentRecordOffset) {
+          output(mainOutputTag, output, timestamp, window, currentRecordId, currentRecordOffset);
         }
 
         @Override
@@ -497,11 +499,17 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             T output,
             Instant timestamp,
             BoundedWindow window,
-            ElementMetadata elementMetadata) {
+            @Nullable String currentRecordId,
+            @Nullable Long currentRecordOffset) {
           getMutableOutput(tag)
               .add(
                   ValueInSingleWindow.of(
-                      output, timestamp, window, PaneInfo.NO_FIRING, elementMetadata));
+                      output,
+                      timestamp,
+                      window,
+                      PaneInfo.NO_FIRING,
+                      currentRecordId,
+                      currentRecordOffset));
         }
       };
     }
@@ -586,13 +594,18 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public ElementMetadata elementMetadata() {
-      return element.getElementMetadata();
+    public PaneInfo pane() {
+      return element.getPaneInfo();
     }
 
     @Override
-    public PaneInfo pane() {
-      return element.getPaneInfo();
+    public String currentRecordId() {
+      return element.getCurrentRecordId();
+    }
+
+    @Override
+    public Long currentRecordOffset() {
+      return element.getCurrentRecordOffset();
     }
 
     @Override
@@ -625,8 +638,16 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
-      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, elementMetadata);
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
     }
 
     @Override
@@ -639,11 +660,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       getMutableOutput(tag)
           .add(
               ValueInSingleWindow.of(
-                  output,
-                  timestamp,
-                  element.getWindow(),
-                  element.getPaneInfo(),
-                  element.getElementMetadata()));
+                  output, timestamp, element.getWindow(), element.getPaneInfo(), null, null));
     }
 
     @Override
@@ -654,7 +671,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       for (BoundedWindow w : windows) {
-        getMutableOutput(tag).add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, null));
+        getMutableOutput(tag)
+            .add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, null, null));
       }
     }
 
@@ -665,10 +683,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       for (BoundedWindow w : windows) {
         getMutableOutput(tag)
-            .add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, elementMetadata));
+            .add(
+                ValueInSingleWindow.of(
+                    output, timestamp, w, paneInfo, currentRecordId, currentRecordOffset));
       }
     }
   }

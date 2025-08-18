@@ -45,7 +45,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -124,7 +123,11 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract void output(OutputT output, Instant timestamp, BoundedWindow window);
 
     public abstract void output(
-        OutputT output, Instant timestamp, BoundedWindow window, ElementMetadata elementMetadata);
+        OutputT output,
+        Instant timestamp,
+        BoundedWindow window,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset);
     /**
      * Adds the given element to the output {@code PCollection} with the given tag at the given
      * timestamp in the given window.
@@ -142,7 +145,8 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         T output,
         Instant timestamp,
         BoundedWindow window,
-        ElementMetadata elementMetadata);
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset);
   }
 
   /**
@@ -226,7 +230,8 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        @Nullable ElementMetadata elementMetadata);
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset);
 
     /**
      * Adds the given element to the output {@code PCollection} with the given tag.
@@ -307,7 +312,8 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata);
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset);
   }
 
   /** Information accessible when running a {@link DoFn.ProcessElement} method. */
@@ -350,7 +356,10 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract PaneInfo pane();
 
     @Pure
-    public abstract ElementMetadata elementMetadata();
+    public abstract String currentRecordId();
+
+    @Pure
+    public abstract Long currentRecordOffset();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */

@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -404,7 +403,8 @@ public class SplittableParDoNaiveBounded {
                     T output,
                     Instant timestamp,
                     BoundedWindow window,
-                    ElementMetadata elementMetadata) {
+                    @Nullable String currentRecordId,
+                    @Nullable Long currentRecordOffset) {
                   throw new UnsupportedOperationException(
                       "Output from FinishBundle for SDF is not supported in naive implementation");
                 }
@@ -414,7 +414,8 @@ public class SplittableParDoNaiveBounded {
                     @Nullable OutputT output,
                     Instant timestamp,
                     BoundedWindow window,
-                    ElementMetadata elementMetadata) {
+                    @Nullable String currentRecordId,
+                    @Nullable Long currentRecordOffset) {
                   throw new UnsupportedOperationException(
                       "Output from FinishBundle for SDF is not supported in naive implementation");
                 }
@@ -645,8 +646,10 @@ public class SplittableParDoNaiveBounded {
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo,
-          ElementMetadata elementMetadata) {
-        outerContext.outputWindowedValue(output, timestamp, windows, paneInfo, elementMetadata);
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
+        outerContext.outputWindowedValue(
+            output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset);
       }
 
       @Override
@@ -676,9 +679,10 @@ public class SplittableParDoNaiveBounded {
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo,
-          ElementMetadata elementMetadata) {
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
         outerContext.outputWindowedValue(
-            tag, output, timestamp, windows, paneInfo, elementMetadata);
+            tag, output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset);
       }
 
       @Override
@@ -702,8 +706,13 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public ElementMetadata elementMetadata() {
-        return outerContext.elementMetadata();
+      public String currentRecordId() {
+        return outerContext.currentRecordId();
+      }
+
+      @Override
+      public Long currentRecordOffset() {
+        return outerContext.currentRecordOffset();
       }
 
       @Override

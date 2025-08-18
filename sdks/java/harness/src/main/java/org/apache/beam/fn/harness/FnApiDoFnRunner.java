@@ -102,7 +102,6 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.Timer;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -1674,10 +1673,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           OutputT output,
           Instant timestamp,
           BoundedWindow window,
-          ElementMetadata elementMetadata) {
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
         outputTo(
             mainOutputConsumer,
-            WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING, elementMetadata));
+            WindowedValues.of(output, timestamp, Collections.singletonList(window), PaneInfo.NO_FIRING, currentRecordId, currentRecordOffset));
       }
 
       @Override
@@ -1686,7 +1686,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           T output,
           Instant timestamp,
           BoundedWindow window,
-          ElementMetadata elementMetadata) {
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
         if (consumer == null) {
@@ -1694,7 +1695,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         }
         outputTo(
             consumer,
-            WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING, elementMetadata));
+            WindowedValues.of(output, timestamp, Collections.singletonList(window), PaneInfo.NO_FIRING, currentRecordId, currentRecordOffset));
       }
     }
 
@@ -1793,12 +1794,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
       // runners can provide proper timestamps.
       outputTo(
           mainOutputConsumer,
-          WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+          WindowedValues.of(output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -1839,13 +1841,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       FnDataReceiver<WindowedValue<T>> consumer =
           (FnDataReceiver) localNameToConsumer.get(tag.getId());
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -1951,11 +1954,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       checkTimestamp(timestamp);
       outputTo(
           mainOutputConsumer,
-          WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+          WindowedValues.of(output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -1995,14 +1999,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       checkTimestamp(timestamp);
       FnDataReceiver<WindowedValue<T>> consumer =
           (FnDataReceiver) localNameToConsumer.get(tag.getId());
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
   }
 
@@ -2295,8 +2300,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public ElementMetadata elementMetadata() {
-      return currentElement.getElementMetadata();
+    public String currentRecordId() {
+      return currentElement.getCurrentRecordId();
+    }
+
+    @Override
+    public Long currentRecordOffset() {
+      return currentElement.getCurrentRecordOffset();
     }
 
     @Override
@@ -2371,11 +2381,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo,
-          ElementMetadata elementMetadata) {
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
         checkOnWindowExpirationTimestamp(timestamp);
         outputTo(
             mainOutputConsumer,
-            WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+            WindowedValues.of(output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
       }
 
       @Override
@@ -2414,7 +2425,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
-        outputWindowedValue(tag, output, timestamp, windows, paneInfo, null);
+        outputWindowedValue(tag, output, timestamp, windows, paneInfo, null, null);
       }
 
       @Override
@@ -2424,12 +2435,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo,
-          ElementMetadata elementMetadata) {
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
         checkOnWindowExpirationTimestamp(timestamp);
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
         outputTo(
-            consumer, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+            consumer, WindowedValues.of(output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
       }
 
       @SuppressWarnings(
@@ -2699,11 +2711,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo,
-          ElementMetadata elementMetadata) {
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
         checkTimerTimestamp(timestamp);
         outputTo(
             mainOutputConsumer,
-            WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+            WindowedValues.of(output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
       }
 
       @Override
@@ -2751,7 +2764,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo,
-          ElementMetadata elementMetadata) {}
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {}
 
       @Override
       public TimeDomain timeDomain() {

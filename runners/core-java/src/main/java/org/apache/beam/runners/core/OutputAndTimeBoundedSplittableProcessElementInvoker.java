@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -380,16 +379,21 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
-    public ElementMetadata elementMetadata() {
-      return element.getElementMetadata();
-    }
-
-    @Override
     public PaneInfo pane() {
       return element.getPaneInfo();
     }
 
-    @Override
+      @Override
+      public String currentRecordId() {
+          return element.getCurrentRecordId();
+      }
+
+      @Override
+      public Long currentRecordOffset() {
+          return element.getCurrentRecordOffset();
+      }
+
+      @Override
     public PipelineOptions getPipelineOptions() {
       return pipelineOptions;
     }
@@ -423,13 +427,14 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       noteOutput();
       if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
       outputReceiver.output(
-          mainOutputTag, WindowedValues.of(value, timestamp, windows, paneInfo, elementMetadata));
+          mainOutputTag, WindowedValues.of(value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -450,7 +455,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      outputWindowedValue(tag, value, timestamp, windows, paneInfo, null);
+      outputWindowedValue(tag, value, timestamp, windows, paneInfo, null, null);
     }
 
     @Override
@@ -460,13 +465,14 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata) {
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       noteOutput();
       if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
       outputReceiver.output(
-          tag, WindowedValues.of(value, timestamp, windows, paneInfo, elementMetadata));
+          tag, WindowedValues.of(value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     private void noteOutput() {

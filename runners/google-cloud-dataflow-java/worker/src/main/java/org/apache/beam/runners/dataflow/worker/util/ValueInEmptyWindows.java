@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -61,11 +60,6 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   }
 
   @Override
-  public @Nullable ElementMetadata getElementMetadata() {
-    return null;
-  }
-
-  @Override
   public Iterable<WindowedValue<T>> explodeWindows() {
     return Collections.emptyList();
   }
@@ -78,11 +72,6 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   @Override
   public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
     return new ValueInEmptyWindows<>(newValue);
-  }
-
-  @Override
-  public WindowedValue<T> withElementMetadata(ElementMetadata elementMetadata) {
-    return this;
   }
 
   @Override

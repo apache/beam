@@ -52,9 +52,6 @@ public interface WindowedValue<T> {
   @Nullable
   Long getCurrentRecordOffset();
 
-  @Nullable
-  ElementMetadata getElementMetadata();
-
   /**
    * A representation of each of the actual values represented by this compressed {@link
    * WindowedValue}, one per window.
@@ -68,7 +65,4 @@ public interface WindowedValue<T> {
    */
   @Pure
   <OtherT> WindowedValue<OtherT> withValue(OtherT value);
-
-  @Pure
-  WindowedValue<T> withElementMetadata(ElementMetadata elementMetadata);
 }
