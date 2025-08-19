@@ -686,7 +686,7 @@ public class FileIO {
     public MatchAll withConfiguration(MatchConfiguration configuration) {
       return toBuilder().setConfiguration(configuration).build();
     }
-
+    /** Like {@link Match#withOutputParallelization}. */
     public MatchAll withOutputParallelization(boolean outputParallelization) {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
