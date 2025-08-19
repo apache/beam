@@ -566,10 +566,8 @@ class ContinuationTriggerTest(unittest.TestCase):
         AfterAny(AfterCount(1), AfterCount(1)))
 
   def test_after_count(self):
-    self.assertEqual(
-        AfterCount(1).get_continuation_trigger(), AfterCount(1))
-    self.assertEqual(
-        AfterCount(100).get_continuation_trigger(), AfterCount(1))
+    self.assertEqual(AfterCount(1).get_continuation_trigger(), AfterCount(1))
+    self.assertEqual(AfterCount(100).get_continuation_trigger(), AfterCount(1))
 
   def test_after_each(self):
     self.assertEqual(
@@ -586,9 +584,8 @@ class ContinuationTriggerTest(unittest.TestCase):
     self.assertEqual(
         AfterWatermark().get_continuation_trigger(), AfterWatermark())
     self.assertEqual(
-        AfterWatermark(
-            early=AfterCount(10),
-            late=AfterCount(20)).get_continuation_trigger(),
+        AfterWatermark(early=AfterCount(10),
+                       late=AfterCount(20)).get_continuation_trigger(),
         AfterWatermark(early=AfterCount(1), late=AfterCount(1)))
 
   def test_always(self):

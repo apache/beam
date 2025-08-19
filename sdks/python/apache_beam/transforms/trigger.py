@@ -1712,7 +1712,6 @@ class _AfterSynchronizedProcessingTime(TriggerFn):
   and internal-only. No backwards compatibility
   guarantees.
   """
-  
   def __init__(self):
     pass
 
