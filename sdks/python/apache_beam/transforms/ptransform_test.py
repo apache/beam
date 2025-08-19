@@ -43,6 +43,7 @@ from apache_beam import typehints
 from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
@@ -52,6 +53,9 @@ from apache_beam.testing.util import SortLists
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterProcessingTime
+from apache_beam.transforms.trigger import _AfterSynchronizedProcessingTime
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
@@ -505,6 +509,21 @@ class PTransformTest(unittest.TestCase):
         'global windowing and a default trigger'):
       with TestPipeline(options=test_options) as pipeline:
         pipeline | TestStream() | beam.GroupByKey()
+
+  def test_group_by_key_trigger(self):
+    options = PipelineOptions(['--allow_unsafe_triggers'])
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(runner='BundleBasedDirectRunner',
+                      options=options) as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([(0, 0)])
+      triggered = pcoll | 'Trigger' >> beam.WindowInto(
+          window.GlobalWindows(),
+          trigger=AfterProcessingTime(1),
+          accumulation_mode=AccumulationMode.DISCARDING)
+      output = triggered | 'Gbk' >> beam.GroupByKey()
+      self.assertTrue(
+          isinstance(
+              output.windowing.triggerfn, _AfterSynchronizedProcessingTime))
 
   def test_group_by_key_unsafe_trigger(self):
     test_options = PipelineOptions()

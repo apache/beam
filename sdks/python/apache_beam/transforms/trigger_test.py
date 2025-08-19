@@ -554,6 +554,59 @@ class RunnerApiTest(unittest.TestCase):
           TriggerFn.from_runner_api(trigger_fn.to_runner_api(context), context))
 
 
+class ContinuationTriggerTest(unittest.TestCase):
+  def test_after_all(self):
+    self.assertEqual(
+        AfterAll(AfterCount(2), AfterCount(5)).get_continuation_trigger(),
+        AfterAll(AfterCount(1), AfterCount(1)))
+
+  def test_after_any(self):
+    self.assertEqual(
+        AfterAny(AfterCount(2), AfterCount(5)).get_continuation_trigger(),
+        AfterAny(AfterCount(1), AfterCount(1)))
+
+  def test_after_count(self):
+    self.assertEqual(
+        AfterCount(1).get_continuation_trigger(), AfterCount(1))
+    self.assertEqual(
+        AfterCount(100).get_continuation_trigger(), AfterCount(1))
+
+  def test_after_each(self):
+    self.assertEqual(
+        AfterEach(AfterCount(2), AfterCount(5)).get_continuation_trigger(),
+        Repeatedly(AfterAny(AfterCount(1), AfterCount(1))))
+
+  def test_after_processing_time(self):
+    from apache_beam.transforms.trigger import _AfterSynchronizedProcessingTime
+    self.assertEqual(
+        AfterProcessingTime(10).get_continuation_trigger(),
+        _AfterSynchronizedProcessingTime())
+
+  def test_after_watermark(self):
+    self.assertEqual(
+        AfterWatermark().get_continuation_trigger(), AfterWatermark())
+    self.assertEqual(
+        AfterWatermark(
+            early=AfterCount(10),
+            late=AfterCount(20)).get_continuation_trigger(),
+        AfterWatermark(early=AfterCount(1), late=AfterCount(1)))
+
+  def test_always(self):
+    self.assertEqual(Always().get_continuation_trigger(), Always())
+
+  def test_default(self):
+    self.assertEqual(
+        DefaultTrigger().get_continuation_trigger(), DefaultTrigger())
+
+  def test_never(self):
+    self.assertEqual(_Never().get_continuation_trigger(), _Never())
+
+  def test_repeatedly(self):
+    self.assertEqual(
+        Repeatedly(AfterCount(10)).get_continuation_trigger(),
+        Repeatedly(AfterCount(1)))
+
+
 class TriggerPipelineTest(unittest.TestCase):
   def test_after_processing_time(self):
     test_options = PipelineOptions(
