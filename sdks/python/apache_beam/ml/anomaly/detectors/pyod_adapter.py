@@ -15,6 +15,12 @@
 # limitations under the License.
 #
 
+"""Utilities to adapt PyOD models for Beam's anomaly detection APIs.
+
+This module provides a ModelHandler implementation for PyOD detectors and a
+factory for creating OfflineDetector wrappers around pickled PyOD models.
+"""
+
 import pickle
 from collections.abc import Iterable
 from collections.abc import Sequence
@@ -66,6 +72,7 @@ class PyODModelHandler(ModelHandler[beam.Row,
     .. [#] https://github.com/yzhao062/pyod
     """
   def __init__(self, model_uri: str):
+    super().__init__()
     self._model_uri = model_uri
 
   def load_model(self) -> PyODBaseDetector:
@@ -78,6 +85,13 @@ class PyODModelHandler(ModelHandler[beam.Row,
       model: PyODBaseDetector,
       inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable[PredictionResult]:
+    """Run inference on a batch of `beam.Row` examples.
+
+        The handler supports vector features. Each input `beam.Row` is flattened
+        into a 1-D float array (expanding list/tuple/ndarray fields) and the
+        batch is stacked into a 2-D numpy array which is passed to PyOD's
+        `decision_function`.
+        """
     def _flatten_row(row_values):
       for value in row_values:
         if isinstance(value, (list, tuple, np.ndarray)):
@@ -93,14 +107,16 @@ class PyODModelHandler(ModelHandler[beam.Row,
     vectorized_batch = np.stack(np_batch, axis=0)
     predictions = model.decision_function(vectorized_batch)
 
-    return _convert_to_result(
-        batch,
-        predictions,
-        model_id=self._model_uri,
-    )
+    return _convert_to_result(batch, predictions, model_id=self._model_uri)
 
 
 class PyODFactory:
+  """Factory helpers for creating OfflineDetector instances from PyOD models.
+
+    The factory currently only exposes a convenience method to wrap a pickled
+    PyOD model into an OfflineDetector with a fixed threshold taken from the
+    trained model.
+    """
   @staticmethod
   def create_detector(model_uri: str, **kwargs) -> OfflineDetector:
     """A utility function to create OfflineDetector for a PyOD model.
@@ -123,9 +139,7 @@ class PyODFactory:
     threshold = float(m.threshold_)
 
     detector = OfflineDetector(
-        model_handler,
-        threshold_criterion=FixedThreshold(threshold),
-        **kwargs,
+        model_handler, threshold_criterion=FixedThreshold(threshold), **kwargs
     )  # type: ignore[arg-type]
 
     return detector
