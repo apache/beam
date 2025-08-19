@@ -141,8 +141,24 @@ func extractJar(source, dest string) error {
 
 	for _, file := range reader.File {
 		fileName := filepath.Join(dest, file.Name)
+
+		// Validate the file path to prevent directory traversal
+		absFileName, err := filepath.Abs(fileName)
+		if err != nil {
+			return fmt.Errorf("error resolving absolute path for %s: %w", fileName, err)
+		}
+		absDest, err := filepath.Abs(dest)
+		if err != nil {
+			return fmt.Errorf("error resolving absolute path for destination %s: %w", dest, err)
+		}
+		if !strings.HasPrefix(absFileName, absDest+string(os.PathSeparator)) {
+			return fmt.Errorf("invalid file path %s: outside of destination directory %s", absFileName, absDest)
+		}
+
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(fileName, 0700)
+			if err := os.MkdirAll(absFileName, 0700); err != nil {
+				return fmt.Errorf("error creating directory %s: %w", absFileName, err)
+			}
 			continue
 		}
 
@@ -152,9 +168,9 @@ func extractJar(source, dest string) error {
 		}
 		defer sf.Close()
 
-		df, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+		df, err := os.OpenFile(absFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
 		if err != nil {
-			return fmt.Errorf("error opening destination file %s: %w", fileName, err)
+			return fmt.Errorf("error opening destination file %s: %w", absFileName, err)
 		}
 		defer df.Close()
 
