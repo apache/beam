@@ -139,7 +139,7 @@ The GitHub Actions workflow (`.github/workflows/beam_Infrastructure_PolicyEnforc
 - **Manual trigger**: Can be triggered manually via `workflow_dispatch`
 - **Actions**: Runs both IAM and Account Keys enforcement with the `announce` action
 
-**Note**: 
+**Note**:
 - The email service is configured to use gmail
 - The recipient email is set to `dev@beam.apache.org` for Apache Beam project notifications
 - The `GITHUB_TOKEN` is automatically provided by GitHub Actions and doesn't need to be configured manually
