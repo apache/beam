@@ -295,10 +295,11 @@ public class IcebergReadWriteIT {
             + "   c_timestamp TIMESTAMP, \n"
             + "   c_varchar VARCHAR \n "
             + ") \n"
-            + "TYPE 'iceberg' \n"
+            + "TYPE 'iceberg_cdc' \n"
             + "LOCATION '"
             + tableIdentifier
-            + "'";
+            + "' \n"
+            + "TBLPROPERTIES '{\"streaming\": \"true\"}'";
     sqlEnv.executeDdl(createTableStatement);
 
     // 4) insert some data)
