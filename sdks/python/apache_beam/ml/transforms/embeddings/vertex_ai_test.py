@@ -342,13 +342,14 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
         model_name=self.model_name,
         video_column=video_feature_column,
         dimension=1408,
-        video_segment_config=self.video_segment_config,
         project="apache-beam-testing",
         location="us-central1")
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (
           pipeline | "CreateData" >> beam.Create([{
-              video_feature_column: Video.load_from_file(self.video_path),
+              video_feature_column: (
+                  Video.load_from_file(self.video_path),
+                  self.video_segment_config),
           }])
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(

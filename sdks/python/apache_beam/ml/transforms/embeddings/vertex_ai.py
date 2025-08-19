@@ -299,7 +299,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
 @dataclass
 class VertexAIMultiModalInput:
   image: Optional[Image] = None
-  video: Optional[Video] = None
+  video: Optional[tuple[Video, VideoSegmentConfig]] = None
   contextual_text: Optional[str] = None
 
 
@@ -308,7 +308,6 @@ class _VertexAIMultiModalEmbeddingHandler(RemoteModelHandler):
       self,
       model_name: str,
       dimension: Optional[int] = None,
-      video_segment_config: Optional[VideoSegmentConfig] = None,
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
@@ -316,7 +315,6 @@ class _VertexAIMultiModalEmbeddingHandler(RemoteModelHandler):
     vertexai.init(project=project, location=location, credentials=credentials)
     self.model_name = model_name
     self.dimension = dimension
-    self.video_segment_config = video_segment_config
 
     super().__init__(
         namespace='VertexAIMultiModelEmbeddingHandler',
@@ -333,10 +331,10 @@ class _VertexAIMultiModalEmbeddingHandler(RemoteModelHandler):
     for input in batch:
       prediction = model.get_embeddings(
           image=input.image,
-          video=input.video,
+          video=input.video[0],
           contextual_text=input.contextual_text,
           dimension=self.dimension,
-          video_segment_config=self.video_segment_config)
+          video_segment_config=input.video[1])
       embeddings.append(prediction)
     return embeddings
 
@@ -359,7 +357,7 @@ def _multimodal_dict_input_fn(
   multimodal_inputs: list[VertexAIMultiModalInput] = []
   for item in batch:
     img: Optional[Image] = None
-    vid: Optional[Video] = None
+    vid: tuple[Optional[Video], Optional[VideoSegmentConfig]] = (None, None)
     text: Optional[str] = None
     if image_column:
       img = item[image_column]
@@ -422,7 +420,6 @@ class VertexAIMultiModalEmbeddings(EmbeddingsManager):
       video_column: Optional[str] = None,
       text_column: Optional[str] = None,
       dimension: Optional[int] = None,
-      video_segment_config: Optional[VideoSegmentConfig] = None,
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
@@ -458,7 +455,6 @@ class VertexAIMultiModalEmbeddings(EmbeddingsManager):
       raise ValueError(
           "dimension argument must be one of 128, 256, 512, or 1408")
     self.dimension = dimension
-    self.video_segment_config = video_segment_config
     if not image_column and not video_column and not text_column:
       raise ValueError("at least one input column must be specified")
     if video_column is not None and dimension != 1408:
@@ -475,7 +471,6 @@ class VertexAIMultiModalEmbeddings(EmbeddingsManager):
     return _VertexAIMultiModalEmbeddingHandler(
         model_name=self.model_name,
         dimension=self.dimension,
-        video_segment_config=self.video_segment_config,
         project=self.project,
         location=self.location,
         credentials=self.credentials,
