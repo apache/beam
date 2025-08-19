@@ -128,6 +128,22 @@ The `print` action can be used for testing notification content without actually
 
 Command-line arguments take precedence over configuration file settings.
 
+## GitHub Actions Integration
+
+The enforcement tools are integrated with GitHub Actions to provide automated compliance monitoring. The workflow is configured to run weekly and automatically create GitHub issues and send email notifications for any policy violations.
+
+### Workflow Configuration
+
+The GitHub Actions workflow (`.github/workflows/beam_Infrastructure_PolicyEnforcer.yml`) runs:
+- **Schedule**: Weekly on Mondays at 9:00 AM UTC
+- **Manual trigger**: Can be triggered manually via `workflow_dispatch`
+- **Actions**: Runs both IAM and Account Keys enforcement with the `announce` action
+
+**Note**: 
+- The email service is configured to use gmail
+- The recipient email is set to `dev@beam.apache.org` for Apache Beam project notifications
+- The `GITHUB_TOKEN` is automatically provided by GitHub Actions and doesn't need to be configured manually
+
 ## Account Keys
 
 The enforcement is also done by validating service account keys and their access permissions against the defined policies.
