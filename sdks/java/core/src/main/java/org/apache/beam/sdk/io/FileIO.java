@@ -675,8 +675,6 @@ public class FileIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      protected boolean outputParallelization;
-
       abstract Builder setConfiguration(MatchConfiguration configuration);
 
       abstract MatchAll build();
@@ -687,19 +685,6 @@ public class FileIO {
     /** Like {@link Match#withConfiguration}. */
     public MatchAll withConfiguration(MatchConfiguration configuration) {
       return toBuilder().setConfiguration(configuration).build();
-    }
-
-    /**
-     * Specifies to avoid the reshuffle operation.
-     *
-     * <p>This is a performance optimization for pipelines that match a small number of
-     * filepatterns.
-     *
-     * <p>By default, a {@link org.apache.beam.sdk.transforms.Reshuffle} is applied to the matched
-     * files to break fusion and improve parallelism.
-     */
-    public MatchAll outputParallelization() {
-      return toBuilder().setOutputParallelization(true).build();
     }
 
     public MatchAll withOutputParallelization(boolean outputParallelization) {
