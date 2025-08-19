@@ -1350,6 +1350,7 @@ class Pickler(pickle.Pickler):
     self.globals_ref = {}
     self.proto = int(protocol)
     self.config = config
+    self.enable_lambda_name=enable_lambda_name
 
   if not PYPY:
     # pickle.Pickler is the C implementation of the CPython pickler and
