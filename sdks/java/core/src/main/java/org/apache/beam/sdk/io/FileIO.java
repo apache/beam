@@ -373,7 +373,7 @@ public class FileIO {
   public static MatchAll matchAll() {
     return new AutoValue_FileIO_MatchAll.Builder()
         .setConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
-        .setOutputParallelization(false)
+        .setOutputParallelization(true)
         .build();
   }
 
@@ -745,11 +745,11 @@ public class FileIO {
           res = input.apply(createWatchTransform(new ExtractFilenameFn())).apply(Values.create());
         }
       }
-      // Apply Reshuffle conditionally based on the new flag
+      // Apply Reshuffle conditionally based on the flag
       if (getOutputParallelization()) {
-        return res; // No reshuffle
-      } else {
         return res.apply(Reshuffle.viaRandomKey());
+      } else {
+        return res;
       }
     }
     /** Returns whether to avoid the reshuffle operation. */
