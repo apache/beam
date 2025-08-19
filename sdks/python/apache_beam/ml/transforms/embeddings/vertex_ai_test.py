@@ -348,8 +348,7 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
       transformed_pcoll = (
           pipeline | "CreateData" >> beam.Create([{
               video_feature_column: (
-                  Video(gcs_uri=self.video_path),
-                  self.video_segment_config),
+                  Video(gcs_uri=self.video_path), self.video_segment_config),
           }])
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
