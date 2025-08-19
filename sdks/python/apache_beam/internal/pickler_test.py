@@ -282,7 +282,6 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
         dumps(set1, enable_best_effort_determinism=False),
         dumps(set2, enable_best_effort_determinism=False))
 
-
   def test_enable_lambda_name_pickling(self):
     pickler.set_library('cloudpickle')
     pickled = pickle_depickle(lambda x: x, enable_lambda_name=True)
@@ -294,6 +293,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     pickled = pickle_depickle(lambda x: x, enable_lambda_name=False)
     pickled_type = type(pickled)
     self.assertIsInstance(pickled, pickled_type)
+
 
 if __name__ == '__main__':
   unittest.main()

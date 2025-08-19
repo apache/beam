@@ -792,8 +792,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
             self,
             enable_best_effort_determinism=context.
             enable_best_effort_deterministic_pickling,
-            enable_lambda_name=context.
-            enable_lambda_name_pickling,
+            enable_lambda_name=context.enable_lambda_name_pickling,
         ),
     )
 

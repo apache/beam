@@ -78,6 +78,9 @@ import uuid
 import warnings
 import weakref
 
+from apache_beam.internal.code_object_pickler import get_code_from_identifier
+from apache_beam.internal.code_object_pickler import get_code_object_identifier
+
 # The following import is required to be imported in the cloudpickle
 # namespace to be able to load pickle files generated with older versions of
 # cloudpickle. See: tests/test_backward_compat.py
@@ -1272,7 +1275,7 @@ class Pickler(pickle.Pickler):
     newargs = self._function_getnewargs(func)
     state = _function_getstate(func)
     if type(newargs[0]) == str:
-      make_function - _make_function_from_identifier
+      make_function = _make_function_from_identifier
     else:
       make_function = _make_function
     return (make_function, newargs, state, None, None, _function_setstate)
@@ -1292,7 +1295,8 @@ class Pickler(pickle.Pickler):
       return self._dynamic_function_reduce(obj)
 
   def _function_getnewargs(self, func):
-    code_path = get_code_object_indentifier(func) if self.enable_lambda_name else None
+    code_path = get_code_object_indentifier(
+        func) if self.enable_lambda_name else None
     code = func.__code__
 
     # base_globals represents the future global namespace of func at
@@ -1339,7 +1343,11 @@ class Pickler(pickle.Pickler):
         raise
 
   def __init__(
-      self, file, protocol=None, buffer_callback=None, config=DEFAULT_CONFIG,
+      self,
+      file,
+      protocol=None,
+      buffer_callback=None,
+      config=DEFAULT_CONFIG,
       enable_lambda_name=False):
     if protocol is None:
       protocol = DEFAULT_PROTOCOL
@@ -1350,7 +1358,7 @@ class Pickler(pickle.Pickler):
     self.globals_ref = {}
     self.proto = int(protocol)
     self.config = config
-    self.enable_lambda_name=enable_lambda_name
+    self.enable_lambda_name = enable_lambda_name
 
   if not PYPY:
     # pickle.Pickler is the C implementation of the CPython pickler and

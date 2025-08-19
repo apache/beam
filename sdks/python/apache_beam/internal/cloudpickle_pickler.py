@@ -129,7 +129,7 @@ def dumps(
   with _pickle_lock:
     with io.BytesIO() as file:
       pickler = cloudpickle.CloudPickler(
-        file, config=config, enable_lambda_name=enable_lambda_name)
+          file, config=config, enable_lambda_name=enable_lambda_name)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
