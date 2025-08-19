@@ -19,7 +19,12 @@
 
 # Infrastructure rules enforcement
 
-This module is used to check that the infrastructure rules are being used.
+This module is used to check that the infrastructure rules are being used and provides automated notifications for compliance violations.
+
+The enforcement tools support multiple notification methods:
+- **GitHub Issues**: Automatically create GitHub issues with detailed compliance reports
+- **Email Notifications**: Send email alerts via SMTP for compliance violations
+- **Console Output**: Print detailed reports to console for manual review
 
 ## IAM Policies
 
@@ -34,8 +39,11 @@ You can specify the action either through the configuration file (`config.yml`) 
 # Check compliance and report issues (default)
 python iam.py --action check
 
-# Create GitHub issue if compliance violations are found
-python iam.py --action issue
+# Create/update GitHub issue and send email if compliance violations are found
+python iam.py --action announce
+
+# Print announcement details for testing purposes (no actual issue created)
+python iam.py --action print
 
 # Generate new compliance file based on current IAM policy
 python iam.py --action generate
@@ -44,7 +52,8 @@ python iam.py --action generate
 ### Actions
 
 - **check**: Validates IAM policies against defined policies and reports any differences (default behavior)
-- **issue**: Creates a GitHub issue when IAM policies differ from the defined ones, including detailed permission discrepancies
+- **announce**: Creates or updates a GitHub issue and sends an email notification when IAM policies differ from the defined ones. If no open issue exists, creates a new one; if an open issue exists, updates the issue body with current violations
+- **print**: Prints announcement details for testing purposes without creating actual GitHub issues or sending emails
 - **generate**: Updates the compliance file to match the current GCP IAM policy, creating a new baseline from existing permissions
 
 ### Features
@@ -58,6 +67,9 @@ The IAM Policy enforcement tool provides the following capabilities:
 - **Sorted Output**: Provides consistent, sorted output for easy comparison and review
 - **Detailed Reporting**: Comprehensive reporting of permission differences with clear before/after comparisons
 - **GitHub Integration**: Automatic issue creation with detailed compliance violation reports
+- **Email Notifications**: Optional email notifications for compliance issues via SMTP
+- **Issue Management**: Smart issue handling - creates new issues when none exist, updates existing open issues with current violations
+- **Testing Support**: Print action allows testing notification content without actually sending
 
 ### Configuration
 
@@ -65,8 +77,20 @@ The `config.yml` file supports the following parameters for IAM policies:
 
 - `project_id`: GCP project ID to check (default: `apache-beam-testing`)
 - `users_file`: Path to the YAML file containing expected IAM policies (default: `../iam/users.yml`)
-- `action`: Default action to perform (`check`, `issue`, or `generate`)
+- `action`: Default action to perform (`check`, `announce`, `print`, or `generate`)
 - `logging`: Logging configuration (level and format)
+
+### Environment Variables (for announce action)
+
+When using the `announce` action, the following environment variables are required:
+
+- `GITHUB_TOKEN`: GitHub personal access token for creating issues
+- `GITHUB_REPOSITORY`: Repository in format `owner/repo` (default: `apache/beam`)
+- `SMTP_SERVER`: SMTP server for email notifications
+- `SMTP_PORT`: SMTP port (default: 587)
+- `EMAIL_ADDRESS`: Email address for sending notifications
+- `EMAIL_PASSWORD`: Email password for authentication
+- `EMAIL_RECIPIENT`: Email address to receive notifications
 
 ### IAM Policy File Format
 
@@ -98,6 +122,9 @@ Each user entry includes:
 3. **Role Processing**: Processes all roles while filtering out conditional bindings
 4. **Comparison**: Compares current permissions with expected permissions from the policy file
 5. **Reporting**: Generates detailed reports of any discrepancies found
+6. **Notification**: Sends notifications via GitHub issues and/or email when using announce action
+
+The `print` action can be used for testing notification content without actually creating GitHub issues or sending emails.
 
 Command-line arguments take precedence over configuration file settings.
 
@@ -114,8 +141,11 @@ You can specify the action either through the configuration file (`config.yml`) 
 # Check compliance and report issues (default)
 python account_keys.py --action check
 
-# Create GitHub issue if compliance violations are found
-python account_keys.py --action issue
+# Create/update GitHub issue and send email if compliance violations are found
+python account_keys.py --action announce
+
+# Print announcement details for testing purposes (no actual issue created)
+python account_keys.py --action print
 
 # Generate new compliance file based on current service account keys policy
 python account_keys.py --action generate
@@ -124,7 +154,8 @@ python account_keys.py --action generate
 ### Actions
 
 - **check**: Validates service account keys and their permissions against defined policies and reports any differences (default behavior)
-- **issue**: Creates a GitHub issue when service account keys policies differ from the defined ones
+- **announce**: Creates or updates a GitHub issue and sends an email notification when service account keys policies differ from the defined ones. If no open issue exists, creates a new one; if an open issue exists, updates the issue body with current violations
+- **print**: Prints announcement details for testing purposes without creating actual GitHub issues or sending emails
 - **generate**: Updates the compliance file to match the current GCP service account keys and Secret Manager permissions
 
 ### Features
@@ -143,8 +174,20 @@ The `config.yml` file supports the following parameters for account keys:
 
 - `project_id`: GCP project ID to check
 - `service_account_keys_file`: Path to the YAML file containing expected service account keys policies (default: `../keys/keys.yaml`)
-- `action`: Default action to perform (`check`, `issue`, or `generate`)
+- `action`: Default action to perform (`check`, `announce`, `print`, or `generate`)
 - `logging`: Logging configuration (level and format)
+
+### Environment Variables (for announce action)
+
+When using the `announce` action, the following environment variables are required:
+
+- `GITHUB_TOKEN`: GitHub personal access token for creating issues
+- `GITHUB_REPOSITORY`: Repository in format `owner/repo` (default: `apache/beam`)
+- `SMTP_SERVER`: SMTP server for email notifications
+- `SMTP_PORT`: SMTP port (default: 587)
+- `EMAIL_ADDRESS`: Email address for sending notifications
+- `EMAIL_PASSWORD`: Email password for authentication
+- `EMAIL_RECIPIENT`: Email address to receive notifications
 
 ### Service Account Keys File Format
 
