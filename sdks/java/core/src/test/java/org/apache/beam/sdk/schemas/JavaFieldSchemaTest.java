@@ -158,7 +158,7 @@ public class JavaFieldSchemaTest {
             BYTE_ARRAY,
             BYTE_BUFFER.array(),
             BigDecimal.ONE,
-            new StringBuilder(name).append("builder").toString())
+            name + "builder")
         .build();
   }
 
@@ -176,7 +176,7 @@ public class JavaFieldSchemaTest {
             BYTE_ARRAY,
             BYTE_BUFFER.array(),
             BigDecimal.ONE,
-            new StringBuilder(name).append("builder").toString())
+            name + "builder")
         .build();
   }
 

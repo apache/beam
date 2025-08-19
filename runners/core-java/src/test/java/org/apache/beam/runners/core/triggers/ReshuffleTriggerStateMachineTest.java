@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.joda.time.Duration;
@@ -35,7 +34,7 @@ import org.junit.runners.JUnit4;
 public class ReshuffleTriggerStateMachineTest {
 
   /** Public so that other tests can instantiate {@link ReshuffleTriggerStateMachine}. */
-  public static <W extends BoundedWindow> ReshuffleTriggerStateMachine forTest() {
+  public static ReshuffleTriggerStateMachine forTest() {
     return ReshuffleTriggerStateMachine.create();
   }
 
