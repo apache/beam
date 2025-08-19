@@ -299,7 +299,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
 @dataclass
 class VertexAIMultiModalInput:
   image: Optional[Image] = None
-  video: Optional[tuple[Video, VideoSegmentConfig]] = None
+  video: tuple[Optional[Video], Optional[VideoSegmentConfig]] = (None, None)
   contextual_text: Optional[str] = None
 
 
