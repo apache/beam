@@ -61,22 +61,46 @@ const (
 	workerPoolIdEnv                 = "BEAM_GO_WORKER_POOL_ID"
 )
 
-func configureGoogleCloudProfilerEnvVars(ctx context.Context, logger *tools.Logger, metadata map[string]string) error {
-	if metadata == nil {
-		return errors.New("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled")
+func configureGoogleCloudProfilerEnvVars(ctx context.Context, logger *tools.Logger, metadata map[string]string, options string) error {
+	const profilerKey = "enable_google_cloud_profiler="
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(options), &parsed); err != nil {
+		panic(err)
 	}
-	jobName, nameExists := metadata["job_name"]
-	if !nameExists {
-		return errors.New("required job_name missing from metadata, profiling will not be enabled without it")
+
+	var profilerServiceName string
+
+	// Try from "beam:option:go_options:v1" -> "options" -> "dataflow_service_options"
+	if goOpts, ok := parsed["beam:option:go_options:v1"].(map[string]interface{}); ok {
+		if options, ok := goOpts["options"].(map[string]interface{}); ok {
+			if profilerServiceNameRaw, ok := options["dataflow_service_options"].(string); ok {
+				if strings.HasPrefix(profilerServiceNameRaw, profilerKey) {
+					profilerServiceName = strings.TrimPrefix(profilerServiceNameRaw, profilerKey)
+				}
+			}
+		}
 	}
+
+	// Fallback to job_name from metadata
+    if profilerServiceName == "" {
+        if jobName, jobNameExists := metadata["job_name"]; jobNameExists {
+            profilerServiceName = jobName
+        } else {
+            return errors.New("required job_name missing from metadata, profiling will not be enabled without it")
+        }
+    }
+
 	jobID, idExists := metadata["job_id"]
 	if !idExists {
 		return errors.New("required job_id missing from metadata, profiling will not be enabled without it")
 	}
-	os.Setenv(cloudProfilingJobName, jobName)
+
+	os.Setenv(cloudProfilingJobName, profilerServiceName)
 	os.Setenv(cloudProfilingJobID, jobID)
-	logger.Printf(ctx, "Cloud Profiling Job Name: %v, Job IDL %v", jobName, jobID)
+	logger.Printf(ctx, "Cloud Profiling Job Name: %v, Job IDL %v", profilerServiceName, jobID)
 	return nil
+
 }
 
 func main() {
@@ -119,6 +143,7 @@ func main() {
 		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
 	log.Printf("Provision info:\n%v", info)
+	log.Printf("Hello info:\n%v", info)
 
 	err = ensureEndpointsSet(info)
 	if err != nil {
@@ -184,7 +209,7 @@ func main() {
 
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
 	if enableGoogleCloudProfiler {
-		err := configureGoogleCloudProfilerEnvVars(ctx, logger, info.Metadata)
+		err := configureGoogleCloudProfilerEnvVars(ctx, logger, info.Metadata, options)
 		if err != nil {
 			logger.Printf(ctx, "could not configure Google Cloud Profiler variables, got %v", err)
 		}
