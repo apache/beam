@@ -692,11 +692,12 @@ public class FileIO {
     /**
      * Specifies to avoid the reshuffle operation.
      *
-     * <p>This is a performance optimization for pipelines that match a small number of filepatterns.
+     * <p>This is a performance optimization for pipelines that match a small number of
+     * filepatterns.
      *
-     * <p>By default, a {@link org.apache.beam.sdk.transforms.Reshuffle} is applied to the matched files to break fusion and improve parallelism.
+     * <p>By default, a {@link org.apache.beam.sdk.transforms.Reshuffle} is applied to the matched
+     * files to break fusion and improve parallelism.
      */
-
     public MatchAll outputParallelization() {
       return toBuilder().setOutputParallelization(true).build();
     }
