@@ -294,7 +294,7 @@ class FnApiWorkerStatusHandler(object):
             stack_trace,
         )
         from apache_beam.runners.worker.sdk_worker_main import flush_fn_log_handler
-        
+
         flush_fn_log_handler()
 
   def _get_stack_trace(self, sampler_info):
