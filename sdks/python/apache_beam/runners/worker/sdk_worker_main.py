@@ -49,6 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
 _FN_LOG_HANDLER = None
 
+
 def _import_beam_plugins(plugins):
   for plugin in plugins:
     try:
@@ -221,12 +222,13 @@ def main(unused_argv):
     if fn_log_handler:
       fn_log_handler.close()
 
-def flush_fn_log_handler(err_msg):
+
+def flush_fn_log_handler():
   """Flushes the FnApiLogRecordHandler if it exists."""
-  _LOGGER.error(err_msg + 'The SDK harness will be terminated.')
   if _FN_LOG_HANDLER:
     _FN_LOG_HANDLER.close()
   sys.exit(1)
+
 
 def _load_pipeline_options(options_json):
   if options_json is None:

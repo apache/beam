@@ -97,7 +97,9 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
 
     now = time.time()
     with mock.patch('logging.Logger.warning') as warn_mock:
-      with mock.patch('apache_beam.runners.worker.sdk_worker_main.flush_fn_log_handler') as flush_mock:
+      with mock.patch(
+          'apache_beam.runners.worker.sdk_worker_main.flush_fn_log_handler'
+      ) as flush_mock:
         with mock.patch('time.time') as time_mock:
           time_mock.return_value = now
           bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
@@ -130,6 +132,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
           bundle_id, sampler_info = get_state_sampler_info_for_lull(11 * 60)
           self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
           self.assertEqual(flush_mock.call_count, 3)
+
 
 class HeapDumpTest(unittest.TestCase):
   @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)

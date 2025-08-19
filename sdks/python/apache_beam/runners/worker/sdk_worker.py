@@ -159,7 +159,7 @@ class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
   def __init__(
-      self,  # type: SdkWorker
+      self,
       control_address,  # type: str
       credentials=None,  # type: Optional[grpc.ChannelCredentials]
       worker_id=None,  # type: Optional[str]
@@ -234,8 +234,7 @@ class SdkHarness(object):
             self._state_cache,
             enable_heap_dump,
             element_processing_timeout_minutes=self.
-            _element_processing_timeout_minutes
-        )
+            _element_processing_timeout_minutes)
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(
@@ -411,6 +410,7 @@ class SdkHarness(object):
     # type: () -> SdkWorker
     return SdkWorker(
         self._bundle_processor_cache, profiler_factory=self._profiler_factory)
+
 
 class BundleProcessorCache(object):
   """A cache for ``BundleProcessor``s.
