@@ -526,6 +526,11 @@ def _make_function(code, globals, name, argdefs, closure):
   return types.FunctionType(code, globals, name, argdefs, closure)
 
 
+def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
+  fcode = get_code_from_identifier(code_path)
+  return _make_function(fcode, globals, name, argdefs, closure)
+
+
 def _make_empty_cell():
   if False:
     # trick the compiler into creating an empty cell in our lambda
@@ -1266,7 +1271,11 @@ class Pickler(pickle.Pickler):
     """Reduce a function that is not pickleable via attribute lookup."""
     newargs = self._function_getnewargs(func)
     state = _function_getstate(func)
-    return (_make_function, newargs, state, None, None, _function_setstate)
+    if type(newargs[0]) == str:
+      make_function - _make_function_from_identifier
+    else:
+      make_function = _make_function
+    return (make_function, newargs, state, None, None, _function_setstate)
 
   def _function_reduce(self, obj):
     """Reducer for function objects.
@@ -1283,6 +1292,7 @@ class Pickler(pickle.Pickler):
       return self._dynamic_function_reduce(obj)
 
   def _function_getnewargs(self, func):
+    code_path = get_code_object_indentifier(func) if self.enable_lambda_name else None
     code = func.__code__
 
     # base_globals represents the future global namespace of func at
@@ -1313,7 +1323,10 @@ class Pickler(pickle.Pickler):
     else:
       closure = tuple(_make_empty_cell() for _ in range(len(code.co_freevars)))
 
-    return code, base_globals, None, None, closure
+    if code_path:
+      return code_path, base_globals, None, None, closure
+    else:
+      return code, base_globals, None, None, closure
 
   def dump(self, obj):
     try:
@@ -1326,7 +1339,8 @@ class Pickler(pickle.Pickler):
         raise
 
   def __init__(
-      self, file, protocol=None, buffer_callback=None, config=DEFAULT_CONFIG):
+      self, file, protocol=None, buffer_callback=None, config=DEFAULT_CONFIG,
+      enable_lambda_name=False):
     if protocol is None:
       protocol = DEFAULT_PROTOCOL
     super().__init__(file, protocol=protocol, buffer_callback=buffer_callback)

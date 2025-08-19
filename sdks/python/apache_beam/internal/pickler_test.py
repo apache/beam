@@ -34,6 +34,10 @@ from apache_beam.internal.pickler import dumps
 from apache_beam.internal.pickler import loads
 
 
+def pickle_depickle(obj, enable_lambda_name):
+  return loads(dumps(obj, enable_lambda_name=enable_lambda_name))
+
+
 class PicklerTest(unittest.TestCase):
 
   NO_MAPPINGPROXYTYPE = not hasattr(types, "MappingProxyType")
@@ -278,6 +282,18 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
         dumps(set1, enable_best_effort_determinism=False),
         dumps(set2, enable_best_effort_determinism=False))
 
+
+  def test_enable_lambda_name_pickling(self):
+    pickler.set_library('cloudpickle')
+    pickled = pickle_depickle(lambda x: x, enable_lambda_name=True)
+    pickled_type = type(pickled)
+    self.assertIsInstance(pickled, pickled_type)
+
+  def test_disable_lambda_name_pickling(self):
+    pickler.set_library('cloudpickle')
+    pickled = pickle_depickle(lambda x: x, enable_lambda_name=False)
+    pickled_type = type(pickled)
+    self.assertIsInstance(pickled, pickled_type)
 
 if __name__ == '__main__':
   unittest.main()

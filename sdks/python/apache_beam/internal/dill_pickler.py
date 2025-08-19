@@ -379,8 +379,13 @@ def dumps(
     o,
     enable_trace=True,
     use_zlib=False,
-    enable_best_effort_determinism=False) -> bytes:
+    enable_best_effort_determinism=False,
+    enable_lambda_name=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
+  if enable_lambda_name:
+    logging.info(
+        'Ignoring unsupported option: enable_lambda_name. '
+        'This has only been implemented for CloudPickle.')
   with _pickle_lock:
     if enable_best_effort_determinism:
       old_save_set = dill.dill.Pickler.dispatch[set]

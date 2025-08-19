@@ -315,10 +315,10 @@ def _search_lambda(
 _SINGLE_NAME_PATTERN = re.compile(r'co_consts\[([a-zA-Z0-9\<\>_-]+)]')
 # Matches a path like: co_consts[<lambda>, ('x',)]
 _LAMBDA_WITH_ARGS_PATTERN = re.compile(
-    r"co_consts\[(<[^>]+>),\s*(\('[^']*'\s*,\s*\))\]")
+    r"co_consts\[(<.*?>),\s(\('[^']+'(?:,\s*'[^']+')*,?\))\]")
 # Matches a path like: co_consts[<lambda>, ('x',), 1234567890]
 _LAMBDA_WITH_HASH_PATTERN = re.compile(
-    r"co_consts\[(<[^>]+>),\s*(\('[^']*'\s*,\s*\)),\s*(.+)\]")
+    r"co_consts\[(<[^>]+>),\s*(\([^\)]*\)),?\s*(.*)\]")
 # Matches a path like: __defaults__[0]
 _DEFAULT_PATTERN = re.compile(r'(__defaults__)\[(\d+)\]')
 # Matches an argument like: 'x'
@@ -375,7 +375,7 @@ def _get_code_object_from_lambda_with_args_pattern(
     for obj_ in objects:
       args = tuple(
           re.findall(_ARGUMENT_PATTERN, lambda_with_args_result.group(2)))
-      if obj_.co_varnames == args:
+      if obj_.co_varnames[:_get_arg_count(obj_)] == args:
         return obj_
   raise AttributeError(f'Could not find code object with path: {path}')
 
@@ -404,7 +404,7 @@ def _get_code_object_from_lambda_with_hash_pattern(
     for obj_ in objects:
       args = tuple(
           re.findall(_ARGUMENT_PATTERN, lambda_with_hash_result.group(2)))
-      if obj_.co_varnames == args:
+      if obj_.co_varnames[:_get_arg_count(obj_)] == args:
         hash_value = lambda_with_hash_result.group(3)
         if hash_value == str(_create_bytecode_hash(obj_)):
           return obj_
@@ -462,12 +462,25 @@ def _signature(obj: types.CodeType):
   Returns:
     A tuple of the names of the arguments of the code object.
   """
-  arg_count = (
-      obj.co_argcount + obj.co_kwonlyargcount +
-      (obj.co_flags & 4 == 4)  # PyCF_VARARGS
+  return obj.co_varnames[:_get_arg_count(obj)]
+
+
+def _get_arg_count(obj: types.CodeType):
+  """Returns the number of arguments of a code object.
+
+  Args:
+    obj: A code object, function, method, or cell.
+
+  Returns:
+    The number of arguments of the code object, or None if the object is not a
+    code object.
+  """
+  return (
+      obj.co_argcount
+      + obj.co_kwonlyargcount
+      + (obj.co_flags & 4 == 4)  # PyCF_VARARGS
       + (obj.co_flags & 8 == 8)  # PyCF_VARKEYWORDS
   )
-  return obj.co_varnames[:arg_count]
 
 
 def _create_bytecode_hash(code_object: types.CodeType):
