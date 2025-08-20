@@ -162,7 +162,7 @@ def pytest_configure(config):
   # for the entire test session.
   print("\n--- Applying global testcontainers timeout configuration ---")
   try:
-    from testcontainers.core import waiting_utils  # pylint: disable=g-import-not-at-top
+    from testcontainers.core import waiting_utils
     waiting_utils.config = SimpleNamespace(
         timeout=int(os.getenv("TC_TIMEOUT", "120")),
         max_tries=int(os.getenv("TC_MAX_TRIES", "120")),
