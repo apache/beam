@@ -186,8 +186,11 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
     Instant watermark = watermarkPolicy.getWatermark();
     if (watermark == null) {
-      LOG.warn("SolaceIO.Read: WatermarkPolicy returned null (likely due to disconnection); returning min watermark");
-      return BoundedWindow.TIMESTAMP_MIN_VALUE; // Fallback to min watermark during disconnection to prevent pipeline failure
+      LOG.warn(
+          "SolaceIO.Read: WatermarkPolicy returned null (likely due to disconnection); returning min watermark");
+      return BoundedWindow
+          .TIMESTAMP_MIN_VALUE; // Fallback to min watermark during disconnection to prevent
+      // pipeline failure
     }
     return watermark;
   }
