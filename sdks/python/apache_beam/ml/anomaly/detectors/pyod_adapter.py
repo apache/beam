@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Utilities to adapt PyOD models for Beam's anomaly detection APIs.
 
 This module provides a ModelHandler implementation for PyOD detectors and a
@@ -41,7 +40,6 @@ from apache_beam.ml.inference.base import _PostProcessingModelHandler
 from apache_beam.ml.inference.utils import _convert_to_result
 from pyod.models.base import BaseDetector as PyODBaseDetector
 
-
 # Turn the used ModelHandler into specifiable, but without lazy init.
 KeyedModelHandler = specifiable(  # type: ignore[misc]
     KeyedModelHandler,
@@ -57,7 +55,8 @@ _PostProcessingModelHandler = specifiable(  # type: ignore[misc]
 
 
 @specifiable
-class PyODModelHandler(ModelHandler[beam.Row, PredictionResult, PyODBaseDetector]):
+class PyODModelHandler(ModelHandler[beam.Row, PredictionResult,
+                                    PyODBaseDetector]):
     """ModelHandler implementation for PyOD models.
 
     The ModelHandler processes input data as `beam.Row` objects.
@@ -76,8 +75,8 @@ class PyODModelHandler(ModelHandler[beam.Row, PredictionResult, PyODBaseDetector
         self._model_uri = model_uri
 
     def load_model(self) -> PyODBaseDetector:
-        file = FileSystems.open(self._model_uri, "rb")
-        return pickle.load(file)
+        with FileSystems.open(self._model_uri, "rb") as file:
+            return pickle.load(file)
 
     def run_inference(
         self,
@@ -100,7 +99,9 @@ class PyODModelHandler(ModelHandler[beam.Row, PredictionResult, PyODBaseDetector
                 else:
                     yield value
 
-        np_batch = [np.fromiter(_flatten_row(row), dtype=np.float64) for row in batch]
+        np_batch = [
+            np.fromiter(_flatten_row(row), dtype=np.float64) for row in batch
+        ]
 
         # stack a batch of samples into a 2-D array for better performance
         vectorized_batch = np.stack(np_batch, axis=0)
@@ -129,17 +130,18 @@ class PyODFactory:
                 PyOD model.
             **kwargs: Additional keyword arguments.
         """
-        model_handler = (
-            KeyedModelHandler(PyODModelHandler(model_uri=model_uri))
-            .with_postprocess_fn(OfflineDetector.score_prediction_adapter)
-        )
+        model_handler = (KeyedModelHandler(
+            PyODModelHandler(model_uri=model_uri)).with_postprocess_fn(
+                OfflineDetector.score_prediction_adapter))
 
         m = model_handler.load_model()
         assert isinstance(m, PyODBaseDetector)
         threshold = float(m.threshold_)
 
         detector = OfflineDetector(
-            model_handler, threshold_criterion=FixedThreshold(threshold), **kwargs
+            model_handler,
+            threshold_criterion=FixedThreshold(threshold),
+            **kwargs,
         )  # type: ignore[arg-type]
 
         return detector
