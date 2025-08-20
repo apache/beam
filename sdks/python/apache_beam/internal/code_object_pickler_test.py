@@ -286,12 +286,14 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
         module_2_modified.AddLambdaVariable.my_method(self).__code__,
     )
 
-  def test_removing_lambda_variable_in_class_changes_object(self):
-    with self.assertRaisesRegex(AttributeError, "object has no attribute"):
-      code_object_pickler.get_code_from_identifier(
-          code_object_pickler.get_code_object_identifier(
-              module_2.RemoveLambdaVariable.my_method(self)).replace(
-                  "module_2", "module_2_modified"))
+  def test_removing_lambda_variable_in_class_preserves_object(self):
+    self.assertEqual(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.get_code_object_identifier(
+                module_2.RemoveLambdaVariable.my_method(self)).replace(
+                    "module_2", "module_2_modified")),
+        module_2_modified.RemoveLambdaVariable.my_method(self).__code__,
+    )
 
   def test_adding_nested_function_in_class_preserves_object(self):
     self.assertEqual(
@@ -403,11 +405,15 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
         module_1_lambda_variable_added.my_function().__code__,
     )
 
-  def test_removing_lambda_variable_in_function_raises_exception(self):
-    with self.assertRaisesRegex(AttributeError, "object has no attribute"):
-      code_object_pickler.get_code_from_identifier(
-          code_object_pickler.get_code_object_identifier(
-              module_3.my_function()).replace("module_3", "module_3_modified"))
+  def test_removing_lambda_variable_in_function_preserves_object(self):
+    self.assertEqual(
+        code_object_pickler.get_code_from_identifier(
+            code_object_pickler.get_code_object_identifier(
+                module_3.my_function()
+            ).replace("module_3", "module_3_modified")
+        ),
+        module_3_modified.my_function().__code__,
+    )
 
 
 class CodePathStabilityTest(unittest.TestCase):
