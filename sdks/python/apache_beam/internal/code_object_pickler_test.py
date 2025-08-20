@@ -126,30 +126,33 @@ class ClassWithNestedLambda:
     return get_lambda_from_dictionary()
 
 
+prefix = ("__main__" if __name__ == "__main__" else
+          "apache_beam.internal.code_object_pickler_test")
+
 test_cases = [
     (
         top_level_function,
-        "apache_beam.internal.code_object_pickler_test.top_level_function"
+        f"{prefix}.top_level_function"
         ".__code__"),
     (
         top_level_lambda,
-        "apache_beam.internal.code_object_pickler_test.top_level_lambda"
+        f"{prefix}.top_level_lambda"
         ".__code__"),
     (
         get_nested_function(),
         (
-            "apache_beam.internal.code_object_pickler_test.get_nested_function"
+            f"{prefix}.get_nested_function"
             ".__code__.co_consts[nested_function]")),
     (
         get_lambda_from_dictionary(),
         (
-            "apache_beam.internal.code_object_pickler_test"
+            f"{prefix}
             ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',)]")
     ),
     (
         get_lambda_from_dictionary_same_args(),
         (
-            "apache_beam.internal.code_object_pickler_test"
+            f"{prefix}
             ".get_lambda_from_dictionary_same_args.__code__.co_consts"
             "[<lambda>, ('x',), " + hashlib.md5(
                 get_lambda_from_dictionary_same_args().__code__.co_code).
@@ -157,51 +160,51 @@ test_cases = [
     (
         function_with_lambda_default_argument(),
         (
-            "apache_beam.internal.code_object_pickler_test"
+            f"{prefix}
             ".function_with_lambda_default_argument.__defaults__[0].__code__")),
     (
         function_with_function_default_argument(),
-        "apache_beam.internal.code_object_pickler_test.top_level_function"
+        f"{prefix}.top_level_function"
         ".__code__"),
     (
         add_one,
-        "apache_beam.internal.code_object_pickler_test.function_decorator"
+        f"{prefix}.function_decorator"
         ".__code__.co_consts[<lambda>]"),
     (
         ClassWithFunction.process,
-        "apache_beam.internal.code_object_pickler_test.ClassWithFunction"
+        f"{prefix}.ClassWithFunction"
         ".process.__code__"),
     (
         ClassWithStaticMethod.static_method,
-        "apache_beam.internal.code_object_pickler_test.ClassWithStaticMethod"
+        f"{prefix}.ClassWithStaticMethod"
         ".static_method.__code__"),
     (
         ClassWithClassMethod.class_method,
-        "apache_beam.internal.code_object_pickler_test.ClassWithClassMethod"
+        f"{prefix}.ClassWithClassMethod"
         ".class_method.__code__"),
     (
         ClassWithNestedFunction().process(),
         (
-            "apache_beam.internal.code_object_pickler_test"
+            f"{prefix}
             ".ClassWithNestedFunction.process.__code__.co_consts"
             "[nested_function]")),
     (
         ClassWithLambda().process(),
-        "apache_beam.internal.code_object_pickler_test.ClassWithLambda.process"
+        f"{prefix}.ClassWithLambda.process"
         ".__code__.co_consts[<lambda>]"),
     (
         ClassWithNestedClass.InnerClass().process,
-        "apache_beam.internal.code_object_pickler_test.ClassWithNestedClass"
+        f"{prefix}ClassWithNestedClass"
         ".InnerClass.process.__code__"),
     (
         ClassWithNestedLambda().process(),
         (
-            "apache_beam.internal.code_object_pickler_test"
+            f"{prefix}
             ".ClassWithNestedLambda.process.__code__.co_consts"
             "[get_lambda_from_dictionary].co_consts[<lambda>, ('x',)]")),
     (
         ClassWithNestedLambda.process,
-        "apache_beam.internal.code_object_pickler_test.ClassWithNestedLambda"
+        f"{prefix}.ClassWithNestedLambda"
         ".process.__code__"),
 ]
 
@@ -225,35 +228,35 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
 
 
 class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
-  def empty_path_raises_exception(self):
+  def test_empty_path_raises_exception(self):
     with self.assertRaisesRegex(ValueError, "Path must not be empty"):
-      code_object_pickler.test_get_code_from_identifier("")
+      code_object_pickler.get_code_from_identifier("")
 
-  def invalid_default_index_raises_exception(self):
+  def test_invalid_default_index_raises_exception(self):
     with self.assertRaisesRegex(ValueError, "out of bounds"):
-      code_object_pickler.test_get_code_from_identifier(
-          "apache_beam.internal.test_cases.module_with_default_argument."
+      code_object_pickler.get_code_from_identifier(
+          "apache_beam.internal.test_data.module_with_default_argument."
           "function_with_lambda_default_argument.__defaults__[1]")
 
-  def invalid_single_name_path_raises_exception(self):
+  def test_invalid_single_name_path_raises_exception(self):
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
       code_object_pickler.get_code_from_identifier(
-          "apache_beam.internal.test_cases.module_3."
+          "apache_beam.internal.test_data.module_3."
           "my_function.__code__.co_consts[something]")
 
-  def invalid_lambda_with_args_path_raises_exception(self):
+  def test_invalid_lambda_with_args_path_raises_exception(self):
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
       code_object_pickler.get_code_from_identifier(
-          "apache_beam.internal.test_cases.module_3."
+          "apache_beam.internal.test_data.module_3."
           "my_function.__code__.co_consts[<lambda>, ('x',)]")
 
-  def invalid_lambda_with_hash_path_raises_exception(self):
+  def test_invalid_lambda_with_hash_path_raises_exception(self):
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
       code_object_pickler.get_code_from_identifier(
-          "apache_beam.internal.test_cases.module_3."
+          "apache_beam.internal.test_data.module_3."
           "my_function.__code__.co_consts[<lambda>, ('',), 1234567890]")
 
   def test_adding_local_variable_in_class_preserves_object(self):
