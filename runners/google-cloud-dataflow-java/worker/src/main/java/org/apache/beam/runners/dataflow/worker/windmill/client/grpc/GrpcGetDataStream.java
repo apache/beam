@@ -91,7 +91,9 @@ final class GrpcGetDataStream
   @GuardedBy("this")
   private final Deque<QueuedBatch> batches;
 
-  private final Supplier<Integer> batchesDebugSizeSupplier;
+  // Size of the batches that may be read without synchronization.  If it is under synchronized
+  // block it is guaranteed to be correct.
+  private final Supplier<Integer> batchesSizeSupplier;
 
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
@@ -133,7 +135,7 @@ final class GrpcGetDataStream
     // Otherwise the deque is accessed via batches which has a guardedby annotation.
     ConcurrentLinkedDeque<QueuedBatch> batches = new ConcurrentLinkedDeque<>();
     this.batches = batches;
-    this.batchesDebugSizeSupplier = batches::size;
+    this.batchesSizeSupplier = batches::size;
     this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
     this.processHeartbeatResponses = processHeartbeatResponses;
   }
@@ -224,7 +226,7 @@ final class GrpcGetDataStream
 
     @Override
     public boolean hasPendingRequests() {
-      return !pending.isEmpty();
+      return !pending.isEmpty() || batchesSizeSupplier.get() > 0;
     }
 
     @Override
@@ -276,7 +278,9 @@ final class GrpcGetDataStream
     while (!batches.isEmpty()) {
       QueuedBatch batch = checkNotNull(batches.peekFirst());
       verify(!batch.isEmpty());
-      if (!batch.isFinalized()) break;
+      if (!batch.isFinalized()) {
+        break;
+      }
       try {
         verify(
             batch == batches.pollFirst(),
@@ -419,7 +423,7 @@ final class GrpcGetDataStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    int batches = batchesDebugSizeSupplier.get();
+    int batches = batchesSizeSupplier.get();
     if (batches > 0) {
       writer.format("GetDataStream: %d queued batches ", batches);
     } else {
@@ -516,7 +520,7 @@ final class GrpcGetDataStream
     }
     final @Nullable GetDataPhysicalStreamHandler currentGetDataPhysicalStream =
         (GetDataPhysicalStreamHandler) currentPhysicalStream;
-    if (currentGetDataPhysicalStream == null) {
+    if (currentGetDataPhysicalStream == null || clientClosed) {
       // Leave the batch finalized but in the batches queue.  Finalized batches will be sent on a
       // new stream in onFlushPending.
       return;
