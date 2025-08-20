@@ -126,21 +126,17 @@ class ClassWithNestedLambda:
     return get_lambda_from_dictionary()
 
 
-prefix = ("__main__" if __name__ == "__main__" else
-          "apache_beam.internal.code_object_pickler_test")
+prefix = (
+    "__main__" if __name__ == "__main__" else
+    "apache_beam.internal.code_object_pickler_test")
 
 test_cases = [
-    (
-        top_level_function,
-        f"{prefix}.top_level_function"
+    (top_level_function, f"{prefix}.top_level_function"
+        ".__code__"),
+    (top_level_lambda, f"{prefix}.top_level_lambda"
         ".__code__"),
     (
-        top_level_lambda,
-        f"{prefix}.top_level_lambda"
-        ".__code__"),
-    (
-        get_nested_function(),
-        (
+        get_nested_function(), (
             f"{prefix}.get_nested_function"
             ".__code__.co_consts[nested_function]")),
     (
@@ -166,9 +162,7 @@ test_cases = [
         function_with_function_default_argument(),
         f"{prefix}.top_level_function"
         ".__code__"),
-    (
-        add_one,
-        f"{prefix}.function_decorator"
+    (add_one, f"{prefix}.function_decorator"
         ".__code__.co_consts[<lambda>]"),
     (
         ClassWithFunction.process,
@@ -192,7 +186,7 @@ test_cases = [
         f"{prefix}.ClassWithLambda.process.__code__.co_consts[<lambda>]"),
     (
         ClassWithNestedClass.InnerClass().process,
-        f"{prefix}ClassWithNestedClass.InnerClass.process.__code__"),
+        f"{prefix}.ClassWithNestedClass.InnerClass.process.__code__"),
     (
         ClassWithNestedLambda().process(),
         (
@@ -405,9 +399,8 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
     self.assertEqual(
         code_object_pickler.get_code_from_identifier(
             code_object_pickler.get_code_object_identifier(
-                module_3.my_function()
-            ).replace("module_3", "module_3_modified")
-        ),
+                module_3.my_function()).replace(
+                  "module_3", "module_3_modified")),
         module_3_modified.my_function().__code__,
     )
 
