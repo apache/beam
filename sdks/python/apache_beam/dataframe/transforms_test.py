@@ -317,44 +317,29 @@ class TransformTest(unittest.TestCase):
           lambda x: {'res': 3 * x}, proxy, yield_elements='pandas')
       assert_that(res['res'], equal_to_series(three_series), 'CheckDictOut')
 
-  def test_multiple_dataframe_transforms(self):
-    # Define test data
-    data1 = [
-        beam.Row(id=1, name="abc"),
-        beam.Row(id=2, name="def"),
-        beam.Row(id=3, name="ghi")
-    ]
-    data2 = [
-        beam.Row(addr="addr1"), beam.Row(addr="addr2"), beam.Row(addr="addr3")
-    ]
+  def test_multiple_dataframes_transforms(self):
+    expected_output = [{
+        "id": 1, "name": "Bryan", "addr": "addr-common"
+    }, {
+        "id": 2, "name": "DKER2", "addr": "addr-common"
+    }]
 
-    # Create a TestPipeline
+    def transform_func(a, b):
+      a["addr"] = "addr-common"
+
     with beam.Pipeline() as p:
-      # Create PCollections for testing
-      pcol1 = p | "Create1" >> beam.Create(data1)
-      pcol2 = p | "Create2" >> beam.Create(data2)
+      pcol1 = p | "Create1" >> beam.Create(
+          [beam.Row(id=1, name="Bryan"), beam.Row(id=2, name="DKER2")])
+      pcol2 = p | "Create2" >> beam.Create(
+          [beam.Row(addr="addr1"), beam.Row(addr="addr2")])
 
-      # Apply the DataframeTransform to the PCollections
       pcol = ({
           "a": pcol1, "b": pcol2
       }
-              | "TransformedDF" >> transforms.DataframeTransform(
-                  lambda a, b: a.assign(addr="addr-common")))
+              |
+              "TransformedDF" >> transforms.DataframeTransform(transform_func))
 
-      # Assert the expected output
-      expected_output = [
-          {
-              "id": 1, "name": "abc", "addr": "addr-common"
-          },
-          {
-              "id": 2, "name": "def", "addr": "addr-common"
-          },
-          {
-              "id": 3, "name": "ghi", "addr": "addr-common"
-          },
-      ]
-      assert_that(pcol | "Map" >> beam.Map(lambda row: row.asdict())) \
-        .equal_to(expected_output)
+      assert_that(pcol, equal_to(expected_output))
 
   def test_cat(self):
     # verify that cat works with a List[Series] since this is
