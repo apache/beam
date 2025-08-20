@@ -146,13 +146,13 @@ test_cases = [
     (
         get_lambda_from_dictionary(),
         (
-            f"{prefix}
+            f"{prefix}"
             ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',)]")
     ),
     (
         get_lambda_from_dictionary_same_args(),
         (
-            f"{prefix}
+            f"{prefix}"
             ".get_lambda_from_dictionary_same_args.__code__.co_consts"
             "[<lambda>, ('x',), " + hashlib.md5(
                 get_lambda_from_dictionary_same_args().__code__.co_code).
@@ -160,7 +160,7 @@ test_cases = [
     (
         function_with_lambda_default_argument(),
         (
-            f"{prefix}
+            f"{prefix}"
             ".function_with_lambda_default_argument.__defaults__[0].__code__")),
     (
         function_with_function_default_argument(),
@@ -185,27 +185,23 @@ test_cases = [
     (
         ClassWithNestedFunction().process(),
         (
-            f"{prefix}
-            ".ClassWithNestedFunction.process.__code__.co_consts"
+            f"{prefix}.ClassWithNestedFunction.process.__code__.co_consts"
             "[nested_function]")),
     (
         ClassWithLambda().process(),
-        f"{prefix}.ClassWithLambda.process"
-        ".__code__.co_consts[<lambda>]"),
+        f"{prefix}.ClassWithLambda.process.__code__.co_consts[<lambda>]"),
     (
         ClassWithNestedClass.InnerClass().process,
-        f"{prefix}ClassWithNestedClass"
-        ".InnerClass.process.__code__"),
+        f"{prefix}ClassWithNestedClass.InnerClass.process.__code__"),
     (
         ClassWithNestedLambda().process(),
         (
-            f"{prefix}
+            f"{prefix}"
             ".ClassWithNestedLambda.process.__code__.co_consts"
             "[get_lambda_from_dictionary].co_consts[<lambda>, ('x',)]")),
     (
         ClassWithNestedLambda.process,
-        f"{prefix}.ClassWithNestedLambda"
-        ".process.__code__"),
+        f"{prefix}.ClassWithNestedLambda.process.__code__"),
 ]
 
 
