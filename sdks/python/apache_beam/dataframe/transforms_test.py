@@ -322,11 +322,11 @@ class TransformTest(unittest.TestCase):
 
     def transform_func(a, b):
       b["name"] = "DKER2"
-      return a[["name"]], b[["name"]]
+      return a, b
 
     with beam.Pipeline() as p:
       pcol1 = p | "Create1" >> beam.Create([beam.Row(name="Bryan")])
-      pcol2 = p | "Create2" >> beam.Create([beam.Row(addr="addr1")])
+      pcol2 = p | "Create2" >> beam.Create([beam.Row(name="common")])
 
       result = (
           {
