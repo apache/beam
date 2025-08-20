@@ -321,9 +321,10 @@ class TriggerFn(metaclass=ABCMeta):
   def get_continuation_trigger(self):
     """Returns:
         Tigger to use after a GroupBy to preserve the intention of this trigger.
-        Specifically, triggers that are time based and intended to provide speculative results should
-        continue providing speculative results. Triggers that fire once (or multiple times) should
-        continue firing once (or multiple times).
+        Specifically, triggers that are time based and intended to provide
+        speculative results should continue providing speculative results.
+        Triggers that fire once (or multiple times) should continue firing
+        once (or multiple times).
     """
     pass
 
@@ -1724,26 +1725,26 @@ class _AfterSynchronizedProcessingTime(TriggerFn):
   def __hash__(self):
     return hash(type(self))
 
-  def on_element(self, element, window, context):
+  def on_element(self, _element, _window, _context):
     pass
 
-  def on_merge(self, to_be_merged, merge_result, context):
+  def on_merge(self, _to_be_merged, _merge_result, _context):
     pass
 
-  def should_fire(self, time_domain, timestamp, window, context):
+  def should_fire(self, _time_domain, _timestamp, _window, _context):
     return True
 
-  def on_fire(self, timestamp, window, context):
+  def on_fire(self, _timestamp, _window, _context):
     return False
 
-  def reset(self, window, context):
+  def reset(self, _window, _context):
     pass
 
   @staticmethod
-  def from_runner_api(proto, context):
+  def from_runner_api(_proto, _context):
     return _AfterSynchronizedProcessingTime()
 
-  def to_runner_api(self, context):
+  def to_runner_api(self, _context):
     return beam_runner_api_pb2.Trigger(
         after_synchronized_processing_time=beam_runner_api_pb2.Trigger.
         AfterSynchronizedProcessingTime())
