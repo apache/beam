@@ -33,6 +33,9 @@ from unittest import mock
 
 import pytest
 import yaml
+from jinja2 import DictLoader
+from jinja2 import Environment
+from jinja2 import StrictUndefined
 
 import apache_beam as beam
 from apache_beam import PCollection
@@ -46,7 +49,6 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
 from apache_beam.yaml.readme_test import replace_recursive
-from jinja2 import Environment, DictLoader, StrictUndefined
 
 from . import input_data
 

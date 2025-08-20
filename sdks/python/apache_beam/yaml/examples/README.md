@@ -235,7 +235,7 @@ gcloud dataflow yaml run $JOB_NAME \
 
 ### Jinja
 
-This word count example leverages the Jinja templating engine for dynamic 
+This word count example leverages the Jinja templating engine for dynamic
 pipeline generation based on inputs from the user and also gives a glimpse at
 using submoduling.
 
@@ -246,7 +246,6 @@ General setup:
 ```sh
 export PIPELINE_FILE=apache_beam/yaml/examples/transforms/jinja/wordCount.yaml
 export KINGLEAR="gs://dataflow-samples/shakespeare/kinglear.txt"
-export WORD_COUNT_MAPPER="apache_beam/yaml/examples/transforms/jinja/submodules/wordCount_mapper.py"
 export TEMP_LOCATION="gs://MY-BUCKET/wordCounts/"
 
 cd <PATH_TO_BEAM_REPO>/beam/sdks/python
@@ -289,11 +288,8 @@ ML enrichments:
 - [enrich_spanner_with_bigquery.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/enrich_spanner_with_bigquery.yaml)
 - [bigtable_enrichment.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/bigtable_enrichment.yaml)
 
-Examples that include ML-specific transforms such as `RunInference` and
-`MLTransform`:
+Examples that include the `RunInference` transform for ML inference:
 - [streaming_sentiment_analysis.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml)
-- [streaming_taxifare_prediction.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare/streaming_taxifare_prediction.yaml)
-- [batch_log_analysis.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis/batch_log_analysis.yaml)
 
 More information can be found about aggregation transforms
 [here](https://beam.apache.org/documentation/sdks/yaml-combine/).
