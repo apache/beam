@@ -46,6 +46,7 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
 from apache_beam.yaml.readme_test import replace_recursive
+from jinja2 import Environment, DictLoader, StrictUndefined
 
 from . import input_data
 
@@ -339,8 +340,21 @@ def create_test_method(
     for i, line in enumerate(expected):
       expected[i] = line.replace('#  ', '').replace('\n', '')
     expected = [line for line in expected if line]
+
+    raw_spec_string = ''.join(lines)
+    # Filter for any jinja preprocessor - this has to be done before other
+    # preprocessors.
+    jinja_preprocessor = [
+        preprocessor for preprocessor in custom_preprocessors
+        if 'jinja_preprocessor' in preprocessor.__name__
+    ]
+    if jinja_preprocessor:
+      jinja_preprocessor = jinja_preprocessor[0]
+      raw_spec_string = jinja_preprocessor(raw_spec_string)
+      custom_preprocessors.remove(jinja_preprocessor)
+
     pipeline_spec = yaml.load(
-        ''.join(lines), Loader=yaml_transform.SafeLineLoader)
+        raw_spec_string, Loader=yaml_transform.SafeLineLoader)
 
     with TestEnvironment() as env:
       for fn in custom_preprocessors:
@@ -513,8 +527,9 @@ class YamlExamplesTestSuite:
     return apply
 
 
-@YamlExamplesTestSuite.register_test_preprocessor('test_wordcount_minimal_yaml')
-def _wordcount_test_preprocessor(
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_wordcount_minimal_yaml'])
+def _wordcount_minimal_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
   Preprocessor for the wordcount_minimal.yaml test.
@@ -522,6 +537,8 @@ def _wordcount_test_preprocessor(
   This preprocessor generates a random input file based on the expected output
   of the wordcount example. This allows the test to verify the pipeline's
   correctness without relying on a fixed input file.
+
+  Based on this expected output: #  Row(word='king', count=311)
 
   Args:
     test_spec: The dictionary representation of the YAML pipeline specification.
@@ -538,8 +555,63 @@ def _wordcount_test_preprocessor(
     word = element.split('=')[1].split(',')[0].replace("'", '')
     count = int(element.split('=')[2].replace(')', ''))
     all_words += [word] * count
-  random.shuffle(all_words)
 
+  return _wordcount_random_shuffler(test_spec, all_words, env)
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(['test_wordCount_yaml'])
+def _wordcount_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for the wordcount_minimal.yaml test.
+
+  This preprocessor generates a random input file based on the expected output
+  of the wordcount example. This allows the test to verify the pipeline's
+  correctness without relying on a fixed input file.
+
+  Based on this expected output: #  Row(output='king - 311')
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with the input file path replaced.
+  """
+  all_words = []
+  for element in expected:
+    word = element.split('=')[1].split(' - ')[0].replace("'", '')
+    count = int(element.split('=')[1].split(' - ')[1].replace("')", ''))
+    all_words += [word] * count
+
+  return _wordcount_random_shuffler(test_spec, all_words, env)
+
+
+def _wordcount_random_shuffler(
+    test_spec: dict, all_words: List[str], env: TestEnvironment):
+  """
+  Helper function to create a randomized input file for wordcount-style tests.
+
+  This function takes a list of words, shuffles them, and arranges them into
+  randomly sized lines. It then creates a temporary input file with this
+  content and updates the provided test specification to use this file as
+  the input for a 'ReadFromText' transform.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    all_words: A list of strings, where each string is a word to be included
+      in the generated input file.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with the input file path for
+    'ReadFromText' replaced with the path to the newly generated file.
+  """
+  random.shuffle(all_words)
   lines = []
   while all_words:
     line_length = random.randint(1, min(10, len(all_words)))
@@ -599,7 +671,8 @@ def _kafka_test_preprocessor(
     'test_streaming_sentiment_analysis_yaml',
     'test_iceberg_migration_yaml',
     'test_ml_preprocessing_yaml',
-    'test_anomaly_scoring_yaml'
+    'test_anomaly_scoring_yaml',
+    'test_wordCount_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
@@ -1175,6 +1248,54 @@ def _batch_log_analysis_test_preprocessor(
   return test_spec
 
 
+@YamlExamplesTestSuite.register_test_preprocessor(['test_wordCount_yaml'])
+def _jinja_preprocessor(raw_spec_string: str):
+  """
+  Preprocessor for Jinja-based YAML tests.
+
+  This function takes a raw YAML string, which is treated as a Jinja2
+  template, and renders it to produce the final pipeline specification.
+  It specifically handles templates that use the `{% include ... %}`
+  directive by manually loading the content of the included files from the
+  filesystem.
+
+  The Jinja variables required for rendering are loaded from a predefined
+  data source.
+
+  Args:
+    raw_spec_string: A string containing the raw YAML content, which is a
+      Jinja2 template.
+
+  Returns:
+    A string containing the fully rendered YAML pipeline specification.
+  """
+
+  jinja_variables = json.loads(input_data.word_count_jinja_parameter_data())
+
+  test_file_dir = os.path.dirname(__file__)
+  sdk_root = os.path.abspath(os.path.join(test_file_dir, '../../../..'))
+
+  include_files = input_data.word_count_jinja_template_data()
+  mock_templates = {'main_template': raw_spec_string}
+  for file_path in include_files:
+    full_path = os.path.join(sdk_root, file_path)
+    try:
+      with open(full_path, 'r', encoding='utf-8') as f:
+        mock_templates[file_path] = f.read()
+    except FileNotFoundError:
+      print(f"Warning: Include file not found: {full_path}")
+      mock_templates[file_path] = ""  # Provide empty string if file not found
+
+  # Can't use the standard expand_jinja method due to it not supporting
+  # `% include` jinja templization.
+  # TODO: Maybe update expand_jinja to handle this case.
+  jinja_env = Environment(
+      loader=DictLoader(mock_templates), undefined=StrictUndefined)
+  template = jinja_env.get_template('main_template')
+  rendered_yaml_string = template.render(jinja_variables)
+  return rendered_yaml_string
+
+
 INPUT_FILES = {
     'products.csv': input_data.products_csv(),
     'kinglear.txt': input_data.text_data(),
@@ -1216,6 +1337,9 @@ ElementWiseTest = YamlExamplesTestSuite(
     os.path.join(YAML_DOCS_DIR, '../transforms/elementwise/*.yaml')).run()
 ExamplesTest = YamlExamplesTestSuite(
     'ExamplesTest', os.path.join(YAML_DOCS_DIR, '../*.yaml')).run()
+JinjaTest = YamlExamplesTestSuite(
+    'JinjaExamplesTest',
+    os.path.join(YAML_DOCS_DIR, '../transforms/jinja/*.yaml')).run()
 IOTest = YamlExamplesTestSuite(
     'IOExamplesTest', os.path.join(YAML_DOCS_DIR,
                                    '../transforms/io/*.yaml')).run()
