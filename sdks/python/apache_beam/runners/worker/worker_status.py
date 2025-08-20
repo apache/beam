@@ -287,7 +287,7 @@ class FnApiWorkerStatusHandler(object):
             (
                 'Operation ongoing in bundle %s%s for at least %.2f seconds'
                 ' without outputting or completing.\n'
-                'Current Traceback:\n%s. The SDK harness will be terminated.'),
+                'Current Traceback:\n%s'),
             instruction,
             step_name_log,
             lull_seconds,

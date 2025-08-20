@@ -226,9 +226,10 @@ def main(unused_argv):
 
 def flush_fn_log_handler():
   """Flushes the FnApiLogRecordHandler if it exists."""
+  _LOGGER.error('The Sdk harness will be terminated now.')
   if _FN_LOG_HANDLER:
     _FN_LOG_HANDLER.close()
-  sys.exit(1)
+  os._exit(1)
 
 
 def _load_pipeline_options(options_json):
