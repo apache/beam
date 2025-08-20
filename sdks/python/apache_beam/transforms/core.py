@@ -3576,7 +3576,7 @@ class Partition(PTransformWithSideInputs):
       if isinstance(partition, bool) or not isinstance(partition, int):
         raise ValueError(
             f"PartitionFn yielded a '{type(partition).__name__}' "
-            "when it should only yields integers")
+            "when it should only yield integers")
       if not 0 <= partition < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '

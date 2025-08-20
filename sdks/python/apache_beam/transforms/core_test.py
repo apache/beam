@@ -164,9 +164,11 @@ class CreateTest(unittest.TestCase):
 class PartitionTest(unittest.TestCase):
   def test_partition_with_bools(self):
     with pytest.raises(
-        Exception,
+        (ValueError, RuntimeError),
         match="PartitionFn yielded a 'bool' when it should only yields integers"
     ):
+      # Check for RuntimeError too since the portable runner casts
+      # all exceptions to RuntimeError
       with beam.testing.test_pipeline.TestPipeline() as p:
         _ = (p | beam.Create([True]) | beam.Partition(lambda x, _: x, 2))
 
