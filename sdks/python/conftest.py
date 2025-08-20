@@ -169,7 +169,7 @@ def pytest_configure(config):
         sleep_time=float(os.getenv("TC_SLEEP_TIME", "1")),
     )
     print("Successfully set waiting utils config")
-  except ModuleNotFoundError as e:
+  except ModuleNotFoundError:
     print("The testcontainers library is not installed.")
 
   TestPipeline.pytest_test_pipeline_options = config.getoption(
