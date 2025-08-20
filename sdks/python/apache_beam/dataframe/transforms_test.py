@@ -319,9 +319,9 @@ class TransformTest(unittest.TestCase):
 
   def test_multiple_dataframes_transforms(self):
     expected_output = [{
-        "id": 1, "name": "Bryan", "addr": "addr-common"
+        "name": "Bryan", "addr": "addr-common"
     }, {
-        "id": 2, "name": "DKER2", "addr": "addr-common"
+        "name": "DKER2", "addr": "addr-common"
     }]
 
     def transform_func(a, b):
@@ -329,7 +329,7 @@ class TransformTest(unittest.TestCase):
 
     with beam.Pipeline() as p:
       pcol1 = p | "Create1" >> beam.Create(
-          [beam.Row(id=1, name="Bryan"), beam.Row(id=2, name="DKER2")])
+          [beam.Row(name="Bryan"), beam.Row(name="DKER2")])
       pcol2 = p | "Create2" >> beam.Create(
           [beam.Row(addr="addr1"), beam.Row(addr="addr2")])
 
