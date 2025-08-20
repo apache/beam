@@ -1281,12 +1281,8 @@ def _jinja_preprocessor(raw_spec_string: str):
   mock_templates = {'main_template': raw_spec_string}
   for file_path in include_files:
     full_path = os.path.join(sdk_root, file_path)
-    try:
-      with open(full_path, 'r', encoding='utf-8') as f:
-        mock_templates[file_path] = f.read()
-    except FileNotFoundError:
-      print(f"Warning: Include file not found: {full_path}")
-      mock_templates[file_path] = ""  # Provide empty string if file not found
+    with open(full_path, 'r', encoding='utf-8') as f:
+      mock_templates[file_path] = f.read()
 
   # Can't use the standard expand_jinja method due to it not supporting
   # `% include` jinja templization.
