@@ -1021,9 +1021,9 @@ class GoogleCloudOptions(PipelineOptions):
         'updating-a-pipeline')
     parser.add_argument(
         '--enable_streaming_engine',
-        default=False,
+        default=True,
         action='store_true',
-        help='Enable Windmill Service for this Dataflow job. ')
+        help='Deprecated. All Python pipelines use Streaming Engine. ')
     parser.add_argument(
         '--dataflow_kms_key',
         default=None,
