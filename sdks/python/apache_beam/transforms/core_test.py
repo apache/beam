@@ -165,12 +165,16 @@ class PartitionTest(unittest.TestCase):
   def test_partition_with_bools(self):
     with pytest.raises(
         (ValueError, RuntimeError),
-        match="PartitionFn yielded a 'bool' when it should only yields integers"
-    ):
+        match=
+        r"PartitionFn yielded a '([^']*)' when it should only yield integers"):
       # Check for RuntimeError too since the portable runner casts
       # all exceptions to RuntimeError
-      with beam.testing.test_pipeline.TestPipeline() as p:
-        _ = (p | beam.Create([True]) | beam.Partition(lambda x, _: x, 2))
+      invalid_inputs = [True, 1.2, 'string', None]
+      for input_value in invalid_inputs:
+        with beam.testing.test_pipeline.TestPipeline() as p:
+          _ = (
+              p | beam.Create([input_value])
+              | beam.Partition(lambda x, _: x, 2))
 
   def test_partition_boundedness(self):
     def partition_fn(val, num_partitions):
