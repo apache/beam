@@ -43,8 +43,8 @@ from apache_beam import typehints
 from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -53,14 +53,14 @@ from apache_beam.testing.util import SortLists
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import WindowInto
-from apache_beam.transforms.trigger import AccumulationMode
-from apache_beam.transforms.trigger import AfterProcessingTime
-from apache_beam.transforms.trigger import _AfterSynchronizedProcessingTime
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterProcessingTime
+from apache_beam.transforms.trigger import _AfterSynchronizedProcessingTime
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
