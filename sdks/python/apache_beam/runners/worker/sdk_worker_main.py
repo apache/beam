@@ -205,6 +205,7 @@ def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   (fn_log_handler, sdk_harness,
    sdk_pipeline_options) = create_harness(os.environ)
+  global _FN_LOG_HANDLER
   if fn_log_handler:
     _FN_LOG_HANDLER = fn_log_handler
   gcp_profiler_name = _get_gcp_profiler_name_if_enabled(sdk_pipeline_options)
