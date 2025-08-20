@@ -1295,7 +1295,7 @@ class Pickler(pickle.Pickler):
       return self._dynamic_function_reduce(obj)
 
   def _function_getnewargs(self, func):
-    code_path = get_code_object_indentifier(
+    code_path = get_code_object_identifier(
         func) if self.enable_lambda_name else None
     code = func.__code__
 
