@@ -1,0 +1,277 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import json
+import ssl
+import yaml
+import logging
+import smtplib
+import os
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from google.cloud import logging_v2
+from google.cloud import storage
+from typing import List, Dict, Any
+import argparse
+
+REPORT_SUBJECT = "Weekly IAM Security Events Report"
+REPORT_BODY_TEMPLATE = """
+Hello Team,
+
+Please find below the summary of IAM security events for the past week:
+
+{event_summary}
+
+Best Regards,
+Automated GitHub Action
+"""
+
+@dataclass
+class Sink:
+    name: str
+    description: str
+    filter_methods: List[str]
+    excluded_principals: List[str]
+
+class LogAnalyzer():
+    def __init__(self, project_id: str, gcp_bucket: str, logger: logging.Logger, sinks: List[Sink]):
+        self.project_id = project_id
+        self.bucket = gcp_bucket
+        self.logger = logger
+        self.sinks = sinks
+
+    def _construct_filter(self, sink: Sink) -> str:
+        """
+        Constructs a filter string for a given sink.
+
+        Args:
+            sink (Sink): The sink object containing filter information.
+
+        Returns:
+            str: The constructed filter string.
+        """
+
+        method_filters = []
+        for method in sink.filter_methods:
+            method_filters.append(f'protoPayload.methodName="{method}"')
+
+        exclusion_filters = []
+        for principal in sink.excluded_principals:
+            exclusion_filters.append(f'protoPayload.authenticationInfo.principalEmail != "{principal}"')
+
+        if method_filters and exclusion_filters:
+            filter_ = f"({' OR '.join(method_filters)}) AND ({' AND '.join(exclusion_filters)})"
+        elif method_filters:
+            filter_ = f"({' OR '.join(method_filters)})"
+        elif exclusion_filters:
+            filter_ = f"({' AND '.join(exclusion_filters)})"
+        else:
+            filter_ = ""
+
+        return filter_
+
+    def _create_log_sink(self, sink: Sink) -> None:
+        """
+        Creates a log sink in GCP if it doesn't already exist.
+        If it already exists, it updates the sink with the new filter in case the filter has changed.
+
+        Args:
+            sink (Sink): The sink object to create.
+        """
+        logging_client = logging_v2.Client(project=self.project_id)
+        filter_ = self._construct_filter(sink)
+        destination = "storage.googleapis.com/{bucket}".format(bucket=self.bucket)
+
+        new_sink = logging_client.sink(sink.name, filter_=filter_, destination=destination)
+
+        if new_sink.exists():
+            self.logger.debug(f"Sink {sink.name} already exists.")
+            old_sink = logging_client.sink(sink.name)
+            old_sink.reload()
+            if old_sink.filter_ != filter_:
+                old_sink.filter_ = filter_
+                old_sink.update()
+                self.logger.info(f"Updated sink {sink.name}'s filter.")
+        else:
+            new_sink.create()
+            self.logger.info(f"Created sink {sink.name}.")
+
+        logging_client.close()
+
+    def initialize_sinks(self) -> None:
+        for sink in self.sinks:
+            self._create_log_sink(sink)
+            self.logger.info(f"Initialized sink: {sink.name}")
+
+    def get_event_logs(self, days: int = 7) -> List[Dict[str, Any]]:
+        """
+        Reads and retrieves log events from the specified time range from the GCP Cloud Storage bucket.
+
+        Args:
+            days (int): The number of days to look back for log analysis.
+
+        Returns:
+            List[Dict[str, Any]]: A list of log entries that match the specified time range.
+        """
+        found_events = []
+        storage_client = storage.Client(project=self.project_id)
+
+        blobs = storage_client.list_blobs(self.bucket)
+        days_ago = datetime.now() - timedelta(days=days)
+        for blob in blobs:
+            if blob.time_created < days_ago:
+                continue
+
+            self.logger.debug(f"Processing blob: {blob.name}")
+            content = blob.download_as_string().decode("utf-8")
+
+            for line in content.splitlines():
+                try:
+                    log_entry = json.loads(line)
+                    payload = log_entry.get("protoPayload", {})
+
+                    event_details = {
+                        "timestamp": log_entry.get("timestamp"),
+                        "principal": payload.get("authenticationInfo", {}).get("principalEmail"),
+                        "method": payload.get("methodName"),
+                        "resource": payload.get("resourceName"),
+                        "project_id": log_entry.get("resource", {}).get("labels", {}).get("project_id")
+                    }
+                    found_events.append(event_details)
+                except json.JSONDecodeError:
+                    continue
+
+        storage_client.close()
+        return found_events
+
+    def create_weekly_email_report(self) -> None:
+        """
+        Creates an email report based on the events found this week.
+        """
+        events = self.get_event_logs(days=7)
+        if not events:
+            self.logger.info("No events found for the weekly report.")
+            return
+
+        events.sort(key=lambda x: x['timestamp'], reverse=True)
+        event_summary = "\n".join(
+            f"Timestamp: {event['timestamp']}, Principal: {event['principal']}, Method: {event['method']}, Resource: {event['resource']}, Project ID: {event['project_id']}"
+            for event in events
+        )
+
+        report_subject = REPORT_SUBJECT
+        report_body = REPORT_BODY_TEMPLATE.format(event_summary=event_summary)
+
+        self.send_email(report_subject, report_body)
+
+    def send_email(self, subject: str, body: str) -> None:
+        """
+        Sends an email with the specified subject and body.
+        If email configuration is not fully set, it prints the email instead.
+
+        Args:
+            subject (str): The subject of the email.
+            body (str): The body of the email.
+        """
+        smtp_server = os.getenv("SMTP_SERVER")
+        smtp_port_str = os.getenv("SMTP_PORT")
+        recipient = os.getenv("EMAIL_RECIPIENT")
+        email = os.getenv("EMAIL_ADDRESS")
+        password = os.getenv("EMAIL_PASSWORD")
+
+        if not all([smtp_server, smtp_port_str, recipient, email, password]):
+            self.logger.warning("Email configuration is not fully set. Printing email instead.")
+            print(f"Subject: {subject}\n")
+            print(f"Body:\n{body}")
+            return
+
+        assert smtp_server is not None
+        assert smtp_port_str is not None
+        assert recipient is not None
+        assert email is not None
+        assert password is not None
+
+        message = f"Subject: {subject}\n\n{body}"
+        context = ssl.create_default_context()
+
+        try:
+            smtp_port = int(smtp_port_str)
+            with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
+                server.login(email, password)
+                server.sendmail(email, recipient, message)
+            self.logger.info(f"Successfully sent email report to {recipient}")
+        except Exception as e:
+            self.logger.error(f"Failed to send email report: {e}")
+
+def load_config_from_yaml(config_path: str) -> Dict[str, Any]:
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+
+    c = {
+        "project_id": config.get("project_id"),
+        "gcp_bucket": config.get("bucket_name"),
+        "sinks": [],
+        "logger": logging.getLogger(__name__)
+    }
+
+    for sink_config in config.get("sinks", []):
+        sink = Sink(
+            name=sink_config["name"],
+            description=sink_config["description"],
+            filter_methods=sink_config.get("filter_methods", []),
+            excluded_principals=sink_config.get("excluded_principals", [])
+        )
+        c["sinks"].append(sink)
+
+    logging_config = config.get("logging", {})
+    log_level = logging_config.get("level", "INFO")
+    log_format = logging_config.get("format", "[%(asctime)s] %(levelname)s: %(message)s")
+
+    c["logger"].setLevel(log_level)
+    logging.basicConfig(level=log_level, format=log_format)
+
+    return c
+
+def main():
+    """
+    Main entry point for the script.
+    """
+    parser = argparse.ArgumentParser(description="GCP IAM Log Analyzer")
+    parser.add_argument("--config", required=True, help="Path to the configuration YAML file.")
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("initialize", help="Initialize/update log sinks in GCP.")
+    subparsers.add_parser("generate-report", help="Generate and send the weekly IAM security report.")
+
+    args = parser.parse_args()
+
+    config = load_config_from_yaml(args.config)
+    log_analyzer = LogAnalyzer(
+        project_id=config["project_id"],
+        gcp_bucket=config["gcp_bucket"],
+        logger=config["logger"],
+        sinks=config["sinks"]
+    )
+
+    if args.command == "initialize":
+        log_analyzer.initialize_sinks()
+        log_analyzer.logger.info("Sinks initialized successfully.")
+    elif args.command == "generate-report":
+        log_analyzer.create_weekly_email_report()
+        log_analyzer.logger.info("Weekly report generation process completed.")
+
+if __name__ == "__main__":
+    main()
