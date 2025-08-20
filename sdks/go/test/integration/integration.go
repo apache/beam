@@ -231,7 +231,6 @@ var samzaFilters = []string{
 	"TestValueStateClear",
 	"TestBagState",
 	"TestBagStateClear",
-	"TestBagStateBlindWrite",
 	"TestCombiningState",
 	"TestMapState",
 	"TestMapStateClear",
