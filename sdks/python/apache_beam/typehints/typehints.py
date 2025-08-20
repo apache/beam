@@ -1486,7 +1486,7 @@ _KNOWN_PRIMITIVE_TYPES.update({
 })
 
 
-def is_consistent_with(sub, base):
+def is_consistent_with(sub, base, use_beartype: bool = False) -> bool:
   """Checks whether sub a is consistent with base.
 
   This is according to the terminology of PEP 483/484.  This relationship is
@@ -1525,10 +1525,13 @@ def is_consistent_with(sub, base):
     # Cannot check unsupported parameterized generic which will cause issubclass
     # to fail with an exception.
     return False
-  try:
-    return is_subhint(sub, base)
-  except (BeartypeDoorException):
-    return False
+  if use_beartype:
+    try:
+      return is_subhint(sub, base)
+    except (BeartypeDoorException):
+      return False
+  else:
+    return issubclass(sub, base)
 
 
 def regex_consistency(sub, base) -> bool:
