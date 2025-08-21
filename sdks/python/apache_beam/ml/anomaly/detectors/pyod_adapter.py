@@ -35,6 +35,7 @@ from apache_beam.ml.anomaly.detectors.offline import OfflineDetector
 from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.anomaly.thresholds import FixedThreshold
 from apache_beam.ml.inference.base import KeyedModelHandler
+from typing import cast, Any
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import _PostProcessingModelHandler
@@ -113,35 +114,27 @@ class PyODModelHandler(ModelHandler[beam.Row,
 class PyODFactory:
   """Factory helpers for creating OfflineDetector instances from PyOD models.
 
-    The factory currently only exposes a convenience method to wrap a pickled
-    PyOD model into an OfflineDetector with a fixed threshold taken from the
-    trained model.
-    """
+  The factory currently only exposes a convenience method to wrap a pickled
+  PyOD model into an OfflineDetector with a fixed threshold taken from the
+  trained model.
+  """
   @staticmethod
   def create_detector(model_uri: str, **kwargs) -> OfflineDetector:
-    """A utility function to create OfflineDetector for a PyOD model.
+    """Create an OfflineDetector for a pickled PyOD model located at model_uri.
 
-        **NOTE:** This API and its implementation are currently under active
-        development and may not be backward compatible.
-
-        Args:
-            model_uri: The URI specifying the location of the pickled
-                PyOD model.
-            **kwargs: Additional keyword arguments.
-        """
-    model_handler = (
-        KeyedModelHandler(
-            PyODModelHandler(model_uri=model_uri)).with_postprocess_fn(
-                OfflineDetector.score_prediction_adapter))
-
-    m = model_handler.load_model()
+    Args:
+      model_uri: URI to pickled PyOD model.
+      **kwargs: Extra keyword args forwarded to OfflineDetector.
+    """
+    handler = KeyedModelHandler(
+        PyODModelHandler(model_uri=model_uri)).with_postprocess_fn(
+            OfflineDetector.score_prediction_adapter)
+    m = handler.load_model()
     assert isinstance(m, PyODBaseDetector)
     threshold = float(m.threshold_)
-
     detector = OfflineDetector(
-        model_handler,
+        cast(KeyedModelHandler[Any, beam.Row, Any, Any], handler),
         threshold_criterion=FixedThreshold(threshold),
         **kwargs,
-    )  # type: ignore[arg-type]
-
+    )
     return detector
