@@ -1337,7 +1337,7 @@ ExamplesTest = YamlExamplesTestSuite(
     'ExamplesTest', os.path.join(YAML_DOCS_DIR, '../*.yaml')).run()
 JinjaTest = YamlExamplesTestSuite(
     'JinjaExamplesTest',
-    os.path.join(YAML_DOCS_DIR, '../transforms/jinja/*.yaml')).run()
+    os.path.join(YAML_DOCS_DIR, '../transforms/jinja/**/*.yaml')).run()
 IOTest = YamlExamplesTestSuite(
     'IOExamplesTest', os.path.join(YAML_DOCS_DIR,
                                    '../transforms/io/*.yaml')).run()

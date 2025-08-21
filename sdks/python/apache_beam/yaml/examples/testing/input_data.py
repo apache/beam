@@ -39,7 +39,7 @@ def word_count_jinja_parameter_data():
     '"gs://dataflow-samples/shakespeare/kinglear.txt"}, ' \
     '"mapToFields_split": {"language": "python", "fields":{"value":"1",\
         "word":{"callable":"apache_beam/yaml/examples/transforms/jinja/\
-            submodules/wordCount_mapper.txt"}}}, ' \
+            include/submodules/wordCount_mapper.txt"}}}, ' \
     '"explode":{"fields":"word"}, ' \
     '"combine":{"group_by":"word", "combine":{"value":"sum"}}, ' \
     '"mapToFields_count":{"language": "python", "fields":' \
@@ -49,14 +49,16 @@ def word_count_jinja_parameter_data():
 
 def word_count_jinja_template_data():
   return \
-['apache_beam/yaml/examples/transforms/jinja/submodules/readFromText.yaml',
+[('apache_beam/yaml/examples/transforms/jinja/'
+    'include/submodules/readFromText.yaml'),
    ('apache_beam/yaml/examples/transforms/jinja/'
-   'submodules/mapToFields_split.yaml'),
-   'apache_beam/yaml/examples/transforms/jinja/submodules/explode.yaml',
-   'apache_beam/yaml/examples/transforms/jinja/submodules/combine.yaml',
+   'include/submodules/mapToFields_split.yaml'),
+   'apache_beam/yaml/examples/transforms/jinja/include/submodules/explode.yaml',
+   'apache_beam/yaml/examples/transforms/jinja/include/submodules/combine.yaml',
    ('apache_beam/yaml/examples/transforms/jinja/'
-   'submodules/mapToFields_count.yaml'),
-   'apache_beam/yaml/examples/transforms/jinja/submodules/writeToText.yaml']
+   'include/submodules/mapToFields_count.yaml'),
+   ('apache_beam/yaml/examples/transforms/jinja/'
+   'include/submodules/writeToText.yaml')]
 
 
 def iceberg_dynamic_destinations_users_data():
