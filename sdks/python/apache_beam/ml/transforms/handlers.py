@@ -336,10 +336,9 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       if feature_type == schema_pb2.FeatureType.FLOAT:
         transformed_types[name] = Sequence[np.float32]
       elif feature_type == schema_pb2.FeatureType.INT:
-        # Use built-in int for portability across numpy versions.
-        transformed_types[name] = Sequence[int]
+        transformed_types[name] = Sequence[np.int64]  # type: ignore[assignment]
       else:
-        transformed_types[name] = Sequence[bytes]
+        transformed_types[name] = Sequence[bytes]  # type: ignore[assignment]
     return transformed_types
 
   def expand(
