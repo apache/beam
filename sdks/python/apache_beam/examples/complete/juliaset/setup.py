@@ -34,7 +34,7 @@ import setuptools
 # It is recommended to import setuptools prior to importing distutils to avoid
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
-from distutils.command.build import build as _build  # isort:skip
+from setuptools.command.build_py import build_py as _build
 
 
 # This class handles the pip install mechanism.
@@ -111,7 +111,9 @@ class CustomCommands(setuptools.Command):
 # Note that the Python Dataflow containers come with numpy already installed
 # so this dependency will not trigger anything to be installed unless a version
 # restriction is specified.
-REQUIRED_PACKAGES = []
+REQUIRED_PACKAGES = [
+    'numpy',
+]
 
 setuptools.setup(
     name='juliaset',
