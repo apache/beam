@@ -16,16 +16,12 @@
 # limitations under the License.
 #
 
-# This examples reads from a public file stored on Google Cloud. This
+#
+# This examples writes to a public file stored on Google Cloud. This
 # requires authenticating with Google Cloud, or setting the file in
-#`ReadFromText` to a local file.
-#
-# To set up Application Default Credentials,
-# see https://cloud.google.com/docs/authentication/external/set-up-adc.
-#
-# This pipeline reads in a text file, counts distinct words found in the text,
-# then logs a row containing each word and its count.
+#`WriteToText` to a local file.
 
-        language: {{mapToFields_count.language}}
-        fields:
-          output: {{mapToFields_count.fields.output}}
+    - name: Write to GCS
+      type: WriteToText
+      config:
+        path: {{writeToTextTransform.path}}

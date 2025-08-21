@@ -19,14 +19,8 @@
 # This examples reads from a public file stored on Google Cloud. This
 # requires authenticating with Google Cloud, or setting the file in
 #`ReadFromText` to a local file.
-#
-# To set up Application Default Credentials,
-# see https://cloud.google.com/docs/authentication/external/set-up-adc.
-#
-# This pipeline reads in a text file, counts distinct words found in the text,
-# then logs a row containing each word and its count.
 
-        group_by:
-          - {{combine.group_by}}
-        combine:
-          value: {{combine.combine.value}}
+    - name: Read from GCS
+      type: ReadFromText
+      config:
+        path: {{readFromTextTransform.path}}

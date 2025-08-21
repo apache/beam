@@ -1275,7 +1275,6 @@ def _jinja_preprocessor(raw_spec_string: str):
   """
 
   jinja_variables = json.loads(input_data.word_count_jinja_parameter_data())
-
   test_file_dir = os.path.dirname(__file__)
   sdk_root = os.path.abspath(os.path.join(test_file_dir, '../../../..'))
 

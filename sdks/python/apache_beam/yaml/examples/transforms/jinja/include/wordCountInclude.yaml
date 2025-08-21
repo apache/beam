@@ -27,36 +27,20 @@
 # then logs a row containing each word and its count.
 
 pipeline:
+  type: chain
   transforms:
-    - name: Read from GCS
-      type: ReadFromText
-      config:
-{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/readFromText.yaml' %}
+{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/readFromTextTransform.yaml' %}
     - name: Split words
       type: MapToFields
-      input: Read from GCS
       config:
-{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/mapToFields_split.yaml' %}
-    - name: Explode word arrays
-      type: Explode
-      input: Split words
-      config:
-{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/explode.yaml' %}
-    - name: Count words
-      type: Combine
-      input: Explode word arrays
-      config:
-{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/combine.yaml' %}
+{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/mapToFieldsSplitConfig.yaml' %}
+{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/explodeTransform.yaml' %}
+{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/combineTransform.yaml' %}
     - name: Format output
       type: MapToFields
-      input: Count words
       config:
-{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/mapToFields_count.yaml' %}
-    - name: Write to GCS
-      type: WriteToText
-      input: Format output
-      config:
-{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/writeToText.yaml' %}
+{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/mapToFieldsCountConfig.yaml' %}
+{% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/writeToTextTransform.yaml' %}
 
 # Expected:
 #  Row(output='king - 311')
