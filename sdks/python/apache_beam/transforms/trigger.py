@@ -320,11 +320,11 @@ class TriggerFn(metaclass=ABCMeta):
   @abstractmethod
   def get_continuation_trigger(self):
     """Returns:
-        Trigger to use after a GroupBy to preserve the intention of this trigger.
-        Specifically, triggers that are time based and intended to provide
-        speculative results should continue providing speculative results.
-        Triggers that fire once (or multiple times) should continue firing
-        once (or multiple times).
+        Trigger to use after a GroupBy to preserve the intention of this
+        trigger. Specifically, triggers that are time based and intended
+        to provide speculative results should continue providing speculative
+        results. Triggers that fire once (or multiple times) should
+        continue firing once (or multiple times).
     """
     pass
 
