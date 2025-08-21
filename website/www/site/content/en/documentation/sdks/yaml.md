@@ -708,7 +708,7 @@ the yaml file can be parameterized with externally provided variables using
 the [jinja variable syntax](https://jinja.palletsprojects.com/en/stable/templates/#variables).
 The values are then passed via a `--jinja_variables` command line flag.
 
-For example, one could start a pipeline with
+For example, one could start a pipeline with:
 
 ```
 pipeline:
@@ -741,6 +741,40 @@ or writing dated sources and sinks, e.g.
 ```
 
 would write to files like `gs://path/to/2016/08/04/dated-output*.json`.
+
+A user can also use the `% include` directive to pull in other common templates:
+
+<PATH_TO_YOUR_REPO>/pipeline.yaml
+```sh
+pipeline:
+  transforms:
+    - name: Read from GCS
+      type: ReadFromText
+      config:
+{% include '<PATH_TO_YOUR_REPO>/submodules/readFromText.yaml' %}
+   - name: Write to GCS
+      type: WriteToText
+      input: Read from GCS
+      config:
+        path: "gs://MY-BUCKET/wordCounts/"
+```
+
+<PATH_TO_YOUR_REPO>/submodules/readFromText.yaml
+```sh
+        path: {{readFromText.path}}
+```
+
+This pipeline can be ran like this:
+
+```sh
+python -m apache_beam.yaml.main \
+    --yaml_pipeline_file=pipeline.yaml \
+    --jinja_variables='{"readFromText": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}}'
+```
+
+There are many more ways to import and even use template inheritance using
+Jinja as seen [here](https://jinja.palletsprojects.com/en/stable/templates/#import)
+and [here](https://jinja.palletsprojects.com/en/stable/templates/#inheritance).
 
 ## Other Resources
 
