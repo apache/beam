@@ -236,10 +236,10 @@ gcloud dataflow yaml run $JOB_NAME \
 ### Jinja
 
 Jinja [templatization](https://beam.apache.org/documentation/sdks/yaml/#jinja-templatization)
-can be used to build off of different contexts and/or with different 
+can be used to build off of different contexts and/or with different
 configurations.
 
-Several examples will be created based on the already used word count example 
+Several examples will be created based on the already used word count example
 by leveraging Jinja templating engine for dynamic pipeline generation based on
 inputs from the user through `% include`, `% import`, and inheritance
 directives.
