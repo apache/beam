@@ -132,9 +132,9 @@ prefix = (
 
 test_cases = [
     (top_level_function, f"{prefix}.top_level_function"
-        ".__code__"),
+     ".__code__"),
     (top_level_lambda, f"{prefix}.top_level_lambda"
-        ".__code__"),
+     ".__code__"),
     (
         get_nested_function(), (
             f"{prefix}.get_nested_function"
@@ -163,7 +163,7 @@ test_cases = [
         f"{prefix}.top_level_function"
         ".__code__"),
     (add_one, f"{prefix}.function_decorator"
-        ".__code__.co_consts[<lambda>]"),
+     ".__code__.co_consts[<lambda>]"),
     (
         ClassWithFunction.process,
         f"{prefix}.ClassWithFunction"
@@ -400,7 +400,7 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
         code_object_pickler.get_code_from_identifier(
             code_object_pickler.get_code_object_identifier(
                 module_3.my_function()).replace(
-                  "module_3", "module_3_modified")),
+                    "module_3", "module_3_modified")),
         module_3_modified.my_function().__code__,
     )
 
