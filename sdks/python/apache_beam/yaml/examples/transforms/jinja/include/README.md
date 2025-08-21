@@ -34,7 +34,7 @@ cd <PATH_TO_BEAM_REPO>/beam/sdks/python
 Multiline Run Example:
 ```sh
 python -m apache_beam.yaml.main \
-  --yaml_pipeline_file=apache_beam/yaml/examples/transforms/jinja/include/wordCount.yaml \
+  --yaml_pipeline_file=apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml \
   --jinja_variables='{
     "readFromText": {"path": "'"${KINGLEAR}"'"},
     "mapToFields_split": {
@@ -58,6 +58,6 @@ python -m apache_beam.yaml.main \
 
 Single Line Run Example:
 ```sh
-python -m apache_beam.yaml.main --yaml_pipeline_file=apache_beam/yaml/examples/transforms/jinja/include/wordCount.yaml --jinja_variables='{"readFromText": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}, "mapToFields_split": {"language": "python", "fields":{"value":"1"}}, "explode":{"fields":"word"}, "combine":{"group_by":"word", "combine":{"value":"sum"}}, "mapToFields_count":{"language": "python", "fields":{"output":"word + \" - \" + str(value)"}}, "writeToText":{"path":"${TEMP_LOCATION}"}}'
+python -m apache_beam.yaml.main --yaml_pipeline_file=apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml --jinja_variables='{"readFromText": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}, "mapToFields_split": {"language": "python", "fields":{"value":"1"}}, "explode":{"fields":"word"}, "combine":{"group_by":"word", "combine":{"value":"sum"}}, "mapToFields_count":{"language": "python", "fields":{"output":"word + \" - \" + str(value)"}}, "writeToText":{"path":"${TEMP_LOCATION}"}}'
 ```
 

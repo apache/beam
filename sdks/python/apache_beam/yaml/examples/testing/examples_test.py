@@ -561,11 +561,12 @@ def _wordcount_minimal_test_preprocessor(
   return _wordcount_random_shuffler(test_spec, all_words, env)
 
 
-@YamlExamplesTestSuite.register_test_preprocessor(['test_wordCount_yaml'])
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_wordCountInclude_yaml'])
 def _wordcount_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
-  Preprocessor for the wordcount_minimal.yaml test.
+  Preprocessor for the wordcount Jinja tests.
 
   This preprocessor generates a random input file based on the expected output
   of the wordcount example. This allows the test to verify the pipeline's
@@ -674,7 +675,7 @@ def _kafka_test_preprocessor(
     'test_iceberg_migration_yaml',
     'test_ml_preprocessing_yaml',
     'test_anomaly_scoring_yaml',
-    'test_wordCount_yaml'
+    'test_wordCountInclude_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
@@ -1250,7 +1251,8 @@ def _batch_log_analysis_test_preprocessor(
   return test_spec
 
 
-@YamlExamplesTestSuite.register_test_preprocessor(['test_wordCount_yaml'])
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_wordCountInclude_yaml'])
 def _jinja_preprocessor(raw_spec_string: str):
   """
   Preprocessor for Jinja-based YAML tests.
