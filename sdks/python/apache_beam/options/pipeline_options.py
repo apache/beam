@@ -1023,7 +1023,8 @@ class GoogleCloudOptions(PipelineOptions):
         '--enable_streaming_engine',
         default=True,
         action='store_true',
-        help='Deprecated. All Python pipelines use Streaming Engine. ')
+        help='Deprecated. All Python streaming pipelines on Dataflow'
+        'use Streaming Engine.')
     parser.add_argument(
         '--dataflow_kms_key',
         default=None,
