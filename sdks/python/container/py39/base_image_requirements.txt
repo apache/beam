@@ -113,7 +113,6 @@ mmh3==5.1.0
 mock==5.2.0
 more-itertools==10.7.0
 multidict==6.6.3
-mysql-connector-python==9.3.0
 nltk==3.9.1
 numpy==2.0.2
 oauth2client==4.1.3
