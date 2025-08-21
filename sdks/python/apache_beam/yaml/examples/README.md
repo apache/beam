@@ -235,51 +235,24 @@ gcloud dataflow yaml run $JOB_NAME \
 
 ### Jinja
 
-This word count example leverages the Jinja templating engine for dynamic
-pipeline generation based on inputs from the user and also gives a glimpse at
-using submoduling.
+Jinja [templatization](https://beam.apache.org/documentation/sdks/yaml/#jinja-templatization)
+can be used to build off of different contexts and/or with different 
+configurations.
 
-Besides the test command above, the pipeline can be ran in the following way as
-well:
+Several examples will be created based on the already used word count example 
+by leveraging Jinja templating engine for dynamic pipeline generation based on
+inputs from the user through `% include`, `% import`, and inheritance
+directives.
 
-General setup:
-```sh
-export PIPELINE_FILE=apache_beam/yaml/examples/transforms/jinja/wordCount.yaml
-export KINGLEAR="gs://dataflow-samples/shakespeare/kinglear.txt"
-export TEMP_LOCATION="gs://MY-BUCKET/wordCounts/"
+% import:
+- [wordCount.yaml](#TODO: pending)
 
-cd <PATH_TO_BEAM_REPO>/beam/sdks/python
-```
+% include:
+- [wordCount.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/wordCount.yaml)
 
-Multiline Run Example:
-```sh
-python -m apache_beam.yaml.main \
-  --yaml_pipeline_file=apache_beam/yaml/examples/transforms/jinja/wordCount.yaml \
-  --jinja_variables='{
-    "readFromText": {"path": "'"${KINGLEAR}"'"},
-    "mapToFields_split": {
-      "language": "python",
-      "fields": {
-        "value": "1"
-      }
-    },
-    "explode": {"fields": "word"},
-    "combine": {
-      "group_by": "word",
-      "combine": {"value": "sum"}
-    },
-    "mapToFields_count": {
-      "language": "python",
-      "fields": {"output": "word + \" - \" + str(value)"}
-    },
-    "writeToText": {"path": "'"${TEMP_LOCATION}"'"}
-  }'
-```
+inheritance:
+- [wordCount.yaml](#TODO: pending)
 
-Single Line Run Example:
-```sh
-python -m apache_beam.yaml.main --yaml_pipeline_file=apache_beam/yaml/examples/transforms/jinja/wordCount.yaml --jinja_variables='{"readFromText": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}, "mapToFields_split": {"language": "python", "fields":{"value":"1"}}, "explode":{"fields":"word"}, "combine":{"group_by":"word", "combine":{"value":"sum"}}, "mapToFields_count":{"language": "python", "fields":{"output":"word + \" - \" + str(value)"}}, "writeToText":{"path":"${TEMP_LOCATION}"}}'
-```
 
 ### ML
 
