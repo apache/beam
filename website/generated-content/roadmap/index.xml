@@ -298,7 +298,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="apache-nemo-runner-roadmap">Apache Nemo Runner Roadmap&lt;/h1>
-&lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
+&lt;p>&lt;strong>Note&lt;/strong> Apache Nemo has been retired from incubation (&lt;a href="https://incubator.apache.org/projects/index.html#nemo">status&lt;/a>).&lt;/p>
+&lt;p>For references, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/nemo">Runner documentation&lt;/a>&lt;/li>
 &lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-nemo">runner-nemo&lt;/a> / &lt;a href="https://issues.apache.org/jira/projects/NEMO/issues/filter=allopenissues">nemo-jira&lt;/a>&lt;/li>
@@ -468,7 +469,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="samza-runner-roadmap">Samza Runner Roadmap&lt;/h1>
-&lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
+&lt;p>&lt;strong>Note&lt;/strong> Samza runner is deprecated and the support is planned to be removed in Beam 3.0 (&lt;a href="https://github.com/apache/beam/issues/35448">Issue&lt;/a>).&lt;/p>
+&lt;p>For references, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/samza">Runner documentation&lt;/a>&lt;/li>
 &lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-samza">runner-samza&lt;/a>&lt;/li>
@@ -504,7 +506,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="twister2-runner-roadmap">Twister2 Runner Roadmap&lt;/h1>
-&lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
+&lt;p>&lt;strong>Note&lt;/strong> Twister2 runner is deprecated and the support is planned to be removed in Beam 3.0 (&lt;a href="https://github.com/apache/beam/issues/35905">Issue&lt;/a>).&lt;/p>
+&lt;p>For references, here are available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/twister2">Runner documentation&lt;/a>&lt;/li>
 &lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-twister2">runner-twister2&lt;/a>&lt;/li>
