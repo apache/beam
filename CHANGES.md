@@ -92,6 +92,8 @@
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 * Python SDK native SpannerIO (apache_beam/io/gcp/experimental/spannerio) is deprecated. Use cross-language wrapper
   (apache_beam/io/gcp/spanner) instead (Python) ([#35860](https://github.com/apache/beam/issues/35860)).
+* Samza runner is deprecated and scheduled for removal in Beam 3.0 ([#35448](https://github.com/apache/beam/issues/35448)).
+* Twister2 runner is deprecated and scheduled for removal in Beam 3.0 ([#35905](https://github.com/apache/beam/issues/35905))).
 
 ## Bugfixes
 
