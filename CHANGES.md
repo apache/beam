@@ -76,6 +76,10 @@
 * BigtableRead Connector for BeamYaml added with new Config Param ([#35696](https://github.com/apache/beam/pull/35696))
 * Introduced a dedicated module for JUnit-based testing support: `sdks/java/testing/junit`, which provides `TestPipelineExtension` for JUnit 5 while maintaining backward compatibility with existing JUnit 4 `TestRule`-based tests (Java) ([#18733](https://github.com/apache/beam/issues/18733), [#35688](https://github.com/apache/beam/pull/35688)).
   - To use JUnit 5 with Beam tests, add a test-scoped dependency on `org.apache.beam:beam-sdks-java-testing-junit`.
+* Google CloudSQL enrichment handler added (Python) ([#34398](https://github.com/apache/beam/pull/34398)).
+  Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
+  - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
+  - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
 
 ## Breaking Changes
 
