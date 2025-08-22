@@ -1288,7 +1288,7 @@ def _jinja_preprocessor(raw_spec_string: str):
 
   # Can't use the standard expand_jinja method due to it not supporting
   # `% include` jinja templization.
-  # TODO: Maybe update expand_jinja to handle this case.
+  # TODO(#35936): Maybe update expand_jinja to handle this case.
   jinja_env = Environment(
       loader=DictLoader(mock_templates), undefined=StrictUndefined)
   template = jinja_env.get_template('main_template')

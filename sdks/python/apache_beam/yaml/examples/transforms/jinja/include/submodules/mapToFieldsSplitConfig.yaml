@@ -23,10 +23,10 @@
         fields:
           word:
             callable: |-
-              # TODO: Including another file here works fine, but if the file
-              # has a license header or other irrevalent comments, it will break
-              # the pipeline. Need to investigate more on Jinja filtering
-              # in the expand_jinja method or some other way.
+              # TODO(#35936): Including another file here works fine, but if
+              # the file has a license header or other irrevalent comments, it
+              # will break the pipeline. Need to investigate more on Jinja
+              # filtering in the expand_jinja method or some other way.
               import re
               def my_mapping(row):
                 return re.findall(r'[A-Za-z\']+', row.line.lower())
