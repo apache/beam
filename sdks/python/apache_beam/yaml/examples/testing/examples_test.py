@@ -565,7 +565,7 @@ def _wordcount_minimal_test_preprocessor(
 
 @YamlExamplesTestSuite.register_test_preprocessor(
     ['test_wordCountInclude_yaml', 'test_wordCountImport_yaml'])
-def _wordcount_include_jinja_test_preprocessor(
+def _wordcount_jinja_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
   Preprocessor for the wordcount Jinja tests.
