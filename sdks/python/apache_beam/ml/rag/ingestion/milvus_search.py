@@ -288,18 +288,31 @@ class _MilvusSink:
     if not self._client:
       self._client = MilvusClient(
         **unpack_dataclass_with_kwargs(self._connection_params))
-    resp = self._client.upsert(
-      collection_name=self._write_config.collection_name,
-      partition_name=self._write_config.partition_name,
-      data = documents,
-      timeout=self._write_config.timeout,
-      **self._write_config.kwargs)
-    self._client.flush(self._write_config.collection_name)
-    _LOGGER.debug(
-        "Upserted into Milvus: upsert_count=%d, cost=%d",
-        resp.get("upsert_count", 0),
-        resp.get("cost", 0)
-    )
+
+    try:
+      resp = self._client.upsert(
+        collection_name=self._write_config.collection_name,
+        partition_name=self._write_config.partition_name,
+        data = documents,
+        timeout=self._write_config.timeout,
+        **self._write_config.kwargs)
+
+      # Try to flush, but handle connection issues gracefully.
+      try:
+        self._client.flush(self._write_config.collection_name)
+      except Exception as e:
+        # If flush fails due to connection issues, log but don't fail the write.
+        _LOGGER.warning(
+          "Flush operation failed, but upsert was successful: %s",e)
+
+      _LOGGER.debug(
+          "Upserted into Milvus: upsert_count=%d, cost=%d",
+          resp.get("upsert_count", 0),
+          resp.get("cost", 0)
+      )
+    except Exception as e:
+      _LOGGER.error("Failed to write to Milvus: %s", e)
+      raise
 
   def __enter__(self):
     """Enters the context manager and establishes Milvus connection.
