@@ -1396,6 +1396,16 @@ class BatchViewOverrides {
     }
 
     @Override
+    public @Nullable String getCurrentRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Long getCurrentRecordOffset() {
+      return null;
+    }
+
+    @Override
     public Iterable<WindowedValue<T>> explodeWindows() {
       return Collections.emptyList();
     }

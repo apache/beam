@@ -421,10 +421,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'min_cpu_platform=Intel Haswell',
         remote_runner.job.options.view_as(DebugOptions).experiments)
 
-  def test_streaming_engine_flag_adds_windmill_experiments(self):
+  def test_streaming_adds_windmill_experiments(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--streaming')
-    self.default_properties.append('--enable_streaming_engine')
     self.default_properties.append('--experiment=some_other_experiment')
 
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:

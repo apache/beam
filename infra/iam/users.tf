@@ -46,7 +46,7 @@ resource "google_project_iam_member" "project_members" {
   }
   project = var.project_id
   role    = each.value.role
-  member  = "user:${each.value.email}"
+  member = can(regex(".*\\.gserviceaccount\\.com$", each.value.email)) ? "serviceAccount:${each.value.email}" : "user:${each.value.email}"
 
   dynamic "condition" {
     # Condition is only created if expiry_date is set

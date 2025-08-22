@@ -717,7 +717,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_compress                            : "org.apache.commons:commons-compress:1.26.2",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
         commons_io                                  : "commons-io:commons-io:2.16.1",
-        commons_lang3                               : "org.apache.commons:commons-lang3:3.14.0",
+        commons_lang3                               : "org.apache.commons:commons-lang3:3.18.0",
         commons_logging                             : "commons-logging:commons-logging:1.2",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
@@ -1923,15 +1923,25 @@ class BeamModulePlugin implements Plugin<Project> {
 
           publications {
             mavenJava(MavenPublication) {
+              // only publish test and its sources when test folder is non-empty
+              def testFolder = project.file("src/test")
+              boolean testExists = testFolder.exists() && testFolder.list().size() != 0
+
               if (configuration.shadowClosure) {
                 artifact project.shadowJar
-                artifact project.shadowTestJar
+                if (testExists) {
+                  artifact project.shadowTestJar
+                }
               } else {
                 artifact project.jar
-                artifact project.testJar
+                if (testExists) {
+                  artifact project.testJar
+                }
               }
               artifact project.sourcesJar
-              artifact project.testSourcesJar
+              if (testExists) {
+                artifact project.testSourcesJar
+              }
               artifact project.javadocJar
 
               artifactId = project.archivesBaseName

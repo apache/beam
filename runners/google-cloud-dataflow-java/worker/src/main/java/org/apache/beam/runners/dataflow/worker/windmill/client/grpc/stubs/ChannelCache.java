@@ -38,7 +38,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalL
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListeners;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,8 +57,8 @@ public final class ChannelCache implements StatusDataProvider {
   private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
 
   @GuardedBy("this")
-  @MonotonicNonNull
-  private UserWorkerGrpcFlowControlSettings currentFlowControlSettings = null;
+  private UserWorkerGrpcFlowControlSettings currentFlowControlSettings =
+      UserWorkerGrpcFlowControlSettings.getDefaultInstance();
 
   private ChannelCache(
       WindmillChannelFactory channelFactory,
@@ -78,7 +77,8 @@ public final class ChannelCache implements StatusDataProvider {
                   private UserWorkerGrpcFlowControlSettings resolveFlowControlSettings(
                       WindmillServiceAddress.Kind addressType) {
                     synchronized (ChannelCache.this) {
-                      if (currentFlowControlSettings == null) {
+                      if (currentFlowControlSettings.equals(
+                          UserWorkerGrpcFlowControlSettings.getDefaultInstance())) {
                         return addressType == AUTHENTICATED_GCP_SERVICE_ADDRESS
                             ? WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS
                             : WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS;
@@ -132,9 +132,7 @@ public final class ChannelCache implements StatusDataProvider {
 
   public synchronized void consumeFlowControlSettings(
       UserWorkerGrpcFlowControlSettings flowControlSettings) {
-    //noinspection PointlessNullCheck
-    if (currentFlowControlSettings == null
-        || !flowControlSettings.equals(currentFlowControlSettings)) {
+    if (!flowControlSettings.equals(currentFlowControlSettings)) {
       // Refreshing the cache will asynchronously terminate the old channels via the removalListener
       // and return a newly created one on the next Cache.load(address). This could be expensive so
       // only do it when we have received new flow control settings.

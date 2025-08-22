@@ -61,11 +61,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * A {@link PipelineRunner} that executes the operations in the pipeline by first translating them
  * to a Twister2 Plan and then executing them either locally or on a Twister2 cluster, depending on
  * the configuration.
+ *
+ * @deprecated The support for twister2 is scheduled for removal in Beam 3.0.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class Twister2Runner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = Logger.getLogger(Twister2Runner.class.getName());

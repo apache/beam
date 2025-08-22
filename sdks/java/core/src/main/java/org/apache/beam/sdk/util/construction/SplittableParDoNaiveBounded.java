@@ -399,6 +399,29 @@ public class SplittableParDoNaiveBounded {
 
                 @Override
                 public <T> void output(
+                    TupleTag<T> tag,
+                    T output,
+                    Instant timestamp,
+                    BoundedWindow window,
+                    @Nullable String currentRecordId,
+                    @Nullable Long currentRecordOffset) {
+                  throw new UnsupportedOperationException(
+                      "Output from FinishBundle for SDF is not supported in naive implementation");
+                }
+
+                @Override
+                public void output(
+                    @Nullable OutputT output,
+                    Instant timestamp,
+                    BoundedWindow window,
+                    @Nullable String currentRecordId,
+                    @Nullable Long currentRecordOffset) {
+                  throw new UnsupportedOperationException(
+                      "Output from FinishBundle for SDF is not supported in naive implementation");
+                }
+
+                @Override
+                public <T> void output(
                     TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
                   throw new UnsupportedOperationException(
                       "Output from FinishBundle for SDF is not supported in naive implementation");
@@ -618,6 +641,18 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
+        outerContext.outputWindowedValue(
+            output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset);
+      }
+
+      @Override
       public <T> void output(TupleTag<T> tag, T output) {
         outerContext.output(tag, output);
       }
@@ -638,6 +673,19 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public <T> void outputWindowedValue(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
+        outerContext.outputWindowedValue(
+            tag, output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset);
+      }
+
+      @Override
       public InputT element() {
         return element;
       }
@@ -655,6 +703,16 @@ public class SplittableParDoNaiveBounded {
       @Override
       public PaneInfo pane() {
         return outerContext.pane();
+      }
+
+      @Override
+      public String currentRecordId() {
+        return outerContext.currentRecordId();
+      }
+
+      @Override
+      public Long currentRecordOffset() {
+        return outerContext.currentRecordOffset();
       }
 
       @Override

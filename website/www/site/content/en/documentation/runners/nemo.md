@@ -18,6 +18,8 @@ limitations under the License.
 -->
 # Using the Apache Nemo Runner
 
+**Note** Apache Nemo has been retired from incubation ([status](https://incubator.apache.org/projects/index.html#nemo)).
+
 The Apache Nemo Runner can be used to execute Beam pipelines using [Apache Nemo](https://nemo.apache.org).
 The Nemo Runner can optimize Beam pipelines with the Nemo compiler through various optimization passes
 and execute them in a distributed fashion using the Nemo runtime. You can also deploy a self-contained application

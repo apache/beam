@@ -309,21 +309,16 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls):
-    try:
-        cls._db = MilvusTestHelpers.start_db_container(
-            cls._version, vector_client_max_retries=1, tc_max_retries=1)
-        cls._connection_params = MilvusConnectionConfig(
-            uri=cls._db.uri,
-            user=cls._db.user,
-            password=cls._db.password,
-            db_name=cls._db.db_id,
-            token=cls._db.token)
-        cls._collection_load_params = MilvusCollectionLoadParameters()
-        cls._collection_name = initialize_db_with_data(cls._connection_params)
-    except Exception as e:
-      pytest.skip(
-          f"Skipping all tests in {cls.__name__} due to DB startup failure: {e}"
-      )
+    cls._db = MilvusTestHelpers.start_db_container(
+        cls._version, vector_client_max_retries=1, tc_max_retries=1)
+    cls._connection_params = MilvusConnectionConfig(
+        uri=cls._db.uri,
+        user=cls._db.user,
+        password=cls._db.password,
+        db_name=cls._db.db_id,
+        token=cls._db.token)
+    cls._collection_load_params = MilvusCollectionLoadParameters()
+    cls._collection_name = initialize_db_with_data(cls._connection_params)
 
   @classmethod
   def tearDownClass(cls):

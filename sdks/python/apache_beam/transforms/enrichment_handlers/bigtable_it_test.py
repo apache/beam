@@ -17,6 +17,7 @@
 
 import datetime
 import logging
+import time
 import unittest
 from typing import NamedTuple
 from unittest.mock import MagicMock
@@ -167,7 +168,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     instance = client.instance(self.instance_id)
     self.table = instance.table(self.table_id)
     create_rows(self.table)
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
@@ -183,6 +184,8 @@ class TestBigTableEnrichment(unittest.TestCase):
         if i == self.retries - 1:
           _LOGGER.error('Unable to start redis container for RRIO tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
   def tearDown(self) -> None:
     self.container.stop()

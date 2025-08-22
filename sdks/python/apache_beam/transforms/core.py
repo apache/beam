@@ -3866,6 +3866,15 @@ class Flatten(PTransform):
       raise ValueError(
           'Input to Flatten must be an iterable. '
           'Got a value of type %s instead.' % type(pvalueish))
+
+    # Spot check to see if any of the items are iterables of PCollections
+    # and raise an error if so. This is always a user-error
+    for idx, item in enumerate(pvalueish):
+      if isinstance(item, (list, tuple)) and any(
+          isinstance(sub_item, pvalue.PCollection) for sub_item in item):
+        raise TypeError(
+            'Inputs to Flatten cannot include an iterable of PCollections. '
+            f'(input at index {idx}: "{item}")')
     return pvalueish, pvalueish
 
   def expand(self, pcolls):

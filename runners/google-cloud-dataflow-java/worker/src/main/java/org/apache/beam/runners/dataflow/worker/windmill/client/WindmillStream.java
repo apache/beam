@@ -64,10 +64,6 @@ public interface WindmillStream {
   interface GetWorkStream extends WindmillStream {
     /** Adjusts the {@link GetWorkBudget} for the stream. */
     void setBudget(GetWorkBudget newBudget);
-
-    default void setBudget(long newItems, long newBytes) {
-      setBudget(GetWorkBudget.builder().setItems(newItems).setBytes(newBytes).build());
-    }
   }
 
   /** Interface for streaming GetDataRequests to Windmill. */
