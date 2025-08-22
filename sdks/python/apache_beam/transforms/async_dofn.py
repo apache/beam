@@ -125,7 +125,7 @@ class AsyncWrapper(beam.DoFn):
   def reset_state():
     for pool in AsyncWrapper._pool.values():
       pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
-        wait=True, cancel_futures=True)
+          wait=True, cancel_futures=True)
     with AsyncWrapper._lock:
       AsyncWrapper._pool = {}
       AsyncWrapper._processing_elements = {}
@@ -210,7 +210,7 @@ class AsyncWrapper(beam.DoFn):
       if self.accepting_items() or ignore_buffer:
         result = AsyncWrapper._pool[self._uuid].acquire(
             AsyncWrapper.initialize_pool(self._parallelism)).submit(
-              lambda: self.sync_fn_process(element, *args, **kwargs),
+                lambda: self.sync_fn_process(element, *args, **kwargs),
             )
         result.add_done_callback(self.decrement_items_in_buffer)
         AsyncWrapper._processing_elements[self._uuid][element] = result
