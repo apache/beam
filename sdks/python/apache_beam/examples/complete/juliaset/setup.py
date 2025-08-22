@@ -31,11 +31,20 @@ when running the workflow for remote execution.
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
 from setuptools import setup, find_packages
+from setuptools.command.build_py import build_py as _build_py
+import subprocess
+
+class CustomBuild(_build_py):
+        def run(self):
+        # harmless demo command; ok to delete entirely
+        subprocess.check_call(["echo", "Custom command worked!"])
+        super().run()
 
 setup(
-    name='juliaset',
-    version='0.0.1',
-    description='Julia set workflow package.',
+    name="juliaset",
+    version="0.0.1",
+    description="Julia set workflow package.",
     packages=find_packages(),
-    install_requires=[],   # keep empty for staging
+    install_requires=[],          # keep empty for staging (--no-isolation)
+    cmdclass={"build_py": CustomBuild},  # or drop cmdclass if not needed
 )
