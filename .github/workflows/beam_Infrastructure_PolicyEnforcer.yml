@@ -68,7 +68,7 @@ jobs:
           EMAIL_ADDRESS: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: "dev@beam.apache.org"
-        run: python iam.py --action announce
+        run: python iam.py --action print
 
       - name: Run Account Keys Policy Enforcement
         working-directory: ./infra/enforcement
@@ -80,4 +80,4 @@ jobs:
           EMAIL_ADDRESS: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: "dev@beam.apache.org"
-        run: python account_keys.py --action announce
+        run: python account_keys.py --action print
