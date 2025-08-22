@@ -116,7 +116,7 @@ class AsyncWrapper(beam.DoFn):
     self.parallelism_ = parallelism
     self._next_time_to_fire = Timestamp.now() + Duration(seconds=5)
     self._shared_handle = Shared()
-    
+
   @staticmethod
   def initialize_pool(parallelism):
     return lambda: ThreadPoolExecutor(max_workers=parallelism)
@@ -125,8 +125,7 @@ class AsyncWrapper(beam.DoFn):
   def reset_state():
     for pool in AsyncWrapper._pool.values():
       pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
-        wait=True, cancel_futures=True
-      )
+        wait=True, cancel_futures=True)
     with AsyncWrapper._lock:
       AsyncWrapper._pool = {}
       AsyncWrapper._processing_elements = {}
@@ -210,9 +209,9 @@ class AsyncWrapper(beam.DoFn):
         return True
       if self.accepting_items() or ignore_buffer:
         result = AsyncWrapper._pool[self._uuid].acquire(
-          AsyncWrapper.initialize_pool(self._parallelism)).submit(
-            lambda: self.sync_fn_process(element, *args, **kwargs),
-        )
+            AsyncWrapper.initialize_pool(self._parallelism)).submit(
+              lambda: self.sync_fn_process(element, *args, **kwargs),
+            )
         result.add_done_callback(self.decrement_items_in_buffer)
         AsyncWrapper._processing_elements[self._uuid][element] = result
         AsyncWrapper._items_in_buffer[self._uuid] += 1
