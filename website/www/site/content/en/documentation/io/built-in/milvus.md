@@ -84,7 +84,7 @@ with beam.Pipeline() as pipeline:
         | "Read Data" >> beam.io.ReadFromText("input.txt")
         | "Process to Chunks" >> beam.Map(process_to_chunks)
     )
-    
+
     # Write to Milvus.
     chunks | "Write to Milvus" >> milvus_config.create_write_transform()
 ```
@@ -178,7 +178,7 @@ Here's a complete example that processes documents and writes them to Milvus:
 ```python
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.milvus_search import (
-    MilvusVectorWriterConfig, 
+    MilvusVectorWriterConfig,
     MilvusWriteConfig
 )
 from apache_beam.ml.rag.utils import MilvusConnectionConfig
@@ -191,15 +191,15 @@ def process_document(document_text):
     # 1. Split document into chunks
     # 2. Generate embeddings using a model
     # 3. Extract metadata
-    
+
     chunks = []
     sentences = document_text.split('.')
-    
+
     for i, sentence in enumerate(sentences):
         if sentence.strip():
             # Generate mock embedding (replace with real embedding model).
             embedding = np.random.rand(384).tolist()  # 384-dimensional vector
-            
+
             chunk = Chunk(
                 id=f"doc_chunk_{i}",
                 content=sentence.strip(),
@@ -207,7 +207,7 @@ def process_document(document_text):
                 metadata={"chunk_index": i, "length": len(sentence)}
             )
             chunks.append(chunk)
-    
+
     return chunks
 
 def run_pipeline():
@@ -216,19 +216,19 @@ def run_pipeline():
         uri="http://localhost:19530",
         db_name="rag_database"
     )
-    
+
     # Configure write settings.
     write_config = MilvusWriteConfig(
         collection_name="document_chunks",
         write_batch_size=500
     )
-    
+
     # Create writer configuration.
     milvus_config = MilvusVectorWriterConfig(
         connection_params=connection_config,
         write_config=write_config
     )
-    
+
     # Define pipeline.
     with beam.Pipeline() as pipeline:
         documents = (
@@ -238,12 +238,12 @@ def run_pipeline():
                 "Second document with different content. More sentences here."
             ])
         )
-        
+
         chunks = (
             documents
             | "Process Documents" >> beam.FlatMap(process_document)
         )
-        
+
         # Write to Milvus.
         chunks | "Write to Milvus" >> milvus_config.create_write_transform()
 
@@ -267,7 +267,7 @@ write_config = MilvusWriteConfig(
 
 # For memory-constrained environments.
 write_config = MilvusWriteConfig(
-    collection_name="small_collection", 
+    collection_name="small_collection",
     write_batch_size=100   # Smaller batches to reduce memory usage
 )
 ```
