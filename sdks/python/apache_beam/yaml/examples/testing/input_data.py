@@ -65,20 +65,25 @@ def word_count_jinja_parameter_data():
   return json.dumps(params)
 
 
-def word_count_jinja_template_data():
-  return \
-[('apache_beam/yaml/examples/transforms/jinja/'
-    'include/submodules/readFromTextTransform.yaml'),
-   ('apache_beam/yaml/examples/transforms/jinja/'
-   'include/submodules/mapToFieldsSplitConfig.yaml'),
-   ('apache_beam/yaml/examples/transforms/jinja/'
-   'include/submodules/explodeTransform.yaml'),
-   ('apache_beam/yaml/examples/transforms/jinja/'
-   'include/submodules/combineTransform.yaml'),
-   ('apache_beam/yaml/examples/transforms/jinja/'
-   'include/submodules/mapToFieldsCountConfig.yaml'),
-   ('apache_beam/yaml/examples/transforms/jinja/'
-   'include/submodules/writeToTextTransform.yaml')]
+def word_count_jinja_template_data(test_name: str) -> list[str]:
+  if test_name == 'test_wordCountInclude_yaml':
+    return \
+        [('apache_beam/yaml/examples/transforms/jinja/'
+            'include/submodules/readFromTextTransform.yaml'),
+        ('apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/mapToFieldsSplitConfig.yaml'),
+        ('apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/explodeTransform.yaml'),
+        ('apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/combineTransform.yaml'),
+        ('apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/mapToFieldsCountConfig.yaml'),
+        ('apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/writeToTextTransform.yaml')]
+  elif test_name == 'test_wordCountImport_yaml':
+    return \
+        [('apache_beam/yaml/examples/transforms/jinja/'
+            'import/macros/wordCountMacros.yaml')]
 
 
 def iceberg_dynamic_destinations_users_data():
