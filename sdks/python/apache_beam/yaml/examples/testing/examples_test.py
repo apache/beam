@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import random
+import re
 import sys
 import unittest
 from typing import Any
@@ -586,10 +587,10 @@ def _wordcount_test_preprocessor(
   """
   all_words = []
   for element in expected:
-    word = element.split('=')[1].split(' - ')[0].replace("'", '')
-    count = int(element.split('=')[1].split(' - ')[1].replace("')", ''))
-    all_words += [word] * count
-
+    match = re.search(r"output='(.*) - (\d+)'", element)
+    if match:
+      word, count_str = match.groups()
+      all_words += [word] * int(count_str)
   return _wordcount_random_shuffler(test_spec, all_words, env)
 
 
