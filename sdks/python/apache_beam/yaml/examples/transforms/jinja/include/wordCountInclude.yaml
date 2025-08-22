@@ -29,17 +29,28 @@
 pipeline:
   type: chain
   transforms:
+# Read in text file
 {% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/readFromTextTransform.yaml' %}
+
+# Split words and count occurrences
     - name: Split words
       type: MapToFields
       config:
 {% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/mapToFieldsSplitConfig.yaml' %}
+
+# Explode into individual words
 {% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/explodeTransform.yaml' %}
+
+# Group by word
 {% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/combineTransform.yaml' %}
+
+# Format output to a single string consisting of `word - count`
     - name: Format output
       type: MapToFields
       config:
 {% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/mapToFieldsCountConfig.yaml' %}
+
+# Write to text file on GCS, locally, etc
 {% include 'apache_beam/yaml/examples/transforms/jinja/include/submodules/writeToTextTransform.yaml' %}
 
 # Expected:
