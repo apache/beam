@@ -35,7 +35,7 @@ import fastavro
 import apache_beam as beam
 import apache_beam.io as beam_io
 from apache_beam import coders
-from apache_beam.io import ReadFromBigQuery
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io import WriteToTFRecord
