@@ -160,6 +160,8 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
 
+milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
+
 
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
@@ -444,9 +446,8 @@ if __name__ == '__main__':
               'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
-              'oracledb>=3.1.1',
-              'milvus'
-          ],
+              'oracledb>=3.1.1'
+          ] + milvus_dependency,
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
@@ -589,7 +590,7 @@ if __name__ == '__main__':
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
-          'milvus': ['pymilvus>=2.5.10,<3.0.0']
+          'milvus': milvus_dependency
       },
       zip_safe=False,
       # PyPI package information.
