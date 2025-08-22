@@ -84,6 +84,7 @@ def word_count_jinja_template_data(test_name: str) -> list[str]:
     return \
         [('apache_beam/yaml/examples/transforms/jinja/'
             'import/macros/wordCountMacros.yaml')]
+  return []
 
 
 def iceberg_dynamic_destinations_users_data():
