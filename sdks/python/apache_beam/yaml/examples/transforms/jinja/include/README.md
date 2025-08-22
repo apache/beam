@@ -24,7 +24,7 @@ pipeline and then submodules for each transformed used.
 
 General setup:
 ```sh
-export PIPELINE_FILE=apache_beam/yaml/examples/transforms/jinja/wordCount.yaml
+export PIPELINE_FILE=apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml
 export KINGLEAR="gs://dataflow-samples/shakespeare/kinglear.txt"
 export TEMP_LOCATION="gs://MY-BUCKET/wordCounts/"
 
@@ -34,30 +34,30 @@ cd <PATH_TO_BEAM_REPO>/beam/sdks/python
 Multiline Run Example:
 ```sh
 python -m apache_beam.yaml.main \
-  --yaml_pipeline_file=apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml \
+  --yaml_pipeline_file="${PIPELINE_FILE}" \
   --jinja_variables='{
-    "readFromText": {"path": "'"${KINGLEAR}"'"},
-    "mapToFields_split": {
+    "readFromTextTransform": {"path": "'"${KINGLEAR}"'"},
+    "mapToFieldsSplitConfig": {
       "language": "python",
       "fields": {
         "value": "1"
       }
     },
-    "explode": {"fields": "word"},
-    "combine": {
+    "explodeTransform": {"fields": "word"},
+    "combineTransform": {
       "group_by": "word",
       "combine": {"value": "sum"}
     },
-    "mapToFields_count": {
+    "mapToFieldsCountConfig": {
       "language": "python",
       "fields": {"output": "word + \" - \" + str(value)"}
     },
-    "writeToText": {"path": "'"${TEMP_LOCATION}"'"}
+    "writeToTextTransform": {"path": "'"${TEMP_LOCATION}"'"}
   }'
 ```
 
 Single Line Run Example:
 ```sh
-python -m apache_beam.yaml.main --yaml_pipeline_file=apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml --jinja_variables='{"readFromText": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}, "mapToFields_split": {"language": "python", "fields":{"value":"1"}}, "explode":{"fields":"word"}, "combine":{"group_by":"word", "combine":{"value":"sum"}}, "mapToFields_count":{"language": "python", "fields":{"output":"word + \" - \" + str(value)"}}, "writeToText":{"path":"${TEMP_LOCATION}"}}'
+python -m apache_beam.yaml.main --yaml_pipeline_file="${PIPELINE_FILE}" --jinja_variables='{"readFromTextTransform": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}, "mapToFieldsSplitConfig": {"language": "python", "fields":{"value":"1"}}, "explodeTransform":{"fields":"word"}, "combineTransform":{"group_by":"word", "combine":{"value":"sum"}}, "mapToFieldsCountConfig":{"language": "python", "fields":{"output":"word + \" - \" + str(value)"}}, "writeToTextTransform":{"path":"${TEMP_LOCATION}"}}'
 ```
 
