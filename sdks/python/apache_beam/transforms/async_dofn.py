@@ -33,9 +33,9 @@ from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
+from apache_beam.utils.shared import Shared
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
-from apache_beam.utils.shared import Shared
 
 
 # A wrapper around a dofn that processes that dofn in an asynchronous manner.
