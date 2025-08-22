@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 
+import json
 import typing
 
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -34,17 +35,34 @@ def text_data():
 
 
 def word_count_jinja_parameter_data():
-  return \
-    '{"readFromTextTransform": {"path": ' \
-    '"gs://dataflow-samples/shakespeare/kinglear.txt"}, ' \
-    '"mapToFieldsSplitConfig": {"language": "python", ' \
-    '"fields":{"value":"1"}}, ' \
-    '"explodeTransform":{"fields":"word"}, ' \
-    '"combineTransform":{"group_by":"word", "combine":{"value":"sum"}}, ' \
-    '"mapToFieldsCountConfig":{"language": "python", "fields":' \
-    '{"output": "word + \\" - \\" + str(value)"}}, ' \
-    '"writeToTextTransform":' \
-    '{"path":"gs://apache-beam-testing-derrickaw/wordCounts/"}}'
+  params = {
+      "readFromTextTransform": {
+          "path": "gs://dataflow-samples/shakespeare/kinglear.txt"
+      },
+      "mapToFieldsSplitConfig": {
+          "language": "python", "fields": {
+              "value": "1"
+          }
+      },
+      "explodeTransform": {
+          "fields": "word"
+      },
+      "combineTransform": {
+          "group_by": "word", "combine": {
+              "value": "sum"
+          }
+      },
+      "mapToFieldsCountConfig": {
+          "language": "python",
+          "fields": {
+              "output": "word + \" - \" + str(value)"
+          }
+      },
+      "writeToTextTransform": {
+          "path": "gs://apache-beam-testing-derrickaw/wordCounts/"
+      }
+  }
+  return json.dumps(params)
 
 
 def word_count_jinja_template_data():
