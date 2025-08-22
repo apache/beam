@@ -296,7 +296,7 @@ def initialize_db_with_data(connc_params: MilvusConnectionConfig):
   return collection_name
 
 
-@pytest.mark.uses_testcontainer
+@pytest.mark.require_docker_in_docker
 @unittest.skipUnless(
     platform.system() == "Linux",
     "Test runs only on Linux due to lack of support, as yet, for nested "
