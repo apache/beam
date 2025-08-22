@@ -155,10 +155,12 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
+      stream.toByteStringAndReset();
       ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPaneInfo());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();
+        stream.toByteStringAndReset();
         key = encode(kvCoder.getKeyCoder(), kv.getKey());
         Coder valueCoder = kvCoder.getValueCoder();
         // If ids are explicitly provided, use that instead of the windmill-generated id.
@@ -169,10 +171,13 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
               encode(((ValueWithRecordIdCoder) valueCoder).getValueCoder(), valueAndId.getValue());
           id = ByteString.copyFrom(valueAndId.getId());
         } else {
+          stream.toByteStringAndReset();
           value = encode(valueCoder, kv.getValue());
         }
       } else {
+        stream.toByteStringAndReset();
         key = context.getSerializedKey();
+        stream.toByteStringAndReset();
         value = encode(valueCoder, data.getValue());
       }
       if (key.size() > context.getMaxOutputKeyBytes()) {
