@@ -19,9 +19,7 @@ from parameterized import parameterized
 
 try:
   from apache_beam.ml.rag.ingestion.milvus_search import (
-      MilvusWriteConfig,
-      MilvusVectorWriterConfig)
-  from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
+      MilvusWriteConfig, MilvusVectorWriterConfig)
   from apache_beam.ml.rag.utils import MilvusConnectionConfig
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
@@ -29,34 +27,31 @@ except ImportError as e:
 
 class TestMilvusWriteConfig(unittest.TestCase):
   """Unit tests for MilvusWriteConfig validation errors."""
-
   def test_empty_collection_name_raises_error(self):
     """Test that empty collection name raises ValueError."""
     with self.assertRaises(ValueError) as context:
       MilvusWriteConfig(collection_name="")
-    
+
     self.assertIn("Collection name must be provided", str(context.exception))
 
   def test_none_collection_name_raises_error(self):
     """Test that None collection name raises ValueError."""
     with self.assertRaises(ValueError) as context:
-      MilvusWriteConfig(collection_name=None)  # type: ignore[arg-type]
-    
+      MilvusWriteConfig(collection_name=None)
+
     self.assertIn("Collection name must be provided", str(context.exception))
 
 
 class TestMilvusVectorWriterConfig(unittest.TestCase):
   """Unit tests for MilvusVectorWriterConfig validation and functionality."""
-
   def test_valid_config_creation(self):
     """Test creation of valid MilvusVectorWriterConfig."""
     connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
     write_config = MilvusWriteConfig(collection_name="test_collection")
-    
+
     config = MilvusVectorWriterConfig(
-        connection_params=connection_params,
-        write_config=write_config)
-    
+        connection_params=connection_params, write_config=write_config)
+
     self.assertEqual(config.connection_params, connection_params)
     self.assertEqual(config.write_config, write_config)
     self.assertIsNotNone(config.column_specs)
@@ -65,11 +60,10 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     """Test that create_converter returns a callable function."""
     connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
     write_config = MilvusWriteConfig(collection_name="test_collection")
-    
+
     config = MilvusVectorWriterConfig(
-        connection_params=connection_params,
-        write_config=write_config)
-    
+        connection_params=connection_params, write_config=write_config)
+
     converter = config.create_converter()
     self.assertTrue(callable(converter))
 
@@ -77,25 +71,25 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     """Test that create_write_transform returns a PTransform."""
     connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
     write_config = MilvusWriteConfig(collection_name="test_collection")
-    
+
     config = MilvusVectorWriterConfig(
-        connection_params=connection_params,
-        write_config=write_config)
-    
+        connection_params=connection_params, write_config=write_config)
+
     transform = config.create_write_transform()
     self.assertIsNotNone(transform)
 
   def test_default_column_specs_has_expected_fields(self):
     """Test that default column specs include expected fields."""
     column_specs = MilvusVectorWriterConfig.default_column_specs()
-    
+
     self.assertIsInstance(column_specs, list)
     self.assertGreater(len(column_specs), 0)
-    
+
     column_names = [spec.column_name for spec in column_specs]
     expected_fields = [
-      "id", "embedding", "sparse_embedding", "content", "metadata"]
-    
+        "id", "embedding", "sparse_embedding", "content", "metadata"
+    ]
+
     for field in expected_fields:
       self.assertIn(field, column_names)
 
@@ -103,29 +97,24 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
       # Invalid connection parameters - empty URI.
       (
           lambda: (
-              MilvusConnectionConfig(uri=""),
-              MilvusWriteConfig(collection_name="test_collection")
-          ),
-          "URI must be provided"
-      ),
+              MilvusConnectionConfig(uri=""), MilvusWriteConfig(
+                  collection_name="test_collection")),
+          "URI must be provided"),
       # Invalid write config - empty collection name.
       (
           lambda: (
               MilvusConnectionConfig(uri="http://localhost:19530"),
-              MilvusWriteConfig(collection_name="")
-          ),
-          "Collection name must be provided"
-      ),
+              MilvusWriteConfig(collection_name="")),
+          "Collection name must be provided"),
   ])
   def test_invalid_configuration_parameters(
-    self, create_params, expected_error_msg):
+      self, create_params, expected_error_msg):
     """Test validation errors for invalid configuration parameters."""
     with self.assertRaises(ValueError) as context:
       connection_params, write_config = create_params()
       MilvusVectorWriterConfig(
-          connection_params=connection_params,
-          write_config=write_config)
-    
+          connection_params=connection_params, write_config=write_config)
+
     self.assertIn(expected_error_msg, str(context.exception))
 
 

@@ -28,9 +28,6 @@ from typing import Union
 
 from google.protobuf.json_format import MessageToDict
 
-from apache_beam.ml.rag.types import Chunk
-from apache_beam.ml.rag.types import Embedding
-from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 from pymilvus import AnnSearchRequest
 from pymilvus import Hit
 from pymilvus import Hits
@@ -39,10 +36,12 @@ from pymilvus import SearchResult
 
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Embedding
+from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+
+from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.rag.utils import (
-  MilvusHelpers,
-  MilvusConnectionConfig,
-  unpack_dataclass_with_kwargs)
+    MilvusHelpers, MilvusConnectionConfig, unpack_dataclass_with_kwargs)
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 

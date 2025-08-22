@@ -1,12 +1,10 @@
-
-
-
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 import uuid
 
 from apache_beam.ml.rag.types import Chunk, Content, Embedding
+
 
 @dataclass
 class MilvusConnectionConfig:
@@ -37,8 +35,8 @@ class MilvusConnectionConfig:
   def __post_init__(self):
     if not self.uri:
       raise ValueError("URI must be provided for Milvus connection")
-    
-    # Generate unique alias if not provided. One-to-one mapping between alias 
+
+    # Generate unique alias if not provided. One-to-one mapping between alias
     # and connection - each alias represents exactly one Milvus connection.
     if "alias" not in self.kwargs:
       alias = f"milvus_conn_{uuid.uuid4().hex[:8]}"
@@ -54,7 +52,7 @@ class MilvusHelpers:
   """
   @staticmethod
   def sparse_embedding(
-    vec: Tuple[List[int], List[float]]) -> Optional[Dict[int, float]]:
+      vec: Tuple[List[int], List[float]]) -> Optional[Dict[int, float]]:
     if not vec:
       return None
     # Converts sparse embedding from (indices, values) tuple format to
@@ -80,7 +78,7 @@ class MilvusHelpers:
       try:
         # replace "<class 'list'>" with actual list reference.
         cleaned_str = raw_str.replace(
-          "defaultdict(<class 'list'>", "defaultdict(list")
+            "defaultdict(<class 'list'>", "defaultdict(list")
         # Evaluate string in restricted environment.
         chunk = eval(cleaned_str, safe_globals)  # pylint: disable=eval-used
         if isinstance(chunk, Chunk):
@@ -91,7 +89,7 @@ class MilvusHelpers:
         raise ValueError(f"Error parsing string:\n{raw_str}\n{e}")
 
     return parsed_chunks
-    
+
 
 def unpack_dataclass_with_kwargs(dataclass_instance):
   """Unpacks dataclass fields into a flat dict, merging kwargs with precedence.

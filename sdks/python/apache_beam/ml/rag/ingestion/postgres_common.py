@@ -315,7 +315,8 @@ class ColumnSpecsBuilder:
   def with_sparse_embedding_spec(
       self,
       column_name: str = "sparse_embedding",
-      convert_fn: Optional[Callable[[Tuple[List[int], List[float]]], Any]] = None
+      convert_fn: Optional[Callable[[Tuple[List[int], List[float]]],
+                                    Any]] = None
   ) -> 'ColumnSpecsBuilder':
     """Add sparse embedding :class:`.ColumnSpec` with optional conversion.
 

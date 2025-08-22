@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, NamedTuple, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from pymilvus import MilvusClient
 
@@ -38,6 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 # Default batch size for writing data to Milvus, matching
 # JdbcIO.DEFAULT_BATCH_SIZE.
 DEFAULT_WRITE_BATCH_SIZE = 1000
+
 
 @dataclass
 class MilvusWriteConfig:
@@ -77,6 +78,7 @@ class MilvusWriteConfig:
     """
     return self.write_config.write_batch_size or DEFAULT_WRITE_BATCH_SIZE
 
+
 @dataclass
 class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
   """Configuration for writing vector data to Milvus collections.
@@ -108,7 +110,7 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
   connection_params: MilvusConnectionConfig
   write_config: MilvusWriteConfig
   column_specs: List[ColumnSpec] = field(
-    default_factory=lambda: MilvusVectorWriterConfig.default_column_specs())
+      default_factory=lambda: MilvusVectorWriterConfig.default_column_specs())
 
   def create_converter(self) -> Callable[[Chunk], Dict[str, Any]]:
     """Creates a function to convert Apache Beam Chunks to Milvus records.
@@ -117,12 +119,12 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
       A function that takes a Chunk and returns a dictionary representing
       a Milvus record with fields mapped according to column_specs.
     """
-    """Creates a function to convert Chunks to records."""
     def convert(chunk: Chunk) -> Dict[str, Any]:
       result = {}
       for col in self.column_specs:
         result[col.column_name] = col.value_fn(chunk)
       return result
+
     return convert
 
   def create_write_transform(self) -> beam.PTransform:
@@ -182,8 +184,9 @@ class _WriteToMilvusVectorDatabase(beam.PTransform):
         pcoll
         | "Convert to Records" >> beam.Map(self.config.create_converter())
         | beam.ParDo(
-          _WriteMilvusFn(
-            self.config.connection_params,self.config.write_config)))
+            _WriteMilvusFn(
+                self.config.connection_params, self.config.write_config)))
+
 
 class _WriteMilvusFn(DoFn):
   """DoFn that handles batched writes to Milvus.
@@ -254,6 +257,7 @@ class _WriteMilvusFn(DoFn):
     res["batch_size"] = self._write_config.write_batch_size
     return res
 
+
 class _MilvusSink:
   """Low-level sink for writing data directly to Milvus.
 
@@ -287,15 +291,15 @@ class _MilvusSink:
     """
     if not self._client:
       self._client = MilvusClient(
-        **unpack_dataclass_with_kwargs(self._connection_params))
+          **unpack_dataclass_with_kwargs(self._connection_params))
 
     try:
       resp = self._client.upsert(
-        collection_name=self._write_config.collection_name,
-        partition_name=self._write_config.partition_name,
-        data = documents,
-        timeout=self._write_config.timeout,
-        **self._write_config.kwargs)
+          collection_name=self._write_config.collection_name,
+          partition_name=self._write_config.partition_name,
+          data=documents,
+          timeout=self._write_config.timeout,
+          **self._write_config.kwargs)
 
       # Try to flush, but handle connection issues gracefully.
       try:
@@ -303,13 +307,12 @@ class _MilvusSink:
       except Exception as e:
         # If flush fails due to connection issues, log but don't fail the write.
         _LOGGER.warning(
-          "Flush operation failed, but upsert was successful: %s",e)
+            "Flush operation failed, but upsert was successful: %s", e)
 
       _LOGGER.debug(
           "Upserted into Milvus: upsert_count=%d, cost=%d",
           resp.get("upsert_count", 0),
-          resp.get("cost", 0)
-      )
+          resp.get("cost", 0))
     except Exception as e:
       _LOGGER.error("Failed to write to Milvus: %s", e)
       raise
@@ -322,7 +325,7 @@ class _MilvusSink:
     """
     if not self._client:
       self._client = MilvusClient(
-        **unpack_dataclass_with_kwargs(self._connection_params))
+          **unpack_dataclass_with_kwargs(self._connection_params))
     return self
 
   def __exit__(self, exc_type, exc_val, exc_tb):

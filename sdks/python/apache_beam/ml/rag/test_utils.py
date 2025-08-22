@@ -15,6 +15,7 @@ from apache_beam.ml.rag.types import Chunk
 
 _LOGGER = logging.getLogger(__name__)
 
+
 @dataclass
 class VectorDBContainerInfo:
   """Container information for vector database test instances.
@@ -34,6 +35,7 @@ class VectorDBContainerInfo:
   def uri(self) -> str:
     return f"http://{self.host}:{self.port}"
 
+
 class TestHelpers:
   @staticmethod
   def find_free_port():
@@ -44,6 +46,7 @@ class TestHelpers:
       s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
       # Return the port number assigned by OS.
       return s.getsockname()[1]
+
 
 class CustomMilvusContainer(MilvusContainer):
   """Custom Milvus container with configurable ports and environment setup.
