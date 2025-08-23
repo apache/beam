@@ -772,6 +772,40 @@ python -m apache_beam.yaml.main \
     --jinja_variables='{"readFromText": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}}'
 ```
 
+The `% import` jinja directive can also be used to pull in macros:
+
+<PATH_TO_YOUR_REPO>/pipeline.yaml
+```sh
+{% import '<PATH_TO_YOUR_REPO>/macros.yaml' as macros %}
+
+pipeline:
+  type: chain
+  transforms:
+
+# Read in text file
+{{ macros.readFromText(readFromText) | indent(4, true) }}
+
+# Write to text file on GCS, locally, etc
+   - name: Write to GCS
+      type: WriteToText
+      input: Read from GCS
+      config:
+        path: "gs://MY-BUCKET/wordCounts/"
+```
+
+<PATH_TO_YOUR_REPO>/macros.yaml
+```sh
+{%- macro readFromText(params) -%}
+- name: Read from GCS
+  type: ReadFromText
+  config:
+    path: "{{ params.path }}"
+{%- endmacro -%}
+```
+
+This pipeline can be ran with the same command as in the `% include` example
+above.
+
 There are many more ways to import and even use template inheritance using
 Jinja as seen [here](https://jinja.palletsprojects.com/en/stable/templates/#import)
 and [here](https://jinja.palletsprojects.com/en/stable/templates/#inheritance).
