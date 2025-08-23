@@ -425,7 +425,7 @@ public class StreamingWorkScheduler {
       // If processing failed due to a thrown exception, close the executionState. Do not
       // return/release the executionState back to computationState as that will lead to this
       // executionState instance being reused.
-      LOG.info("Invalidating executor after work item {} failed with Exception:", key, t);
+      LOG.debug("Invalidating executor after work item {} failed", workItem.getWorkToken(), t);
       computationWorkExecutor.invalidate();
 
       // Re-throw the exception, it will be caught and handled by workFailureProcessor downstream.
