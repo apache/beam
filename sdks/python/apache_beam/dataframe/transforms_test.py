@@ -328,13 +328,13 @@ class TransformTest(unittest.TestCase):
       pcol1 = p | "Create1" >> beam.Create([beam.Row(name="Bryan")])
       pcol2 = p | "Create2" >> beam.Create([beam.Row(name="common")])
 
-      result = (
-          {
-              "a": pcol1, "b": pcol2
-          }
-          | "TransformedDF" >> transforms.DataframeTransform(transform_func)
-          | "FlattenAB" >> beam.Flatten()
-          | transforms.DataframeTransform(lambda df: df.name))
+      result = ({
+          "a": pcol1, "b": pcol2
+      }
+                |
+                "TransformDF" >> transforms.DataframeTransform(transform_func)
+                | "Flatten" >> beam.Flatten()
+                | transforms.DataframeTransform(lambda df: df.name))
       assert_that(result, equal_to(expected_output))
 
   def test_cat(self):
