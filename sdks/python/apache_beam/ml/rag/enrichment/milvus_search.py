@@ -28,14 +28,21 @@ from typing import Union
 
 from google.protobuf.json_format import MessageToDict
 
-from apache_beam.ml.rag.types import Chunk
-from apache_beam.ml.rag.types import Embedding
-from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 from pymilvus import AnnSearchRequest
 from pymilvus import Hit
 from pymilvus import Hits
 from pymilvus import MilvusClient
 from pymilvus import SearchResult
+
+from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Embedding
+from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+
+from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Embedding
+from apache_beam.ml.rag.utils import (
+    MilvusHelpers, MilvusConnectionConfig, unpack_dataclass_with_kwargs)
+from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 
 class SearchStrategy(Enum):
@@ -102,37 +109,6 @@ class MilvusBaseRanker:
 
   def __str__(self):
     return self.dict().__str__()
-
-
-@dataclass
-class MilvusConnectionParameters:
-  """Parameters for establishing connections to Milvus servers.
-
-  Args:
-    uri: URI endpoint for connecting to Milvus server in the format
-      "http(s)://hostname:port".
-    user: Username for authentication. Required if authentication is enabled and
-      not using token authentication.
-    password: Password for authentication. Required if authentication is enabled
-      and not using token authentication.
-    db_id: Database ID to connect to. Specifies which Milvus database to use.
-      Defaults to 'default'.
-    token: Authentication token as an alternative to username/password.
-    timeout: Connection timeout in seconds. Uses client default if None.
-    kwargs: Optional keyword arguments for additional connection parameters.
-      Enables forward compatibility.
-  """
-  uri: str
-  user: str = field(default_factory=str)
-  password: str = field(default_factory=str)
-  db_id: str = "default"
-  token: str = field(default_factory=str)
-  timeout: Optional[float] = None
-  kwargs: Dict[str, Any] = field(default_factory=dict)
-
-  def __post_init__(self):
-    if not self.uri:
-      raise ValueError("URI must be provided for Milvus connection")
 
 
 @dataclass
@@ -345,7 +321,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   """
   def __init__(
       self,
-      connection_parameters: MilvusConnectionParameters,
+      connection_parameters: MilvusConnectionConfig,
       search_parameters: MilvusSearchParameters,
       *,
       collection_load_parameters: Optional[MilvusCollectionLoadParameters],
@@ -354,7 +330,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       **kwargs):
     """
     Example Usage:
-      connection_paramters = MilvusConnectionParameters(
+      connection_paramters = MilvusConnectionConfig(
         uri="http://localhost:19530")
       search_parameters = MilvusSearchParameters(
         collection_name="my_collection",
@@ -369,7 +345,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
         max_batch_size=100)
 
     Args:
-      connection_parameters (MilvusConnectionParameters): Configuration for
+      connection_parameters (MilvusConnectionConfig): Configuration for
         connecting to the Milvus server, including URI, credentials, and
         connection options.
       search_parameters (MilvusSearchParameters): Configuration for search
@@ -493,8 +469,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
           f"Chunk {chunk.id} missing both text content and sparse embedding "
           "required for keyword search")
 
-    sparse_embedding = self.convert_sparse_embedding_to_milvus_format(
-        chunk.sparse_embedding)
+    sparse_embedding = MilvusHelpers.sparse_embedding(chunk.sparse_embedding)
 
     return chunk.content.text or sparse_embedding
 
@@ -532,15 +507,6 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     else:
       # Keep other types as they are.
       return value
-
-  def convert_sparse_embedding_to_milvus_format(
-      self, sparse_vector: Tuple[List[int], List[float]]) -> Dict[int, float]:
-    if not sparse_vector:
-      return None
-    # Converts sparse embedding from (indices, values) tuple format to
-    # Milvus-compatible values dict format {dimension_index: value, ...}.
-    indices, values = sparse_vector
-    return {int(idx): float(val) for idx, val in zip(indices, values)}
 
   @property
   def collection_name(self):
@@ -585,15 +551,3 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
 def join_fn(left: Embedding, right: Dict[str, Any]) -> Embedding:
   left.metadata['enrichment_data'] = right
   return left
-
-
-def unpack_dataclass_with_kwargs(dataclass_instance):
-  # Create a copy of the dataclass's __dict__.
-  params_dict: dict = dataclass_instance.__dict__.copy()
-
-  # Extract the nested kwargs dictionary.
-  nested_kwargs = params_dict.pop('kwargs', {})
-
-  # Merge the dictionaries, with nested_kwargs taking precedence
-  # in case of duplicate keys.
-  return {**params_dict, **nested_kwargs}

@@ -22,16 +22,16 @@ try:
   from apache_beam.ml.rag.types import Chunk
   from apache_beam.ml.rag.types import Embedding
   from apache_beam.ml.rag.types import Content
+  from apache_beam.ml.rag.utils import (
+      MilvusConnectionConfig, unpack_dataclass_with_kwargs)
   from apache_beam.ml.rag.enrichment.milvus_search import (
       MilvusSearchEnrichmentHandler,
-      MilvusConnectionParameters,
       MilvusSearchParameters,
       MilvusCollectionLoadParameters,
       VectorSearchParameters,
       KeywordSearchParameters,
       HybridSearchParameters,
-      MilvusBaseRanker,
-      unpack_dataclass_with_kwargs)
+      MilvusBaseRanker)
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
 
@@ -47,7 +47,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     """Test validation errors for invalid connection parameters."""
     # Empty URI in connection parameters.
     with self.assertRaises(ValueError) as context:
-      connection_params = MilvusConnectionParameters(uri="")
+      connection_params = MilvusConnectionConfig(uri="")
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
           search_strategy=VectorSearchParameters(anns_field="embedding"))
@@ -80,8 +80,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   def test_invalid_search_parameters(self, create_params, expected_error_msg):
     """Test validation errors for invalid general search parameters."""
     with self.assertRaises(ValueError) as context:
-      connection_params = MilvusConnectionParameters(
-          uri="http://localhost:19530")
+      connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
       search_params = create_params()
       collection_load_params = MilvusCollectionLoadParameters()
 
@@ -95,7 +94,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   def test_unpack_dataclass_with_kwargs(self):
     """Test the unpack_dataclass_with_kwargs function."""
     # Create a test dataclass instance.
-    connection_params = MilvusConnectionParameters(
+    connection_params = MilvusConnectionConfig(
         uri="http://localhost:19530",
         user="test_user",
         kwargs={"custom_param": "value"})
@@ -109,7 +108,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     self.assertEqual(result["custom_param"], "value")
 
     # Verify that kwargs take precedence over existing attributes.
-    connection_params_with_override = MilvusConnectionParameters(
+    connection_params_with_override = MilvusConnectionConfig(
         uri="http://localhost:19530",
         user="test_user",
         kwargs={"user": "override_user"})
@@ -137,8 +136,7 @@ class TestMilvusVectorSearchEnrichment(unittest.TestCase):
   def test_invalid_search_parameters(self, create_params, expected_error_msg):
     """Test validation errors for invalid vector search parameters."""
     with self.assertRaises(ValueError) as context:
-      connection_params = MilvusConnectionParameters(
-          uri="http://localhost:19530")
+      connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
       vector_search_params = create_params()
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
@@ -156,8 +154,7 @@ class TestMilvusVectorSearchEnrichment(unittest.TestCase):
     with self.assertRaises(ValueError) as context:
       chunk = Chunk(
           id=1, content=None, embedding=Embedding(dense_embedding=None))
-      connection_params = MilvusConnectionParameters(
-          uri="http://localhost:19530")
+      connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
       vector_search_params = VectorSearchParameters(anns_field="embedding")
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
@@ -193,8 +190,7 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
   def test_invalid_search_parameters(self, create_params, expected_error_msg):
     """Test validation errors for invalid keyword search parameters."""
     with self.assertRaises(ValueError) as context:
-      connection_params = MilvusConnectionParameters(
-          uri="http://localhost:19530")
+      connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
       keyword_search_params = create_params()
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
@@ -214,8 +210,7 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
           id=1,
           content=Content(text=None),
           embedding=Embedding(sparse_embedding=None))
-      connection_params = MilvusConnectionParameters(
-          uri="http://localhost:19530")
+      connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
       vector_search_params = VectorSearchParameters(anns_field="embedding")
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
@@ -240,8 +235,7 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
           content=Content(text=None),
           embedding=Embedding(
               sparse_embedding=([1, 2, 3, 4], [0.05, 0.41, 0.05, 0.41])))
-      connection_params = MilvusConnectionParameters(
-          uri="http://localhost:19530")
+      connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
       vector_search_params = VectorSearchParameters(anns_field="embedding")
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
@@ -262,8 +256,7 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
           id=1,
           content=Content(text="what is apache beam?"),
           embedding=Embedding(sparse_embedding=None))
-      connection_params = MilvusConnectionParameters(
-          uri="http://localhost:19530")
+      connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
       vector_search_params = VectorSearchParameters(anns_field="embedding")
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
@@ -277,7 +270,6 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
       _ = handler._get_keyword_search_data(chunk)
     except Exception as e:
       self.fail(f"raised an unexpected exception: {e}")
-    pass
 
 
 class TestMilvusHybridSearchEnrichment(unittest.TestCase):
@@ -323,8 +315,7 @@ class TestMilvusHybridSearchEnrichment(unittest.TestCase):
   def test_invalid_search_parameters(self, create_params, expected_error_msg):
     """Test validation errors for invalid hybrid search parameters."""
     with self.assertRaises(ValueError) as context:
-      connection_params = MilvusConnectionParameters(
-          uri="http://localhost:19530")
+      connection_params = MilvusConnectionConfig(uri="http://localhost:19530")
       hybrid_search_params = create_params()
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
