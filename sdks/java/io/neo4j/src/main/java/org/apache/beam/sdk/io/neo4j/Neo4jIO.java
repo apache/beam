@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -42,13 +44,17 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.neo4j.driver.AuthToken;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
@@ -60,6 +66,7 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.TransactionConfig;
 import org.neo4j.driver.TransactionWork;
+import org.neo4j.driver.summary.SummaryCounters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,6 +191,63 @@ public class Neo4jIO {
   private static final Logger LOG = LoggerFactory.getLogger(Neo4jIO.class);
 
   /**
+   * Represents write statistics from a Neo4j UNWIND operation, used by WriteUnwindWithResults.
+   * Contains metrics such as the number of nodes created, relationships created, and properties set.
+   */
+  @DefaultCoder(AvroCoder.class)
+  public static class Neo4jWriteStats implements Serializable {
+    private final int nodesCreated;
+    private final int nodesDeleted;
+    private final int relationshipsCreated;
+    private final int relationshipsDeleted;
+    private final int propertiesSet;
+    private final int labelsAdded;
+    private final int labelsRemoved;
+
+    /**
+     * Constructs a Neo4jWriteStats instance from a Neo4j SummaryCounters object.
+     *
+     * @param counters The SummaryCounters object containing write statistics.
+     */
+    public Neo4jWriteStats(SummaryCounters counters) {
+      this.nodesCreated = counters.nodesCreated();
+      this.nodesDeleted = counters.nodesDeleted();
+      this.relationshipsCreated = counters.relationshipsCreated();
+      this.relationshipsDeleted = counters.relationshipsDeleted();
+      this.propertiesSet = counters.propertiesSet();
+      this.labelsAdded = counters.labelsAdded();
+      this.labelsRemoved = counters.labelsRemoved();
+    }
+
+    public int getNodesCreated() {
+      return nodesCreated;
+    }
+
+    public int getNodesDeleted() {
+      return nodesDeleted;
+    }
+
+    public int getRelationshipsCreated() {
+      return relationshipsCreated;
+    }
+
+    public int getRelationshipsDeleted() {
+      return relationshipsDeleted;
+    }
+
+    public int getPropertiesSet() {
+      return propertiesSet;
+    }
+
+    public int getLabelsAdded() {
+      return labelsAdded;
+    }
+
+    public int getLabelsRemoved() {
+      return labelsRemoved;
+    }
+  }
+  /**
    * Read all rows using a Neo4j Cypher query.
    *
    * @param <ParameterT> Type of the data representing query parameters.
@@ -203,6 +267,18 @@ public class Neo4jIO {
     return new AutoValue_Neo4jIO_WriteUnwind.Builder<ParameterT>()
         .setBatchSize(ValueProvider.StaticValueProvider.of(5000L))
         .build();
+  }
+
+  /**
+   * Write all rows using a Neo4j Cypher UNWIND statement and return write statistics.
+   * This sets a default batch size of 5000 and returns a PCollection of write statistics.
+   *
+   * @param <ParameterT> Type of the data representing query parameters.
+   */
+  public static <ParameterT> WriteUnwindWithResults<ParameterT> writeUnwindWithResults() {
+    return new AutoValue_Neo4jIO_WriteUnwindWithResults.Builder<ParameterT>()
+            .setBatchSize(ValueProvider.StaticValueProvider.of(5000L))
+            .build();
   }
 
   private static <ParameterT, OutputT> PCollection<OutputT> getOutputPCollection(
@@ -1088,6 +1164,201 @@ public class Neo4jIO {
     }
   }
 
+  /** This is the class which handles the work behind the {@link #writeUnwindWithResults()} method. */
+  @AutoValue
+  public abstract static class WriteUnwindWithResults<ParameterT>
+          extends PTransform<PCollection<ParameterT>, PCollection<Neo4jWriteStats>> {
+
+    abstract @Nullable SerializableFunction<Void, Driver> getDriverProviderFn();
+
+    abstract @Nullable ValueProvider<SessionConfig> getSessionConfig();
+
+    abstract @Nullable ValueProvider<String> getCypher();
+
+    abstract @Nullable ValueProvider<String> getUnwindMapName();
+
+    abstract @Nullable ValueProvider<TransactionConfig> getTransactionConfig();
+
+    abstract @Nullable SerializableFunction<ParameterT, Map<String, Object>> getParametersFunction();
+
+    abstract @Nullable ValueProvider<Long> getBatchSize();
+
+    abstract @Nullable ValueProvider<Boolean> getLogCypher();
+
+    abstract Builder<ParameterT> toBuilder();
+
+    public WriteUnwindWithResults<ParameterT> withDriverConfiguration(DriverConfiguration config) {
+      return toBuilder()
+              .setDriverProviderFn(new DriverProviderFromDriverConfiguration(config))
+              .build();
+    }
+
+    public WriteUnwindWithResults<ParameterT> withCypher(String cypher) {
+      checkArgument(
+              cypher != null, "Neo4jIO.writeUnwindWithResults().withCypher(cypher) called with null cypher");
+      return withCypher(ValueProvider.StaticValueProvider.of(cypher));
+    }
+
+    public WriteUnwindWithResults<ParameterT> withCypher(ValueProvider<String> cypher) {
+      checkArgument(
+              cypher != null, "Neo4jIO.writeUnwindWithResults().withCypher(cypher) called with null cypher");
+      return toBuilder().setCypher(cypher).build();
+    }
+
+    public WriteUnwindWithResults<ParameterT> withUnwindMapName(String mapName) {
+      checkArgument(
+              mapName != null,
+              "Neo4jIO.writeUnwindWithResults().withUnwindMapName(mapName) called with null mapName");
+      return withUnwindMapName(ValueProvider.StaticValueProvider.of(mapName));
+    }
+
+    public WriteUnwindWithResults<ParameterT> withUnwindMapName(ValueProvider<String> mapName) {
+      checkArgument(
+              mapName != null,
+              "Neo4jIO.writeUnwindWithResults().withUnwindMapName(mapName) called with null mapName");
+      return toBuilder().setUnwindMapName(mapName).build();
+    }
+
+    public WriteUnwindWithResults<ParameterT> withTransactionConfig(TransactionConfig transactionConfig) {
+      checkArgument(
+              transactionConfig != null,
+              "Neo4jIO.writeUnwindWithResults().withTransactionConfig(transactionConfig) called with null transactionConfig");
+      return withTransactionConfig(ValueProvider.StaticValueProvider.of(transactionConfig));
+    }
+
+    public WriteUnwindWithResults<ParameterT> withTransactionConfig(
+            ValueProvider<TransactionConfig> transactionConfig) {
+      checkArgument(
+              transactionConfig != null,
+              "Neo4jIO.writeUnwindWithResults().withTransactionConfig(transactionConfig) called with null transactionConfig");
+      return toBuilder().setTransactionConfig(transactionConfig).build();
+    }
+
+    public WriteUnwindWithResults<ParameterT> withSessionConfig(SessionConfig sessionConfig) {
+      checkArgument(
+              sessionConfig != null,
+              "Neo4jIO.writeUnwindWithResults().withSessionConfig(sessionConfig) called with null sessionConfig");
+      return withSessionConfig(ValueProvider.StaticValueProvider.of(sessionConfig));
+    }
+
+    public WriteUnwindWithResults<ParameterT> withSessionConfig(ValueProvider<SessionConfig> sessionConfig) {
+      checkArgument(
+              sessionConfig != null,
+              "Neo4jIO.writeUnwindWithResults().withSessionConfig(sessionConfig) called with null sessionConfig");
+      return toBuilder().setSessionConfig(sessionConfig).build();
+    }
+
+    public WriteUnwindWithResults<ParameterT> withBatchSize(long batchSize) {
+      checkArgument(
+              batchSize > 0, "Neo4jIO.writeUnwindWithResults().withBatchSize(batchSize) called with batchSize<=0");
+      return withBatchSize(ValueProvider.StaticValueProvider.of(batchSize));
+    }
+
+    public WriteUnwindWithResults<ParameterT> withBatchSize(ValueProvider<Long> batchSize) {
+      checkArgument(
+              batchSize != null && batchSize.get() >= 0,
+              "Neo4jIO.writeUnwindWithResults().withBatchSize(batchSize) called with batchSize<=0");
+      return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    public WriteUnwindWithResults<ParameterT> withParametersFunction(
+            SerializableFunction<ParameterT, Map<String, Object>> parametersFunction) {
+      checkArgument(
+              parametersFunction != null,
+              "Neo4jIO.writeUnwindWithResults().withParametersFunction(parametersFunction) called with null parametersFunction");
+      return toBuilder().setParametersFunction(parametersFunction).build();
+    }
+
+    public WriteUnwindWithResults<ParameterT> withCypherLogging() {
+      return toBuilder().setLogCypher(ValueProvider.StaticValueProvider.of(Boolean.TRUE)).build();
+    }
+
+    @Override
+    public PCollection<Neo4jWriteStats> expand(PCollection<ParameterT> input) {
+      final SerializableFunction<Void, Driver> driverProviderFn = getDriverProviderFn();
+      final SerializableFunction<ParameterT, Map<String, Object>> parametersFunction =
+              getParametersFunction();
+      SessionConfig sessionConfig = getProvidedValue(getSessionConfig());
+      if (sessionConfig == null) {
+        sessionConfig = SessionConfig.defaultConfig();
+      }
+      TransactionConfig transactionConfig = getProvidedValue(getTransactionConfig());
+      if (transactionConfig == null) {
+        transactionConfig = TransactionConfig.empty();
+      }
+      final String cypher = getProvidedValue(getCypher());
+      checkArgument(cypher != null, "please provide an unwind cypher statement to execute");
+      final String unwindMapName = getProvidedValue(getUnwindMapName());
+      checkArgument(unwindMapName != null, "please provide an unwind map name");
+
+      Long batchSize = getProvidedValue(getBatchSize());
+      if (batchSize == null || batchSize <= 0) {
+        batchSize = 5000L;
+      }
+
+      Boolean logCypher = getProvidedValue(getLogCypher());
+      if (logCypher == null) {
+        logCypher = Boolean.FALSE;
+      }
+
+      if (driverProviderFn == null) {
+        throw new RuntimeException("please provide a driver provider");
+      }
+      if (parametersFunction == null) {
+        throw new RuntimeException("please provide a parameters function");
+      }
+
+      WriteUnwindWithResultsFn<ParameterT> writeFn =
+              new WriteUnwindWithResultsFn<>(
+                      driverProviderFn,
+                      sessionConfig,
+                      transactionConfig,
+                      cypher,
+                      parametersFunction,
+                      batchSize,
+                      logCypher,
+                      unwindMapName);
+
+      return getOutputPCollection(input, writeFn, AvroCoder.of(Neo4jWriteStats.class));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("cypher", getCypher()));
+      final SerializableFunction<Void, Driver> driverProviderFn = getDriverProviderFn();
+      if (driverProviderFn != null) {
+        if (driverProviderFn instanceof HasDisplayData) {
+          ((HasDisplayData) driverProviderFn).populateDisplayData(builder);
+        }
+      }
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder<ParameterT> {
+      abstract Builder<ParameterT> setDriverProviderFn(
+              SerializableFunction<Void, Driver> driverProviderFn);
+
+      abstract Builder<ParameterT> setSessionConfig(ValueProvider<SessionConfig> sessionConfig);
+
+      abstract Builder<ParameterT> setTransactionConfig(
+              ValueProvider<TransactionConfig> transactionConfig);
+
+      abstract Builder<ParameterT> setCypher(ValueProvider<String> cypher);
+
+      abstract Builder<ParameterT> setUnwindMapName(ValueProvider<String> unwindMapName);
+
+      abstract Builder<ParameterT> setParametersFunction(
+              SerializableFunction<ParameterT, Map<String, Object>> parametersFunction);
+
+      abstract Builder<ParameterT> setBatchSize(ValueProvider<Long> batchSize);
+
+      abstract Builder<ParameterT> setLogCypher(ValueProvider<Boolean> logCypher);
+
+      abstract WriteUnwindWithResults<ParameterT> build();
+    }
+  }
+
   /** A {@link DoFn} to execute a Cypher query to read from Neo4j. */
   private static class WriteUnwindFn<ParameterT> extends ReadWriteFn<ParameterT, Void> {
 
@@ -1201,6 +1472,130 @@ public class Neo4jIO {
     @Override
     public void finishBundle() {
       executeCypherUnwindStatement();
+    }
+  }
+
+  private static class WriteUnwindWithResultsFn<ParameterT> extends ReadWriteFn<ParameterT, Neo4jWriteStats> {
+    private final @NonNull String cypher;
+    private final @Nullable SerializableFunction<ParameterT, Map<String, Object>> parametersFunction;
+    private final boolean logCypher;
+    private final long batchSize;
+    private final @NonNull String unwindMapName;
+
+    private long elementsInput;
+    private boolean loggingDone;
+    private List<Map<String, Object>> unwindList;
+
+    private WriteUnwindWithResultsFn(
+            @NonNull SerializableFunction<Void, Driver> driverProviderFn,
+            @NonNull SessionConfig sessionConfig,
+            @NonNull TransactionConfig transactionConfig,
+            @NonNull String cypher,
+            @Nullable SerializableFunction<ParameterT, Map<String, Object>> parametersFunction,
+            long batchSize,
+            boolean logCypher,
+            String unwindMapName) {
+      super(driverProviderFn, sessionConfig, transactionConfig);
+      this.cypher = cypher;
+      this.parametersFunction = parametersFunction;
+      this.logCypher = logCypher;
+      this.batchSize = batchSize;
+      this.unwindMapName = unwindMapName;
+
+      unwindList = new ArrayList<>();
+      elementsInput = 0;
+      loggingDone = false;
+    }
+
+    @ProcessElement
+    public void processElement(@Element ParameterT parameters, ProcessContext context) {
+      if (parametersFunction != null) {
+        unwindList.add(parametersFunction.apply(parameters));
+      } else {
+        unwindList.add(Collections.emptyMap());
+      }
+      elementsInput++;
+
+      if (elementsInput >= batchSize) {
+        if (elementsInput > 0) {
+          final Map<String, Object> parametersMap = new HashMap<>();
+          parametersMap.put(unwindMapName, unwindList);
+
+          TransactionWork<Void> transactionWork =
+                  transaction -> {
+                    Result result = transaction.run(cypher, parametersMap);
+                    Neo4jWriteStats stats = new Neo4jWriteStats(result.consume().counters());
+                    context.outputWithTimestamp(stats, context.timestamp());
+                    return null;
+                  };
+
+          if (logCypher && !loggingDone) {
+            String parametersString = getParametersString(parametersMap);
+            LOG.info(
+                    "Starting a write transaction for unwind statement cypher: "
+                            + cypher
+                            + ", parameters: "
+                            + parametersString);
+            loggingDone = true;
+          }
+
+          if (driverSession.session == null) {
+            throw new RuntimeException("neo4j session was not initialized correctly");
+          } else {
+            try {
+              driverSession.session.writeTransaction(transactionWork, transactionConfig);
+            } catch (Exception e) {
+              throw new RuntimeException(
+                      "Error writing " + unwindList.size() + " rows to Neo4j with Cypher: " + cypher, e);
+            }
+          }
+
+          unwindList.clear();
+          elementsInput = 0;
+        }
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) {
+      if (elementsInput > 0) {
+        final Map<String, Object> parametersMap = new HashMap<>();
+        parametersMap.put(unwindMapName, unwindList);
+
+        TransactionWork<Void> transactionWork =
+                transaction -> {
+                  Result result = transaction.run(cypher, parametersMap);
+                  Neo4jWriteStats stats = new Neo4jWriteStats(result.consume().counters());
+                  Instant timestamp = Instant.now();
+                  BoundedWindow window = GlobalWindow.INSTANCE;
+                  context.output(stats, timestamp, window);
+                  return null;
+                };
+
+        if (logCypher && !loggingDone) {
+          String parametersString = getParametersString(parametersMap);
+          LOG.info(
+                  "Starting a write transaction for unwind statement cypher: "
+                          + cypher
+                          + ", parameters: "
+                          + parametersString);
+          loggingDone = true;
+        }
+
+        if (driverSession.session == null) {
+          throw new RuntimeException("neo4j session was not initialized correctly");
+        } else {
+          try {
+            driverSession.session.writeTransaction(transactionWork, transactionConfig);
+          } catch (Exception e) {
+            throw new RuntimeException(
+                    "Error writing " + unwindList.size() + " rows to Neo4j with Cypher: " + cypher, e);
+          }
+        }
+
+        unwindList.clear();
+        elementsInput = 0;
+      }
     }
   }
 }
