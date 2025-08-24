@@ -59,12 +59,11 @@ from apache_beam.transforms.util import LogElements
 try:
   import pyarrow as pa
   import pyarrow.parquet as pq
+  ARROW_MAJOR_VERSION, _, _ = map(int, pa.__version__.split('.'))
 except ImportError:
   pa = None
-  pl = None
   pq = None
-
-ARROW_MAJOR_VERSION, _, _ = map(int, pa.__version__.split('.'))
+  ARROW_MAJOR_VERSION = 0
 
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
@@ -423,10 +422,12 @@ class TestParquet(unittest.TestCase):
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
 
   def test_write_with_nullable_fields_missing_data(self):
-    """Test WriteToParquet with nullable fields where some fields are missing from input dictionaries.
+    """Test WriteToParquet with nullable fields where some fields are missing.
     
-    This test addresses the bug reported in https://github.com/apache/beam/issues/35791
-    where WriteToParquet fails with a KeyError if any nullable field is missing.
+    This test addresses the bug reported in:
+    https://github.com/apache/beam/issues/35791
+    where WriteToParquet fails with a KeyError if any nullable 
+    field is missing in the data.
     """
     # Define PyArrow schema with all fields nullable
     schema = pa.schema([
