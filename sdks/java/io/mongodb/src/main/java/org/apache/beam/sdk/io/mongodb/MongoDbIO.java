@@ -67,6 +67,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
+import org.bson.BsonObjectId;
 import org.bson.BsonString;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -677,20 +678,30 @@ public class MongoDbIO {
         if (i == 0) {
           aggregates.add(Aggregates.match(Filters.lte("_id", splitKey)));
           if (splitKeys.size() == 1) {
-            aggregates.add(Aggregates.match(Filters.and(Filters.gt("_id", splitKey))));
+            aggregates.add(Aggregates.match(Filters.gt("_id", splitKey)));
           }
         } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filters define
           // the range from the previous split to the current split and also
           // the current split to the end
-          aggregates.add(
-              Aggregates.match(
-                  Filters.and(Filters.gt("_id", lowestBound), Filters.lte("_id", splitKey))));
-          aggregates.add(Aggregates.match(Filters.and(Filters.gt("_id", splitKey))));
+          // Create a custom BSON document with multiple conditions on the same field
+          BsonDocument rangeFilter =
+              new BsonDocument(
+                  "_id",
+                  new BsonDocument(
+                          "$gt", new BsonObjectId(Preconditions.checkStateNotNull(lowestBound)))
+                      .append("$lte", new BsonObjectId(splitKey)));
+          aggregates.add(Aggregates.match(rangeFilter));
+          aggregates.add(Aggregates.match(Filters.gt("_id", splitKey)));
         } else {
-          aggregates.add(
-              Aggregates.match(
-                  Filters.and(Filters.gt("_id", lowestBound), Filters.lte("_id", splitKey))));
+          // Create a custom BSON document with multiple conditions on the same field
+          BsonDocument rangeFilter =
+              new BsonDocument(
+                  "_id",
+                  new BsonDocument(
+                          "$gt", new BsonObjectId(Preconditions.checkStateNotNull(lowestBound)))
+                      .append("$lte", new BsonObjectId(splitKey)));
+          aggregates.add(Aggregates.match(rangeFilter));
         }
 
         lowestBound = splitKey;
