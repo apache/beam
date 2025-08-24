@@ -842,6 +842,7 @@ class BeamModulePlugin implements Plugin<Project> {
         mockito_inline                              : "org.mockito:mockito-inline:4.11.0",
         mongo_java_driver                           : "org.mongodb:mongodb-driver-sync:5.5.0",
         mongo_bson                                  : "org.mongodb:bson:5.5.0",
+        mongodb_driver_core                         : "org.mongodb:mongodb-driver-core:5.5.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
