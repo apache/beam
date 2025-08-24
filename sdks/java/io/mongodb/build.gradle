@@ -29,7 +29,7 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.mongo_java_driver
   implementation library.java.mongo_bson
-  implementation "org.mongodb:mongodb-driver-core:5.5.0"
+  implementation library.java.mongodb_driver_core
   implementation library.java.slf4j_api
   implementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
