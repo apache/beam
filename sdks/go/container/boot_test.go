@@ -205,57 +205,96 @@ func constructArtifactInformation(t *testing.T, roleUrn string, path string, sha
 	}
 }
 
+func clearEnvVars() {
+	_ = os.Unsetenv(cloudProfilingJobName)
+	_ = os.Unsetenv(cloudProfilingJobID)
+}
+
 func TestConfigureGoogleCloudProfilerEnvVars(t *testing.T) {
 	tests := []struct {
-		name          string
-		inputMetadata map[string]string
-		expectedName  string
-		expectedID    string
-		expectedError string
+		name           string
+		options        string
+		metadata       map[string]string
+		expectedName   string
+		expectedID     string
+		expectingError bool
 	}{
 		{
-			"nil metadata",
-			nil,
-			"",
-			"",
-			"enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled",
+			name: "Profiler name from options",
+			options: `{
+				"beam:option:go_options:v1": {
+					"options": {
+						"dataflow_service_options": "enable_google_cloud_profiler=custom_profiler"
+					}
+				}
+			}`,
+			metadata: map[string]string{
+				"job_id": "job-123",
+			},
+			expectedName:   "custom_profiler",
+			expectedID:     "job-123",
+			expectingError: false,
 		},
 		{
-			"missing name",
-			map[string]string{"job_id": "12345"},
-			"",
-			"",
-			"required job_name missing from metadata, profiling will not be enabled without it",
+			name: "Fallback to job_name",
+			options: `{
+				"beam:option:go_options:v1": {
+					"options": {
+					    "dataflow_service_options": "enable_google_cloud_profiler"
+					}
+				}
+			}`,
+			metadata: map[string]string{
+				"job_name": "fallback_profiler",
+				"job_id":   "job-456",
+			},
+			expectedName:   "fallback_profiler",
+			expectedID:     "job-456",
+			expectingError: false,
 		},
 		{
-			"missing id",
-			map[string]string{"job_name": "my_job"},
-			"",
-			"",
-			"required job_id missing from metadata, profiling will not be enabled without it",
-		},
-		{
-			"correct",
-			map[string]string{"job_name": "my_job", "job_id": "42"},
-			"my_job",
-			"42",
-			"",
+			name: "Missing job_id",
+			options: `{
+				"beam:option:go_options:v1": {
+					"options": {
+						"dataflow_service_options": "enable_google_cloud_profiler=custom_profiler"
+					}
+				}
+			}`,
+			metadata: map[string]string{
+				"job_name": "custom_profiler",
+			},
+			expectingError: true,
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Cleanup(os.Clearenv)
-			err := configureGoogleCloudProfilerEnvVars(context.Background(), &tools.Logger{}, test.inputMetadata)
-			if err != nil {
-				if got, want := err.Error(), test.expectedError; got != want {
-					t.Errorf("got error %v, want error %v", got, want)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearEnvVars()
+			ctx := context.Background()
+
+			err := configureGoogleCloudProfilerEnvVars(ctx, &tools.Logger{}, tt.metadata, tt.options)
+
+			if tt.expectingError {
+				if err == nil {
+					t.Errorf("Expected error but got nil")
+				}
+				return
+			} else {
+				if err != nil {
+					t.Errorf("Did not expect error but got: %v", err)
+					return
 				}
 			}
-			if got, want := os.Getenv(cloudProfilingJobName), test.expectedName; got != want {
-				t.Errorf("got job name %v, want %v", got, want)
+
+			gotName := os.Getenv(cloudProfilingJobName)
+			gotID := os.Getenv(cloudProfilingJobID)
+
+			if gotName != tt.expectedName {
+				t.Errorf("Expected profiler name '%s', got '%s'", tt.expectedName, gotName)
 			}
-			if got, want := os.Getenv(cloudProfilingJobID), test.expectedID; got != want {
-				t.Errorf("got job id %v, want %v", got, want)
+			if gotID != tt.expectedID {
+				t.Errorf("Expected job ID '%s', got '%s'", tt.expectedID, gotID)
 			}
 		})
 	}
