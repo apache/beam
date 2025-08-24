@@ -22,12 +22,14 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
+import com.mongodb.ConnectionString;
 import com.mongodb.MongoBulkWriteException;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientOptions;
-import com.mongodb.MongoClientURI;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoClientSettings.Builder;
 import com.mongodb.MongoCommandException;
 import com.mongodb.client.AggregateIterable;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -46,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.coders.Coder;
@@ -362,22 +365,25 @@ public class MongoDbIO {
     }
   }
 
-  private static MongoClientOptions.Builder getOptions(
+  private static MongoClientSettings.Builder getOptions(
       int maxConnectionIdleTime,
       boolean sslEnabled,
       boolean sslInvalidHostNameAllowed,
       boolean ignoreSSLCertificate) {
-    MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder();
-    optionsBuilder.maxConnectionIdleTime(maxConnectionIdleTime);
+    MongoClientSettings.Builder settingsBuilder = MongoClientSettings.builder();
+    settingsBuilder.applyToConnectionPoolSettings(
+        builder -> builder.maxConnectionIdleTime(maxConnectionIdleTime, TimeUnit.MILLISECONDS));
     if (sslEnabled) {
-      optionsBuilder.sslEnabled(sslEnabled).sslInvalidHostNameAllowed(sslInvalidHostNameAllowed);
-      if (ignoreSSLCertificate) {
-        SSLContext sslContext = SSLUtils.ignoreSSLCertificate();
-        optionsBuilder.sslContext(sslContext);
-        optionsBuilder.socketFactory(sslContext.getSocketFactory());
-      }
+      settingsBuilder.applyToSslSettings(
+          builder -> {
+            builder.enabled(sslEnabled).invalidHostNameAllowed(sslInvalidHostNameAllowed);
+            if (ignoreSSLCertificate) {
+              SSLContext sslContext = SSLUtils.ignoreSSLCertificate();
+              builder.context(sslContext);
+            }
+          });
     }
-    return optionsBuilder;
+    return settingsBuilder;
   }
 
   /** A MongoDB {@link BoundedSource} reading {@link Document} from a given instance. */
@@ -414,15 +420,15 @@ public class MongoDbIO {
       String uri = Preconditions.checkStateNotNull(spec.uri());
       String database = Preconditions.checkStateNotNull(spec.database());
       String collection = Preconditions.checkStateNotNull(spec.collection());
-      try (MongoClient mongoClient =
-          new MongoClient(
-              new MongoClientURI(
-                  uri,
-                  getOptions(
-                      spec.maxConnectionIdleTime(),
-                      spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed(),
-                      spec.ignoreSSLCertificate())))) {
+      MongoClientSettings settings =
+          getOptions(
+                  spec.maxConnectionIdleTime(),
+                  spec.sslEnabled(),
+                  spec.sslInvalidHostNameAllowed(),
+                  spec.ignoreSSLCertificate())
+              .applyConnectionString(new ConnectionString(uri))
+              .build();
+      try (MongoClient mongoClient = MongoClients.create(settings)) {
         return getDocumentCount(mongoClient, database, collection);
       } catch (Exception e) {
         return -1;
@@ -446,15 +452,15 @@ public class MongoDbIO {
       String uri = Preconditions.checkStateNotNull(spec.uri());
       String database = Preconditions.checkStateNotNull(spec.database());
       String collection = Preconditions.checkStateNotNull(spec.collection());
-      try (MongoClient mongoClient =
-          new MongoClient(
-              new MongoClientURI(
-                  uri,
-                  getOptions(
-                      spec.maxConnectionIdleTime(),
-                      spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed(),
-                      spec.ignoreSSLCertificate())))) {
+      MongoClientSettings settings =
+          getOptions(
+                  spec.maxConnectionIdleTime(),
+                  spec.sslEnabled(),
+                  spec.sslInvalidHostNameAllowed(),
+                  spec.ignoreSSLCertificate())
+              .applyConnectionString(new ConnectionString(uri))
+              .build();
+      try (MongoClient mongoClient = MongoClients.create(settings)) {
         try {
           return getEstimatedSizeBytes(mongoClient, database, collection);
         } catch (MongoCommandException exception) {
@@ -483,15 +489,15 @@ public class MongoDbIO {
       String uri = Preconditions.checkStateNotNull(spec.uri());
       String database = Preconditions.checkStateNotNull(spec.database());
       String collection = Preconditions.checkStateNotNull(spec.collection());
-      try (MongoClient mongoClient =
-          new MongoClient(
-              new MongoClientURI(
-                  uri,
-                  getOptions(
-                      spec.maxConnectionIdleTime(),
-                      spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed(),
-                      spec.ignoreSSLCertificate())))) {
+      MongoClientSettings settings =
+          getOptions(
+                  spec.maxConnectionIdleTime(),
+                  spec.sslEnabled(),
+                  spec.sslInvalidHostNameAllowed(),
+                  spec.ignoreSSLCertificate())
+              .applyConnectionString(new ConnectionString(uri))
+              .build();
+      try (MongoClient mongoClient = MongoClients.create(settings)) {
         MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
 
         List<Document> splitKeys;
@@ -690,7 +696,10 @@ public class MongoDbIO {
         lowestBound = splitKey;
       }
       return aggregates.stream()
-          .map(s -> s.toBsonDocument(BasicDBObject.class, MongoClient.getDefaultCodecRegistry()))
+          .map(
+              s ->
+                  s.toBsonDocument(
+                      BasicDBObject.class, MongoClientSettings.getDefaultCodecRegistry()))
           .collect(Collectors.toList());
     }
 
@@ -786,14 +795,15 @@ public class MongoDbIO {
 
     private MongoClient createClient(Read spec) {
       String uri = Preconditions.checkStateNotNull(spec.uri(), "withUri() is required");
-      return new MongoClient(
-          new MongoClientURI(
-              uri,
-              getOptions(
+      MongoClientSettings settings =
+          getOptions(
                   spec.maxConnectionIdleTime(),
                   spec.sslEnabled(),
                   spec.sslInvalidHostNameAllowed(),
-                  spec.ignoreSSLCertificate())));
+                  spec.ignoreSSLCertificate())
+              .applyConnectionString(new ConnectionString(uri))
+              .build();
+      return MongoClients.create(settings);
     }
   }
 
@@ -985,15 +995,15 @@ public class MongoDbIO {
       @Setup
       public void createMongoClient() {
         String uri = Preconditions.checkStateNotNull(spec.uri());
-        client =
-            new MongoClient(
-                new MongoClientURI(
-                    uri,
-                    getOptions(
-                        spec.maxConnectionIdleTime(),
-                        spec.sslEnabled(),
-                        spec.sslInvalidHostNameAllowed(),
-                        spec.ignoreSSLCertificate())));
+        MongoClientSettings settings =
+            getOptions(
+                    spec.maxConnectionIdleTime(),
+                    spec.sslEnabled(),
+                    spec.sslInvalidHostNameAllowed(),
+                    spec.ignoreSSLCertificate())
+                .applyConnectionString(new ConnectionString(uri))
+                .build();
+        client = MongoClients.create(settings);
       }
 
       @StartBundle
