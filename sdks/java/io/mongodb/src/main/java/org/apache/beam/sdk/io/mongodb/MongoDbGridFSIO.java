@@ -204,17 +204,12 @@ public class MongoDbGridFSIO {
     MongoClient setupMongo() {
       if (uri() == null) {
         return MongoClients.create();
-      } else {
-        String uriString = uri();
-        if (uriString == null) {
-          return MongoClients.create();
-        }
-        MongoClientSettings settings =
-            MongoClientSettings.builder()
-                .applyConnectionString(new ConnectionString(uriString))
-                .build();
-        return MongoClients.create(settings);
       }
+      MongoClientSettings settings =
+          MongoClientSettings.builder()
+              .applyConnectionString(new ConnectionString(Preconditions.checkStateNotNull(uri())))
+              .build();
+      return MongoClients.create(settings);
     }
 
     GridFSBucket setupGridFS(MongoClient mongo) {
