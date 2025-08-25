@@ -149,18 +149,15 @@ public class PubsubToIcebergIT implements Serializable {
             + "' \n"
             + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
     String icebergTableString =
-        "CREATE EXTERNAL TABLE iceberg_table( \n"
+        format("CREATE EXTERNAL TABLE %s( \n", tableIdentifier)
             + "   id BIGINT, \n"
             + "   name VARCHAR \n "
             + ") \n"
             + "TYPE 'iceberg' \n"
             + "PARTITIONED BY('id', 'truncate(name, 3)') \n"
-            + "LOCATION '"
-            + tableIdentifier
-            + "' \n"
             + "TBLPROPERTIES '{ \"triggering_frequency_seconds\" : 10 }'";
     String insertStatement =
-        "INSERT INTO iceberg_table \n"
+        format("INSERT INTO %s \n", tableIdentifier)
             + "SELECT \n"
             + "  pubsub_topic.payload.id, \n"
             + "  pubsub_topic.payload.name \n"
@@ -207,18 +204,15 @@ public class PubsubToIcebergIT implements Serializable {
             + pubsub.topicPath()
             + "' \n"
             + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
-    String bqTableString =
-        "CREATE EXTERNAL TABLE iceberg_table( \n"
+    String icebergTableString =
+        format("CREATE EXTERNAL TABLE %s( \n", tableIdentifier)
             + "   id BIGINT, \n"
             + "   name VARCHAR \n "
             + ") \n"
             + "TYPE 'iceberg' \n"
-            + "LOCATION '"
-            + tableIdentifier
-            + "' \n"
             + "TBLPROPERTIES '{ \"triggering_frequency_seconds\" : 10 }'";
     String insertStatement =
-        "INSERT INTO iceberg_table \n"
+        format("INSERT INTO %s \n", tableIdentifier)
             + "SELECT \n"
             + "  id, \n"
             + "  name \n"
@@ -229,7 +223,7 @@ public class PubsubToIcebergIT implements Serializable {
             .withDdlString(createCatalogDdl)
             .withDdlString(setCatalogDdl)
             .withDdlString(pubsubTableString)
-            .withDdlString(bqTableString));
+            .withDdlString(icebergTableString));
     pipeline.run();
 
     // Block until a subscription for this topic exists

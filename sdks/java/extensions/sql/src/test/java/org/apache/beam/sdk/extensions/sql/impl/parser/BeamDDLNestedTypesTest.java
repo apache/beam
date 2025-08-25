@@ -75,7 +75,7 @@ public class BeamDDLNestedTypesTest {
             + "fieldName "
             + fieldType
             + " ) "
-            + "TYPE 'text' "
+            + "TYPE 'test' "
             + "LOCATION '/home/admin/person'\n";
     System.out.println(createTable);
 
