@@ -40,8 +40,8 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_combine import normalize_combine
-from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import Validate
+from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
