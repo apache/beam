@@ -1923,15 +1923,25 @@ class BeamModulePlugin implements Plugin<Project> {
 
           publications {
             mavenJava(MavenPublication) {
+              // only publish test and its sources when test folder is non-empty
+              def testFolder = project.file("src/test")
+              boolean testExists = testFolder.exists() && testFolder.list().size() != 0
+
               if (configuration.shadowClosure) {
                 artifact project.shadowJar
-                artifact project.shadowTestJar
+                if (testExists) {
+                  artifact project.shadowTestJar
+                }
               } else {
                 artifact project.jar
-                artifact project.testJar
+                if (testExists) {
+                  artifact project.testJar
+                }
               }
               artifact project.sourcesJar
-              artifact project.testSourcesJar
+              if (testExists) {
+                artifact project.testSourcesJar
+              }
               artifact project.javadocJar
 
               artifactId = project.archivesBaseName

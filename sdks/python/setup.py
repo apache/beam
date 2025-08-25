@@ -446,6 +446,8 @@ if __name__ == '__main__':
               'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
+              'pg8000>=1.31.1',
+              "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
           ] + milvus_dependency,
           'gcp': [
@@ -475,6 +477,10 @@ if __name__ == '__main__':
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
               'google-cloud-aiplatform>=1.26.0, < 2.0',
+              'cloud-sql-python-connector>=1.18.2,<2.0.0',
+              'python-tds>=1.16.1',
+              'pg8000>=1.31.1',
+              "PyMySQL>=1.1.0",
               # Authentication for Google Artifact Registry when using
               # --extra-index-url or --index-url in requirements.txt in
               # Dataflow, which allows installing python packages from private
