@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package bigtableio contains cross-language functionality for using Google Cloud BigQuery
-// (https://cloud.google.com/bigquery). These transforms only work on runners that support
+// Package bigtableio contains cross-language functionality for using Google Cloud Bigtable
+// (https://cloud.google.com/bigtable). These transforms only work on runners that support
 // cross-language transforms.
 //
 // # Setup
@@ -42,6 +42,7 @@
 //   - Vendored Module: beam-sdks-java-io-google-cloud-platform-expansion-service
 //   - Run via Gradle: ./gradlew :sdks:java:io:google-cloud-platform:expansion-service:runExpansionService
 //   - Reference Class: org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider and
+//     org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider and
 //     org.apache.beam.sdk.io.gcp.bigtable.BigtableIO
 //
 // # Note On Documentation
@@ -58,6 +59,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/schemaio"
 	xlschema "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/schema"
 )
 
@@ -100,6 +102,7 @@ func (row *Row) AddCell(family string, qualifier string, value []byte, timestamp
 
 const (
 	readURN             = "beam:schematransform:org.apache.beam:bigtable_read:v1"
+	writeURN            = "beam:schematransform:org.apache.beam:bigtable_write:v1"
 	serviceGradleTarget = ":sdks:java:io:google-cloud-platform:expansion-service:runExpansionService"
 )
 
@@ -134,4 +137,37 @@ func Read(s beam.Scope, projectId string, instanceId string, table string, opts 
 
 	outs := xlschema.Transform(s, btConfig, readURN, xlschema.ExpansionAddr(addr), xlschema.UnnamedOutputType(typex.New(reflect.TypeOf(Row{}))))
 	return outs[beam.UnnamedOutputTag()]
+}
+
+type WriteOption func(*writeConfig)
+type writeConfig struct {
+	addr string
+}
+
+// WriteExpansionAddr specifies the address of a persistent expansion service to use for a Write
+// transform. If this is not provided, or if an empty string is provided, the transform will
+// automatically start an appropriate expansion service instead.
+func WriteExpansionAddr(addr string) WriteOption {
+	return func(wc *writeConfig) {
+		wc.addr = addr
+	}
+}
+
+// Write writes rows to a Bigtable table.
+func Write(s beam.Scope, projectId string, instanceId string, table string, col beam.PCollection, opts ...WriteOption) {
+	s = s.Scope("bigtableio.Write")
+
+	wc := writeConfig{}
+	for _, opt := range opts {
+		opt(&wc)
+	}
+
+	addr := wc.addr
+	if addr == "" {
+		addr = autoStartupAddress
+	}
+	btConfig := bigtableConfig{InstanceId: instanceId, ProjectId: projectId, TableId: table}
+
+	pl := schemaio.MustEncodePayload("", btConfig, nil)
+	beam.CrossLanguage(s, writeURN, pl, addr, beam.UnnamedInput(col), nil)
 }
