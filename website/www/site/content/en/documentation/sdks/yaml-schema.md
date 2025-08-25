@@ -63,7 +63,7 @@ create a few "good" and "bad" records with a specified schema of `sdk` as a
 string and `year` as an integer with error_handling output going to invalid 
 rows. An additonal `MapToFields` transform will take the error_handling output 
 and capture the element data as rows. Two `AssertEqual` transforms will verify 
-tho "good" and "bad" rows accordingly.
+the "good" and "bad" rows accordingly.
 
 ```yaml
 pipeline:
