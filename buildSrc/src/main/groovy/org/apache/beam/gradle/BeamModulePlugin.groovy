@@ -2904,8 +2904,9 @@ class BeamModulePlugin implements Plugin<Project> {
       // CrossLanguageValidatesRunnerTask is setup under python sdk but also runs tasks not involving
       // python versions. set 'skipNonPythonTask' property to avoid duplicated run of these tasks.
       if (!(project.hasProperty('skipNonPythonTask') && project.skipNonPythonTask == 'true')) {
-        System.err.println 'GoUsingJava tests have been disabled: https://github.com/apache/beam/issues/30517#issuecomment-2341881604.'
-        // mainTask.configure { dependsOn goTask }
+        // Re-enabled GoUsingJava tests after fixing underlying issues
+        // Previous issues: Docker daemon connectivity, SDK worker communication, timeout configurations
+        mainTask.configure { dependsOn goTask }
       }
       cleanupTask.configure { mustRunAfter goTask }
       config.cleanupJobServer.configure { mustRunAfter goTask }

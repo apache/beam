@@ -17,6 +17,7 @@ package integration
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"time"
 
@@ -100,9 +101,26 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot run jar for expansion service labeled \"%s\": %w", label, err)
 	}
-	time.Sleep(es.waitTime) // Wait a bit for the jar to start.
-	es.procs = append(es.procs, proc)
+	
+	// Wait for the jar to start with improved retry logic
 	addr := "localhost:" + portStr
+	maxRetries := 30
+	retryDelay := time.Second
+	
+	for i := 0; i < maxRetries; i++ {
+		time.Sleep(retryDelay)
+		// Try to connect to the expansion service to verify it's ready
+		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+		if err == nil {
+			conn.Close()
+			break
+		}
+		if i == maxRetries-1 {
+			return "", fmt.Errorf("expansion service labeled \"%s\" failed to start after %d retries: %w", label, maxRetries, err)
+		}
+	}
+	
+	es.procs = append(es.procs, proc)
 	es.addrs[label] = addr
 	return addr, nil
 }
