@@ -15,14 +15,6 @@
 # limitations under the License.
 #
 
-fixtures:
-  - name: TEMP_DIR
-    # Need distributed filesystem to be able to read and write from a container.
-    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
-    config:
-      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
-
-
 pipelines:
   # Simple Create with element list
   - pipeline:
