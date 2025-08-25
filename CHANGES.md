@@ -80,7 +80,7 @@
   Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
   - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
   - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
-* Optional output_schema with error handling config can be added to any YAML transform to verify schema ([#35742](https://github.com/apache/beam/issues/35742)).
+* Optional output_schema with error handling config can be added to any YAML transform to verify schema ([#35742](https://github.com/apache/beam/issues/35742), [#35952](https://github.com/apache/beam/issues/35952]).
 
 ## Breaking Changes
 
