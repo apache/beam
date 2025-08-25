@@ -15,6 +15,14 @@
 # limitations under the License.
 #
 
+fixtures:
+  - name: TEMP_DIR
+    # Need distributed filesystem to be able to read and write from a container.
+    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+    config:
+      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+
+
 pipelines:
   # Simple Create with element list
   - pipeline:
@@ -114,4 +122,64 @@ pipelines:
             elements:
               - {sdk: MapReduce, year: 2004}
               - {}
+              - {sdk: MillWheel, year: 2008}
+
+  # Simple Create with output schema check
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: MillWheel, year: 2008}
+            output_schema:
+              type: object
+              properties:
+                sdk:
+                  type: string
+                year:
+                  type: integer
+        - type: AssertEqual
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: MillWheel, year: 2008}
+
+  # Simple Create with output schema and error handling
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: CheeseWheel, year: "apple"}
+              - {sdk: MillWheel, year: 2008}
+            output_schema:
+              type: object
+              properties:
+                sdk:
+                  type: string
+                year:
+                  type: integer
+              error_handling:
+                output: invalid_rows
+        - type: MapToFields
+          input: Create.invalid_rows
+          config:
+            language: python
+            fields: 
+              sdk: "element.sdk"
+              year: "element.year"   
+        - type: AssertEqual
+          input: MapToFields
+          config:
+            elements:
+              - {sdk: CheeseWheel, year: "apple"}
+        - type: AssertEqual
+          input: Create
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
               - {sdk: MillWheel, year: 2008}

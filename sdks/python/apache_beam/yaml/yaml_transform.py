@@ -34,10 +34,14 @@ import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
+from apache_beam.typehints import schemas
+from apache_beam.typehints import typehints
+from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import normalize_mapping
+from apache_beam.yaml.yaml_mapping import Validate
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
@@ -224,6 +228,10 @@ class Scope(LightweightScope):
       if len(outputs) == 1:
         return only_element(outputs.values())
       else:
+        if 'good' in outputs and len(outputs) >= 2:
+          # This is likely the output of a transform with error handling
+          # that was explicitly added, like schema validation.
+          return outputs['good']
         error_output = self._transforms_by_uuid[self.get_transform_id(
             name)]['config'].get('error_handling', {}).get('output')
         if error_output and error_output in outputs and len(outputs) == 2:
@@ -481,6 +489,14 @@ def expand_transform(spec, scope):
 
 
 def expand_leaf_transform(spec, scope):
+  spec = spec.copy()
+
+  # Check for optional output schema to verify on.
+  # The idea is to pass this output_schema to the ValidateWithSchema transform.
+  output_schema_spec = {}
+  if 'output_schema' in spec.get('config', {}):
+    output_schema_spec = spec.get('config').pop('output_schema')
+
   spec = normalize_inputs_outputs(spec)
   inputs_dict = {
       key: scope.get_pcollection(value)
@@ -507,6 +523,12 @@ def expand_leaf_transform(spec, scope):
   except Exception as exn:
     raise ValueError(
         f"Error applying transform {identify_object(spec)}: {exn}") from exn
+
+  # Optional output schema was found, so lets expand on that before returning.
+  if output_schema_spec:
+    outputs = expand_output_schema_transform(
+        spec=output_schema_spec, outputs=outputs)
+
   if isinstance(outputs, dict):
     # TODO: Handle (or at least reject) nested case.
     return outputs
@@ -520,6 +542,96 @@ def expand_leaf_transform(spec, scope):
     raise ValueError(
         f'Transform {identify_object(spec)} returned an unexpected type '
         f'{type(outputs)}')
+
+
+def expand_output_schema_transform(spec, outputs):
+  """
+  Expands to add a Validate transform after the current transform and 
+  before returning the output data for it to the next transform.
+  """
+  # Check for error handling spec
+  error_handling_spec = {}
+  if 'error_handling' in spec:
+    error_handling_spec = spec.pop('error_handling')
+
+  # Strip metadata such as __line__ and __uuid__ as these will interfere with
+  # the validation downstream.
+  clean_schema = SafeLineLoader.strip_metadata(spec)
+
+  def enforce_schema(pcoll, label, error_handling_spec):
+    """
+    Applies schema to PCollection elements if necessary, then validates.
+    """
+    if pcoll.element_type == typehints.Any:
+      _LOGGER.info(
+          "PCollection for %s has no schema (element_type=Any). "
+          "Converting elements to beam.Row based on provided output_schema.",
+          label)
+      try:
+        # Attempt to conver the schemaless elements into schema-aware beam.Row
+        # objects
+        beam_schema = json_utils.json_schema_to_beam_schema(clean_schema)
+        row_type_constraint = schemas.named_tuple_from_schema(beam_schema)
+
+        def to_row(element):
+          """
+          Convert a single element inte the row type constraint type.
+          """
+          if isinstance(element, dict):
+            return row_type_constraint(**element)
+          elif hasattr(element, '_asdict'):  # Handle NamedTuple, beam.Row
+            return row_type_constraint(**element._asdict())
+          else:
+            raise TypeError(
+                f"Cannot convert element of type {type(element)} to beam.Row "
+                f"for validation in {label}. Element: {element}")
+
+        pcoll = pcoll | f'{label}_ConvertToRow' >> beam.Map(
+            to_row).with_output_types(row_type_constraint)
+      except Exception as e:
+        raise ValueError(
+            f"Failed to prepare schemaless PCollection for \
+              validation in {label}: {e}") from e
+
+    # Add Validation step downstream of current transform
+    return pcoll | label >> Validate(
+        schema=clean_schema, error_handling=error_handling_spec)
+
+  # The transform produced outputs with a single beam.PCollection
+  if isinstance(outputs, beam.PCollection):
+    outputs = enforce_schema(
+        outputs, 'EnforceOutputSchema', error_handling_spec)
+  # The transform produced outputs with many named PCollections and need to
+  # determine which PCollection should be validated on.
+  elif isinstance(outputs, dict):
+    main_output_key = 'output'
+    if main_output_key not in outputs:
+      if 'good' in outputs:
+        main_output_key = 'good'
+      elif len(outputs) == 1:
+        main_output_key = next(iter(outputs.keys()))
+      else:
+        raise ValueError(
+            f"Transform {identify_object(spec)} has outputs "
+            f"{list(outputs.keys())}, but none are named 'output'. To apply "
+            "an 'output_schema', please ensure the transform has exactly one "
+            "output, or that the main output is named 'output'.")
+
+    validation_result = enforce_schema(
+        outputs[main_output_key],
+        f'EnforceOutputSchema_{main_output_key}',
+        error_handling_spec)
+
+    # Integrate the validation results back into the 'outputs' dictionary.
+    if isinstance(validation_result, dict):
+      # The main output from validation is the good output.
+      main_tag = error_handling_spec.get('main_tag', 'good')
+      outputs[main_output_key] = validation_result.pop(main_tag)
+      outputs.update(validation_result)
+    else:
+      outputs[main_output_key] = validation_result
+
+  return outputs
 
 
 def expand_composite_transform(spec, scope):
