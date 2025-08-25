@@ -442,7 +442,7 @@ class SideInputsTest(unittest.TestCase):
     num_records = 10000
     key_size = 10
     value_size = 100
-    expected_fingerprint = 'f90a652aecad4d841c3dc28660db7911'
+    expected_fingerprint = '00f7eeac8514721e2683d14a504b33d1'
 
     class GetSyntheticSDFOptions(beam.DoFn):
       """A DoFn that emits elements for genenrating SDF."""
@@ -464,14 +464,18 @@ class SideInputsTest(unittest.TestCase):
       is the hash of the sorted serialized elements.
       """
       def process(
-          self, element: Any, side_input: Iterable[Tuple[bytes,
-                                                         bytes]]) -> None:
+          self, element: Any,
+          side_input: Iterable[Tuple[bytes,
+                                     bytes]]) -> Iterable[Tuple[int, str]]:
+
         side_input_list = list(side_input)
         size = len(side_input_list)
-        # Sort and convert to string for consistent hashing.
-        sorted_serialized_list = str(sorted(side_input_list))
-        fp = hashlib.md5(sorted_serialized_list.encode()).hexdigest()
-        return [(size, fp)]
+        # Sort for consistent hashing.
+        m = hashlib.md5()
+        for key, value in sorted(side_input_list):
+          m.update(key)
+          m.update(value)
+        yield (size, m.hexdigest())
 
     pipeline = self.create_pipeline()
     main_input = pipeline | 'Main input: Create' >> beam.Create([0])
