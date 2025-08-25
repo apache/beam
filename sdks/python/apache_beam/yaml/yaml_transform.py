@@ -562,6 +562,7 @@ def expand_output_schema_transform(spec, outputs):
     """
     Applies schema to PCollection elements if necessary, then validates.
     """
+    # This was typically seen when a transform also had its own error handling.
     if pcoll.element_type == typehints.Any:
       _LOGGER.info(
           "PCollection for %s has no schema (element_type=Any). "
