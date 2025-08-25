@@ -481,7 +481,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   """Tests for search functionality across all search strategies"""
 
   _db: MilvusDBContainerInfo
-  _version = "milvusdb/milvus:v2.3.9"
+  _version = "milvusdb/milvus:v2.5.10"
 
   @classmethod
   def setUpClass(cls):
