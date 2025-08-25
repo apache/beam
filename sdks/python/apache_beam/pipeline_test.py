@@ -823,7 +823,7 @@ class DoFnTest(unittest.TestCase):
           TestDoFn(), prefix, suffix=AsSingleton(suffix))
       assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_element_param(self):
     pipeline = TestPipeline()
     input = [1, 2]
@@ -834,7 +834,7 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to(input))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_key_param(self):
     pipeline = TestPipeline()
     pcoll = (
