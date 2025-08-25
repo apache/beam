@@ -163,7 +163,7 @@ pipelines:
             language: python
             fields: 
               sdk: "element.sdk"
-              year: "element.year"   
+              year: "element.year"
         - type: AssertEqual
           input: MapToFields
           config:
