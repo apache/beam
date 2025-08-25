@@ -58,35 +58,44 @@ env:
 
 jobs:
   beam_PreCommit_Python_Coverage:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         job_name: [beam_PreCommit_Python_Coverage]
         job_phrase: [Run Python_Coverage PreCommit]
+        python_version: ['3.9']
+        # Run on both self-hosted and GitHub-hosted runners.
+        # Some tests (marked require_docker_in_docker) can't run on Beam's
+        # self-hosted runners due to Docker-in-Docker environment constraint.
+        # These tests will only execute on ubuntu-latest (GitHub-hosted).
+        # Context: https://github.com/apache/beam/pull/35585
+        os: [[self-hosted, ubuntu-20.04, highmem], [ubuntu-latest]]
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Python_Coverage PreCommit'
+      startswith(github.event.comment.body, 'Run Python_Coverage PreCommit 3.')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
-          python-version: default
+          python-version: ${{ matrix.python_version }}
       - name: Start DinD
         uses: ./.github/actions/dind-up-action
         id: dind
+        if: contains(matrix.os, 'self-hosted')
         with:
           # Enable all the new features
           cleanup-dind-on-start: "true"
@@ -97,9 +106,9 @@ jobs:
           export-gh-env: "true"
       - name: Run preCommitPyCoverage
         env:
-          DOCKER_HOST: ${{ steps.dind.outputs.docker-host }}
+          DOCKER_HOST: ${{ contains(matrix.os, 'self-hosted') && steps.dind.outputs.docker-host || '' }}
           TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
-          TESTCONTAINERS_HOST_OVERRIDE: ${{ env.DIND_IP }}
+          TESTCONTAINERS_HOST_OVERRIDE: ${{ contains(matrix.os, 'self-hosted') && env.DIND_IP || '' }}
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: "/var/run/docker.sock"
           TESTCONTAINERS_RYUK_DISABLED: "false"
           TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"          
@@ -110,6 +119,12 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py39:preCommitPyCoverage
+          arguments: |
+            -Pposargs="${{
+              contains(matrix.os, 'self-hosted') &&
+                '-m (not require_docker_in_docker)' ||
+                '-m require_docker_in_docker'
+            }}"
       - uses: codecov/codecov-action@v3
         with:
           flags: python
