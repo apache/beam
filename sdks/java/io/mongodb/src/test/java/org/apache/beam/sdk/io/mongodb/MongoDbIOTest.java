@@ -21,7 +21,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 
-import com.mongodb.MongoClient;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
@@ -107,7 +108,7 @@ public class MongoDbIOTest {
             .build();
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
-    client = new MongoClient("localhost", port);
+    client = MongoClients.create("mongodb://localhost:" + port);
     database = client.getDatabase(DATABASE_NAME);
 
     LOG.info("Insert test data");
