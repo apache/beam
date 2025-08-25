@@ -146,8 +146,15 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           stream.size() == 0,
           "Expected output stream to be empty but had %s",
           stream.toByteString());
-      coder.encode(object, stream, Coder.Context.OUTER);
-      return stream.toByteStringAndReset();
+      ByteString result;
+      try {
+        coder.encode(object, stream, Coder.Context.OUTER);
+        result = stream.toByteStringAndReset();
+      } catch (IOException e) {
+        stream.toByteStringAndReset();
+        throw e;
+      }
+      return result;
     }
 
     @Override
@@ -155,12 +162,10 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
-      stream.toByteStringAndReset();
       ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPaneInfo());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();
-        stream.toByteStringAndReset();
         key = encode(kvCoder.getKeyCoder(), kv.getKey());
         Coder valueCoder = kvCoder.getValueCoder();
         // If ids are explicitly provided, use that instead of the windmill-generated id.
@@ -171,13 +176,10 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
               encode(((ValueWithRecordIdCoder) valueCoder).getValueCoder(), valueAndId.getValue());
           id = ByteString.copyFrom(valueAndId.getId());
         } else {
-          stream.toByteStringAndReset();
           value = encode(valueCoder, kv.getValue());
         }
       } else {
-        stream.toByteStringAndReset();
         key = context.getSerializedKey();
-        stream.toByteStringAndReset();
         value = encode(valueCoder, data.getValue());
       }
       if (key.size() > context.getMaxOutputKeyBytes()) {
