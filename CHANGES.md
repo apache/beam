@@ -65,6 +65,7 @@
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 * [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
+* [Python] Add YAML Editor and Visualization Panel ([#35947](https://github.com/apache/beam/pull/35947)).
 
 ## I/Os
 
@@ -80,6 +81,7 @@
   Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
   - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
   - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
+* Add YAML Editor and Visualization Panel ([#35947](https://github.com/apache/beam/pull/35947))
 
 ## Breaking Changes
 
