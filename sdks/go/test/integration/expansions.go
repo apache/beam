@@ -58,6 +58,7 @@ type ExpansionServices struct {
 	// Callback for running jars, stored this way for testing purposes.
 	run      func(time.Duration, string, ...string) (jars.Process, error)
 	waitTime time.Duration // Time to sleep after running jar. Tests can adjust this.
+	testMode bool          // Skip connectivity checks when in test mode
 }
 
 // NewExpansionServices creates and initializes an ExpansionServices instance.
@@ -68,6 +69,7 @@ func NewExpansionServices() *ExpansionServices {
 		procs:    make([]jars.Process, 0),
 		run:      jars.Run,
 		waitTime: 3 * time.Second,
+		testMode: false,
 	}
 }
 
@@ -102,21 +104,28 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 		return "", fmt.Errorf("cannot run jar for expansion service labeled \"%s\": %w", label, err)
 	}
 	
-	// Wait for the jar to start with improved retry logic
 	addr := "localhost:" + portStr
-	maxRetries := 30
-	retryDelay := time.Second
 	
-	for i := 0; i < maxRetries; i++ {
-		time.Sleep(retryDelay)
-		// Try to connect to the expansion service to verify it's ready
-		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
-		if err == nil {
-			conn.Close()
-			break
-		}
-		if i == maxRetries-1 {
-			return "", fmt.Errorf("expansion service labeled \"%s\" failed to start after %d retries: %w", label, maxRetries, err)
+	// Use different wait strategies for test mode vs production
+	if es.testMode {
+		// In test mode, use simple wait time for compatibility with mock processes
+		time.Sleep(es.waitTime)
+	} else {
+		// In production, wait for the jar to start with improved retry logic
+		maxRetries := 30
+		retryDelay := time.Second
+		
+		for i := 0; i < maxRetries; i++ {
+			time.Sleep(retryDelay)
+			// Try to connect to the expansion service to verify it's ready
+			conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+			if err == nil {
+				conn.Close()
+				break
+			}
+			if i == maxRetries-1 {
+				return "", fmt.Errorf("expansion service labeled \"%s\" failed to start after %d retries: %w", label, maxRetries, err)
+			}
 		}
 	}
 	
