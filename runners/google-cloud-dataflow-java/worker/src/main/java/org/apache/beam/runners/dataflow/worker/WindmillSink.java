@@ -148,8 +148,13 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           stream.size() == 0,
           "Expected output stream to be empty but had %s",
           stream.toByteString());
-      coder.encode(object, stream, Coder.Context.OUTER);
-      return stream.toByteStringAndReset();
+      try {
+        coder.encode(object, stream, Coder.Context.OUTER);
+        return stream.toByteStringAndReset();
+      } catch (Exception e) {
+        stream.toByteStringAndReset();
+        throw e;
+      }
     }
 
     @Override

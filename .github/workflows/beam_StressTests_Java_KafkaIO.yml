@@ -17,7 +17,7 @@ name: StressTests Java KafkaIO
 
 on:
   schedule:
-    - cron: '0 10 * * 0'
+    - cron: '0 14 * * 0'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event

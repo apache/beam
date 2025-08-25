@@ -33,6 +33,7 @@ from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
+from apache_beam.utils.shared import Shared
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
@@ -114,11 +115,17 @@ class AsyncWrapper(beam.DoFn):
     self.timer_frequency_ = callback_frequency
     self.parallelism_ = parallelism
     self._next_time_to_fire = Timestamp.now() + Duration(seconds=5)
+    self._shared_handle = Shared()
+
+  @staticmethod
+  def initialize_pool(parallelism):
+    return lambda: ThreadPoolExecutor(max_workers=parallelism)
 
   @staticmethod
   def reset_state():
     for pool in AsyncWrapper._pool.values():
-      pool.shutdown(wait=True, cancel_futures=True)
+      pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
+          wait=True, cancel_futures=True)
     with AsyncWrapper._lock:
       AsyncWrapper._pool = {}
       AsyncWrapper._processing_elements = {}
@@ -129,8 +136,7 @@ class AsyncWrapper(beam.DoFn):
     self._sync_fn.setup()
     with AsyncWrapper._lock:
       if not self._uuid in AsyncWrapper._pool:
-        AsyncWrapper._pool[self._uuid] = ThreadPoolExecutor(
-            max_workers=self._parallelism)
+        AsyncWrapper._pool[self._uuid] = Shared()
         AsyncWrapper._processing_elements[self._uuid] = {}
         AsyncWrapper._items_in_buffer[self._uuid] = 0
 
@@ -202,9 +208,10 @@ class AsyncWrapper(beam.DoFn):
         logging.info('item %s already in processing elements', element)
         return True
       if self.accepting_items() or ignore_buffer:
-        result = AsyncWrapper._pool[self._uuid].submit(
-            lambda: self.sync_fn_process(element, *args, **kwargs),
-        )
+        result = AsyncWrapper._pool[self._uuid].acquire(
+            AsyncWrapper.initialize_pool(self._parallelism)).submit(
+                lambda: self.sync_fn_process(element, *args, **kwargs),
+            )
         result.add_done_callback(self.decrement_items_in_buffer)
         AsyncWrapper._processing_elements[self._uuid][element] = result
         AsyncWrapper._items_in_buffer[self._uuid] += 1
