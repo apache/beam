@@ -22,7 +22,7 @@ on:
   schedule:
     - cron: '45 5/6 * * *'
   pull_request_target:
-    paths: ['.github/trigger_files/beam_PostCommit_XVR_GoUsingJava_Dataflow.json']
+    paths: ['.github/trigger_files/beam_PostCommit_XVR_GoUsingJava_Dataflow.json', 'release/trigger_all_tests.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
