@@ -150,7 +150,7 @@ class SideInputsTest(unittest.TestCase):
                                       }),
                                   ])
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_empty_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -169,7 +169,7 @@ class SideInputsTest(unittest.TestCase):
   # TODO(https://github.com/apache/beam/issues/19012): Disable this test in
   # streaming temporarily. Remove sickbay-streaming tag after it's fixed.
   @pytest.mark.no_sickbay_streaming
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_multi_valued_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -179,7 +179,7 @@ class SideInputsTest(unittest.TestCase):
     with self.assertRaises(Exception):
       pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_default_value_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -189,7 +189,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([10, 20]))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_iterable_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
@@ -199,7 +199,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([3, 4, 6, 8]))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_reiterable_side_input(self):
     expected_side = frozenset(range(100))
 
@@ -226,7 +226,7 @@ class SideInputsTest(unittest.TestCase):
     _ = pcol | 'check' >> beam.Map(check_reiteration, beam.pvalue.AsIter(side))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_as_list_and_as_dict_side_inputs(self):
     a_list = [5, 1, 3, 2, 9]
     some_pairs = [('crouton', 17), ('supreme', None)]
@@ -251,7 +251,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, a_list, some_pairs))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_as_singleton_without_unique_labels(self):
     # This should succeed as calling beam.pvalue.AsSingleton on the same
     # PCollection twice with the same defaults will return the same
@@ -277,7 +277,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, 2))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_as_singleton_with_different_defaults(self):
     a_list = []
     pipeline = self.create_pipeline()
@@ -300,7 +300,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, 2, 3))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_as_list_twice(self):
     # This should succeed as calling beam.pvalue.AsList on the same
     # PCollection twice will return the same view.
@@ -325,7 +325,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, [1, 2, 3]))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_as_dict_twice(self):
     some_kvs = [('a', 1), ('b', 2)]
     pipeline = self.create_pipeline()
@@ -348,7 +348,7 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, matcher(1, some_kvs))
     pipeline.run()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_flattened_side_input(self):
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([None])
@@ -364,7 +364,7 @@ class SideInputsTest(unittest.TestCase):
   # TODO(BEAM-9499): Disable this test in streaming temporarily.
   @pytest.mark.no_sickbay_batch
   @pytest.mark.no_sickbay_streaming
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_multi_triggered_gbk_side_input(self):
     """Test a GBK sideinput, with multiple triggering."""
     # TODO(https://github.com/apache/beam/issues/20065): Remove use of this
