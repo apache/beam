@@ -334,6 +334,35 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
         outputWindowedValue(tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
       }
+
+      @Override
+      public void output(
+          OutputT output,
+          Instant timestamp,
+          BoundedWindow window,
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
+        output(mainOutputTag, output, timestamp, window, currentRecordId, currentRecordOffset);
+      }
+
+      @Override
+      public <T> void output(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          BoundedWindow window,
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
+        outputWindowedValue(
+            tag,
+            WindowedValues.of(
+                output,
+                timestamp,
+                Collections.singletonList(window),
+                PaneInfo.NO_FIRING,
+                currentRecordId,
+                currentRecordOffset));
+      }
     }
 
     private final DoFnFinishBundleArgumentProvider.Context context =
@@ -428,6 +457,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
       SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
@@ -452,8 +499,33 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+    }
+
+    @Override
     public Instant timestamp() {
       return elem.getTimestamp();
+    }
+
+    @Override
+    public String currentRecordId() {
+      return elem.getCurrentRecordId();
+    }
+
+    @Override
+    public Long currentRecordOffset() {
+      return elem.getCurrentRecordOffset();
     }
 
     public Collection<? extends BoundedWindow> windows() {
@@ -868,6 +940,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkTimestamp(timestamp(), timestamp);
       outputWithTimestamp(tag, output, timestamp);
@@ -890,6 +980,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(timestamp(), timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
           tag, WindowedValues.of(output, timestamp, windows, paneInfo));
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      checkTimestamp(timestamp(), timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -1097,6 +1203,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkTimestamp(this.timestamp, timestamp);
       outputWithTimestamp(tag, output, timestamp);
@@ -1119,6 +1243,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(this.timestamp, timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
           tag, WindowedValues.of(output, timestamp, windows, paneInfo));
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      checkTimestamp(this.timestamp, timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override

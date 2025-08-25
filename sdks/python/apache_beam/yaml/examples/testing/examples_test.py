@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import random
+import re
 import sys
 import unittest
 from typing import Any
@@ -33,6 +34,9 @@ from unittest import mock
 
 import pytest
 import yaml
+from jinja2 import DictLoader
+from jinja2 import Environment
+from jinja2 import StrictUndefined
 
 import apache_beam as beam
 from apache_beam import PCollection
@@ -339,8 +343,21 @@ def create_test_method(
     for i, line in enumerate(expected):
       expected[i] = line.replace('#  ', '').replace('\n', '')
     expected = [line for line in expected if line]
+
+    raw_spec_string = ''.join(lines)
+    # Filter for any jinja preprocessor - this has to be done before other
+    # preprocessors.
+    jinja_preprocessor = [
+        preprocessor for preprocessor in custom_preprocessors
+        if 'jinja_preprocessor' in preprocessor.__name__
+    ]
+    if jinja_preprocessor:
+      jinja_preprocessor = jinja_preprocessor[0]
+      raw_spec_string = jinja_preprocessor(raw_spec_string)
+      custom_preprocessors.remove(jinja_preprocessor)
+
     pipeline_spec = yaml.load(
-        ''.join(lines), Loader=yaml_transform.SafeLineLoader)
+        raw_spec_string, Loader=yaml_transform.SafeLineLoader)
 
     with TestEnvironment() as env:
       for fn in custom_preprocessors:
@@ -367,8 +384,8 @@ def create_test_method(
 
   def _python_deps_involved(spec_filename):
     return any(
-        substr in spec_filename
-        for substr in ['deps', 'streaming_sentiment_analysis'])
+        substr in spec_filename for substr in
+        ['deps', 'streaming_sentiment_analysis', 'ml_preprocessing'])
 
   def _java_deps_involved(spec_filename):
     return any(
@@ -513,8 +530,9 @@ class YamlExamplesTestSuite:
     return apply
 
 
-@YamlExamplesTestSuite.register_test_preprocessor('test_wordcount_minimal_yaml')
-def _wordcount_test_preprocessor(
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_wordcount_minimal_yaml'])
+def _wordcount_minimal_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
   Preprocessor for the wordcount_minimal.yaml test.
@@ -522,6 +540,8 @@ def _wordcount_test_preprocessor(
   This preprocessor generates a random input file based on the expected output
   of the wordcount example. This allows the test to verify the pipeline's
   correctness without relying on a fixed input file.
+
+  Based on this expected output: #  Row(word='king', count=311)
 
   Args:
     test_spec: The dictionary representation of the YAML pipeline specification.
@@ -538,8 +558,64 @@ def _wordcount_test_preprocessor(
     word = element.split('=')[1].split(',')[0].replace("'", '')
     count = int(element.split('=')[2].replace(')', ''))
     all_words += [word] * count
-  random.shuffle(all_words)
 
+  return _wordcount_random_shuffler(test_spec, all_words, env)
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_wordCountInclude_yaml'])
+def _wordcount_jinja_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for the wordcount Jinja tests.
+
+  This preprocessor generates a random input file based on the expected output
+  of the wordcount example. This allows the test to verify the pipeline's
+  correctness without relying on a fixed input file.
+
+  Based on this expected output: #  Row(output='king - 311')
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with the input file path replaced.
+  """
+  all_words = []
+  for element in expected:
+    match = re.search(r"output='(.*) - (\d+)'", element)
+    if match:
+      word, count_str = match.groups()
+      all_words += [word] * int(count_str)
+  return _wordcount_random_shuffler(test_spec, all_words, env)
+
+
+def _wordcount_random_shuffler(
+    test_spec: dict, all_words: List[str], env: TestEnvironment):
+  """
+  Helper function to create a randomized input file for wordcount-style tests.
+
+  This function takes a list of words, shuffles them, and arranges them into
+  randomly sized lines. It then creates a temporary input file with this
+  content and updates the provided test specification to use this file as
+  the input for a 'ReadFromText' transform.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    all_words: A list of strings, where each string is a word to be included
+      in the generated input file.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with the input file path for
+    'ReadFromText' replaced with the path to the newly generated file.
+  """
+  random.shuffle(all_words)
   lines = []
   while all_words:
     line_length = random.randint(1, min(10, len(all_words)))
@@ -596,7 +672,11 @@ def _kafka_test_preprocessor(
     'test_oracle_to_bigquery_yaml',
     'test_mysql_to_bigquery_yaml',
     'test_spanner_to_bigquery_yaml',
-    'test_streaming_sentiment_analysis_yaml'
+    'test_streaming_sentiment_analysis_yaml',
+    'test_iceberg_migration_yaml',
+    'test_ml_preprocessing_yaml',
+    'test_anomaly_scoring_yaml',
+    'test_wordCountInclude_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
@@ -1063,15 +1143,167 @@ def _streaming_taxifare_prediction_test_preprocessor(
   return test_spec
 
 
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_iceberg_migration_yaml',
+    'test_ml_preprocessing_yaml',
+    'test_anomaly_scoring_yaml'
+])
+def _batch_log_analysis_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve the batch log analysis example.
+
+  This preprocessor replaces several IO transforms and the MLTransform.
+  This allows the test to verify the pipeline's correctness
+  without relying on external data sources or MLTransform's many dependencies.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromText transforms replaced.
+  """
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      # Mock ReadFromCsv in iceberg_migration.yaml pipeline
+      if transform.get('type', '') == 'ReadFromCsv':
+        file_name = 'system-logs.csv'
+        local_path = env.input_file(file_name, INPUT_FILES[file_name])
+        transform['config']['path'] = local_path
+
+      # Mock ReadFromIceberg in ml_preprocessing.yaml pipeline
+      elif transform.get('type', '') == 'ReadFromIceberg':
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if (k.startswith('__'))
+        }
+
+        transform['config']['elements'] = input_data.system_logs_data()
+
+      # Mock MLTransform in ml_preprocessing.yaml pipeline
+      elif transform.get('type', '') == 'MLTransform':
+        transform['type'] = 'MapToFields'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if k.startswith('__')
+        }
+
+        transform['config']['language'] = 'python'
+        transform['config']['fields'] = {
+            'LineId': 'LineId',
+            'Date': 'Date',
+            'Time': 'Time',
+            'Level': 'Level',
+            'Process': 'Process',
+            'Component': 'Component',
+            'Content': 'Content',
+            'embedding': {
+                'callable': f"lambda row: {input_data.embedding_data()}",
+            }
+        }
+
+      # Mock MapToFields in ml_preprocessing.yaml pipeline
+      elif transform.get('type', '') == 'MapToFields' and \
+          transform.get('name', '') == 'Normalize':
+        transform['config']['dependencies'] = ['numpy']
+
+      # Mock ReadFromBigQuery in anomaly_scoring.yaml pipeline
+      elif transform.get('type', '') == 'ReadFromBigQuery':
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if (k.startswith('__'))
+        }
+
+        transform['config']['elements'] = (
+            input_data.system_logs_embedding_data())
+
+      # Mock PyTransform in anomaly_scoring.yaml pipeline
+      elif transform.get('type', '') == 'PyTransform' and \
+          transform.get('name', '') == 'AnomalyScoring':
+        transform['type'] = 'MapToFields'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if k.startswith('__')
+        }
+
+        transform['config']['language'] = 'python'
+        transform['config']['fields'] = {
+            'example': 'embedding',
+            'predictions': {
+                'callable': """lambda row: [{
+                  'score': 0.65,
+                  'label': 0,
+                  'threshold': 0.8
+              }]""",
+            }
+        }
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_wordCountInclude_yaml'])
+def _jinja_preprocessor(raw_spec_string: str):
+  """
+  Preprocessor for Jinja-based YAML tests.
+
+  This function takes a raw YAML string, which is treated as a Jinja2
+  template, and renders it to produce the final pipeline specification.
+  It specifically handles templates that use the `{% include ... %}`
+  directive by manually loading the content of the included files from the
+  filesystem.
+
+  The Jinja variables required for rendering are loaded from a predefined
+  data source.
+
+  Args:
+    raw_spec_string: A string containing the raw YAML content, which is a
+      Jinja2 template.
+
+  Returns:
+    A string containing the fully rendered YAML pipeline specification.
+  """
+
+  jinja_variables = json.loads(input_data.word_count_jinja_parameter_data())
+  test_file_dir = os.path.dirname(__file__)
+  sdk_root = os.path.abspath(os.path.join(test_file_dir, '../../../..'))
+
+  include_files = input_data.word_count_jinja_template_data()
+  mock_templates = {'main_template': raw_spec_string}
+  for file_path in include_files:
+    full_path = os.path.join(sdk_root, file_path)
+    with open(full_path, 'r', encoding='utf-8') as f:
+      mock_templates[file_path] = f.read()
+
+  # Can't use the standard expand_jinja method due to it not supporting
+  # `% include` jinja templization.
+  # TODO(#35936): Maybe update expand_jinja to handle this case.
+  jinja_env = Environment(
+      loader=DictLoader(mock_templates), undefined=StrictUndefined)
+  template = jinja_env.get_template('main_template')
+  rendered_yaml_string = template.render(jinja_variables)
+  return rendered_yaml_string
+
+
 INPUT_FILES = {
     'products.csv': input_data.products_csv(),
     'kinglear.txt': input_data.text_data(),
-    'youtube-comments.csv': input_data.youtube_comments_csv()
+    'youtube-comments.csv': input_data.youtube_comments_csv(),
+    'system-logs.csv': input_data.system_logs_csv()
 }
 
-KAFKA_TOPICS = {
-    'test-topic': input_data.kafka_messages_data(),
-}
+KAFKA_TOPICS = {'test-topic': input_data.kafka_messages_data()}
 
 PUBSUB_TOPICS = {
     'test-topic': input_data.pubsub_messages_data(),
@@ -1105,6 +1337,9 @@ ElementWiseTest = YamlExamplesTestSuite(
     os.path.join(YAML_DOCS_DIR, '../transforms/elementwise/*.yaml')).run()
 ExamplesTest = YamlExamplesTestSuite(
     'ExamplesTest', os.path.join(YAML_DOCS_DIR, '../*.yaml')).run()
+JinjaTest = YamlExamplesTestSuite(
+    'JinjaExamplesTest',
+    os.path.join(YAML_DOCS_DIR, '../transforms/jinja/**/*.yaml')).run()
 IOTest = YamlExamplesTestSuite(
     'IOExamplesTest', os.path.join(YAML_DOCS_DIR,
                                    '../transforms/io/*.yaml')).run()

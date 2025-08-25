@@ -304,7 +304,7 @@ class TriggerFn(metaclass=ABCMeta):
         'after_each': AfterEach,
         'after_end_of_window': AfterWatermark,
         'after_processing_time': AfterProcessingTime,
-        # after_processing_time, after_synchronized_processing_time
+        'after_synchronized_processing_time': _AfterSynchronizedProcessingTime,
         'always': Always,
         'default': DefaultTrigger,
         'element_count': AfterCount,
@@ -315,6 +315,17 @@ class TriggerFn(metaclass=ABCMeta):
 
   @abstractmethod
   def to_runner_api(self, unused_context):
+    pass
+
+  @abstractmethod
+  def get_continuation_trigger(self):
+    """Returns:
+        Trigger to use after a GroupBy to preserve the intention of this
+        trigger. Specifically, triggers that are time based and intended
+        to provide speculative results should continue providing speculative
+        results. Triggers that fire once (or multiple times) should
+        continue firing once (or multiple times).
+    """
     pass
 
 
@@ -365,6 +376,9 @@ class DefaultTrigger(TriggerFn):
 
   def has_ontime_pane(self):
     return True
+
+  def get_continuation_trigger(self):
+    return self
 
 
 class AfterProcessingTime(TriggerFn):
@@ -418,6 +432,11 @@ class AfterProcessingTime(TriggerFn):
         after_processing_time=beam_runner_api_pb2.Trigger.AfterProcessingTime(
             timestamp_transforms=[delay_proto]))
 
+  def get_continuation_trigger(self):
+    # The continuation of an AfterProcessingTime trigger is an
+    # _AfterSynchronizedProcessingTime trigger.
+    return _AfterSynchronizedProcessingTime()
+
   def has_ontime_pane(self):
     return False
 
@@ -465,6 +484,9 @@ class Always(TriggerFn):
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
         always=beam_runner_api_pb2.Trigger.Always())
+
+  def get_continuation_trigger(self):
+    return self
 
 
 class _Never(TriggerFn):
@@ -518,6 +540,9 @@ class _Never(TriggerFn):
     return beam_runner_api_pb2.Trigger(
         never=beam_runner_api_pb2.Trigger.Never())
 
+  def get_continuation_trigger(self):
+    return self
+
 
 class AfterWatermark(TriggerFn):
   """Fire exactly once when the watermark passes the end of the window.
@@ -531,9 +556,19 @@ class AfterWatermark(TriggerFn):
   LATE_TAG = _CombiningValueStateTag('is_late', any)
 
   def __init__(self, early=None, late=None):
-    # TODO(zhoufek): Maybe don't wrap early/late if they are already Repeatedly
-    self.early = Repeatedly(early) if early else None
-    self.late = Repeatedly(late) if late else None
+    self.early = self._wrap_if_not_repeatedly(early)
+    self.late = self._wrap_if_not_repeatedly(late)
+
+  @staticmethod
+  def _wrap_if_not_repeatedly(trigger):
+    if trigger and not isinstance(trigger, Repeatedly):
+      return Repeatedly(trigger)
+    return trigger
+
+  def get_continuation_trigger(self):
+    return AfterWatermark(
+        self.early.get_continuation_trigger() if self.early else None,
+        self.late.get_continuation_trigger() if self.late else None)
 
   def __repr__(self):
     qualifiers = []
@@ -673,6 +708,9 @@ class AfterCount(TriggerFn):
   def on_fire(self, watermark, window, context):
     return True
 
+  def get_continuation_trigger(self):
+    return AfterCount(1)
+
   def reset(self, window, context):
     context.clear_state(self.COUNT_TAG)
 
@@ -741,6 +779,9 @@ class Repeatedly(TriggerFn):
   def has_ontime_pane(self):
     return self.underlying.has_ontime_pane()
 
+  def get_continuation_trigger(self):
+    return Repeatedly(self.underlying.get_continuation_trigger())
+
 
 class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
   def __init__(self, *triggers):
@@ -759,6 +800,12 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
   @abstractmethod
   def combine_op(self, trigger_results):
     pass
+
+  def get_continuation_trigger(self):
+    return self.__class__(
+        *(
+            subtrigger.get_continuation_trigger()
+            for subtrigger in self.triggers))
 
   def on_element(self, element, window, context):
     for ix, trigger in enumerate(self.triggers):
@@ -896,6 +943,13 @@ class AfterEach(TriggerFn):
         ix += 1
         context.add_state(self.INDEX_TAG, ix)
       return ix == len(self.triggers)
+
+  def get_continuation_trigger(self):
+    return Repeatedly(
+        AfterAny(
+            *(
+                subtrigger.get_continuation_trigger()
+                for subtrigger in self.triggers)))
 
   def reset(self, window, context):
     context.clear_state(self.INDEX_TAG)
@@ -1643,3 +1697,60 @@ class InMemoryUnmergedState(UnmergedState):
     state_str = '\n'.join(
         '%s: %s' % (key, dict(state)) for key, state in self.state.items())
     return 'timers: %s\nstate: %s' % (dict(self.timers), state_str)
+
+
+class _AfterSynchronizedProcessingTime(TriggerFn):
+  """A "runner's-discretion" trigger downstream of a GroupByKey
+  with AfterProcessingTime trigger.
+
+  In runners that directly execute this
+  Python code, the trigger currently always fires,
+  but this behavior is neither guaranteed nor
+  required by runners, regardless of whether they
+  execute triggers via Python.
+
+  _AfterSynchronizedProcessingTime is experimental
+  and internal-only. No backwards compatibility
+  guarantees.
+  """
+  def __init__(self):
+    pass
+
+  def __repr__(self):
+    return '_AfterSynchronizedProcessingTime()'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+  def on_element(self, _element, _window, _context):
+    pass
+
+  def on_merge(self, _to_be_merged, _merge_result, _context):
+    pass
+
+  def should_fire(self, _time_domain, _timestamp, _window, _context):
+    return True
+
+  def on_fire(self, _timestamp, _window, _context):
+    return False
+
+  def reset(self, _window, _context):
+    pass
+
+  @staticmethod
+  def from_runner_api(_proto, _context):
+    return _AfterSynchronizedProcessingTime()
+
+  def to_runner_api(self, _context):
+    return beam_runner_api_pb2.Trigger(
+        after_synchronized_processing_time=beam_runner_api_pb2.Trigger.
+        AfterSynchronizedProcessingTime())
+
+  def has_ontime_pane(self):
+    return False
+
+  def get_continuation_trigger(self):
+    return self

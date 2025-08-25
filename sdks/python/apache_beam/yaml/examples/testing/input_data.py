@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 
+import json
 import typing
 
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -31,6 +32,53 @@ def text_data():
       "KING LEAR\tNothing will come of nothing: speak again.",
       "\tNever, never, never, never, never!"
   ])
+
+
+def word_count_jinja_parameter_data():
+  params = {
+      "readFromTextTransform": {
+          "path": "gs://dataflow-samples/shakespeare/kinglear.txt"
+      },
+      "mapToFieldsSplitConfig": {
+          "language": "python", "fields": {
+              "value": "1"
+          }
+      },
+      "explodeTransform": {
+          "fields": "word"
+      },
+      "combineTransform": {
+          "group_by": "word", "combine": {
+              "value": "sum"
+          }
+      },
+      "mapToFieldsCountConfig": {
+          "language": "python",
+          "fields": {
+              "output": "word + \" - \" + str(value)"
+          }
+      },
+      "writeToTextTransform": {
+          "path": "gs://apache-beam-testing-derrickaw/wordCounts/"
+      }
+  }
+  return json.dumps(params)
+
+
+def word_count_jinja_template_data():
+  return \
+[('apache_beam/yaml/examples/transforms/jinja/'
+    'include/submodules/readFromTextTransform.yaml'),
+   ('apache_beam/yaml/examples/transforms/jinja/'
+   'include/submodules/mapToFieldsSplitConfig.yaml'),
+   ('apache_beam/yaml/examples/transforms/jinja/'
+   'include/submodules/explodeTransform.yaml'),
+   ('apache_beam/yaml/examples/transforms/jinja/'
+   'include/submodules/combineTransform.yaml'),
+   ('apache_beam/yaml/examples/transforms/jinja/'
+   'include/submodules/mapToFieldsCountConfig.yaml'),
+   ('apache_beam/yaml/examples/transforms/jinja/'
+   'include/submodules/writeToTextTransform.yaml')]
 
 
 def iceberg_dynamic_destinations_users_data():
@@ -253,3 +301,46 @@ class TaxiRideEventSchema(typing.NamedTuple):
   meter_reading: float
   timestamp: str
   ride_status: str
+
+
+def system_logs_csv():
+  return '\n'.join([
+      'LineId,Date,Time,Level,Process,Component,Content',
+      '1,2024-10-01,12:00:00,INFO,Main,ComponentA,System started successfully',
+      '2,2024-10-01,12:00:05,WARN,Main,ComponentA,Memory usage is high',
+      '3,2024-10-01,12:00:10,ERROR,Main,ComponentA,Task failed due to timeout',
+  ])
+
+
+def system_logs_data():
+  csv_data = system_logs_csv()
+  lines = csv_data.strip().split('\n')
+  headers = lines[0].split(',')
+  logs = []
+  for row in lines[1:]:
+    values = row.split(',')
+    log = dict(zip(headers, values))
+    log['LineId'] = int(log['LineId'])
+    logs.append(log)
+
+  return logs
+
+
+def embedding_data():
+  return [0.1, 0.2, 0.3, 0.4, 0.5]
+
+
+def system_logs_embedding_data():
+  csv_data = system_logs_csv()
+  lines = csv_data.strip().split('\n')
+  headers = lines[0].split(',')
+  headers.append('embedding')
+  logs = []
+  for row in lines[1:]:
+    values = row.split(',')
+    values.append(embedding_data())
+    log = dict(zip(headers, values))
+    log['LineId'] = int(log['LineId'])
+    logs.append(log)
+
+  return logs

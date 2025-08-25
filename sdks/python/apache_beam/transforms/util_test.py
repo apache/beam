@@ -87,6 +87,31 @@ warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
 
 
+class _Unpicklable(object):
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    raise NotImplementedError()
+
+  def __setstate__(self, state):
+    raise NotImplementedError()
+
+
+class _UnpicklableCoder(beam.coders.Coder):
+  def encode(self, value):
+    return str(value.value).encode()
+
+  def decode(self, encoded):
+    return _Unpicklable(int(encoded.decode()))
+
+  def to_type_hint(self):
+    return _Unpicklable
+
+  def is_deterministic(self):
+    return True
+
+
 class CoGroupByKeyTest(unittest.TestCase):
   def test_co_group_by_key_on_tuple(self):
     with TestPipeline() as pipeline:
@@ -185,6 +210,20 @@ class CoGroupByKeyTest(unittest.TestCase):
                   | beam.MapTuple(lambda k, v: (k, (v['tag'], ))),
                   equal_to(expected),
                   label='AssertOneDict')
+
+  def test_co_group_by_key_on_unpickled(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+    values = [_Unpicklable(i) for i in range(5)]
+    with TestPipeline() as pipeline:
+      xs = pipeline | beam.Create(values) | beam.WithKeys(lambda x: x)
+      pcoll = ({
+          'x': xs
+      }
+               | beam.CoGroupByKey()
+               | beam.FlatMapTuple(
+                   lambda k, tagged: (k.value, tagged['x'][0].value * 2)))
+      expected = [0, 0, 1, 2, 2, 4, 3, 6, 4, 8]
+      assert_that(pcoll, equal_to(expected))
 
 
 class FakeClock(object):
@@ -1204,32 +1243,6 @@ class ReshuffleTest(unittest.TestCase):
           formatted_after_reshuffle,
           equal_to(expected_data),
           label="formatted_after_reshuffle")
-
-  global _Unpicklable
-  global _UnpicklableCoder
-
-  class _Unpicklable(object):
-    def __init__(self, value):
-      self.value = value
-
-    def __getstate__(self):
-      raise NotImplementedError()
-
-    def __setstate__(self, state):
-      raise NotImplementedError()
-
-  class _UnpicklableCoder(beam.coders.Coder):
-    def encode(self, value):
-      return str(value.value).encode()
-
-    def decode(self, encoded):
-      return _Unpicklable(int(encoded.decode()))
-
-    def to_type_hint(self):
-      return _Unpicklable
-
-    def is_deterministic(self):
-      return True
 
   def reshuffle_unpicklable_in_global_window_helper(
       self, update_compatibility_version=None):

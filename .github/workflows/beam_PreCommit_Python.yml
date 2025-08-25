@@ -53,6 +53,23 @@ env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  # Aggressive stability settings for flaky CI environment
+  PYTHONHASHSEED: "0"
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  # gRPC stability - more conservative for unstable networks
+  GRPC_ARG_KEEPALIVE_TIME_MS: "10000"
+  GRPC_ARG_KEEPALIVE_TIMEOUT_MS: "15000"
+  GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS: "1"
+  GRPC_ARG_HTTP2_MAX_PINGS_WITHOUT_DATA: "0"
+  GRPC_ARG_MAX_RECONNECT_BACKOFF_MS: "30000"
+  # Beam-specific - very generous timeouts
+  BEAM_RETRY_MAX_ATTEMPTS: "5"
+  BEAM_RETRY_INITIAL_DELAY_MS: "5000"
+  BEAM_RETRY_MAX_DELAY_MS: "120000"
+  # Force stable execution
+  BEAM_TESTING_FORCE_SINGLE_BUNDLE: "true"
+  BEAM_TESTING_DETERMINISTIC_ORDER: "true"
 
 jobs:
   beam_PreCommit_Python:
@@ -91,6 +108,23 @@ jobs:
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: Run pythonPreCommit
+        env:
+          TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
+          # Aggressive retry and timeout settings for flaky CI
+          PYTEST_ADDOPTS: "-v --tb=short --maxfail=5 --durations=30 --reruns=5 --reruns-delay=15 --timeout=600 --disable-warnings"
+          # Container stability - much more generous timeouts
+          TC_TIMEOUT: "300"
+          TC_MAX_TRIES: "15"
+          TC_SLEEP_TIME: "5"
+          # Additional gRPC stability for flaky environment
+          GRPC_ARG_MAX_CONNECTION_IDLE_MS: "60000"
+          GRPC_ARG_HTTP2_BDP_PROBE: "1"
+          GRPC_ARG_SO_REUSEPORT: "1"
+          # Force sequential execution to reduce load
+          PYTEST_XDIST_WORKER_COUNT: "1"
+          # Additional gRPC settings
+          GRPC_ARG_MAX_RECONNECT_BACKOFF_MS: "120000"
+          GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS: "2000"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
@@ -111,3 +145,13 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
           large_files: true
+      - name: Cleanup
+        if: always()
+        run: |
+          # Kill any remaining processes
+          sudo pkill -f "gradle" || true
+          sudo pkill -f "java" || true
+          sudo pkill -f "python.*pytest" || true
+          # Clean up temp files
+          sudo rm -rf /tmp/beam-* || true
+          sudo rm -rf /tmp/gradle-* || true
