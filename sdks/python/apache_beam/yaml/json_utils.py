@@ -287,8 +287,9 @@ def row_to_json(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
         for field in beam_type.row_type.schema.fields
     }
     return lambda row: {
-        name: convert(getattr(row, name))
+        name: converted
         for (name, convert) in converters.items()
+        if (converted := convert(getattr(row, name, None))) is not None
     }
   elif type_info == "logical_type":
     return lambda value: value

@@ -40,7 +40,7 @@ the following code will write all "good" processed records to one file and
 any "bad" records, along with metadata about what error was encountered,
 to a separate file.
 
-```
+```yaml
 pipeline:
   transforms:
     - type: ReadFromCsv
@@ -87,7 +87,7 @@ Some transforms allow for extra arguments in their error_handling config, e.g.
 for Python functions one can give a `threshold` which limits the relative number
 of records that can be bad before considering the entire pipeline a failure
 
-```
+```yaml
 pipeline:
   transforms:
     - type: ReadFromCsv
@@ -122,7 +122,7 @@ pipeline:
 One can do arbitrary further processing on these failed records if desired,
 e.g.
 
-```
+```yaml
 pipeline:
   transforms:
     - type: ReadFromCsv
@@ -176,7 +176,7 @@ pipeline:
 When using the `chain` syntax, the required error consumption can happen
 in an `extra_transforms` block.
 
-```
+```yaml
 pipeline:
   type: chain
   transforms:
@@ -217,3 +217,5 @@ pipeline:
       config:
         path: /path/to/errors.json
 ```
+
+See YAML schema [info](https://beam.apache.org/documentation/sdks/yaml-schema/) for another use of error_handling in a schema context.
