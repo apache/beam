@@ -23,14 +23,14 @@ title: "Apache Beam YAML Schema"
 
 # Beam YAML Schema
 
-As pipelines grow in size and complexity, it becomes more common to encounter 
-data that is malformed, doesn't meet preconditions, or otherwise causes issues 
+As pipelines grow in size and complexity, it becomes more common to encounter
+data that is malformed, doesn't meet preconditions, or otherwise causes issues
 during processing.
 
-Beam YAML helps the user detect and capture these issues by using the optional 
-`output_schema` configuration, which is available for any transform in the YAML 
-SDK. For example, the following code creates a few "good" records and specifies 
-that the output schema from the `Create` transform should have records that 
+Beam YAML helps the user detect and capture these issues by using the optional
+`output_schema` configuration, which is available for any transform in the YAML
+SDK. For example, the following code creates a few "good" records and specifies
+that the output schema from the `Create` transform should have records that
 follow the expected schema: `sdk` as a string and `year` as an integer.
 
 ```yaml
@@ -56,13 +56,13 @@ pipeline:
           - {sdk: MillWheel, year: 2008}
 ```
 
-More than likely though a user will want to detect errors with schemas like 
-that and thats where tagging an additional `error_handling` config inside the 
-`output_schema` config comes into play. For example, the following code will 
-create a few "good" and "bad" records with a specified schema of `sdk` as a 
-string and `year` as an integer with error_handling output going to invalid 
-rows. An additonal `MapToFields` transform will take the error_handling output 
-and capture the element data as rows. Two `AssertEqual` transforms will verify 
+More than likely though a user will want to detect errors with schemas like
+that and thats where tagging an additional `error_handling` config inside the
+`output_schema` config comes into play. For example, the following code will
+create a few "good" and "bad" records with a specified schema of `sdk` as a
+string and `year` as an integer with error_handling output going to invalid
+rows. An additonal `MapToFields` transform will take the error_handling output
+and capture the element data as rows. Two `AssertEqual` transforms will verify
 the "good" and "bad" rows accordingly.
 
 ```yaml
@@ -88,9 +88,9 @@ pipeline:
       input: Create.invalid_rows
       config:
         language: python
-        fields: 
+        fields:
           sdk: "element.sdk"
-          year: "element.year"   
+          year: "element.year"
     - type: AssertEqual
       input: MapToFields
       config:
