@@ -989,7 +989,8 @@ class Pipeline(HasDisplayData):
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
           component_id_map=self.component_id_map,
-          default_environment=default_environment)
+          default_environment=default_environment,
+          pipeline_options=self._options)
     elif default_environment is not None:
       raise ValueError(
           'Only one of context or default_environment may be specified.')
@@ -1092,7 +1093,9 @@ class Pipeline(HasDisplayData):
         })
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
-        proto.components, requirements=proto.requirements)
+        proto.components,
+        requirements=proto.requirements,
+        pipeline_options=options)
     if proto.root_transform_ids:
       root_transform_id, = proto.root_transform_ids
       p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]

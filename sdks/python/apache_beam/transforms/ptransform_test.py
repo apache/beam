@@ -34,6 +34,8 @@ from unittest.mock import patch
 import hamcrest as hc
 import numpy as np
 import pytest
+from parameterized import param
+from parameterized import parameterized
 from parameterized import parameterized_class
 
 import apache_beam as beam
@@ -45,6 +47,7 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import StreamingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -67,6 +70,7 @@ from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.coders import coders_test_common
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
@@ -591,7 +595,7 @@ class PTransformTest(unittest.TestCase):
       def decode(self, encoded):
         return MyObject(pickle.loads(encoded)[0])
 
-      def as_deterministic_coder(self, *args):
+      def as_deterministic_coder(self, *args, **kwargs):
         return MydeterministicObjectCoder()
 
       def to_type_hint(self):
@@ -737,6 +741,75 @@ class PTransformTest(unittest.TestCase):
       pcoll = pipeline | 'Input' >> beam.Create(input)
       result = (pcoll, ) | 'Single Flatten' >> beam.Flatten()
       assert_that(result, equal_to(input))
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  @pytest.mark.it_validatesrunner
+  def test_group_by_key_importable_special_types(self, compat_version):
+    def generate(_):
+      for _ in range(100):
+        yield (coders_test_common.MyTypedNamedTuple(1, 'a'), 1)
+
+    pipeline = TestPipeline(is_integration_test=True)
+    if compat_version:
+      pipeline.get_pipeline_options().view_as(
+          StreamingOptions).update_compatibility_version = compat_version
+    with pipeline as p:
+      result = (
+          p
+          | 'Create' >> beam.Create([i for i in range(100)])
+          | 'Generate' >> beam.ParDo(generate)
+          | 'Reshuffle' >> beam.Reshuffle()
+          | 'GBK' >> beam.GroupByKey())
+      assert_that(
+          result,
+          equal_to([(
+              coders_test_common.MyTypedNamedTuple(1, 'a'),
+              [1 for i in range(10000)])]))
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  @pytest.mark.it_validatesrunner
+  def test_group_by_key_dynamic_special_types(self, compat_version):
+    def create_dynamic_named_tuple():
+      return collections.namedtuple('DynamicNamedTuple', ['x', 'y'])
+
+    dynamic_named_tuple = create_dynamic_named_tuple()
+
+    # Standard FastPrimitivesCoder falls back to python PickleCoder which
+    # cannot serialize dynamic types or types defined in __main__. Use
+    # CloudPickleCoder as fallbac coder for non-deterministic steps.
+    class FastPrimitivesCoderV2(beam.coders.FastPrimitivesCoder):
+      def __init__(self):
+        super().__init__(fallback_coder=beam.coders.CloudpickleCoder())
+
+    beam.coders.typecoders.registry.register_coder(
+        dynamic_named_tuple, FastPrimitivesCoderV2)
+
+    def generate(_):
+      for _ in range(100):
+        yield (dynamic_named_tuple(1, 'a'), 1)
+
+    pipeline = TestPipeline(is_integration_test=True)
+    if compat_version:
+      pipeline.get_pipeline_options().view_as(
+          StreamingOptions).update_compatibility_version = compat_version
+
+    with pipeline as p:
+      result = (
+          p
+          | 'Create' >> beam.Create([i for i in range(100)])
+          | 'Generate' >> beam.ParDo(generate).with_output_types(
+              tuple[dynamic_named_tuple, int])
+          | 'Reshuffle' >> beam.Reshuffle()
+          | 'GBK' >> beam.GroupByKey())
+      assert_that(
+          result,
+          equal_to([(dynamic_named_tuple(1, 'a'), [1 for i in range(10000)])]))
 
   # TODO(https://github.com/apache/beam/issues/20067): Does not work in
   # streaming mode on Dataflow.
