@@ -59,7 +59,7 @@ pipeline:
 However, a user will more likely want to detect and handle schema errors. This is where adding an `error_handling` configuration inside the `output_schema` comes into play. For example, the following code will
 create a few "good" and "bad" records with a specified schema of `sdk` as a
 string and `year` as an integer with error_handling output going to invalid
-rows. An additonal `MapToFields` transform will take the error_handling output
+rows. An additional `MapToFields` transform will take the error_handling output
 and capture the element data as rows. Two `AssertEqual` transforms will verify
 the "good" and "bad" rows accordingly.
 
