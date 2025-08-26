@@ -283,7 +283,6 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
               module_2.RemoveLambdaVariable.my_method(self)).replace(
                   "module_2", "module_2_modified"))
 
-
   def test_adding_nested_function_in_class_preserves_object(self):
     self.assertEqual(
         code_object_pickler.get_code_from_identifier(
