@@ -19,7 +19,7 @@
 import logging
 import unittest
 
-# import pytest
+import pytest
 
 import apache_beam as beam
 from apache_beam import runners
@@ -249,7 +249,7 @@ class TranslationsTest(unittest.TestCase):
     assert_is_topologically_sorted(
         optimized_pipeline_proto.root_transform_ids[0], set())
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_per_key(self):
     class MultipleCombines(beam.PTransform):
       def annotations(self):
@@ -279,7 +279,7 @@ class TranslationsTest(unittest.TestCase):
           | Create([('a', x) for x in vals])
           | 'multiple-combines' >> MultipleCombines())
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_globally(self):
     class MultipleCombines(beam.PTransform):
       def annotations(self):
@@ -307,7 +307,7 @@ class TranslationsTest(unittest.TestCase):
       vals = [6, 3, 1, -1, 9, 1, 5, 2, 0, 6]
       _ = pipeline | Create(vals) | 'multiple-combines' >> MultipleCombines()
 
-  # @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner
   def test_run_packable_combine_limit(self):
     class MultipleLargeCombines(beam.PTransform):
       def annotations(self):

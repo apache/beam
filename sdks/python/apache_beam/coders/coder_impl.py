@@ -363,7 +363,7 @@ def _verify_dill_compat():
   base_error = (
       "This pipeline runs with the update_compatibility_version=2.67.0 flag. "
       "When running with this flag on SDKs 2.68.0 or higher, you must "
-      "ensure dill==0.3.1.1 is installed. Dill is not installed.")
+      "ensure dill==0.3.1.1 is installed.")
   if not dill:
     raise RuntimeError(base_error + ". Dill is not installed.")
   if dill.__version__ != "0.3.1.1":

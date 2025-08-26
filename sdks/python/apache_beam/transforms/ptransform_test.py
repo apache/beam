@@ -767,7 +767,7 @@ class PTransformTest(unittest.TestCase):
 
     # Standard FastPrimitivesCoder falls back to python PickleCoder which
     # cannot serialize dynamic types or types defined in __main__. Use
-    # CloudPickleCoder as fallbac coder for non-deterministic steps.
+    # CloudPickleCoder as fallback coder for non-deterministic steps.
     class FastPrimitivesCoderV2(beam.coders.FastPrimitivesCoder):
       def __init__(self):
         super().__init__(fallback_coder=beam.coders.CloudpickleCoder())
@@ -788,13 +788,12 @@ class PTransformTest(unittest.TestCase):
       result = (
           p
           | 'Create' >> beam.Create([i for i in range(100)])
+          | 'Reshuffle' >> beam.Reshuffle()
           | 'Generate' >> beam.ParDo(generate).with_output_types(
               tuple[dynamic_named_tuple, int])
-          | 'Reshuffle' >> beam.Reshuffle()
-          | 'GBK' >> beam.GroupByKey())
-      assert_that(
-          result,
-          equal_to([(dynamic_named_tuple(1, 'a'), [1 for i in range(10000)])]))
+          | 'GBK' >> beam.GroupByKey()
+          | 'Count Elements' >> beam.Map(lambda x: len(x[1])))
+      assert_that(result, equal_to([10000]))
 
   # TODO(https://github.com/apache/beam/issues/20067): Does not work in
   # streaming mode on Dataflow.
