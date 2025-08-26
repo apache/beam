@@ -186,10 +186,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         // we half-close the stream after some time and create a new one.
         if (getWorkStream != null) {
           if (!getWorkStream.awaitTermination(GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-            if (getWorkStream
-                != null) { // checking for null again to keep the static analyzer happy.
-              getWorkStream.halfClose();
-            }
+            Preconditions.checkNotNull(getWorkStream).halfClose();
           }
         }
       } catch (InterruptedException e) {
