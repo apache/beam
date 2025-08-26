@@ -26,7 +26,6 @@ import unittest
 from typing import Any
 from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Tuple
 from typing import Union
 
@@ -43,13 +42,6 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.utils.timestamp import Timestamp
-
-
-def fingerprint_list(elements: List[Any]) -> str:
-  """Computes a stable fingerprint for an iterable of elements."""
-  # Sort and convert to string for consistent hashing.
-  s = str(sorted(elements))
-  return hashlib.md5(s.encode()).hexdigest()
 
 
 class SideInputsTest(unittest.TestCase):
@@ -474,11 +466,11 @@ class SideInputsTest(unittest.TestCase):
           side_input: Iterable[Tuple[bytes,
                                      bytes]]) -> Iterable[Tuple[int, str]]:
 
-        side_input_list = list(side_input)
-        size = len(side_input_list)
         # Sort for consistent hashing.
+        sorted_side_input = sorted(side_input)
+        size = len(sorted_side_input)
         m = hashlib.md5()
-        for key, value in sorted(side_input_list):
+        for key, value in sorted_side_input:
           m.update(key)
           m.update(value)
         yield (size, m.hexdigest())
