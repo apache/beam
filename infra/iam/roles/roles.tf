@@ -14,18 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# This file defines the general configuration for the Terraform project.
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "6.37.0"
-    }
-  }
 
-  backend "gcs" {
-    bucket  = "beam-terraform-infra-state"
-    prefix  = "terraform/state"
+# This Terraform configuration file is used to manage custom IAM roles
+# in a Google Cloud Platform (GCP) project. It reads role definitions
+# from YAML files located in the same directory and creates custom roles
+# in the specified GCP project.
+
+locals {
+  role_files = fileset(path.module, "*.role.yaml")
+  roles_data = {
+    for f in local.role_files :
+    trimsuffix(f, ".role.yaml") => yamldecode(file("${path.module}/${f}"))
   }
 }
 
@@ -34,7 +33,13 @@ variable "project_id" {
   type        = string
 }
 
-module "beam_roles" {
-  source     = "./roles"
-  project_id = var.project_id
+resource "google_project_iam_custom_role" "custom_roles" {
+  for_each = local.roles_data
+
+  project     = var.project_id
+  role_id     = each.value.role_id
+  title       = each.value.title
+  description = lookup(each.value, "description", null)
+  permissions = each.value.permissions
+  stage       = lookup(each.value, "stage", "GA")
 }
