@@ -27,8 +27,10 @@ from typing import TypeVar
 import pytest
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import row_type
@@ -118,6 +120,18 @@ class TestDoFn12(beam.DoFn):
   """test process returning None (return statement without a value)"""
   def process(self, element):
     return
+
+
+class TestDoFnStateful(beam.DoFn):
+  STATE_SPEC = ReadModifyWriteStateSpec('num_elements', coders.VarIntCoder())
+
+  """test process with a stateful dofn"""
+  def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
+    if len(element) > 3:
+      raise ValueError('Not allowed to have long elements')
+    current_value = state.read() or 1
+    state.write(current_value+1)
+    return current_value
 
 
 class CreateTest(unittest.TestCase):
@@ -281,6 +295,16 @@ class ExceptionHandlingTest(unittest.TestCase):
         assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')
         assert_that(bad_elements, equal_to([]), 'bad')
       self.assertFalse(os.path.isfile(tmp_path))
+
+  def test_stateful_exception_handling(self):
+    with beam.Pipeline() as pipeline:
+      good, bad = (
+        pipeline | beam.Create(['abc', 'long_word', 'foo', 'bar', 'foobar'])
+        | beam.ParDo(TestDoFnStateful()).with_exception_handling()
+      )
+      bad_elements = bad | beam.Keys()
+      assert_that(good, equal_to([1, 2, 3]), 'good')
+      assert_that(bad_elements, equal_to(['long_word', 'foobar']), 'bad')
 
 
 def test_callablewrapper_typehint():

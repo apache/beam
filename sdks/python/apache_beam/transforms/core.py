@@ -73,6 +73,7 @@ from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.typehints.typehints import visit_inner_types
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
+from functools import wraps
 
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
@@ -2291,6 +2292,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._on_failure_callback = on_failure_callback
 
   def expand(self, pcoll):
+    # TODO - not sure how subprocesses or timeouts will do with this, consider disallowing or doing extra work here.
     if self._use_subprocess:
       wrapped_fn = _SubprocessDoFn(self._fn, timeout=self._timeout)
     elif self._timeout:
@@ -2354,6 +2356,20 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
     self._partial = partial
     self._on_failure_callback = on_failure_callback
 
+    # Wrap process and expose any top level state params so that process can
+    # handle state.
+    @wraps(self._fn.process)
+    def process_wrapper(*args, **kwargs):
+      return self.custom_process(*args, **kwargs)
+    self.process = process_wrapper
+    for i in dir(self._fn):
+      member = getattr(self._fn, i)
+      if isinstance(member, StateSpec):
+        setattr(self, i, member)
+
+    from apache_beam.runners.common import DoFnSignature
+    raise ValueError('is stateful: ' + str(DoFnSignature(self).is_stateful_dofn()) + str(inspect.signature(self.process)))
+
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
         name in _ExceptionHandlingWrapperDoFn.__dict__):
@@ -2361,7 +2377,7 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
     else:
       return getattr(self._fn, name)
 
-  def process(self, *args, **kwargs):
+  def custom_process(self, *args, **kwargs):
     try:
       result = self._fn.process(*args, **kwargs)
       if not self._partial:
