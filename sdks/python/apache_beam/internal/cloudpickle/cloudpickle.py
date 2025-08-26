@@ -1266,7 +1266,7 @@ class Pickler(pickle.Pickler):
     """Reduce a function that is not pickleable via attribute lookup."""
     newargs = self._function_getnewargs(func)
     state = _function_getstate(func)
-    return (make_function, newargs, state, None, None, _function_setstate)
+    return (_make_function, newargs, state, None, None, _function_setstate)
 
   def _function_reduce(self, obj):
     """Reducer for function objects.
