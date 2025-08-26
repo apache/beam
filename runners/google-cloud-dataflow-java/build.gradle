@@ -400,6 +400,14 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
           name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
           root: "apache",
           tag: project.sdk_version)
+  doFirst {
+    exec {
+      commandLine "docker", "pull", "gcr.io/apache-beam-testing/beam-sdk/beam_python${pythonVer}_sdk:${project.sdk_version}"
+    }
+    exec {
+      commandLine "docker", "tag", "gcr.io/apache-beam-testing/beam-sdk/beam_python${pythonVer}_sdk:${project.sdk_version}", defaultDockerImageName
+    }
+  }
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerPythonImageName}"
