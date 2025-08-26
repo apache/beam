@@ -37,7 +37,7 @@
 Build this jar for running with the run command in the next stage:
 
 ```
-cd <path_to_beam_repo>/beam; ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
+cd <PATH_TO_BEAM_REPO>/beam; ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
 ```
 
 ## Example Run
@@ -67,6 +67,10 @@ yamls and confirm the expected results.
 
 ```
 pytest -v testing/
+
+or
+
+pytest -v testing/examples_test.py::JinjaTest
 
 or
 
@@ -228,6 +232,22 @@ gcloud dataflow yaml run $JOB_NAME \
   --yaml-pipeline-file transforms/io/iceberg_read.yaml \
   --region $REGION
 ```
+
+### Jinja
+
+Jinja [templatization](https://beam.apache.org/documentation/sdks/yaml/#jinja-templatization)
+can be used to build off of different contexts and/or with different
+configurations.
+
+Several examples will be created based on the already used word count example
+by leveraging Jinja templating engine for dynamic pipeline generation based on
+inputs from the user through `% include`, `% import`, and inheritance
+directives.
+
+Jinja `% include` directive:
+- [wordCountInclude.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml)
+- [Instructions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/README.md) on how to run the pipeline.
+
 
 ### ML
 
