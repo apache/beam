@@ -105,7 +105,7 @@ pipeline:
 ```
 
 Do note that some transforms already have an `error_handling` configuration
-under the main config level of the transform that covers many different 
+under the main config level of the transform that covers many different
 failures that would cause the pipeline to fail, while this additional
 `error_handling` section under output_schema is only geared toward capturing
 schema issues allowing the users to quickly filter out directly inside the
