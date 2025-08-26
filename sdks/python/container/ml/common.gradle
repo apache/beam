@@ -18,7 +18,7 @@
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 
-description = "Apache Beam :: SDKs :: Python :: Container :: Python ${pythonVersionSuffix} Container"
+description = "Apache Beam :: SDKs :: Python :: Container :: ML :: Python ${pythonVersionSuffix} Container"
 
 configurations {
   sdkSourceTarball
@@ -41,7 +41,6 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "${project.ext.pythonVersion} " +
               "${files(configurations.sdkSourceTarball.files).singleFile} " +
               "base_image_requirements.txt " +
-              "container" +
               "[gcp,dataframe,test] " +
               "${pipExtraOptions}"
     }
@@ -52,7 +51,6 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "${project.ext.pythonVersion} " +
               "${files(configurations.sdkSourceTarball.files).singleFile} " +
               "ml_image_requirements.txt " +
-              "container/ml" +
               "[gcp,dataframe,test,tensorflow,torch,transformers] " +
               "${pipExtraOptions}"
     }
@@ -89,7 +87,7 @@ def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.r
 
 docker {
   name containerImageName(
-          name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk",
+          name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk_ml",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] :
                   project.docker_image_default_repo_root,
@@ -97,7 +95,7 @@ docker {
                   project.rootProject["docker-tag"] : project.sdk_version)
   // tags used by dockerTag task
   tags containerImageTags()
-  files "../Dockerfile", "./build"
+  files "../../Dockerfile", "./build"
   buildArgs(['py_version': "${project.ext.pythonVersion}",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
