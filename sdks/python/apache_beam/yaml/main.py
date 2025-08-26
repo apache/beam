@@ -25,6 +25,13 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
+# The following imports force the registration of JDBC logical types.
+# When running a Beam YAML pipeline, the expansion service handles JDBCIO using
+# Java transforms, bypassing the Python module (`apache_beam.io.jdbc`) that
+# registers these types. These imports load the module, preventing a
+# "logical type not found" error.
+from apache_beam.io.jdbc import JdbcDateType  # pylint: disable=unused-import
+from apache_beam.io.jdbc import JdbcTimeType  # pylint: disable=unused-import
 from apache_beam.transforms import resources
 from apache_beam.yaml import yaml_testing
 from apache_beam.yaml import yaml_transform
@@ -93,6 +100,7 @@ def _parse_arguments(argv):
       help='A json dict of variables used when invoking the jinja preprocessor '
       'on the provided yaml pipeline.')
   parser.add_argument(
+      '--tests',
       '--test',
       action=argparse.BooleanOptionalAction,
       help='Run the tests associated with the given pipeline, rather than the '
@@ -283,7 +291,7 @@ def build_pipeline_components_from_yaml(
 if __name__ == '__main__':
   import logging
   logging.getLogger().setLevel(logging.INFO)
-  if '--test' in sys.argv:
+  if '--tests' in sys.argv or '--test' in sys.argv:
     run_tests()
   else:
     run()

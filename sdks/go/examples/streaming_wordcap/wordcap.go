@@ -70,7 +70,7 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	col := pubsubio.Read(s, project, *input, &pubsubio.ReadOptions{Subscription: sub.ID()})
+	col := pubsubio.Read(s, project, pubsubio.ReadOptions{Subscription: sub.ID()})
 	str := beam.ParDo(s, func(b []byte) string {
 		return (string)(b)
 	}, col)

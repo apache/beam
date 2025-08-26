@@ -18,7 +18,8 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.apache.beam.runners.spark.translation.TranslationUtils.getBatchDuration;
-import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectTimers;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.hasEventTimers;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.hasTimers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -37,8 +38,10 @@ import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
+import org.apache.beam.runners.spark.util.TimerUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -60,6 +63,8 @@ import org.apache.spark.streaming.StateSpec;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaMapWithStateDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Tuple2;
 
@@ -78,8 +83,11 @@ import scala.Tuple2;
  * containing {@code @Timer} annotations, as timer functionality is not currently supported in the
  * Spark streaming context.
  */
+@SuppressWarnings("nullness")
 public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
     implements TransformEvaluator<ParDo.MultiOutput<KV<KeyT, ValueT>, OutputT>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(StatefulStreamingParDoEvaluator.class);
 
   @Override
   public void evaluate(
@@ -87,7 +95,6 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
     final DoFn<KV<KeyT, ValueT>, OutputT> doFn = transform.getFn();
     final DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
 
-    rejectTimers(doFn);
     checkArgument(
         !signature.processElement().isSplittable(),
         "Splittable DoFn not yet supported in streaming mode: %s",
@@ -109,7 +116,18 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
     final UnboundedDataset<KV<KeyT, ValueT>> unboundedDataset =
         (UnboundedDataset<KV<KeyT, ValueT>>) context.borrowDataset(transform);
 
-    final JavaDStream<WindowedValue<KV<KeyT, ValueT>>> dStream = unboundedDataset.getDStream();
+    JavaDStream<WindowedValue<KV<KeyT, ValueT>>> dStream = unboundedDataset.getDStream();
+
+    if (hasTimers(doFn)) {
+      checkState(
+          !hasEventTimers(doFn),
+          "%s not yet supported in streaming mode: %s",
+          TimeDomain.EVENT_TIME,
+          doFn.getClass().getName());
+
+      LOG.info("DoFn {} has timers. create periodic DStream for triggering timers", doFn);
+      dStream = TimerUtils.toPeriodicDStream(dStream);
+    }
 
     final DoFnSchemaInformation doFnSchemaInformation =
         ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
@@ -155,8 +173,12 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
                               windowedKV.withValue(windowedKV.getValue().getValue());
                           final ByteArray keyBytes =
                               new ByteArray(CoderHelpers.toByteArray(key, keyCoder));
-                          final byte[] valueBytes =
-                              CoderHelpers.toByteArray(windowedValue, wvCoder);
+                          byte[] valueBytes;
+                          if (TimerUtils.TIMER_MARKER.equals(windowedValue.getValue())) {
+                            valueBytes = TimerUtils.EMPTY_BYTE_ARRAY;
+                          } else {
+                            valueBytes = CoderHelpers.toByteArray(windowedValue, wvCoder);
+                          }
                           return Tuple2.apply(keyBytes, valueBytes);
                         }));
 

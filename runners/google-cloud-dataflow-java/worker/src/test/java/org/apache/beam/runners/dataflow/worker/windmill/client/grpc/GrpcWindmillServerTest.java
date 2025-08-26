@@ -117,7 +117,11 @@ public class GrpcWindmillServerTest {
   private final long clientId = 10L;
   private final Set<ManagedChannel> openedChannels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
@@ -482,7 +486,6 @@ public class GrpcWindmillServerTest {
   }
 
   @Test
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void testStreamingGetData() throws Exception {
     // This server responds to GetDataRequests with responses that mirror the requests.
     serviceRegistry.addService(
@@ -623,7 +626,7 @@ public class GrpcWindmillServerTest {
     for (int i = 0; i < 100; ++i) {
       final String key = "key" + i;
       final String s = i % 5 == 0 ? largeString(i) : "tag";
-      executor.submit(
+      executor.execute(
           () -> {
             try {
               errorCollector.checkThat(

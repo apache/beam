@@ -62,7 +62,11 @@ public class SpannerChangeStreamPostgresIT {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(3600);
 
   @ClassRule
-  public static final IntegrationTestEnv ENV = new IntegrationTestEnv(/*isPostgres=*/ true);
+  public static final IntegrationTestEnv ENV =
+      new IntegrationTestEnv(
+          /*isPostgres=*/ true,
+          /*isPlacementTableBasedChangeStream=*/ false,
+          /*host=*/ Optional.empty());
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

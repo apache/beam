@@ -142,23 +142,36 @@ def named_fields_to_schema(
     schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
     field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
     schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY,
+    field_descriptions: Optional[Dict[str, str]] = None,
 ):
   schema_options = schema_options or []
   field_options = field_options or {}
+  field_descriptions = field_descriptions or {}
 
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
+
+  _, cached_schema = schema_registry.by_id.get(schema_id, (None, None))
+  if cached_schema:
+    type_by_name_from_schema = {
+        field.name: field.type
+        for field in cached_schema.fields
+    }
+  else:
+    type_by_name_from_schema = {}
 
   schema = schema_pb2.Schema(
       fields=[
           schema_pb2.Field(
               name=name,
-              type=typing_to_runner_api(type),
+              type=type_by_name_from_schema.get(
+                  name, typing_to_runner_api(type)),
               options=[
                   option_to_runner_api(option_tuple)
                   for option_tuple in field_options.get(name, [])
               ],
-          ) for (name, type) in names_and_types
+              description=field_descriptions.get(name, None))
+          for (name, type) in names_and_types
       ],
       options=[
           option_to_runner_api(option_tuple) for option_tuple in schema_options
@@ -616,6 +629,13 @@ def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
   if isinstance(element_type, row_type.RowTypeConstraint):
     return named_fields_to_schema(element_type._fields)
   elif match_is_named_tuple(element_type):
+    if hasattr(element_type, row_type._BEAM_SCHEMA_ID):
+      # if the named tuple's schema is in registry, we just use it instead of
+      # regenerating one.
+      schema_id = getattr(element_type, row_type._BEAM_SCHEMA_ID)
+      schema = SCHEMA_REGISTRY.get_schema_by_id(schema_id)
+      if schema is not None:
+        return schema
     return named_tuple_to_schema(element_type)
   else:
     raise TypeError(
@@ -1017,15 +1037,15 @@ class FixedPrecisionDecimalLogicalType(
   def language_type(cls):
     return decimal.Decimal
 
-  def to_representation_type(self, value):
-    # type: (decimal.Decimal) -> bytes
+  # from language type (decimal.Decimal) to representation type
+  # (the type corresponding to the coder used in DecimalLogicalType)
+  def to_representation_type(self, value: decimal.Decimal) -> decimal.Decimal:
+    return value
 
-    return DecimalLogicalType().to_representation_type(value)
-
-  def to_language_type(self, value):
-    # type: (bytes) -> decimal.Decimal
-
-    return DecimalLogicalType().to_language_type(value)
+  # from representation type (the type corresponding to the coder used in
+  # DecimalLogicalType) to language type
+  def to_language_type(self, value: decimal.Decimal) -> decimal.Decimal:
+    return value
 
   @classmethod
   def argument_type(cls):

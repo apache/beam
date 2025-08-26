@@ -357,7 +357,8 @@ class ReadFromBigtable(PTransform):
         rearrange_based_on_discovery=True,
         table_id=self._table_id,
         instance_id=self._instance_id,
-        project_id=self._project_id)
+        project_id=self._project_id,
+        flatten=False)
 
     return (
         input.pipeline

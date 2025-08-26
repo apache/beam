@@ -664,6 +664,27 @@ public class SplittableParDoViaKeyedWorkItems {
             }
 
             @Override
+            public void output(
+                OutputT output,
+                Instant timestamp,
+                BoundedWindow window,
+                @Nullable String currentRecordId,
+                @Nullable Long currentRecordOffset) {
+              throwUnsupportedOutput();
+            }
+
+            @Override
+            public <T> void output(
+                TupleTag<T> tag,
+                T output,
+                Instant timestamp,
+                BoundedWindow window,
+                @Nullable String currentRecordId,
+                @Nullable Long currentRecordOffset) {
+              throwUnsupportedOutput();
+            }
+
+            @Override
             public PipelineOptions getPipelineOptions() {
               return baseContext.getPipelineOptions();
             }

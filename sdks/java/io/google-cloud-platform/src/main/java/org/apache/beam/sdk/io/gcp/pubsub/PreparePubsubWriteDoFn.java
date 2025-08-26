@@ -59,7 +59,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
 
   private final TupleTag<PubsubMessage> outputTag;
 
-  static int validatePubsubMessageSize(PubsubMessage message, int maxPublishBatchSize)
+  static int validatePubsubMessage(PubsubMessage message, int maxPublishBatchSize)
       throws SizeLimitExceededException {
     int payloadSize = message.getPayload().length;
     if (payloadSize > PUBSUB_MESSAGE_DATA_MAX_BYTES) {
@@ -86,7 +86,12 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       totalSize += orderingKeySize;
     }
 
-    @Nullable Map<String, String> attributes = message.getAttributeMap();
+    final @Nullable Map<String, String> attributes = message.getAttributeMap();
+    if (payloadSize == 0 && (attributes == null || attributes.isEmpty())) {
+      throw new IllegalArgumentException(
+          "Pubsub message must contain a non-empty payload or at least one attribute.");
+    }
+
     if (attributes != null) {
       if (attributes.size() > PUBSUB_MESSAGE_MAX_ATTRIBUTES) {
         throw new SizeLimitExceededException(
@@ -212,7 +217,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       message = message.withOrderingKey(null);
     }
     try {
-      validatePubsubMessageSize(message, maxPublishBatchSize);
+      validatePubsubMessage(message, maxPublishBatchSize);
     } catch (SizeLimitExceededException e) {
       badRecordRouter.route(
           o,

@@ -588,7 +588,7 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 	return es.ToData(info)
 }
 
-// DataAndTimerInputForBundle returns pre-allocated data for the given bundle and the estimated number of elements.
+// DataAndTimerInputForBundle returns pre-allocated data for the given bundle and the estimated number of data elements.
 // Elements are encoded with the PCollection's coders.
 func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo) ([]*Block, int) {
 	ss := em.stages[rb.StageID]
@@ -596,14 +596,16 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 	defer ss.mu.Unlock()
 	es := ss.inprogress[rb.BundleID]
 
-	var total int
+	var total_data int
 
 	var ret []*Block
 	cur := &Block{}
 	for _, e := range es.es {
 		switch {
 		case e.IsTimer() && (cur.Kind != BlockTimer || e.family != cur.Family || cur.Transform != e.transform):
-			total += len(cur.Bytes)
+			if cur.Kind == BlockData {
+				total_data += len(cur.Bytes)
+			}
 			cur = &Block{
 				Kind:      BlockTimer,
 				Transform: e.transform,
@@ -631,7 +633,6 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 
 			cur.Bytes = append(cur.Bytes, buf.Bytes())
 		case cur.Kind != BlockData:
-			total += len(cur.Bytes)
 			cur = &Block{
 				Kind: BlockData,
 			}
@@ -644,8 +645,10 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 			cur.Bytes = append(cur.Bytes, buf.Bytes())
 		}
 	}
-	total += len(cur.Bytes)
-	return ret, total
+	if cur.Kind == BlockData {
+		total_data += len(cur.Bytes)
+	}
+	return ret, total_data
 }
 
 // BlockKind indicates how the block is to be handled.
@@ -1021,7 +1024,7 @@ func (em *ElementManager) FailBundle(rb RunBundle) {
 func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals Residuals) {
 	stage := em.stages[rb.StageID]
 
-	stage.splitBundle(rb, firstRsIndex)
+	stage.splitBundle(rb, firstRsIndex, em)
 	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
@@ -1909,7 +1912,7 @@ func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []
 	return bundID
 }
 
-func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
+func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementManager) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
@@ -1920,8 +1923,19 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
 	res := es.es[firstResidual:]
 
 	es.es = prim
-	ss.pending = append(ss.pending, res...)
-	heap.Init(&ss.pending)
+
+	for _, e := range res {
+		delete(ss.inprogressKeysByBundle[rb.BundleID], string(e.keyBytes))
+		delete(ss.inprogressKeys, string(e.keyBytes))
+
+		if e.IsTimer() {
+			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")
+			ss.watermarkHolds.Drop(e.holdTimestamp, 1)
+			ss.inprogressHoldsByBundle[rb.BundleID][e.holdTimestamp]--
+		}
+	}
+	// we don't need to increment pending count in em, since it is already pending
+	ss.kind.addPending(ss, em, res)
 	ss.inprogress[rb.BundleID] = es
 }
 
