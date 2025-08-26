@@ -75,6 +75,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -4111,26 +4112,23 @@ public class StreamingDataflowWorkerTest {
     // Capture the config observer.
     ArgumentCaptor<Consumer<StreamingGlobalConfig>> observerCaptor =
         ArgumentCaptor.forClass(Consumer.class);
-    verify(mockGlobalConfigHandle, atLeastOnce()).registerConfigObserver(observerCaptor.capture());
-    List<Consumer<StreamingGlobalConfig>> observers = observerCaptor.getAllValues();
 
     worker.start();
 
-    // Use reflection to check the harness type.
-    java.lang.reflect.Field harnessField =
-        StreamingDataflowWorker.class.getDeclaredField("streamingWorkerHarness");
-    harnessField.setAccessible(true);
-    AtomicReference<Object> harnessRef = (AtomicReference<Object>) harnessField.get(worker);
+    verify(mockGlobalConfigHandle, atLeastOnce()).registerConfigObserver(observerCaptor.capture());
+    List<Consumer<StreamingGlobalConfig>> observers = observerCaptor.getAllValues();
 
     assertTrue(
         "Worker should start with SingleSourceWorkerHarness",
-        harnessRef.get() instanceof SingleSourceWorkerHarness);
+        worker.getStreamingWorkerHarness() instanceof SingleSourceWorkerHarness);
 
     // Process some work with CloudPath.
     server.whenGetWorkCalled().thenReturn(makeInput(1, 1000));
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     assertEquals(1, result.size());
     assertTrue(result.containsKey(1L));
+
+    ExecutorService harnessSwitchExecutor = worker.getHarnessSwitchExecutor();
 
     // Switch to Directpath.
     StreamingGlobalConfig directPathConfig =
@@ -4145,9 +4143,14 @@ public class StreamingDataflowWorkerTest {
       observer.accept(directPathConfig);
     }
 
+    // Wait for the harnessSwitchExecutor to complete the switch.
+    Future<?> future = harnessSwitchExecutor.submit(() -> {});
+    // Wait for the dummy task to complete. The dummy task will be executed after
+    // switchStreamingWorkerHarness has completed.
+    future.get(15, TimeUnit.SECONDS);
     assertTrue(
         "Worker should switch to FanOutStreamingEngineWorkerHarness",
-        harnessRef.get() instanceof FanOutStreamingEngineWorkerHarness);
+        worker.getStreamingWorkerHarness() instanceof FanOutStreamingEngineWorkerHarness);
 
     // Switch to Cloudpath.
     StreamingGlobalConfig cloudPathConfig =
@@ -4160,9 +4163,12 @@ public class StreamingDataflowWorkerTest {
     for (Consumer<StreamingGlobalConfig> observer : observers) {
       observer.accept(cloudPathConfig);
     }
+
+    future = harnessSwitchExecutor.submit(() -> {});
+    future.get(15, TimeUnit.SECONDS);
     assertTrue(
         "Worker should switch back to SingleSourceWorkerHarness",
-        harnessRef.get() instanceof SingleSourceWorkerHarness);
+        worker.getStreamingWorkerHarness() instanceof SingleSourceWorkerHarness);
 
     worker.stop();
   }
