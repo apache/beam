@@ -315,10 +315,10 @@ def _search_lambda(
 _SINGLE_NAME_PATTERN = re.compile(r'co_consts\[([a-zA-Z0-9\<\>_-]+)]')
 # Matches a path like: co_consts[<lambda>, ('x',)]
 _LAMBDA_WITH_ARGS_PATTERN = re.compile(
-    r"co_consts\[(<.*?>),\s(\('[^']+'(?:,\s*'[^']+')*,?\))\]")
+    r"co_consts\[(<[^>]+>),\s*(\('[^']*'\s*,\s*\))\]")
 # Matches a path like: co_consts[<lambda>, ('x',), 1234567890]
 _LAMBDA_WITH_HASH_PATTERN = re.compile(
-    r"co_consts\[(<[^>]+>),\s*(\([^\)]*\)),?\s*(.*)\]")
+    r"co_consts\[(<[^>]+>),\s*(\('[^']*'\s*,\s*\)),\s*(.+)\]")
 # Matches a path like: __defaults__[0]
 _DEFAULT_PATTERN = re.compile(r'(__defaults__)\[(\d+)\]')
 # Matches an argument like: 'x'
