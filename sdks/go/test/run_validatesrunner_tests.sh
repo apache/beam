@@ -351,6 +351,33 @@ fi
 if [[ "$RUNNER" == "dataflow" ]]; then
   # Verify docker and gcloud commands exist
   command -v docker
+  # Check if Docker daemon is running
+  if ! docker info >/dev/null 2>&1; then
+    echo "Warning: Docker daemon is not running. Starting Docker..."
+    # Try to start Docker daemon (this may require sudo on some systems)
+    if command -v systemctl >/dev/null 2>&1; then
+      sudo systemctl start docker || echo "Failed to start Docker daemon via systemctl"
+    elif command -v service >/dev/null 2>&1; then
+      sudo service docker start || echo "Failed to start Docker daemon via service"
+    else
+      echo "Please start Docker daemon manually"
+      exit 1
+    fi
+    # Wait for Docker daemon to be ready
+    for i in {1..30}; do
+      if docker info >/dev/null 2>&1; then
+        echo "Docker daemon is now running"
+        break
+      fi
+      echo "Waiting for Docker daemon to start... ($i/30)"
+      sleep 2
+    done
+    # Final check
+    if ! docker info >/dev/null 2>&1; then
+      echo "Error: Docker daemon failed to start. Please start it manually."
+      exit 1
+    fi
+  fi
   docker -v
   command -v gcloud
   gcloud --version
