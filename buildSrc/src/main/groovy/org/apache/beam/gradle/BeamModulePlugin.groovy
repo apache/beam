@@ -624,7 +624,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def httpcore_version = "4.4.14"
     def iceberg_bqms_catalog_version = "1.6.1-1.0.1"
     def jackson_version = "2.15.4"
-    def jaxb_api_version = "2.3.3"
+    def jaxb_api_version = "3.0.1"
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.2"
     def kafka_version = "2.4.1"
