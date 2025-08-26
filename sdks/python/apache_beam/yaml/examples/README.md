@@ -34,7 +34,8 @@
 
 ## Prerequistes
 
-Build this jar for running with the run command in the next stage:
+Build the expansion service jar required for your YAML code
+IO mapping is available in standard_io.yml, use this example run command:
 
 ```
 cd <PATH_TO_BEAM_REPO>/beam; ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
@@ -162,7 +163,9 @@ python -m apache_beam.yaml.main \
   --num_workers $NUM_WORKERS \
   --job_name $JOB_NAME \
   --jinja_variables '{ "BOOTSTRAP_SERVERS": "123.45.67.89:9092",
-    "TOPIC": "MY-TOPIC", "USERNAME": "USERNAME", "PASSWORD": "PASSWORD" }'
+    "TOPIC": "MY-TOPIC", "USERNAME": "USERNAME", "PASSWORD": "PASSWORD" }'\
+  --sdk_location container  \
+  --sdk_harness_container_image_overrides ".*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest"
 ```
 
 **_Optional_**: If Kafka cluster is set up with no SASL/PLAINTEXT authentication
