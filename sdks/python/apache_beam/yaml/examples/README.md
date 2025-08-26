@@ -258,9 +258,9 @@ ML enrichments:
 
 Examples that include ML-specific transforms such as `RunInference` and
 `MLTransform`:
-- [streaming_sentiment_analysis.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml)
-- [streaming_taxifare_prediction.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare/streaming_taxifare_prediction.yaml)
-- [batch_log_analysis.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis/batch_log_analysis.yaml)
+- Streaming Sentiment Analysis ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml))
+- Streaming Taxi Fare Prediction ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare/streaming_taxifare_prediction.yaml))
+- Batch Log Analysis ML Workflow ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis/batch_log_analysis.yaml))
 
 More information can be found about aggregation transforms
 [here](https://beam.apache.org/documentation/sdks/yaml-combine/).
