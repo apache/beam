@@ -50,8 +50,9 @@ how to create BigQuery datasets.
 
 A trained model hosted on Vertex AI is needed before being able to use
 the Vertex AI model handler. To train and deploy a custom model for the
-taxi fare prediction problem, open and run this [notebook](
-custom_nyc_taxifare_model_deployment.ipynb) in Colab Enterprise.
+taxi fare prediction problem, open and run the
+[custom_nyc_taxifare_model_deployment](
+custom_nyc_taxifare_model_deployment.ipynb) notebook in Colab Enterprise.
 
 The pipeline first reads the data stream of taxi rides events from the
 public PubSub topic and performs some transformations before writing it
