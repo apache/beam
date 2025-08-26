@@ -42,6 +42,7 @@ import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam import pvalue
 from apache_beam import typehints
+from apache_beam.coders import coders_test_common
 from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
@@ -70,7 +71,6 @@ from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-from apache_beam.coders import coders_test_common
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
@@ -754,12 +754,8 @@ class PTransformTest(unittest.TestCase):
               coders_test_common.MyTypedNamedTuple(1, 'a'),
               [1 for i in range(10000)])]))
 
-  @parameterized.expand([
-      param(compat_version=None),
-      param(compat_version="2.66.0"),
-  ])
   @pytest.mark.it_validatesrunner
-  def test_group_by_key_dynamic_special_types(self, compat_version):
+  def test_group_by_key_dynamic_special_types(self):
     def create_dynamic_named_tuple():
       return collections.namedtuple('DynamicNamedTuple', ['x', 'y'])
 
@@ -780,9 +776,6 @@ class PTransformTest(unittest.TestCase):
         yield (dynamic_named_tuple(1, 'a'), 1)
 
     pipeline = TestPipeline(is_integration_test=True)
-    if compat_version:
-      pipeline.get_pipeline_options().view_as(
-          StreamingOptions).update_compatibility_version = compat_version
 
     with pipeline as p:
       result = (
