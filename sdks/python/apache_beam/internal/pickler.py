@@ -42,15 +42,13 @@ def dumps(
     o,
     enable_trace=True,
     use_zlib=False,
-    enable_best_effort_determinism=False,
-    enable_lambda_name=False) -> bytes:
+    enable_best_effort_determinism=False) -> bytes:
 
   return desired_pickle_lib.dumps(
       o,
       enable_trace=enable_trace,
       use_zlib=use_zlib,
-      enable_best_effort_determinism=enable_best_effort_determinism,
-      enable_lambda_name=enable_lambda_name)
+      enable_best_effort_determinism=enable_best_effort_determinism)
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):

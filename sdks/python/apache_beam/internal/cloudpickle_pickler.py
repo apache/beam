@@ -117,7 +117,6 @@ def dumps(
     enable_trace=True,
     use_zlib=False,
     enable_best_effort_determinism=False,
-    enable_lambda_name=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   if enable_best_effort_determinism:
@@ -128,8 +127,7 @@ def dumps(
         'This has only been implemented for dill.')
   with _pickle_lock:
     with io.BytesIO() as file:
-      pickler = cloudpickle.CloudPickler(
-          file, config=config, enable_lambda_name=enable_lambda_name)
+      pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
