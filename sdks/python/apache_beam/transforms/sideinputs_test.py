@@ -22,9 +22,15 @@
 import hashlib
 import itertools
 import logging
-import pytest
 import unittest
-from typing import Any, Dict, Iterable, List, Tuple, Union
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Tuple
+from typing import Union
+
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
