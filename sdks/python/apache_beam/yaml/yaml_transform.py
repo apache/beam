@@ -558,50 +558,10 @@ def expand_output_schema_transform(spec, outputs):
   # the validation downstream.
   clean_schema = SafeLineLoader.strip_metadata(spec)
 
-  def enforce_schema(pcoll, label, error_handling_spec):
-    """
-    Applies schema to PCollection elements if necessary, then validates.
-    """
-    # This was typically seen when a transform also had its own error handling.
-    if pcoll.element_type == typehints.Any:
-      _LOGGER.info(
-          "PCollection for %s has no schema (element_type=Any). "
-          "Converting elements to beam.Row based on provided output_schema.",
-          label)
-      try:
-        # Attempt to conver the schemaless elements into schema-aware beam.Row
-        # objects
-        beam_schema = json_utils.json_schema_to_beam_schema(clean_schema)
-        row_type_constraint = schemas.named_tuple_from_schema(beam_schema)
-
-        def to_row(element):
-          """
-          Convert a single element inte the row type constraint type.
-          """
-          if isinstance(element, dict):
-            return row_type_constraint(**element)
-          elif hasattr(element, '_asdict'):  # Handle NamedTuple, beam.Row
-            return row_type_constraint(**element._asdict())
-          else:
-            raise TypeError(
-                f"Cannot convert element of type {type(element)} to beam.Row "
-                f"for validation in {label}. Element: {element}")
-
-        pcoll = pcoll | f'{label}_ConvertToRow' >> beam.Map(
-            to_row).with_output_types(row_type_constraint)
-      except Exception as e:
-        raise ValueError(
-            f"Failed to prepare schemaless PCollection for \
-              validation in {label}: {e}") from e
-
-    # Add Validation step downstream of current transform
-    return pcoll | label >> Validate(
-        schema=clean_schema, error_handling=error_handling_spec)
-
   # The transform produced outputs with a single beam.PCollection
   if isinstance(outputs, beam.PCollection):
-    outputs = enforce_schema(
-        outputs, 'EnforceOutputSchema', error_handling_spec)
+    outputs = _enforce_schema(
+        outputs, 'EnforceOutputSchema', error_handling_spec, clean_schema)
   # The transform produced outputs with many named PCollections and need to
   # determine which PCollection should be validated on.
   elif isinstance(outputs, dict):
@@ -618,10 +578,11 @@ def expand_output_schema_transform(spec, outputs):
             "an 'output_schema', please ensure the transform has exactly one "
             "output, or that the main output is named 'output'.")
 
-    validation_result = enforce_schema(
+    validation_result = _enforce_schema(
         outputs[main_output_key],
         f'EnforceOutputSchema_{main_output_key}',
-        error_handling_spec)
+        error_handling_spec,
+        clean_schema)
 
     # Integrate the validation results back into the 'outputs' dictionary.
     if isinstance(validation_result, dict):
@@ -633,6 +594,47 @@ def expand_output_schema_transform(spec, outputs):
       outputs[main_output_key] = validation_result
 
   return outputs
+
+
+def _enforce_schema(pcoll, label, error_handling_spec, clean_schema):
+  """
+  Applies schema to PCollection elements if necessary, then validates.
+  """
+  # This was typically seen when a transform also had its own error handling.
+  if pcoll.element_type == typehints.Any:
+    _LOGGER.info(
+        "PCollection for %s has no schema (element_type=Any). "
+        "Converting elements to beam.Row based on provided output_schema.",
+        label)
+    try:
+      # Attempt to conver the schemaless elements into schema-aware beam.Row
+      # objects
+      beam_schema = json_utils.json_schema_to_beam_schema(clean_schema)
+      row_type_constraint = schemas.named_tuple_from_schema(beam_schema)
+
+      def to_row(element):
+        """
+        Convert a single element inte the row type constraint type.
+        """
+        if isinstance(element, dict):
+          return row_type_constraint(**element)
+        elif hasattr(element, '_asdict'):  # Handle NamedTuple, beam.Row
+          return row_type_constraint(**element._asdict())
+        else:
+          raise TypeError(
+              f"Cannot convert element of type {type(element)} to beam.Row "
+              f"for validation in {label}. Element: {element}")
+
+      pcoll = pcoll | f'{label}_ConvertToRow' >> beam.Map(
+          to_row).with_output_types(row_type_constraint)
+    except Exception as e:
+      raise ValueError(
+          f"Failed to prepare schemaless PCollection for \
+            validation in {label}: {e}") from e
+
+  # Add Validation step downstream of current transform
+  return pcoll | label >> Validate(
+      schema=clean_schema, error_handling=error_handling_spec)
 
 
 def expand_composite_transform(spec, scope):

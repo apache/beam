@@ -56,7 +56,9 @@ pipeline:
           - {sdk: MillWheel, year: 2008}
 ```
 
-However, a user will more likely want to detect and handle schema errors. This is where adding an `error_handling` configuration inside the `output_schema` comes into play. For example, the following code will
+However, a user will more likely want to detect and handle schema errors. This
+is where adding an `error_handling` configuration inside the `output_schema`
+comes into play. For example, the following code will
 create a few "good" and "bad" records with a specified schema of `sdk` as a
 string and `year` as an integer with error_handling output going to invalid
 rows. An additional `MapToFields` transform will take the error_handling output
@@ -101,5 +103,12 @@ pipeline:
           - {sdk: MapReduce, year: 2004}
           - {sdk: MillWheel, year: 2008}
 ```
+
+Do note that some transforms already have an `error_handling` configuration
+under the main config level of the transform that covers many different 
+failures that would cause the pipeline to fail, while this additional
+`error_handling` section under output_schema is only geared toward capturing
+schema issues allowing the users to quickly filter out directly inside the
+transform those types of issues.
 
 For more detailed information on error handling, see this [page](https://beam.apache.org/documentation/sdks/yaml-errors/).
