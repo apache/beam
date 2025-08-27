@@ -814,6 +814,8 @@ There are many more ways to import and even use template inheritance using
 Jinja as seen [here](https://jinja.palletsprojects.com/en/stable/templates/#import)
 and [here](https://jinja.palletsprojects.com/en/stable/templates/#inheritance).
 
+Full jinja pipeline examples can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/jinja).
+
 ## Other Resources
 
 * [Example pipeline](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples)
