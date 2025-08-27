@@ -21,7 +21,7 @@
 
 This example leverages the `% import` Jinja directive by having one main
 pipeline and then one macros file containing all the transforms and configs
-used..
+used.
 
 General setup:
 ```sh
