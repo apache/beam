@@ -79,6 +79,16 @@ dependencies {
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
     delegate.add(runner + "PreCommit", project(path: ":examples:kotlin", configuration: "testRuntimeMigration"))
+    // Add core SDK dependencies needed for testing to preCommit configurations
+    delegate.add(runner + "PreCommit", project(path: ":sdks:java:core", configuration: "shadowTest"))
+    delegate.add(runner + "PreCommit", library.java.hamcrest)
+    delegate.add(runner + "PreCommit", library.java.junit)
+    delegate.add(runner + "PreCommit", library.java.mockito_core)
+    delegate.add(runner + "PreCommit", library.java.joda_time)
+    delegate.add(runner + "PreCommit", library.java.slf4j_api)
+    // Add JAXB API for Java 11+ compatibility
+    delegate.add(runner + "PreCommit", "javax.xml.bind:jaxb-api:2.3.1")
+    delegate.add(runner + "PreCommit", "org.glassfish.jaxb:jaxb-runtime:2.3.3")
   }
   directRunnerPreCommit project(project.path)
   flinkRunnerPreCommit project(project.path)
@@ -108,7 +118,8 @@ for (String runner : preCommitRunners) {
        "--tempRoot=${gcsTempRoot}",
        "--runner=" + preCommitRunnerClass[runner],
     ]
-    classpath = configurations."${runner}PreCommit"
+    classpath = configurations."${runner}PreCommit" + sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
     include "**/kotlin/**/*Test.class"
     forkEvery 1
     maxParallelForks 4
