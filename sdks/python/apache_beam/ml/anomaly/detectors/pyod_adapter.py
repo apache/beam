@@ -18,11 +18,9 @@
 
 """Utilities to adapt PyOD models for Beam's anomaly detection APIs.
 
-This module provides a ModelHandler implementation for PyOD detectors and a
-factory for creating OfflineDetector wrappers around pickled PyOD models.
+Provides a ModelHandler implementation for PyOD detectors and a factory for
+creating OfflineDetector wrappers around pickled PyOD models.
 """
-
-# pylint: disable=bad-indentation,line-too-long
 
 import pickle
 from collections.abc import Iterable, Sequence
@@ -60,20 +58,16 @@ _PostProcessingModelHandler = specifiable(  # type: ignore[misc]
 
 
 @specifiable
-class PyODModelHandler(
-    ModelHandler[beam.Row, PredictionResult, PyODBaseDetector]
-):
+class PyODModelHandler(ModelHandler[beam.Row, PredictionResult, PyODBaseDetector]):
     """ModelHandler implementation for PyOD models.
 
-    The ModelHandler processes input data as `beam.Row` objects.
+    Processes `beam.Row` inputs, flattening vector-like fields (list/tuple/ndarray)
+    into a single numeric feature vector per row before invoking the PyOD
+    model's ``decision_function``.
 
-    **NOTE:** This API and its implementation are currently under active
-    development and may not be backward compatible.
-
+    NOTE: Experimental; interface may change.
     Args:
-        model_uri: The URI specifying the location of the pickled PyOD model.
-
-    .. [#] https://github.com/yzhao062/pyod
+        model_uri: Location of the pickled PyOD model.
     """
 
     def __init__(self, model_uri: str):
@@ -81,21 +75,19 @@ class PyODModelHandler(
         self._model_uri = model_uri
 
     def load_model(self) -> PyODBaseDetector:
-        with FileSystems.open(self._model_uri, "rb") as file:
+        with FileSystems.open(self._model_uri, 'rb') as file:
             return pickle.load(file)
 
-    def run_inference(
-        self,
-        batch: Sequence[beam.Row],
-        model: PyODBaseDetector,
-        inference_args: Optional[dict[str, object]] = None,
+    def run_inference(  # type: ignore[override]
+            self,
+            batch: Sequence[beam.Row],
+            model: PyODBaseDetector,
+            inference_args: Optional[dict[str, object]] = None,
     ) -> Iterable[PredictionResult]:
-        """Run inference on a batch of `beam.Row` examples.
+        """Run inference on a batch of rows.
 
-        The handler supports vector features. Each input `beam.Row` is flattened
-        into a 1-D float array (expanding list/tuple/ndarray fields) and the
-        batch is stacked into a 2-D numpy array which is passed to PyOD's
-        `decision_function`.
+        Flattens vector-like fields, stacks the batch into a 2-D array and
+        returns PredictionResult objects.
         """
 
         def _flatten_row(row_values):
@@ -105,50 +97,24 @@ class PyODModelHandler(
                 else:
                     yield value
 
-        np_batch = [
-            np.fromiter(_flatten_row(row), dtype=np.float64)
-            for row in batch
-        ]
-
-        # Stack a batch of samples into a 2-D array for performance.
+        np_batch = [np.fromiter(_flatten_row(row), dtype=np.float64) for row in batch]
         vectorized_batch = np.stack(np_batch, axis=0)
         predictions = model.decision_function(vectorized_batch)
-
-        return _convert_to_result(
-            batch,
-            predictions,
-            model_id=self._model_uri,
-        )
+        return _convert_to_result(batch, predictions, model_id=self._model_uri)
 
 
 class PyODFactory:
-    """Factory helpers to create OfflineDetector instances from PyOD models.
-
-    The factory exposes a convenience method to wrap a pickled PyOD model into
-    an OfflineDetector with a fixed threshold taken from the trained model.
-    """
+    """Factory helpers to create OfflineDetector instances from PyOD models."""
 
     @staticmethod
     def create_detector(model_uri: str, **kwargs) -> OfflineDetector:
-        """Create an OfflineDetector for a pickled PyOD model.
-
-        Args:
-            model_uri: URI to pickled PyOD model.
-            **kwargs: Extra keyword args forwarded to OfflineDetector.
-        """
-        handler = KeyedModelHandler(
-            PyODModelHandler(model_uri=model_uri)
-        ).with_postprocess_fn(
-            OfflineDetector.score_prediction_adapter
-        )
-
-        m = handler.load_model()
-        assert isinstance(m, PyODBaseDetector)
-        threshold = float(m.threshold_)
-
-        detector = OfflineDetector(
+        handler = KeyedModelHandler(PyODModelHandler(model_uri=model_uri)).with_postprocess_fn(
+            OfflineDetector.score_prediction_adapter)
+        model = handler.load_model()
+        assert isinstance(model, PyODBaseDetector)
+        threshold = float(model.threshold_)
+        return OfflineDetector(
             cast(object, handler),
             threshold_criterion=FixedThreshold(threshold),
             **kwargs,
         )
-        return detector
