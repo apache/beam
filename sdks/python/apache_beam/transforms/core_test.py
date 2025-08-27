@@ -31,9 +31,9 @@ from apache_beam.coders import coders
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.userstate import BagStateSpec
-from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import row_type
