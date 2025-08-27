@@ -23,6 +23,8 @@ import java.util.stream.Collectors
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.iceberg',
+        // iceberg ended support for Java 8 in 1.7.0
+        requireJavaVersion: JavaVersion.VERSION_11,
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg"
@@ -37,10 +39,7 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-// we cannot upgrade this since the newer iceberg requires Java 11
-// many other modules like examples/expansion use Java 8 and have the iceberg dependency
-// def iceberg_version = "1.9.0"
-def iceberg_version = "1.6.1"
+def iceberg_version = "1.9.2"
 def parquet_version = "1.15.2"
 def orc_version = "1.9.2"
 def hive_version = "3.1.3"
@@ -49,7 +48,6 @@ dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation library.java.avro
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
@@ -68,10 +66,12 @@ dependencies {
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     runtimeOnly library.java.bigdataoss_gcs_connector
     runtimeOnly library.java.hadoop_client
+    implementation 'org.apache.avro:avro:1.12.0'
 
     testImplementation project(":sdks:java:managed")
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_util_hadoop
+    testImplementation library.java.avro
     testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
     testImplementation "org.apache.parquet:parquet-common:$parquet_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
@@ -105,6 +105,10 @@ dependencies {
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
     }
+}
+
+configurations.all {
+  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
 }
 
 hadoopVersions.each {kv ->

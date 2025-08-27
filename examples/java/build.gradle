@@ -64,6 +64,11 @@ dependencies {
     // but needed for compile only under Java21, specifically, required for extending from AbstractKafkaAvroDeserializer
     compileOnly library.java.kafka
   }
+  if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0) {
+    // iceberg ended support for Java 8 in 1.7.0
+    runtimeOnly project(":sdks:java:io:iceberg")
+    runtimeOnly project(":sdks:java:io:iceberg:bqms")
+  }
   implementation library.java.kafka_clients
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")
@@ -71,8 +76,6 @@ dependencies {
   implementation project(":sdks:java:extensions:python")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
-  runtimeOnly project(":sdks:java:io:iceberg")
-  runtimeOnly project(":sdks:java:io:iceberg:bqms")
   implementation project(":sdks:java:managed")
   implementation project(":sdks:java:extensions:ml")
   implementation library.java.avro
