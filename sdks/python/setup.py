@@ -401,6 +401,7 @@ if __name__ == '__main__':
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
+          'beartype>=0.21.0,<0.22.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -441,9 +442,10 @@ if __name__ == '__main__':
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
-              'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
+              'pg8000>=1.31.1',
+              "PyMySQL>=1.1.0",
               'oracledb>=3.1.1',
               'milvus'
           ],
@@ -474,6 +476,10 @@ if __name__ == '__main__':
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
               'google-cloud-aiplatform>=1.26.0, < 2.0',
+              'cloud-sql-python-connector>=1.18.2,<2.0.0',
+              'python-tds>=1.16.1',
+              'pg8000>=1.31.1',
+              "PyMySQL>=1.1.0",
               # Authentication for Google Artifact Registry when using
               # --extra-index-url or --index-url in requirements.txt in
               # Dataflow, which allows installing python packages from private

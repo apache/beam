@@ -37,7 +37,7 @@
 Build this jar for running with the run command in the next stage:
 
 ```
-cd <path_to_beam_repo>/beam; ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
+cd <PATH_TO_BEAM_REPO>/beam; ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
 ```
 
 ## Example Run
@@ -67,6 +67,10 @@ yamls and confirm the expected results.
 
 ```
 pytest -v testing/
+
+or
+
+pytest -v testing/examples_test.py::JinjaTest
 
 or
 
@@ -229,6 +233,22 @@ gcloud dataflow yaml run $JOB_NAME \
   --region $REGION
 ```
 
+### Jinja
+
+Jinja [templatization](https://beam.apache.org/documentation/sdks/yaml/#jinja-templatization)
+can be used to build off of different contexts and/or with different
+configurations.
+
+Several examples will be created based on the already used word count example
+by leveraging Jinja templating engine for dynamic pipeline generation based on
+inputs from the user through `% include`, `% import`, and inheritance
+directives.
+
+Jinja `% include` directive:
+- [wordCountInclude.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml)
+- [Instructions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/README.md) on how to run the pipeline.
+
+
 ### ML
 
 Examples that include the built-in `Enrichment` transform for performing
@@ -238,9 +258,9 @@ ML enrichments:
 
 Examples that include ML-specific transforms such as `RunInference` and
 `MLTransform`:
-- [streaming_sentiment_analysis.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml)
-- [streaming_taxifare_prediction.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare/streaming_taxifare_prediction.yaml)
-- [batch_log_analysis.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis/batch_log_analysis.yaml)
+- Streaming Sentiment Analysis ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml))
+- Streaming Taxi Fare Prediction ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare/streaming_taxifare_prediction.yaml))
+- Batch Log Analysis ML Workflow ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis/batch_log_analysis.yaml))
 
 More information can be found about aggregation transforms
 [here](https://beam.apache.org/documentation/sdks/yaml-combine/).

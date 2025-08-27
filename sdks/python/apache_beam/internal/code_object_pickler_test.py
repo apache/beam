@@ -126,9 +126,8 @@ class ClassWithNestedLambda:
     return get_lambda_from_dictionary()
 
 
-prefix = (
-    "__main__" if __name__ == "__main__" else
-    "apache_beam.internal.code_object_pickler_test")
+
+prefix = __name__
 
 test_cases = [
     (top_level_function, f"{prefix}.top_level_function"

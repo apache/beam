@@ -79,7 +79,7 @@ func runEnvironment(ctx context.Context, j *jobservices.Job, env string, wk *wor
 			logger.Error("unmarshaling docker environment payload", "error", err)
 			return err
 		}
-		return dockerEnvironment(ctx, logger, dp, wk, j.ArtifactEndpoint())
+		return dockerEnvironment(ctx, logger, dp, wk, wk.ArtifactEndpoint)
 	case urns.EnvProcess:
 		pp := &pipepb.ProcessPayload{}
 		if err := (proto.UnmarshalOptions{}).Unmarshal(e.GetPayload(), pp); err != nil {
