@@ -20,7 +20,7 @@ import logging
 import smtplib
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from google.cloud import logging_v2
 from google.cloud import storage
 from typing import List, Dict, Any
@@ -128,33 +128,37 @@ class LogAnalyzer():
         found_events = []
         storage_client = storage.Client(project=self.project_id)
 
-        now = datetime.now()
-        end_time = datetime(now.year, now.month, now.day, now.hour, 0) - timedelta(minutes=30)
+        now = datetime.now(timezone.utc)
+        end_time = now.replace(minute=0, second=0, microsecond=0) - timedelta(minutes=30)
         start_time = end_time - timedelta(days=days)
 
         blobs = storage_client.list_blobs(self.bucket)
         for blob in blobs:
-            if not (start_time <= blob.time_created.replace(tzinfo=None) < end_time):
+            if not (start_time <= blob.time_created < end_time):
                 continue
 
             self.logger.debug(f"Processing blob: {blob.name}")
             content = blob.download_as_string().decode("utf-8")
 
-            for line in content.splitlines():
+            for num, line in enumerate(content.splitlines(), 1):
                 try:
                     log_entry = json.loads(line)
-                    payload = log_entry.get("protoPayload", {})
+                    payload = log_entry.get("protoPayload")
+                    if not payload:
+                        self.logger.warning(f"Skipping log in blob {blob.name}, line {num}: no protoPayload found.")
+                        continue
 
                     event_details = {
-                        "timestamp": log_entry.get("timestamp"),
-                        "principal": payload.get("authenticationInfo", {}).get("principalEmail"),
-                        "method": payload.get("methodName"),
-                        "resource": payload.get("resourceName"),
-                        "project_id": log_entry.get("resource", {}).get("labels", {}).get("project_id"),
+                        "timestamp": log_entry.get("timestamp", "N/A"),
+                        "principal": payload.get("authenticationInfo", {}).get("principalEmail", "N/A"),
+                        "method": payload.get("methodName", "N/A"),
+                        "resource": payload.get("resourceName", "N/A"),
+                        "project_id": log_entry.get("resource", {}).get("labels", {}).get("project_id", "N/A"),
                         "file_name": blob.name
                     }
                     found_events.append(event_details)
                 except json.JSONDecodeError:
+                    self.logger.warning(f"Skipping invalid JSON log in blob {blob.name}, line {num}.")
                     continue
 
         storage_client.close()
