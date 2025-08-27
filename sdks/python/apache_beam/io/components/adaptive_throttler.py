@@ -28,7 +28,7 @@ import time
 from apache_beam.io.components import util
 from apache_beam.metrics.metric import Metrics
 
-_MILLISECOND_TO_SECOND = 1_000
+_SECONDS_TO_MILLISECONDS = 1_000
 
 
 class ThrottlingSignaler(object):
@@ -141,7 +141,7 @@ class ReactiveThrottler(AdaptiveThrottler):
         successful requests. This is "K" in the formula in
         https://landing.google.com/sre/book/chapters/handling-overload.html.
       namespace: str, the namespace to use for logging and signaling
-        throttling is occuring
+        throttling is occurring
       throttle_delay_secs: int, the amount of time in seconds to wait
         after preemptively throttled requests
     """
@@ -157,7 +157,7 @@ class ReactiveThrottler(AdaptiveThrottler):
     Automatically handles logging the throttling and signaling to the SDK
     harness that the request is being throttled.
     """
-    while self.throttle_request(time.time() * _MILLISECOND_TO_SECOND):
+    while self.throttle_request(time.time() * _SECONDS_TO_MILLISECONDS):
       self.logger.info(
           "Delaying request for %d seconds due to previous failures",
           self.throttle_delay_secs)
