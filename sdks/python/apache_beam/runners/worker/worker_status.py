@@ -262,7 +262,7 @@ class FnApiWorkerStatusHandler(object):
 
     log_lull = self._passed_lull_timeout_since_last_log() and sampler_info.time_since_transition > self.log_lull_timeout_ns
     timeout_exceeded = self._element_processing_timeout_ns and sampler_info.time_since_transition > self._element_processing_timeout_ns
-    if (not log_lull or timeout_exceeded):
+    if (not log_lull or not timeout_exceeded):
       return
     
     lull_seconds = sampler_info.time_since_transition / 1e9
@@ -299,7 +299,7 @@ class FnApiWorkerStatusHandler(object):
         )
         from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
 
-        terminate_sdk_harness() 
+        terminate_sdk_harness()
 
   def _get_stack_trace(self, sampler_info):
     exec_thread = getattr(sampler_info, 'tracked_thread', None)
