@@ -39,20 +39,20 @@ Automated GitHub Action
 """
 
 @dataclass
-class Sink:
+class SinkCls:
     name: str
     description: str
     filter_methods: List[str]
     excluded_principals: List[str]
 
 class LogAnalyzer():
-    def __init__(self, project_id: str, gcp_bucket: str, logger: logging.Logger, sinks: List[Sink]):
+    def __init__(self, project_id: str, gcp_bucket: str, logger: logging.Logger, sinks: List[SinkCls]):
         self.project_id = project_id
         self.bucket = gcp_bucket
         self.logger = logger
         self.sinks = sinks
 
-    def _construct_filter(self, sink: Sink) -> str:
+    def _construct_filter(self, sink: SinkCls) -> str:
         """
         Constructs a filter string for a given sink.
 
@@ -82,7 +82,7 @@ class LogAnalyzer():
 
         return filter_
 
-    def _create_log_sink(self, sink: Sink) -> None:
+    def _create_log_sink(self, sink: SinkCls) -> None:
         """
         Creates a log sink in GCP if it doesn't already exist.
         If it already exists, it updates the sink with the new filter in case the filter has changed.
@@ -94,21 +94,61 @@ class LogAnalyzer():
         filter_ = self._construct_filter(sink)
         destination = "storage.googleapis.com/{bucket}".format(bucket=self.bucket)
 
-        new_sink = logging_client.sink(sink.name, filter_=filter_, destination=destination)
+        sink_client = logging_client.sink(sink.name, filter_=filter_, destination=destination)
 
-        if new_sink.exists():
+        if sink_client.exists():
             self.logger.debug(f"Sink {sink.name} already exists.")
-            old_sink = logging_client.sink(sink.name)
-            old_sink.reload()
-            if old_sink.filter_ != filter_:
-                old_sink.filter_ = filter_
-                old_sink.update()
+            sink_client.reload()
+            if sink_client.filter_ != filter_:
+                sink_client.filter_ = filter_
+                sink_client.update()
                 self.logger.info(f"Updated sink {sink.name}'s filter.")
         else:
-            new_sink.create()
+            sink_client.create()
             self.logger.info(f"Created sink {sink.name}.")
+            # Reload the sink to get the writer_identity, this may take a few moments
+            sink_client.reload()
+
+        self._grant_bucket_permissions(sink_client)
 
         logging_client.close()
+
+    def _grant_bucket_permissions(self, sink: logging_v2.Sink) -> None:
+        """
+        Grants a log sink's writer identity permissions to write to the bucket.
+        """
+        logging_client = logging_v2.Client(project=self.project_id)
+        storage_client = storage.Client(project=self.project_id)
+
+        sink.reload()    
+        writer_identity = sink.writer_identity
+        if not writer_identity:
+            self.logger.warning(f"Could not retrieve writer identity for sink {sink.name}. "
+                                f"Manual permission granting might be required.")
+            return
+
+        bucket = storage_client.get_bucket(self.bucket)
+        policy = bucket.get_iam_policy(requested_policy_version=3)
+        iam_role = "roles/storage.objectCreator"
+
+        # Workaround for projects where the writer_identity is not a valid service account.
+        if writer_identity == "serviceAccount:cloud-logs@system.gserviceaccount.com":
+            member = "group:cloud-logs@google.com"
+        else:
+            member = f"serviceAccount:{writer_identity}"
+
+        # Check if the policy is already configured
+        if any(member in b.get("members", []) and b.get("role") == iam_role for b in policy.bindings):
+            self.logger.debug(f"Sink {sink.name} already has the necessary permissions.")
+            return
+
+        policy.bindings.append({
+            "role": iam_role,
+            "members": {member}
+        })
+
+        bucket.set_iam_policy(policy)
+        self.logger.info(f"Granted {iam_role} to {member} on bucket {self.bucket} for sink {sink.name}.")
 
     def initialize_sinks(self) -> None:
         for sink in self.sinks:
@@ -242,7 +282,7 @@ def load_config_from_yaml(config_path: str) -> Dict[str, Any]:
     }
 
     for sink_config in config.get("sinks", []):
-        sink = Sink(
+        sink = SinkCls(
             name=sink_config["name"],
             description=sink_config["description"],
             filter_methods=sink_config.get("filter_methods", []),
