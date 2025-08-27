@@ -67,7 +67,7 @@ dependencies {
     }
     directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
     flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
-    
+
     // Add core SDK dependencies needed for testing to preCommit configurations
     for (String runner : preCommitRunners) {
         delegate.add(runner + "PreCommit", project(path: ":sdks:java:core", configuration: "shadowTest"))
