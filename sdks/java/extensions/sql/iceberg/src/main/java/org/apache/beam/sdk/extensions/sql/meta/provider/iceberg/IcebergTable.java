@@ -17,14 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.IntFunction;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
@@ -51,6 +44,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.IntFunction;
+
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 class IcebergTable extends SchemaBaseBeamTable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergTable.class);

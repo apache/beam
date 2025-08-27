@@ -17,13 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.FilterUtils.SUPPORTED_OPS;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.AND;
-import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.OR;
-
-import java.util.List;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef;
@@ -35,6 +28,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjec
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.beam.sdk.io.iceberg.FilterUtils.SUPPORTED_OPS;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.AND;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.OR;
 
 public class IcebergFilter implements BeamSqlTableFilter {
   private @Nullable List<RexNode> supported;

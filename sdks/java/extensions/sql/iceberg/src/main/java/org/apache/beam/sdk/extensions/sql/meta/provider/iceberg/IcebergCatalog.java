@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+
+import java.util.Map;
+import java.util.Set;
 
 public class IcebergCatalog extends InMemoryCatalog {
   // TODO(ahmedabu98): extend this to the IO implementation so
