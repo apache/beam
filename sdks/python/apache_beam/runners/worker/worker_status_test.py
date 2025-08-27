@@ -98,7 +98,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     now = time.time()
     with mock.patch('logging.Logger.warning') as warn_mock:
       with mock.patch(
-          'apache_beam.runners.worker.sdk_worker_main.flush_fn_log_handler'
+          'apache_beam.runners.worker.sdk_worker_main.terminate_sdk_harness'
       ) as flush_mock:
         with mock.patch('time.time') as time_mock:
           time_mock.return_value = now

@@ -24,7 +24,9 @@ import json
 import logging
 import os
 import re
+from signal import signal
 import sys
+from time import time
 import traceback
 
 from google.protobuf import text_format
@@ -224,12 +226,13 @@ def main(unused_argv):
       fn_log_handler.close()
 
 
-def flush_fn_log_handler():
+def terminate_sdk_harness():
   """Flushes the FnApiLogRecordHandler if it exists."""
-  _LOGGER.error('The Sdk harness will be terminated now.')
+  _LOGGER.error('The SDK harness will be terminated in 5 seconds.')
+  time.sleep(5)
   if _FN_LOG_HANDLER:
     _FN_LOG_HANDLER.close()
-  os._exit(1)
+  os.kill(os.getpid(), signal.SIGINT)
 
 
 def _load_pipeline_options(options_json):

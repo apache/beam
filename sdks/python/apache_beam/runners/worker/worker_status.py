@@ -257,19 +257,25 @@ class FnApiWorkerStatusHandler(object):
             self._log_lull_sampler_info(info, instruction)
 
   def _log_lull_sampler_info(self, sampler_info, instruction):
-    if (sampler_info and sampler_info.time_since_transition):
-      lull_seconds = sampler_info.time_since_transition / 1e9
-      step_name = sampler_info.state_name.step_name
-      state_name = sampler_info.state_name.name
-      if step_name and state_name:
-        step_name_log = (
-            ' for PTransform{name=%s, state=%s}' % (step_name, state_name))
-      else:
-        step_name_log = ''
+    if (not sampler_info or not sampler_info.time_since_transition):
+      return
 
-      stack_trace = self._get_stack_trace(sampler_info)
-      if (self._passed_lull_timeout_since_last_log() and
-          sampler_info.time_since_transition > self.log_lull_timeout_ns):
+    log_lull = self._passed_lull_timeout_since_last_log() and sampler_info.time_since_transition > self.log_lull_timeout_ns
+    timeout_exceeded = self._element_processing_timeout_ns and sampler_info.time_since_transition > self._element_processing_timeout_ns
+    if (not log_lull or timeout_exceeded):
+      return
+    
+    lull_seconds = sampler_info.time_since_transition / 1e9
+    step_name = sampler_info.state_name.step_name
+    state_name = sampler_info.state_name.name
+    if step_name and state_name:
+      step_name_log = (
+          ' for PTransform{name=%s, state=%s}' % (step_name, state_name))
+    else:
+      step_name_log = ''
+    stack_trace = self._get_stack_trace(sampler_info) 
+
+    if (log_lull):
         _LOGGER.warning(
             (
                 'Operation ongoing in bundle %s%s for at least %.2f seconds'
@@ -280,9 +286,7 @@ class FnApiWorkerStatusHandler(object):
             lull_seconds,
             stack_trace,
         )
-      if (self._element_processing_timeout_ns and
-          sampler_info.time_since_transition
-          > self._element_processing_timeout_ns):
+    if (timeout_exceeded):
         _LOGGER.error(
             (
                 'Operation ongoing in bundle %s%s for at least %.2f seconds'
@@ -290,12 +294,12 @@ class FnApiWorkerStatusHandler(object):
                 'Current Traceback:\n%s'),
             instruction,
             step_name_log,
-            lull_seconds,
+            self._element_processing_timeout_ns / 60 / 1e9,
             stack_trace,
         )
-        from apache_beam.runners.worker.sdk_worker_main import flush_fn_log_handler
+        from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
 
-        flush_fn_log_handler()
+        terminate_sdk_harness() 
 
   def _get_stack_trace(self, sampler_info):
     exec_thread = getattr(sampler_info, 'tracked_thread', None)
