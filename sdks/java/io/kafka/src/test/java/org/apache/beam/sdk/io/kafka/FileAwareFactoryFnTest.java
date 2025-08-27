@@ -1,0 +1,275 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.kafka;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.mockito.MockedStatic;
+
+@RunWith(JUnit4.class)
+public class FileAwareFactoryFnTest {
+
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+  private TestFactoryFn factory;
+  private String baseDir;
+  private static final String TEST_FACTORY_TYPE = "test-factory";
+
+  // A concrete implementation for testing the abstract FileAwareFactoryFn
+  static class TestFactoryFn extends FileAwareFactoryFn<Object> {
+    public TestFactoryFn() {
+      super(TEST_FACTORY_TYPE);
+    }
+
+    @Override
+    protected Object createObject(Map<String, Object> config) {
+      // Return the processed config for easy assertion
+      return config;
+    }
+  }
+
+  @Before
+  public void setup() throws IOException {
+    baseDir = "/tmp/" + TEST_FACTORY_TYPE;
+    factory = spy(new TestFactoryFn());
+    doReturn(baseDir).when(factory).getBaseDirectory();
+  }
+
+  @Test
+  public void testHappyPathReplacesGcsPath() {
+    // Arrange
+    String gcsPath = "gs://test-bucket/config-file.json";
+    String expectedLocalPath =
+        FileAwareFactoryFn.DIRECTORY_PREFIX
+            + "/"
+            + TEST_FACTORY_TYPE
+            + "/test-bucket/config-file.json";
+    Map<String, Object> config = new HashMap<>();
+    config.put("config.file.path", gcsPath);
+
+    // Act & Assert
+    // Use try-with-resources to manage the scope of the static mock on FileSystems
+    try (MockedStatic<FileSystems> mockedFileSystems = mockStatic(FileSystems.class)) {
+      // 1. Mock the underlying static FileSystems calls to avoid real network I/O
+      MatchResult.Metadata metadata = mock(MatchResult.Metadata.class);
+      ResourceId resourceId = mock(ResourceId.class);
+      when(metadata.resourceId()).thenReturn(resourceId);
+      mockedFileSystems.when(() -> FileSystems.matchSingleFileSpec(gcsPath)).thenReturn(metadata);
+
+      // 2. Mock 'open' to return a channel with no data, simulating a successful download
+      ReadableByteChannel channel = Channels.newChannel(new ByteArrayInputStream(new byte[0]));
+      mockedFileSystems.when(() -> FileSystems.open(resourceId)).thenReturn(channel);
+
+      // Act
+      Map<String, Object> processedConfig = (Map<String, Object>) factory.apply(config);
+
+      // Assert
+      assertEquals(expectedLocalPath, processedConfig.get("config.file.path"));
+      assertTrue("Local file should have been created", new File(expectedLocalPath).exists());
+    }
+  }
+
+  @Test
+  public void testApplyFailurePathThrowsRuntimeExceptionOnDownloadFailure() {
+    // Arrange
+    String gcsPath = "gs://test-bucket/failing-file.txt";
+    Map<String, Object> config = new HashMap<>();
+    config.put("critical.file", gcsPath);
+
+    // Mock the static FileSystems.matchSingleFileSpec to throw an exception
+    try (MockedStatic<FileSystems> mockedFileSystems = mockStatic(FileSystems.class)) {
+      mockedFileSystems
+          .when(() -> FileSystems.matchSingleFileSpec(gcsPath))
+          .thenThrow(new IOException("GCS file not found"));
+
+      // Act & Assert
+      RuntimeException exception =
+          assertThrows(RuntimeException.class, () -> factory.apply(config));
+      assertTrue(exception.getMessage().contains("Failed trying to process value"));
+      assertTrue(exception.getCause() instanceof IOException);
+      assertTrue(exception.getCause().getMessage().contains("Failed to download file"));
+    }
+  }
+
+  @Test
+  public void testApplyHappyPathIgnoresNonGcsValues() {
+    // Arrange
+    Map<String, Object> config = new HashMap<>();
+    config.put("some.string", "/local/path/file.txt");
+    config.put("some.number", 42);
+    config.put("some.boolean", false);
+
+    // Act
+    Map<String, Object> processedConfig = (Map<String, Object>) factory.apply(config);
+
+    // Assert
+    assertEquals(config, processedConfig);
+  }
+
+  @Test
+  public void testApplyEdgeCaseMultipleGcsPathsInSingleValue() {
+    // Arrange
+    String gcsPath1 = "gs://bucket/keytab.keytab";
+    String gcsPath2 = "gs://bucket/trust.jks";
+    String originalValue =
+        "jaas_config keyTab=\"" + gcsPath1 + "\" trustStore=\"" + gcsPath2 + "\"";
+
+    String expectedLocalPath1 =
+        FileAwareFactoryFn.DIRECTORY_PREFIX + "/" + TEST_FACTORY_TYPE + "/bucket/keytab.keytab";
+    String expectedLocalPath2 =
+        FileAwareFactoryFn.DIRECTORY_PREFIX + "/" + TEST_FACTORY_TYPE + "/bucket/trust.jks";
+    String expectedProcessedValue =
+        "jaas_config keyTab=\""
+            + expectedLocalPath1
+            + "\" trustStore=\""
+            + expectedLocalPath2
+            + "\"";
+
+    Map<String, Object> config = new HashMap<>();
+    config.put("jaas.config", originalValue);
+
+    try (MockedStatic<FileSystems> mockedFileSystems = mockStatic(FileSystems.class)) {
+      // Mock GCS calls for both paths
+      mockSuccessfulDownload(mockedFileSystems, gcsPath1);
+      mockSuccessfulDownload(mockedFileSystems, gcsPath2);
+
+      // Act
+      Map<String, Object> processedConfig = (Map<String, Object>) factory.apply(config);
+
+      // Assert
+      assertEquals(expectedProcessedValue, processedConfig.get("jaas.config"));
+    }
+  }
+
+  @Test
+  public void testApplyEdgeCaseLocalFileWriteFails() throws IOException {
+    // Arrange
+    String gcsPath = "gs://test-bucket/some-file.txt";
+    Map<String, Object> config = new HashMap<>();
+    config.put("a.file", gcsPath);
+
+    // Mock GCS part to succeed
+    try (MockedStatic<FileSystems> mockedFileSystems = mockStatic(FileSystems.class);
+        MockedStatic<FileChannel> mockedFileChannel = mockStatic(FileChannel.class)) {
+      mockSuccessfulDownload(mockedFileSystems, gcsPath);
+
+      // Mock the local file writing part to fail
+      mockedFileChannel
+          .when(() -> FileChannel.open(any(Path.class), any(Set.class)))
+          .thenThrow(new IOException("Permission denied"));
+
+      // Act & Assert
+      RuntimeException exception =
+          assertThrows(RuntimeException.class, () -> factory.apply(config));
+      assertTrue(exception.getMessage().contains("Failed trying to process value"));
+      assertTrue(exception.getCause() instanceof IOException);
+      // Check that the root cause is our "Permission denied" mock
+      assertTrue(exception.getCause().getCause().getMessage().contains("Permission denied"));
+    }
+  }
+
+  @Test
+  public void testApplyHappyPathResolvesSecretValue() {
+    // Arrange
+    String secretVersion = "secretValue:projects/p/secrets/s/versions/v";
+    String secretVersionParsed = "projects/p/secrets/s/versions/v";
+    String secretValue = "my-secret-password";
+    String originalValue = "password=" + secretVersion;
+    String expectedProcessedValue = "password=" + secretValue;
+
+    Map<String, Object> config = new HashMap<>();
+    config.put("db.password", originalValue);
+
+    // FIX: Create an anonymous inner class that extends our TestFactoryFn
+    // and overrides the resolveSecret method to return a hardcoded value.
+    // This completely avoids the call to the real getSecret method and its
+    // final class dependencies.
+    TestFactoryFn factoryWithMockedSecret =
+        new TestFactoryFn() {
+          @Override
+          public byte[] getSecret(String secretIdentifier) {
+            // Assert that the correct identifier is passed
+            assertEquals(secretVersionParsed, secretIdentifier);
+            // Return a predictable, hardcoded value for the test
+            return secretValue.getBytes(StandardCharsets.UTF_8);
+          }
+        };
+
+    // Act
+    @SuppressWarnings("unchecked")
+    Map<String, Object> processedConfig =
+        (Map<String, Object>) factoryWithMockedSecret.apply(config);
+
+    // Assert
+    assertEquals(expectedProcessedValue, processedConfig.get("db.password"));
+  }
+
+  @Test
+  public void testApplyFailurePathThrowsExceptionForInvalidSecretFormat() {
+    // Arrange
+    String invalidSecret = "secretValue:not-a-valid-secret-path";
+    Map<String, Object> config = new HashMap<>();
+    config.put("db.password", "password=" + invalidSecret);
+
+    // Act & Assert
+    // The spy will call the real method here, which will throw an exception
+    // because the secret path is not parsable.
+    RuntimeException ex = assertThrows(RuntimeException.class, () -> factory.apply(config));
+    assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
+  }
+
+  // Helper method to reduce boilerplate in mocking successful GCS downloads
+  private void mockSuccessfulDownload(MockedStatic<FileSystems> mockedFileSystems, String gcsPath) {
+    MatchResult.Metadata metadata = mock(MatchResult.Metadata.class);
+    ResourceId resourceId = mock(ResourceId.class);
+    when(metadata.resourceId()).thenReturn(resourceId);
+    mockedFileSystems.when(() -> FileSystems.matchSingleFileSpec(eq(gcsPath))).thenReturn(metadata);
+
+    ReadableByteChannel channel = Channels.newChannel(new ByteArrayInputStream(new byte[0]));
+    mockedFileSystems.when(() -> FileSystems.open(eq(resourceId))).thenReturn(channel);
+  }
+}
