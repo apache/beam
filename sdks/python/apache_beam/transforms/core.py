@@ -2357,18 +2357,13 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
     self._on_failure_callback = on_failure_callback
 
     # Wrap process and expose any top level state params so that process can
-    # handle state.
+    # handle state and timers.
     @wraps(self._fn.process)
-    def process_wrapper(*args, **kwargs):
+    def process_wrapper(self, *args, **kwargs):
       return self.custom_process(*args, **kwargs)
-    self.process = process_wrapper
-    for i in dir(self._fn):
-      member = getattr(self._fn, i)
-      if isinstance(member, StateSpec):
-        setattr(self, i, member)
+    self.process = types.MethodType(process_wrapper, self)
 
-    from apache_beam.runners.common import DoFnSignature
-    raise ValueError('is stateful: ' + str(DoFnSignature(self).is_stateful_dofn()) + str(inspect.signature(self.process)))
+    # TODO - look for any functions that have timers
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or

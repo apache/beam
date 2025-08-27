@@ -127,11 +127,11 @@ class TestDoFnStateful(beam.DoFn):
 
   """test process with a stateful dofn"""
   def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
-    if len(element) > 3:
+    if len(element[1]) > 3:
       raise ValueError('Not allowed to have long elements')
     current_value = state.read() or 1
     state.write(current_value+1)
-    return current_value
+    yield current_value
 
 
 class CreateTest(unittest.TestCase):
@@ -297,14 +297,14 @@ class ExceptionHandlingTest(unittest.TestCase):
       self.assertFalse(os.path.isfile(tmp_path))
 
   def test_stateful_exception_handling(self):
-    with beam.Pipeline() as pipeline:
+    with beam.Pipeline('BundleBasedDirectRunner') as pipeline:
       good, bad = (
-        pipeline | beam.Create(['abc', 'long_word', 'foo', 'bar', 'foobar'])
+        pipeline | beam.Create([(1, 'abc'), (1, 'long_word'), (1, 'foo'), (1, 'bar'), (1, 'foobar')])
         | beam.ParDo(TestDoFnStateful()).with_exception_handling()
       )
       bad_elements = bad | beam.Keys()
       assert_that(good, equal_to([1, 2, 3]), 'good')
-      assert_that(bad_elements, equal_to(['long_word', 'foobar']), 'bad')
+      assert_that(bad_elements, equal_to([(1, 'long_word'), (1, 'foobar')]), 'bad')
 
 
 def test_callablewrapper_typehint():
