@@ -212,6 +212,9 @@ dependencies {
   testImplementation "org.apache.flink:flink-connector-test-utils:$flink_version"
   testImplementation project(":sdks:java:harness")
   testRuntimeOnly library.java.slf4j_simple
+  // Add JAXB API for Java 11+ compatibility
+  testImplementation "javax.xml.bind:jaxb-api:2.3.1"
+  testImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.3"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(project.path)
