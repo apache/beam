@@ -64,7 +64,7 @@ dependencies {
     // but needed for compile only under Java21, specifically, required for extending from AbstractKafkaAvroDeserializer
     compileOnly library.java.kafka
   }
-  if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0 && project.findProperty('testJavaVersion') != '8') {
+  if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0 || ['11', '21'].contains(project.findProperty('testJavaVersion'))) {
     // iceberg ended support for Java 8 in 1.7.0
     runtimeOnly project(":sdks:java:io:iceberg")
     runtimeOnly project(":sdks:java:io:iceberg:bqms")

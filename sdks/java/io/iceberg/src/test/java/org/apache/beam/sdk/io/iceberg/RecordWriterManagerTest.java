@@ -541,6 +541,8 @@ public class RecordWriterManagerTest {
       expectedPartitions.add(field.getName() + "=" + val);
     }
     String expectedPartitionPath = String.join("/", expectedPartitions);
+    System.out.println("expected: " + expectedPartitionPath);
+    System.out.println("actual: " + dataFile.getPartitionPath());
     assertEquals(expectedPartitionPath, dataFile.getPartitionPath());
     assertThat(dataFile.getPath(), containsString(expectedPartitionPath));
   }
@@ -687,6 +689,8 @@ public class RecordWriterManagerTest {
     DataFile dataFile =
         serializableDataFile.createDataFile(
             catalog.loadTable(dest.getValue().getTableIdentifier()).specs());
+    System.out.println("expected: " + expectedPartition);
+    System.out.println("actual: " + dataFile.location());
     assertThat(dataFile.path().toString(), containsString(expectedPartition));
   }
 

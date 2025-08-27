@@ -27,11 +27,13 @@ applyJavaNature(
 dependencies {
   implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:core")
+  implementation project(":sdks:java:managed")
   implementation project(":sdks:java:io:iceberg")
   runtimeOnly project(":sdks:java:io:iceberg:bqms")
   runtimeOnly project(":sdks:java:io:iceberg:hive")
   implementation library.java.slf4j_api
   implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.jackson_databind
 
   testImplementation library.java.joda_time
   testImplementation library.java.junit

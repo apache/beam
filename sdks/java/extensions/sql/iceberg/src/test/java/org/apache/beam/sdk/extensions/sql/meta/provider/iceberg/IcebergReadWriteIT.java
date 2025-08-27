@@ -17,7 +17,30 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
+import static java.lang.String.format;
+import static java.util.Arrays.asList;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.array;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.row;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import com.google.api.services.bigquery.model.TableRow;
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -48,30 +71,6 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.UUID;
-
-import static java.lang.String.format;
-import static java.util.Arrays.asList;
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.array;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.row;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /** Integration tests for writing to Iceberg with Beam SQL. */
 @RunWith(JUnit4.class)

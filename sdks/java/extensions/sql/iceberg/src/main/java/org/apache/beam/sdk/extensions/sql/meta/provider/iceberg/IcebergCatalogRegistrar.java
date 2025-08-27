@@ -26,8 +26,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 public class IcebergCatalogRegistrar implements CatalogRegistrar {
   @Override
   public Iterable<Class<? extends Catalog>> getCatalogs() {
-    return ImmutableList.<Class<? extends Catalog>>builder()
-      .add(IcebergCatalog.class)
-      .build();
+    return ImmutableList.<Class<? extends Catalog>>builder().add(IcebergCatalog.class).build();
   }
 }
