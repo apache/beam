@@ -745,14 +745,18 @@ would write to files like `gs://path/to/2016/08/04/dated-output*.json`.
 A user can also use the `% include` directive to pull in other common templates:
 
 <PATH_TO_YOUR_REPO>/pipeline.yaml
-```sh
+```yaml
 pipeline:
   transforms:
     - name: Read from GCS
       type: ReadFromText
       config:
+# NOTE: For include, the indentation has to line up correctly for it to be
+# parsed correctly. So in this example the included readFromText.yaml has
+# already indented yaml lines to line up correctly when including into this
+# pipeline here.
 {% include '<PATH_TO_YOUR_REPO>/submodules/readFromText.yaml' %}
-   - name: Write to GCS
+    - name: Write to GCS
       type: WriteToText
       input: Read from GCS
       config:
@@ -760,11 +764,11 @@ pipeline:
 ```
 
 <PATH_TO_YOUR_REPO>/submodules/readFromText.yaml
-```sh
+```yaml
         path: {{readFromText.path}}
 ```
 
-This pipeline can be ran like this:
+This pipeline can be run like this:
 
 ```sh
 python -m apache_beam.yaml.main \
@@ -775,7 +779,7 @@ python -m apache_beam.yaml.main \
 The `% import` jinja directive can also be used to pull in macros:
 
 <PATH_TO_YOUR_REPO>/pipeline.yaml
-```sh
+```yaml
 {% import '<PATH_TO_YOUR_REPO>/macros.yaml' as macros %}
 
 pipeline:
@@ -786,7 +790,7 @@ pipeline:
 {{ macros.readFromText(readFromText) | indent(4, true) }}
 
 # Write to text file on GCS, locally, etc
-   - name: Write to GCS
+    - name: Write to GCS
       type: WriteToText
       input: Read from GCS
       config:
@@ -794,7 +798,7 @@ pipeline:
 ```
 
 <PATH_TO_YOUR_REPO>/macros.yaml
-```sh
+```yaml
 {%- macro readFromText(params) -%}
 - name: Read from GCS
   type: ReadFromText
@@ -803,7 +807,7 @@ pipeline:
 {%- endmacro -%}
 ```
 
-This pipeline can be ran with the same command as in the `% include` example
+This pipeline can be run with the same command as in the `% include` example
 above.
 
 There are many more ways to import and even use template inheritance using
