@@ -442,7 +442,6 @@ if __name__ == '__main__':
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
-              'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
               'pg8000>=1.31.1',
