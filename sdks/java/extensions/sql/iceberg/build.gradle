@@ -33,11 +33,11 @@ dependencies {
   runtimeOnly project(":sdks:java:io:iceberg:hive")
   implementation library.java.slf4j_api
   implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.vendored_calcite_1_40_0
   implementation library.java.jackson_databind
 
   testImplementation library.java.joda_time
   testImplementation library.java.junit
-  testImplementation library.java.vendored_calcite_1_40_0
   testImplementation library.java.google_api_services_bigquery
   testImplementation "org.apache.iceberg:iceberg-api:1.9.2"
   testImplementation "org.apache.iceberg:iceberg-core:1.9.2"
