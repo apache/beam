@@ -64,9 +64,13 @@ import (
 )
 
 type bigtableConfig struct {
-	InstanceId string `beam:"instance_id"`
-	ProjectId  string `beam:"project_id"`
-	TableId    string `beam:"table_id"`
+	// Note: Using camelCase field names to match the Java Bigtable SchemaTransform configuration.
+	// The Java BigtableReadSchemaTransformProvider and BigtableWriteSchemaTransformProvider
+	// use AutoValue classes with getTableId(), getInstanceId(), getProjectId() methods,
+	// which correspond to camelCase field names in the schema.
+	InstanceId string `beam:"instanceId"`
+	ProjectId  string `beam:"projectId"`
+	TableId    string `beam:"tableId"`
 }
 
 // Cell represents a single cell in a Bigtable row.
