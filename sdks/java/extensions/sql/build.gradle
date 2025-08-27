@@ -74,7 +74,6 @@ dependencies {
   fmppTask "org.freemarker:freemarker:2.3.31"
   fmppTemplates library.java.vendored_calcite_1_40_0
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":sdks:java:managed")
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:join-library")
   permitUnusedDeclared project(":sdks:java:extensions:join-library") // BEAM-11761
