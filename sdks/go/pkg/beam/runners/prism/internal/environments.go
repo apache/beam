@@ -273,6 +273,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 			rc, err := cli.ContainerLogs(bgctx, containerID, container.LogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
 			if err != nil {
 				logger.Error("docker container logs error", "error", err)
+				return
 			}
 			defer rc.Close()
 			var buf bytes.Buffer
