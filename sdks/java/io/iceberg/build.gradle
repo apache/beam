@@ -48,6 +48,7 @@ dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation library.java.avro
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
@@ -66,12 +67,10 @@ dependencies {
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     runtimeOnly library.java.bigdataoss_gcs_connector
     runtimeOnly library.java.hadoop_client
-    implementation 'org.apache.avro:avro:1.12.0'
 
     testImplementation project(":sdks:java:managed")
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_util_hadoop
-    testImplementation library.java.avro
     testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
     testImplementation "org.apache.parquet:parquet-common:$parquet_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
@@ -108,6 +107,7 @@ dependencies {
 }
 
 configurations.all {
+  // iceberg-core needs avro:1.12.0
   resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
 }
 
