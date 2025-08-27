@@ -2303,12 +2303,14 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
 
   def expand(self, pcoll):
-    # TODO - not sure how subprocesses or timeouts will do with this, consider disallowing or doing extra work here.
     if self._allow_unsafe_userstate_in_process:
       if self._use_subprocess or self._timeout:
+        # TODO(https://github.com/apache/beam/issues/35976): Implement this
         raise Exception(
-            'allow_unsafe_userstate_in_process is incompatible with exception handling done with subprocesses or timeouts. If you need this feature, comment in https://github.com/apache/beam/issues/35976'
-        )
+            'allow_unsafe_userstate_in_process is incompatible with ' +
+            'exception handling done with subprocesses or timeouts. If you ' +
+            'need this feature, comment in ' +
+            'https://github.com/apache/beam/issues/35976')
     if self._use_subprocess:
       wrapped_fn = _SubprocessDoFn(self._fn, timeout=self._timeout)
     elif self._timeout:
@@ -2393,8 +2395,7 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
       self.process = self.exception_handling_wrapper_do_fn_custom_process
       process_sig = inspect.signature(self._fn.process)
       for name, param in process_sig.parameters.items():
-        if isinstance(param.default, DoFn.StateParam) or isinstance(
-            param.default, DoFn.TimerParam):
+        if isinstance(param.default, (DoFn.StateParam, DoFn.TimerParam)):
           logging.warning(
               'State or timer parameter {} detected in process method of ' +
               '{}. State and timers are unsupported when using ' +
