@@ -28,6 +28,7 @@
         * [Blueprints](#blueprints)
         * [Element-wise](#element-wise)
         * [IO](#io)
+        * [Jinja](#jinja)
         * [ML](#ml)
 
 <!-- TOC -->
