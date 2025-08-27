@@ -120,12 +120,6 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py39:preCommitPyCoverage
-          arguments: |
-            -Pposargs="${{
-              contains(matrix.os, 'self-hosted') &&
-                '-m (not require_docker_in_docker)' ||
-                '-m require_docker_in_docker'
-            }}"
       - uses: codecov/codecov-action@v3
         with:
           flags: python
