@@ -930,6 +930,27 @@ public class KafkaIO {
           builder.setOffsetDeduplication(false);
           builder.setRedistributeByRecordKey(false);
         }
+
+        if (config.consumerFactoryFn != null) {
+          switch (config.consumerFactoryFn) {
+            case "kerberos":
+              if (config.kerberosConfigFile != null && !config.kerberosConfigFile.isEmpty()) {
+                builder.setConsumerFactoryFn(
+                    new KerberosConsumerFactoryFn(config.kerberosConfigFile));
+              } else {
+                throw new IllegalArgumentException(
+                    "The kerberosConfigFile cannot be empty or null when using the"
+                        + " kerberos consumerFactoryFn type.");
+              }
+
+              break;
+            default:
+              throw new IllegalArgumentException(
+                  config.consumerFactoryFn
+                      + " is not a supported consumer factory type. Please use one of: "
+                      + "(\"kerberos\")");
+          }
+        }
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -1000,6 +1021,8 @@ public class KafkaIO {
         private Boolean offsetDeduplication;
         private Boolean redistributeByRecordKey;
         private Long dynamicReadPollIntervalSeconds;
+        private String consumerFactoryFn;
+        private String kerberosConfigFile;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -1067,6 +1090,14 @@ public class KafkaIO {
 
         public void setDynamicReadPollIntervalSeconds(Long dynamicReadPollIntervalSeconds) {
           this.dynamicReadPollIntervalSeconds = dynamicReadPollIntervalSeconds;
+        }
+
+        public void setConsumerFactoryFn(String consumerFactoryFn) {
+          this.consumerFactoryFn = consumerFactoryFn;
+        }
+
+        public void setKerberosConfigFile(String kerberosConfigFile) {
+          this.kerberosConfigFile = kerberosConfigFile;
         }
       }
     }
