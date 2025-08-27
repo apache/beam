@@ -160,9 +160,10 @@ class LogAnalyzer():
         storage_client.close()
         return found_events
 
-    def create_weekly_email_report(self) -> None:
+    def create_weekly_email_report(self, dry_run: bool = False) -> None:
         """
         Creates an email report based on the events found this week.
+        If `dry_run` is True, it will print the report to the console instead of sending it.
         """
         events = self.get_event_logs(days=7)
         if not events:
@@ -177,6 +178,12 @@ class LogAnalyzer():
 
         report_subject = REPORT_SUBJECT
         report_body = REPORT_BODY_TEMPLATE.format(event_summary=event_summary)
+
+        if dry_run:
+            self.logger.info("Dry run: printing email report to console.")
+            print(f"Subject: {report_subject}\n")
+            print(f"Body:\n{report_body}")
+            return
 
         self.send_email(report_subject, report_body)
 
@@ -258,7 +265,8 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("initialize", help="Initialize/update log sinks in GCP.")
-    subparsers.add_parser("generate-report", help="Generate and send the weekly IAM security report.")
+    report_parser = subparsers.add_parser("generate-report", help="Generate and send the weekly IAM security report.")
+    report_parser.add_argument("--dry-run", action="store_true", help="Do not send email, print report to console.")
 
     args = parser.parse_args()
 
@@ -274,7 +282,7 @@ def main():
         log_analyzer.initialize_sinks()
         log_analyzer.logger.info("Sinks initialized successfully.")
     elif args.command == "generate-report":
-        log_analyzer.create_weekly_email_report()
+        log_analyzer.create_weekly_email_report(dry_run=args.dry_run)
         log_analyzer.logger.info("Weekly report generation process completed.")
 
 if __name__ == "__main__":

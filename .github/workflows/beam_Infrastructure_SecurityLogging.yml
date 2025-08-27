@@ -74,4 +74,4 @@ jobs:
           EMAIL_ADDRESS: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: "dev@beam.apache.org"
-        run: python log_analyzer.py --config config.yml generate-report
+        run: python log_analyzer.py --config config.yml generate-report --dry-run
