@@ -840,7 +840,9 @@ class BeamModulePlugin implements Plugin<Project> {
         log4j2_log4j12_api                          : "org.apache.logging.log4j:log4j-1.2-api:$log4j2_version",
         mockito_core                                : "org.mockito:mockito-core:4.11.0",
         mockito_inline                              : "org.mockito:mockito-inline:4.11.0",
-        mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.11",
+        mongo_java_driver                           : "org.mongodb:mongodb-driver-sync:5.5.0",
+        mongo_bson                                  : "org.mongodb:bson:5.5.0",
+        mongodb_driver_core                         : "org.mongodb:mongodb-driver-core:5.5.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
@@ -2904,8 +2906,9 @@ class BeamModulePlugin implements Plugin<Project> {
       // CrossLanguageValidatesRunnerTask is setup under python sdk but also runs tasks not involving
       // python versions. set 'skipNonPythonTask' property to avoid duplicated run of these tasks.
       if (!(project.hasProperty('skipNonPythonTask') && project.skipNonPythonTask == 'true')) {
-        System.err.println 'GoUsingJava tests have been disabled: https://github.com/apache/beam/issues/30517#issuecomment-2341881604.'
-        // mainTask.configure { dependsOn goTask }
+        // Re-enabled GoUsingJava tests after fixing underlying issues
+        // Previous issues: Docker daemon connectivity, SDK worker communication, timeout configurations
+        mainTask.configure { dependsOn goTask }
       }
       cleanupTask.configure { mustRunAfter goTask }
       config.cleanupJobServer.configure { mustRunAfter goTask }
@@ -3039,6 +3042,10 @@ class BeamModulePlugin implements Plugin<Project> {
       // TODO(BEAM-12000): Move default value to Py3.9.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
           project.pythonVersion : '3.9'
+
+      // Set min/max python versions used for containers and supported versions.
+      project.ext.minPythonVersion = 9
+      project.ext.maxPythonVersion = 13
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
         doLast {
