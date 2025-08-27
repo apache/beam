@@ -163,4 +163,3 @@ class ReactiveThrottler(AdaptiveThrottler):
           self.throttle_delay_secs)
       time.sleep(self.throttle_delay_secs)
       self.throttling_signaler.signal_throttled(self.throttle_delay_secs)
-    return

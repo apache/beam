@@ -56,7 +56,6 @@ from typing import Union
 
 import apache_beam as beam
 from apache_beam.io.components.adaptive_throttler import ReactiveThrottler
-from apache_beam.metrics.metric import Metrics
 from apache_beam.utils import multi_process_shared
 from apache_beam.utils import retry
 from apache_beam.utils import shared
