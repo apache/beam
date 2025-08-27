@@ -126,7 +126,6 @@ class ClassWithNestedLambda:
     return get_lambda_from_dictionary()
 
 
-
 prefix = __name__
 
 test_cases = [
