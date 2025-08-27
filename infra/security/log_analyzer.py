@@ -128,10 +128,13 @@ class LogAnalyzer():
         found_events = []
         storage_client = storage.Client(project=self.project_id)
 
+        now = datetime.now()
+        end_time = datetime(now.year, now.month, now.day, now.hour, 0) - timedelta(minutes=30)
+        start_time = end_time - timedelta(days=days)
+
         blobs = storage_client.list_blobs(self.bucket)
-        days_ago = datetime.now() - timedelta(days=days)
         for blob in blobs:
-            if blob.time_created < days_ago:
+            if not (start_time <= blob.time_created.replace(tzinfo=None) < end_time):
                 continue
 
             self.logger.debug(f"Processing blob: {blob.name}")
@@ -147,7 +150,8 @@ class LogAnalyzer():
                         "principal": payload.get("authenticationInfo", {}).get("principalEmail"),
                         "method": payload.get("methodName"),
                         "resource": payload.get("resourceName"),
-                        "project_id": log_entry.get("resource", {}).get("labels", {}).get("project_id")
+                        "project_id": log_entry.get("resource", {}).get("labels", {}).get("project_id"),
+                        "file_name": blob.name
                     }
                     found_events.append(event_details)
                 except json.JSONDecodeError:
@@ -167,7 +171,7 @@ class LogAnalyzer():
 
         events.sort(key=lambda x: x['timestamp'], reverse=True)
         event_summary = "\n".join(
-            f"Timestamp: {event['timestamp']}, Principal: {event['principal']}, Method: {event['method']}, Resource: {event['resource']}, Project ID: {event['project_id']}"
+            f"Timestamp: {event['timestamp']}, Principal: {event['principal']}, Method: {event['method']}, Resource: {event['resource']}, Project ID: {event['project_id']}, File: {event['file_name']}"
             for event in events
         )
 
