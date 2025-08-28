@@ -1047,6 +1047,51 @@ class TestWriteToPubSub(unittest.TestCase):
         Lineage.query(p.result.metrics(), Lineage.SINK),
         set(["pubsub:topic:fakeprj.a_topic"]))
 
+  def test_write_messages_batch_mode_success(self, mock_pubsub):
+    """Test that WriteToPubSub works in batch mode with DirectRunner."""
+    data = 'data'
+    payloads = [data]
+
+    options = PipelineOptions([])
+    # Explicitly set streaming=False to test batch mode
+    options.view_as(StandardOptions).streaming = False
+    with TestPipeline(options=options) as p:
+      _ = (
+          p
+          | Create(payloads)
+          | WriteToPubSub(
+              'projects/fakeprj/topics/a_topic', with_attributes=False))
+
+      # Apply the necessary PTransformOverrides to use DirectRunner implementation
+      overrides = _get_transform_overrides(options)
+      p.replace_all(overrides)
+
+    mock_pubsub.return_value.publish.assert_has_calls(
+        [mock.call(mock.ANY, data)])
+
+  def test_write_messages_with_attributes_batch_mode_success(self, mock_pubsub):
+    """Test that WriteToPubSub with attributes works in batch mode."""
+    data = b'data'
+    attributes = {'key': 'value'}
+    payloads = [PubsubMessage(data, attributes)]
+
+    options = PipelineOptions([])
+    # Explicitly set streaming=False to test batch mode
+    options.view_as(StandardOptions).streaming = False
+    with TestPipeline(options=options) as p:
+      _ = (
+          p
+          | Create(payloads)
+          | WriteToPubSub(
+              'projects/fakeprj/topics/a_topic', with_attributes=True))
+
+      # Apply the necessary PTransformOverrides to use DirectRunner implementation
+      overrides = _get_transform_overrides(options)
+      p.replace_all(overrides)
+
+    mock_pubsub.return_value.publish.assert_has_calls(
+        [mock.call(mock.ANY, data, **attributes)])
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

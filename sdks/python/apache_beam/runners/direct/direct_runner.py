@@ -519,59 +519,6 @@ class _DirectReadFromPubSub(PTransform):
     return PCollection(self.pipeline, is_bounded=self._source.is_bounded())
 
 
-class _DirectWriteToPubSubFn(DoFn):
-  BUFFER_SIZE_ELEMENTS = 100
-  FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
-
-  def __init__(self, transform):
-    self.project = transform.project
-    self.short_topic_name = transform.topic_name
-    self.id_label = transform.id_label
-    self.timestamp_attribute = transform.timestamp_attribute
-    self.with_attributes = transform.with_attributes
-
-    # TODO(https://github.com/apache/beam/issues/18939): Add support for
-    # id_label and timestamp_attribute.
-    if transform.id_label:
-      raise NotImplementedError(
-          'DirectRunner: id_label is not supported for '
-          'PubSub writes')
-    if transform.timestamp_attribute:
-      raise NotImplementedError(
-          'DirectRunner: timestamp_attribute is not '
-          'supported for PubSub writes')
-
-  def start_bundle(self):
-    self._buffer = []
-
-  def process(self, elem):
-    self._buffer.append(elem)
-    if len(self._buffer) >= self.BUFFER_SIZE_ELEMENTS:
-      self._flush()
-
-  def finish_bundle(self):
-    self._flush()
-
-  def _flush(self):
-    from google.cloud import pubsub
-    pub_client = pubsub.PublisherClient()
-    topic = pub_client.topic_path(self.project, self.short_topic_name)
-
-    if self.with_attributes:
-      futures = [
-          pub_client.publish(topic, elem.data, **elem.attributes)
-          for elem in self._buffer
-      ]
-    else:
-      futures = [pub_client.publish(topic, elem) for elem in self._buffer]
-
-    timer_start = time.time()
-    for future in futures:
-      remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
-      future.result(remaining)
-    self._buffer = []
-
-
 def _get_pubsub_transform_overrides(pipeline_options):
   from apache_beam.io.gcp import pubsub as beam_pubsub
   from apache_beam.pipeline import PTransformOverride
@@ -595,11 +542,8 @@ def _get_pubsub_transform_overrides(pipeline_options):
 
     def get_replacement_transform_for_applied_ptransform(
         self, applied_ptransform):
-      if not pipeline_options.view_as(StandardOptions).streaming:
-        raise Exception(
-            'PubSub I/O is only available in streaming mode '
-            '(use the --streaming flag).')
-      return beam.ParDo(_DirectWriteToPubSubFn(applied_ptransform.transform))
+      return beam.ParDo(
+          beam_pubsub._DirectWriteToPubSubFn(applied_ptransform.transform))
 
   return [ReadFromPubSubOverride(), WriteToPubSubOverride()]
 

@@ -32,6 +32,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 # pytype: skip-file
 
 import re
+import time
 from typing import Any
 from typing import List
 from typing import NamedTuple
@@ -480,6 +481,69 @@ def parse_subscription(full_subscription):
   if not re.match(PROJECT_ID_REGEXP, project):
     raise ValueError('Invalid PubSub project name: %r.' % project)
   return project, subscription_name
+
+
+class _DirectWriteToPubSubFn(DoFn):
+  """DirectRunner implementation for WriteToPubSub.
+  
+  This DoFn handles writing messages to PubSub in both streaming and batch modes.
+  It buffers messages and flushes them in batches for efficiency.
+  """
+  BUFFER_SIZE_ELEMENTS = 100
+  FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
+
+  def __init__(self, transform):
+    self.project = transform.project
+    self.short_topic_name = transform.topic_name
+    self.id_label = transform.id_label
+    self.timestamp_attribute = transform.timestamp_attribute
+    self.with_attributes = transform.with_attributes
+
+    # TODO(https://github.com/apache/beam/issues/18939): Add support for
+    # id_label and timestamp_attribute.
+    if transform.id_label:
+      raise NotImplementedError(
+          'DirectRunner: id_label is not supported for '
+          'PubSub writes')
+    if transform.timestamp_attribute:
+      raise NotImplementedError(
+          'DirectRunner: timestamp_attribute is not '
+          'supported for PubSub writes')
+
+  def start_bundle(self):
+    self._buffer = []
+
+  def process(self, elem):
+    self._buffer.append(elem)
+    if len(self._buffer) >= self.BUFFER_SIZE_ELEMENTS:
+      self._flush()
+
+  def finish_bundle(self):
+    self._flush()
+
+  def _flush(self):
+    if not self._buffer:
+      return
+
+    if pubsub is None:
+      raise ImportError('Google Cloud PubSub is not available')
+
+    pub_client = pubsub.PublisherClient()
+    topic = pub_client.topic_path(self.project, self.short_topic_name)
+
+    if self.with_attributes:
+      futures = [
+          pub_client.publish(topic, elem.data, **elem.attributes)
+          for elem in self._buffer
+      ]
+    else:
+      futures = [pub_client.publish(topic, elem) for elem in self._buffer]
+
+    timer_start = time.time()
+    for future in futures:
+      remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
+      future.result(remaining)
+    self._buffer = []
 
 
 # TODO(BEAM-27443): Remove (or repurpose as a proper PTransform).
