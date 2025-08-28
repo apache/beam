@@ -129,16 +129,17 @@ def parse_beam_yaml(yaml_str: str, isDryRunMode: bool = False) -> ApiResponse:
                     label='chain'
                 ))
 
-        edges.append(EdgeData(
-            source='0',
-            target='t0',
-            label='start'
-        ))
-        edges.append(EdgeData(
-            source=node_id,
-            target='1',
-            label='stop'
-        ))
+        if transforms:
+            edges.append(EdgeData(
+                source='0',
+                target='t0',
+                label='start'
+            ))
+            edges.append(EdgeData(
+                source=node_id,
+                target='1',
+                label='stop'
+            ))
 
         def to_dict(node):
             if hasattr(node, '__dataclass_fields__'):
