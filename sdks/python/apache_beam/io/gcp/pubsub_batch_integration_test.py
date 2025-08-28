@@ -26,7 +26,6 @@ import unittest
 import uuid
 
 import pytest
-from hamcrest.core.core.allof import all_of
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -34,9 +33,7 @@ from apache_beam.io.gcp.pubsub import WriteToPubSub
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
-from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.core import Create
 
@@ -59,7 +56,7 @@ class PubSubBatchIntegrationTest(unittest.TestCase):
       b'batch_data003\xab\xac',
       b'batch_data004\xab\xac'
   ]
-  
+
   EXPECTED_OUTPUT_MESSAGES = [
       PubsubMessage(b'batch_data001-processed', {'batch_job': 'true'}),
       PubsubMessage(b'batch_data002-processed', {'batch_job': 'true'}),
@@ -84,15 +81,13 @@ class PubSubBatchIntegrationTest(unittest.TestCase):
         name=self.sub_client.subscription_path(
             self.project, OUTPUT_SUB + self.uuid),
         topic=self.output_topic.name)
-    # Add a 30 second sleep after resource creation to ensure subscriptions will
-    # receive messages.
+    # Add a 30 second sleep after resource creation to ensure subscriptions
+    # will receive messages.
     time.sleep(30)
 
   def tearDown(self):
-    test_utils.cleanup_subscriptions(
-        self.sub_client, [self.output_sub])
-    test_utils.cleanup_topics(
-        self.pub_client, [self.output_topic])
+    test_utils.cleanup_subscriptions(self.sub_client, [self.output_sub])
+    test_utils.cleanup_topics(self.pub_client, [self.output_topic])
 
   def _test_batch_write(self, with_attributes):
     """Runs batch IT pipeline with WriteToPubSub.
@@ -102,15 +97,14 @@ class PubSubBatchIntegrationTest(unittest.TestCase):
         True - Writes message data and attributes.
     """
     # Set up pipeline options for batch mode
-    pipeline_options = PipelineOptions(self.test_pipeline.get_full_options_as_args())
+    pipeline_options = PipelineOptions(
+        self.test_pipeline.get_full_options_as_args())
     pipeline_options.view_as(StandardOptions).streaming = False  # Batch mode
-    
-    # Set up verifiers
-    state_verifier = PipelineStateMatcher(PipelineState.DONE)  # Batch jobs should complete
+
     expected_messages = self.EXPECTED_OUTPUT_MESSAGES
     if not with_attributes:
       expected_messages = [pubsub_msg.data for pubsub_msg in expected_messages]
-    
+
     pubsub_msg_verifier = PubSubMessageMatcher(
         self.project,
         self.output_sub.name,
@@ -121,20 +115,23 @@ class PubSubBatchIntegrationTest(unittest.TestCase):
     with beam.Pipeline(options=pipeline_options) as p:
       # Create input data
       input_data = p | 'CreateInput' >> Create(self.INPUT_MESSAGES)
-      
+
       # Process data
       if with_attributes:
+
         def add_batch_attributes(data):
           return PubsubMessage(data + b'-processed', {'batch_job': 'true'})
-        
-        processed_data = input_data | 'AddAttributes' >> beam.Map(add_batch_attributes)
+
+        processed_data = (
+            input_data | 'AddAttributes' >> beam.Map(add_batch_attributes))
       else:
-        processed_data = input_data | 'ProcessData' >> beam.Map(lambda x: x + b'-processed')
-      
+        processed_data = (
+            input_data | 'ProcessData' >> beam.Map(lambda x: x + b'-processed'))
+
       # Write to PubSub using WriteToPubSub in batch mode
       _ = processed_data | 'WriteToPubSub' >> WriteToPubSub(
           self.output_topic.name, with_attributes=with_attributes)
-    
+
     # Verify the results
     pubsub_msg_verifier.verify()
 

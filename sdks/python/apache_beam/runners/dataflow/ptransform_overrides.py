@@ -63,26 +63,27 @@ class NativeReadPTransformOverride(PTransformOverride):
 
 class WriteToPubSubBatchOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``WriteToPubSub`` in batch mode on Dataflow.
-  
+
   This override enables WriteToPubSub to work in batch mode on DataflowRunner
-  by using the DirectRunner implementation which supports both streaming and batch modes.
+  by using the DirectRunner implementation which supports both streaming and
+  batch modes.
   """
   def __init__(self, pipeline_options):
     self.pipeline_options = pipeline_options
-  
+
   def matches(self, applied_ptransform):
     # Imported here to avoid circular dependencies.
     from apache_beam.io.gcp import pubsub as beam_pubsub
     from apache_beam.options.pipeline_options import StandardOptions
-    
+
     # Only override WriteToPubSub in batch mode (non-streaming)
     return (
         isinstance(applied_ptransform.transform, beam_pubsub.WriteToPubSub) and
         not self.pipeline_options.view_as(StandardOptions).streaming)
-  
+
   def get_replacement_transform(self, ptransform):
     # Imported here to avoid circular dependencies.
     from apache_beam.io.gcp import pubsub as beam_pubsub
-    
+
     # Use the DirectRunner implementation which supports batch mode
     return beam.ParDo(beam_pubsub._DirectWriteToPubSubFn(ptransform))

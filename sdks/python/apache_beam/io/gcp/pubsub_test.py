@@ -1062,7 +1062,7 @@ class TestWriteToPubSub(unittest.TestCase):
           | WriteToPubSub(
               'projects/fakeprj/topics/a_topic', with_attributes=False))
 
-      # Apply the necessary PTransformOverrides to use DirectRunner implementation
+      # Apply the necessary PTransformOverrides for DirectRunner
       overrides = _get_transform_overrides(options)
       p.replace_all(overrides)
 
@@ -1085,7 +1085,7 @@ class TestWriteToPubSub(unittest.TestCase):
           | WriteToPubSub(
               'projects/fakeprj/topics/a_topic', with_attributes=True))
 
-      # Apply the necessary PTransformOverrides to use DirectRunner implementation
+      # Apply the necessary PTransformOverrides for DirectRunner
       overrides = _get_transform_overrides(options)
       p.replace_all(overrides)
 

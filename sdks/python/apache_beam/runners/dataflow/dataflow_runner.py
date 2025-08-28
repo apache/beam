@@ -377,12 +377,12 @@ class DataflowRunner(PipelineRunner):
       # done before Runner API serialization, since the new proto needs to
       # contain any added PTransforms.
       overrides = list(DataflowRunner._PTRANSFORM_OVERRIDES)
-      
+
       # Add WriteToPubSub batch mode override if not in streaming mode
       if not options.view_as(StandardOptions).streaming:
         from apache_beam.runners.dataflow.ptransform_overrides import WriteToPubSubBatchOverride
         overrides.append(WriteToPubSubBatchOverride(options))
-      
+
       pipeline.replace_all(overrides)
 
       if options.view_as(DebugOptions).lookup_experiment('use_legacy_bq_sink'):
