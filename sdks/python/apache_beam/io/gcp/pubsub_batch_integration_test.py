@@ -42,7 +42,8 @@ OUTPUT_SUB = 'psit_batch_subscription_output'
 
 # How long TestDataflowRunner will wait for batch pipeline to complete
 TEST_PIPELINE_DURATION_MS = 10 * 60 * 1000
-# How long PubSubMessageMatcher will wait for the correct set of messages to appear
+# How long PubSubMessageMatcher will wait for the correct set of messages
+# to appear
 MESSAGE_MATCHER_TIMEOUT_S = 5 * 60
 
 
