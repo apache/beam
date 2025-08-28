@@ -81,7 +81,6 @@
   Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
   - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
   - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
-* Add YAML Editor and Visualization Panel ([#35947](https://github.com/apache/beam/pull/35947))
 
 ## Breaking Changes
 
