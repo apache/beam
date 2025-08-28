@@ -226,6 +226,8 @@ dependencies {
   // Add JAXB API for Java 11+ compatibility (runtime)
   implementation "javax.xml.bind:jaxb-api:2.3.1"
   implementation "org.glassfish.jaxb:jaxb-runtime:2.3.3"
+  permitUnusedDeclared "javax.xml.bind:jaxb-api:2.3.1"
+  permitUnusedDeclared "org.glassfish.jaxb:jaxb-runtime:2.3.3"
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
