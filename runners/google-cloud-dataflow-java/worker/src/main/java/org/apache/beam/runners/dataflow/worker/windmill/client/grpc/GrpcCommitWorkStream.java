@@ -76,6 +76,7 @@ final class GrpcCommitWorkStream
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
   private final int streamingRpcBatchLimit;
+  private volatile boolean logMissingResponse = true;
 
   private GrpcCommitWorkStream(
       String backendWorkerToken,
@@ -200,7 +201,9 @@ final class GrpcCommitWorkStream
 
         @Nullable StreamAndRequest entry = pending.remove(requestId);
         if (entry == null) {
-          LOG.error("Got unknown commit request ID: {}", requestId);
+          if (logMissingResponse) {
+            LOG.error("Got unknown commit request ID: {}", requestId);
+          }
           continue;
         }
         if (entry.handler != this) {
@@ -250,6 +253,7 @@ final class GrpcCommitWorkStream
 
   @Override
   protected synchronized void shutdownInternal() {
+    logMissingResponse = false;
     Iterator<StreamAndRequest> pendingRequests = pending.values().iterator();
     while (pendingRequests.hasNext()) {
       PendingRequest pendingRequest = pendingRequests.next().request;

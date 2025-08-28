@@ -58,36 +58,74 @@ env:
 
 jobs:
   beam_PreCommit_Python_Coverage:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) (${{ join(matrix.os, ', ') }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         job_name: [beam_PreCommit_Python_Coverage]
         job_phrase: [Run Python_Coverage PreCommit]
+        python_version: ['3.9']
+        # Run on both self-hosted and GitHub-hosted runners.
+        # Some tests (marked require_docker_in_docker) can't run on Beam's
+        # self-hosted runners due to Docker-in-Docker environment constraint.
+        # These tests will only execute on ubuntu-latest (GitHub-hosted).
+        # Context: https://github.com/apache/beam/pull/35585
+        # Temporary removed the ubuntu-latest env till resolving deps issues.
+        os: [[self-hosted, ubuntu-20.04, highmem]]
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Python_Coverage PreCommit'
+      startswith(github.event.comment.body, 'Run Python_Coverage PreCommit 3.')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) (${{ join(matrix.os, ', ') }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
-          python-version: default
+          python-version: ${{ matrix.python_version }}
+      - name: Start DinD
+        uses: ./.github/actions/dind-up-action
+        id: dind
+        if: contains(matrix.os, 'self-hosted')
+        with:
+          # Enable all the new features
+          cleanup-dind-on-start: "true"
+          smoke-test-port-mapping: "true"
+          prime-testcontainers: "true"
+          tmpfs-run-size: 2g
+          tmpfs-varrun-size: 4g
+          export-gh-env: "true"
       - name: Run preCommitPyCoverage
+        env:
+          DOCKER_HOST: ${{ contains(matrix.os, 'self-hosted') && steps.dind.outputs.docker-host || '' }}
+          TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
+          TESTCONTAINERS_HOST_OVERRIDE: ${{ contains(matrix.os, 'self-hosted') && env.DIND_IP || '' }}
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: "/var/run/docker.sock"
+          TESTCONTAINERS_RYUK_DISABLED: "false"
+          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"          
+          PYTEST_ADDOPTS: "-v --tb=short --maxfail=3 --durations=20 --reruns=2 --reruns-delay=5"
+          TC_TIMEOUT: "120"
+          TC_MAX_TRIES: "120"
+          TC_SLEEP_TIME: "1"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py39:preCommitPyCoverage
+          arguments: |
+            -Pposargs="${{
+              contains(matrix.os, 'self-hosted') &&
+                '-m (not require_docker_in_docker)' ||
+                '-m require_docker_in_docker'
+            }}"
       - uses: codecov/codecov-action@v3
         with:
           flags: python
@@ -96,9 +134,11 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: Python Test Results
+          name: Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
+        env:
+          DOCKER_HOST: ""  # Unset DOCKER_HOST to run on host Docker daemon
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
@@ -106,3 +146,4 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
           large_files: true
+          check_name: "Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})"

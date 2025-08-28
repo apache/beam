@@ -20,11 +20,13 @@ package org.apache.beam.sdk.io.mongodb;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.mongodb.DB;
-import com.mongodb.MongoClient;
-import com.mongodb.gridfs.GridFS;
-import com.mongodb.gridfs.GridFSDBFile;
-import com.mongodb.gridfs.GridFSInputFile;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.gridfs.GridFSBucket;
+import com.mongodb.client.gridfs.GridFSBuckets;
+import com.mongodb.client.gridfs.GridFSUploadStream;
+import com.mongodb.client.gridfs.model.GridFSFile;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
@@ -35,12 +37,10 @@ import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.runtime.Network;
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -117,9 +117,9 @@ public class MongoDBGridFSIOTest {
 
     LOG.info("Insert test data");
 
-    MongoClient client = new MongoClient("localhost", port);
-    DB database = client.getDB(DATABASE);
-    GridFS gridfs = new GridFS(database);
+    MongoClient client = MongoClients.create("mongodb://localhost:" + port);
+    MongoDatabase database = client.getDatabase(DATABASE);
+    GridFSBucket gridfs = GridFSBuckets.create(database);
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     for (int x = 0; x < 100; x++) {
@@ -129,10 +129,12 @@ public class MongoDBGridFSIOTest {
               .getBytes(StandardCharsets.UTF_8));
     }
     for (int x = 0; x < 5; x++) {
-      gridfs.createFile(new ByteArrayInputStream(out.toByteArray()), "file" + x).save();
+      try (GridFSUploadStream uploadStream = gridfs.openUploadStream("file" + x)) {
+        uploadStream.write(out.toByteArray());
+      }
     }
 
-    gridfs = new GridFS(database, "mapBucket");
+    GridFSBucket mapBucketGridfs = GridFSBuckets.create(database, "mapBucket");
     long now = System.currentTimeMillis();
     Random random = new Random();
     String[] scientists = {
@@ -148,26 +150,25 @@ public class MongoDBGridFSIOTest {
       "Maxwell"
     };
     for (int x = 0; x < 10; x++) {
-      GridFSInputFile file = gridfs.createFile("file_" + x);
-      OutputStream outf = file.getOutputStream();
-      OutputStreamWriter writer = new OutputStreamWriter(outf, StandardCharsets.UTF_8);
-      for (int y = 0; y < 5000; y++) {
-        long time = now - random.nextInt(3600000);
-        String name = scientists[y % scientists.length];
-        writer.write(time + "\t");
-        writer.write(name + "\t");
-        writer.write(Integer.toString(random.nextInt(100)));
-        writer.write("\n");
+      try (GridFSUploadStream uploadStream = mapBucketGridfs.openUploadStream("file_" + x)) {
+        OutputStreamWriter writer = new OutputStreamWriter(uploadStream, StandardCharsets.UTF_8);
+        for (int y = 0; y < 5000; y++) {
+          long time = now - random.nextInt(3600000);
+          String name = scientists[y % scientists.length];
+          writer.write(time + "\t");
+          writer.write(name + "\t");
+          writer.write(Integer.toString(random.nextInt(100)));
+          writer.write("\n");
+        }
+        for (int y = 0; y < scientists.length; y++) {
+          String name = scientists[y % scientists.length];
+          writer.write(now + "\t");
+          writer.write(name + "\t");
+          writer.write("101");
+          writer.write("\n");
+        }
+        writer.flush();
       }
-      for (int y = 0; y < scientists.length; y++) {
-        String name = scientists[y % scientists.length];
-        writer.write(now + "\t");
-        writer.write(name + "\t");
-        writer.write("101");
-        writer.write("\n");
-      }
-      writer.flush();
-      writer.close();
     }
     client.close();
   }
@@ -208,11 +209,10 @@ public class MongoDBGridFSIOTest {
                 .withDatabase(DATABASE)
                 .withBucket("mapBucket")
                 .<KV<String, Integer>>withParser(
-                    (input, callback) -> {
+                    (gridFSFile, downloadStream, callback) -> {
                       try (final BufferedReader reader =
                           new BufferedReader(
-                              new InputStreamReader(
-                                  input.getInputStream(), StandardCharsets.UTF_8))) {
+                              new InputStreamReader(downloadStream, StandardCharsets.UTF_8))) {
                         String line = reader.readLine();
                         while (line != null) {
                           try (Scanner scanner = new Scanner(line.trim())) {
@@ -311,19 +311,20 @@ public class MongoDBGridFSIOTest {
     MongoClient client = null;
     try {
       StringBuilder results = new StringBuilder();
-      client = new MongoClient("localhost", port);
-      DB database = client.getDB(DATABASE);
-      GridFS gridfs = new GridFS(database, "WriteTest");
-      List<GridFSDBFile> files = gridfs.find("WriteTestData");
-      assertTrue(files.size() > 0);
-      for (GridFSDBFile file : files) {
-        assertEquals(100, file.getChunkSize());
-        int l = (int) file.getLength();
-        try (InputStream ins = file.getInputStream()) {
-          DataInputStream dis = new DataInputStream(ins);
-          byte[] b = new byte[l];
-          dis.readFully(b);
-          results.append(new String(b, StandardCharsets.UTF_8));
+      client = MongoClients.create("mongodb://localhost:" + port);
+      MongoDatabase database = client.getDatabase(DATABASE);
+      GridFSBucket gridfs = GridFSBuckets.create(database, "WriteTest");
+
+      for (GridFSFile file : gridfs.find()) {
+        if (file.getFilename().equals("WriteTestData")) {
+          assertEquals(100, file.getChunkSize());
+          int l = (int) file.getLength();
+          try (InputStream ins = gridfs.openDownloadStream(file.getObjectId())) {
+            DataInputStream dis = new DataInputStream(ins);
+            byte[] b = new byte[l];
+            dis.readFully(b);
+            results.append(new String(b, StandardCharsets.UTF_8));
+          }
         }
       }
       String dataString = results.toString();
@@ -331,16 +332,17 @@ public class MongoDBGridFSIOTest {
         assertTrue(dataString.contains("Message " + x));
       }
 
-      files = gridfs.find("WriteTestIntData");
       boolean[] intResults = new boolean[100];
-      for (GridFSDBFile file : files) {
-        int l = (int) file.getLength();
-        try (InputStream ins = file.getInputStream()) {
-          DataInputStream dis = new DataInputStream(ins);
-          byte[] b = new byte[l];
-          dis.readFully(b);
-          for (byte aB : b) {
-            intResults[aB] = true;
+      for (GridFSFile file : gridfs.find()) {
+        if (file.getFilename().equals("WriteTestIntData")) {
+          int l = (int) file.getLength();
+          try (InputStream ins = gridfs.openDownloadStream(file.getObjectId())) {
+            DataInputStream dis = new DataInputStream(ins);
+            byte[] b = new byte[l];
+            dis.readFully(b);
+            for (byte aB : b) {
+              intResults[aB] = true;
+            }
           }
         }
       }

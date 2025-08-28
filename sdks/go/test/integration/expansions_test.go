@@ -63,6 +63,7 @@ func TestExpansionServices_GetAddr_Addresses(t *testing.T) {
 		procs:    make([]jars.Process, 0),
 		run:      failRun,
 		waitTime: 0,
+		testMode: true,
 	}
 
 	// Ensure we get the same map we put in, and that addresses take priority over jars if
@@ -97,6 +98,7 @@ func TestExpansionServices_GetAddr_Jars(t *testing.T) {
 		procs:    make([]jars.Process, 0),
 		run:      succeedRun,
 		waitTime: 0,
+		testMode: true,
 	}
 
 	// Call GetAddr on each jar twice, checking that the addresses remain consistent.
@@ -151,6 +153,7 @@ func TestExpansionServices_Shutdown(t *testing.T) {
 		procs:    make([]jars.Process, 0),
 		run:      succeedRun,
 		waitTime: 0,
+		testMode: true,
 	}
 	// Call getAddr on each label to run jars.
 	for label := range addrsMap {
