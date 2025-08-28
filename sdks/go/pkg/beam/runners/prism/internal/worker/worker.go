@@ -156,6 +156,14 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 	endpoint := &pipepb.ApiServiceDescriptor{
 		Url: wk.Endpoint(),
 	}
+
+	var rt string
+	if len(wk.EnvPb.GetDependencies()) > 0 {
+		rt = wk.JobKey
+	} else {
+		rt = "__no_artifacts_staged__"
+	}
+
 	resp := &fnpb.GetProvisionInfoResponse{
 		Info: &fnpb.ProvisionInfo{
 			// TODO: Include runner capabilities with the per job configuration.
@@ -168,7 +176,7 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 				Url: wk.ArtifactEndpoint,
 			},
 
-			RetrievalToken:  wk.JobKey,
+			RetrievalToken:  rt,
 			Dependencies:    wk.EnvPb.GetDependencies(),
 			PipelineOptions: wk.PipelineOptions,
 
