@@ -178,7 +178,22 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     if (cnf.size() == 1) {
       return cnf.get(0);
     }
-    return Filters.and(cnf);
+    // Create a composite filter by merging all conditions into a single Document
+    // This avoids wrapping in $and which changed behavior in MongoDB driver 5.x
+    Document compositeFilter = new Document();
+    for (Bson filter : cnf) {
+      if (filter instanceof Document) {
+        Document doc = (Document) filter;
+        // Merge all top-level conditions into the composite filter
+        for (String key : doc.keySet()) {
+          compositeFilter.append(key, doc.get(key));
+        }
+      } else {
+        // If it's not a Document, fall back to $and wrapping
+        return Filters.and(cnf);
+      }
+    }
+    return compositeFilter;
   }
 
   /**
