@@ -84,7 +84,7 @@ public class KafkaCommitOffset<K, V>
                   new OffsetAndMetadata(element.getValue() + 1)));
         } catch (Exception e) {
           // TODO: consider retrying.
-          LOG.warn("Getting exception when committing offset: {}", e.getMessage());
+          LOG.warn("Getting exception when committing offset", e);
         }
       }
     }

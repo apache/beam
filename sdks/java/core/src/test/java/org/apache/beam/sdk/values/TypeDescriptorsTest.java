@@ -57,6 +57,7 @@ public class TypeDescriptorsTest {
   }
 
   @Test
+  @SuppressWarnings("JUnitIncompatibleType")
   public void testTypeDescriptorsLists() throws Exception {
     TypeDescriptor<List<String>> descriptor = lists(strings());
     assertEquals(descriptor, new TypeDescriptor<List<String>>() {});

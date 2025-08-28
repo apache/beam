@@ -2915,8 +2915,7 @@ public class JdbcIO {
             MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
             break;
           } catch (SQLException exception) {
-            LOG.trace(
-                "SQL exception thrown while writing to JDBC database: {}", exception.getMessage());
+            LOG.trace("SQL exception thrown while writing to JDBC database", exception);
             if (!retryStrategy.apply(exception)) {
               throw exception;
             }

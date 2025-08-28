@@ -273,7 +273,7 @@ public class GroupNonMergingWindowsFunctions {
    * <p>This implementation uses {@link JavaPairRDD#combineByKey} for better performance compared to
    * {@link JavaPairRDD#groupByKey}, as it allows for local aggregation before shuffle operations.
    */
-  static <K, V, W extends BoundedWindow>
+  static <K, V>
       JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
           JavaRDD<WindowedValue<KV<K, V>>> rdd,
           Coder<K> keyCoder,

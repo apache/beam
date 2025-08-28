@@ -604,7 +604,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def checkerframework_version = "3.42.0"
     def classgraph_version = "4.8.162"
     def dbcp2_version = "2.9.0"
-    def errorprone_version = "2.10.0"
+    def errorprone_version = "2.31.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
     def gax_version = "2.67.0"
     def google_ads_version = "33.0.0"
@@ -1495,7 +1495,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.dependencies {
           errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
-          errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
+          errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.28")
         }
 
         project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
@@ -1512,56 +1512,91 @@ class BeamModulePlugin implements Plugin<Project> {
             options.fork = true
             options.forkOptions.jvmArgs += errorProneAddModuleOpts
           }
+          def disabledChecks = [
+              // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
+              "AutoValueImmutableFields",
+              "AutoValueImmutableFields",
+              "AutoValueSubclassLeaked",
+              "BadImport",
+              "BadInstanceof",
+              "BigDecimalEquals",
+              "ComparableType",
+              "DoNotMockAutoValue",
+              "EmptyBlockTag",
+              "EmptyCatch",
+              "EqualsGetClass",
+              "EqualsUnsafeCast",
+              "EscapedEntity",
+              "ExtendsAutoValue",
+              "InlineFormatString",
+              "InlineMeSuggester",
+              "InvalidBlockTag",
+              "InvalidInlineTag",
+              "InvalidLink",
+              "InvalidParam",
+              "InvalidThrows",
+              "JavaTimeDefaultTimeZone",
+              "JavaUtilDate",
+              "JodaConstructors",
+              "MalformedInlineTag",
+              "MissingSummary",
+              "MixedMutabilityReturnType",
+              "PreferJavaTimeOverload",
+              "MutablePublicArray",
+              "NonCanonicalType",
+              "ProtectedMembersInFinalClass",
+              "Slf4jFormatShouldBeConst",
+              "Slf4jSignOnlyFormat",
+              "StaticAssignmentInConstructor",
+              "ThreadPriorityCheck",
+              "TimeUnitConversionChecker",
+              "UndefinedEquals",
+              "UnescapedEntity",
+              "UnnecessaryLambda",
+              "UnnecessaryMethodReference",
+              "UnnecessaryParentheses",
+              "UnrecognisedJavadocTag",
+              "UnsafeReflectiveConstructionCast",
+              "UseCorrectAssertInTests",
+              // errorprone 3.2.0+ checks
+              "DirectInvocationOnMock",
+              "Finalize",
+              "JUnitIncompatibleType",
+              "LongDoubleConversion",
+              "MockNotUsedInProduction",
+              "NarrowCalculation",
+              "NullableTypeParameter",
+              "NullableWildcard",
+              "StringCharset",
+              "SuperCallToObjectMethod",
+              "UnnecessaryLongToIntConversion",
+              "UnusedVariable",
 
-          // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
-          options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:BadInstanceof:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:ComparableType:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:DoNotMockAutoValue:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EmptyBlockTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EmptyCatch:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EqualsUnsafeCast:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EscapedEntity:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:ExtendsAutoValue:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InlineFormatString:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InlineMeSuggester:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidBlockTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidInlineTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidLink:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidParam:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidThrows:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:JavaUtilDate:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:JodaConstructors:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:MalformedInlineTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:MissingSummary:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:PreferJavaTimeOverload:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:MutablePublicArray:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:NonCanonicalType:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:ProtectedMembersInFinalClass:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:StaticAssignmentInConstructor:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnescapedEntity:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryMethodReference:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryParentheses:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnrecognisedJavadocTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
-
-          // Sometimes a static logger is preferred, which is the convention
-          // currently used in beam. See docs:
-          // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
-          options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
+              // intended suppressions emerged in newer protobuf versions
+              "AutoValueBoxedValues", // For backward compatibility. Public method checked in before this check impl
+              // Possible use in interface subclasses
+              "ClassInitializationDeadlock",
+              // for encoding efficiency and backward compatibility
+              "EnumOrdinal",
+              // widely used in non-public methods
+              "NotJavadoc",
+              // return values used for assignments widely, and for backward compatibility.
+              "NonApiType",
+              // Used to test self equal
+              "SelfAssertion",
+              // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
+              // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+              "Slf4jLoggerShouldBeNonStatic",
+              // allow implicit Locale.Default
+              "StringCaseLocaleUsage",
+              // DoFn methods are executed reflectively at pipeline runtime
+              "UnusedMethod",
+              // Void is a valid element type of DoFn elements
+              "VoidUsed",
+          ]
+          disabledChecks.each {
+            options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
+          }
         }
       }
 
