@@ -212,6 +212,9 @@ dependencies {
   testImplementation "org.apache.flink:flink-connector-test-utils:$flink_version"
   testImplementation project(":sdks:java:harness")
   testRuntimeOnly library.java.slf4j_simple
+  // Add JAXB API for Java 11+ compatibility
+  testImplementation "javax.xml.bind:jaxb-api:2.3.1"
+  testImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.3"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(project.path)
@@ -220,6 +223,11 @@ dependencies {
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation library.java.jackson_databind
   runtimeOnly library.java.jackson_jaxb_annotations
+  // Add JAXB API for Java 11+ compatibility (runtime)
+  implementation "javax.xml.bind:jaxb-api:2.3.1"
+  implementation "org.glassfish.jaxb:jaxb-runtime:2.3.3"
+  permitUnusedDeclared "javax.xml.bind:jaxb-api:2.3.1"
+  permitUnusedDeclared "org.glassfish.jaxb:jaxb-runtime:2.3.3"
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")

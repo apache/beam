@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import java.io.Serializable;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
