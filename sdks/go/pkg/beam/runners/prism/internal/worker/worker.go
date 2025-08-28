@@ -703,6 +703,7 @@ type MultiplexW struct {
 	endpoint string
 	logger   *slog.Logger
 	pool     map[string]*W
+	wg       map[string]*sync.WaitGroup
 }
 
 // NewMultiplexW instantiates a new FnAPI server for multiplexing FnAPI requests to a W.
@@ -712,6 +713,7 @@ func NewMultiplexW(lis net.Listener, g *grpc.Server, logger *slog.Logger) *Multi
 		endpoint: "localhost:" + p,
 		logger:   logger,
 		pool:     make(map[string]*W),
+		wg:       make(map[string]*sync.WaitGroup),
 	}
 
 	fnpb.RegisterBeamFnControlServer(g, mw)
@@ -726,9 +728,13 @@ func NewMultiplexW(lis net.Listener, g *grpc.Server, logger *slog.Logger) *Multi
 // MakeWorker creates and registers a W, assigning id and env to W.ID and W.Env, respectively, associating W.ID
 // to *W for later lookup. MultiplexW expects FnAPI gRPC requests to contain a matching 'worker_id' in its context
 // metadata. A gRPC client should use the grpcx.WriteWorkerID helper method prior to sending the request.
-func (mw *MultiplexW) MakeWorker(id, env string, wg *sync.WaitGroup) *W {
+func (mw *MultiplexW) MakeWorker(id, env string) *W {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
+	jobId := strings.TrimSuffix(id, "_"+env)
+	if _, ok := mw.wg[jobId]; !ok {
+		mw.wg[jobId] = &sync.WaitGroup{}
+	}
 	w := &W{
 		ID:  id,
 		Env: env,
@@ -740,9 +746,11 @@ func (mw *MultiplexW) MakeWorker(id, env string, wg *sync.WaitGroup) *W {
 		activeInstructions: make(map[string]controlResponder),
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
 		parentPool:         mw,
-		wg:                 wg,
+		wg:                 mw.wg[jobId],
 	}
 	mw.pool[id] = w
+
+	mw.wg[jobId].Add(1)
 	return w
 }
 
@@ -802,6 +810,11 @@ func (mw *MultiplexW) delete(w *W) {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
 	delete(mw.pool, w.ID)
+}
+
+// Wait for the resource of a job is cleaned up
+func (mw *MultiplexW) WaitForCleanUp(id string) {
+	mw.wg[id].Wait()
 }
 
 func handleUnary[Request any, Response any, Method func(*W, context.Context, *Request) (*Response, error)](mw *MultiplexW, ctx context.Context, req *Request, m Method) (*Response, error) {

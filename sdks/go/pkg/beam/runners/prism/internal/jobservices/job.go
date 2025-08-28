@@ -98,7 +98,6 @@ type Job struct {
 
 	metrics metricsStore
 	mw      *worker.MultiplexW
-	wg      sync.WaitGroup
 }
 
 func (j *Job) ArtifactEndpoint() string {
@@ -199,9 +198,9 @@ func (j *Job) Canceled() {
 
 // Wait for all environments relevant to the job to be cleaned up
 func (j *Job) WaitForCleanUp() {
-	j.wg.Wait()
+	j.mw.WaitForCleanUp(j.String())
 	if j.PendingDone {
-		// Only mark the job is done after clean-up is done
+		// If there is a pending done, only mark it as done after clean-up
 		j.Done()
 	}
 }
@@ -216,12 +215,11 @@ func (j *Job) Failed(err error) {
 
 // MakeWorker instantiates a worker.W populating environment and pipeline data from the Job.
 func (j *Job) MakeWorker(env string) *worker.W {
-	wk := j.mw.MakeWorker(j.String()+"_"+env, env, &j.wg)
+	wk := j.mw.MakeWorker(j.String()+"_"+env, env)
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
 	wk.PipelineOptions = j.PipelineOptions()
 	wk.JobKey = j.JobKey()
 	wk.ResolveEndpoints(j.ArtifactEndpoint())
 
-	j.wg.Add(1)
 	return wk
 }
