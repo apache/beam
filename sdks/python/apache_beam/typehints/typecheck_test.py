@@ -179,6 +179,15 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
       (self.p | beam.Create(['1', '1']) | beam.ParDo(ToInt()))
       self.p.run().wait_until_finish()
 
+  def test_bad_flatten_input(self):
+    with self.assertRaisesRegex(
+        TypeError,
+        "Inputs to Flatten cannot include an iterable of PCollections. "):
+      with beam.Pipeline() as p:
+        pc = p | beam.Create([1, 1])
+        flatten_inputs = [pc, (pc, )]
+        flatten_inputs | beam.Flatten()
+
   def test_do_fn_returning_non_iterable_throws_error(self):
     # This function is incorrect because it returns a non-iterable object
     def incorrect_par_do_fn(x):

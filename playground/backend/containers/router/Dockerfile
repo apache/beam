@@ -44,16 +44,19 @@ RUN cd cmd/migration_tool &&\
     go build -o /go/bin/migration_tool
 
 # Null image
-FROM debian:stable-20221114-slim
+FROM debian:bullseye-slim
 
+ENV DEBIAN_FRONTEND=noninteractive
 # Install deps being used by sh files
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+  # 1) use existing HTTP sources to bootstrap CAs
+  apt-get update; \
+  apt-get install -y --no-install-recommends ca-certificates; \
+  # 2) now it’s safe to use HTTPS
+  sed -ri 's|http://deb\.debian\.org|https://deb.debian.org|g' /etc/apt/sources.list; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends curl; \
+  rm -rf /var/lib/apt/lists/*
 
 # Set Environment
 ENV SERVER_IP=0.0.0.0

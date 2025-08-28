@@ -24,6 +24,9 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
+	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -58,9 +61,9 @@ type W struct {
 
 	ID, Env string
 
-	JobKey, ArtifactEndpoint string
-	EnvPb                    *pipepb.Environment
-	PipelineOptions          *structpb.Struct
+	JobKey, ArtifactEndpoint, endpoint string
+	EnvPb                              *pipepb.Environment
+	PipelineOptions                    *structpb.Struct
 
 	// These are the ID sources
 	inst               uint64
@@ -79,8 +82,32 @@ type controlResponder interface {
 	Respond(*fnpb.InstructionResponse)
 }
 
+// resolveEndpoint checks if the worker is running inside a docker container on mac or Windows and
+// if the endpoint is a "localhost" endpoint. If so, overrides it with "host.docker.internal".
+// Reference: https://docs.docker.com/desktop/features/networking/#networking-mode-and-dns-behaviour-for-mac-and-windows
+func (wk *W) resolveEndpoint(endpoint string) string {
+	// The presence of an external environment does not guarantee execution within
+	// Docker, as Python's LOOPBACK also runs in an external environment.
+	// A specific check for the "BEAM_WORKER_POOL_IN_DOCKER_VM" environment variable is required to confirm
+	// if the worker is running inside a Docker container.
+	// Python LOOPBACK mode: https://github.com/apache/beam/blob/0589b14812ec52bff9d20d3bfcd96da393b9ebdb/sdks/python/apache_beam/runners/portability/portable_runner.py#L397
+	// External Environment: https://beam.apache.org/documentation/runtime/sdk-harness-config/
+
+	workerInDocker := wk.EnvPb.GetUrn() == urns.EnvDocker ||
+		(wk.EnvPb.GetUrn() == urns.EnvExternal && (os.Getenv("BEAM_WORKER_POOL_IN_DOCKER_VM") == "1"))
+	if runtime.GOOS != "linux" && workerInDocker && strings.HasPrefix(endpoint, "localhost:") {
+		return "host.docker.internal:" + strings.TrimPrefix(endpoint, "localhost:")
+	}
+	return endpoint
+}
+
+func (wk *W) ResolveEndpoints(artifactEndpoint string) {
+	wk.ArtifactEndpoint = wk.resolveEndpoint(artifactEndpoint)
+	wk.endpoint = wk.resolveEndpoint(wk.parentPool.endpoint)
+}
+
 func (wk *W) Endpoint() string {
-	return wk.parentPool.endpoint
+	return wk.endpoint
 }
 
 func (wk *W) String() string {

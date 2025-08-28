@@ -213,7 +213,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     try {
       final DoFn<InputT, OutputT>.ProcessContext processContext =
           createProcessContext(
-              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
+              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING, null, null));
       fnInvoker.invokeProcessElement(
           new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
 
@@ -478,7 +478,38 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         @Override
         public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
           getMutableOutput(tag)
-              .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
+              .add(
+                  ValueInSingleWindow.of(
+                      output, timestamp, window, PaneInfo.NO_FIRING, null, null));
+        }
+
+        @Override
+        public void output(
+            OutputT output,
+            Instant timestamp,
+            BoundedWindow window,
+            @Nullable String currentRecordId,
+            @Nullable Long currentRecordOffset) {
+          output(mainOutputTag, output, timestamp, window, currentRecordId, currentRecordOffset);
+        }
+
+        @Override
+        public <T> void output(
+            TupleTag<T> tag,
+            T output,
+            Instant timestamp,
+            BoundedWindow window,
+            @Nullable String currentRecordId,
+            @Nullable Long currentRecordOffset) {
+          getMutableOutput(tag)
+              .add(
+                  ValueInSingleWindow.of(
+                      output,
+                      timestamp,
+                      window,
+                      PaneInfo.NO_FIRING,
+                      currentRecordId,
+                      currentRecordOffset));
         }
       };
     }
@@ -568,6 +599,16 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public String currentRecordId() {
+      return element.getCurrentRecordId();
+    }
+
+    @Override
+    public Long currentRecordOffset() {
+      return element.getCurrentRecordOffset();
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
@@ -592,6 +633,24 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       outputWithTimestamp(tag, output, element.getTimestamp());
     }
@@ -601,7 +660,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       getMutableOutput(tag)
           .add(
               ValueInSingleWindow.of(
-                  output, timestamp, element.getWindow(), element.getPaneInfo()));
+                  output, timestamp, element.getWindow(), element.getPaneInfo(), null, null));
     }
 
     @Override
@@ -612,7 +671,25 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       for (BoundedWindow w : windows) {
-        getMutableOutput(tag).add(ValueInSingleWindow.of(output, timestamp, w, paneInfo));
+        getMutableOutput(tag)
+            .add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, null, null));
+      }
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      for (BoundedWindow w : windows) {
+        getMutableOutput(tag)
+            .add(
+                ValueInSingleWindow.of(
+                    output, timestamp, w, paneInfo, currentRecordId, currentRecordOffset));
       }
     }
   }

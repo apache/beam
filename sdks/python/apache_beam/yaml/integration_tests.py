@@ -33,7 +33,6 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
-import mysql.connector
 import psycopg2
 import pytds
 import sqlalchemy
@@ -286,26 +285,22 @@ def temp_mysql_database():
       Exception: Any other exception encountered during the setup process.
   """
   with MySqlContainer(init=True, dialect='pymysql') as mysql_container:
-    try:
-      # Make connection to temp database and create tmp table
-      engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
-      with engine.begin() as connection:
-        connection.execute(
-            sqlalchemy.text(
-                "CREATE TABLE tmp_table (value INTEGER, `rank` INTEGER);"))
+    # Make connection to temp database and create tmp table
+    engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
+    with engine.begin() as connection:
+      connection.execute(
+          sqlalchemy.text(
+              "CREATE TABLE tmp_table (value INTEGER, `rank` INTEGER);"))
 
-      # Construct the JDBC url for connections later on by tests
-      jdbc_url = (
-          f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
-          f"{mysql_container.get_exposed_port(mysql_container.port)}/"
-          f"{mysql_container.dbname}?"
-          f"user={mysql_container.username}&"
-          f"password={mysql_container.password}")
+    # Construct the JDBC url for connections later on by tests
+    jdbc_url = (
+        f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
+        f"{mysql_container.get_exposed_port(mysql_container.port)}/"
+        f"{mysql_container.dbname}?"
+        f"user={mysql_container.username}&"
+        f"password={mysql_container.password}")
 
-      yield jdbc_url
-    except mysql.connector.Error as err:
-      logging.error("Error interacting with temporary MySQL DB: %s", err)
-      raise err
+    yield jdbc_url
 
 
 @contextlib.contextmanager
