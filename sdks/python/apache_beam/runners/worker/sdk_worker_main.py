@@ -24,9 +24,9 @@ import json
 import logging
 import os
 import re
-from signal import signal
+import signal
 import sys
-from time import time
+import time
 import traceback
 
 from google.protobuf import text_format
