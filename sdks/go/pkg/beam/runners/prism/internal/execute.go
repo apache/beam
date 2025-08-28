@@ -96,7 +96,7 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("pipeline completed " + j.String())
 
 	j.SendMsg("terminating " + j.String())
-	j.PendingDone = true
+	j.PendingDone()
 }
 
 type transformExecuter interface {

@@ -94,7 +94,7 @@ type Job struct {
 	// Logger for this job.
 	Logger *slog.Logger
 
-	PendingDone bool
+	pendingDone atomic.Bool // indicate the job is done but waiting for clean-up
 
 	metrics metricsStore
 	mw      *worker.MultiplexW
@@ -196,10 +196,15 @@ func (j *Job) Canceled() {
 	j.sendState(jobpb.JobState_CANCELLED)
 }
 
+// Pending indicates that the job is done and waiting for clean-up
+func (j *Job) PendingDone() {
+	j.pendingDone.Store(true)
+}
+
 // Wait for all environments relevant to the job to be cleaned up
 func (j *Job) WaitForCleanUp() {
 	j.mw.WaitForCleanUp(j.String())
-	if j.PendingDone {
+	if j.pendingDone.Load() {
 		// If there is a pending done, only mark it as done after clean-up
 		j.Done()
 	}
