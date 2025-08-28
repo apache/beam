@@ -208,7 +208,8 @@ class SdkHarness(object):
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
-    self._element_processing_timeout_minutes = element_processing_timeout_minutes
+    self._element_processing_timeout_minutes = (
+        element_processing_timeout_minutes)
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor

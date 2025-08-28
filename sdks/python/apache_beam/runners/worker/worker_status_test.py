@@ -128,7 +128,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
           self.assertEqual(flush_mock.call_count, 2)
 
         with mock.patch('time.time') as time_mock:
-          time_mock.return_value = now + 42 * 60  # 21 minutes after previous one
+          time_mock.return_value = now + 42 * 60  # 42 minutes
           bundle_id, sampler_info = get_state_sampler_info_for_lull(11 * 60)
           self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
           self.assertEqual(flush_mock.call_count, 3)
