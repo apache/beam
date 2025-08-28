@@ -282,18 +282,7 @@ class FnApiWorkerStatusHandler(object):
       step_name_log = ''
     stack_trace = self._get_stack_trace(sampler_info)
 
-    if (log_lull):
-      _LOGGER.warning(
-          (
-              'Operation ongoing in bundle %s%s for at least %.2f seconds'
-              ' without outputting or completing.\n'
-              'Current Traceback:\n%s'),
-          instruction,
-          step_name_log,
-          lull_seconds,
-          stack_trace,
-      )
-    if (timeout_exceeded):
+    if timeout_exceeded:
       _LOGGER.error(
           (
               'Operation ongoing in bundle %s%s for at least %.2f seconds'
@@ -305,8 +294,19 @@ class FnApiWorkerStatusHandler(object):
           stack_trace,
       )
       from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
-
       terminate_sdk_harness()
+
+    if log_lull:
+      _LOGGER.warning(
+          (
+              'Operation ongoing in bundle %s%s for at least %.2f seconds'
+              ' without outputting or completing.\n'
+              'Current Traceback:\n%s'),
+          instruction,
+          step_name_log,
+          lull_seconds,
+          stack_trace,
+      )
 
   def _get_stack_trace(self, sampler_info):
     exec_thread = getattr(sampler_info, 'tracked_thread', None)
