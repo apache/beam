@@ -320,7 +320,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     query_config = TableFieldsQueryConfig(
         table_id=self._table_id,
-        where_clause_template="id = :id",
+        where_clause_template="id = :id_param",
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
