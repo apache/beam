@@ -21,3 +21,34 @@
 
 A suite of YAML pipeline examples is currently located under the directory
 [sdks/python/apache_beam/yaml/examples](../../sdks/python/apache_beam/yaml/examples).
+
+### [Aggregation](../../sdks/python/apache_beam/yaml/examples/transforms/aggregation)
+
+These examples leverage the built-in `Combine` transform for performing simple
+aggregations including sum, mean, count, etc.
+
+### [Blueprints](../../sdks/python/apache_beam/yaml/examples/transforms/blueprint)
+
+These examples leverage DF or other existing templates and convert them to yaml
+blueprints.
+
+### [Element-wise](../../sdks/python/apache_beam/yaml/examples/transforms/elementwise)
+
+These examples leverage the built-in mapping transforms including `MapToFields`,
+`Filter` and `Explode`.
+
+### [IO](../../sdks/python/apache_beam/yaml/examples/transforms/io)
+
+These examples leverage the built-in IO transforms to read from and write to
+various sources and sinks, including Iceberg, Kafka and Spanner.
+
+### [Jinja](../../sdks/python/apache_beam/yaml/examples/transforms/jinja)
+
+These examples use Jinja [templatization](https://beam.apache.org/documentation/sdks/yaml/#jinja-templatization)
+to build off of different contexts and/or with different
+configurations.
+
+### [ML](../../sdks/python/apache_beam/yaml/examples/transforms/ml)
+
+These examples include built-in ML-specific transforms such as `RunInference`,
+`MLTransform` and `Enrichment`.
