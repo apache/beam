@@ -94,8 +94,11 @@ type Job struct {
 	// Logger for this job.
 	Logger *slog.Logger
 
+	PendingDone bool
+
 	metrics metricsStore
 	mw      *worker.MultiplexW
+	wg      sync.WaitGroup
 }
 
 func (j *Job) ArtifactEndpoint() string {
@@ -194,6 +197,15 @@ func (j *Job) Canceled() {
 	j.sendState(jobpb.JobState_CANCELLED)
 }
 
+// Wait for all environments relevant to the job to be cleaned up
+func (j *Job) WaitForCleanUp() {
+	j.wg.Wait()
+	if j.PendingDone {
+		// Only mark the job is done after clean-up is done
+		j.Done()
+	}
+}
+
 // Failed indicates that the job completed unsuccessfully.
 func (j *Job) Failed(err error) {
 	slog.Error("job failed", slog.Any("job", j), slog.Any("error", err))
@@ -204,11 +216,12 @@ func (j *Job) Failed(err error) {
 
 // MakeWorker instantiates a worker.W populating environment and pipeline data from the Job.
 func (j *Job) MakeWorker(env string) *worker.W {
-	wk := j.mw.MakeWorker(j.String()+"_"+env, env)
+	wk := j.mw.MakeWorker(j.String()+"_"+env, env, &j.wg)
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
 	wk.PipelineOptions = j.PipelineOptions()
 	wk.JobKey = j.JobKey()
-
 	wk.ResolveEndpoints(j.ArtifactEndpoint())
+
+	j.wg.Add(1)
 	return wk
 }

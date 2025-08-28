@@ -76,6 +76,7 @@ func RunPipeline(j *jobservices.Job) {
 	// any related job resources.
 	defer func() {
 		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
+		j.WaitForCleanUp()
 	}()
 
 	j.SendMsg("running " + j.String())
@@ -95,7 +96,7 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("pipeline completed " + j.String())
 
 	j.SendMsg("terminating " + j.String())
-	j.Done()
+	j.PendingDone = true
 }
 
 type transformExecuter interface {

@@ -76,6 +76,7 @@ type W struct {
 	mu                 sync.Mutex
 	activeInstructions map[string]controlResponder              // Active instructions keyed by InstructionID
 	Descriptors        map[string]*fnpb.ProcessBundleDescriptor // Stages keyed by PBDID
+	wg                 *sync.WaitGroup
 }
 
 type controlResponder interface {
@@ -142,6 +143,7 @@ func (wk *W) shutdown() {
 func (wk *W) Stop() {
 	wk.shutdown()
 	wk.parentPool.delete(wk)
+	wk.wg.Done()
 	slog.Debug("stopped", "worker", wk)
 }
 
@@ -724,7 +726,7 @@ func NewMultiplexW(lis net.Listener, g *grpc.Server, logger *slog.Logger) *Multi
 // MakeWorker creates and registers a W, assigning id and env to W.ID and W.Env, respectively, associating W.ID
 // to *W for later lookup. MultiplexW expects FnAPI gRPC requests to contain a matching 'worker_id' in its context
 // metadata. A gRPC client should use the grpcx.WriteWorkerID helper method prior to sending the request.
-func (mw *MultiplexW) MakeWorker(id, env string) *W {
+func (mw *MultiplexW) MakeWorker(id, env string, wg *sync.WaitGroup) *W {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
 	w := &W{
@@ -738,6 +740,7 @@ func (mw *MultiplexW) MakeWorker(id, env string) *W {
 		activeInstructions: make(map[string]controlResponder),
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
 		parentPool:         mw,
+		wg:                 wg,
 	}
 	mw.pool[id] = w
 	return w
