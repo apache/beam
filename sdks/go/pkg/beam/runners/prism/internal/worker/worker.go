@@ -29,6 +29,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -812,9 +813,22 @@ func (mw *MultiplexW) delete(w *W) {
 	delete(mw.pool, w.ID)
 }
 
-// Wait for the resource of a job is cleaned up
+// Wait for the resource of a job to be cleaned up
 func (mw *MultiplexW) WaitForCleanUp(id string) {
-	mw.wg[id].Wait()
+	const cleanUpTimeout = 60 * time.Second
+	c := make(chan struct{})
+
+	go func() {
+		defer close(c)
+		mw.wg[id].Wait()
+	}()
+
+	select {
+	case <-c: // Waitgroup finishes successfully
+		return
+	case <-time.After(cleanUpTimeout): // Timeout
+		return
+	}
 }
 
 func handleUnary[Request any, Response any, Method func(*W, context.Context, *Request) (*Response, error)](mw *MultiplexW, ctx context.Context, req *Request, m Method) (*Response, error) {

@@ -219,7 +219,7 @@ func (j *Job) MakeWorker(env string) *worker.W {
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
 	wk.PipelineOptions = j.PipelineOptions()
 	wk.JobKey = j.JobKey()
-	wk.ResolveEndpoints(j.ArtifactEndpoint())
 
+	wk.ResolveEndpoints(j.ArtifactEndpoint())
 	return wk
 }
