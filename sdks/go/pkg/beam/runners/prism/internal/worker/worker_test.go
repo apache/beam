@@ -44,7 +44,7 @@ func TestMultiplexW_MakeWorker(t *testing.T) {
 	if w.parentPool == nil {
 		t.Errorf("MakeWorker instantiated W with a nil reference to MultiplexW")
 	}
-	if got, want := w.ID, "test"; got != want {
+	if got, want := w.ID, "test_testEnv"; got != want {
 		t.Errorf("MakeWorker(%q) = %v, want %v", want, got, want)
 	}
 	got, ok := w.parentPool.pool[w.ID]
@@ -77,8 +77,8 @@ func TestMultiplexW_workerFromMetadataCtx(t *testing.T) {
 		},
 		{
 			name: "matched worker_id",
-			ctx:  metadata.NewIncomingContext(context.Background(), metadata.Pairs("worker_id", "test")),
-			want: &W{ID: "test"},
+			ctx:  metadata.NewIncomingContext(context.Background(), metadata.Pairs("worker_id", "test_testEnv")),
+			want: &W{ID: "test_testEnv"},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
