@@ -25,26 +25,19 @@ pipeline:
     - type: ReadFromPubSub
       name: ReadMessages
       config:
-        topic: "projects/pubsub-public-data/topics/taxirides-realtime"
+        topic: "projects/apache-beam-testing/topics/my-topic"
         format: JSON
         schema:
           type: object
           properties:
-            ride_id: {type: string}
-            point_idx: {type: integer}
-            latitude: {type: number}
-            longitude: {type: number}
-            timestamp: {type: string}
-            meter_reading: {type: number}
-            meter_increment: {type: number}
-            ride_status: {type: string}
-            passenger_count: {type: integer}
+            data: {type: BYTES}
+            attributes: {type: object}
     # Step 2: Write records out to Iceberg
     - type: WriteToIceberg
       name: WriteToAnIcebergTable
       config:
         # Dynamic destinations
-        table: "taxirides.metrics.{ride_status}"
+        table: "db.users.{zip}"
         catalog_name: "hadoop_catalog"
         triggering_frequency_seconds: "20"
         catalog_properties:
@@ -60,5 +53,7 @@ options:
   streaming: true
 
 # Expected:
-#   Row(ride_id="a013e688-6759-4733-8a4b-5c33a464a1c5", point_idx=1, latitude=40.730610, longitude=-73.935242, timestamp="2023-01-01T12:00:00.000Z", meter_reading=5.5, meter_increment=0.2, ride_status="enroute", passenger_count=1)
-#   Row(ride_id="b013e688-6759-4733-8a4b-5c33a464a1c6", point_idx=2, latitude=40.740610, longitude=-73.945242, timestamp="2023-01-01T12:01:00.000Z", meter_reading=6.0, meter_increment=0.5, ride_status="pickup", passenger_count=2)
+#  Row(label='37a', rank=1)
+#  Row(label='37b', rank=4)
+#  Row(label='37c', rank=3)
+#  Row(label='37d', rank=2)
