@@ -1050,6 +1050,21 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
   </tr>
   <tr>
+    <td>MilvusIO (<a href="/documentation/io/built-in/milvus/">guide</a>)</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.ingestion.milvus_search.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
     <td>
       Iceberg (Managed I/O)
     </td>

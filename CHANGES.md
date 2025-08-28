@@ -80,6 +80,8 @@
   Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
   - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
   - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
+* Added documentation and example notebook for Milvus sink I/O connector
+  (Python) ([#35944](https://github.com/apache/beam/pull/35944)).
 
 ## Breaking Changes
 
