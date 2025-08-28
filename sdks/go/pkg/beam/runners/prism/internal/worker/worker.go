@@ -813,7 +813,7 @@ func (mw *MultiplexW) delete(w *W) {
 	delete(mw.pool, w.ID)
 }
 
-// Wait for the resource of a job to be cleaned up
+// WaitForCleanUp waits until all resources relevant to the job are cleaned up.
 func (mw *MultiplexW) WaitForCleanUp(id string) {
 	const cleanUpTimeout = 60 * time.Second
 	c := make(chan struct{})

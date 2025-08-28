@@ -196,12 +196,12 @@ func (j *Job) Canceled() {
 	j.sendState(jobpb.JobState_CANCELLED)
 }
 
-// Pending indicates that the job is done and waiting for clean-up
+// PendingDone indicates that the job is completed and is waiting for clean-up.
 func (j *Job) PendingDone() {
 	j.pendingDone.Store(true)
 }
 
-// Wait for all environments relevant to the job to be cleaned up
+// WaitForCleanUp waits until all environments relevant to the job are cleaned up.
 func (j *Job) WaitForCleanUp() {
 	j.mw.WaitForCleanUp(j.String())
 	if j.pendingDone.Load() {
