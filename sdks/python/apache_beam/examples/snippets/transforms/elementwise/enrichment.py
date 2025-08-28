@@ -135,7 +135,7 @@ def enrichment_with_google_cloudsql_pg():
   database_password = os.environ.get("GOOGLE_CLOUD_SQL_DB_PASSWORD")
   database_id = os.environ.get("GOOGLE_CLOUD_SQL_DB_ID")
   table_id = os.environ.get("GOOGLE_CLOUD_SQL_DB_TABLE_ID")
-  where_clause_template = "product_id = {}"
+  where_clause_template = "product_id = :pid"
   where_clause_fields = ["product_id"]
 
   data = [
@@ -188,7 +188,7 @@ def enrichment_with_external_pg():
   database_password = os.environ.get("EXTERNAL_SQL_DB_PASSWORD")
   database_id = os.environ.get("EXTERNAL_SQL_DB_ID")
   table_id = os.environ.get("EXTERNAL_SQL_DB_TABLE_ID")
-  where_clause_template = "product_id = {}"
+  where_clause_template = "product_id = :pid"
   where_clause_fields = ["product_id"]
 
   data = [
@@ -241,7 +241,7 @@ def enrichment_with_external_mysql():
   database_password = os.environ.get("EXTERNAL_SQL_DB_PASSWORD")
   database_id = os.environ.get("EXTERNAL_SQL_DB_ID")
   table_id = os.environ.get("EXTERNAL_SQL_DB_TABLE_ID")
-  where_clause_template = "product_id = {}"
+  where_clause_template = "product_id = :pid"
   where_clause_fields = ["product_id"]
 
   data = [
@@ -294,7 +294,7 @@ def enrichment_with_external_sqlserver():
   database_password = os.environ.get("EXTERNAL_SQL_DB_PASSWORD")
   database_id = os.environ.get("EXTERNAL_SQL_DB_ID")
   table_id = os.environ.get("EXTERNAL_SQL_DB_TABLE_ID")
-  where_clause_template = "product_id = {}"
+  where_clause_template = "product_id = :pid"
   where_clause_fields = ["product_id"]
 
   data = [
