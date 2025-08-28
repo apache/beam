@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -146,8 +148,13 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           stream.size() == 0,
           "Expected output stream to be empty but had %s",
           stream.toByteString());
-      coder.encode(object, stream, Coder.Context.OUTER);
-      return stream.toByteStringAndReset();
+      try {
+        coder.encode(object, stream, Coder.Context.OUTER);
+        return stream.toByteStringAndReset();
+      } catch (Exception e) {
+        stream.toByteStringAndReset();
+        throw e;
+      }
     }
 
     @Override
@@ -221,15 +228,26 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           throw new RuntimeException(
               "Unexpected record ID via ValueWithRecordIdCoder while offset-based deduplication enabled.");
         }
-        byte[] rawId = context.getCurrentRecordId();
-        if (rawId.length == 0) {
+        byte[] rawId = null;
+
+        if (data.getCurrentRecordId() != null) {
+          rawId = data.getCurrentRecordId().getBytes(StandardCharsets.UTF_8);
+        } else {
+          rawId = context.getCurrentRecordId();
+        }
+        if (rawId == null || rawId.length == 0) {
           throw new RuntimeException(
               "Unexpected empty record ID while offset-based deduplication enabled.");
         }
         id = ByteString.copyFrom(rawId);
 
-        byte[] rawOffset = context.getCurrentRecordOffset();
-        if (rawOffset.length == 0) {
+        byte[] rawOffset = null;
+        if (data.getCurrentRecordOffset() != null) {
+          rawOffset = Longs.toByteArray(data.getCurrentRecordOffset());
+        } else {
+          rawOffset = context.getCurrentRecordOffset();
+        }
+        if (rawOffset == null || rawOffset.length == 0) {
           throw new RuntimeException(
               "Unexpected empty record offset while offset-based deduplication enabled.");
         }

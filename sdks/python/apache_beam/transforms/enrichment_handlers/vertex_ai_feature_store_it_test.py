@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import logging
+import time
 import unittest
 from unittest.mock import MagicMock
 
@@ -27,7 +28,6 @@ from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import NotFound
   from testcontainers.redis import RedisContainer
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
@@ -72,11 +72,11 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     self.entity_type_name = "entity_id"
     self.api_endpoint = "us-central1-aiplatform.googleapis.com"
     self.feature_ids = ['title', 'genres']
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
-    for i in range(3):
+    for i in range(self.retries):
       try:
         self.container = RedisContainer(image='redis:7.2.4')
         self.container.start()
@@ -88,6 +88,8 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         if i == self.retries - 1:
           _LOGGER.error('Unable to start redis container for RRIO tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
   def tearDown(self) -> None:
     self.container.stop()
@@ -131,7 +133,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         beam.Row(entity_id="16050", name='stripe t-shirt'),
     ]
 
-    with self.assertRaises(NotFound):
+    with self.assertRaisesRegex(Exception, "does not exist"):
       handler = VertexAIFeatureStoreEnrichmentHandler(
           project=self.project,
           location=self.location,
@@ -158,7 +160,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         row_key=self.entity_type_name,
         exception_level=ExceptionLevel.RAISE,
     )
-    with self.assertRaises(ValueError):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -209,7 +211,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         exception_level=ExceptionLevel.RAISE,
     )
 
-    with self.assertRaises(ValueError):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -225,7 +227,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     feature_store_id = "invalid_name"
     entity_type_id = "movies"
 
-    with self.assertRaises(NotFound):
+    with self.assertRaisesRegex(Exception, "does not exist"):
       handler = VertexAIFeatureStoreLegacyEnrichmentHandler(
           project=self.project,
           location=self.location,

@@ -30,7 +30,7 @@ pipelines:
               - {element: 2}
               - {element: 3}
               - {element: 4}
-              - {element: 5}  
+              - {element: 5}
 
   # Simple Create with more complex beam row
   - pipeline:
@@ -64,3 +64,54 @@ pipelines:
               - {first: 0, second: [1,2,3]}
               - {first: 1, second: [4,5,6]}
               - {first: 2, second: [7,8,9]}
+
+  # Simple Create with element list
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+            - {sdk: MapReduce, year: 2004}
+            - {sdk: Flume}
+            - {sdk: MillWheel, year: 2008}
+        - type: AssertEqual
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: Flume}
+              - {sdk: MillWheel, year: 2008}
+
+  # Simple Create with explicit null value
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: Flume, year: null}
+              - {sdk: MillWheel, year: 2008}
+        - type: AssertEqual
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: Flume, year: null}
+              - {sdk: MillWheel, year: 2008}
+
+  # Simple Create with explicit null values for the entire record
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: null, year: null}
+              - {sdk: MillWheel, year: 2008}
+        - type: AssertEqual
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {}
+              - {sdk: MillWheel, year: 2008}
