@@ -58,13 +58,18 @@ RUN npm update -g npm
 RUN npm install postcss postcss-cli autoprefixer 
 
 # Install yarn
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-    && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends yarn \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends curl gnupg ca-certificates; \
+    mkdir -p /etc/apt/keyrings; \
+    curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg \
+      | gpg --dearmor -o /etc/apt/keyrings/yarn.gpg; \
+    echo "deb [signed-by=/etc/apt/keyrings/yarn.gpg] https://dl.yarnpkg.com/debian stable main" \
+      > /etc/apt/sources.list.d/yarn.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends yarn; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # Install hugo extended version v0.117.0
 RUN HUGOHOME="$(mktemp -d)" \

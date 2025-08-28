@@ -1,0 +1,69 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This examples reads from a public file stored on Google Cloud. This
+# requires authenticating with Google Cloud, or setting the file in
+#`ReadFromText` to a local file.
+#
+# To set up Application Default Credentials,
+# see https://cloud.google.com/docs/authentication/external/set-up-adc.
+#
+# This pipeline reads in a text file, counts distinct words found in the text,
+# then logs a row containing each word and its count.
+
+{% import 'apache_beam/yaml/examples/transforms/jinja/import/macros/wordCountMacros.yaml' as macros %}
+
+pipeline:
+  type: chain
+  transforms:
+
+# Read in text file
+{{ macros.readFromTextTransform(readFromTextTransform) | indent(4, true) }}
+
+# Split words and count occurrences
+    - name: Split words
+      type: MapToFields
+      config:
+{{ macros.mapToFieldsSplitConfig(mapToFieldsSplitConfig) | indent(8, true) }}
+
+# Explode into individual words
+{{ macros.explodeTransform(explodeTransform) | indent(4, true) }}
+
+# Group by word
+{{ macros.combineTransform(combineTransform) | indent(4, true) }}
+
+# Format output to a single string consisting of `word - count`
+    - name: Format output
+      type: MapToFields
+      config:
+{{ macros.mapToFieldsCountConfig(mapToFieldsCountConfig) | indent(8, true) }}
+
+# Write to text file on GCS, locally, etc
+{{ macros.writeToTextTransform(writeToTextTransform) | indent(4, true) }}
+
+# Expected:
+#  Row(output='king - 311')
+#  Row(output='lear - 253')
+#  Row(output='dramatis - 1')
+#  Row(output='personae - 1')
+#  Row(output='of - 483')
+#  Row(output='britain - 2')
+#  Row(output='france - 32')
+#  Row(output='duke - 26')
+#  Row(output='burgundy - 20')
+#  Row(output='cornwall - 75')

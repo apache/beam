@@ -26,6 +26,7 @@ import com.google.cloud.spanner.TimestampBound;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTransformRegistrar.ChangeStreamReaderBuilder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerTransformRegistrar.InsertBuilder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerTransformRegistrar.ReadBuilder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -48,22 +49,29 @@ public class SpannerTransformRegistrarTest {
   public static final String SPANNER_PROJECT = "spanner-project";
   public static final String SPANNER_TABLE = "spanner-table";
   public static final String SPANNER_SQL_QUERY = "SELECT * from spanner_table;";
+  public static final String SPANNER_CHANGE_STREAM_NAME = "spanner-change-stream-name";
+  public static final String SPANNER_CHANGE_STREAM_METADATA_INSTANCE =
+      "spanner-change-stream-instance";
+  public static final String SPANNER_CHANGE_STREAM_METADATA_DATABASE =
+      "spanner-change-stream-database";
   private SpannerTransformRegistrar spannerTransformRegistrar;
   private ReadBuilder readBuilder;
   private InsertBuilder writeBuilder;
+  private ChangeStreamReaderBuilder changeStreamReaderBuilder;
 
   @Before
   public void setup() {
     spannerTransformRegistrar = new SpannerTransformRegistrar();
     readBuilder = new ReadBuilder();
     writeBuilder = new InsertBuilder();
+    changeStreamReaderBuilder = new ChangeStreamReaderBuilder();
   }
 
   @Test
   public void testKnownBuilderInstances() {
     Map<String, ExternalTransformBuilder<?, ?, ?>> builderInstancesMap =
         spannerTransformRegistrar.knownBuilderInstances();
-    assertEquals(6, builderInstancesMap.size());
+    assertEquals(7, builderInstancesMap.size());
     assertThat(builderInstancesMap, IsMapContaining.hasKey(SpannerTransformRegistrar.INSERT_URN));
     assertThat(builderInstancesMap, IsMapContaining.hasKey(SpannerTransformRegistrar.UPDATE_URN));
     assertThat(builderInstancesMap, IsMapContaining.hasKey(SpannerTransformRegistrar.REPLACE_URN));
@@ -72,6 +80,9 @@ public class SpannerTransformRegistrarTest {
         IsMapContaining.hasKey(SpannerTransformRegistrar.INSERT_OR_UPDATE_URN));
     assertThat(builderInstancesMap, IsMapContaining.hasKey(SpannerTransformRegistrar.DELETE_URN));
     assertThat(builderInstancesMap, IsMapContaining.hasKey(SpannerTransformRegistrar.READ_URN));
+    assertThat(
+        builderInstancesMap,
+        IsMapContaining.hasKey(SpannerTransformRegistrar.READ_CHANGE_STREAM_URN));
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -206,5 +217,137 @@ public class SpannerTransformRegistrarTest {
     configuration.setCommitDeadline(100L);
     configuration.setMaxCumulativeBackoff(100L);
     return configuration;
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testChangeStreamReaderBuilderBuildExternalWithMissingMandatoryFields() {
+    changeStreamReaderBuilder.buildExternal(new ChangeStreamReaderBuilder.Configuration());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testChangeStreamReaderBuilderBuildExternalWithMissingDatabaseId() {
+    ChangeStreamReaderBuilder.Configuration configuration =
+        new ChangeStreamReaderBuilder.Configuration();
+    configuration.setProjectId(SPANNER_PROJECT);
+    configuration.setInstanceId(SPANNER_INSTANCE);
+    configuration.setChangeStreamName(SPANNER_CHANGE_STREAM_NAME);
+    configuration.setMetadataInstance(SPANNER_CHANGE_STREAM_METADATA_INSTANCE);
+    configuration.setMetadataDatabase(SPANNER_CHANGE_STREAM_METADATA_DATABASE);
+    changeStreamReaderBuilder.buildExternal(configuration);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testChangeStreamReaderBuilderBuildExternalWithMissingInstanceId() {
+    ChangeStreamReaderBuilder.Configuration configuration =
+        new ChangeStreamReaderBuilder.Configuration();
+    configuration.setProjectId(SPANNER_PROJECT);
+    configuration.setDatabaseId(SPANNER_DATABASE);
+    configuration.setChangeStreamName(SPANNER_CHANGE_STREAM_NAME);
+    configuration.setMetadataInstance(SPANNER_CHANGE_STREAM_METADATA_INSTANCE);
+    configuration.setMetadataDatabase(SPANNER_CHANGE_STREAM_METADATA_DATABASE);
+    changeStreamReaderBuilder.buildExternal(configuration);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testChangeStreamReaderBuilderBuildExternalWithMissingChangeStreamName() {
+    ChangeStreamReaderBuilder.Configuration configuration =
+        new ChangeStreamReaderBuilder.Configuration();
+    configuration.setProjectId(SPANNER_PROJECT);
+    configuration.setDatabaseId(SPANNER_DATABASE);
+    configuration.setInstanceId(SPANNER_INSTANCE);
+    configuration.setMetadataInstance(SPANNER_CHANGE_STREAM_METADATA_INSTANCE);
+    configuration.setMetadataDatabase(SPANNER_CHANGE_STREAM_METADATA_DATABASE);
+    changeStreamReaderBuilder.buildExternal(configuration);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testChangeStreamReaderBuilderBuildExternalWithMissingMetadataInstance() {
+    ChangeStreamReaderBuilder.Configuration configuration =
+        new ChangeStreamReaderBuilder.Configuration();
+    configuration.setProjectId(SPANNER_PROJECT);
+    configuration.setDatabaseId(SPANNER_DATABASE);
+    configuration.setInstanceId(SPANNER_INSTANCE);
+    configuration.setChangeStreamName(SPANNER_CHANGE_STREAM_NAME);
+    configuration.setMetadataDatabase(SPANNER_CHANGE_STREAM_METADATA_DATABASE);
+    changeStreamReaderBuilder.buildExternal(configuration);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testChangeStreamReaderBuilderBuildExternalWithMissingMetadataDatabase() {
+    ChangeStreamReaderBuilder.Configuration configuration =
+        new ChangeStreamReaderBuilder.Configuration();
+    configuration.setProjectId(SPANNER_PROJECT);
+    configuration.setDatabaseId(SPANNER_DATABASE);
+    configuration.setInstanceId(SPANNER_INSTANCE);
+    configuration.setChangeStreamName(SPANNER_CHANGE_STREAM_NAME);
+    configuration.setMetadataInstance(SPANNER_CHANGE_STREAM_METADATA_INSTANCE);
+    changeStreamReaderBuilder.buildExternal(configuration);
+  }
+
+  @Test
+  public void testChangeStreamReaderBuilderBuildExternalWithRequiredFields() {
+    ChangeStreamReaderBuilder.Configuration configuration =
+        new ChangeStreamReaderBuilder.Configuration();
+
+    configuration.setProjectId(SPANNER_PROJECT);
+    configuration.setDatabaseId(SPANNER_DATABASE);
+    configuration.setInstanceId(SPANNER_INSTANCE);
+    configuration.setChangeStreamName(SPANNER_CHANGE_STREAM_NAME);
+    configuration.setMetadataInstance(SPANNER_CHANGE_STREAM_METADATA_INSTANCE);
+    configuration.setMetadataDatabase(SPANNER_CHANGE_STREAM_METADATA_DATABASE);
+
+    PTransform<PBegin, PCollection<String>> changeStreamReaderTransform =
+        changeStreamReaderBuilder.buildExternal(configuration);
+    assertNotNull(changeStreamReaderTransform);
+  }
+
+  @Test
+  public void testChangeStreamReaderBuilderBuildExternalWithAllFields() {
+    String startAt = "2023-01-01T00:00:00Z";
+    String endAt = "2023-01-02T00:00:00Z";
+    String metadataTable = "meta-table";
+    String rpcPriority = "HIGH";
+    String refreshRate = "PT30S";
+
+    ChangeStreamReaderBuilder.Configuration configuration =
+        new ChangeStreamReaderBuilder.Configuration();
+
+    configuration.setProjectId(SPANNER_PROJECT);
+    configuration.setDatabaseId(SPANNER_DATABASE);
+    configuration.setInstanceId(SPANNER_INSTANCE);
+    configuration.setChangeStreamName(SPANNER_CHANGE_STREAM_NAME);
+    configuration.setMetadataInstance(SPANNER_CHANGE_STREAM_METADATA_INSTANCE);
+    configuration.setMetadataDatabase(SPANNER_CHANGE_STREAM_METADATA_DATABASE);
+    configuration.setInclusiveStartAt(startAt);
+    configuration.setInclusiveEndAt(endAt);
+    configuration.setMetadataTable(metadataTable);
+    configuration.setRpcPriority(rpcPriority);
+    configuration.setWatermarkRefreshRate(refreshRate);
+
+    PTransform<PBegin, PCollection<String>> changeStreamReaderTransform =
+        changeStreamReaderBuilder.buildExternal(configuration);
+    assertNotNull(changeStreamReaderTransform);
+  }
+
+  @Test
+  public void testChangeStreamReaderBuilderBuildExternalWithNullOptionalValues() {
+    ChangeStreamReaderBuilder.Configuration configuration =
+        new ChangeStreamReaderBuilder.Configuration();
+
+    configuration.setProjectId(SPANNER_PROJECT);
+    configuration.setDatabaseId(SPANNER_DATABASE);
+    configuration.setInstanceId(SPANNER_INSTANCE);
+    configuration.setChangeStreamName(SPANNER_CHANGE_STREAM_NAME);
+    configuration.setMetadataInstance(SPANNER_CHANGE_STREAM_METADATA_INSTANCE);
+    configuration.setMetadataDatabase(SPANNER_CHANGE_STREAM_METADATA_DATABASE);
+    configuration.setInclusiveStartAt(null);
+    configuration.setInclusiveEndAt(null);
+    configuration.setMetadataTable(null);
+    configuration.setRpcPriority(null);
+    configuration.setWatermarkRefreshRate(null);
+
+    PTransform<PBegin, PCollection<String>> changeStreamReaderTransform =
+        changeStreamReaderBuilder.buildExternal(configuration);
+    assertNotNull(changeStreamReaderTransform);
   }
 }

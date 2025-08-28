@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfigu
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -48,8 +49,10 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
   private @MonotonicNonNull RowStringInterpolator interpolator = null;
   private final @Nullable List<String> primaryKey;
   private final RowFilter rowFilter;
+  private final @Nullable List<String> clusteringFields;
 
   public PortableBigQueryDestinations(Schema rowSchema, BigQueryWriteConfiguration configuration) {
+    this.clusteringFields = configuration.getClusteringFields();
     // DYNAMIC_DESTINATIONS magic string is the old way of doing it for cross-language.
     // In that case, we do no interpolation
     if (!configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
@@ -79,6 +82,11 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
 
   @Override
   public TableDestination getTable(String destination) {
+
+    if (clusteringFields != null && !clusteringFields.isEmpty()) {
+      Clustering clustering = new Clustering().setFields(clusteringFields);
+      return new TableDestination(destination, null, null, clustering);
+    }
     return new TableDestination(destination, null);
   }
 

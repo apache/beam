@@ -48,6 +48,7 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import window
 from apache_beam.typehints import schemas
+from apache_beam.utils.windowed_value import WindowedValue
 
 try:
   import pyarrow as pa
@@ -105,8 +106,10 @@ class _RowDictionariesToArrowTable(DoFn):
     self._buffer_size = record_batch_size
     self._record_batches = []
     self._record_batches_byte_size = 0
+    self._window = None
 
-  def process(self, row):
+  def process(self, row, w=DoFn.WindowParam, pane=DoFn.PaneInfoParam):
+    self._window = w
     if len(self._buffer[0]) >= self._buffer_size:
       self._flush_buffer()
 
@@ -116,14 +119,29 @@ class _RowDictionariesToArrowTable(DoFn):
 
     # reorder the data in columnar format.
     for i, n in enumerate(self._schema.names):
-      self._buffer[i].append(row[n])
+      # Handle missing nullable fields by using None as default value
+      field = self._schema.field(i)
+      if field.nullable and n not in row:
+        self._buffer[i].append(None)
+      else:
+        self._buffer[i].append(row[n])
 
   def finish_bundle(self):
     if len(self._buffer[0]) > 0:
       self._flush_buffer()
     if self._record_batches_byte_size > 0:
       table = self._create_table()
-      yield window.GlobalWindows.windowed_value_at_end_of_window(table)
+      if self._window is None or isinstance(self._window, window.GlobalWindow):
+        # bounded input
+        yield window.GlobalWindows.windowed_value_at_end_of_window(table)
+      else:
+        # unbounded input
+        yield WindowedValue(
+            table,
+            timestamp=self._window.
+            end,  #or it could be max of timestamp of the rows processed
+            windows=[self._window]  # TODO(pabloem) HOW DO WE GET THE PANE
+        )
 
   def display_data(self):
     res = super().display_data()
@@ -476,7 +494,9 @@ class WriteToParquet(PTransform):
       file_name_suffix='',
       num_shards=0,
       shard_name_template=None,
-      mime_type='application/x-parquet'):
+      mime_type='application/x-parquet',
+      triggering_frequency=None,
+  ):
     """Initialize a WriteToParquet transform.
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
@@ -540,14 +560,26 @@ class WriteToParquet(PTransform):
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
       shard_name_template: A template string containing placeholders for
-        the shard number and shard count. When constructing a filename for a
-        particular shard number, the upper-case letters 'S' and 'N' are
-        replaced with the 0-padded shard number and shard count respectively.
-        This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+        the shard number and shard count. Currently only ``''``,
+        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
+        ``'-V-SSSSS-of-NNNNN'`` are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
+        shard number and shard count respectively.  This argument can be ``''``
+        in which case it behaves as if num_shards was set to 1 and only one file
+        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded 
+        PCollections.
+        W is used for windowed shard naming and is replaced with 
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with 
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"), 
+        window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
+      triggering_frequency: (int) Every triggering_frequency duration, a window 
+        will be triggered and all bundles in the window will be written.
+        If set it overrides user windowing. Mandatory for GlobalWindow.
 
     Returns:
       A WriteToParquet transform usable for writing.
@@ -567,10 +599,20 @@ class WriteToParquet(PTransform):
           file_name_suffix,
           num_shards,
           shard_name_template,
-          mime_type
+          mime_type,
+          triggering_frequency
       )
 
   def expand(self, pcoll):
+    if (not pcoll.is_bounded and self._sink.shard_name_template
+        == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
+      self._sink.shard_name_format = self._sink._template_to_format(
+          self._sink.shard_name_template)
+      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
+          self._sink.shard_name_template)
+
     if self._schema is None:
       try:
         beam_schema = schemas.schema_from_element_type(pcoll.element_type)
@@ -583,7 +625,11 @@ class WriteToParquet(PTransform):
     else:
       convert_fn = _RowDictionariesToArrowTable(
           self._schema, self._row_group_buffer_size, self._record_batch_size)
-    return pcoll | ParDo(convert_fn) | Write(self._sink)
+    if pcoll.is_bounded:
+      return pcoll | ParDo(convert_fn) | Write(self._sink)
+    else:
+      self._sink.convert_fn = convert_fn
+      return pcoll | Write(self._sink)
 
   def display_data(self):
     return {
@@ -610,7 +656,7 @@ class WriteToParquetBatched(PTransform):
       num_shards=0,
       shard_name_template=None,
       mime_type='application/x-parquet',
-  ):
+      triggering_frequency=None):
     """Initialize a WriteToParquetBatched transform.
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
@@ -668,11 +714,21 @@ class WriteToParquetBatched(PTransform):
         the shard number and shard count. When constructing a filename for a
         particular shard number, the upper-case letters 'S' and 'N' are
         replaced with the 0-padded shard number and shard count respectively.
+        W is used for windowed shard naming and is replaced with
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with
+        ``[window.start.to_utc_datetime().isoformat(), 
+        window.end.to_utc_datetime().isoformat()``
         This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+        set to 1 and only one file will be generated. 
+        The default pattern used is '-SSSSS-of-NNNNN' if None is passed as the 
+        shard_name_template and the PCollection is bounded.
+        The default pattern used is '-W-SSSSS-of-NNNNN' if None is passed as the
+        shard_name_template and the PCollection is unbounded.
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
+      triggering_frequency: (int) Every triggering_frequency duration, a window
+        will be triggered and all bundles in the window will be written.
 
     Returns:
       A WriteToParquetBatched transform usable for writing.
@@ -688,10 +744,19 @@ class WriteToParquetBatched(PTransform):
           file_name_suffix,
           num_shards,
           shard_name_template,
-          mime_type
+          mime_type,
+          triggering_frequency
       )
 
   def expand(self, pcoll):
+    if (not pcoll.is_bounded and self._sink.shard_name_template
+        == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
+      self._sink.shard_name_format = self._sink._template_to_format(
+          self._sink.shard_name_template)
+      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
+          self._sink.shard_name_template)
     return pcoll | Write(self._sink)
 
   def display_data(self):
@@ -707,7 +772,8 @@ def _create_parquet_sink(
     file_name_suffix,
     num_shards,
     shard_name_template,
-    mime_type):
+    mime_type,
+    triggering_frequency=60):
   return \
     _ParquetSink(
         file_path_prefix,
@@ -718,7 +784,8 @@ def _create_parquet_sink(
         file_name_suffix,
         num_shards,
         shard_name_template,
-        mime_type
+        mime_type,
+        triggering_frequency
     )
 
 
@@ -734,7 +801,8 @@ class _ParquetSink(filebasedsink.FileBasedSink):
       file_name_suffix,
       num_shards,
       shard_name_template,
-      mime_type):
+      mime_type,
+      triggering_frequency):
     super().__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
@@ -744,7 +812,8 @@ class _ParquetSink(filebasedsink.FileBasedSink):
         mime_type=mime_type,
         # Compression happens at the block level using the supplied codec, and
         # not at the file level.
-        compression_type=CompressionTypes.UNCOMPRESSED)
+        compression_type=CompressionTypes.UNCOMPRESSED,
+        triggering_frequency=triggering_frequency)
     self._schema = schema
     self._codec = codec
     if ARROW_MAJOR_VERSION == 1 and self._codec.lower() == "lz4":

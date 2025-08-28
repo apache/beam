@@ -1285,7 +1285,7 @@ public class StreamingDataflowWorkerTest {
     int maxTries = 10;
     while (--maxTries > 0) {
       worker.reportPeriodicWorkerUpdatesForTest();
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
 
     // We should see an exception reported for the large commit but not the small one.
@@ -1489,9 +1489,9 @@ public class StreamingDataflowWorkerTest {
     server.waitForEmptyWorkQueue();
 
     // Wait until the worker has given up.
-    int maxTries = 10;
+    int maxTries = 100;
     while (maxTries-- > 0 && !worker.workExecutorIsEmpty()) {
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
     assertTrue(worker.workExecutorIsEmpty());
 
@@ -1499,7 +1499,7 @@ public class StreamingDataflowWorkerTest {
     maxTries = 10;
     while (maxTries-- > 0) {
       worker.reportPeriodicWorkerUpdatesForTest();
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
 
     // We should see our update only one time with the exceptions we are expecting.
@@ -3520,7 +3520,7 @@ public class StreamingDataflowWorkerTest {
     // Release the blocked calls.
     BlockingFn.blocker().countDown();
     Map<Long, Windmill.WorkItemCommitRequest> commits =
-        server.waitForAndGetCommitsWithTimeout(2, Duration.standardSeconds((5)));
+        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
     assertEquals(1, commits.size());
 
     worker.stop();
@@ -4190,7 +4190,9 @@ public class StreamingDataflowWorkerTest {
 
   static class TestExceptionFn extends DoFn<String, String> {
 
-    boolean firstTime = true;
+    // Note that the use of static works because this DoFn is only used in a single test.  We need
+    // to use static as the DoFn is not cached after user-code exceptions.
+    static boolean firstTime = true;
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {

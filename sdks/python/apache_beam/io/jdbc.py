@@ -86,6 +86,7 @@
 
 # pytype: skip-file
 
+import contextlib
 import datetime
 import typing
 
@@ -257,6 +258,17 @@ class WriteToJdbc(ExternalTransform):
     )
 
 
+@contextlib.contextmanager
+def enforce_millis_instant_for_timestamp():
+  old_registry = LogicalType._known_logical_types
+  LogicalType._known_logical_types = old_registry.copy()
+  try:
+    LogicalType.register_logical_type(MillisInstant)
+    yield
+  finally:
+    LogicalType._known_logical_types = old_registry
+
+
 class ReadFromJdbc(ExternalTransform):
   """A PTransform which reads Rows from the specified database via JDBC.
 
@@ -352,8 +364,9 @@ class ReadFromJdbc(ExternalTransform):
 
     dataSchema = None
     if schema is not None:
-      # Convert Python schema to Beam Schema proto
-      schema_proto = typing_to_runner_api(schema).row_type.schema
+      with enforce_millis_instant_for_timestamp():
+        # Convert Python schema to Beam Schema proto
+        schema_proto = typing_to_runner_api(schema).row_type.schema
       # Serialize the proto to bytes for transmission
       dataSchema = schema_proto.SerializeToString()
 

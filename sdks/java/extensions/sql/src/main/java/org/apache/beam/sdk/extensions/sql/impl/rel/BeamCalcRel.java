@@ -70,39 +70,39 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.DataContext;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.JavaRowFormat;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.PhysType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.RexToLixTranslator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.QueryProvider;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.MemberDeclaration;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.ParameterExpression;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Types;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPredicateList;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexSimplify;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexUtil;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.SqlFunctions;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlConformance;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlConformanceEnum;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.DataContext;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.JavaRowFormat;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.PhysType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.RexToLixTranslator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.QueryProvider;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.BlockBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.MemberDeclaration;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.ParameterExpression;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.Types;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPredicateList;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexSimplify;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlConformanceEnum;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -110,6 +110,7 @@ import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.joda.time.base.AbstractInstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -632,8 +633,10 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         case BOOLEAN:
           return Expressions.convert_(value, Boolean.class);
         case DATETIME:
+          // AbstractInstant handles both joda Instant and DateTime
           return nullOr(
-              value, Expressions.call(Expressions.convert_(value, DateTime.class), "getMillis"));
+              value,
+              Expressions.call(Expressions.convert_(value, AbstractInstant.class), "getMillis"));
         case BYTES:
           return nullOr(
               value, Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));

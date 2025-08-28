@@ -35,14 +35,15 @@ import java.sql.Struct;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.config.CalciteConnectionConfig;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Enumerator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Queryable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Enumerator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Queryable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Abstract wrapper for {@link CalciteConnection} to simplify extension.
@@ -333,8 +334,10 @@ public abstract class CalciteConnectionWrapper implements CalciteConnection {
     connection.setSchema(schema);
   }
 
+  // CalciteConnection.getSchema() marked nullable but Connection.getSchema() does not
+  @SuppressWarnings("override.return")
   @Override
-  public String getSchema() throws SQLException {
+  public @Nullable String getSchema() throws SQLException {
     return connection.getSchema();
   }
 

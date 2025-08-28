@@ -633,23 +633,8 @@ def _check_and_add_missing_streaming_options(options):
   # Runner v2 only supports using streaming engine (aka windmill service)
   if options.view_as(StandardOptions).streaming:
     debug_options = options.view_as(DebugOptions)
-    google_cloud_options = options.view_as(GoogleCloudOptions)
-    if (not google_cloud_options.enable_streaming_engine and
-        (debug_options.lookup_experiment("enable_windmill_service") or
-         debug_options.lookup_experiment("enable_streaming_engine"))):
-      raise ValueError(
-          """Streaming engine both disabled and enabled:
-          --enable_streaming_engine flag is not set, but
-          enable_windmill_service and/or enable_streaming_engine experiments
-          are present. It is recommended you only set the
-          --enable_streaming_engine flag.""")
-
-    # Ensure that if we detected a streaming pipeline that streaming specific
-    # options and experiments.
-    options.view_as(StandardOptions).streaming = True
-    google_cloud_options.enable_streaming_engine = True
-    debug_options.add_experiment("enable_streaming_engine")
-    debug_options.add_experiment("enable_windmill_service")
+    debug_options.add_experiment('enable_streaming_engine')
+    debug_options.add_experiment('enable_windmill_service')
 
 
 def _is_runner_v2_disabled(options):
