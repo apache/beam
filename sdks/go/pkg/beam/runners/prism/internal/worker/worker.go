@@ -732,12 +732,12 @@ func NewMultiplexW(lis net.Listener, g *grpc.Server, logger *slog.Logger) *Multi
 func (mw *MultiplexW) MakeWorker(id, env string) *W {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
-	jobId := strings.TrimSuffix(id, "_"+env)
-	if _, ok := mw.wg[jobId]; !ok {
-		mw.wg[jobId] = &sync.WaitGroup{}
+	workerId := id + "_" + env
+	if _, ok := mw.wg[id]; !ok {
+		mw.wg[id] = &sync.WaitGroup{}
 	}
 	w := &W{
-		ID:  id,
+		ID:  workerId,
 		Env: env,
 
 		InstReqs:    make(chan *fnpb.InstructionRequest, 10),
@@ -747,11 +747,11 @@ func (mw *MultiplexW) MakeWorker(id, env string) *W {
 		activeInstructions: make(map[string]controlResponder),
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
 		parentPool:         mw,
-		wg:                 mw.wg[jobId],
+		wg:                 mw.wg[id],
 	}
-	mw.pool[id] = w
+	mw.pool[workerId] = w
 
-	mw.wg[jobId].Add(1)
+	mw.wg[id].Add(1)
 	return w
 }
 
@@ -815,18 +815,26 @@ func (mw *MultiplexW) delete(w *W) {
 
 // WaitForCleanUp waits until all resources relevant to the job are cleaned up.
 func (mw *MultiplexW) WaitForCleanUp(id string) {
+	mw.mu.Lock()
+	wg := mw.wg[id]
+	mw.mu.Unlock()
+	if wg == nil {
+		return
+	}
+
 	const cleanUpTimeout = 60 * time.Second
 	c := make(chan struct{})
-
 	go func() {
 		defer close(c)
-		mw.wg[id].Wait()
+		wg.Wait()
 	}()
 
 	select {
 	case <-c: // Waitgroup finishes successfully
+		slog.Debug("Finished cleaning up job " + id)
 		return
 	case <-time.After(cleanUpTimeout): // Timeout
+		slog.Warn("Timeout when cleaning up job " + id)
 		return
 	}
 }
