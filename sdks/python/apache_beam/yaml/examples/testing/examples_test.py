@@ -353,7 +353,8 @@ def create_test_method(
     ]
     if jinja_preprocessor:
       jinja_preprocessor = jinja_preprocessor[0]
-      raw_spec_string = jinja_preprocessor(raw_spec_string)
+      raw_spec_string = jinja_preprocessor(
+          raw_spec_string, self._testMethodName)
       custom_preprocessors.remove(jinja_preprocessor)
 
     pipeline_spec = yaml.load(
@@ -563,7 +564,7 @@ def _wordcount_minimal_test_preprocessor(
 
 
 @YamlExamplesTestSuite.register_test_preprocessor(
-    ['test_wordCountInclude_yaml'])
+    ['test_wordCountInclude_yaml', 'test_wordCountImport_yaml'])
 def _wordcount_jinja_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
@@ -676,7 +677,8 @@ def _kafka_test_preprocessor(
     'test_iceberg_migration_yaml',
     'test_ml_preprocessing_yaml',
     'test_anomaly_scoring_yaml',
-    'test_wordCountInclude_yaml'
+    'test_wordCountInclude_yaml',
+    'test_wordCountImport_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
@@ -1253,8 +1255,8 @@ def _batch_log_analysis_test_preprocessor(
 
 
 @YamlExamplesTestSuite.register_test_preprocessor(
-    ['test_wordCountInclude_yaml'])
-def _jinja_preprocessor(raw_spec_string: str):
+    ['test_wordCountInclude_yaml', 'test_wordCountImport_yaml'])
+def _jinja_preprocessor(raw_spec_string: str, test_name: str):
   """
   Preprocessor for Jinja-based YAML tests.
 
@@ -1274,12 +1276,11 @@ def _jinja_preprocessor(raw_spec_string: str):
   Returns:
     A string containing the fully rendered YAML pipeline specification.
   """
-
   jinja_variables = json.loads(input_data.word_count_jinja_parameter_data())
   test_file_dir = os.path.dirname(__file__)
   sdk_root = os.path.abspath(os.path.join(test_file_dir, '../../../..'))
 
-  include_files = input_data.word_count_jinja_template_data()
+  include_files = input_data.word_count_jinja_template_data(test_name)
   mock_templates = {'main_template': raw_spec_string}
   for file_path in include_files:
     full_path = os.path.join(sdk_root, file_path)
