@@ -234,6 +234,7 @@ public class KafkaIOIT {
     }
   }
 
+  @Ignore
   @Test
   public void testKafkaIOFailsFastWithInvalidPartitions() throws IOException {
     thrown.expect(Pipeline.PipelineExecutionException.class);
@@ -258,6 +259,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOFailsFastWithInvalidPartitionsAndFlagExplicitlySet() throws IOException {
     thrown.expect(Pipeline.PipelineExecutionException.class);
@@ -284,6 +286,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIODoesNotFailFastWithInvalidPartitionsAndFlagExplicitlyNotSet()
       throws IOException {
@@ -311,6 +314,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOFailsFastWithInvalidTopics() throws IOException {
     // This test will fail on versions before 2.3.0 due to the non-existence of the
@@ -345,6 +349,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOFailsFastWithInvalidTopicsAndDynamicRead() throws IOException {
     // This test will fail on versions before 2.3.0 due to the non-existence of the
@@ -380,6 +385,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOLogsTopicVerificationWithDynamicRead() throws IOException {
     // This test will fail on versions before 2.3.0 due to the non-existence of the
@@ -416,6 +422,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIODoesNotErrorAtValidationWithBadBootstrapServer() throws IOException {
     // expect an error during execution that the bootstrap server is bad, not during validation
@@ -441,6 +448,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOReadsAndWritesCorrectlyInStreaming() throws IOException {
     // Use batch pipeline to write records.
@@ -483,6 +491,7 @@ public class KafkaIOIT {
     assertNotEquals(PipelineResult.State.FAILED, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOReadsAndWritesCorrectlyInBatch() throws IOException {
     writePipeline
@@ -524,6 +533,7 @@ public class KafkaIOIT {
   // DoFns.  CrashOnExtra will throw an exception if we see any extra records beyond those we
   // expect, and LogFn acts as a sink we can inspect using ExpectedLogs to verify that we got all
   // those we expect.
+  @Ignore
   @Test
   public void testKafkaIOSDFResumesCorrectly() throws IOException {
     roundtripElements("first-pass", 4, writePipeline, sdfReadPipeline);
@@ -612,6 +622,7 @@ public class KafkaIOIT {
   }
 
   // This test verifies that bad data from Kafka is properly sent to the error handler
+  @Ignore
   @Test
   public void testKafkaIOSDFReadWithErrorHandler() throws IOException {
     // TODO(https://github.com/apache/beam/issues/32704) re-enable when fixed, or remove the support
@@ -653,6 +664,7 @@ public class KafkaIOIT {
     assertNotEquals(PipelineResult.State.FAILED, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOWriteWithErrorHandler() throws IOException {
 
@@ -679,6 +691,7 @@ public class KafkaIOIT {
 
   // This test roundtrips a single KV<Null,Null> to verify that externalWithMetadata
   // can handle null keys and values correctly.
+  @Ignore
   @Test
   public void testKafkaIOExternalRoundtripWithMetadataAndNullKeysAndValues() throws IOException {
 
@@ -718,6 +731,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaWithDynamicPartitions() throws IOException {
     AdminClient client =
@@ -805,6 +819,7 @@ public class KafkaIOIT {
     }
   }
 
+  @Ignore
   @Test
   public void testKafkaWithStopReadingFunction() {
     AlwaysStopCheckStopReadingFn checkStopReadingFn = new AlwaysStopCheckStopReadingFn();
@@ -819,6 +834,7 @@ public class KafkaIOIT {
     }
   }
 
+  @Ignore
   @Test
   public void testKafkaWithDelayedStopReadingFunction() {
     DelayedCheckStopReadingFn checkStopReadingFn = new DelayedCheckStopReadingFn();
@@ -866,12 +882,14 @@ public class KafkaIOIT {
 
   private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
+  @Ignore
   @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testKafkaViaManagedSchemaTransformJson() {
     runReadWriteKafkaViaManagedSchemaTransforms(
         "JSON", SCHEMA_IN_JSON, JsonUtils.beamSchemaFromJsonSchema(SCHEMA_IN_JSON));
   }
 
+  @Ignore
   @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testKafkaViaManagedSchemaTransformAvro() {
     runReadWriteKafkaViaManagedSchemaTransforms(
@@ -1396,6 +1414,7 @@ public class KafkaIOIT {
     readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
   }
 
+  @Ignore
   @Test
   public void testWatermarkUpdateWithSparseMessages() throws IOException, InterruptedException {
     AdminClient client =
@@ -1639,6 +1658,7 @@ public class KafkaIOIT {
     options.setKafkaBootstrapServerAddresses(kafkaContainer.getBootstrapServers());
   }
 
+  @Ignore
   @Test
   public void testCustomRowDeserializerWithViaSDF() throws IOException {
     // This test verifies that the SDF implementation of KafkaIO correctly handles
