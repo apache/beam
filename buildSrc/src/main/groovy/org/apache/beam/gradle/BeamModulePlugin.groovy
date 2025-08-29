@@ -606,11 +606,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
-    def gax_version = "2.67.0"
+    def gax_version = "2.68.2"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.26"
-    // [bomupgrader] determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
+    // [bomupgrader] TODO(#35868): currently pinned, should be determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
     def google_cloud_spanner_version = "6.95.1"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
@@ -648,7 +648,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spotbugs_version = "4.8.3"
     def testcontainers_version = "1.19.7"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
-    def arrow_version = "15.0.2"
+    def arrow_version = "17.0.0"
     def jmh_version = "1.34"
     def jupiter_version = "5.7.0"
 
@@ -732,12 +732,12 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_gson                      : "com.google.api-client:google-api-client-gson:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20250511-2.0.0",  // [bomupgrader] sets version
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20250706-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20240310-2.0.0",  // [bomupgrader] sets version
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20250519-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20250524-2.0.0",  // [bomupgrader] sets version
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20250718-2.0.0",  // [bomupgrader] sets version
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
@@ -749,14 +749,16 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.29.1",   // [bomupgrader] sets version
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.31.1",   // [bomupgrader] sets version
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // [bomupgrader] the BOM version is set by scripts/tools/bomupgrader.py. If update manually, also update
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.62.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.65.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
+        // TODO(#35868) remove pinned google_cloud_spanner_bom after tests or upstream fixed
+        google_cloud_spanner_bom                    : "com.google.cloud:google-cloud-spanner-bom:$google_cloud_spanner_version",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_cloud_vertexai                       : "com.google.cloud:google-cloud-vertexai", // google_cloud_platform_libraries_bom sets version
@@ -840,7 +842,9 @@ class BeamModulePlugin implements Plugin<Project> {
         log4j2_log4j12_api                          : "org.apache.logging.log4j:log4j-1.2-api:$log4j2_version",
         mockito_core                                : "org.mockito:mockito-core:4.11.0",
         mockito_inline                              : "org.mockito:mockito-inline:4.11.0",
-        mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.11",
+        mongo_java_driver                           : "org.mongodb:mongodb-driver-sync:5.5.0",
+        mongo_bson                                  : "org.mongodb:bson:5.5.0",
+        mongodb_driver_core                         : "org.mongodb:mongodb-driver-core:5.5.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
@@ -2904,8 +2908,9 @@ class BeamModulePlugin implements Plugin<Project> {
       // CrossLanguageValidatesRunnerTask is setup under python sdk but also runs tasks not involving
       // python versions. set 'skipNonPythonTask' property to avoid duplicated run of these tasks.
       if (!(project.hasProperty('skipNonPythonTask') && project.skipNonPythonTask == 'true')) {
-        System.err.println 'GoUsingJava tests have been disabled: https://github.com/apache/beam/issues/30517#issuecomment-2341881604.'
-        // mainTask.configure { dependsOn goTask }
+        // Re-enabled GoUsingJava tests after fixing underlying issues
+        // Previous issues: Docker daemon connectivity, SDK worker communication, timeout configurations
+        mainTask.configure { dependsOn goTask }
       }
       cleanupTask.configure { mustRunAfter goTask }
       config.cleanupJobServer.configure { mustRunAfter goTask }
@@ -3039,6 +3044,10 @@ class BeamModulePlugin implements Plugin<Project> {
       // TODO(BEAM-12000): Move default value to Py3.9.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
           project.pythonVersion : '3.9'
+
+      // Set min/max python versions used for containers and supported versions.
+      project.ext.minPythonVersion = 9
+      project.ext.maxPythonVersion = 13
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
         doLast {

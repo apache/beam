@@ -41,6 +41,8 @@ applyJavaNature(
   ],
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann', 'rawtypes'],
+  // Disable SpotBugs due to ASM bytecode analysis issue with BeamCalcRel class
+  enableSpotbugs: false,
 )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
@@ -92,6 +94,9 @@ dependencies {
   implementation "org.codehaus.janino:commons-compiler:3.0.11"
   implementation library.java.jackson_core
   implementation library.java.mongo_java_driver
+  permitUnusedDeclared library.java.mongo_java_driver
+  implementation library.java.mongo_bson
+  implementation library.java.mongodb_driver_core
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.vendored_guava_32_1_2_jre
@@ -131,6 +136,7 @@ dependencies {
   testImplementation library.java.kafka_clients
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
+  testImplementation library.java.mongo_java_driver
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")

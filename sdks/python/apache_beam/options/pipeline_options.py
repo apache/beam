@@ -1456,6 +1456,14 @@ class WorkerOptions(PipelineOptions):
             'responsible for executing the user code and communicating with '
             'the runner. Depending on the runner, there may be more than one '
             'SDK Harness process running on the same worker node.'))
+    parser.add_argument(
+        '--element_processing_timeout_minutes',
+        type=int,
+        default=None,
+        help=(
+            'The time limit (in minutes) that an SDK worker allows for a'
+            ' PTransform operation to process one element before signaling'
+            ' the runner harness to restart the SDK worker.'))
 
   def validate(self, validator):
     errors = []
