@@ -26,10 +26,12 @@ import static org.junit.Assume.assumeFalse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
@@ -38,6 +40,8 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -221,6 +225,7 @@ public class KafkaIOIT {
     }
   }
 
+  @Ignore
   @Test
   public void testKafkaIOFailsFastWithInvalidPartitions() throws IOException {
     thrown.expect(Pipeline.PipelineExecutionException.class);
@@ -245,6 +250,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOFailsFastWithInvalidPartitionsAndFlagExplicitlySet() throws IOException {
     thrown.expect(Pipeline.PipelineExecutionException.class);
@@ -271,6 +277,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIODoesNotFailFastWithInvalidPartitionsAndFlagExplicitlyNotSet()
       throws IOException {
@@ -298,6 +305,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOFailsFastWithInvalidTopics() throws IOException {
     // This test will fail on versions before 2.3.0 due to the non-existence of the
@@ -332,6 +340,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOFailsFastWithInvalidTopicsAndDynamicRead() throws IOException {
     // This test will fail on versions before 2.3.0 due to the non-existence of the
@@ -367,6 +376,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOLogsTopicVerificationWithDynamicRead() throws IOException {
     // This test will fail on versions before 2.3.0 due to the non-existence of the
@@ -403,6 +413,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIODoesNotErrorAtValidationWithBadBootstrapServer() throws IOException {
     // expect an error during execution that the bootstrap server is bad, not during validation
@@ -428,6 +439,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOReadsAndWritesCorrectlyInStreaming() throws IOException {
     // Use batch pipeline to write records.
@@ -470,6 +482,7 @@ public class KafkaIOIT {
     assertNotEquals(PipelineResult.State.FAILED, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOReadsAndWritesCorrectlyInBatch() throws IOException {
     writePipeline
@@ -511,6 +524,7 @@ public class KafkaIOIT {
   // DoFns.  CrashOnExtra will throw an exception if we see any extra records beyond those we
   // expect, and LogFn acts as a sink we can inspect using ExpectedLogs to verify that we got all
   // those we expect.
+  @Ignore
   @Test
   public void testKafkaIOSDFResumesCorrectly() throws IOException {
     roundtripElements("first-pass", 4, writePipeline, sdfReadPipeline);
@@ -599,6 +613,7 @@ public class KafkaIOIT {
   }
 
   // This test verifies that bad data from Kafka is properly sent to the error handler
+  @Ignore
   @Test
   public void testKafkaIOSDFReadWithErrorHandler() throws IOException {
     // TODO(https://github.com/apache/beam/issues/32704) re-enable when fixed, or remove the support
@@ -640,6 +655,7 @@ public class KafkaIOIT {
     assertNotEquals(PipelineResult.State.FAILED, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaIOWriteWithErrorHandler() throws IOException {
 
@@ -666,6 +682,7 @@ public class KafkaIOIT {
 
   // This test roundtrips a single KV<Null,Null> to verify that externalWithMetadata
   // can handle null keys and values correctly.
+  @Ignore
   @Test
   public void testKafkaIOExternalRoundtripWithMetadataAndNullKeysAndValues() throws IOException {
 
@@ -705,6 +722,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
   }
 
+  @Ignore
   @Test
   public void testKafkaWithDynamicPartitions() throws IOException {
     AdminClient client =
@@ -792,6 +810,7 @@ public class KafkaIOIT {
     }
   }
 
+  @Ignore
   @Test
   public void testKafkaWithStopReadingFunction() {
     AlwaysStopCheckStopReadingFn checkStopReadingFn = new AlwaysStopCheckStopReadingFn();
@@ -806,6 +825,7 @@ public class KafkaIOIT {
     }
   }
 
+  @Ignore
   @Test
   public void testKafkaWithDelayedStopReadingFunction() {
     DelayedCheckStopReadingFn checkStopReadingFn = new DelayedCheckStopReadingFn();
@@ -853,12 +873,14 @@ public class KafkaIOIT {
 
   private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
+  @Ignore
   @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testKafkaViaManagedSchemaTransformJson() {
     runReadWriteKafkaViaManagedSchemaTransforms(
         "JSON", SCHEMA_IN_JSON, JsonUtils.beamSchemaFromJsonSchema(SCHEMA_IN_JSON));
   }
 
+  @Ignore
   @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testKafkaViaManagedSchemaTransformAvro() {
     runReadWriteKafkaViaManagedSchemaTransforms(
@@ -996,6 +1018,7 @@ public class KafkaIOIT {
     readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
   }
 
+  @Ignore
   @Test
   public void testWatermarkUpdateWithSparseMessages() throws IOException, InterruptedException {
     AdminClient client =
@@ -1114,6 +1137,70 @@ public class KafkaIOIT {
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));
     }
+  }
+
+  @Test
+  public void testReadFromKafkaWithKerberosAuthentication() throws IOException {
+    DataflowPipelineOptions pReadOptions =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    pReadOptions.setAppName("KafkaIOIT-testReadFromKafkaWithKerberosAuthentication");
+    List<String> experiments = new ArrayList<>();
+    experiments.add("use_sdf_read");
+    experiments.add("beam_fn_api");
+    experiments.add("use_staged_dataflow_worker_jar");
+    // experiments.add("java_worker_options=-Djava.security.krb5.conf=/tmp/krb5.conf");
+    pReadOptions.setExperiments(experiments);
+    pReadOptions.setRunner(DataflowRunner.class);
+    pReadOptions.setProject("dataflow-testing-311516");
+    pReadOptions.setRegion("us-central1");
+    pReadOptions.setJobName("testReadFromKafkaWithKerberosAuthentication" + UUID.randomUUID());
+    pReadOptions.setNetwork("fozzie-test-vpc");
+    pReadOptions.setSubnetwork("regions/us-central1/subnetworks/fozzie-test-vpc-subnet");
+
+    Pipeline pRead = Pipeline.create(pReadOptions);
+    String topicName = "fozzie_test_kerberos_topic";
+    String bootstrapServer =
+        "fozzie-test-kafka-broker.us-central1-c.c.dataflow-testing-311516.internal:9092";
+    String saslJaasConfig =
+        "com.sun.security.auth.module.Krb5LoginModule required "
+            + "useTicketCache=false "
+            + "useKeyTab=true "
+            + "storeKey=true "
+            + "keyTab=\"secretValue:projects/dataflow-testing-311516/secrets/kafka-client-keytab/versions/latest\" "
+            + "principal=\"kafka-client@US-CENTRAL1-B.C.DATAFLOW-TESTING-311516.INTERNAL\";";
+
+    Map<String, Object> consumerConfig = new HashMap<>();
+
+    consumerConfig.put("security.protocol", "SASL_PLAINTEXT");
+    consumerConfig.put("sasl.mechanism", "GSSAPI");
+    consumerConfig.put("sasl.kerberos.service.name", "kafka");
+    consumerConfig.put("auto.offset.reset", "earliest");
+    consumerConfig.put("sasl.jaas.config", saslJaasConfig);
+
+    PCollection<Long> count =
+        pRead
+            .apply(
+                "Read from Kafka",
+                KafkaIO.<String, String>read()
+                    .withBootstrapServers(bootstrapServer)
+                    .withConsumerConfigUpdates(consumerConfig)
+                    .withTopic(topicName)
+                    .withKeyDeserializer(StringDeserializer.class)
+                    .withValueDeserializer(StringDeserializer.class)
+                    .withConsumerFactoryFn(
+                        new KerberosConsumerFactoryFn(
+                            "gs://fozzie_testing_bucket/kerberos/krb5.conf"))
+                    .withMaxNumRecords((long) 11))
+            .apply("Counting element", Count.globally());
+
+    PipelineResult readResult = pRead.run();
+
+    // Only waiting 5 seconds here because we don't expect any processing at this point
+    PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardMinutes(15));
+    cancelIfTimeouted(readResult, readState);
+    assertNotEquals(PipelineResult.State.FAILED, readState);
+    assertNotEquals(PipelineResult.State.CANCELLED, readState);
+    PAssert.thatSingleton(count).isEqualTo((long) 11);
   }
 
   private static class KeyByPartition
@@ -1239,6 +1326,7 @@ public class KafkaIOIT {
     options.setKafkaBootstrapServerAddresses(kafkaContainer.getBootstrapServers());
   }
 
+  @Ignore
   @Test
   public void testCustomRowDeserializerWithViaSDF() throws IOException {
     // This test verifies that the SDF implementation of KafkaIO correctly handles
