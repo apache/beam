@@ -932,16 +932,13 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
-def is_v1_prior_to_v2(v1, v2):
+def is_v1_prior_to_v2(*, v1, v2):
   if v1 is None:
     return False
 
-  v1 = tuple(map(int, v1.split('.')[0:3]))
-  v2 = tuple(map(int, v2.split('.')[0:3]))
-  for i in range(min(len(v1), len(v2))):
-    if v1[i] < v2[i]:
-      return True
-  return False
+  v1_parts = (v1.split('.') + ['0', '0', '0'])[:3]
+  v2_parts = (v2.split('.') + ['0', '0', '0'])[:3]
+  return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
 
 
 def is_compat_version_prior_to(options, breaking_change_version):

@@ -76,6 +76,7 @@ from typing import Union
 from google.protobuf import message
 
 from apache_beam import pvalue
+from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import CrossLanguageOptions
@@ -83,6 +84,7 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import StreamingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.portability import common_urns
@@ -228,6 +230,9 @@ class Pipeline(HasDisplayData):
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
+
+    typecoders.registry.update_compatibility_version = self._options.view_as(
+        StreamingOptions).update_compatibility_version
 
     # set default experiments for portable runners
     # (needs to occur prior to pipeline construction)
@@ -989,8 +994,7 @@ class Pipeline(HasDisplayData):
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
           component_id_map=self.component_id_map,
-          default_environment=default_environment,
-          pipeline_options=self._options)
+          default_environment=default_environment)
     elif default_environment is not None:
       raise ValueError(
           'Only one of context or default_environment may be specified.')
@@ -1093,9 +1097,7 @@ class Pipeline(HasDisplayData):
         })
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
-        proto.components,
-        requirements=proto.requirements,
-        pipeline_options=options)
+        proto.components, requirements=proto.requirements)
     if proto.root_transform_ids:
       root_transform_id, = proto.root_transform_ids
       p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]

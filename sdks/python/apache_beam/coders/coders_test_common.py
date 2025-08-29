@@ -178,6 +178,9 @@ class CodersTest(unittest.TestCase):
     assert not standard - cls.seen, str(standard - cls.seen)
     assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
 
+  def tearDown(self):
+    typecoders.registry.update_compatibility_version = None
+
   @classmethod
   def _observe(cls, coder):
     cls.seen.add(type(coder))
@@ -235,12 +238,12 @@ class CodersTest(unittest.TestCase):
 
   @parameterized.expand([
       param(compat_version=None),
-      param(compat_version="2.66.0"),
+      param(compat_version="2.67.0"),
   ])
   def test_deterministic_coder(self, compat_version):
+    typecoders.registry.update_compatibility_version = compat_version
     coder = coders.FastPrimitivesCoder()
-    deterministic_coder = coder.as_deterministic_coder(
-        step_label="step", update_compatibility_version=compat_version)
+    deterministic_coder = coder.as_deterministic_coder(step_label="step")
 
     self.check_coder(deterministic_coder, *self.test_values_deterministic)
     for v in self.test_values_deterministic:
@@ -306,9 +309,10 @@ class CodersTest(unittest.TestCase):
 
   @parameterized.expand([
       param(compat_version=None),
-      param(compat_version="2.66.0"),
+      param(compat_version="2.67.0"),
   ])
   def test_deterministic_map_coder_is_update_compatible(self, compat_version):
+    typecoders.registry.update_compatibility_version = compat_version
     values = [{
         MyTypedNamedTuple(i, 'a'): MyTypedNamedTuple('a', i)
         for i in range(10)
@@ -317,8 +321,7 @@ class CodersTest(unittest.TestCase):
     coder = coders.MapCoder(
         coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder())
 
-    deterministic_coder = coder.as_deterministic_coder(
-        step_label="step", update_compatibility_version=compat_version)
+    deterministic_coder = coder.as_deterministic_coder(step_label="step")
 
     assert isinstance(
         deterministic_coder._key_coder,
@@ -326,90 +329,6 @@ class CodersTest(unittest.TestCase):
         if not compat_version else coders.DeterministicFastPrimitivesCoder)
 
     self.check_coder(deterministic_coder, *values)
-
-  @parameterized.expand([
-      param(compat_version=None),
-      param(compat_version="2.66.0"),
-  ])
-  def test_deterministic_nullable_coder_is_update_compatible(
-      self, compat_version):
-    values = [MyTypedNamedTuple(1, 'a'), None, MyTypedNamedTuple(2, 'a')]
-
-    coder = coders.NullableCoder(coders.FastPrimitivesCoder())
-
-    deterministic_coder = coder.as_deterministic_coder(
-        step_label="step", update_compatibility_version=compat_version)
-
-    assert isinstance(
-        deterministic_coder._value_coder,
-        coders.DeterministicFastPrimitivesCoderV2
-        if not compat_version else coders.DeterministicFastPrimitivesCoder)
-
-    self.check_coder(deterministic_coder, *values)
-
-  @parameterized.expand([
-      param(compat_version=None),
-      param(compat_version="2.66.0"),
-  ])
-  def test_deterministic_tuple_coder_is_update_compatible(self, compat_version):
-    values = [MyTypedNamedTuple(1, 'a'), MyTypedNamedTuple(2, 'a')]
-
-    coder = coders.TupleCoder(
-        [coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()])
-
-    deterministic_coder = coder.as_deterministic_coder(
-        step_label="step", update_compatibility_version=compat_version)
-
-    assert all(
-        isinstance(
-            component_coder,
-            coders.DeterministicFastPrimitivesCoderV2
-            if not compat_version else coders.DeterministicFastPrimitivesCoder)
-        for component_coder in deterministic_coder._coders)
-
-    self.check_coder(deterministic_coder, *values)
-
-  @parameterized.expand([
-      param(compat_version=None),
-      param(compat_version="2.66.0"),
-  ])
-  def test_deterministic_tuplesequence_coder_is_update_compatible(
-      self, compat_version):
-    values = [MyTypedNamedTuple(1, 'a'), MyTypedNamedTuple(2, 'a')]
-
-    coder = coders.TupleSequenceCoder(coders.FastPrimitivesCoder())
-
-    deterministic_coder = coder.as_deterministic_coder(
-        step_label="step", update_compatibility_version=compat_version)
-
-    assert isinstance(
-        deterministic_coder._elem_coder,
-        coders.DeterministicFastPrimitivesCoderV2
-        if not compat_version else coders.DeterministicFastPrimitivesCoder)
-
-    self.check_coder(deterministic_coder, *values)
-
-  @parameterized.expand([
-      param(compat_version=None),
-      param(compat_version="2.66.0"),
-  ])
-  def test_deterministic_listlike_coder_is_update_compatible(
-      self, compat_version):
-    _ = [MyTypedNamedTuple(1, 'a'), MyTypedNamedTuple(2, 'a')]
-
-    coder = coders.ListLikeCoder(coders.FastPrimitivesCoder())
-
-    deterministic_coder = coder.as_deterministic_coder(
-        step_label="step", update_compatibility_version=compat_version)
-
-    assert isinstance(
-        deterministic_coder._elem_coder,
-        coders.DeterministicFastPrimitivesCoderV2
-        if not compat_version else coders.DeterministicFastPrimitivesCoder)
-
-    # This check fails for both compat options with
-    # AssertionError: MyTypedNamedTuple(f1=1, f2='a') != [1, 'a']
-    # self.check_coder(deterministic_coder, *values)
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
@@ -736,8 +655,8 @@ class CodersTest(unittest.TestCase):
                 PaneInfo(True, False, 1, 2, 3))))
 
   @parameterized.expand([
+      param(compat_version=None),
       param(compat_version="2.67.0"),
-      param(compat_version="2.66.0"),
   ])
   def test_cross_process_encoding_of_special_types_is_deterministic(
       self, compat_version):
@@ -745,7 +664,7 @@ class CodersTest(unittest.TestCase):
 
     if sys.executable is None:
       self.skipTest('No Python interpreter found')
-
+    typecoders.registry.update_compatibility_version = compat_version
 
     # pylint: disable=line-too-long
     script = textwrap.dedent(
@@ -757,6 +676,7 @@ class CodersTest(unittest.TestCase):
         import logging
 
         from apache_beam.coders import coders
+        from apache_beam.coders import typecoders
         from apache_beam.coders.coders_test_common import MyNamedTuple
         from apache_beam.coders.coders_test_common import MyTypedNamedTuple
         from apache_beam.coders.coders_test_common import MyEnum
@@ -803,9 +723,10 @@ class CodersTest(unittest.TestCase):
             ("frozen_dataclass_list", [FrozenDataClass(1, 2), FrozenDataClass(3, 4)]),
         ])
 
-        compat_version = "{compat_version}"
+        compat_version = {'"'+ compat_version +'"' if compat_version else None}
+        typecoders.registry.update_compatibility_version = compat_version
         coder = coders.FastPrimitivesCoder()
-        deterministic_coder = coder.as_deterministic_coder("step", update_compatibility_version=compat_version)
+        deterministic_coder = coder.as_deterministic_coder("step")
         
         results = dict()
         for test_name, value in test_cases:
@@ -835,8 +756,7 @@ class CodersTest(unittest.TestCase):
     results2 = run_subprocess()
 
     coder = coders.FastPrimitivesCoder()
-    deterministic_coder = coder.as_deterministic_coder(
-        "step", update_compatibility_version=compat_version)
+    deterministic_coder = coder.as_deterministic_coder("step")
 
     for test_name in results1:
       data1 = results1[test_name]

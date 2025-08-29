@@ -43,7 +43,6 @@ from apache_beam import pvalue
 from apache_beam.coders.coder_impl import IterableStateReader
 from apache_beam.coders.coder_impl import IterableStateWriter
 from apache_beam.internal import pickler
-from apache_beam.options import pipeline_options
 from apache_beam.pipeline import ComponentIdMap
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -178,9 +177,7 @@ class PipelineContext(object):
       iterable_state_write: Optional[IterableStateWriter] = None,
       namespace: str = 'ref',
       requirements: Iterable[str] = (),
-      pipeline_options: Optional[pipeline_options.PipelineOptions] = None
   ) -> None:
-    self.pipeline_options = pipeline_options
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -225,7 +222,7 @@ class PipelineContext(object):
         default_environment, label='default_environment')
 
     self.use_fake_coders = use_fake_coders
-    self.deterministic_coder_map: Dict[coders.Coder, coders.Coder] = {}
+    self.deterministic_coder_map: Mapping[coders.Coder, coders.Coder] = {}
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
@@ -260,11 +257,7 @@ class PipelineContext(object):
 
   def deterministic_coder(self, coder: coders.Coder, msg: str) -> coders.Coder:
     if coder not in self.deterministic_coder_map:
-      update_compatibility_version = self.pipeline_options.view_as(
-          pipeline_options.StreamingOptions
-      ).update_compatibility_version if self.pipeline_options else None
-      self.deterministic_coder_map[coder] = coder.as_deterministic_coder(
-          msg, update_compatibility_version=update_compatibility_version)
+      self.deterministic_coder_map[coder] = coder.as_deterministic_coder(msg)  # type: ignore
     return self.deterministic_coder_map[coder]
 
   def element_type_from_coder_id(self, coder_id: str) -> Any:
