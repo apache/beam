@@ -3280,18 +3280,6 @@ class GroupByKey(PTransform):
       return typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
 
-  def get_windowing(self, inputs):
-    # Switch to the continuation trigger associated with the current trigger.
-    windowing = inputs[0].windowing
-    triggerfn = windowing.triggerfn.get_continuation_trigger()
-    return Windowing(
-        windowfn=windowing.windowfn,
-        triggerfn=triggerfn,
-        accumulation_mode=windowing.accumulation_mode,
-        timestamp_combiner=windowing.timestamp_combiner,
-        allowed_lateness=windowing.allowed_lateness,
-        environment_id=windowing.environment_id)
-
   def expand(self, pcoll):
     from apache_beam.transforms.trigger import DataLossReason
     from apache_beam.transforms.trigger import DefaultTrigger
