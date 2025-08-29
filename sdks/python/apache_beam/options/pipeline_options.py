@@ -1460,10 +1460,11 @@ class WorkerOptions(PipelineOptions):
         '--element_processing_timeout_minutes',
         type=int,
         default=None,
-        help=('The time limit (in minutes) for any PTransform to finish '
-              'processing a single element. If exceeded, the SDK worker '
-              'process self-terminates and processing may be restarted '
-              'by a runner.'))
+        help=(
+            'The time limit (in minutes) for any PTransform to finish '
+            'processing a single element. If exceeded, the SDK worker '
+            'process self-terminates and processing may be restarted '
+            'by a runner.'))
 
   def validate(self, validator):
     errors = []

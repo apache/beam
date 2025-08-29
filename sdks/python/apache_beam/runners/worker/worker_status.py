@@ -285,8 +285,9 @@ class FnApiWorkerStatusHandler(object):
     if timeout_exceeded:
       _LOGGER.error(
           (
-              'Processing of an element in bundle %s%s has exceeded the specified'
-              'timeout of %.2f minutes. SDK harness will be terminated.\n'
+              'Processing of an element in bundle %s%s has exceeded the '
+              'specified timeout of %.2f minutes. SDK harness will be '
+              'terminated.\n'
               'Current Traceback:\n%s'),
           instruction,
           step_name_log,
