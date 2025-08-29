@@ -103,8 +103,8 @@ var (
 
 	// ElementProcessingTimeout flag to set the timeout for processing an element in a PTransform operation. If set to -1, there is no timeout.
 	ElementProcessingTimeout = flag.Duration("element_processing_timeout", -1,
-	"The time limit (in minutes) for any PTransform to finish processing a single element. If exceeded, " +
-	"the SDK worker process self-terminates and processing may be restarted by a runner. There is no time limit if the value is set to -1.")
+		"The time limit (in minutes) for any PTransform to finish processing a single element. If exceeded, "+
+			"the SDK worker process self-terminates and processing may be restarted by a runner. There is no time limit if the value is set to -1.")
 )
 
 type missingFlagError error
