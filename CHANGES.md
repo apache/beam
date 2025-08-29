@@ -80,7 +80,9 @@
   Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
   - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
   - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
-* PTransform element processing timeout flag added (Java/Python/Go) https://github.com/apache/beam/issues/35174  
+* PTransform element processing timeout flag added (Java/Python/Go) https://github.com/apache/beam/issues/35174
+  - Ensure your Dataflow jobs stay responsive and avoid stalled pipelines with the new element_processing_timeout flag. 
+  - This option automatically restarts the SDK harness if an element takes too long to process, preventing a single slow item from holding up your entire job.
 
 ## Breaking Changes
 
