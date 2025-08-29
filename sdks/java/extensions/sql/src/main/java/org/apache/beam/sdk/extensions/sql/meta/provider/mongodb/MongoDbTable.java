@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlK
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.COMPARISON;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.OR;
 
+import com.mongodb.BasicDBObject;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.client.model.Filters;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -64,6 +66,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.json.JsonMode;
@@ -178,19 +181,18 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     if (cnf.size() == 1) {
       return cnf.get(0);
     }
-    // Create a composite filter by merging all conditions into a single Document
+    // Convert all filters to BsonDocument and merge them into a single Document
     // This avoids wrapping in $and which changed behavior in MongoDB driver 5.x
     Document compositeFilter = new Document();
     for (Bson filter : cnf) {
-      if (filter instanceof Document) {
-        Document doc = (Document) filter;
-        // Merge all top-level conditions into the composite filter
-        for (String key : doc.keySet()) {
-          compositeFilter.append(key, doc.get(key));
-        }
-      } else {
-        // If it's not a Document, fall back to $and wrapping
-        return Filters.and(cnf);
+      // Convert any Bson filter to BsonDocument first
+      BsonDocument bsonDoc =
+          filter.toBsonDocument(BasicDBObject.class, MongoClientSettings.getDefaultCodecRegistry());
+      // Convert BsonDocument to Document for easier manipulation
+      Document doc = Document.parse(bsonDoc.toJson());
+      // Merge all top-level conditions into the composite filter
+      for (String key : doc.keySet()) {
+        compositeFilter.append(key, doc.get(key));
       }
     }
     return compositeFilter;
