@@ -145,13 +145,11 @@ class PrismRunnerLogFilter(logging.Filter):
           record.msg = json_record["sdk"]["msg"]
         else:
           record.name = "PrismRunner"
-          record.msg = json_record["msg"] + " (" + ", ".join([
-              str(k) + "=" +
-              (("'" + str(v) + "'") if isinstance(v, str) else str(v))
-              for k, v in extras.items()
-          ]) + ")"
-      except:  # pylint: disable=bare-except
-        # Return the parsed log as much as we can
+          record.msg = (
+              f"{json_record['msg']} "
+              f"({', '.join(f'{k}={v!r}' for k, v in extras.items())})")
+      except (json.JSONDecodeError, KeyError, ValueError):
+        # The log parsing/filtering is best-effort.
         pass
 
     return True  # Always return True to allow the record to pass.
@@ -180,8 +178,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
     self._log_level = prism_options.prism_log_level
     self._log_kind = prism_options.prism_log_kind
 
-    # override natural to json and set logger filter
-    if self._log_kind == "natural":
+    # override console to json with log filter enabled
+    if self._log_kind == "console":
       self._log_kind = "json"
       subprocess_server_logger.addFilter(PrismRunnerLogFilter())
 
