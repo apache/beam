@@ -185,7 +185,8 @@ class FnApiWorkerStatusHandler(object):
         self._status_channel)
     self._responses = queue.Queue()
     self.log_lull_timeout_ns = log_lull_timeout_ns
-    if element_processing_timeout_minutes:
+    if (element_processing_timeout_minutes and
+        element_processing_timeout_minutes > 0):
       self._element_processing_timeout_ns = (
           element_processing_timeout_minutes * 60 * 1e9)
     else:
