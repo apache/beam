@@ -1958,6 +1958,13 @@ class PrismRunnerOptions(PipelineOptions):
         help=(
             'Controls the log level in Prism. Values can be "debug", "info", '
             '"warn", and "error". Default log level is "info".'))
+    parser.add_argument(
+        '--prism_log_kind',
+        default="json",
+        choices=["dev", "json", "text", "natural"],
+        help=(
+            'Controls the log format in Prism. Values can be "dev", "json", '
+            '"text", and "natural". Default log format is "natural".'))
 
 
 class TestOptions(PipelineOptions):
