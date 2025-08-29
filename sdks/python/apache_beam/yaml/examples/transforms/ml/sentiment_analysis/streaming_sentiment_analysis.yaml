@@ -44,19 +44,19 @@ pipeline:
                   return int(x)
                 except (ValueError):
                   return None
-            
+
               return (
-                  pcoll 
+                  pcoll
                   | beam.io.ReadFromCsv(
                         file_pattern,
                         names=['video_id', 'comment_text', 'likes', 'replies'],
                         on_bad_lines='skip',
                         converters={'likes': _to_int, 'replies': _to_int})
-                  | beam.Filter(lambda row: 
+                  | beam.Filter(lambda row:
                         None not in list(row._asdict().values()))
                   | beam.Map(lambda row: beam.Row(
-                        video_id=row.video_id,
-                        comment_text=row.comment_text,
+                        video_id=str(row.video_id),
+                        comment_text=str(row.comment_text),
                         likes=int(row.likes),
                         replies=int(row.replies)))
               )
@@ -154,17 +154,16 @@ pipeline:
           comment_text:
             callable: |
               from transformers import AutoTokenizer
-              
-              tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
-              
-              def truncate_sentence(row):
-                tokens = tokenizer.tokenize(row.comment_text)
-                if len(tokens) >= 250:
-                  tokens = tokens[:250]
-                  truncated_sentence = tokenizer.convert_tokens_to_string(tokens)
-                else:
-                  truncated_sentence = row.comment_text
 
+              tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
+
+              def truncate_sentence(row):
+                tokens = tokenizer(
+                    row.comment_text,
+                    max_length=512,
+                    padding='max_length',
+                    truncation=True)
+                truncated_sentence = tokenizer.decode(tokens["input_ids"], skip_special_tokens=True)
                 return truncated_sentence
           likes: likes
           replies: replies
@@ -242,7 +241,7 @@ pipeline:
       name: WriteInferenceResultsToBQ
       input: Windowing
       config:
-        table: "{{ PROJECT }}.{{ DATASET }}.{{ TABLE }}"
+        table: "{{ BQ_TABLE }}"
         create_disposition: CREATE_IF_NEEDED
         write_disposition: WRITE_APPEND
 
