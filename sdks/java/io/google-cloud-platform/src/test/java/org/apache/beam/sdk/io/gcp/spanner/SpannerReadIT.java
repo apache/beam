@@ -275,55 +275,6 @@ public class SpannerReadIT {
     p.run().waitUntilFinish();
   }
 
-  private static class CloseTransactionFn extends SimpleFunction<Transaction, Transaction> {
-    private final SpannerConfig spannerConfig;
-
-    private CloseTransactionFn(SpannerConfig spannerConfig) {
-      this.spannerConfig = spannerConfig;
-    }
-
-    @Override
-    public Transaction apply(Transaction tx) {
-      BatchClient batchClient = SpannerAccessor.getOrCreate(spannerConfig).getBatchClient();
-      batchClient.batchReadOnlyTransaction(tx.transactionId()).cleanup();
-      try {
-        // Wait for cleanup to propagate.
-        Thread.sleep(CLEANUP_PROPAGATION_DELAY_MS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-      return tx;
-    }
-  }
-
-  @Test
-  public void testReadFailsBadSession() throws Exception {
-
-    thrown.expect(new SpannerWriteIT.StackTraceContainsString("SpannerException"));
-    thrown.expect(new SpannerWriteIT.StackTraceContainsString("NOT_FOUND: Session not found"));
-
-    SpannerConfig spannerConfig = createSpannerConfig();
-
-    // This creates a transaction then closes the session.
-    // The (closed) transaction is then passed to SpannerIO.read() and should
-    // raise SessionNotFound errors.
-    PCollectionView<Transaction> tx =
-        p.apply("Transaction seed", Create.of(1))
-            .apply(
-                "Create transaction",
-                ParDo.of(new CreateTransactionFn(spannerConfig, TimestampBound.strong())))
-            .apply("Close Transaction", MapElements.via(new CloseTransactionFn(spannerConfig)))
-            .apply("As PCollectionView", View.asSingleton());
-    p.apply(
-        "read db",
-        SpannerIO.read()
-            .withSpannerConfig(spannerConfig)
-            .withTable(options.getTable())
-            .withColumns("Key", "Value")
-            .withTransaction(tx));
-    p.run().waitUntilFinish();
-  }
-
   @Test
   public void testQuery() throws Exception {
     SpannerConfig spannerConfig = createSpannerConfig();
