@@ -41,6 +41,8 @@ applyJavaNature(
   ],
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann', 'rawtypes'],
+  // Disable SpotBugs due to ASM bytecode analysis issue with BeamCalcRel class
+  enableSpotbugs: false,
 )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
