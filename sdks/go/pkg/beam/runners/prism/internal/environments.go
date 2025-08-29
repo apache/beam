@@ -259,7 +259,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 				defer rc.Close()
 				var buf bytes.Buffer
 				stdcopy.StdCopy(&buf, &buf, rc)
-				logger.Info("container being killed", slog.Any("cause", context.Cause(ctx)), slog.Any("containerLog", buf))
+				logger.Info("container being killed", slog.Any("cause", context.Cause(ctx)), slog.String("containerLog", buf.String()))
 			}
 			// Can't use command context, since it's already canceled here.
 			if err := cli.ContainerKill(bgctx, containerID, ""); err != nil {
@@ -288,6 +288,8 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 }
 
 func processEnvironment(ctx context.Context, logger *slog.Logger, pp *pipepb.ProcessPayload, wk *worker.W) {
+	defer wk.Stop()
+
 	cmd := exec.CommandContext(ctx, pp.GetCommand(), "--id='"+wk.ID+"'", "--provision_endpoint="+wk.Endpoint())
 	logger.Debug("starting process", "cmd", cmd.String())
 

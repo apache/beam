@@ -24,7 +24,9 @@ import json
 import logging
 import os
 import re
+import signal
 import sys
+import time
 import traceback
 
 from google.protobuf import text_format
@@ -47,6 +49,7 @@ from apache_beam.utils import profiler
 
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
+_FN_LOG_HANDLER = None
 
 
 def _import_beam_plugins(plugins):
@@ -167,7 +170,9 @@ def create_harness(environment, dry_run=False):
       enable_heap_dump=enable_heap_dump,
       data_sampler=data_sampler,
       deferred_exception=deferred_exception,
-      runner_capabilities=runner_capabilities)
+      runner_capabilities=runner_capabilities,
+      element_processing_timeout_minutes=sdk_pipeline_options.view_as(
+          WorkerOptions).element_processing_timeout_minutes)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
@@ -202,7 +207,9 @@ def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   (fn_log_handler, sdk_harness,
    sdk_pipeline_options) = create_harness(os.environ)
-
+  global _FN_LOG_HANDLER
+  if fn_log_handler:
+    _FN_LOG_HANDLER = fn_log_handler
   gcp_profiler_name = _get_gcp_profiler_name_if_enabled(sdk_pipeline_options)
   if gcp_profiler_name:
     _start_profiler(gcp_profiler_name, os.environ["JOB_ID"])
@@ -217,6 +224,15 @@ def main(unused_argv):
   finally:
     if fn_log_handler:
       fn_log_handler.close()
+
+
+def terminate_sdk_harness():
+  """Flushes the FnApiLogRecordHandler if it exists."""
+  _LOGGER.error('The SDK harness will be terminated in 5 seconds.')
+  time.sleep(5)
+  if _FN_LOG_HANDLER:
+    _FN_LOG_HANDLER.close()
+  os.kill(os.getpid(), signal.SIGINT)
 
 
 def _load_pipeline_options(options_json):
