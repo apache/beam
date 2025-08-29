@@ -143,7 +143,6 @@ func main() {
 		log.Fatalf("Failed to obtain provisioning information: %v", err)
 	}
 	log.Printf("Provision info:\n%v", info)
-	log.Printf("Hello info:\n%v", info)
 
 	err = ensureEndpointsSet(info)
 	if err != nil {

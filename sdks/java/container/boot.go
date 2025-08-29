@@ -467,7 +467,9 @@ func ExtractProfilerServiceName(options string, metadata map[string]string) stri
 	if profilerServiceName == "" {
 		if jobName, exists := metadata["job_name"]; exists {
 			profilerServiceName = jobName
-		}
+		}else {
+            return errors.New("required job_name missing from metadata, profiling will not be enabled without it")
+        }
 	}
 
 	return profilerServiceName
