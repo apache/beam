@@ -203,7 +203,8 @@ public class EmbeddedKafkaCluster {
         this.port = TestUtils.getAvailablePort();
       }
       this.factory =
-        NIOServerCnxnFactory.createFactory(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 1024);
+          NIOServerCnxnFactory.createFactory(
+              new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 1024);
       this.snapshotDir = TestUtils.constructTempDir("embedded-zk/snapshot");
       this.logDir = TestUtils.constructTempDir("embedded-zk/log");
 

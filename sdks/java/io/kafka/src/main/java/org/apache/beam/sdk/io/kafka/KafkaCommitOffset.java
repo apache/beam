@@ -71,6 +71,8 @@ public class KafkaCommitOffset<K, V>
       consumerFactoryFn = readSourceDescriptors.getConsumerFactoryFn();
     }
 
+    @SuppressWarnings(
+        "Slf4jDoNotLogMessageOfExceptionExplicitly") // for tests checking error message
     @RequiresStableInput
     @ProcessElement
     public void processElement(@Element KV<KafkaSourceDescriptor, Long> element) {
@@ -84,7 +86,7 @@ public class KafkaCommitOffset<K, V>
                   new OffsetAndMetadata(element.getValue() + 1)));
         } catch (Exception e) {
           // TODO: consider retrying.
-          LOG.warn("Getting exception when committing offset", e);
+          LOG.warn("Getting exception when committing offset: {}", e.getMessage());
         }
       }
     }

@@ -2889,6 +2889,8 @@ public class JdbcIO {
       }
     }
 
+    @SuppressWarnings(
+        "Slf4jDoNotLogMessageOfExceptionExplicitly") // for tests checking error message
     private void executeBatch(ProcessContext context, Iterable<T> records)
         throws SQLException, InterruptedException {
       Long startTimeNs = System.nanoTime();
@@ -2915,7 +2917,8 @@ public class JdbcIO {
             MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
             break;
           } catch (SQLException exception) {
-            LOG.trace("SQL exception thrown while writing to JDBC database", exception);
+            LOG.trace(
+                "SQL exception thrown while writing to JDBC database: {}", exception.getMessage());
             if (!retryStrategy.apply(exception)) {
               throw exception;
             }

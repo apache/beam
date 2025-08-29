@@ -1513,86 +1513,86 @@ class BeamModulePlugin implements Plugin<Project> {
             options.forkOptions.jvmArgs += errorProneAddModuleOpts
           }
           def disabledChecks = [
-              // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
-              "AutoValueImmutableFields",
-              "AutoValueImmutableFields",
-              "AutoValueSubclassLeaked",
-              "BadImport",
-              "BadInstanceof",
-              "BigDecimalEquals",
-              "ComparableType",
-              "DoNotMockAutoValue",
-              "EmptyBlockTag",
-              "EmptyCatch",
-              "EqualsGetClass",
-              "EqualsUnsafeCast",
-              "EscapedEntity",
-              "ExtendsAutoValue",
-              "InlineFormatString",
-              "InlineMeSuggester",
-              "InvalidBlockTag",
-              "InvalidInlineTag",
-              "InvalidLink",
-              "InvalidParam",
-              "InvalidThrows",
-              "JavaTimeDefaultTimeZone",
-              "JavaUtilDate",
-              "JodaConstructors",
-              "MalformedInlineTag",
-              "MissingSummary",
-              "MixedMutabilityReturnType",
-              "PreferJavaTimeOverload",
-              "MutablePublicArray",
-              "NonCanonicalType",
-              "ProtectedMembersInFinalClass",
-              "Slf4jFormatShouldBeConst",
-              "Slf4jSignOnlyFormat",
-              "StaticAssignmentInConstructor",
-              "ThreadPriorityCheck",
-              "TimeUnitConversionChecker",
-              "UndefinedEquals",
-              "UnescapedEntity",
-              "UnnecessaryLambda",
-              "UnnecessaryMethodReference",
-              "UnnecessaryParentheses",
-              "UnrecognisedJavadocTag",
-              "UnsafeReflectiveConstructionCast",
-              "UseCorrectAssertInTests",
-              // errorprone 3.2.0+ checks
-              "DirectInvocationOnMock",
-              "Finalize",
-              "JUnitIncompatibleType",
-              "LongDoubleConversion",
-              "MockNotUsedInProduction",
-              "NarrowCalculation",
-              "NullableTypeParameter",
-              "NullableWildcard",
-              "StringCharset",
-              "SuperCallToObjectMethod",
-              "UnnecessaryLongToIntConversion",
-              "UnusedVariable",
-
-              // intended suppressions emerged in newer protobuf versions
-              "AutoValueBoxedValues", // For backward compatibility. Public method checked in before this check impl
-              // Possible use in interface subclasses
-              "ClassInitializationDeadlock",
-              // for encoding efficiency and backward compatibility
-              "EnumOrdinal",
-              // widely used in non-public methods
-              "NotJavadoc",
-              // return values used for assignments widely, and for backward compatibility.
-              "NonApiType",
-              // Used to test self equal
-              "SelfAssertion",
-              // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
-              // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
-              "Slf4jLoggerShouldBeNonStatic",
-              // allow implicit Locale.Default
-              "StringCaseLocaleUsage",
-              // DoFn methods are executed reflectively at pipeline runtime
-              "UnusedMethod",
-              // Void is a valid element type of DoFn elements
-              "VoidUsed",
+            // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
+            "AutoValueImmutableFields",
+            "AutoValueImmutableFields",
+            "AutoValueSubclassLeaked",
+            "BadImport",
+            "BadInstanceof",
+            "BigDecimalEquals",
+            "ComparableType",
+            "DoNotMockAutoValue",
+            "EmptyBlockTag",
+            "EmptyCatch",
+            "EqualsGetClass",
+            "EqualsUnsafeCast",
+            "EscapedEntity",
+            "ExtendsAutoValue",
+            "InlineFormatString",
+            "InlineMeSuggester",
+            "InvalidBlockTag",
+            "InvalidInlineTag",
+            "InvalidLink",
+            "InvalidParam",
+            "InvalidThrows",
+            "JavaTimeDefaultTimeZone",
+            "JavaUtilDate",
+            "JodaConstructors",
+            "MalformedInlineTag",
+            "MissingSummary",
+            "MixedMutabilityReturnType",
+            "PreferJavaTimeOverload",
+            "MutablePublicArray",
+            "NonCanonicalType",
+            "ProtectedMembersInFinalClass",
+            "Slf4jFormatShouldBeConst",
+            "Slf4jSignOnlyFormat",
+            "StaticAssignmentInConstructor",
+            "ThreadPriorityCheck",
+            "TimeUnitConversionChecker",
+            "UndefinedEquals",
+            "UnescapedEntity",
+            "UnnecessaryLambda",
+            "UnnecessaryMethodReference",
+            "UnnecessaryParentheses",
+            "UnrecognisedJavadocTag",
+            "UnsafeReflectiveConstructionCast",
+            "UseCorrectAssertInTests",
+            // errorprone 3.2.0+ checks
+            "DirectInvocationOnMock",
+            "Finalize",
+            "JUnitIncompatibleType",
+            "LongDoubleConversion",
+            "MockNotUsedInProduction",
+            "NarrowCalculation",
+            "NullableTypeParameter",
+            "NullableWildcard",
+            "StringCharset",
+            "SuperCallToObjectMethod",
+            "UnnecessaryLongToIntConversion",
+            "UnusedVariable",
+            // intended suppressions emerged in newer protobuf versions
+            "AutoValueBoxedValues",
+            // For backward compatibility. Public method checked in before this check impl
+            // Possible use in interface subclasses
+            "ClassInitializationDeadlock",
+            // for encoding efficiency and backward compatibility
+            "EnumOrdinal",
+            // widely used in non-public methods
+            "NotJavadoc",
+            // return values used for assignments widely, and for backward compatibility.
+            "NonApiType",
+            // Used to test self equal
+            "SelfAssertion",
+            // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
+            // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+            "Slf4jLoggerShouldBeNonStatic",
+            // allow implicit Locale.Default
+            "StringCaseLocaleUsage",
+            // DoFn methods are executed reflectively at pipeline runtime
+            "UnusedMethod",
+            // Void is a valid element type of DoFn elements
+            "VoidUsed",
           ]
           disabledChecks.each {
             options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
