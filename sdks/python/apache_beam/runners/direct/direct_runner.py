@@ -201,9 +201,17 @@ class SwitchingDirectRunner(PipelineRunner):
     # Use BundleBasedDirectRunner if other runners are missing needed features.
     runner = BundleBasedDirectRunner()
 
+    # Check if transform overrides are needed - if so,
+    # use BundleBasedDirectRunner
+    # since Prism does not support transform overrides
+    transform_overrides = _get_transform_overrides(options)
+    if transform_overrides:
+      _LOGGER.info(
+          'Transform overrides detected, falling back to DirectRunner.')
+      runner = BundleBasedDirectRunner()
     # Check whether all transforms used in the pipeline are supported by the
     # PrismRunner
-    if _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
+    elif _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
       _LOGGER.info('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
       runner = prism_runner.PrismRunner()

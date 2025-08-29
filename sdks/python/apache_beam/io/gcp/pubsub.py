@@ -486,8 +486,8 @@ def parse_subscription(full_subscription):
 class _DirectWriteToPubSubFn(DoFn):
   """DirectRunner implementation for WriteToPubSub.
 
-  This DoFn handles writing messages to PubSub in both streaming and batch
-  modes. It buffers messages and flushes them in batches for efficiency.
+  This DoFn handles writing messages to PubSub in the batch
+  mode. It buffers messages and flushes them in batches for efficiency.
   """
   BUFFER_SIZE_ELEMENTS = 100
   FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
