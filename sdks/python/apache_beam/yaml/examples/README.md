@@ -34,8 +34,8 @@
 
 ## Prerequistes
 
-Build the expansion service jar required for your YAML code
-IO mapping is available in standard_io.yml, use this example run command:
+Build the expansion service jar required for your YAML code.
+IO mapping is available in standard_io.yaml, so use this example run command:
 
 ```
 cd <PATH_TO_BEAM_REPO>/beam; ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
