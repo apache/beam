@@ -607,8 +607,16 @@ tasks.register("formatChanges") {
               content.removeAt(content.size - 1)
             }
             
-            // Keep existing content exactly as-is
-            formattedLines.addAll(content)
+            // Format content according to template rules
+            val formattedContent = content.map { line ->
+              // Convert SDK language references from [Java/Python] to (Java/Python)
+              // Only convert when it's at the end of a sentence or followed by specific patterns
+              line.replace(Regex("\\[([^\\]]*(?:Java|Python|Go|Kotlin|TypeScript)[^\\]]*)\\](?=\\s*\\([#]|\\s*$|\\s*\\.|\\s*,)")) { matchResult ->
+                "(${matchResult.groupValues[1]})"
+              }
+            }
+            
+            formattedLines.addAll(formattedContent)
           }
         }
         
