@@ -218,8 +218,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     """Test that control_host parameter works with external environments."""
     if self.environment_type != 'EXTERNAL':
       pytest.skip(
-          "Skipping control_host test as it only applies to EXTERNAL environment type."
-      )
+          "Skipping control_host test as it only applies to EXTERNAL "
+          "environment type.")
 
     # This test validates that the control_host parameter is properly parsed
     # and used when specified in environment_config for external environments.
@@ -227,12 +227,12 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     # we test the environment configuration parsing directly.
 
     from apache_beam.transforms.environments import ExternalEnvironment
-    from apache_beam.options.pipeline_options import PortableOptions
 
     # Test environment config parsing with control_host parameter
     options = PortableOptions([
         '--environment_type=EXTERNAL',
-        '--environment_config={"url": "localhost:50000", "params": {"control_host": "test-host"}}'
+        '--environment_config={"url": "localhost:50000", '
+        '"params": {"control_host": "test-host"}}'
     ])
 
     # Create external environment from options
@@ -248,13 +248,6 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     self.assertEqual(urn, 'beam:env:external:v1')
     self.assertEqual(payload.endpoint.url, 'localhost:50000')
     self.assertEqual(payload.params.get('control_host'), 'test-host')
-
-    # If we reach here without exceptions, the control_host parameter
-    # was successfully processed during environment configuration.
-    self.assertTrue(
-        True,
-        "External environment with control_host parameter configured successfully"
-    )
 
   def test_batch_rebatch_pardos(self):
     if self.environment_type == 'DOCKER':
@@ -453,14 +446,14 @@ class FlinkRunnerTestStreaming(FlinkRunnerTest):
 class ExternalEnvironmentControlHostTest(unittest.TestCase):
   """Standalone test for control_host parameter in external environments."""
   def test_external_environment_control_host_parsing(self):
-    """Test that control_host parameter is properly parsed in external environment config."""
+    """Test control_host parameter parsing in external environment config."""
     from apache_beam.transforms.environments import ExternalEnvironment
-    from apache_beam.options.pipeline_options import PortableOptions
 
     # Test environment config parsing with control_host parameter
     options = PortableOptions([
         '--environment_type=EXTERNAL',
-        '--environment_config={"url": "localhost:50000", "params": {"control_host": "test-host"}}'
+        '--environment_config={"url": "localhost:50000", '
+        '"params": {"control_host": "test-host"}}'
     ])
 
     # Create external environment from options
@@ -478,9 +471,8 @@ class ExternalEnvironmentControlHostTest(unittest.TestCase):
     self.assertEqual(payload.params.get('control_host'), 'test-host')
 
   def test_external_environment_without_control_host(self):
-    """Test that external environment works without control_host parameter."""
+    """Test external environment works without control_host parameter."""
     from apache_beam.transforms.environments import ExternalEnvironment
-    from apache_beam.options.pipeline_options import PortableOptions
 
     # Test environment config parsing without control_host parameter
     options = PortableOptions(
