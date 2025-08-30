@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
@@ -161,6 +163,51 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
+    public static class RecordErrorCounterFn extends DoFn<Row, KV<byte[], GenericRecord>> {
+      private final SerializableFunction<Row, GenericRecord> toRecordsFn;
+      private final Counter errorCounter;
+      private Long errorsInBundle = 0L;
+      private final boolean handleErrors;
+      private final Schema errorSchema;
+
+      public RecordErrorCounterFn(
+          String name,
+          SerializableFunction<Row, GenericRecord> toRecordsFn,
+          Schema errorSchema,
+          boolean handleErrors) {
+        this.toRecordsFn = toRecordsFn;
+        this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
+        this.handleErrors = handleErrors;
+        this.errorSchema = errorSchema;
+      }
+
+      @ProcessElement
+      public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
+        KV<byte[], GenericRecord> output = null;
+        try {
+          output = KV.of(new byte[1], toRecordsFn.apply(row));
+        } catch (Exception e) {
+          LOG.info("ERROR PROCESSING ELEMENT", e);
+          if (!handleErrors) {
+            throw new RuntimeException(e);
+          }
+          errorsInBundle += 1;
+          LOG.warn("Error while processing the element", e);
+          receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
+        }
+        if (output != null) {
+          TupleTag<KV<byte[], GenericRecord>> recordOutputTag = new TupleTag<>();
+          receiver.get(recordOutputTag).output(output);
+        }
+      }
+
+      @FinishBundle
+      public void finish() {
+        errorCounter.inc(errorsInBundle);
+        errorsInBundle = 0L;
+      }
+    }
+
     @SuppressWarnings({
       "nullness" // TODO(https://github.com/apache/beam/issues/20497)
     })
@@ -168,6 +215,7 @@ public class KafkaWriteSchemaTransformProvider
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get("input").getSchema();
       final SerializableFunction<Row, byte[]> toBytesFn;
+      SerializableFunction<Row, GenericRecord> toRecordsFn = null;
       if (configuration.getFormat().equals("RAW")) {
         int numFields = inputSchema.getFields().size();
         if (numFields != 1) {
@@ -200,34 +248,87 @@ public class KafkaWriteSchemaTransformProvider
         }
 
       } else {
-        toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+        for (Map.Entry<String, String> entry :
+            configuration.getProducerConfigUpdates().entrySet()) {
+          LOG.info("CONFIG KEY: {}\nCONFIG VALUE: {}\n", entry.getKey(), entry.getValue());
+        }
+        if (configuration.getProducerConfigUpdates() == null) {
+          LOG.info("NO CONFIG UPDATE MAP FOUND.");
+        } else if (!configuration.getProducerConfigUpdates().containsKey("schema.registry.url")) {
+          LOG.info("NO SCHEMA REGISTRY DETECTED.");
+        }
+        if (configuration.getProducerConfigUpdates() != null
+            && configuration.getProducerConfigUpdates().containsKey("schema.registry.url")) {
+          toRecordsFn =
+              AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(inputSchema));
+          toBytesFn = null;
+          LOG.info("USING SCHEMA REGISTRY");
+        } else {
+          toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+          LOG.info("NOT USING SCHEMA REGISTRY");
+        }
       }
 
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
       Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
-      PCollectionTuple outputTuple =
-          input
-              .get("input")
-              .apply(
-                  "Map rows to Kafka messages",
-                  ParDo.of(
-                          new ErrorCounterFn(
-                              "Kafka-write-error-counter", toBytesFn, errorSchema, handleErrors))
-                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+      PCollectionTuple outputTuple;
+      if (toRecordsFn != null) {
+        LOG.info("Convert to GenericRecord");
+        final TupleTag<KV<byte[], GenericRecord>> recordOutputTag =
+            new TupleTag<KV<byte[], GenericRecord>>() {};
+        LOG.info("recordOutputTag created: {}", recordOutputTag.toString());
+        //        outputTuple = null;
+        outputTuple =
+            input
+                .get("input")
+                .apply(
+                    "Map rows to Kafka messages",
+                    ParDo.of(
+                            new RecordErrorCounterFn(
+                                "Kafka-write-error-counter",
+                                toRecordsFn,
+                                errorSchema,
+                                handleErrors))
+                        .withOutputTags(recordOutputTag, TupleTagList.of(ERROR_TAG)));
 
-      outputTuple
-          .get(OUTPUT_TAG)
-          .apply(
-              KafkaIO.<byte[], byte[]>write()
-                  .withTopic(configuration.getTopic())
-                  .withBootstrapServers(configuration.getBootstrapServers())
-                  .withProducerConfigUpdates(
-                      configOverrides == null
-                          ? new HashMap<>()
-                          : new HashMap<String, Object>(configOverrides))
-                  .withKeySerializer(ByteArraySerializer.class)
-                  .withValueSerializer(ByteArraySerializer.class));
+        outputTuple
+            .get(recordOutputTag)
+            .apply(
+                "Map Rows to GenericRecords",
+                KafkaIO.<byte[], GenericRecord>write()
+                    .withTopic(configuration.getTopic())
+                    .withBootstrapServers(configuration.getBootstrapServers())
+                    .withProducerConfigUpdates(
+                        configOverrides == null
+                            ? new HashMap<>()
+                            : new HashMap<String, Object>(configOverrides))
+                    .withKeySerializer(ByteArraySerializer.class)
+                    .withValueSerializer((Class) KafkaAvroSerializer.class));
+      } else {
+        outputTuple =
+            input
+                .get("input")
+                .apply(
+                    "Map rows to Kafka messages",
+                    ParDo.of(
+                            new ErrorCounterFn(
+                                "Kafka-write-error-counter", toBytesFn, errorSchema, handleErrors))
+                        .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+        outputTuple
+            .get(OUTPUT_TAG)
+            .apply(
+                KafkaIO.<byte[], byte[]>write()
+                    .withTopic(configuration.getTopic())
+                    .withBootstrapServers(configuration.getBootstrapServers())
+                    .withProducerConfigUpdates(
+                        configOverrides == null
+                            ? new HashMap<>()
+                            : new HashMap<String, Object>(configOverrides))
+                    .withKeySerializer(ByteArraySerializer.class)
+                    .withValueSerializer(ByteArraySerializer.class));
+      }
 
       // TODO: include output from KafkaIO Write once updated from PDone
       PCollection<Row> errorOutput =
