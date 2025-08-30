@@ -547,10 +547,8 @@ tasks.register("formatChanges") {
     // Keep header and template exactly as-is (lines 0 to templateEndIndex inclusive)
     formattedLines.addAll(lines.subList(0, templateEndIndex + 1))
     
-    // Add blank line after template if not already present
-    if (templateEndIndex + 1 < lines.size && lines[templateEndIndex + 1].trim().isNotEmpty()) {
-      formattedLines.add("")
-    }
+    // Always add blank line after template
+    formattedLines.add("")
     
     while (i < lines.size) {
       val line = lines[i]
