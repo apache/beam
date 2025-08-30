@@ -996,7 +996,7 @@ def _should_force_use_dill():
   except Exception as e:
     raise RuntimeError("This pipeline runs with the pipeline option " \
     "--update_compatibility_version=2.67.0 or earlier. When running with " \
-    "this option on SDKs 2.68.0 or higher, you must ensure dill==0.3.1.1 " \
+    "this option on SDKs 2.68.0 or later, you must ensure dill==0.3.1.1 " \
     f"is installed. Error {e}")
   return True
 
