@@ -616,8 +616,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
       grpc_server  # type: GrpcServer
   ):
     # type: (...) -> None
-    super().__init__(state, provision_info, grpc_server)
     self._external_payload = external_payload
+    super().__init__(state, provision_info, grpc_server)
 
   def start_worker(self):
     # type: () -> None
@@ -645,6 +645,11 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
   def host_from_worker(self):
     # type: () -> str
+    # Check if control_host is specified in external payload params
+    if (self._external_payload.params and
+        'control_host' in self._external_payload.params):
+      return self._external_payload.params['control_host']
+
     # TODO(https://github.com/apache/beam/issues/19947): Reconcile across
     # platforms.
     if sys.platform in ['win32', 'darwin']:
