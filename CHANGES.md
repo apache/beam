@@ -1684,7 +1684,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 * Python GBK will stop supporting unbounded PCollections that have global windowing and a default trigger in Beam 2.34. This can be overriden with `--allow_unsafe_triggers`. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 * Python GBK will start requiring safe triggers or the `--allow_unsafe_triggers` flag starting with Beam 2.34. ([BEAM-9487](https://issues.apache.org/jira/browse/BEAM-9487)).
 
-## Bug fixes
+## Bugfixes
 
 * Workaround to not delete orphaned files to avoid missing events when using Python WriteToFiles in streaming pipeline ([BEAM-12950](https://issues.apache.org/jira/browse/BEAM-12950)))
 
@@ -2226,5 +2226,7 @@ Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://iss
 * Python SDK `pre_optimize=all` experiment may cause error ([BEAM-9445](https://issues.apache.org/jira/browse/BEAM-9445))
 
 # [2.19.0] - 2020-01-31
+
+## Highlights
 
 - For versions 2.19.0 and older release notes are available on [Apache Beam Blog](https://beam.apache.org/blog/).

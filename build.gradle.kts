@@ -510,6 +510,122 @@ tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:pycommon:formatter")
 }
 
+tasks.register("formatChanges") {
+  group = "formatting"
+  description = "Formats CHANGES.md according to the template structure"
+  
+  doLast {
+    val changesFile = file("CHANGES.md")
+    if (!changesFile.exists()) {
+      throw GradleException("CHANGES.md file not found")
+    }
+    
+    val content = changesFile.readText()
+    val lines = content.lines().toMutableList()
+    
+    // Find template end (after --> that follows <!-- Template -->)
+    var templateStartIndex = -1
+    var templateEndIndex = -1
+    
+    for (i in lines.indices) {
+      if (lines[i].trim() == "<!-- Template -->") {
+        templateStartIndex = i
+      } else if (templateStartIndex != -1 && lines[i].trim() == "-->") {
+        templateEndIndex = i
+        break
+      }
+    }
+    
+    if (templateEndIndex == -1) {
+      throw GradleException("Template end marker not found in CHANGES.md")
+    }
+    
+    // Process each release section
+    var i = templateEndIndex + 1
+    val formattedLines = mutableListOf<String>()
+    
+    // Keep header and template exactly as-is (lines 0 to templateEndIndex inclusive)
+    formattedLines.addAll(lines.subList(0, templateEndIndex + 1))
+    
+    // Add blank line after template if not already present
+    if (templateEndIndex + 1 < lines.size && lines[templateEndIndex + 1].trim().isNotEmpty()) {
+      formattedLines.add("")
+    }
+    
+    while (i < lines.size) {
+      val line = lines[i]
+      
+      // Check if this is a release header
+      if (line.startsWith("# [")) {
+        formattedLines.add(line)
+        i++
+        
+        // Expected sections in order (following template)
+        val expectedSections = listOf(
+          "## Beam 3.0.0 Development Highlights",
+          "## Highlights",
+          "## I/Os", 
+          "## New Features / Improvements",
+          "## Breaking Changes",
+          "## Deprecations",
+          "## Bugfixes",
+          "## Security Fixes",
+          "## Known Issues"
+        )
+        
+        val sectionContent = mutableMapOf<String, MutableList<String>>()
+        var currentSection = ""
+        
+        // Parse existing sections
+        while (i < lines.size && !lines[i].startsWith("# [")) {
+          val currentLine = lines[i]
+          
+          if (currentLine.startsWith("## ")) {
+            currentSection = currentLine
+            if (!sectionContent.containsKey(currentSection)) {
+              sectionContent[currentSection] = mutableListOf()
+            }
+          } else if (currentSection.isNotEmpty()) {
+            sectionContent[currentSection]!!.add(currentLine)
+          }
+          i++
+        }
+        
+        // Only add sections that actually exist with content
+        for (section in expectedSections) {
+          if (sectionContent.containsKey(section)) {
+            formattedLines.add("")
+            formattedLines.add(section)
+            formattedLines.add("")
+            
+            // Remove empty lines at start and end
+            val content = sectionContent[section]!!
+            while (content.isNotEmpty() && content.first().trim().isEmpty()) {
+              content.removeAt(0)
+            }
+            while (content.isNotEmpty() && content.last().trim().isEmpty()) {
+              content.removeAt(content.size - 1)
+            }
+            
+            // Keep existing content exactly as-is
+            formattedLines.addAll(content)
+          }
+        }
+        
+        if (i < lines.size) {
+          formattedLines.add("")
+        }
+      } else {
+        i++
+      }
+    }
+    
+    // Write formatted content back
+    changesFile.writeText(formattedLines.joinToString("\n"))
+    println("CHANGES.md has been formatted according to template structure")
+  }
+}
+
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
