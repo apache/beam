@@ -120,9 +120,7 @@ class PrismRunnerLogFilter(logging.Filter):
   def filter(self, record):
     if record.funcName == 'log_stdout':
       try:
-        # TODO: Fix this error message from prism
-        message = record.getMessage().replace(
-            '"!ERROR:time.Time year outside of range [0,9999]"', '')
+        message = record.getMessage()
         json_record = json.loads(message)
         record.levelno = getattr(logging, json_record["level"])
         record.levelname = logging.getLevelName(record.levelno)

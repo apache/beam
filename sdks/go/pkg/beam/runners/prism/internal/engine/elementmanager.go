@@ -89,6 +89,15 @@ type PColInfo struct {
 	KeyDec      func(io.Reader) []byte
 }
 
+func (info PColInfo) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("GlobalID", info.GlobalID),
+		slog.String("WindowCoder", info.WindowCoder.String()),
+		slog.Any("WDec", info.WDec),
+		slog.Any("WEnc", info.WEnc),
+	)
+}
+
 // WinCoderType indicates what kind of coder
 // the window is using. There are only 3
 // valid single window encodings.
@@ -109,6 +118,19 @@ const (
 	// WinCustom indicates the window customm coded with end event time timestamp followed by a custom coder.
 	WinCustom
 )
+
+func (wct WinCoderType) String() string {
+	switch wct {
+	case WinGlobal:
+		return "WinGlobal"
+	case WinInterval:
+		return "WinInterval"
+	case WinCustom:
+		return "WinCustom"
+	default:
+		return fmt.Sprintf("Unknown(%d)", wct)
+	}
+}
 
 // ToData recodes the elements with their approprate windowed value header.
 func (es elements) ToData(info PColInfo) [][]byte {
@@ -338,7 +360,7 @@ func (rb RunBundle) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("ID", rb.BundleID),
 		slog.String("stage", rb.StageID),
-		slog.Time("watermark", rb.Watermark.ToTime()))
+		slog.Any("watermark", rb.Watermark))
 }
 
 // Bundles is the core execution loop. It produces a sequences of bundles able to be executed.
