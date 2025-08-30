@@ -177,7 +177,7 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
           messageConsumer.accept(sMessage);
         }
       } catch (Exception e) {
-        LOG.error("Can't read from RabbitMQ: {}", e.getMessage());
+        LOG.error("Can't read from RabbitMQ.", e);
       }
     }
   }

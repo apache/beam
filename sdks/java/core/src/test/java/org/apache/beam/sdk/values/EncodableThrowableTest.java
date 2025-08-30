@@ -37,14 +37,13 @@ public final class EncodableThrowableTest {
 
     EncodableThrowable comparable1 = EncodableThrowable.forThrowable(exception);
     EncodableThrowable comparable2 = EncodableThrowable.forThrowable(exception);
-
-    assertEquals(comparable1, comparable1);
     assertEquals(comparable1, comparable2);
   }
 
   @Test
+  @SuppressWarnings("JUnitIncompatibleType")
   public void testEqualsNonComparable() {
-    assertNotEquals(EncodableThrowable.forThrowable(new Exception()), new Throwable());
+    assertNotEquals(new Throwable(), EncodableThrowable.forThrowable(new Exception()));
   }
 
   @Test

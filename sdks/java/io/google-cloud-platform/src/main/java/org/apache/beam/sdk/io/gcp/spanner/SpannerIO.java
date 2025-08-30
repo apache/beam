@@ -2461,11 +2461,10 @@ public class SpannerIO {
             }
             LOG.info(
                 "DEADLINE_EXCEEDED writing batch of {} mutations to Cloud Spanner, "
-                    + "retrying after backoff of {}ms\n"
-                    + "({})",
+                    + "retrying after backoff of {}ms",
                 mutations.size(),
                 sleepTimeMsecs,
-                exception.getMessage());
+                exception);
             spannerWriteRetries.inc();
             try {
               sleeper.sleep(sleepTimeMsecs);

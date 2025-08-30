@@ -1727,14 +1727,14 @@ public class IsmSideInputReaderTest {
   }
 
   /** Write input elements to a new temporary file and return the corresponding IsmSource. */
-  private <K, V> Source initInputFile(
+  private <V> Source initInputFile(
       Iterable<IsmRecord<WindowedValue<V>>> elements, IsmRecordCoder<WindowedValue<V>> coder)
       throws Exception {
     return initInputFile(elements, coder, tmpFolder.newFile().getPath());
   }
 
   /** Write input elements to the given file and return the corresponding IsmSource. */
-  private <K, V> Source initInputFile(
+  private <V> Source initInputFile(
       Iterable<IsmRecord<WindowedValue<V>>> elements,
       IsmRecordCoder<WindowedValue<V>> coder,
       String tmpFilePath)
@@ -1769,7 +1769,7 @@ public class IsmSideInputReaderTest {
   }
 
   /** Returns a new Source for the given ISM file using the specified coder. */
-  private <K, V> Source newIsmSource(IsmRecordCoder<WindowedValue<V>> coder, String tmpFilePath) {
+  private <V> Source newIsmSource(IsmRecordCoder<WindowedValue<V>> coder, String tmpFilePath) {
     Source source = new Source();
     source.setCodec(
         CloudObjects.asCloudObject(

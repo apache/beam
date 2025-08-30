@@ -291,8 +291,7 @@ public class BoundedSourceSystemTest {
     return pollResult.get(ssp);
   }
 
-  private static <T> BoundedSourceSystem.Consumer<String> createConsumer(
-      BoundedSource<String> source) {
+  private static BoundedSourceSystem.Consumer<String> createConsumer(BoundedSource<String> source) {
     return createConsumer(source, 1);
   }
 

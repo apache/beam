@@ -95,7 +95,7 @@ public class SchemasUtils {
     try {
       beamSchema = fromTableSchema(bigQuerySchema);
     } catch (UnsupportedOperationException exception) {
-      LOG.error("Check json schema, {}", exception.getMessage());
+      LOG.error("Check json schema", exception);
     } catch (Exception e) {
       LOG.error("Missing schema keywords, please check what all required fields presented");
     }

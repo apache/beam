@@ -2889,6 +2889,8 @@ public class JdbcIO {
       }
     }
 
+    @SuppressWarnings(
+        "Slf4jDoNotLogMessageOfExceptionExplicitly") // for tests checking error message
     private void executeBatch(ProcessContext context, Iterable<T> records)
         throws SQLException, InterruptedException {
       Long startTimeNs = System.nanoTime();

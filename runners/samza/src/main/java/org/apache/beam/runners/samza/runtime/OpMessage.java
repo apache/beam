@@ -59,7 +59,7 @@ public class OpMessage<T> {
     return new OpMessage<>(Type.SIDE_INPUT, null, viewId, elements, null);
   }
 
-  public static <T, ElemT> OpMessage<T> ofSideInputWatermark(Instant watermark) {
+  public static <T> OpMessage<T> ofSideInputWatermark(Instant watermark) {
     return new OpMessage<>(Type.SIDE_INPUT_WATERMARK, null, null, null, watermark);
   }
 

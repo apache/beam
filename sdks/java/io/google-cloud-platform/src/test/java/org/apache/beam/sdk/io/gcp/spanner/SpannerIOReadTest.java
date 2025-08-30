@@ -827,7 +827,7 @@ public class SpannerIOReadTest implements Serializable {
     }
   }
 
-  private long getRequestMetricCount(HashMap<String, String> baseLabels) {
+  private long getRequestMetricCount(Map<String, String> baseLabels) {
     MonitoringInfoMetricName name =
         MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
     MetricsContainerImpl container =
