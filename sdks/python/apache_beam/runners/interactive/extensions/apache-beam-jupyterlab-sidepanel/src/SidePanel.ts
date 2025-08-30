@@ -58,14 +58,17 @@ export class SidePanel extends BoxPanel {
     const sessionModelItr = manager.sessions.running();
     const firstModel = sessionModelItr.next();
     let onlyOneUniqueKernelExists = true;
-    if (firstModel === undefined) {
-      // There is zero unique running kernel.
+
+    if (firstModel.done) {
+      // No Running kernel
       onlyOneUniqueKernelExists = false;
     } else {
+      // firstModel.value is the first session
       let sessionModel = sessionModelItr.next();
-      while (sessionModel !== undefined) {
+
+      while (!sessionModel.done) {
+        // Check if there is more than one unique kernel
         if (sessionModel.value.kernel.id !== firstModel.value.kernel.id) {
-          // There is more than one unique running kernel.
           onlyOneUniqueKernelExists = false;
           break;
         }
