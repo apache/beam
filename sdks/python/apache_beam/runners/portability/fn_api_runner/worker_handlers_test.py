@@ -60,7 +60,8 @@ class ExternalWorkerHandlerTest(unittest.TestCase):
     self.assertEqual(handler.host_from_worker(), 'custom-host')
 
   def test_host_from_worker_without_control_host_param(self):
-    """Test that default behavior is preserved when control_host is not specified."""
+    """Test that default behavior is preserved when control_host
+    is not specified."""
     # Create external payload without control_host parameter
     external_payload = beam_runner_api_pb2.ExternalPayload(
         endpoint=endpoints_pb2.ApiServiceDescriptor(url='worker:50000'),
