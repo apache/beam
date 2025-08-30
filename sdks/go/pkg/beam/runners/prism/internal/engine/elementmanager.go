@@ -93,8 +93,7 @@ func (info PColInfo) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("GlobalID", info.GlobalID),
 		slog.String("WindowCoder", info.WindowCoder.String()),
-		slog.Any("WDec", info.WDec),
-		slog.Any("WEnc", info.WEnc),
+		// Do not attempt to log functions, or it will result in JSON marshaling error.
 	)
 }
 

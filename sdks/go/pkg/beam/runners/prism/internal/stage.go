@@ -109,7 +109,7 @@ func clampTick(dur time.Duration) time.Duration {
 }
 
 func (s *stage) LogValue() slog.Value {
-	var outAttrs []slog.Attr
+	var outAttrs []any
 	for k, v := range s.OutputsToCoders {
 		outAttrs = append(outAttrs, slog.Any(k, v))
 	}
@@ -117,7 +117,7 @@ func (s *stage) LogValue() slog.Value {
 		slog.String("ID", s.ID),
 		slog.Any("transforms", s.transforms),
 		slog.Any("inputInfo", s.inputInfo),
-		slog.Any("outputInfo", outAttrs),
+		slog.Group("outputInfo", outAttrs...),
 	)
 }
 

@@ -360,11 +360,11 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		case rb, ok := <-bundles:
 			if !ok {
 				err := eg.Wait()
-				var topoAttrs []slog.Attr
+				var topoAttrs []any
 				for _, s := range topo {
 					topoAttrs = append(topoAttrs, slog.Any(s.ID, s))
 				}
-				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Any("topo", topoAttrs))
+				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Group("topo", topoAttrs...))
 				return err
 			}
 			eg.Go(func() error {
