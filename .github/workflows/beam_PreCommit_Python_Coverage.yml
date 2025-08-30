@@ -71,8 +71,7 @@ jobs:
         # self-hosted runners due to Docker-in-Docker environment constraint.
         # These tests will only execute on ubuntu-latest (GitHub-hosted).
         # Context: https://github.com/apache/beam/pull/35585
-        # Temporary removed the ubuntu-latest env till resolving deps issues.
-        os: [[self-hosted, ubuntu-20.04, highmem]]
+        os: [[self-hosted, ubuntu-20.04, highmem], [ubuntu-latest]]
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
@@ -112,7 +111,7 @@ jobs:
           TESTCONTAINERS_HOST_OVERRIDE: ${{ contains(matrix.os, 'self-hosted') && env.DIND_IP || '' }}
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: "/var/run/docker.sock"
           TESTCONTAINERS_RYUK_DISABLED: "false"
-          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"          
+          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"
           PYTEST_ADDOPTS: "-v --tb=short --maxfail=3 --durations=20 --reruns=2 --reruns-delay=5"
           TC_TIMEOUT: "120"
           TC_MAX_TRIES: "120"
