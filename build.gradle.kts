@@ -513,20 +513,20 @@ tasks.register("pythonFormatterPreCommit") {
 tasks.register("formatChanges") {
   group = "formatting"
   description = "Formats CHANGES.md according to the template structure"
-  
+
   doLast {
     val changesFile = file("CHANGES.md")
     if (!changesFile.exists()) {
       throw GradleException("CHANGES.md file not found")
     }
-    
+
     val content = changesFile.readText()
     val lines = content.lines().toMutableList()
-    
+
     // Find template end (after --> that follows <!-- Template -->)
     var templateStartIndex = -1
     var templateEndIndex = -1
-    
+
     for (i in lines.indices) {
       if (lines[i].trim() == "<!-- Template -->") {
         templateStartIndex = i
@@ -535,34 +535,34 @@ tasks.register("formatChanges") {
         break
       }
     }
-    
+
     if (templateEndIndex == -1) {
       throw GradleException("Template end marker not found in CHANGES.md")
     }
-    
+
     // Process each release section
     var i = templateEndIndex + 1
     val formattedLines = mutableListOf<String>()
-    
+
     // Keep header and template exactly as-is (lines 0 to templateEndIndex inclusive)
     formattedLines.addAll(lines.subList(0, templateEndIndex + 1))
-    
+
     // Always add blank line after template
     formattedLines.add("")
-    
+
     while (i < lines.size) {
       val line = lines[i]
-      
+
       // Check if this is a release header
       if (line.startsWith("# [")) {
         formattedLines.add(line)
         i++
-        
+
         // Expected sections in order (following template)
         val expectedSections = listOf(
           "## Beam 3.0.0 Development Highlights",
           "## Highlights",
-          "## I/Os", 
+          "## I/Os",
           "## New Features / Improvements",
           "## Breaking Changes",
           "## Deprecations",
@@ -570,14 +570,14 @@ tasks.register("formatChanges") {
           "## Security Fixes",
           "## Known Issues"
         )
-        
+
         val sectionContent = mutableMapOf<String, MutableList<String>>()
         var currentSection = ""
-        
+
         // Parse existing sections
         while (i < lines.size && !lines[i].startsWith("# [")) {
           val currentLine = lines[i]
-          
+
           if (currentLine.startsWith("## ")) {
             currentSection = currentLine
             if (!sectionContent.containsKey(currentSection)) {
@@ -588,14 +588,14 @@ tasks.register("formatChanges") {
           }
           i++
         }
-        
+
         // Only add sections that actually exist with content
         for (section in expectedSections) {
           if (sectionContent.containsKey(section)) {
             formattedLines.add("")
             formattedLines.add(section)
             formattedLines.add("")
-            
+
             // Remove empty lines at start and end
             val content = sectionContent[section]!!
             while (content.isNotEmpty() && content.first().trim().isEmpty()) {
@@ -604,25 +604,25 @@ tasks.register("formatChanges") {
             while (content.isNotEmpty() && content.last().trim().isEmpty()) {
               content.removeAt(content.size - 1)
             }
-            
+
             // Format content according to template rules
-             val formattedContent = content.map { line ->
-               // Convert SDK language references from [Language] to (Language)
-               line.replace(Regex("\\[([^\\]]*(?:Java|Python|Go|Kotlin|TypeScript|YAML)[^\\]]*)\\]")) { matchResult ->
-                 val languages = matchResult.groupValues[1]
-                 // Only convert if it's clearly a language reference (not a link or other content)
-                 if (languages.matches(Regex(".*(?:Java|Python|Go|Kotlin|TypeScript|YAML).*"))) {
-                   "($languages)"
-                 } else {
-                   matchResult.value
-                 }
-               }
-             }
-            
+            val formattedContent = content.map { line ->
+              // Convert SDK language references from [Language] to (Language)
+              line.replace(Regex("\\[([^\\]]*(?:Java|Python|Go|Kotlin|TypeScript|YAML)[^\\]]*)\\]")) { matchResult ->
+                val languages = matchResult.groupValues[1]
+                // Only convert if it's clearly a language reference (not a link or other content)
+                if (languages.matches(Regex(".*(?:Java|Python|Go|Kotlin|TypeScript|YAML).*"))) {
+                  "($languages)"
+                } else {
+                  matchResult.value
+                }
+              }
+            }
+
             formattedLines.addAll(formattedContent)
           }
         }
-        
+
         if (i < lines.size) {
           formattedLines.add("")
         }
@@ -630,7 +630,7 @@ tasks.register("formatChanges") {
         i++
       }
     }
-    
+
     // Write formatted content back
     changesFile.writeText(formattedLines.joinToString("\n"))
     println("CHANGES.md has been formatted according to template structure")
