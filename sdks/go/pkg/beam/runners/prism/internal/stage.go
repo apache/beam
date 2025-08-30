@@ -108,6 +108,19 @@ func clampTick(dur time.Duration) time.Duration {
 	}
 }
 
+func (s *stage) LogValue() slog.Value {
+	var outAttrs []slog.Attr
+	for k, v := range s.OutputsToCoders {
+		outAttrs = append(outAttrs, slog.Any(k, v))
+	}
+	return slog.GroupValue(
+		slog.String("ID", s.ID),
+		slog.Any("transforms", s.transforms),
+		slog.Any("inputInfo", s.inputInfo),
+		slog.Any("outputInfo", outAttrs),
+	)
+}
+
 func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) (err error) {
 	if s.baseProgTick.Load() == nil {
 		s.baseProgTick.Store(minimumProgTick)

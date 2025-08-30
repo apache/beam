@@ -120,9 +120,7 @@ class PrismRunnerLogFilter(logging.Filter):
   def filter(self, record):
     if record.funcName == 'log_stdout':
       try:
-        # TODO: Fix this error message from prism
-        message = record.getMessage().replace(
-            '"!ERROR:time.Time year outside of range [0,9999]"', '')
+        message = record.getMessage()
         json_record = json.loads(message)
         record.levelno = getattr(logging, json_record["level"])
         record.levelname = logging.getLevelName(record.levelno)
@@ -148,7 +146,11 @@ class PrismRunnerLogFilter(logging.Filter):
           record.msg = (
               f"{json_record['msg']} "
               f"({', '.join(f'{k}={v!r}' for k, v in extras.items())})")
-      except (json.JSONDecodeError, KeyError, ValueError):
+      except (json.JSONDecodeError,
+              KeyError,
+              ValueError,
+              TypeError,
+              AttributeError):
         # The log parsing/filtering is best-effort.
         pass
 
@@ -181,7 +183,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     # override console to json with log filter enabled
     if self._log_kind == "console":
       self._log_kind = "json"
-      subprocess_server_logger.addFilter(PrismRunnerLogFilter())
+      self._log_filter = PrismRunnerLogFilter()
 
   # the method is only kept for testing and backward compatibility
   @classmethod
