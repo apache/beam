@@ -1,3 +1,4 @@
 {
-  "https://github.com/apache/beam/pull/35951": "triggering sideinput test"
+  "comment": "Trigger file for PostCommit Python ValidatesRunner Dataflow tests",
+  "modification": 1
 }
