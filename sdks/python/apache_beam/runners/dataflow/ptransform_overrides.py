@@ -21,6 +21,42 @@
 
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import PTransformOverride
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
+from typing import Union
+
+
+class _StreamingWriteToPubSub(PTransform):
+  """Streaming-specific WriteToPubSub implementation for DataflowRunner.
+  
+  This keeps the protobuf conversion logic but uses Write(sink) for the final step.
+  """
+  def __init__(self, original_transform):
+    self.original_transform = original_transform
+    self.with_attributes = original_transform.with_attributes
+    self.project = original_transform.project
+    self.topic_name = original_transform.topic_name
+    self._sink = original_transform._sink
+
+  def expand(self, pcoll):
+    from apache_beam.io.gcp.pubsub import _AddMetricsAndMap
+    from apache_beam.io.gcp.pubsub import PubsubMessage
+    from apache_beam.io.iobase import Write
+
+    if self.with_attributes:
+      pcoll = pcoll | 'ToProtobufX' >> ParDo(
+          _AddMetricsAndMap(
+              self.original_transform.message_to_proto_str,
+              self.project,
+              self.topic_name)).with_input_types(PubsubMessage)
+    else:
+      pcoll = pcoll | 'ToProtobufY' >> ParDo(
+          _AddMetricsAndMap(
+              self.original_transform.bytes_to_proto_str,
+              self.project,
+              self.topic_name)).with_input_types(Union[bytes, str])
+    pcoll.element_type = bytes
+    return pcoll | Write(self._sink)
 
 
 class StreamingWriteToPubSubOverride(PTransformOverride):
@@ -36,9 +72,9 @@ class StreamingWriteToPubSubOverride(PTransformOverride):
 
   def get_replacement_transform_for_applied_ptransform(
       self, applied_ptransform):
-    # Use the traditional Write(sink) pattern for DataflowRunner streaming mode
-    from apache_beam.io.iobase import Write
-    return Write(applied_ptransform.transform._sink)
+    # Use streaming-specific implementation that keeps protobuf conversion
+    # but uses Write(sink) for the final step
+    return _StreamingWriteToPubSub(applied_ptransform.transform)
 
 
 def get_dataflow_transform_overrides(pipeline_options):
