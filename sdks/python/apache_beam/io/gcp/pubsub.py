@@ -441,7 +441,7 @@ class WriteToPubSub(PTransform):
               self.bytes_to_proto_str, self.project,
               self.topic_name)).with_input_types(Union[bytes, str])
     pcoll.element_type = bytes
-    return pcoll | Write(self._sink)
+    return pcoll | ParDo(_PubSubWriteDoFn(self))
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
@@ -547,11 +547,67 @@ class _PubSubSource(iobase.SourceBase):
     return False
 
 
-# TODO(BEAM-27443): Remove in favor of a proper WriteToPubSub transform.
+class _PubSubWriteDoFn(DoFn):
+  """DoFn for writing messages to Cloud Pub/Sub.
+  
+  This DoFn handles both streaming and batch modes by buffering messages
+  and publishing them in batches to optimize performance.
+  """
+  BUFFER_SIZE_ELEMENTS = 100
+  FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
+
+  def __init__(self, transform):
+    self.project = transform.project
+    self.short_topic_name = transform.topic_name
+    self.id_label = transform.id_label
+    self.timestamp_attribute = transform.timestamp_attribute
+    self.with_attributes = transform.with_attributes
+
+    # TODO(https://github.com/apache/beam/issues/18939): Add support for
+    # id_label and timestamp_attribute.
+    if transform.id_label:
+      raise NotImplementedError(
+          'id_label is not supported for PubSub writes')
+    if transform.timestamp_attribute:
+      raise NotImplementedError(
+          'timestamp_attribute is not supported for PubSub writes')
+
+  def start_bundle(self):
+    self._buffer = []
+
+  def process(self, elem):
+    self._buffer.append(elem)
+    if len(self._buffer) >= self.BUFFER_SIZE_ELEMENTS:
+      self._flush()
+
+  def finish_bundle(self):
+    self._flush()
+
+  def _flush(self):
+    if not self._buffer:
+      return
+      
+    from google.cloud import pubsub
+    import time
+    
+    pub_client = pubsub.PublisherClient()
+    topic = pub_client.topic_path(self.project, self.short_topic_name)
+
+    # The elements in buffer are already serialized bytes from the previous transforms
+    futures = [pub_client.publish(topic, elem) for elem in self._buffer]
+
+    timer_start = time.time()
+    for future in futures:
+      remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
+      future.result(remaining)
+    self._buffer = []
+
+
 class _PubSubSink(object):
   """Sink for a Cloud Pub/Sub topic.
 
-  This ``NativeSource`` is overridden by a native Pubsub implementation.
+  This sink works for both streaming and batch pipelines by using a DoFn
+  that buffers and batches messages for efficient publishing.
   """
   def __init__(
       self,

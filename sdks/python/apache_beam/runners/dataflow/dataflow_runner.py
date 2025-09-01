@@ -88,6 +88,7 @@ class DataflowRunner(PipelineRunner):
   # Imported here to avoid circular dependencies.
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import NativeReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import get_dataflow_transform_overrides
 
   # These overrides should be applied before the proto representation of the
   # graph is created.
@@ -377,6 +378,11 @@ class DataflowRunner(PipelineRunner):
       # done before Runner API serialization, since the new proto needs to
       # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+      
+      # Apply DataflowRunner-specific overrides (e.g., streaming PubSub optimizations)
+      dataflow_overrides = get_dataflow_transform_overrides(options)
+      if dataflow_overrides:
+        pipeline.replace_all(dataflow_overrides)
 
       if options.view_as(DebugOptions).lookup_experiment('use_legacy_bq_sink'):
         warnings.warn(

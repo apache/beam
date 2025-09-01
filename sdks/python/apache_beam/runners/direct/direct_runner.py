@@ -589,16 +589,8 @@ def _get_pubsub_transform_overrides(pipeline_options):
             '(use the --streaming flag).')
       return _DirectReadFromPubSub(applied_ptransform.transform._source)
 
-  class WriteToPubSubOverride(PTransformOverride):
-    def matches(self, applied_ptransform):
-      return isinstance(applied_ptransform.transform, beam_pubsub.WriteToPubSub)
-
-    def get_replacement_transform_for_applied_ptransform(
-        self, applied_ptransform):
-      # WriteToPubSub now supports both streaming and batch modes
-      return beam.ParDo(_DirectWriteToPubSubFn(applied_ptransform.transform))
-
-  return [ReadFromPubSubOverride(), WriteToPubSubOverride()]
+  # WriteToPubSub no longer needs an override - it works by default for both batch and streaming
+  return [ReadFromPubSubOverride()]
 
 
 class BundleBasedDirectRunner(PipelineRunner):
