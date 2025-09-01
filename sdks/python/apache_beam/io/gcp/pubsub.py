@@ -43,7 +43,6 @@ from typing import Union
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
-from apache_beam.io.iobase import Write
 from apache_beam.metrics.metric import Lineage
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import Flatten
@@ -586,14 +585,15 @@ class _PubSubWriteDoFn(DoFn):
   def _flush(self):
     if not self._buffer:
       return
-      
+
     from google.cloud import pubsub
     import time
-    
+
     pub_client = pubsub.PublisherClient()
     topic = pub_client.topic_path(self.project, self.short_topic_name)
 
-    # The elements in buffer are already serialized bytes from the previous transforms
+    # The elements in buffer are already serialized bytes from the previous
+    # transforms
     futures = [pub_client.publish(topic, elem) for elem in self._buffer]
 
     timer_start = time.time()

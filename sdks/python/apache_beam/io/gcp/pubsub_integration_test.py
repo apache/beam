@@ -223,7 +223,7 @@ class PubSubIntegrationTest(unittest.TestCase):
 
   def _test_batch_write(self, with_attributes):
     """Tests batch mode WriteToPubSub functionality.
-    
+
     Args:
       with_attributes: False - Writes message data only.
         True - Writes message data and attributes.
@@ -231,18 +231,18 @@ class PubSubIntegrationTest(unittest.TestCase):
     from apache_beam.options.pipeline_options import PipelineOptions
     from apache_beam.options.pipeline_options import StandardOptions
     from apache_beam.transforms import Create
-    
+
     # Create test messages for batch mode
     test_messages = [
         PubsubMessage(b'batch_data001', {'batch_attr': 'value1'}),
         PubsubMessage(b'batch_data002', {'batch_attr': 'value2'}),
         PubsubMessage(b'batch_data003', {'batch_attr': 'value3'})
     ]
-    
+
     pipeline_options = PipelineOptions()
     # Explicitly set streaming to False for batch mode
     pipeline_options.view_as(StandardOptions).streaming = False
-    
+
     with TestPipeline(options=pipeline_options) as p:
       if with_attributes:
         messages = p | 'CreateMessages' >> Create(test_messages)
@@ -254,19 +254,17 @@ class PubSubIntegrationTest(unittest.TestCase):
         messages = p | 'CreateData' >> Create(message_data)
         _ = messages | 'WriteToPubSub' >> WriteToPubSub(
             self.output_topic.name, with_attributes=False)
-    
+
     # Verify messages were published by reading from the subscription
-    import time
     time.sleep(10)  # Allow time for messages to be published and received
-    
+
     # Pull messages from the output subscription to verify they were written
     response = self.sub_client.pull(
         request={
             "subscription": self.output_sub.name,
             "max_messages": 10,
-        }
-    )
-    
+        })
+
     received_messages = []
     for received_message in response.received_messages:
       if with_attributes:
@@ -276,18 +274,17 @@ class PubSubIntegrationTest(unittest.TestCase):
             PubsubMessage(received_message.message.data, attrs))
       else:
         received_messages.append(received_message.message.data)
-      
+
       # Acknowledge the message
       self.sub_client.acknowledge(
           request={
               "subscription": self.output_sub.name,
               "ack_ids": [received_message.ack_id],
-          }
-      )
-    
+          })
+
     # Verify we received the expected number of messages
     self.assertEqual(len(received_messages), len(test_messages))
-    
+
     if with_attributes:
       # Verify message content and attributes
       received_data = [msg.data for msg in received_messages]

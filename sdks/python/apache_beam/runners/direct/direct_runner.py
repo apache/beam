@@ -589,7 +589,8 @@ def _get_pubsub_transform_overrides(pipeline_options):
             '(use the --streaming flag).')
       return _DirectReadFromPubSub(applied_ptransform.transform._source)
 
-  # WriteToPubSub no longer needs an override - it works by default for both batch and streaming
+  # WriteToPubSub no longer needs an override - it works by default for both
+  # batch and streaming
   return [ReadFromPubSubOverride()]
 
 
