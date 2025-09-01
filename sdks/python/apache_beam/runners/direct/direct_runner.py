@@ -595,10 +595,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
 
     def get_replacement_transform_for_applied_ptransform(
         self, applied_ptransform):
-      if not pipeline_options.view_as(StandardOptions).streaming:
-        raise Exception(
-            'PubSub I/O is only available in streaming mode '
-            '(use the --streaming flag).')
+      # WriteToPubSub now supports both streaming and batch modes
       return beam.ParDo(_DirectWriteToPubSubFn(applied_ptransform.transform))
 
   return [ReadFromPubSubOverride(), WriteToPubSubOverride()]

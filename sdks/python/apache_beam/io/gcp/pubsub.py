@@ -17,8 +17,9 @@
 
 """Google Cloud PubSub sources and sinks.
 
-Cloud Pub/Sub sources and sinks are currently supported only in streaming
-pipelines, during remote execution.
+Cloud Pub/Sub sources are currently supported only in streaming pipelines,
+during remote execution. Cloud Pub/Sub sinks (WriteToPubSub) support both
+streaming and batch pipelines.
 
 This API is currently under development and is subject to change.
 
@@ -376,7 +377,12 @@ class _AddMetricsAndMap(DoFn):
 
 
 class WriteToPubSub(PTransform):
-  """A ``PTransform`` for writing messages to Cloud Pub/Sub."""
+  """A ``PTransform`` for writing messages to Cloud Pub/Sub.
+  
+  This transform supports both streaming and batch pipelines. In streaming mode,
+  messages are written continuously as they arrive. In batch mode, all messages
+  are written when the pipeline completes.
+  """
 
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 

@@ -901,6 +901,51 @@ class TestWriteToPubSub(unittest.TestCase):
     mock_pubsub.return_value.publish.assert_has_calls(
         [mock.call(mock.ANY, data, **attributes)])
 
+  def test_write_messages_batch_mode_success(self, mock_pubsub):
+    """Test WriteToPubSub works in batch mode (non-streaming)."""
+    data = 'data'
+    payloads = [data]
+
+    options = PipelineOptions([])
+    # Explicitly set streaming to False for batch mode
+    options.view_as(StandardOptions).streaming = False
+    with TestPipeline(options=options) as p:
+      pcoll = (
+          p
+          | Create(payloads)
+          | WriteToPubSub(
+              'projects/fakeprj/topics/a_topic', with_attributes=False))
+      
+      # Apply the necessary PTransformOverrides for batch mode
+      overrides = _get_transform_overrides(options)
+      p.replace_all(overrides)
+    
+    mock_pubsub.return_value.publish.assert_has_calls(
+        [mock.call(mock.ANY, data)])
+
+  def test_write_messages_with_attributes_batch_mode_success(self, mock_pubsub):
+    """Test WriteToPubSub with attributes works in batch mode (non-streaming)."""
+    data = b'data'
+    attributes = {'key': 'value'}
+    payloads = [PubsubMessage(data, attributes)]
+
+    options = PipelineOptions([])
+    # Explicitly set streaming to False for batch mode
+    options.view_as(StandardOptions).streaming = False
+    with TestPipeline(options=options) as p:
+      pcoll = (
+          p
+          | Create(payloads)
+          | WriteToPubSub(
+              'projects/fakeprj/topics/a_topic', with_attributes=True))
+      
+      # Apply the necessary PTransformOverrides for batch mode
+      overrides = _get_transform_overrides(options)
+      p.replace_all(overrides)
+    
+    mock_pubsub.return_value.publish.assert_has_calls(
+        [mock.call(mock.ANY, data, **attributes)])
+
   def test_write_messages_with_attributes_error(self, mock_pubsub):
     data = 'data'
     # Sending raw data when WriteToPubSub expects a PubsubMessage object.
