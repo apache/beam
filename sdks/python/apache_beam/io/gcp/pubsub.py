@@ -565,8 +565,7 @@ class _PubSubWriteDoFn(DoFn):
     # TODO(https://github.com/apache/beam/issues/18939): Add support for
     # id_label and timestamp_attribute.
     if transform.id_label:
-      raise NotImplementedError(
-          'id_label is not supported for PubSub writes')
+      raise NotImplementedError('id_label is not supported for PubSub writes')
     if transform.timestamp_attribute:
       raise NotImplementedError(
           'timestamp_attribute is not supported for PubSub writes')

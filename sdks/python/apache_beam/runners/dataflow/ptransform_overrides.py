@@ -19,8 +19,8 @@
 
 # pytype: skip-file
 
-from apache_beam.pipeline import PTransformOverride
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.pipeline import PTransformOverride
 
 
 class StreamingWriteToPubSubOverride(PTransformOverride):
@@ -36,9 +36,9 @@ class StreamingWriteToPubSubOverride(PTransformOverride):
 
   def get_replacement_transform_for_applied_ptransform(
       self, applied_ptransform):
-    # For now, we use the default implementation even for streaming
-    # This can be enhanced later with Dataflow-specific streaming optimizations
-    return applied_ptransform.transform
+    # Use the traditional Write(sink) pattern for DataflowRunner streaming mode
+    from apache_beam.io.iobase import Write
+    return Write(applied_ptransform.transform._sink)
 
 
 def get_dataflow_transform_overrides(pipeline_options):
