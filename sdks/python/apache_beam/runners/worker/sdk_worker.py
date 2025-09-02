@@ -458,6 +458,10 @@ class BundleProcessorCache(object):
         list)  # type: DefaultDict[str, List[bundle_processor.BundleProcessor]]
     self.last_access_times = collections.defaultdict(
         float)  # type: DefaultDict[str, float]
+    # Track instruction IDs that are currently creating BundleProcessors
+    # Maps instruction_id -> (bundle_descriptor_id, creation_start_time, thread)
+    self.creating_bundle_processors = {
+    }  # type: Dict[str, Tuple[str, float, threading.Thread]]
     self._schedule_periodic_shutdown()
     self._lock = threading.Lock()
     self.data_sampler = data_sampler
@@ -504,30 +508,43 @@ class BundleProcessorCache(object):
         pass
 
     # Make sure we instantiate the processor while not holding the lock.
-
-    # Reduce risks of concurrent modifications of the same protos
-    # captured in bundle descriptor when the same bundle descriptor is used
-    # in different instructions.
-    pbd = beam_fn_api_pb2.ProcessBundleDescriptor()
-    pbd.MergeFrom(self.fns[bundle_descriptor_id])
-
-    processor = bundle_processor.BundleProcessor(
-        self.runner_capabilities,
-        pbd,
-        self.state_handler_factory.create_state_handler(
-            pbd.state_api_service_descriptor),
-        self.data_channel_factory,
-        self.data_sampler)
+    # Track that we're creating a processor for this instruction
     with self._lock:
-      self.active_bundle_processors[
-        instruction_id] = bundle_descriptor_id, processor
-      try:
-        del self.known_not_running_instruction_ids[instruction_id]
-      except KeyError:
-        # The instruction may have not been pre-registered before execution
-        # since activate() may have never been invoked
-        pass
-    return processor
+      self.creating_bundle_processors[instruction_id] = (
+          bundle_descriptor_id, time.time(), threading.current_thread())
+
+    try:
+      # Reduce risks of concurrent modifications of the same protos
+      # captured in bundle descriptor when the same bundle descriptor is used
+      # in different instructions.
+      pbd = beam_fn_api_pb2.ProcessBundleDescriptor()
+      pbd.MergeFrom(self.fns[bundle_descriptor_id])
+
+      processor = bundle_processor.BundleProcessor(
+          self.runner_capabilities,
+          pbd,
+          self.state_handler_factory.create_state_handler(
+              pbd.state_api_service_descriptor),
+          self.data_channel_factory,
+          self.data_sampler)
+
+      with self._lock:
+        # Remove from creating processors and add to active processors
+        self.creating_bundle_processors.pop(instruction_id, None)
+        self.active_bundle_processors[
+          instruction_id] = bundle_descriptor_id, processor
+        try:
+          del self.known_not_running_instruction_ids[instruction_id]
+        except KeyError:
+          # The instruction may have not been pre-registered before execution
+          # since activate() may have never been invoked
+          pass
+      return processor
+    except Exception:
+      # If processor creation fails, remove from creating processors
+      with self._lock:
+        self.creating_bundle_processors.pop(instruction_id, None)
+      raise
 
   def lookup(self, instruction_id):
     # type: (str) -> Optional[bundle_processor.BundleProcessor]

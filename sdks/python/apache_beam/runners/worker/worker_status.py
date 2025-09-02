@@ -250,13 +250,61 @@ class FnApiWorkerStatusHandler(object):
   def _log_lull_in_bundle_processor(self, bundle_process_cache):
     while True:
       time.sleep(2 * 60)
-      if bundle_process_cache and bundle_process_cache.active_bundle_processors:
-        for instruction in list(
-            bundle_process_cache.active_bundle_processors.keys()):
-          processor = bundle_process_cache.lookup(instruction)
-          if processor:
-            info = processor.state_sampler.get_info()
-            self._log_lull_sampler_info(info, instruction)
+      if bundle_process_cache:
+        # Check active bundle processors
+        if bundle_process_cache.active_bundle_processors:
+          for instruction in list(
+              bundle_process_cache.active_bundle_processors.keys()):
+            processor = bundle_process_cache.lookup(instruction)
+            if processor:
+              info = processor.state_sampler.get_info()
+              self._log_lull_sampler_info(info, instruction)
+
+        # Check processors that are being created but not yet active
+        if bundle_process_cache.creating_bundle_processors:
+          current_time = time.time()
+          for instruction, (
+              bundle_descriptor_id, creation_start_time, thread) in list(
+                  bundle_process_cache.creating_bundle_processors.items()):
+            creation_duration_ns = (current_time - creation_start_time) * 1e9
+            if creation_duration_ns > self.log_lull_timeout_ns:
+              self._log_lull_creating_processor(
+                  instruction,
+                  bundle_descriptor_id,
+                  creation_duration_ns,
+                  thread)
+
+  def _log_lull_creating_processor(
+      self, instruction, bundle_descriptor_id, creation_duration_ns, thread):
+    """Log lull for processors that are stuck during creation."""
+    if not self._passed_lull_timeout_since_last_log():
+      return
+
+    lull_seconds = creation_duration_ns / 1e9
+    stack_trace = self._get_stack_trace_for_thread(thread)
+
+    _LOGGER.warning(
+        (
+            'Operation ongoing in bundle %s for at least %.2f seconds'
+            ' during BundleProcessor creation (bundle_descriptor_id=%s)'
+            ' without completing.\n'
+            'Current Traceback:\n%s'),
+        instruction,
+        lull_seconds,
+        bundle_descriptor_id,
+        stack_trace,
+    )
+
+  def _get_stack_trace_for_thread(self, thread):
+    """Get stack trace for a specific thread."""
+    try:
+      frame = sys._current_frames().get(thread.ident)
+      if frame:
+        return ''.join(traceback.format_stack(frame))
+      else:
+        return 'Thread not found or already terminated'
+    except Exception as e:
+      return f'Error getting stack trace: {e}'
 
   def _log_lull_sampler_info(self, sampler_info, instruction):
     if (not sampler_info or not sampler_info.time_since_transition):
