@@ -27,35 +27,43 @@ from typing import Union
 class _StreamingWriteToPubSub:
   """Streaming-specific WriteToPubSub implementation for DataflowRunner.
   
-  This keeps the protobuf conversion logic but uses Write(sink) for the final step.
+  This applies the original WriteToPubSub logic but replaces only the final
+  ParDo(_PubSubWriteDoFn) step with Write(sink) for streaming optimization.
   """
   def __init__(self, original_transform):
     self.original_transform = original_transform
-    self.with_attributes = original_transform.with_attributes
-    self.project = original_transform.project
-    self.topic_name = original_transform.topic_name
-    self._sink = original_transform._sink
+    # Copy essential PTransform attributes
+    self.side_inputs = getattr(original_transform, 'side_inputs', ())
+
+  def get_resource_hints(self):
+    """Return resource hints from the original transform."""
+    return getattr(self.original_transform, 'get_resource_hints', lambda: {})()
 
   def expand(self, pcoll):
-    from apache_beam.io.gcp.pubsub import _AddMetricsAndMap
-    from apache_beam.io.gcp.pubsub import PubsubMessage
     from apache_beam.io.iobase import Write
     from apache_beam.transforms import ParDo
 
-    if self.with_attributes:
+    # Apply the original WriteToPubSub expand logic up to the protobuf conversion
+    if self.original_transform.with_attributes:
+      from apache_beam.io.gcp.pubsub import _AddMetricsAndMap, PubsubMessage
       pcoll = pcoll | 'ToProtobufX' >> ParDo(
           _AddMetricsAndMap(
               self.original_transform.message_to_proto_str,
-              self.project,
-              self.topic_name)).with_input_types(PubsubMessage)
+              self.original_transform.project,
+              self.original_transform.topic_name)).with_input_types(
+                  PubsubMessage)
     else:
+      from apache_beam.io.gcp.pubsub import _AddMetricsAndMap
       pcoll = pcoll | 'ToProtobufY' >> ParDo(
           _AddMetricsAndMap(
               self.original_transform.bytes_to_proto_str,
-              self.project,
-              self.topic_name)).with_input_types(Union[bytes, str])
+              self.original_transform.project,
+              self.original_transform.topic_name)).with_input_types(
+                  Union[bytes, str])
+
     pcoll.element_type = bytes
-    return pcoll | Write(self._sink)
+    # Replace ParDo(_PubSubWriteDoFn(self)) with Write(sink) for streaming
+    return pcoll | Write(self.original_transform._sink)
 
 
 class StreamingWriteToPubSubOverride(PTransformOverride):
