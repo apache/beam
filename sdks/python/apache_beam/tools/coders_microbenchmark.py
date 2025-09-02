@@ -49,6 +49,7 @@ from apache_beam.transforms import window
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.pandas_type_compatibility import DataFrameBatchConverterDropIndex
 from apache_beam.utils import windowed_value
+from apache_beam.coders import coders_test_common
 
 
 def coder_benchmark_factory(coder, generate_fn):
@@ -249,6 +250,10 @@ def row_coder_benchmark_factory(generate_fn):
   return coder_benchmark_factory(get_row_coder(generate_fn()), generate_fn)
 
 
+def importable_named_tuple():
+  return [coders_test_common.MyTypedNamedTuple('a', i) for i in range(1000)]
+
+
 def run_coder_benchmarks(
     num_runs, input_size, seed, verbose, filter_regex='.*'):
   random.seed(seed)
@@ -310,6 +315,11 @@ def run_coder_benchmarks(
       batch_row_coder_benchmark_factory(nullable_row, True),
       batch_row_coder_benchmark_factory(diverse_row, False),
       batch_row_coder_benchmark_factory(diverse_row, True),
+      coder_benchmark_factory(
+          coders.IterableCoder(
+              coders.FastPrimitivesCoder().as_deterministic_coder(
+                  step_label="step")),
+          importable_named_tuple),
   ]
 
   suite = [

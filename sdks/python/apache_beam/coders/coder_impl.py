@@ -550,12 +550,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     """
     Encode special type with <=2.67.0 compatibility.
     """
-    _verify_dill_compat()
-    stream.write(dill.dumps(t), True)
+    if t not in _pickled_types:
+      _verify_dill_compat()
+      _pickled_types[t] = dill.dumps(t)
+    stream.write(_pickled_types[t], True)
 
   def encode_type(self, t, stream):
     if self.force_use_dill:
       return self.encode_type_2_67_0(t, stream)
+
     if t not in _pickled_types:
       _pickled_types[t] = cloudpickle_pickler.dumps(
           t, config=cloudpickle_pickler.NO_DYNAMIC_CLASS_TRACKING_CONFIG)
