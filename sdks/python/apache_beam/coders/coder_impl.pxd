@@ -93,6 +93,8 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef encode_type(self, t, OutputStream stream)
   cdef decode_type(self, InputStream stream)
 
+cdef dict _pickled_types
+
 cdef dict _unpickled_types
 
 
