@@ -797,6 +797,8 @@ public class DirectRunnerTest implements Serializable {
     }
   }
 
+  @SuppressWarnings(
+      "NullableOptional") // null value used to indicates no elements put to the queue yet
   private static class StaticQueue<T> implements Serializable {
 
     static class StaticQueueSource<T> extends UnboundedSource<T, StaticQueueSource.Checkpoint<T>> {

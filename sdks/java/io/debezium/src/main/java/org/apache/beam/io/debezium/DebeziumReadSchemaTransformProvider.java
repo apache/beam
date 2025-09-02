@@ -97,8 +97,7 @@ public class DebeziumReadSchemaTransformProvider
                   + ". Unable to select a JDBC driver for it. Supported Databases are: "
                   + String.join(", ", connectors));
         }
-        Class<?> connectorClass =
-            Objects.requireNonNull(Connectors.valueOf(configuration.getDatabase())).getConnector();
+        Class<?> connectorClass = Connectors.valueOf(configuration.getDatabase()).getConnector();
         DebeziumIO.ConnectorConfiguration connectorConfiguration =
             DebeziumIO.ConnectorConfiguration.create()
                 .withUsername(configuration.getUsername())

@@ -96,7 +96,7 @@ public class MetricsContainerStepMapTest {
       stringSet.add(FIRST_STRING, SECOND_STRING);
       boundedTrie.add(FIRST_STRING, SECOND_STRING);
     } catch (IOException e) {
-      LOG.error(e.getMessage(), e);
+      LOG.error("Suppressed Exception.", e);
     }
   }
 

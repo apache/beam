@@ -28,6 +28,7 @@
         * [Blueprints](#blueprints)
         * [Element-wise](#element-wise)
         * [IO](#io)
+        * [Jinja](#jinja)
         * [ML](#ml)
 
 <!-- TOC -->
@@ -243,6 +244,10 @@ Several examples will be created based on the already used word count example
 by leveraging Jinja templating engine for dynamic pipeline generation based on
 inputs from the user through `% include`, `% import`, and inheritance
 directives.
+
+Jinja `% import` directive:
+- [wordCountImport.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/import/wordCountImport.yaml)
+- [Instructions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/import/README.md) on how to run the pipeline.
 
 Jinja `% include` directive:
 - [wordCountInclude.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml)

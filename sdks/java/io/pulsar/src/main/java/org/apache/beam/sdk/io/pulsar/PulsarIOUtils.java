@@ -36,7 +36,6 @@ final class PulsarIOUtils {
           try {
             return PulsarClient.builder().serviceUrl(input).build();
           } catch (PulsarClientException e) {
-            LOG.error(e.getMessage());
             throw new RuntimeException(e);
           }
         }

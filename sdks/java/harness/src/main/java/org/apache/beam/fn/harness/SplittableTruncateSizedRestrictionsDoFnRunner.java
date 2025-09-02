@@ -677,7 +677,7 @@ public class SplittableTruncateSizedRestrictionsDoFnRunner<
   }
 
   @VisibleForTesting
-  static <WatermarkEstimatorStateT> HandlesSplits.SplitResult constructSplitResult(
+  static HandlesSplits.SplitResult constructSplitResult(
       @Nullable WindowedSplitResult windowedSplitResult,
       HandlesSplits.@Nullable SplitResult downstreamElementSplit,
       Coder<WindowedValue<?>> fullInputCoder,
