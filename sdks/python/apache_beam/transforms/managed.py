@@ -138,7 +138,8 @@ class Write(PTransform):
   _WRITE_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_WRITE.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_WRITE.urn,
-      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn,
+      POSTGRES: ManagedTransforms.Urns.POSTGRES_WRITE.urn,
   }
 
   def __init__(

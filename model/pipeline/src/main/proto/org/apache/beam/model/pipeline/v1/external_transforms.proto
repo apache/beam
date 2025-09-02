@@ -78,6 +78,8 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:iceberg_cdc_read:v1"];
     POSTGRES_READ = 7 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:postgres_read:v1"];
+    POSTGRES_WRITE = 8 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:postgres_write:v1"];
   }
 }
 
