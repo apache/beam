@@ -19,14 +19,12 @@
 
 # pytype: skip-file
 
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import PTransformOverride
-from apache_beam.transforms import ParDo
-from apache_beam.transforms import PTransform
+from apache_beam.options.pipeline_options import StandardOptions
 from typing import Union
 
 
-class _StreamingWriteToPubSub(PTransform):
+class _StreamingWriteToPubSub:
   """Streaming-specific WriteToPubSub implementation for DataflowRunner.
   
   This keeps the protobuf conversion logic but uses Write(sink) for the final step.
@@ -42,6 +40,7 @@ class _StreamingWriteToPubSub(PTransform):
     from apache_beam.io.gcp.pubsub import _AddMetricsAndMap
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from apache_beam.io.iobase import Write
+    from apache_beam.transforms import ParDo
 
     if self.with_attributes:
       pcoll = pcoll | 'ToProtobufX' >> ParDo(
