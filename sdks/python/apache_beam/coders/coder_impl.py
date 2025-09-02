@@ -556,9 +556,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
   def encode_type(self, t, stream):
     if self.force_use_dill:
       return self.encode_type_2_67_0(t, stream)
-    bs = cloudpickle_pickler.dumps(
-        t, config=cloudpickle_pickler.NO_DYNAMIC_CLASS_TRACKING_CONFIG)
-    stream.write(bs, True)
+    if t not in _pickled_types:
+      _pickled_types[t] = cloudpickle_pickler.dumps(
+          t, config=cloudpickle_pickler.NO_DYNAMIC_CLASS_TRACKING_CONFIG)
+    stream.write(_pickled_types[t], True)
 
   def decode_type(self, stream):
     if self.force_use_dill:
@@ -620,6 +621,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       raise ValueError('Unknown type tag %x' % t)
 
 
+_pickled_types = {}  # type: Dict[type, bytes]
 _unpickled_types = {}  # type: Dict[bytes, type]
 
 
