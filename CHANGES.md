@@ -80,6 +80,7 @@
   Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
   - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
   - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
+* [Python] Added the `ReactiveThrottler` and `ThrottlingSignaler` classes to streamline throttling behavior in DoFns, expose throttling mechanisms for users ([#35984](https://github.com/apache/beam/pull/35984))
 
 ## Breaking Changes
 

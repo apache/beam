@@ -121,7 +121,26 @@ class AdaptiveThrottler(object):
 
 class ReactiveThrottler(AdaptiveThrottler):
   """ A wrapper around the AdaptiveThrottler that also handles logging and
-  signaling throttling to the SDK harness.
+  signaling throttling to the SDK harness using the provided namespace.
+
+  For usage, instantiate one instance of a ReactiveThrottler class for a PTransform.
+  When making remote calls to a service, preface that call with the throttle()
+  method to potentially pre-emptively throttle the request. After that call,
+  capture the timestamp of the attempted request, then execute the request
+  code. On a success, call successful_request(timestamp) to report the success
+  to the throttler. This flow looks like the following:
+  
+  def remote_call():
+    throttler.throttle()
+
+    try:
+      timestamp = time.time()
+      result = make_request()
+      throttler.successful_request(timestamp)
+      return result
+    except Exception as e:
+      # do any error handling you want to do
+      raise
   """
   def __init__(
       self,
@@ -155,7 +174,9 @@ class ReactiveThrottler(AdaptiveThrottler):
     """ Stops request code from advancing while the underlying
     AdaptiveThrottler is signaling to preemptively throttle the request.
     Automatically handles logging the throttling and signaling to the SDK
-    harness that the request is being throttled.
+    harness that the request is being throttled. This should be called in any
+    context where a call to a remote service is being contacted prior to the
+    call being performed.
     """
     while self.throttle_request(time.time() * _SECONDS_TO_MILLISECONDS):
       self.logger.info(

@@ -353,8 +353,10 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       window_ms: int = 1 * _MILLISECOND_TO_SECOND,
       bucket_ms: int = 1 * _MILLISECOND_TO_SECOND,
       overload_ratio: float = 2):
-    """Initializes metrics tracking + an AdaptiveThrottler class for enabling
-    client-side throttling for remote calls to an inference service.
+    """Initializes a ReactiveThrottler class for enabling
+    client-side throttling for remote calls to an inference service. Also wraps
+    provided calls to the service with retry logic.
+    
     See https://s.apache.org/beam-client-side-throttling for more details
     on the configuration of the throttling and retry
     mechanics.
