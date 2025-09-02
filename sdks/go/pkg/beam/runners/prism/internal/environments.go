@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"time"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -259,7 +260,12 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 				defer rc.Close()
 				var buf bytes.Buffer
 				stdcopy.StdCopy(&buf, &buf, rc)
-				logger.Info("container being killed", slog.Any("cause", context.Cause(ctx)), slog.String("containerLog", buf.String()))
+				logger.Info("container being killed", slog.Any("cause", context.Cause(ctx)))
+				msgs, err := strconv.Unquote(buf.String())
+				if err != nil {
+					msgs = buf.String()
+				}
+				logger.Debug("container log", "log", msgs)
 			}
 			// Can't use command context, since it's already canceled here.
 			if err := cli.ContainerKill(bgctx, containerID, ""); err != nil {
