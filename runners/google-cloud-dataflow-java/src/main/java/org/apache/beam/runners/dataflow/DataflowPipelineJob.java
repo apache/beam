@@ -54,7 +54,8 @@ import org.slf4j.LoggerFactory;
 
 /** A DataflowPipelineJob represents a job submitted to Dataflow using {@link DataflowRunner}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "Slf4jDoNotLogMessageOfExceptionExplicitly", // intended, sent full stacktrace to LOG.debug
 })
 public class DataflowPipelineJob implements PipelineResult {
 

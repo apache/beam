@@ -149,7 +149,7 @@ public class DetectNewPartitionsAction {
       RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       Timestamp minWatermark,
-      TreeMap<Timestamp, List<PartitionMetadata>> batches) {
+      Map<Timestamp, List<PartitionMetadata>> batches) {
     List<PartitionMetadata> batchPartitionsDifferentCreatedAt = new ArrayList<>();
     int numTimestampsHandledSofar = 0;
     for (Map.Entry<Timestamp, List<PartitionMetadata>> batch : batches.entrySet()) {

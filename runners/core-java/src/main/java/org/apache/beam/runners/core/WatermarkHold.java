@@ -55,11 +55,10 @@ import org.joda.time.Instant;
 })
 class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /** Return tag for state containing the output watermark hold used for elements. */
-  public static <W extends BoundedWindow>
-      StateTag<WatermarkHoldState> watermarkHoldTagForTimestampCombiner(
-          TimestampCombiner timestampCombiner) {
+  public static StateTag<WatermarkHoldState> watermarkHoldTagForTimestampCombiner(
+      TimestampCombiner timestampCombiner) {
     return StateTags.makeSystemTagInternal(
-        StateTags.<W>watermarkStateInternal("hold", timestampCombiner));
+        StateTags.watermarkStateInternal("hold", timestampCombiner));
   }
 
   /**

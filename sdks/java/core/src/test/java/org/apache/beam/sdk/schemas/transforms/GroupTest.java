@@ -671,7 +671,7 @@ public class GroupTest implements Serializable {
     pipeline.run();
   }
 
-  private static <T> Void containsKIterableVs(List<Row> expectedKvs, Iterable<Row> actualKvs) {
+  private static Void containsKIterableVs(List<Row> expectedKvs, Iterable<Row> actualKvs) {
     List<Matcher<? super Row>> matchers = new ArrayList<>();
     for (Row expected : expectedKvs) {
       List<Matcher> fieldMatchers = Lists.newArrayList();
@@ -687,7 +687,7 @@ public class GroupTest implements Serializable {
     return null;
   }
 
-  private static <T> Void containsKvRows(List<Row> expectedKvs, Iterable<Row> actualKvs) {
+  private static Void containsKvRows(List<Row> expectedKvs, Iterable<Row> actualKvs) {
     List<Matcher<? super Row>> matchers = new ArrayList<>();
     for (Row expected : expectedKvs) {
       matchers.add(new KvRowMatcher(equalTo(expected.getRow(0)), equalTo(expected.getRow(1))));
