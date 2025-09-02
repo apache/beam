@@ -31,6 +31,7 @@ dependencies {
   implementation project(":sdks:java:io:iceberg")
   runtimeOnly project(":sdks:java:io:iceberg:bqms")
   runtimeOnly project(":sdks:java:io:iceberg:hive")
+  runtimeOnly "org.immutables:value:2.8.8"
   implementation library.java.slf4j_api
   implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.vendored_calcite_1_40_0
