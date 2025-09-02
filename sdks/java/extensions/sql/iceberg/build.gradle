@@ -20,7 +20,7 @@ plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog',
-  // iceberg ended support for Java 8 in 1.7.0
+  // iceberg requires Java11+
   requireJavaVersion: JavaVersion.VERSION_11,
 )
 
