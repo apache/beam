@@ -78,7 +78,7 @@ public class GroupIntoBatchesTranslation {
     }
   }
 
-  private static <K, V> GroupIntoBatchesPayload getPayloadFromParameters(
+  private static GroupIntoBatchesPayload getPayloadFromParameters(
       GroupIntoBatches.BatchingParams params) {
     return RunnerApi.GroupIntoBatchesPayload.newBuilder()
         .setBatchSize(params.getBatchSize())

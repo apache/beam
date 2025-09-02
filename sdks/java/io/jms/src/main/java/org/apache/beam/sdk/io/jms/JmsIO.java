@@ -847,6 +847,7 @@ public class JmsIO {
     }
 
     @Override
+    @SuppressWarnings("Finalize")
     protected void finalize() {
       doClose();
     }

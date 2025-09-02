@@ -754,7 +754,7 @@ public final class TransformTranslator {
     };
   }
 
-  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
+  private static <T> TransformEvaluator<Window.Assign<T>> window() {
     return new TransformEvaluator<Window.Assign<T>>() {
       @Override
       public void evaluate(Window.Assign<T> transform, EvaluationContext context) {
