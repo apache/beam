@@ -588,6 +588,7 @@ abstract class ReadFromKafkaDoFn<K, V>
               topicPartition, Optional.ofNullable(watermarkEstimator.currentWatermark()));
     }
 
+    Duration remainingTimeout = this.consumerPollingTimeout;
     long expectedOffset = tracker.currentRestriction().getFrom();
     consumer.resume(Collections.singleton(topicPartition));
     consumer.seek(topicPartition, expectedOffset);
@@ -595,16 +596,21 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     final KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
     try {
-      while (true) {
+      while (Duration.ZERO.compareTo(remainingTimeout) < 0) {
         // TODO: Remove this timer and use the existing fetch-latency-avg	metric.
         // A consumer will often have prefetches waiting to be returned immediately in which case
         // this timer may contribute more latency than it measures.
         // See https://shipilev.net/blog/2014/nanotrusting-nanotime/ for more information.
         pollTimer.reset().start();
         // Fetch the next records.
-        final ConsumerRecords<byte[], byte[]> rawRecords =
-            consumer.poll(this.consumerPollingTimeout);
-        kafkaMetrics.updateSuccessfulRpcMetrics(topicPartition.topic(), pollTimer.elapsed());
+        final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(remainingTimeout);
+        final Duration elapsed = pollTimer.elapsed();
+        try {
+          remainingTimeout = remainingTimeout.minus(elapsed);
+        } catch (ArithmeticException e) {
+          remainingTimeout = Duration.ZERO;
+        }
+        kafkaMetrics.updateSuccessfulRpcMetrics(topicPartition.topic(), elapsed);
 
         // No progress when the polling timeout expired.
         // Self-checkpoint and move to process the next element.
@@ -703,6 +709,12 @@ abstract class ReadFromKafkaDoFn<K, V>
             kafkaSourceDescriptor.getPartition(),
             estimatedBacklogBytes);
       }
+
+      if (timestampPolicy != null) {
+        updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+      }
+
+      return ProcessContinuation.resume();
     } finally {
       kafkaMetrics.flushBufferedMetrics();
     }
