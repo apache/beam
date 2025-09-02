@@ -125,7 +125,9 @@ class ReactiveThrottler(AdaptiveThrottler):
 
   For usage, instantiate one instance of a ReactiveThrottler class for a PTransform.
   When making remote calls to a service, preface that call with the throttle()
-  method to potentially pre-emptively throttle the request. After that call,
+  method to potentially pre-emptively throttle the request. This will throttle future
+  calls based on the failure rate of preceding calls, with higher failure rates leading
+  to longer periods of throttling to allow system recovery.
   capture the timestamp of the attempted request, then execute the request
   code. On a success, call successful_request(timestamp) to report the success
   to the throttler. This flow looks like the following:
