@@ -19,8 +19,8 @@
 
 # pytype: skip-file
 
-from apache_beam.pipeline import PTransformOverride
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.pipeline import PTransformOverride
 
 
 class StreamingPubSubWriteDoFnOverride(PTransformOverride):
