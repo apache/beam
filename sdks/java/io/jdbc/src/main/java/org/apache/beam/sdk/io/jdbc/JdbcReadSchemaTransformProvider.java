@@ -401,6 +401,8 @@ public class JdbcReadSchemaTransformProvider
           .Builder();
     }
 
+    public abstract Builder toBuilder();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setDriverClassName(String value);

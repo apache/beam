@@ -85,6 +85,7 @@ ICEBERG = "iceberg"
 _ICEBERG_CDC = "iceberg_cdc"
 KAFKA = "kafka"
 BIGQUERY = "bigquery"
+POSTGRES = "postgres"
 
 __all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
 
@@ -95,7 +96,8 @@ class Read(PTransform):
       ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
       _ICEBERG_CDC: ManagedTransforms.Urns.ICEBERG_CDC_READ.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
-      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn,
+      POSTGRES: ManagedTransforms.Urns.POSTGRES_READ.urn,
   }
 
   def __init__(
