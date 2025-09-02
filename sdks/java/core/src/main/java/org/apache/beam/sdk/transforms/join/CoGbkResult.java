@@ -369,7 +369,7 @@ public class CoGbkResult {
   }
 
   /** Returns an empty {@link CoGbkResult}. */
-  public static <V> CoGbkResult empty() {
+  public static CoGbkResult empty() {
     return new CoGbkResult(
         new CoGbkResultSchema(TupleTagList.empty()), new ArrayList<Iterable<?>>());
   }

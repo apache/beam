@@ -71,6 +71,8 @@ public class KafkaCommitOffset<K, V>
       consumerFactoryFn = readSourceDescriptors.getConsumerFactoryFn();
     }
 
+    @SuppressWarnings(
+        "Slf4jDoNotLogMessageOfExceptionExplicitly") // for tests checking error message
     @RequiresStableInput
     @ProcessElement
     public void processElement(@Element KV<KafkaSourceDescriptor, Long> element) {
