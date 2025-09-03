@@ -15,11 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is an example of a Beam YAML pipeline that reads from spanner database
-# and writes to GCS avro files.  This matches the Dataflow Template located
-# here - https://cloud.google.com/dataflow/docs/guides/templates/provided/cloud-spanner-to-avro
-
-# A pipeline that reads for iceberg table to and writes to AlloyDB.
+# A pipeline that reads from iceberg table and writes to AlloyDB.
 
 pipeline:
   type: chain
