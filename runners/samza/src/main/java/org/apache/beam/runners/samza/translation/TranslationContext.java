@@ -224,7 +224,7 @@ public class TranslationContext {
   private <InT extends PValue, OutT extends PValue> List<PValue> getPValueForTransform(
       SamzaMetricOpFactory.OpType opType,
       @NonNull PTransform<InT, OutT> transform,
-      @NonNull TransformHierarchy.Node node) {
+      TransformHierarchy.@NonNull Node node) {
     switch (opType) {
       case INPUT:
         {
@@ -250,7 +250,7 @@ public class TranslationContext {
 
   // Transforms that read or write to/from external sources are not supported
   private static boolean isIOTransform(
-      @NonNull TransformHierarchy.Node node, SamzaMetricOpFactory.OpType opType) {
+      TransformHierarchy.@NonNull Node node, SamzaMetricOpFactory.OpType opType) {
     switch (opType) {
       case INPUT:
         return node.getInputs().size() == 0;
