@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.io.jdbc.providers;
 
 import static org.apache.beam.sdk.io.jdbc.JdbcUtil.MYSQL;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.jdbc.JdbcWriteSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -31,7 +34,7 @@ public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransfor
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:mysql_write:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_WRITE);
   }
 
   @Override
@@ -42,5 +45,16 @@ public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransfor
   @Override
   protected String jdbcType() {
     return MYSQL;
+  }
+
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+      JdbcWriteSchemaTransformConfiguration configuration) {
+    String jdbcType = configuration.getJdbcType();
+    if (jdbcType != null && !jdbcType.equals(jdbcType())) {
+      throw new IllegalArgumentException(
+          String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
+    }
+    return super.from(configuration);
   }
 }

@@ -142,6 +142,7 @@ class Write(PTransform):
       KAFKA: ManagedTransforms.Urns.KAFKA_WRITE.urn,
       BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn,
       POSTGRES: ManagedTransforms.Urns.POSTGRES_WRITE.urn,
+      MYSQL: ManagedTransforms.Urns.MYSQL_WRITE.urn,
   }
 
   def __init__(
