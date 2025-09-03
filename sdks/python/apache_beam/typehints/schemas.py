@@ -66,6 +66,7 @@ any backwards-compatibility guarantee.
 
 # pytype: skip-file
 
+import datetime
 import decimal
 import logging
 from typing import Any
@@ -692,9 +693,7 @@ class LogicalTypeRegistry(object):
   def get_logical_type_by_urn(self, urn):
     logical_type = self.by_urn.get(urn, None)
     if logical_type is None:
-      # TODO: A temporary fix for missing jdbc logical types.
-      # See the discussion in https://github.com/apache/beam/issues/35738 for
-      # more detail.
+
       if urn in ["beam:logical_type:javasdk_date:v1",
                  "beam:logical_type:javasdk_time:v1"]:
         import apache_beam.io.jdbc  # pylint: disable=unused-import
@@ -1198,3 +1197,94 @@ class VariableString(PassThroughLogicalType[str, np.int32]):
 
   def argument(self):
     return self.max_length
+
+
+# TODO: A temporary fix for missing jdbc logical types.
+# See the discussion in https://github.com/apache/beam/issues/35738 for
+# more detail.
+@LogicalType.register_logical_type
+class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
+  """
+  For internal use only; no backwards-compatibility guarantees.
+
+  Support of Legacy JdbcIO DATE logical type. Deemed to change when Java JDBCIO
+  has been migrated to Beam portable logical types.
+  """
+  def __init__(self, argument=""):
+    pass
+
+  @classmethod
+  def representation_type(cls) -> type:
+    return MillisInstant
+
+  @classmethod
+  def urn(cls):
+    return "beam:logical_type:javasdk_date:v1"
+
+  @classmethod
+  def language_type(cls):
+    return datetime.date
+
+  def to_representation_type(self, value: datetime.date) -> Timestamp:
+    return Timestamp.from_utc_datetime(
+        datetime.datetime.combine(
+            value, datetime.datetime.min.time(), tzinfo=datetime.timezone.utc))
+
+  def to_language_type(self, value: Timestamp) -> datetime.date:
+    return value.to_utc_datetime().date()
+
+  @classmethod
+  def argument_type(cls):
+    return str
+
+  def argument(self):
+    return ""
+
+  @classmethod
+  def _from_typing(cls, typ):
+    return cls()
+
+
+@LogicalType.register_logical_type
+class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
+  """
+  For internal use only; no backwards-compatibility guarantees.
+
+  Support of Legacy JdbcIO TIME logical type. . Deemed to change when Java
+  JDBCIO has been migrated to Beam portable logical types.
+  """
+  def __init__(self, argument=""):
+    pass
+
+  @classmethod
+  def representation_type(cls) -> type:
+    return MillisInstant
+
+  @classmethod
+  def urn(cls):
+    return "beam:logical_type:javasdk_time:v1"
+
+  @classmethod
+  def language_type(cls):
+    return datetime.time
+
+  def to_representation_type(self, value: datetime.time) -> Timestamp:
+    return Timestamp.from_utc_datetime(
+        datetime.datetime.combine(
+            datetime.datetime.utcfromtimestamp(0),
+            value,
+            tzinfo=datetime.timezone.utc))
+
+  def to_language_type(self, value: Timestamp) -> datetime.time:
+    return value.to_utc_datetime().time()
+
+  @classmethod
+  def argument_type(cls):
+    return str
+
+  def argument(self):
+    return ""
+
+  @classmethod
+  def _from_typing(cls, typ):
+    return cls()
