@@ -383,7 +383,7 @@ def _multimodal_dict_input_fn(
       vid = (input_video.video, input_video.config)
     if text_column:
       input_text: Chunk = item[text_column]
-      text = input_text.content
+      text = input_text.content.text
     multimodal_inputs.append(
         VertexAIMultiModalInput(image=img, video=vid, contextual_text=text))
   return multimodal_inputs
