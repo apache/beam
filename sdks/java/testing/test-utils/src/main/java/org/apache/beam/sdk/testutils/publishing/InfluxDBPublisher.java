@@ -158,7 +158,7 @@ public final class InfluxDBPublisher {
         postRequest.setEntity(new GzipCompressingEntity(new ByteArrayEntity(data.getBytes(UTF_8))));
         executeWithVerification(postRequest, builder);
       } catch (Exception exception) {
-        LOG.warn("Unable to publish metrics due to error: {}", exception.getMessage());
+        LOG.warn("Unable to publish metrics due to error", exception);
       }
     } else {
       LOG.warn("Missing setting InfluxDB database. Metrics won't be published.");

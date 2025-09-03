@@ -219,7 +219,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
         | KeyManagementException
         | IOException
         | CertificateException e) {
-      LOG.error("Error creating HttpEventPublisher: {}", e.getMessage());
+      LOG.error("Error creating HttpEventPublisher.", e);
       throw new RuntimeException(e);
     }
   }
@@ -273,7 +273,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
         LOG.info("Successfully closed HttpEventPublisher");
 
       } catch (IOException e) {
-        LOG.warn("Received exception while closing HttpEventPublisher: {}", e.getMessage());
+        LOG.warn("Received exception while closing HttpEventPublisher.", e);
       }
     }
   }
@@ -347,7 +347,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
         flushWriteFailures(events, e.getStatusMessage(), e.getStatusCode(), receiver);
 
       } catch (IOException ioe) {
-        LOG.error("Error writing to Splunk: {}", ioe.getMessage());
+        LOG.error("Error writing to Splunk.", ioe);
         UNSUCCESSFUL_WRITE_LATENCY_MS.update(nanosToMillis(System.nanoTime() - startTime));
         FAILED_WRITES.inc(countState.read());
         INVALID_REQUESTS.inc();

@@ -1461,9 +1461,10 @@ class WorkerOptions(PipelineOptions):
         type=int,
         default=None,
         help=(
-            'The time limit (in minutes) that an SDK worker allows for a'
-            ' PTransform operation to process one element before signaling'
-            ' the runner harness to restart the SDK worker.'))
+            'The time limit (in minutes) for any PTransform to finish '
+            'processing a single element. If exceeded, the SDK worker '
+            'process self-terminates and processing may be restarted '
+            'by a runner.'))
 
   def validate(self, validator):
     errors = []
@@ -1958,6 +1959,13 @@ class PrismRunnerOptions(PipelineOptions):
         help=(
             'Controls the log level in Prism. Values can be "debug", "info", '
             '"warn", and "error". Default log level is "info".'))
+    parser.add_argument(
+        '--prism_log_kind',
+        default="console",
+        choices=["dev", "json", "text", "console"],
+        help=(
+            'Controls the log format in Prism. Values can be "dev", "json", '
+            '"text", and "console". Default log format is "console".'))
 
 
 class TestOptions(PipelineOptions):
