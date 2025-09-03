@@ -126,15 +126,13 @@ public class JdbcIOPostgresIT {
       PCollection<Row> input = writePipeline.apply(Create.of(ROWS)).setRowSchema(INPUT_SCHEMA);
       PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
       inputTuple.apply(
-          new WriteToPostgresSchemaTransformProvider.JdbcWriteSchemaTransform(
-              writeConfig, "postgres"));
+          new WriteToPostgresSchemaTransformProvider.PostgresWriteSchemaTransform(writeConfig));
       writePipeline.run().waitUntilFinish();
 
       PCollectionRowTuple pbeginTuple = PCollectionRowTuple.empty(readPipeline);
       PCollectionRowTuple outputTuple =
           pbeginTuple.apply(
-              new ReadFromPostgresSchemaTransformProvider.JdbcReadSchemaTransform(
-                  readConfig, "postgres"));
+              new ReadFromPostgresSchemaTransformProvider.PostgresReadSchemaTransform(readConfig));
       PCollection<Row> output = outputTuple.get("output");
       PAssert.that(output).containsInAnyOrder(ROWS);
       readPipeline.run().waitUntilFinish();

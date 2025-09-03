@@ -83,4 +83,10 @@ public class ReadFromPostgresSchemaTransformProvider extends JdbcReadSchemaTrans
             .build();
     return super.from(configuration);
   }
+
+  public static class PostgresReadSchemaTransform extends JdbcReadSchemaTransform {
+    public PostgresReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
+      super(config, POSTGRES);
+    }
+  }
 }

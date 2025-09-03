@@ -73,4 +73,10 @@ public class WriteToPostgresSchemaTransformProvider extends JdbcWriteSchemaTrans
     configuration = configuration.toBuilder().setConnectionInitSql(Collections.emptyList()).build();
     return super.from(configuration);
   }
+
+  public static class PostgresWriteSchemaTransform extends JdbcWriteSchemaTransform {
+    public PostgresWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
+      super(config, POSTGRES);
+    }
+  }
 }
