@@ -25,7 +25,6 @@ graph of transformations belonging to a pipeline on the local machine.
 
 import itertools
 import logging
-import time
 import typing
 
 from google.protobuf import wrappers_pb2
