@@ -750,7 +750,8 @@ def _file_io_read_test_preprocessor(
   return test_spec
 
 
-@YamlExamplesTestSuite.register_test_preprocessor(['test_iceberg_read_yaml', 'test_iceberg_to_alloydb_yaml'])
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_iceberg_read_yaml', 'test_iceberg_to_alloydb_yaml'])
 def _iceberg_io_read_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
