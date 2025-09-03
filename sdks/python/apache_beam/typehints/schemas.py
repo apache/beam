@@ -691,14 +691,7 @@ class LogicalTypeRegistry(object):
     self.by_language_type[logical_type.language_type()] = logical_type
 
   def get_logical_type_by_urn(self, urn):
-    logical_type = self.by_urn.get(urn, None)
-    if logical_type is None:
-
-      if urn in ["beam:logical_type:javasdk_date:v1",
-                 "beam:logical_type:javasdk_time:v1"]:
-        import apache_beam.io.jdbc  # pylint: disable=unused-import
-        logical_type = self.by_urn.get(urn, None)
-    return logical_type
+    return self.by_urn.get(urn, None)
 
   def get_urn_by_logical_type(self, logical_type):
     return self.by_logical_type.get(logical_type, None)
