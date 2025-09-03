@@ -81,8 +81,12 @@ def get_code_object_identifier(callable: types.FunctionType):
       - __main__.ClassWithNestedLambda.process.__code__.co_consts[
         <lambda>, ('x',), 1234567890]
   """
-  if not hasattr(callable, '__module__') or not hasattr(callable,
-                                                        '__qualname__'):
+  if (
+      not hasattr(callable, '__module__')
+      or not hasattr(callable, '__qualname__')
+      or not callable.__module__
+      or callable.__module__ not in sys.modules
+  ):
     return None
   code_path: str = _extend_path(
       callable.__module__,
@@ -100,7 +104,7 @@ def _extend_path(prefix: str, current_path: Optional[str]):
 
   Args:
     prefix: The prefix of the path.
-    suffix: The rest of the path.
+    current_path: The rest of the path.
 
   Returns:
     The extended path.
@@ -189,6 +193,8 @@ def _search_module_or_class(
           if path is not None:
             return _extend_path(name, _extend_path(f'__defaults__[{i}]', path))
   else:
+    if not hasattr(node, first_part):
+      return None
     return _extend_path(
         first_part, _search(callable, getattr(node, first_part), rest))
 
@@ -281,6 +287,8 @@ def _search_lambda(
   lambda_code_objects_by_name = collections.defaultdict(list)
   name = qual_name_parts[0]
   code_objects = code_objects_by_name[name]
+  if not code_objects:
+    return None
   if name == '<lambda>':
     for code_object in code_objects:
       lambda_name = f'<lambda>, {_signature(code_object)}'
@@ -345,9 +353,10 @@ def _get_code_object_from_single_name_pattern(
     raise ValueError(f'Invalid pattern for single name: {name_result.group(0)}')
   # Groups are indexed starting at 1, group(0) is the entire match.
   name = name_result.group(1)
-  for co_const in obj.co_consts:
-    if inspect.iscode(co_const) and co_const.co_name == name:
-      return co_const
+  if hasattr(obj, 'co_consts'):
+    for co_const in obj.co_consts:
+      if inspect.iscode(co_const) and co_const.co_name == name:
+        return co_const
   raise AttributeError(f'Could not find code object with path: {path}')
 
 
@@ -368,15 +377,16 @@ def _get_code_object_from_lambda_with_args_pattern(
   """
   name = lambda_with_args_result.group(1)
   code_objects = collections.defaultdict(list)
-  for co_const in obj.co_consts:
-    if inspect.iscode(co_const) and co_const.co_name == name:
-      code_objects[co_const.co_name].append(co_const)
-  for name, objects in code_objects.items():
-    for obj_ in objects:
-      args = tuple(
-          re.findall(_ARGUMENT_PATTERN, lambda_with_args_result.group(2)))
-      if obj_.co_varnames[:_get_arg_count(obj_)] == args:
-        return obj_
+  if hasattr(obj, 'co_consts'):
+    for co_const in obj.co_consts:
+      if inspect.iscode(co_const) and co_const.co_name == name:
+        code_objects[co_const.co_name].append(co_const)
+    for name, objects in code_objects.items():
+      for obj_ in objects:
+        args = tuple(
+            re.findall(_ARGUMENT_PATTERN, lambda_with_args_result.group(2)))
+        if obj_.co_varnames[:_get_arg_count(obj_)] == args:
+          return obj_
   raise AttributeError(f'Could not find code object with path: {path}')
 
 
@@ -397,17 +407,19 @@ def _get_code_object_from_lambda_with_hash_pattern(
   """
   name = lambda_with_hash_result.group(1)
   code_objects = collections.defaultdict(list)
-  for co_const in obj.co_consts:
-    if inspect.iscode(co_const) and co_const.co_name == name:
-      code_objects[co_const.co_name].append(co_const)
-  for name, objects in code_objects.items():
-    for obj_ in objects:
-      args = tuple(
-          re.findall(_ARGUMENT_PATTERN, lambda_with_hash_result.group(2)))
-      if obj_.co_varnames[:_get_arg_count(obj_)] == args:
-        hash_value = lambda_with_hash_result.group(3)
-        if hash_value == str(_create_bytecode_hash(obj_)):
-          return obj_
+  if hasattr(obj, 'co_consts'):
+    for co_const in obj.co_consts:
+      if inspect.iscode(co_const) and co_const.co_name == name:
+        code_objects[co_const.co_name].append(co_const)
+    for name, objects in code_objects.items():
+      for obj_ in objects:
+        args = tuple(
+            re.findall(_ARGUMENT_PATTERN, lambda_with_hash_result.group(2))
+        )
+        if obj_.co_varnames[:_get_arg_count(obj_)] == args:
+          hash_value = lambda_with_hash_result.group(3)
+          if hash_value == str(_create_bytecode_hash(obj_)):
+            return obj_
   raise AttributeError(f'Could not find code object with path: {path}')
 
 
@@ -427,6 +439,9 @@ def get_code_from_identifier(code_object_identifier: str):
   if not code_object_identifier:
     raise ValueError('Path must not be empty.')
   parts = code_object_identifier.split('.')
+  if parts[0] not in sys.modules:
+    raise AttributeError(
+        f'Module {parts[0]} not found in sys.modules')
   obj = sys.modules[parts[0]]
   for part in parts[1:]:
     if name_result := _SINGLE_NAME_PATTERN.fullmatch(part):
@@ -447,7 +462,11 @@ def get_code_from_identifier(code_object_identifier: str):
       obj = getattr(obj, '__defaults__')[index]
     else:
       obj = getattr(obj, part)
-  return obj
+  if isinstance(obj, types.CodeType):
+    return obj
+  else:
+    raise AttributeError(
+        f'Could not find code object with path: {code_object_identifier}')
 
 
 def _signature(obj: types.CodeType):
