@@ -26,9 +26,12 @@ from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
 
 try:
+  from apache_beam.ml.rag.types import Chunk
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIMultiModalEmbeddings
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIImageEmbeddings
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexImage
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexVideo
   from vertexai.vision_models import Image
   from vertexai.vision_models import Video
   from vertexai.vision_models import VideoSegmentConfig
@@ -324,16 +327,18 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (
           pipeline | "CreateData" >> beam.Create([{
-              image_feature_column: Image(gcs_uri=self.image_path),
-              text_feature_column: "an image of sunflowers",
+              image_feature_column: VertexImage(
+                  image=Image(gcs_uri=self.image_path)),
+              text_feature_column: Chunk(content="an image of sunflowers"),
           }])
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
                   embedding_config))
 
       def assert_element(element):
-        assert len(element[image_feature_column]) == 128
-        assert len(element[text_feature_column]) == 128
+        assert len(element[image_feature_column].embedding) == 128
+        assert len(
+            element[text_feature_column].embedding.dense_embedding) == 128
 
       _ = (transformed_pcoll | beam.Map(assert_element))
 
@@ -347,8 +352,9 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (
           pipeline | "CreateData" >> beam.Create([{
-              video_feature_column: (
-                  Video(gcs_uri=self.video_path), self.video_segment_config),
+              video_feature_column: VertexVideo(
+                  video=Video(gcs_uri=self.video_path),
+                  config=self.video_segment_config)
           }])
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
@@ -357,7 +363,7 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
       def assert_element(element):
         # Videos are returned in VideoEmbedding objects, must unroll
         # for each segment.
-        for segment in element[video_feature_column]:
+        for segment in element[video_feature_column].embeddings:
           assert len(segment.embedding) == 1408
 
       _ = (transformed_pcoll | beam.Map(assert_element))

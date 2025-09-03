@@ -37,6 +37,8 @@ import vertexai
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
@@ -48,6 +50,7 @@ from vertexai.vision_models import Image
 from vertexai.vision_models import MultiModalEmbeddingModel
 from vertexai.vision_models import MultiModalEmbeddingResponse
 from vertexai.vision_models import Video
+from vertexai.vision_models import VideoEmbedding
 from vertexai.vision_models import VideoSegmentConfig
 
 __all__ = [
@@ -297,6 +300,19 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
 
 
 @dataclass
+class VertexImage:
+  image: Image
+  embedding: Optional[list[float]] = None
+
+
+@dataclass
+class VertexVideo:
+  video: Video
+  config: VideoSegmentConfig
+  embeddings: Optional[list[VideoEmbedding]] = None
+
+
+@dataclass
 class VertexAIMultiModalInput:
   image: Optional[Image] = None
   video: tuple[Optional[Video], Optional[VideoSegmentConfig]] = (None, None)
@@ -360,11 +376,11 @@ def _multimodal_dict_input_fn(
     vid: tuple[Optional[Video], Optional[VideoSegmentConfig]] = (None, None)
     text: Optional[str] = None
     if image_column:
-      img = item[image_column]
+      img = item[image_column].image
     if video_column:
-      vid = item[video_column]
+      vid = (item[video_column].video, item[video_column].config)
     if text_column:
-      text = item[text_column]
+      text = item[text_column].content
     multimodal_inputs.append(
         VertexAIMultiModalInput(image=img, video=vid, contextual_text=text))
   return multimodal_inputs
@@ -380,11 +396,12 @@ def _multimodal_dict_output_fn(
   for batch_idx, item in enumerate(batch):
     mm_embedding = embeddings[batch_idx]
     if image_column:
-      item[image_column] = mm_embedding.image_embedding
+      item[image_column].embedding = mm_embedding.image_embedding
     if video_column:
-      item[video_column] = mm_embedding.video_embeddings
+      item[video_column].embeddings = mm_embedding.video_embeddings
     if text_column:
-      item[text_column] = mm_embedding.text_embedding
+      item[text_column].embedding = Embedding(
+          dense_embedding=mm_embedding.text_embedding)
     results.append(item)
   return results
 
@@ -435,9 +452,15 @@ class VertexAIMultiModalEmbeddings(EmbeddingsManager):
 
     Args:
       model_name: The name of the Vertex AI Multi-Modal Embedding model.
-      image_column: The column containing image data to be embedded.
-      video_column: The column containing video data to be embedded.
-      text_column: The column containing text data to be embedded.
+      image_column: The column containing image data to be embedded. This data
+        is expected to be formatted as VertexImage objects, containing a Vertex
+        Image object.
+      video_column: The column containing video data to be embedded. This data
+        is expected to be formatted as VertexVideo objects, containing a Vertex
+        Video object an a VideoSegmentConfig object.
+      text_column: The column containing text data to be embedded. This data is
+        expected to be formatted as Chunk objects, containing the string to be
+        embedded in the Chunk's content field.
       dimension: The length of the embedding vector to generate. Must be one of
         128, 256, 512, or 1408. If not set, Vertex AI's default value is 1408.
         If submitting video content, dimension *musst* be 1408.
