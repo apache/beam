@@ -111,7 +111,7 @@ pipeline:
 ```
 
 WARNING: If a transform doesn't have the error_handling configuration available
-and a user chooses to use this optional output_schema feature, that any failures
+and a user chooses to use this optional output_schema feature, any failures
 found will result in the entire pipeline failing. If the user would still like
 to have somekind of output schema validation, please use the ValidateWithSchema
 transform instead.
