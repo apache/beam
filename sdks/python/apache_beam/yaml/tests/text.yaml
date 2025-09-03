@@ -45,3 +45,31 @@ pipelines:
               - {line: "a"}
               - {line: "b"}
               - {line: "c"}
+
+  # ReadFromText with output schema check and error handling
+  - pipeline:
+      type: composite
+      transforms:
+        - type: ReadFromText
+          config:
+            path: "{TEMP_DIR}/out.txt*"
+            output_schema:
+              type: object
+              properties:
+                line:
+                  type: integer
+              error_handling:
+                output: invalid_rows
+        - type: MapToFields
+          input: ReadFromText.invalid_rows
+          config:
+            language: python
+            fields:
+              line: "element.line"
+        - type: AssertEqual
+          input: MapToFields
+          config:
+            elements:
+              - {line: "a"}
+              - {line: "b"}
+              - {line: "c"}
