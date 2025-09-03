@@ -43,8 +43,8 @@ pipeline:
         location: "users"
         driver_class_name: "org.postgresql.Driver"
         jdbc_url: "jdbc:postgresql:///db?socketFactory=com.google.cloud.alloydb.SocketFactory&alloydbInstanceName=projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/instances/<INSTANCE>&alloydbIpType=PRIVATE"
-        username: "user"
-        password: "password"
+        username: "<YOUR_USERNAME>"
+        password: "<YOUR_PASSWORD>"
 
 # Expected:
 #  Row(id=3, name='Smith', email='smith@example.com', zip='NY')
