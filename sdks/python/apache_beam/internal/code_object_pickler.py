@@ -82,10 +82,9 @@ def get_code_object_identifier(callable: types.FunctionType):
         <lambda>, ('x',), 1234567890]
   """
   if (
-      not hasattr(callable, '__module__')
-      or not hasattr(callable, '__qualname__')
-      or not callable.__module__
-      or callable.__module__ not in sys.modules
+      not hasattr(callable, '__module__') or
+      not hasattr(callable, '__qualname__')or not callable.__module__ or
+      callable.__module__ not in sys.modules
   ):
     return None
   code_path: str = _extend_path(
@@ -414,8 +413,7 @@ def _get_code_object_from_lambda_with_hash_pattern(
     for name, objects in code_objects.items():
       for obj_ in objects:
         args = tuple(
-            re.findall(_ARGUMENT_PATTERN, lambda_with_hash_result.group(2))
-        )
+            re.findall(_ARGUMENT_PATTERN, lambda_with_hash_result.group(2)))
         if obj_.co_varnames[:_get_arg_count(obj_)] == args:
           hash_value = lambda_with_hash_result.group(3)
           if hash_value == str(_create_bytecode_hash(obj_)):
@@ -440,8 +438,7 @@ def get_code_from_identifier(code_object_identifier: str):
     raise ValueError('Path must not be empty.')
   parts = code_object_identifier.split('.')
   if parts[0] not in sys.modules:
-    raise AttributeError(
-        f'Module {parts[0]} not found in sys.modules')
+    raise AttributeError(f'Module {parts[0]} not found in sys.modules')
   obj = sys.modules[parts[0]]
   for part in parts[1:]:
     if name_result := _SINGLE_NAME_PATTERN.fullmatch(part):
