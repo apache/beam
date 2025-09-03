@@ -83,7 +83,7 @@ def get_code_object_identifier(callable: types.FunctionType):
   """
   if (
       not hasattr(callable, '__module__') or
-      not hasattr(callable, '__qualname__')or not callable.__module__ or
+      not hasattr(callable, '__qualname__') or not callable.__module__ or
       callable.__module__ not in sys.modules
   ):
     return None
