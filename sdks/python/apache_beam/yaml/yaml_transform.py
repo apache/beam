@@ -228,10 +228,6 @@ class Scope(LightweightScope):
       if len(outputs) == 1:
         return only_element(outputs.values())
       else:
-        if 'good' in outputs and len(outputs) >= 2:
-          # This is likely the output of a transform with error handling
-          # that was explicitly added, like schema validation.
-          return outputs['good']
         error_output = self._transforms_by_uuid[self.get_transform_id(
             name)]['config'].get('error_handling', {}).get('output')
         if error_output and error_output in outputs and len(outputs) == 2:
