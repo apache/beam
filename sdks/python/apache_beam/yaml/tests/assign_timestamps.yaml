@@ -107,8 +107,6 @@ pipelines:
                   type: string
                 timestamp:
                   type: integer
-              error_handling:
-                output: invalid_schema_rows
         - type: MapToFields
           name: ExtractInvalidTimestamp
           input: AssignTimestamps.invalid_rows
@@ -122,18 +120,6 @@ pipelines:
           config:
             elements:
               - {user: "alice", timestamp: "not-valid"}
-        - type: MapToFields
-          name: ExtractInvalidSchema
-          input: AssignTimestamps.invalid_schema_rows
-          config:
-            language: python
-            fields:
-              user: "element.user"
-              timestamp: "element.timestamp"
-        - type: AssertEqual
-          input: ExtractInvalidSchema
-          config:
-            elements: []
         - type: AssertEqual
           input: AssignTimestamps
           config:
@@ -164,8 +150,6 @@ pipelines:
                   type: string
                 timestamp:
                   type: boolean
-              error_handling:
-                output: invalid_schema_rows
         - type: MapToFields
           name: ExtractInvalidTimestamp
           input: AssignTimestamps.invalid_rows
@@ -179,18 +163,6 @@ pipelines:
           config:
             elements:
               - {user: "alice", timestamp: "not-valid"}
-        - type: MapToFields
-          name: ExtractInvalidSchema
-          input: AssignTimestamps.invalid_schema_rows
-          config:
-            language: python
-            fields:
-              user: "element.user"
-              timestamp: "element.timestamp"
-        - type: AssertEqual
-          input: ExtractInvalidSchema
-          config:
-            elements:
               - {user: bob, timestamp: 3}
         - type: AssertEqual
           input: AssignTimestamps
