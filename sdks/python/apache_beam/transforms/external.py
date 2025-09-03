@@ -83,6 +83,7 @@ MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING = {
     ManagedTransforms.Urns.BIGQUERY_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
     ManagedTransforms.Urns.POSTGRES_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
     ManagedTransforms.Urns.POSTGRES_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.MYSQL_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
 }
 
 

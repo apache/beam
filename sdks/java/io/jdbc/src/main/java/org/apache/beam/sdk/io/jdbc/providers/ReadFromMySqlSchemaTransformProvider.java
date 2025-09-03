@@ -18,20 +18,28 @@
 package org.apache.beam.sdk.io.jdbc.providers;
 
 import static org.apache.beam.sdk.io.jdbc.JdbcUtil.MYSQL;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.jdbc.JdbcReadSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class ReadFromMySqlSchemaTransformProvider extends JdbcReadSchemaTransformProvider {
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ReadFromMySqlSchemaTransformProvider.class);
+
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:mysql_read:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_READ);
   }
 
   @Override
@@ -42,5 +50,26 @@ public class ReadFromMySqlSchemaTransformProvider extends JdbcReadSchemaTransfor
   @Override
   protected String jdbcType() {
     return MYSQL;
+  }
+
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+      JdbcReadSchemaTransformConfiguration configuration) {
+    String jdbcType = configuration.getJdbcType();
+    if (jdbcType != null && !jdbcType.equals(jdbcType())) {
+      throw new IllegalArgumentException(
+          String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
+    }
+
+    Integer fetchSize = configuration.getFetchSize();
+    if (fetchSize != null
+        && fetchSize > 0
+        && configuration.getJdbcUrl() != null
+        && !configuration.getJdbcUrl().contains("useCursorFetch=true")) {
+      LOG.warn(
+          "The fetchSize option is ignored. It is required to set useCursorFetch=true"
+              + " in the JDBC URL when using fetchSize for MySQL");
+    }
+    return super.from(configuration);
   }
 }
