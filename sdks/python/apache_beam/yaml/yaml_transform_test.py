@@ -687,7 +687,7 @@ class YamlTransformE2ETest(unittest.TestCase):
                        categories: []}
           ''')
 
-  def test_output_schema(self):
+  def test_output_schema_success(self):
     """Test that optional output_schema works."""
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -717,52 +717,40 @@ class YamlTransformE2ETest(unittest.TestCase):
                     - {sdk: 'Flink', year: 2015}
           ''')
 
-  def test_output_schema_with_error_handling(self):
-    """Test that optional output_schema and error handling works."""
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      _ = p | YamlTransform(
-          '''
-            type: composite
-            transforms:
-              - type: Create
-                name: MyCreate
-                config:
-                  elements:
-                    - {sdk: 'Beam', year: 2016}
-                    - {sdk: 'Spark', year: 'date'}
-                    - {sdk: 'Flink', year: 2015}
-                  output_schema:
-                    type: object
-                    properties:
-                      sdk: 
-                        type: string
-                      year: 
-                        type: integer
-                    error_handling:
-                      output: bad_records
-              - type: MapToFields
-                name: ProcessBad
-                input: MyCreate.bad_records
-                config:
-                  language: python
-                  fields:
-                    sdk: element.sdk
-                    year: element.year
-              - type: AssertEqual
-                name: CheckGood
-                input: MyCreate
-                config:
-                  elements:
-                    - {sdk: 'Beam', year: 2016}
-                    - {sdk: 'Flink', year: 2015}
-              - type: AssertEqual
-                name: CheckBad
-                input: ProcessBad
-                config:
-                  elements:
-                    - {sdk: 'Spark', year: 'date'}
-          ''')
+  def test_output_schema_fails(self):
+    """
+    Test that optional output_schema works by failing the pipeline since main
+    transform doesn't have error_handling config.
+    """
+    with self.assertRaisesRegex(Exception, "ValidationError"):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+                type: composite
+                transforms:
+                  - type: Create
+                    name: MyCreate
+                    config:
+                      elements:
+                        - {sdk: 'Beam', year: 2016}
+                        - {sdk: 'Spark', year: 'date'}
+                        - {sdk: 'Flink', year: 2015}
+                      output_schema:
+                        type: object
+                        properties:
+                          sdk: 
+                            type: string
+                          year: 
+                            type: integer
+                  - type: AssertEqual
+                    name: CheckGood
+                    input: MyCreate
+                    config:
+                      elements:
+                        - {sdk: 'Beam', year: 2016}
+                        - {sdk: 'Flink', year: 2015}
+              ''')
 
 
 class ErrorHandlingTest(unittest.TestCase):
