@@ -208,6 +208,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    * it is ready to consume that data.
    */
   private final class InboundObserver implements StreamObserver<BeamFnApi.Elements> {
+    @SuppressWarnings("LabelledBreakTarget")
     @Override
     public void onNext(BeamFnApi.Elements value) {
       // Have a fast path to handle the common case and provide a short circuit to exit if we detect

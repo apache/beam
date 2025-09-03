@@ -879,9 +879,8 @@ public class KafkaIOIT {
                             numb ->
                                 Row.withSchema(beamSchema)
                                     .withFieldValue("name", numb.toString())
-                                    .withFieldValue(
-                                        "userId", Long.valueOf(numb.hashCode())) // User ID
-                                    .withFieldValue("age", Long.valueOf(numb.intValue())) // Age
+                                    .withFieldValue("userId", (long) numb.hashCode()) // User ID
+                                    .withFieldValue("age", (long) numb.intValue()) // Age
                                     .withFieldValue("ageIsEven", numb % 2 == 0) // ageIsEven
                                     .withFieldValue("temperature", new Random(numb).nextDouble())
                                     .withFieldValue(

@@ -72,6 +72,7 @@ public final class ArtifactsSubject extends Subject {
    *
    * @param expectedFiles Expected files
    */
+  @SuppressWarnings("LenientFormatStringValidation")
   public void hasFiles(int expectedFiles) {
     check("there are %d files", expectedFiles).that(actual.size()).isEqualTo(expectedFiles);
   }
