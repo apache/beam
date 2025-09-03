@@ -400,6 +400,8 @@ class JavaJarServer(SubprocessServer):
       return local_path
 
     maven_repo = cls.MAVEN_CENTRAL_REPOSITORY
+    if ".post" in version:
+      version = version.split(".post")[0]
     if 'rc' in version:
       # Release candidate
       version = version.split('rc')[0]

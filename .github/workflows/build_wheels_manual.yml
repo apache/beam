@@ -1,0 +1,126 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Build Python 3.11 and 3.13 wheels (Manual)
+
+on:
+  workflow_dispatch:
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.sha || github.head_ref || github.ref }}-${{ github.event.sender.login}}'
+  cancel-in-progress: true
+
+jobs:
+  build_source:
+    runs-on: ubuntu-latest
+    name: Build python source distribution
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - name: Build source
+        working-directory: ./sdks/python
+        run: pip install -U build && python -m build --sdist
+      - name: Add checksums
+        working-directory: ./sdks/python/dist
+        run: |
+          file=$(ls | grep .tar.gz | head -n 1)
+          sha512sum $file > ${file}.sha512
+      - name: Unzip source
+        working-directory: ./sdks/python
+        run: tar -xzvf dist/$(ls dist | grep .tar.gz | head -n 1)
+      - name: Rename source directory
+        working-directory: ./sdks/python
+        # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
+        run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source
+      - name: Upload source as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: sdks/python/apache-beam-source
+      - name: Upload compressed sources as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: source_zip
+          path: sdks/python/dist
+
+  build_wheels:
+    name: Build python ${{matrix.py_version}} wheels on ${{matrix.os_python.arch}} for ${{ matrix.os_python.os }}
+    needs:
+      - build_source
+    env:
+      CIBW_ARCHS_LINUX: ${{matrix.os_python.arch}}
+    runs-on: ${{ matrix.os_python.runner }}
+    timeout-minutes: 480
+    strategy:
+      fail-fast: false
+      matrix:
+        os_python: [
+          {"os": "ubuntu-latest", "runner": "ubuntu-latest", "arch": "x86_64" },
+          {"os": "macos-latest", "runner": "macos-latest", "arch": "x86_64" },
+          {"os": "ubuntu-latest", "runner": "ubuntu-latest", "arch": "aarch64" }
+        ]
+        # Only Python 3.11 and 3.13
+        py_version: ["cp311-", "cp313-"]
+    steps:
+    - name: Download python source distribution from artifacts
+      uses: actions/download-artifact@v4.1.8
+      with:
+        name: source
+        path: apache-beam-source
+    - name: Install Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+    - uses: docker/setup-qemu-action@v1
+      if: ${{matrix.os_python.arch == 'aarch64'}}
+      name: Set up QEMU
+    - name: Install cibuildwheel
+      run: pip install cibuildwheel==3.1.3 setuptools
+    - name: Fix distlib conflict on macOS
+      if: startsWith(matrix.os_python.os, 'macos')
+      working-directory: apache-beam-source
+      run: |
+        sed -i.bak 's/distlib==0.3.7/distlib>=0.3.7,<1.0.0/g' pyproject.toml
+    - name: Build wheel
+      working-directory: apache-beam-source
+      env:
+        CIBW_BUILD: ${{ matrix.py_version }}*
+        # TODO: https://github.com/apache/beam/issues/23048
+        CIBW_SKIP: "*-musllinux_*"
+        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
+      run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
+      shell: bash
+    - name: install sha512sum on MacOS
+      if: startsWith(matrix.os_python.os, 'macos')
+      run: brew install coreutils
+    - name: Add checksums
+      working-directory: apache-beam-source/wheelhouse/
+      run: |
+        for file in *.whl; do
+          sha512sum $file > ${file}.sha512
+        done
+      shell: bash
+    - name: Upload wheels as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheelhouse-${{ matrix.py_version }}${{ matrix.os_python.os }}-${{ matrix.os_python.arch }}
+        path: apache-beam-source/wheelhouse/
