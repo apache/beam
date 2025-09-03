@@ -56,59 +56,64 @@ pipeline:
           - {sdk: MillWheel, year: 2008}
 ```
 
-However, a user will more likely want to detect and handle schema errors. This
-is where adding an `error_handling` configuration inside the `output_schema`
-comes into play. For example, the following code will
-create a few "good" and "bad" records with a specified schema of `sdk` as a
-string and `year` as an integer with error_handling output going to invalid
-rows. An additional `MapToFields` transform will take the error_handling output
-and capture the element data as rows. Two `AssertEqual` transforms will verify
-the "good" and "bad" rows accordingly.
+However, a user will more likely want to detect and handle schema errors. If a
+transform has a built-in error_handling configuration, the user can specify that
+error_handling configuration and any errors found will be appended to the
+transform error_handling output. For example, the following code will
+create a few "good" and "bad" records with a specified schema of `user` as a
+string and `timestamp` as a boolean. The `alice` row will fail in the standard
+way because of not being an integer for the AssignTimestamps transform, while
+the `bob` row will fail because after the AssignTimestamp transformation, the
+output row will have the timestamp as an integer when it should be a boolean.
+
 
 ```yaml
 pipeline:
   type: composite
   transforms:
     - type: Create
+      name: CreateVisits
       config:
         elements:
-          - {sdk: MapReduce, year: 2004}
-          - {sdk: CheeseWheel, year: "apple"}
-          - {sdk: MillWheel, year: 2008}
+          - {user: alice, timestamp: "not-valid"}
+          - {user: bob, timestamp: 3}
+    - type: AssignTimestamps
+      input: CreateVisits
+      config:
+        timestamp: timestamp
+        error_handling:
+          output: invalid_rows
         output_schema:
           type: object
           properties:
-            sdk:
+            user:
               type: string
-            year:
-              type: integer
-          error_handling:
-            output: invalid_rows
+            timestamp:
+              type: boolean
     - type: MapToFields
-      input: Create.invalid_rows
+      name: ExtractInvalidTimestamp
+      input: AssignTimestamps.invalid_rows
       config:
         language: python
         fields:
-          sdk: "element.sdk"
-          year: "element.year"
+          user: "element.user"
+          timestamp: "element.timestamp"
     - type: AssertEqual
-      input: MapToFields
+      input: ExtractInvalidTimestamp
       config:
         elements:
-          - {sdk: CheeseWheel, year: "apple"}
+          - {user: "alice", timestamp: "not-valid"}
+          - {user: bob, timestamp: 3}
     - type: AssertEqual
-      input: Create
+      input: AssignTimestamps
       config:
-        elements:
-          - {sdk: MapReduce, year: 2004}
-          - {sdk: MillWheel, year: 2008}
+        elements: []
 ```
 
-Do note that some transforms already have an `error_handling` configuration
-under the main config level of the transform that covers many different
-failures that would cause the pipeline to fail, while this additional
-`error_handling` section under output_schema is only geared toward capturing
-schema issues allowing the users to quickly filter out directly inside the
-transform those types of issues.
+WARNING: If a transform doesn't have the error_handling configuration available
+and a user chooses to use this optional output_schema feature, that any failures
+found will result in the entire pipeline failing. If the user would still like
+to have somekind of output schema validation, please use the ValidateWithSchema
+transform instead.
 
 For more detailed information on error handling, see this [page](https://beam.apache.org/documentation/sdks/yaml-errors/).
