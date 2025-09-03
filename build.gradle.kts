@@ -654,7 +654,7 @@ tasks.register("validateChanges") {
     // Find template section boundaries
     var templateStartIndex = -1
     var templateEndIndex = -1
-    
+
     for (i in lines.indices) {
       if (lines[i].trim() == "<!-- Template -->") {
         templateStartIndex = i
@@ -689,13 +689,13 @@ tasks.register("validateChanges") {
     // Check entries in the unreleased section
     var i = unreleasedSectionStart + 1
     println("Starting validation from line ${i+1}")
-    
+
     while (i < lines.size && !lines[i].startsWith("# [")) {
       val line = lines[i].trim()
-      
+
       if (line.startsWith("* ") && line.isNotEmpty()) {
         println("Checking line ${i+1}: $line")
-        
+
         // Skip comment lines
         if (line.startsWith("* [comment]:")) {
           println("  Skipping comment line")
@@ -703,7 +703,7 @@ tasks.register("validateChanges") {
           // Rule 1: Check if language references use parentheses instead of brackets
           val languagePattern = "\\[(Java|Python|Go|Kotlin|TypeScript|YAML)(?:/(?:Java|Python|Go|Kotlin|TypeScript|YAML))*\\]"
           val languageRegex = Regex(languagePattern)
-          
+
           // Check if there's a language reference in brackets
           val matches = languageRegex.findAll(line).toList()
           if (matches.isNotEmpty()) {
@@ -711,15 +711,15 @@ tasks.register("validateChanges") {
               val matchText = match.value
               val matchPosition = match.range.first
               println("  Found language reference: $matchText at position $matchPosition")
-              
+
               // Check if this is part of an issue link or URL
               val beforeMatch = if (matchPosition > 0) line.substring(0, matchPosition) else ""
-              val isPartOfLink = beforeMatch.contains("[#") || 
+              val isPartOfLink = beforeMatch.contains("[#") ||
                                 beforeMatch.contains("http") ||
                                 line.contains("CVE-")
-              
+
               println("  Is part of link: $isPartOfLink")
-              
+
               if (!isPartOfLink) {
                 val error = "Line ${i+1}: Language references should use parentheses () instead of brackets []: $line"
                 println("  Adding error: $error")
@@ -729,14 +729,14 @@ tasks.register("validateChanges") {
           } else {
             println("  No bracketed language reference found")
           }
-          
+
           // Rule 2: Check if each entry has an issue link
           val issueLinkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/issues/[0-9a-zA-Z]+\\)\\)"
           val issueLinkRegex = Regex(issueLinkPattern)
-          
+
           val hasIssueLink = issueLinkRegex.containsMatchIn(line)
           println("  Has issue link: $hasIssueLink")
-          
+
           if (!hasIssueLink) {
             val error = "Line ${i+1}: Missing or malformed issue link. Each entry should end with ([#X](https://github.com/apache/beam/issues/X)): $line"
             println("  Adding error: $error")
@@ -744,16 +744,16 @@ tasks.register("validateChanges") {
           }
         }
       }
-      
+
       i++
     }
-    
+
     println("Found ${errors.size} errors")
-    
+
     if (errors.isNotEmpty()) {
       throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run ./gradlew formatChanges to correct some issues.")
     }
-    
+
     println("CHANGES.md validation successful")
   }
 }
