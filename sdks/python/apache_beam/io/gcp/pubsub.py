@@ -570,6 +570,12 @@ class _PubSubWriteDoFn(DoFn):
       raise NotImplementedError(
           'timestamp_attribute is not supported for PubSub writes')
 
+  def setup(self):
+    from google.cloud import pubsub
+    self._pub_client = pubsub.PublisherClient()
+    self._topic = self._pub_client.topic_path(
+        self.project, self.short_topic_name)
+
   def start_bundle(self):
     self._buffer = []
 
@@ -585,19 +591,21 @@ class _PubSubWriteDoFn(DoFn):
     if not self._buffer:
       return
 
-    from google.cloud import pubsub
     import time
-
-    pub_client = pubsub.PublisherClient()
-    topic = pub_client.topic_path(self.project, self.short_topic_name)
 
     # The elements in buffer are already serialized bytes from the previous
     # transforms
-    futures = [pub_client.publish(topic, elem) for elem in self._buffer]
+    futures = [
+        self._pub_client.publish(self._topic, elem) for elem in self._buffer
+    ]
 
     timer_start = time.time()
     for future in futures:
       remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
+      if remaining <= 0:
+        raise TimeoutError(
+            f"PubSub publish timeout exceeded {self.FLUSH_TIMEOUT_SECS} seconds"
+        )
       future.result(remaining)
     self._buffer = []
 
