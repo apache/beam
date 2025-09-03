@@ -28,7 +28,7 @@ pipeline:
     - type: ReadFromIceberg
       name: ReadFromIcebergTable
       config:
-        table: "db.users.CA"
+        table: "db.users.NY"
         catalog_name: "hadoop_catalog"
         catalog_properties:
           type: "hadoop"
@@ -40,8 +40,16 @@ pipeline:
           "fs.gs.auth.service.account.json.keyfile": "/path/to/service/account/key.json"
 
     # Step 2: Write records out to AlloyDB
-    - type: WriteToPostgres
-      name: WriteToPostgresTable
+    # To run pipeline locally, Modify alloydbIpType to PUBLIC
+    - type: WriteToJdbc
+      name: WriteToAlloyDBTable
       config:
-        url: 'jdbc:postgresql://localhost:12345/db?user=user&password=postgres123'
         location: "users"
+        driver_class_name: "org.postgresql.Driver"
+        jdbc_url: "jdbc:postgresql:///db?socketFactory=com.google.cloud.alloydb.SocketFactory&alloydbInstanceName=projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/instances/<INSTANCE>&alloydbIpType=PRIVATE"
+        username: "user"
+        password: "password"
+
+# Expected:
+#  Row(id=3, name='Smith', email='smith@example.com', zip='NY')
+#  Row(id=4, name='Beamberg', email='beamberg@example.com', zip='NY')
