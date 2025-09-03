@@ -81,12 +81,13 @@ public class ReadFromPostgresSchemaTransformProvider extends JdbcReadSchemaTrans
             .setConnectionInitSql(Collections.emptyList())
             .setDisableAutoCommit(true)
             .build();
-    return super.from(configuration);
+    return new PostgresReadSchemaTransform(configuration);
   }
 
   public static class PostgresReadSchemaTransform extends JdbcReadSchemaTransform {
     public PostgresReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
       super(config, POSTGRES);
+      config.validate(POSTGRES);
     }
   }
 }

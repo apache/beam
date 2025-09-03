@@ -43,6 +43,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:managed")
   testImplementation project(path: ":sdks:java:testing:test-utils")
   testImplementation library.java.junit
+  testImplementation library.java.mockito_inline
   testImplementation library.java.slf4j_api
   testImplementation library.java.postgres
 

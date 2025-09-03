@@ -71,12 +71,13 @@ public class WriteToPostgresSchemaTransformProvider extends JdbcWriteSchemaTrans
 
     // Override "connectionInitSql" for postgres
     configuration = configuration.toBuilder().setConnectionInitSql(Collections.emptyList()).build();
-    return super.from(configuration);
+    return new PostgresWriteSchemaTransform(configuration);
   }
 
   public static class PostgresWriteSchemaTransform extends JdbcWriteSchemaTransform {
     public PostgresWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
       super(config, POSTGRES);
+      config.validate(POSTGRES);
     }
   }
 }
