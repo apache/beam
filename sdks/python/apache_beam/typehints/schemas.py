@@ -692,6 +692,9 @@ class LogicalTypeRegistry(object):
   def get_logical_type_by_urn(self, urn):
     logical_type = self.by_urn.get(urn, None)
     if logical_type is None:
+      # TODO: A temporary fix for missing jdbc logical types.
+      # See the discussion in https://github.com/apache/beam/issues/35738 for
+      # more detail.
       if urn in ["beam:logical_type:javasdk_date:v1",
                  "beam:logical_type:javasdk_time:v1"]:
         import apache_beam.io.jdbc  # pylint: disable=unused-import
