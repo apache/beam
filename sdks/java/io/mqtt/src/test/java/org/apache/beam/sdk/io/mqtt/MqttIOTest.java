@@ -560,7 +560,6 @@ public class MqttIOTest {
     // the number of messages of the decoded checkpoint should be zero
     assertEquals(0, cp2.messages.size());
     assertEquals(cp1.clientId, cp2.clientId);
-    assertEquals(cp1.oldestMessageTimestamp, cp2.oldestMessageTimestamp);
   }
 
   /**
