@@ -81,11 +81,9 @@ def get_code_object_identifier(callable: types.FunctionType):
       - __main__.ClassWithNestedLambda.process.__code__.co_consts[
         <lambda>, ('x',), 1234567890]
   """
-  if (
-      not hasattr(callable, '__module__') or
+  if (not hasattr(callable, '__module__') or
       not hasattr(callable, '__qualname__') or not callable.__module__ or
-      callable.__module__ not in sys.modules
-  ):
+      callable.__module__ not in sys.modules):
     return None
   code_path: str = _extend_path(
       callable.__module__,
