@@ -218,6 +218,61 @@ class PartitionTest(unittest.TestCase):
               p | beam.Create([input_value])
               | beam.Partition(lambda x, _: x, 2))
 
+  def test_partition_with_numpy_integers(self):
+    # Test that numpy integer types are correctly accepted by the
+    # ApplyPartitionFnFn class
+    import numpy as np
+
+    # Create an instance of the ApplyPartitionFnFn class
+    apply_partition_fn = beam.Partition.ApplyPartitionFnFn()
+
+    # Define a simple partition function
+    class SimplePartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return element % num_partitions
+
+    partition_fn = SimplePartitionFn()
+
+    # Test with numpy.int32
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(np.int32(1), partition_fn, 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '1')  # 1 % 3 = 1
+
+    # Test with numpy.int64
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(np.int64(2), partition_fn, 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '2')  # 2 % 3 = 2
+
+  def test_partition_fn_returning_numpy_integers(self):
+    # Test that partition functions can return numpy integer types
+    import numpy as np
+
+    # Create an instance of the ApplyPartitionFnFn class
+    apply_partition_fn = beam.Partition.ApplyPartitionFnFn()
+
+    # Define partition functions that return numpy integer types
+    class Int32PartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return np.int32(element % num_partitions)
+
+    class Int64PartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return np.int64(element % num_partitions)
+
+    # Test with partition function returning numpy.int32
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(1, Int32PartitionFn(), 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '1')  # 1 % 3 = 1
+
+    # Test with partition function returning numpy.int64
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(2, Int64PartitionFn(), 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '2')  # 2 % 3 = 2
+
   def test_partition_boundedness(self):
     def partition_fn(val, num_partitions):
       return val % num_partitions
