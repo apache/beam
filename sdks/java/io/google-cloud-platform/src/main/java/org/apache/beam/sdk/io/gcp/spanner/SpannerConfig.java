@@ -68,6 +68,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<String> getEmulatorHost();
 
+  public abstract @Nullable ValueProvider<String> getExperimentalHost();
+
   public abstract @Nullable ValueProvider<Boolean> getIsLocalChannelProvider();
 
   public abstract @Nullable ValueProvider<Duration> getCommitDeadline();
@@ -89,6 +91,8 @@ public abstract class SpannerConfig implements Serializable {
   public abstract @Nullable ValueProvider<Duration> getPartitionQueryTimeout();
 
   public abstract @Nullable ValueProvider<Duration> getPartitionReadTimeout();
+
+  public abstract @Nullable ValueProvider<Boolean> getPlainText();
 
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
@@ -149,6 +153,8 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setEmulatorHost(ValueProvider<String> emulatorHost);
 
+    abstract Builder setExperimentalHost(ValueProvider<String> experimentalHost);
+
     abstract Builder setIsLocalChannelProvider(ValueProvider<Boolean> isLocalChannelProvider);
 
     abstract Builder setCommitDeadline(ValueProvider<Duration> commitDeadline);
@@ -177,6 +183,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout);
 
     abstract Builder setCredentials(ValueProvider<Credentials> credentials);
+
+    abstract Builder setPlainText(ValueProvider<Boolean> plainText);
 
     public abstract SpannerConfig build();
   }
@@ -344,5 +352,17 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the credentials. */
   public SpannerConfig withCredentials(ValueProvider<Credentials> credentials) {
     return toBuilder().setCredentials(credentials).build();
+  }
+
+  /** Specifies the experimental host to set on SpannerOptions (setExperimentalHost). */
+  public SpannerConfig withExperimentalHost(String experimentalHost) {
+    return toBuilder()
+        .setExperimentalHost((ValueProvider.StaticValueProvider.of(experimentalHost)))
+        .build();
+  }
+
+  /** Specifies whether to use plaintext channel */
+  public SpannerConfig withPlainText(boolean plainText) {
+    return toBuilder().setPlainText(ValueProvider.StaticValueProvider.of(plainText)).build();
   }
 }

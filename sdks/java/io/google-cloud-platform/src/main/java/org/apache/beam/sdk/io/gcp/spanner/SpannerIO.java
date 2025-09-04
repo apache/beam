@@ -612,6 +612,27 @@ public class SpannerIO {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
     }
 
+    /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
+    public ReadAll withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
+    }
+
+    public ReadAll withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    /** Specifies whether to use plaintext channel */
+    public ReadAll withPlainText(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(
+          config.withPlainText(Boolean.parseBoolean(String.valueOf(plainText))));
+    }
+
+    public ReadAll withPlainText(boolean plainText) {
+      return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
     /** Specifies the Cloud Spanner database. */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
@@ -839,6 +860,25 @@ public class SpannerIO {
 
     public Read withEmulatorHost(String emulatorHost) {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
+    public Read withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
+    }
+
+    public Read withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    public Read withPlainText(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(
+          config.withPlainText(Boolean.parseBoolean(String.valueOf(plainText))));
+    }
+
+    public Read withPlainText(boolean plainText) {
+      return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
     }
 
     /** If true the uses Cloud Spanner batch API. */
@@ -1137,6 +1177,26 @@ public class SpannerIO {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
     }
 
+    /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
+    public CreateTransaction withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
+    }
+
+    public CreateTransaction withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    public CreateTransaction withPlainText(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(
+          config.withPlainText(Boolean.parseBoolean(String.valueOf(plainText))));
+    }
+
+    public CreateTransaction withPlainText(boolean plainText) {
+      return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
     @VisibleForTesting
     CreateTransaction withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       SpannerConfig config = getSpannerConfig();
@@ -1272,6 +1332,26 @@ public class SpannerIO {
 
     public Write withEmulatorHost(String emulatorHost) {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
+    /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
+    public Write withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
+    }
+
+    public Write withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    public Write withPlainText(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(
+          config.withPlainText(Boolean.parseBoolean(String.valueOf(plainText))));
+    }
+
+    public Write withPlainText(boolean plainText) {
+      return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
     }
 
     public Write withDialectView(PCollectionView<Dialect> dialect) {

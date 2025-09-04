@@ -220,6 +220,19 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setServiceFactory(serviceFactory);
     }
     builder.setHost(spannerConfig.getHostValue());
+
+    ValueProvider<String> experimentalHost = spannerConfig.getExperimentalHost();
+    if (experimentalHost != null
+        && experimentalHost.get() != null
+        && !experimentalHost.get().isEmpty()) {
+      builder.setExperimentalHost(experimentalHost.get());
+    }
+    ValueProvider<Boolean> plainText = spannerConfig.getPlainText();
+    if (plainText != null && Boolean.TRUE.equals(plainText.get())) {
+      builder.setChannelConfigurator(b -> b.usePlaintext());
+      builder.setCredentials(NoCredentials.getInstance());
+    }
+
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();
     if (emulatorHost != null) {
       builder.setEmulatorHost(emulatorHost.get());
