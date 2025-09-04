@@ -633,6 +633,19 @@ public class SpannerIO {
       return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
     }
 
+    /** Specifies client certificate and key paths for mTLS. */
+    public ReadAll withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(
+          config.withClientCert(String.valueOf(certPath), String.valueOf(keyPath)));
+    }
+
+    public ReadAll withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
+    }
+
     /** Specifies the Cloud Spanner database. */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
@@ -862,6 +875,7 @@ public class SpannerIO {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
     }
 
+    /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
     public Read withExperimentalHost(ValueProvider<String> experimentalHost) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
@@ -871,6 +885,7 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
+    /** Specifies whether to use plaintext channel */
     public Read withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(
@@ -879,6 +894,19 @@ public class SpannerIO {
 
     public Read withPlainText(boolean plainText) {
       return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /** Specifies client certificate and key paths for mTLS. */
+    public Read withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(
+          config.withClientCert(String.valueOf(certPath), String.valueOf(keyPath)));
+    }
+
+    public Read withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     /** If true the uses Cloud Spanner batch API. */
@@ -1187,6 +1215,7 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
+    /** Specifies whether to use plaintext channel */
     public CreateTransaction withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(
@@ -1195,6 +1224,20 @@ public class SpannerIO {
 
     public CreateTransaction withPlainText(boolean plainText) {
       return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /** Specifies client certificate and key paths for mTLS. */
+    public CreateTransaction withClientCert(
+        ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(
+          config.withClientCert(String.valueOf(certPath), String.valueOf(keyPath)));
+    }
+
+    public CreateTransaction withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     @VisibleForTesting
@@ -1344,6 +1387,7 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
+    /** Specifies whether to use plaintext channel */
     public Write withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(
@@ -1352,6 +1396,19 @@ public class SpannerIO {
 
     public Write withPlainText(boolean plainText) {
       return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /** Specifies client certificate and key paths for mTLS. */
+    public Write withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(
+          config.withClientCert(String.valueOf(certPath), String.valueOf(keyPath)));
+    }
+
+    public Write withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     public Write withDialectView(PCollectionView<Dialect> dialect) {

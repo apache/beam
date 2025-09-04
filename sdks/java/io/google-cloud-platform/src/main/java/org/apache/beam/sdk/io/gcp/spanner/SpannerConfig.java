@@ -94,6 +94,10 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Boolean> getPlainText();
 
+  public abstract @Nullable ValueProvider<String> getClientCertPath();
+
+  public abstract @Nullable ValueProvider<String> getClientCertKeyPath();
+
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
@@ -185,6 +189,10 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setCredentials(ValueProvider<Credentials> credentials);
 
     abstract Builder setPlainText(ValueProvider<Boolean> plainText);
+
+    abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
+
+    abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
     public abstract SpannerConfig build();
   }
@@ -364,5 +372,13 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies whether to use plaintext channel */
   public SpannerConfig withPlainText(boolean plainText) {
     return toBuilder().setPlainText(ValueProvider.StaticValueProvider.of(plainText)).build();
+  }
+
+  /** Specifies certificate paths to use for mTLS channel */
+  public SpannerConfig withClientCert(String certPath, String keyPath) {
+    return toBuilder()
+        .setClientCertPath(ValueProvider.StaticValueProvider.of(certPath))
+        .setClientCertKeyPath(ValueProvider.StaticValueProvider.of(keyPath))
+        .build();
   }
 }
