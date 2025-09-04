@@ -1673,7 +1673,7 @@ public class PipelineOptionsFactoryTest {
   public void testUsingArgumentWithUnknownPropertyIsIgnoredWithoutStrictParsing() {
     String[] args = new String[] {"--unknownProperty=value"};
     PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
-    expectedLogs.verifyWarn("missing a property named 'unknownProperty'");
+    expectedLogs.verifyWarn("Strict parsing is disabled, ignoring option 'unknownProperty'");
   }
 
   @Test

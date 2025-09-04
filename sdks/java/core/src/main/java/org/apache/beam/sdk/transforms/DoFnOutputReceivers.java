@@ -152,7 +152,7 @@ public class DoFnOutputReceivers {
   }
 
   /** Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
-  public static <T> MultiOutputReceiver windowedMultiReceiver(
+  public static MultiOutputReceiver windowedMultiReceiver(
       DoFn<?, ?>.WindowedContext context, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
     return new WindowedContextMultiOutputReceiver(context, outputCoders);
   }
@@ -162,7 +162,7 @@ public class DoFnOutputReceivers {
    *
    * <p>This exists for backwards-compatibility with the Dataflow runner, and will be removed.
    */
-  public static <T> MultiOutputReceiver windowedMultiReceiver(DoFn<?, ?>.WindowedContext context) {
+  public static MultiOutputReceiver windowedMultiReceiver(DoFn<?, ?>.WindowedContext context) {
     return new WindowedContextMultiOutputReceiver(context);
   }
 
