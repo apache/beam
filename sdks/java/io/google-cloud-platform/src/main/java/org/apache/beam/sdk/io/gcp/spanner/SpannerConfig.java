@@ -369,12 +369,12 @@ public abstract class SpannerConfig implements Serializable {
         .build();
   }
 
-  /** Specifies whether to use plaintext channel */
+  /** Specifies whether to use plaintext channel. */
   public SpannerConfig withPlainText(boolean plainText) {
     return toBuilder().setPlainText(ValueProvider.StaticValueProvider.of(plainText)).build();
   }
 
-  /** Specifies certificate paths to use for mTLS channel */
+  /** Specifies certificate paths to use for mTLS channel. */
   public SpannerConfig withClientCert(String certPath, String keyPath) {
     return toBuilder()
         .setClientCertPath(ValueProvider.StaticValueProvider.of(certPath))

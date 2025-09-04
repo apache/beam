@@ -622,7 +622,7 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
-    /** Specifies whether to use plaintext channel */
+    /** Specifies whether to use plaintext channel. */
     public ReadAll withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(
@@ -885,7 +885,7 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
-    /** Specifies whether to use plaintext channel */
+    /** Specifies whether to use plaintext channel. */
     public Read withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(
@@ -1215,7 +1215,7 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
-    /** Specifies whether to use plaintext channel */
+    /** Specifies whether to use plaintext channel. */
     public CreateTransaction withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(
@@ -1387,7 +1387,7 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
-    /** Specifies whether to use plaintext channel */
+    /** Specifies whether to use plaintext channel. */
     public Write withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(
