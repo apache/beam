@@ -3648,7 +3648,7 @@ class Partition(PTransformWithSideInputs):
         raise ValueError(
             f"PartitionFn yielded a '{type(partition).__name__}' "
             "when it should only yield integers")
-      if not 0 <= partition < n:
+      if not 0 <= int(partition) < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
             '%d not in [0, %d)' % (partition, n))
