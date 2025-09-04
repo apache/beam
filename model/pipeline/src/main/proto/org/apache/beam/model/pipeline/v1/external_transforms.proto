@@ -84,6 +84,10 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:mysql_read:v1"];
     MYSQL_WRITE = 10 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:mysql_write:v1"];
+    ORACLE_READ = 11 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:oracle_read:v1"];
+    ORACLE_WRITE = 12 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:oracle_write:v1"];
   }
 }
 

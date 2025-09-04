@@ -18,20 +18,30 @@
 package org.apache.beam.sdk.io.jdbc.providers;
 
 import static org.apache.beam.sdk.io.jdbc.JdbcUtil.ORACLE;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.jdbc.JdbcWriteSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class WriteToOracleSchemaTransformProvider extends JdbcWriteSchemaTransformProvider {
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(WriteToOracleSchemaTransformProvider.class);
+
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:oracle_write:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ORACLE_WRITE);
   }
 
   @Override
@@ -42,5 +52,32 @@ public class WriteToOracleSchemaTransformProvider extends JdbcWriteSchemaTransfo
   @Override
   protected String jdbcType() {
     return ORACLE;
+  }
+
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+      JdbcWriteSchemaTransformConfiguration configuration) {
+    String jdbcType = configuration.getJdbcType();
+    if (jdbcType != null && !jdbcType.equals(jdbcType())) {
+      throw new IllegalArgumentException(
+          String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
+    }
+
+    List<@org.checkerframework.checker.nullness.qual.Nullable String> connectionInitSql =
+        configuration.getConnectionInitSql();
+    if (connectionInitSql != null && !connectionInitSql.isEmpty()) {
+      LOG.warn("Oracle does not support connectionInitSql, ignoring.");
+    }
+
+    // Override "connectionInitSql" for oracle
+    configuration = configuration.toBuilder().setConnectionInitSql(Collections.emptyList()).build();
+    return new OracleWriteSchemaTransform(configuration);
+  }
+
+  public static class OracleWriteSchemaTransform extends JdbcWriteSchemaTransform {
+    public OracleWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
+      super(config, ORACLE);
+      config.validate(ORACLE);
+    }
   }
 }

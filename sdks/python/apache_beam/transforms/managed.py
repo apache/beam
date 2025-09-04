@@ -87,6 +87,7 @@ KAFKA = "kafka"
 BIGQUERY = "bigquery"
 POSTGRES = "postgres"
 MYSQL = "mysql"
+ORACLE = "oracle"
 
 __all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
 
@@ -100,6 +101,7 @@ class Read(PTransform):
       BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn,
       POSTGRES: ManagedTransforms.Urns.POSTGRES_READ.urn,
       MYSQL: ManagedTransforms.Urns.MYSQL_READ.urn,
+      ORACLE: ManagedTransforms.Urns.ORACLE_READ.urn,
   }
 
   def __init__(
@@ -143,6 +145,7 @@ class Write(PTransform):
       BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn,
       POSTGRES: ManagedTransforms.Urns.POSTGRES_WRITE.urn,
       MYSQL: ManagedTransforms.Urns.MYSQL_WRITE.urn,
+      ORACLE: ManagedTransforms.Urns.ORACLE_WRITE.urn,
   }
 
   def __init__(
