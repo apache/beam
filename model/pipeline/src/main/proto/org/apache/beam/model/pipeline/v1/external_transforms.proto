@@ -88,6 +88,10 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:oracle_read:v1"];
     ORACLE_WRITE = 12 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:oracle_write:v1"];
+    SQLSERVER_READ = 13 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:sql_server_read:v1"];
+    SQLSERVER_WRITE = 14 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:sql_server_write:v1"];
   }
 }
 
