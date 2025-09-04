@@ -27,6 +27,7 @@ from apache_beam.ml.transforms.base import MLTransform
 
 try:
   from apache_beam.ml.rag.types import Chunk
+  from apache_beam.ml.rag.types import Content
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIMultiModalEmbeddings
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIImageEmbeddings
@@ -298,6 +299,10 @@ text_feature_column: str = "txt_feature"
 video_feature_column: str = "vid_feature"
 
 
+def _make_text_chunk(input: str) -> Chunk:
+  return Chunk(content=Content(text=input))
+
+
 @unittest.skipIf(
     VertexAIMultiModalEmbeddings is None,
     'Vertex AI Python SDK is not installed.')
@@ -329,7 +334,7 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
           pipeline | "CreateData" >> beam.Create([{
               image_feature_column: VertexImage(
                   image=Image(gcs_uri=self.image_path)),
-              text_feature_column: Chunk(content="an image of sunflowers"),
+              text_feature_column: _make_text_chunk("an image of sunflowers"),
           }])
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
