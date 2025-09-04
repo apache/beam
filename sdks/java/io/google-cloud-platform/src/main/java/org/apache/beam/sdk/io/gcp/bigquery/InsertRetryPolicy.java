@@ -53,8 +53,8 @@ public abstract class InsertRetryPolicy implements Serializable {
     }
 
     public Context(
-        TableDataInsertAllResponse.@Nullable InsertErrors errors,
-        @Nullable GoogleJsonResponseException exception) {
+            TableDataInsertAllResponse.@Nullable InsertErrors errors,
+            @Nullable GoogleJsonResponseException exception) {
       this.errors = errors;
       this.exception = exception;
     }
@@ -70,7 +70,7 @@ public abstract class InsertRetryPolicy implements Serializable {
 
   // A list of known persistent errors for which retrying never helps.
   static final Set<String> PERSISTENT_ERRORS =
-      ImmutableSet.of("invalid", "invalidQuery", "notImplemented", "row-too-large", "parseError");
+          ImmutableSet.of("invalid", "invalidQuery", "notImplemented", "row-too-large", "parseError");
 
   /** Return true if this failure should be retried. */
   public abstract boolean shouldRetry(Context context);
@@ -90,11 +90,13 @@ public abstract class InsertRetryPolicy implements Serializable {
     return new InsertRetryPolicy() {
       @Override
       public boolean shouldRetry(Context context) {
-        if (context.getHttpException() != null) {
-          int statusCode = context.getHttpException().getStatusCode();
-          return statusCode == 429 || statusCode == 503; // Retry rate-limited or server errors
+        GoogleJsonResponseException httpException = context.getHttpException();
+        if (httpException != null) {
+          int statusCode = httpException.getStatusCode();
+          return statusCode == 429 || statusCode == 503;
         }
-        return context.getInsertErrors() != null; // Retry per-row errors
+        TableDataInsertAllResponse.InsertErrors insertErrors = context.getInsertErrors();
+        return insertErrors != null;
       }
     };
   }
@@ -104,18 +106,22 @@ public abstract class InsertRetryPolicy implements Serializable {
     return new InsertRetryPolicy() {
       @Override
       public boolean shouldRetry(Context context) {
-        if (context.getHttpException() != null) {
-          int statusCode = context.getHttpException().getStatusCode();
+        GoogleJsonResponseException httpException = context.getHttpException();
+        if (httpException != null) {
+          int statusCode = httpException.getStatusCode();
           return statusCode == 429 || statusCode == 503;
         }
-        if (context.getInsertErrors() != null && context.getInsertErrors().getErrors() != null) {
-          for (ErrorProto error : context.getInsertErrors().getErrors()) {
-            if (error.getReason() != null && PERSISTENT_ERRORS.contains(error.getReason())) {
+        TableDataInsertAllResponse.InsertErrors insertErrors = context.getInsertErrors();
+        if (insertErrors != null && insertErrors.getErrors() != null) {
+          for (ErrorProto error : insertErrors.getErrors()) {
+            String reason = error.getReason();
+            if (reason != null && PERSISTENT_ERRORS.contains(reason)) {
               return false;
             }
           }
+          return true;
         }
-        return true;
+        return false;
       }
     };
   }
