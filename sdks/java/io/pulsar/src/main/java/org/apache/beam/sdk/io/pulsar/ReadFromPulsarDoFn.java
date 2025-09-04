@@ -231,7 +231,6 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
                   Message<byte[]> lastMsg = admin.topics().examineMessage(topic, "latest", 1);
                   return lastMsg;
                 } catch (PulsarAdminException e) {
-                  LOG.error(e.getMessage());
                   throw new RuntimeException(e);
                 }
               },

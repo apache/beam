@@ -1097,7 +1097,8 @@ class JavaJarExpansionService(object):
           ExpansionAndArtifactRetrievalStub,
           self.path_to_jar,
           self._extra_args,
-          classpath=classpath_urls)
+          classpath=classpath_urls,
+          logger="ExpansionService")
       self._service = self._service_provider.__enter__()
     self._service_count += 1
     return self._service

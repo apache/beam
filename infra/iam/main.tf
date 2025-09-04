@@ -33,3 +33,8 @@ variable "project_id" {
   description = "The GCP project ID."
   type        = string
 }
+
+module "beam_roles" {
+  source     = "./roles"
+  project_id = var.project_id
+}

@@ -119,7 +119,12 @@ class _RowDictionariesToArrowTable(DoFn):
 
     # reorder the data in columnar format.
     for i, n in enumerate(self._schema.names):
-      self._buffer[i].append(row[n])
+      # Handle missing nullable fields by using None as default value
+      field = self._schema.field(i)
+      if field.nullable and n not in row:
+        self._buffer[i].append(None)
+      else:
+        self._buffer[i].append(row[n])
 
   def finish_bundle(self):
     if len(self._buffer[0]) > 0:
