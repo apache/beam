@@ -222,9 +222,7 @@ public class SpannerAccessor implements AutoCloseable {
     builder.setHost(spannerConfig.getHostValue());
 
     ValueProvider<String> experimentalHost = spannerConfig.getExperimentalHost();
-    if (experimentalHost != null
-        && experimentalHost.get() != null
-        && !experimentalHost.get().isEmpty()) {
+    if (experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get())) {
       builder.setExperimentalHost(experimentalHost.get());
     }
     ValueProvider<Boolean> plainText = spannerConfig.getPlainText();
@@ -236,10 +234,8 @@ public class SpannerAccessor implements AutoCloseable {
     ValueProvider<String> clientKey = spannerConfig.getClientCertKeyPath();
     if (clientCert != null
         && clientKey != null
-        && clientCert.get() != null
-        && clientKey.get() != null
-        && !clientCert.get().isEmpty()
-        && !clientKey.get().isEmpty()) {
+        && !Strings.isNullOrEmpty(clientCert.get())
+        && !Strings.isNullOrEmpty(clientKey.get())) {
       builder.useClientCert(clientCert.get(), clientKey.get());
     }
 

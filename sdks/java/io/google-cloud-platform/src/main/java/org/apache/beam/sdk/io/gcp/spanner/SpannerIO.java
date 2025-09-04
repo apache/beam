@@ -615,7 +615,7 @@ public class SpannerIO {
     /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
     public ReadAll withExperimentalHost(ValueProvider<String> experimentalHost) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
     }
 
     public ReadAll withExperimentalHost(String experimentalHost) {
@@ -625,8 +625,7 @@ public class SpannerIO {
     /** Specifies whether to use plaintext channel. */
     public ReadAll withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(
-          config.withPlainText(Boolean.parseBoolean(String.valueOf(plainText))));
+      return withSpannerConfig(config.withPlainText(plainText));
     }
 
     public ReadAll withPlainText(boolean plainText) {
@@ -636,8 +635,7 @@ public class SpannerIO {
     /** Specifies client certificate and key paths for mTLS. */
     public ReadAll withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(
-          config.withClientCert(String.valueOf(certPath), String.valueOf(keyPath)));
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
     }
 
     public ReadAll withClientCert(String certPath, String keyPath) {
@@ -878,7 +876,7 @@ public class SpannerIO {
     /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
     public Read withExperimentalHost(ValueProvider<String> experimentalHost) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
     }
 
     public Read withExperimentalHost(String experimentalHost) {
@@ -888,8 +886,7 @@ public class SpannerIO {
     /** Specifies whether to use plaintext channel. */
     public Read withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(
-          config.withPlainText(Boolean.parseBoolean(String.valueOf(plainText))));
+      return withSpannerConfig(config.withPlainText(plainText));
     }
 
     public Read withPlainText(boolean plainText) {
@@ -899,8 +896,7 @@ public class SpannerIO {
     /** Specifies client certificate and key paths for mTLS. */
     public Read withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(
-          config.withClientCert(String.valueOf(certPath), String.valueOf(keyPath)));
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
     }
 
     public Read withClientCert(String certPath, String keyPath) {
@@ -1208,7 +1204,7 @@ public class SpannerIO {
     /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
     public CreateTransaction withExperimentalHost(ValueProvider<String> experimentalHost) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
     }
 
     public CreateTransaction withExperimentalHost(String experimentalHost) {
@@ -1218,8 +1214,7 @@ public class SpannerIO {
     /** Specifies whether to use plaintext channel. */
     public CreateTransaction withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(
-          config.withPlainText(Boolean.parseBoolean(String.valueOf(plainText))));
+      return withSpannerConfig(config.withPlainText(plainText));
     }
 
     public CreateTransaction withPlainText(boolean plainText) {
@@ -1230,8 +1225,7 @@ public class SpannerIO {
     public CreateTransaction withClientCert(
         ValueProvider<String> certPath, ValueProvider<String> keyPath) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(
-          config.withClientCert(String.valueOf(certPath), String.valueOf(keyPath)));
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
     }
 
     public CreateTransaction withClientCert(String certPath, String keyPath) {
@@ -1380,7 +1374,7 @@ public class SpannerIO {
     /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
     public Write withExperimentalHost(ValueProvider<String> experimentalHost) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withExperimentalHost(String.valueOf(experimentalHost)));
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
     }
 
     public Write withExperimentalHost(String experimentalHost) {
@@ -1390,8 +1384,7 @@ public class SpannerIO {
     /** Specifies whether to use plaintext channel. */
     public Write withPlainText(ValueProvider<Boolean> plainText) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(
-          config.withPlainText(Boolean.parseBoolean(String.valueOf(plainText))));
+      return withSpannerConfig(config.withPlainText(plainText));
     }
 
     public Write withPlainText(boolean plainText) {
@@ -1401,8 +1394,7 @@ public class SpannerIO {
     /** Specifies client certificate and key paths for mTLS. */
     public Write withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
       SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(
-          config.withClientCert(String.valueOf(certPath), String.valueOf(keyPath)));
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
     }
 
     public Write withClientCert(String certPath, String keyPath) {

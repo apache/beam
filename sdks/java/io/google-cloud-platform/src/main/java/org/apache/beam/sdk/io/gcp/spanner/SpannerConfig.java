@@ -48,6 +48,9 @@ public abstract class SpannerConfig implements Serializable {
   private static final Duration DEFAULT_COMMIT_DEADLINE = Duration.standardSeconds(15);
   // Total allowable backoff time.
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
+  // Instance id of experimental hosts
+  private static final ValueProvider<String> EXPERIMENTAL_HOST_INSTANCE_ID =
+      ValueProvider.StaticValueProvider.of("default");
   // A default priority for batch traffic.
   static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.MEDIUM;
 
@@ -363,22 +366,38 @@ public abstract class SpannerConfig implements Serializable {
   }
 
   /** Specifies the experimental host to set on SpannerOptions (setExperimentalHost). */
-  public SpannerConfig withExperimentalHost(String experimentalHost) {
+  public SpannerConfig withExperimentalHost(ValueProvider<String> experimentalHost) {
     return toBuilder()
-        .setExperimentalHost((ValueProvider.StaticValueProvider.of(experimentalHost)))
+        .setInstanceId(EXPERIMENTAL_HOST_INSTANCE_ID)
+        .setExperimentalHost(experimentalHost)
         .build();
+  }
+
+  /** Specifies the experimental host to set on SpannerOptions (setExperimentalHost). */
+  public SpannerConfig withExperimentalHost(String experimentalHost) {
+    return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+  }
+
+  /** Specifies whether to use plaintext channel. */
+  public SpannerConfig withPlainText(ValueProvider<Boolean> plainText) {
+    return toBuilder().setPlainText(plainText).build();
   }
 
   /** Specifies whether to use plaintext channel. */
   public SpannerConfig withPlainText(boolean plainText) {
-    return toBuilder().setPlainText(ValueProvider.StaticValueProvider.of(plainText)).build();
+    return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
+  }
+
+  /** Specifies certificate paths to use for mTLS channel. */
+  public SpannerConfig withClientCert(
+      ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+    return toBuilder().setClientCertPath(certPath).setClientCertKeyPath(keyPath).build();
   }
 
   /** Specifies certificate paths to use for mTLS channel. */
   public SpannerConfig withClientCert(String certPath, String keyPath) {
-    return toBuilder()
-        .setClientCertPath(ValueProvider.StaticValueProvider.of(certPath))
-        .setClientCertKeyPath(ValueProvider.StaticValueProvider.of(keyPath))
-        .build();
+    return withClientCert(
+        ValueProvider.StaticValueProvider.of(certPath),
+        ValueProvider.StaticValueProvider.of(keyPath));
   }
 }

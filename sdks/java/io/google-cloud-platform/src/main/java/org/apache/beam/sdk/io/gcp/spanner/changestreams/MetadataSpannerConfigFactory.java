@@ -78,23 +78,22 @@ public class MetadataSpannerConfigFactory {
     }
 
     ValueProvider<String> experimentalHost = primaryConfig.getExperimentalHost();
-    if (experimentalHost != null) {
-      config =
-          config.withExperimentalHost(
-              String.valueOf(StaticValueProvider.of(experimentalHost.get())));
+    if (experimentalHost != null && experimentalHost.get() != null) {
+      config = config.withExperimentalHost(experimentalHost.get());
     }
 
     ValueProvider<Boolean> plainText = primaryConfig.getPlainText();
-    if (plainText != null) {
-      config =
-          config.withPlainText(
-              Boolean.valueOf(String.valueOf(StaticValueProvider.of(plainText.get()))));
+    if (plainText != null && plainText.get() != null) {
+      config = config.withPlainText(plainText.get());
     }
 
     ValueProvider<String> clientCert = primaryConfig.getClientCertPath();
     ValueProvider<String> clientKey = primaryConfig.getClientCertKeyPath();
-    if (clientCert != null && clientKey != null) {
-      config = config.withClientCert(String.valueOf(clientCert), String.valueOf(clientKey));
+    if (clientCert != null
+        && clientCert.get() != null
+        && clientKey != null
+        && clientKey.get() != null) {
+      config = config.withClientCert(clientCert.get(), clientKey.get());
     }
 
     ValueProvider<Boolean> isLocalChannelProvider = primaryConfig.getIsLocalChannelProvider();
