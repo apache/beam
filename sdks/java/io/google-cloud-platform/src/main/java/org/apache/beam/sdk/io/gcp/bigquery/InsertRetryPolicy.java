@@ -31,8 +31,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>This retry policy applies to both per-element errors within successful (200 OK) BigQuery
  * responses and non-200 HTTP responses (e.g., 400 Bad Request, 429 Too Many Requests, 500 Internal
  * Server Error). Non-200 responses are handled by passing a {@code GoogleJsonResponseException} to
- * the retry policy, allowing per-row retry decisions based on HTTP status codes. Rows that should not
- * be retried are sent to the Dead Letter Queue (DLQ).
+ * the retry policy, allowing per-row retry decisions based on HTTP status codes. Rows that should
+ * not be retried are sent to the Dead Letter Queue (DLQ).
  *
  * @see org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl#insertAll
  */
@@ -40,8 +40,9 @@ public abstract class InsertRetryPolicy implements Serializable {
   /**
    * Contains information about a failed insert.
    *
-   * <p>Includes either per-row errors from a 200 OK response or a {@code GoogleJsonResponseException}
-   * for non-200 HTTP responses. Future extensions may include retry attempt counts or durations.
+   * <p>Includes either per-row errors from a 200 OK response or a {@code
+   * GoogleJsonResponseException} for non-200 HTTP responses. Future extensions may include retry
+   * attempt counts or durations.
    */
   public static class Context {
     private final TableDataInsertAllResponse.@Nullable InsertErrors errors;
@@ -52,8 +53,8 @@ public abstract class InsertRetryPolicy implements Serializable {
     }
 
     public Context(
-            TableDataInsertAllResponse.@Nullable InsertErrors errors,
-            @Nullable GoogleJsonResponseException exception) {
+        TableDataInsertAllResponse.@Nullable InsertErrors errors,
+        @Nullable GoogleJsonResponseException exception) {
       this.errors = errors;
       this.exception = exception;
     }
@@ -69,7 +70,7 @@ public abstract class InsertRetryPolicy implements Serializable {
 
   // A list of known persistent errors for which retrying never helps.
   static final Set<String> PERSISTENT_ERRORS =
-          ImmutableSet.of("invalid", "invalidQuery", "notImplemented", "row-too-large", "parseError");
+      ImmutableSet.of("invalid", "invalidQuery", "notImplemented", "row-too-large", "parseError");
 
   /** Return true if this failure should be retried. */
   public abstract boolean shouldRetry(Context context);
