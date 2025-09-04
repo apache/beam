@@ -219,7 +219,8 @@ class PartitionTest(unittest.TestCase):
               | beam.Partition(lambda x, _: x, 2))
 
   def test_partition_with_numpy_integers(self):
-    # Test that numpy integer types are correctly accepted by the ApplyPartitionFnFn class
+    # Test that numpy integer types are correctly accepted by the
+    # ApplyPartitionFnFn class
     import numpy as np
 
     # Create an instance of the ApplyPartitionFnFn class
