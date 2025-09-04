@@ -23,7 +23,7 @@ import static org.junit.Assert.assertThrows;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
-import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -64,7 +64,7 @@ public class FailureCollectorWrapperTest {
     assertEquals(expectedMessage, e.getMessage());
 
     // A case when return ValidationException with empty collector
-    ArrayList<ValidationFailure> exceptionCollector =
+    List<ValidationFailure> exceptionCollector =
         emptyFailureCollectorWrapper.getValidationFailures();
     assertEquals(0, exceptionCollector.size());
   }
@@ -81,9 +81,8 @@ public class FailureCollectorWrapperTest {
     failureCollectorWrapper.addFailure(error.getMessage(), null);
 
     /** act */
-    ArrayList<ValidationFailure> exceptionCollector =
-        failureCollectorWrapper.getValidationFailures();
-    ArrayList<ValidationFailure> emptyExceptionCollector =
+    List<ValidationFailure> exceptionCollector = failureCollectorWrapper.getValidationFailures();
+    List<ValidationFailure> emptyExceptionCollector =
         emptyFailureCollectorWrapper.getValidationFailures();
 
     /** assert */
