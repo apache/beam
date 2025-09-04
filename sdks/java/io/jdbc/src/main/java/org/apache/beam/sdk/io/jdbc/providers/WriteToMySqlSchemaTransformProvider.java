@@ -55,6 +55,13 @@ public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransfor
       throw new IllegalArgumentException(
           String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
     }
-    return super.from(configuration);
+    return new MySqlWriteSchemaTransform(configuration);
+  }
+
+  public static class MySqlWriteSchemaTransform extends JdbcWriteSchemaTransform {
+    public MySqlWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
+      super(config, MYSQL);
+      config.validate(MYSQL);
+    }
   }
 }
