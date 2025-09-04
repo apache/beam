@@ -722,7 +722,7 @@ class YamlTransformE2ETest(unittest.TestCase):
     Test that optional output_schema works by failing the pipeline since main
     transform doesn't have error_handling config.
     """
-    with self.assertRaisesRegex(Exception, "ValidationError"):
+    with self.assertRaises(Exception) as e:
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         _ = p | YamlTransform(
@@ -751,6 +751,7 @@ class YamlTransformE2ETest(unittest.TestCase):
                         - {sdk: 'Beam', year: 2016}
                         - {sdk: 'Flink', year: 2015}
               ''')
+    self.assertIn("'date' is not of type 'integer'", str(e.exception))
 
 
 class ErrorHandlingTest(unittest.TestCase):
