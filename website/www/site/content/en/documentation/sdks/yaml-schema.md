@@ -113,7 +113,7 @@ pipeline:
 WARNING: If a transform doesn't have the error_handling configuration available
 and a user chooses to use this optional output_schema feature, any failures
 found will result in the entire pipeline failing. If the user would still like
-to have somekind of output schema validation, please use the ValidateWithSchema
+to have some kind of output schema validation, please use the ValidateWithSchema
 transform instead.
 
 For more detailed information on error handling, see this [page](https://beam.apache.org/documentation/sdks/yaml-errors/).

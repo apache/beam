@@ -487,8 +487,9 @@ def expand_transform(spec, scope):
 def expand_leaf_transform(spec, scope):
   spec = spec.copy()
 
-  # Check for optional output schema to verify on.
-  # The idea is to pass this output_schema to the ValidateWithSchema transform.
+  # Check for optional output_schema to verify on.
+  # The idea is to pass this output_schema config to the ValidateWithSchema
+  # transform.
   output_schema_spec = {}
   if 'output_schema' in spec.get('config', {}):
     output_schema_spec = spec.get('config').pop('output_schema')
@@ -520,7 +521,7 @@ def expand_leaf_transform(spec, scope):
     raise ValueError(
         f"Error applying transform {identify_object(spec)}: {exn}") from exn
 
-  # Optional output schema was found, so lets expand on that before returning.
+  # Optional output_schema was found, so lets expand on that before returning.
   if output_schema_spec:
     error_handling_spec = {}
     # Obtain original transform error_handling_spec, so that all validate
@@ -579,7 +580,8 @@ def expand_output_schema_transform(spec, outputs, error_handling_spec):
     raise ValueError(
         'error_handling config is not supported directly in '
         'the output_schema. Please use error_handling config in '
-        'the transform.')
+        'the transform, if possible, or use ValidateWithSchema transform '
+        'instead.')
 
   # Strip metadata such as __line__ and __uuid__ as these will interfere with
   # the validation downstream.
