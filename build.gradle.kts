@@ -253,6 +253,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":examples:java:sql:preCommit")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:java:twitter:preCommit")
+  dependsOn(":examples:java:iceberg:build")
   dependsOn(":examples:multi-language:build")
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
