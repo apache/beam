@@ -53,8 +53,8 @@ public abstract class InsertRetryPolicy implements Serializable {
     }
 
     public Context(
-            TableDataInsertAllResponse.@Nullable InsertErrors errors,
-            @Nullable GoogleJsonResponseException exception) {
+        TableDataInsertAllResponse.@Nullable InsertErrors errors,
+        @Nullable GoogleJsonResponseException exception) {
       this.errors = errors;
       this.exception = exception;
     }
@@ -70,7 +70,7 @@ public abstract class InsertRetryPolicy implements Serializable {
 
   // A list of known persistent errors for which retrying never helps.
   static final Set<String> PERSISTENT_ERRORS =
-          ImmutableSet.of("invalid", "invalidQuery", "notImplemented", "row-too-large", "parseError");
+      ImmutableSet.of("invalid", "invalidQuery", "notImplemented", "row-too-large", "parseError");
 
   /** Return true if this failure should be retried. */
   public abstract boolean shouldRetry(Context context);
