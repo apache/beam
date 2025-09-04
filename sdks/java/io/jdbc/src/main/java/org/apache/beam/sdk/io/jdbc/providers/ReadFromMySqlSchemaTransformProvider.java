@@ -70,6 +70,13 @@ public class ReadFromMySqlSchemaTransformProvider extends JdbcReadSchemaTransfor
           "The fetchSize option is ignored. It is required to set useCursorFetch=true"
               + " in the JDBC URL when using fetchSize for MySQL");
     }
-    return super.from(configuration);
+    return new MySqlReadSchemaTransform(configuration);
+  }
+
+  public static class MySqlReadSchemaTransform extends JdbcReadSchemaTransform {
+    public MySqlReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
+      super(config, MYSQL);
+      config.validate(MYSQL);
+    }
   }
 }
