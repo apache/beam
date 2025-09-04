@@ -3642,7 +3642,9 @@ class Partition(PTransformWithSideInputs):
     """A DoFn that applies a PartitionFn."""
     def process(self, element, partitionfn, n, *args, **kwargs):
       partition = partitionfn.partition_for(element, n, *args, **kwargs)
-      if isinstance(partition, bool) or not isinstance(partition, int):
+      import numpy as np  # inline import to reduce startup time
+      if isinstance(partition, bool) or not isinstance(partition,
+                                                       (int, np.integer)):
         raise ValueError(
             f"PartitionFn yielded a '{type(partition).__name__}' "
             "when it should only yield integers")

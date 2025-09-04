@@ -24,6 +24,7 @@ import tempfile
 import unittest
 from typing import TypeVar
 
+import numpy
 import pytest
 
 import apache_beam as beam
@@ -217,6 +218,14 @@ class PartitionTest(unittest.TestCase):
           _ = (
               p | beam.Create([input_value])
               | beam.Partition(lambda x, _: x, 2))
+
+  def test_partition_with_int32(self):
+    with beam.testing.test_pipeline.TestPipeline() as p:
+      part_0, part_1 = (
+              p | beam.Create([numpy.int32(1)])
+              | beam.Partition(lambda x, _: x, 2))
+      assert_that(part_0, equal_to([]), label='part0')
+      assert_that(part_1, equal_to([numpy.int32(1)]), label='part1')
 
   def test_partition_boundedness(self):
     def partition_fn(val, num_partitions):
