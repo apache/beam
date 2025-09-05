@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.io.StringReader;
 import java.util.Arrays;
@@ -28,6 +27,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A descriptor for ClickHouse table schema. */
