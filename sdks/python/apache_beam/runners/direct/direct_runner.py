@@ -137,6 +137,14 @@ class SwitchingDirectRunner(PipelineRunner):
           self.supported_by_prism_runner = False
         else:
           pipeline.visit(self)
+        # Avoid circular import
+        from apache_beam.pipeline import ExternalTransformFinder
+        if ExternalTransformFinder.contains_external_transforms(pipeline):
+          # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+          # seems to not be able to consistently bring up external transforms.
+          # It does sometimes, but at volume suites start to fail. We will try
+          # to enable this in a future release.
+          self.supported_by_prism_runner = False
         return self.supported_by_prism_runner
 
       def visit_transform(self, applied_ptransform):
@@ -144,12 +152,6 @@ class SwitchingDirectRunner(PipelineRunner):
         # Python SDK assumes the direct runner TestStream implementation is
         # being used.
         if isinstance(transform, TestStream):
-          self.supported_by_prism_runner = False
-        if isinstance(transform, beam.ExternalTransform):
-          # TODO(https://github.com/apache/beam/issues/33623): Prism currently
-          # seems to not be able to consistently bring up external transforms.
-          # It does sometimes, but at volume suites start to fail. We will try
-          # to enable this in a future release.
           self.supported_by_prism_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn
