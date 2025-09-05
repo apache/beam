@@ -133,6 +133,133 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
           self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
           self.assertEqual(flush_mock.call_count, 3)
 
+  def test_log_lull_creating_processor(self):
+    """Test that lull logging works for processors being created."""
+    # Mock bundle processor cache with creating_bundle_processors
+    mock_cache = mock.Mock()
+    mock_cache.active_bundle_processors = {}
+
+    # Create a mock thread
+    mock_thread = mock.Mock()
+    mock_thread.ident = 12345
+
+    # Set up creating_bundle_processors with a processor that's been creating for 6 minutes
+    creation_start_time = time.time() - 6 * 60  # 6 minutes ago
+    mock_cache.creating_bundle_processors = {
+        'test-instruction-id': (
+            'test-bundle-descriptor', creation_start_time, mock_thread)
+    }
+
+    with mock.patch('logging.Logger.warning') as warn_mock:
+      with mock.patch('sys._current_frames') as frames_mock:
+        # Mock the stack frame for the thread
+        mock_frame = mock.Mock()
+        frames_mock.return_value = {12345: mock_frame}
+
+        with mock.patch('traceback.format_stack') as format_stack_mock:
+          format_stack_mock.return_value = [
+              '  File "test.py", line 1, in test_function\n    time.sleep(10)\n'
+          ]
+
+          # Call the method that checks for lulls directly
+          self.fn_status_handler._log_lull_creating_processor(
+              'test-instruction-id',
+              'test-bundle-descriptor',
+              6 * 60 * 1e9,
+              mock_thread)
+
+          # Verify warning was called
+          warn_mock.assert_called_once()
+          call_args = warn_mock.call_args[0]
+
+          # Check the log message format - call_args[0] is the format string
+          log_format = call_args[0]
+          self.assertIn('Operation ongoing in bundle %s', log_format)
+          self.assertIn('during BundleProcessor creation', log_format)
+          self.assertIn('bundle_descriptor_id=%s', log_format)
+
+          # Check the arguments - call_args[1] is instruction, call_args[2] is lull_seconds, etc.
+          self.assertEqual('test-instruction-id', call_args[1])
+          self.assertGreaterEqual(call_args[2], 6 * 60)  # At least 6 minutes
+          self.assertEqual('test-bundle-descriptor', call_args[3])
+          self.assertIn(
+              'test_function', call_args[4])  # Stack trace should be included
+
+  def test_log_lull_creating_processor_no_lull_if_recent(self):
+    """Test that no lull is logged for recently started processor creation."""
+    mock_thread = mock.Mock()
+    mock_thread.ident = 12345
+
+    # Test with a duration less than the timeout (1 minute < 5 minute default timeout)
+    creation_duration_ns = 1 * 60 * 1e9  # 1 minute in nanoseconds
+
+    with mock.patch('logging.Logger.warning') as warn_mock:
+      with mock.patch.object(self.fn_status_handler,
+                             '_passed_lull_timeout_since_last_log',
+                             return_value=False):
+        # Call _log_lull_creating_processor directly with short duration
+        self.fn_status_handler._log_lull_creating_processor(
+            'test-instruction-id',
+            'test-bundle-descriptor',
+            creation_duration_ns,
+            mock_thread)
+
+        # Verify no warning was called since _passed_lull_timeout_since_last_log returned False
+        warn_mock.assert_not_called()
+
+  def test_log_lull_creating_processor_thread_not_found(self):
+    """Test handling when thread is not found in current frames."""
+    mock_thread = mock.Mock()
+    mock_thread.ident = 99999  # Non-existent thread ID
+
+    creation_duration_ns = 6 * 60 * 1e9  # 6 minutes in nanoseconds
+
+    with mock.patch('logging.Logger.warning') as warn_mock:
+      with mock.patch('sys._current_frames') as frames_mock:
+        frames_mock.return_value = {}  # Empty frames dict
+
+        self.fn_status_handler._log_lull_creating_processor(
+            'test-instruction-id',
+            'test-bundle-descriptor',
+            creation_duration_ns,
+            mock_thread)
+
+        # Verify warning was still called
+        warn_mock.assert_called_once()
+        call_args = warn_mock.call_args[0]
+
+        # Check that it handled the missing thread gracefully
+        self.assertIn('Thread not found or already terminated', call_args[4])
+
+  def test_get_stack_trace_for_thread(self):
+    """Test the _get_stack_trace_for_thread method."""
+    mock_thread = mock.Mock()
+    mock_thread.ident = 12345
+
+    with mock.patch('sys._current_frames') as frames_mock:
+      mock_frame = mock.Mock()
+      frames_mock.return_value = {12345: mock_frame}
+
+      with mock.patch('traceback.format_stack') as format_stack_mock:
+        format_stack_mock.return_value = ['line1\n', 'line2\n']
+
+        result = self.fn_status_handler._get_stack_trace_for_thread(mock_thread)
+
+        self.assertEqual('line1\nline2\n', result)
+        format_stack_mock.assert_called_once_with(mock_frame)
+
+  def test_get_stack_trace_for_thread_error(self):
+    """Test error handling in _get_stack_trace_for_thread."""
+    mock_thread = mock.Mock()
+    mock_thread.ident = 12345
+
+    with mock.patch('sys._current_frames') as frames_mock:
+      frames_mock.side_effect = Exception('Test error')
+
+      result = self.fn_status_handler._get_stack_trace_for_thread(mock_thread)
+
+      self.assertIn('Error getting stack trace: Test error', result)
+
 
 class HeapDumpTest(unittest.TestCase):
   @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)
