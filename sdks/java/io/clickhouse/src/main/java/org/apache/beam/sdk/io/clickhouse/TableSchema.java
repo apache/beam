@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** A descriptor for ClickHouse table schema. */
 @AutoValue
 @SuppressWarnings({
-        "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class TableSchema implements Serializable {
 
@@ -50,15 +50,15 @@ public abstract class TableSchema implements Serializable {
    */
   public static Schema getEquivalentSchema(TableSchema tableSchema) {
     return tableSchema.columns().stream()
-            .map(
-                    x -> {
-                      if (x.columnType().nullable()) {
-                        return Schema.Field.nullable(x.name(), getEquivalentFieldType(x.columnType()));
-                      } else {
-                        return Schema.Field.of(x.name(), getEquivalentFieldType(x.columnType()));
-                      }
-                    })
-            .collect(Schema.toSchema());
+        .map(
+            x -> {
+              if (x.columnType().nullable()) {
+                return Schema.Field.nullable(x.name(), getEquivalentFieldType(x.columnType()));
+              } else {
+                return Schema.Field.of(x.name(), getEquivalentFieldType(x.columnType()));
+              }
+            })
+        .collect(Schema.toSchema());
   }
 
   /**
@@ -114,9 +114,9 @@ public abstract class TableSchema implements Serializable {
         return Schema.FieldType.BOOLEAN;
       case TUPLE:
         List<Schema.Field> fields =
-                columnType.tupleTypes().entrySet().stream()
-                        .map(x -> Schema.Field.of(x.getKey(), Schema.FieldType.DATETIME))
-                        .collect(Collectors.toList());
+            columnType.tupleTypes().entrySet().stream()
+                .map(x -> Schema.Field.of(x.getKey(), Schema.FieldType.DATETIME))
+                .collect(Collectors.toList());
         Schema.Field[] array = fields.toArray(new Schema.Field[fields.size()]);
         Schema schema = Schema.of(array);
         return Schema.FieldType.row(schema);
@@ -139,7 +139,7 @@ public abstract class TableSchema implements Serializable {
 
     public boolean materializedOrAlias() {
       return DefaultType.MATERIALIZED.equals(defaultType())
-              || DefaultType.ALIAS.equals(defaultType());
+          || DefaultType.ALIAS.equals(defaultType());
     }
 
     public static Column of(String name, ColumnType columnType) {
@@ -147,10 +147,10 @@ public abstract class TableSchema implements Serializable {
     }
 
     public static Column of(
-            String name,
-            ColumnType columnType,
-            @Nullable DefaultType defaultType,
-            @Nullable Object defaultValue) {
+        String name,
+        ColumnType columnType,
+        @Nullable DefaultType defaultType,
+        @Nullable Object defaultValue) {
       return new AutoValue_TableSchema_Column(name, columnType, defaultType, defaultValue);
     }
   }
@@ -248,43 +248,43 @@ public abstract class TableSchema implements Serializable {
 
     public static ColumnType fixedString(int size) {
       return ColumnType.builder()
-              .typeName(TypeName.FIXEDSTRING)
-              .nullable(false)
-              .fixedStringSize(size)
-              .build();
+          .typeName(TypeName.FIXEDSTRING)
+          .nullable(false)
+          .fixedStringSize(size)
+          .build();
     }
 
     public static ColumnType enum8(Map<String, Integer> enumValues) {
       return ColumnType.builder()
-              .typeName(TypeName.ENUM8)
-              .nullable(false)
-              .enumValues(enumValues)
-              .build();
+          .typeName(TypeName.ENUM8)
+          .nullable(false)
+          .enumValues(enumValues)
+          .build();
     }
 
     public static ColumnType enum16(Map<String, Integer> enumValues) {
       return ColumnType.builder()
-              .typeName(TypeName.ENUM16)
-              .nullable(false)
-              .enumValues(enumValues)
-              .build();
+          .typeName(TypeName.ENUM16)
+          .nullable(false)
+          .enumValues(enumValues)
+          .build();
     }
 
     public static ColumnType array(ColumnType arrayElementType) {
       return ColumnType.builder()
-              .typeName(TypeName.ARRAY)
-              // ClickHouse doesn't allow nullable arrays
-              .nullable(false)
-              .arrayElementType(arrayElementType)
-              .build();
+          .typeName(TypeName.ARRAY)
+          // ClickHouse doesn't allow nullable arrays
+          .nullable(false)
+          .arrayElementType(arrayElementType)
+          .build();
     }
 
     public static ColumnType tuple(Map<String, ColumnType> elements) {
       return ColumnType.builder()
-              .typeName(TypeName.TUPLE)
-              .nullable(false)
-              .tupleTypes(elements)
-              .build();
+          .typeName(TypeName.TUPLE)
+          .nullable(false)
+          .tupleTypes(elements)
+          .build();
     }
 
     /**
@@ -297,7 +297,7 @@ public abstract class TableSchema implements Serializable {
       try {
         return new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
                 new StringReader(str))
-                .parse();
+            .parse();
       } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
         throw new IllegalArgumentException("failed to parse", e);
       }
@@ -352,11 +352,12 @@ public abstract class TableSchema implements Serializable {
           try {
             String formattedValue = value.contains(" ") ? value : value + " 00:00:00";
             return new org.joda.time.DateTime(
-                    java.time.LocalDateTime.parse(
-                                    formattedValue, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-                            .atZone(java.time.ZoneId.of("UTC"))
-                            .toInstant()
-                            .toEpochMilli());
+                java.time.LocalDateTime.parse(
+                        formattedValue,
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    .atZone(java.time.ZoneId.of("UTC"))
+                    .toInstant()
+                    .toEpochMilli());
           } catch (java.time.format.DateTimeParseException e) {
             throw new IllegalArgumentException("Invalid DateTime/Date format: " + value, e);
           }
@@ -372,8 +373,8 @@ public abstract class TableSchema implements Serializable {
             throw new IllegalArgumentException("Array element type not specified for: " + value);
           }
           return Arrays.stream(cleanedArray.split(",\\s*"))
-                  .map(element -> parseDefaultExpression(elementType, element))
-                  .collect(Collectors.toList());
+              .map(element -> parseDefaultExpression(elementType, element))
+              .collect(Collectors.toList());
         case TUPLE:
           // ClickHouse Tuple format: '(1,"a")' or '('1','a')' after tuplePreprocessing
           String cleanedTuple = value.replaceAll("[\\(\\)]", "").trim();
@@ -390,7 +391,8 @@ public abstract class TableSchema implements Serializable {
           int index = 0;
           for (Map.Entry<String, ColumnType> entry : tupleTypes.entrySet()) {
             if (index >= elements.length) {
-              throw new IllegalArgumentException("Tuple has fewer elements than expected: " + value);
+              throw new IllegalArgumentException(
+                  "Tuple has fewer elements than expected: " + value);
             }
             // Strip quotes from quoted strings
             String elementValue = elements[index].replaceAll("^'|'$", "").trim();
