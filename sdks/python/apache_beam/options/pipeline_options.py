@@ -460,13 +460,12 @@ class PipelineOptions(HasDisplayData):
     ]
 
     for arg in unknown_args:
-      if not arg.startswith('--'):
-        continue
-      arg_name = arg.split('=', 1)[0]
-      suggestions = difflib.get_close_matches(arg_name, all_known_options)
       msg = f"Unparseable argument: {arg}"
-      if suggestions:
-        msg += f". Did you mean '{suggestions[0]}'?"
+      if arg.startswith('--'):
+        arg_name = arg.split('=', 1)[0]
+        suggestions = difflib.get_close_matches(arg_name, all_known_options)
+        if suggestions:
+          msg += f". Did you mean '{suggestions[0]}'?'"
       _LOGGER.warning(msg)
 
   def get_all_options(
