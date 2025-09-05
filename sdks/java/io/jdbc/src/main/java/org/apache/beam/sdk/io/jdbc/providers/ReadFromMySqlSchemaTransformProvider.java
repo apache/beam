@@ -76,7 +76,6 @@ public class ReadFromMySqlSchemaTransformProvider extends JdbcReadSchemaTransfor
   public static class MySqlReadSchemaTransform extends JdbcReadSchemaTransform {
     public MySqlReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
       super(config, MYSQL);
-      config.validate(MYSQL);
     }
   }
 }
