@@ -65,7 +65,7 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* [Python] Add YAML Editor and Visualization Panel ([#35947](https://github.com/apache/beam/pull/35947)).
+* (Python) Add YAML Editor and Visualization Panel ([#35947](https://github.com/apache/beam/pull/35947)).
 
 ## I/Os
 
