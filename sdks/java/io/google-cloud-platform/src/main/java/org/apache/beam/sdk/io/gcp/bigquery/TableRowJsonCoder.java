@@ -28,7 +28,6 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
