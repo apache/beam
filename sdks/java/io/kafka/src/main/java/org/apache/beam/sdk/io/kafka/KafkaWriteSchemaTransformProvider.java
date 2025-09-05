@@ -125,29 +125,32 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
-    public static class ErrorCounterFn extends DoFn<Row, KV<byte[], byte[]>> {
-      private final SerializableFunction<Row, byte[]> toBytesFn;
+    public abstract static class BaseKafkaWriterFn<T> extends DoFn<Row, KV<byte[], T>> {
+      private final SerializableFunction<Row, T> conversionFn;
       private final Counter errorCounter;
       private Long errorsInBundle = 0L;
       private final boolean handleErrors;
       private final Schema errorSchema;
+      private final TupleTag<KV<byte[], T>> successTag;
 
-      public ErrorCounterFn(
+      public BaseKafkaWriterFn(
           String name,
-          SerializableFunction<Row, byte[]> toBytesFn,
+          SerializableFunction<Row, T> conversionFn,
           Schema errorSchema,
-          boolean handleErrors) {
-        this.toBytesFn = toBytesFn;
+          boolean handleErrors,
+          TupleTag<KV<byte[], T>> successTag) {
+        this.conversionFn = conversionFn;
         this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
         this.handleErrors = handleErrors;
         this.errorSchema = errorSchema;
+        this.successTag = successTag;
       }
 
       @ProcessElement
       public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
-        KV<byte[], byte[]> output = null;
+        KV<byte[], T> output = null;
         try {
-          output = KV.of(new byte[1], toBytesFn.apply(row));
+          output = KV.of(new byte[1], conversionFn.apply(row));
         } catch (Exception e) {
           if (!handleErrors) {
             throw new RuntimeException(e);
@@ -157,7 +160,7 @@ public class KafkaWriteSchemaTransformProvider
           receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
         }
         if (output != null) {
-          receiver.get(OUTPUT_TAG).output(output);
+          receiver.get(successTag).output(output);
         }
       }
 
@@ -168,46 +171,23 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
-    public static class RecordErrorCounterFn extends DoFn<Row, KV<byte[], GenericRecord>> {
-      private final SerializableFunction<Row, GenericRecord> toRecordsFn;
-      private final Counter errorCounter;
-      private Long errorsInBundle = 0L;
-      private final boolean handleErrors;
-      private final Schema errorSchema;
+    public static class ErrorCounterFn extends BaseKafkaWriterFn<byte[]> {
+      public ErrorCounterFn(
+          String name,
+          SerializableFunction<Row, byte[]> toBytesFn,
+          Schema errorSchema,
+          boolean handleErrors) {
+        super(name, toBytesFn, errorSchema, handleErrors, OUTPUT_TAG);
+      }
+    }
 
+    public static class RecordErrorCounterFn extends BaseKafkaWriterFn<GenericRecord> {
       public RecordErrorCounterFn(
           String name,
           SerializableFunction<Row, GenericRecord> toRecordsFn,
           Schema errorSchema,
           boolean handleErrors) {
-        this.toRecordsFn = toRecordsFn;
-        this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
-        this.handleErrors = handleErrors;
-        this.errorSchema = errorSchema;
-      }
-
-      @ProcessElement
-      public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
-        KV<byte[], GenericRecord> output = null;
-        try {
-          output = KV.of(new byte[1], toRecordsFn.apply(row));
-        } catch (Exception e) {
-          if (!handleErrors) {
-            throw new RuntimeException(e);
-          }
-          errorsInBundle += 1;
-          LOG.warn("Error while processing the element", e);
-          receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
-        }
-        if (output != null) {
-          receiver.get(RECORD_OUTPUT_TAG).output(output);
-        }
-      }
-
-      @FinishBundle
-      public void finish() {
-        errorCounter.inc(errorsInBundle);
-        errorsInBundle = 0L;
+        super(name, toRecordsFn, errorSchema, handleErrors, RECORD_OUTPUT_TAG);
       }
     }
 
