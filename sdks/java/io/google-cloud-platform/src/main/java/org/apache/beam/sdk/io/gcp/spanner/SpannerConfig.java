@@ -378,23 +378,49 @@ public abstract class SpannerConfig implements Serializable {
     return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
   }
 
-  /** Specifies whether to use plaintext channel. */
-  public SpannerConfig withPlainText(ValueProvider<Boolean> plainText) {
+  /**
+   * Specifies whether to use plaintext channel.
+   *
+   * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+   * withExperimentalHost}).
+   */
+  public SpannerConfig withUsingPlainTextChannel(ValueProvider<Boolean> plainText) {
     return toBuilder().setPlainText(plainText).build();
   }
 
-  /** Specifies whether to use plaintext channel. */
-  public SpannerConfig withPlainText(boolean plainText) {
-    return withPlainText(ValueProvider.StaticValueProvider.of(plainText));
+  /**
+   * Specifies whether to use plaintext channel.
+   *
+   * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+   * withExperimentalHost}).
+   */
+  public SpannerConfig withUsingPlainTextChannel(boolean plainText) {
+    return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
   }
 
-  /** Specifies certificate paths to use for mTLS channel. */
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
   public SpannerConfig withClientCert(
       ValueProvider<String> certPath, ValueProvider<String> keyPath) {
     return toBuilder().setClientCertPath(certPath).setClientCertKeyPath(keyPath).build();
   }
 
-  /** Specifies certificate paths to use for mTLS channel. */
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
   public SpannerConfig withClientCert(String certPath, String keyPath) {
     return withClientCert(
         ValueProvider.StaticValueProvider.of(certPath),

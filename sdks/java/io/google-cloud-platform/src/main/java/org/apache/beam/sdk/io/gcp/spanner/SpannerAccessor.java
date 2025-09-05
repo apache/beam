@@ -61,6 +61,9 @@ public class SpannerAccessor implements AutoCloseable {
    */
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
 
+  /** Instance ID to use when connecting to an experimental host. */
+  public static final String EXPERIMENTAL_HOST_INSTANCE_ID = "default";
+
   // Only create one SpannerAccessor for each different SpannerConfig.
   private static final ConcurrentHashMap<SpannerConfig, SpannerAccessor> spannerAccessors =
       new ConcurrentHashMap<>();
@@ -224,19 +227,26 @@ public class SpannerAccessor implements AutoCloseable {
     ValueProvider<String> experimentalHost = spannerConfig.getExperimentalHost();
     if (experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get())) {
       builder.setExperimentalHost(experimentalHost.get());
-    }
-    ValueProvider<Boolean> plainText = spannerConfig.getPlainText();
-    if (plainText != null && Boolean.TRUE.equals(plainText.get())) {
-      builder.setChannelConfigurator(b -> b.usePlaintext());
-      builder.setCredentials(NoCredentials.getInstance());
-    }
-    ValueProvider<String> clientCert = spannerConfig.getClientCertPath();
-    ValueProvider<String> clientKey = spannerConfig.getClientCertKeyPath();
-    if (clientCert != null
-        && clientKey != null
-        && !Strings.isNullOrEmpty(clientCert.get())
-        && !Strings.isNullOrEmpty(clientKey.get())) {
-      builder.useClientCert(clientCert.get(), clientKey.get());
+      ValueProvider<Boolean> plainText = spannerConfig.getPlainText();
+      ValueProvider<String> instanceId = spannerConfig.getInstanceId();
+      if (Strings.isNullOrEmpty(instanceId.get())
+          || !instanceId.get().equals(EXPERIMENTAL_HOST_INSTANCE_ID)) {
+        throw new IllegalArgumentException(
+            "Experimental host can only be used with instance id: "
+                + EXPERIMENTAL_HOST_INSTANCE_ID);
+      }
+      if (plainText != null && Boolean.TRUE.equals(plainText.get())) {
+        builder.setChannelConfigurator(b -> b.usePlaintext());
+        builder.setCredentials(NoCredentials.getInstance());
+      }
+      ValueProvider<String> clientCert = spannerConfig.getClientCertPath();
+      ValueProvider<String> clientKey = spannerConfig.getClientCertKeyPath();
+      if (clientCert != null
+          && clientKey != null
+          && !Strings.isNullOrEmpty(clientCert.get())
+          && !Strings.isNullOrEmpty(clientKey.get())) {
+        builder.useClientCert(clientCert.get(), clientKey.get());
+      }
     }
 
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();

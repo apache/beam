@@ -84,7 +84,7 @@ public class MetadataSpannerConfigFactory {
 
     ValueProvider<Boolean> plainText = primaryConfig.getPlainText();
     if (plainText != null && plainText.get() != null) {
-      config = config.withPlainText(plainText.get());
+      config = config.withUsingPlainTextChannel(plainText.get());
     }
 
     ValueProvider<String> clientCert = primaryConfig.getClientCertPath();

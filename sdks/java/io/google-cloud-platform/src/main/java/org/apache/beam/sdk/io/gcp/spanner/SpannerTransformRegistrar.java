@@ -257,7 +257,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         readTransform = readTransform.withExperimentalHost(configuration.experimentalHost);
       }
       if (configuration.plainText != null) {
-        readTransform = readTransform.withPlainText(configuration.plainText);
+        readTransform = readTransform.withUsingPlainTextChannel(configuration.plainText);
       }
       if (configuration.clientCertPath != null && configuration.clientCertKeyPath != null) {
         readTransform =
@@ -406,7 +406,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         writeTransform = writeTransform.withExperimentalHost(configuration.experimentalHost);
       }
       if (configuration.plainText != null) {
-        writeTransform = writeTransform.withPlainText(configuration.plainText);
+        writeTransform = writeTransform.withUsingPlainTextChannel(configuration.plainText);
       }
       if (configuration.clientCertPath != null && configuration.clientCertKeyPath != null) {
         writeTransform =
