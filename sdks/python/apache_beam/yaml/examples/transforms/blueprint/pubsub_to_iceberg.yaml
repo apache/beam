@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# A pipeline that both writes to and reads from the same Kafka topic.
+# A pipeline that reads from pubsub topic and writes to Iceberg table.
 
 pipeline:
   type: chain
@@ -27,7 +27,7 @@ pipeline:
       config:
         topic: "projects/apache-beam-testing/topics/my-topic"
         format: JSON
-        schema: 
+        schema:
           type: object
           properties:
             data: {type: BYTES}
@@ -39,6 +39,7 @@ pipeline:
         # Dynamic destinations
         table: "db.users.{zip}"
         catalog_name: "hadoop_catalog"
+        triggering_frequency_seconds: "20"
         catalog_properties:
           type: "hadoop"
           warehouse: "gs://MY-WAREHOUSE"
@@ -56,4 +57,3 @@ options:
 #  Row(label='37b', rank=4)
 #  Row(label='37c', rank=3)
 #  Row(label='37d', rank=2)
-
