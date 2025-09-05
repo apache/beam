@@ -29,6 +29,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -76,6 +77,7 @@ type W struct {
 	mu                 sync.Mutex
 	activeInstructions map[string]controlResponder              // Active instructions keyed by InstructionID
 	Descriptors        map[string]*fnpb.ProcessBundleDescriptor // Stages keyed by PBDID
+	wg                 *sync.WaitGroup
 }
 
 type controlResponder interface {
@@ -142,6 +144,7 @@ func (wk *W) shutdown() {
 func (wk *W) Stop() {
 	wk.shutdown()
 	wk.parentPool.delete(wk)
+	wk.wg.Done()
 	slog.Debug("stopped", "worker", wk)
 }
 
@@ -156,6 +159,14 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 	endpoint := &pipepb.ApiServiceDescriptor{
 		Url: wk.Endpoint(),
 	}
+
+	var rt string
+	if len(wk.EnvPb.GetDependencies()) > 0 {
+		rt = wk.JobKey
+	} else {
+		rt = "__no_artifacts_staged__"
+	}
+
 	resp := &fnpb.GetProvisionInfoResponse{
 		Info: &fnpb.ProvisionInfo{
 			// TODO: Include runner capabilities with the per job configuration.
@@ -168,7 +179,7 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 				Url: wk.ArtifactEndpoint,
 			},
 
-			RetrievalToken:  wk.JobKey,
+			RetrievalToken:  rt,
 			Dependencies:    wk.EnvPb.GetDependencies(),
 			PipelineOptions: wk.PipelineOptions,
 
@@ -701,6 +712,7 @@ type MultiplexW struct {
 	endpoint string
 	logger   *slog.Logger
 	pool     map[string]*W
+	wg       map[string]*sync.WaitGroup
 }
 
 // NewMultiplexW instantiates a new FnAPI server for multiplexing FnAPI requests to a W.
@@ -710,6 +722,7 @@ func NewMultiplexW(lis net.Listener, g *grpc.Server, logger *slog.Logger) *Multi
 		endpoint: "localhost:" + p,
 		logger:   logger,
 		pool:     make(map[string]*W),
+		wg:       make(map[string]*sync.WaitGroup),
 	}
 
 	fnpb.RegisterBeamFnControlServer(g, mw)
@@ -727,8 +740,12 @@ func NewMultiplexW(lis net.Listener, g *grpc.Server, logger *slog.Logger) *Multi
 func (mw *MultiplexW) MakeWorker(id, env string) *W {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
+	workerId := id + "_" + env
+	if _, ok := mw.wg[id]; !ok {
+		mw.wg[id] = &sync.WaitGroup{}
+	}
 	w := &W{
-		ID:  id,
+		ID:  workerId,
 		Env: env,
 
 		InstReqs:    make(chan *fnpb.InstructionRequest, 10),
@@ -738,8 +755,11 @@ func (mw *MultiplexW) MakeWorker(id, env string) *W {
 		activeInstructions: make(map[string]controlResponder),
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
 		parentPool:         mw,
+		wg:                 mw.wg[id],
 	}
-	mw.pool[id] = w
+	mw.pool[workerId] = w
+
+	mw.wg[id].Add(1)
 	return w
 }
 
@@ -799,6 +819,32 @@ func (mw *MultiplexW) delete(w *W) {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
 	delete(mw.pool, w.ID)
+}
+
+// WaitForCleanUp waits until all resources relevant to the job are cleaned up.
+func (mw *MultiplexW) WaitForCleanUp(id string) {
+	mw.mu.Lock()
+	wg := mw.wg[id]
+	mw.mu.Unlock()
+	if wg == nil {
+		return
+	}
+
+	const cleanUpTimeout = 60 * time.Second
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+
+	select {
+	case <-c: // Waitgroup finishes successfully
+		slog.Debug("Finished cleaning up job " + id)
+		return
+	case <-time.After(cleanUpTimeout): // Timeout
+		slog.Warn("Timeout when cleaning up job " + id)
+		return
+	}
 }
 
 func handleUnary[Request any, Response any, Method func(*W, context.Context, *Request) (*Response, error)](mw *MultiplexW, ctx context.Context, req *Request, m Method) (*Response, error) {

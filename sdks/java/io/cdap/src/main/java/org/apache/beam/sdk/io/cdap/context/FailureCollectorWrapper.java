@@ -67,7 +67,7 @@ public class FailureCollectorWrapper implements FailureCollector {
   }
 
   @Override
-  public ArrayList<ValidationFailure> getValidationFailures() {
+  public List<ValidationFailure> getValidationFailures() {
     return this.failuresCollection;
   }
 }

@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
  * pipeline. For example, this is necessary to materialize side-inputs. The {@link
  * EvaluationContext} won't re-evaluate such datasets.
  */
+@SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
 @Internal
 public final class EvaluationContext {
   private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
