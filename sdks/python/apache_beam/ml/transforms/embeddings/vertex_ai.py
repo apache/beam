@@ -301,22 +301,22 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
 
 @dataclass
 class VertexImage:
-  image: Image
+  image_content: Image
   embedding: Optional[list[float]] = None
 
 
 @dataclass
 class VertexVideo:
-  video: Video
+  video_content: Video
   config: VideoSegmentConfig
   embeddings: Optional[list[VideoEmbedding]] = None
 
 
 @dataclass
 class VertexAIMultiModalInput:
-  image: Optional[Image] = None
-  video: tuple[Optional[Video], Optional[VideoSegmentConfig]] = (None, None)
-  contextual_text: Optional[str] = None
+  image: Optional[VertexImage] = None
+  video: Optional[VertexVideo] = None
+  contextual_text: Optional[Chunk] = None
 
 
 class _VertexAIMultiModalEmbeddingHandler(RemoteModelHandler):
@@ -345,12 +345,25 @@ class _VertexAIMultiModalEmbeddingHandler(RemoteModelHandler):
     embeddings = []
     # Max request size for multi-modal embedding models is 1
     for input in batch:
+      image_content: Optional[Image] = None
+      video_content: Optional[Video] = None
+      text_content: Optional[str] = None
+      video_config: Optional[VideoSegmentConfig] = None
+
+      if input.image:
+        image_content = input.image.image_content
+      if input.video:
+        video_content = input.video.video_content
+        video_config = input.video.config
+      if input.contextual_text:
+        text_content = input.contextual_text.content.text
+
       prediction = model.get_embeddings(
-          image=input.image,
-          video=input.video[0],
-          contextual_text=input.contextual_text,
+          image=image_content,
+          video=video_content,
+          contextual_text=text_content,
           dimension=self.dimension,
-          video_segment_config=input.video[1])
+          video_segment_config=video_config)
       embeddings.append(prediction)
     return embeddings
 
@@ -372,18 +385,15 @@ def _multimodal_dict_input_fn(
     batch: Sequence[dict[str, Any]]) -> list[VertexAIMultiModalInput]:
   multimodal_inputs: list[VertexAIMultiModalInput] = []
   for item in batch:
-    img: Optional[Image] = None
-    vid: tuple[Optional[Video], Optional[VideoSegmentConfig]] = (None, None)
-    text: Optional[str] = None
+    img: Optional[VertexImage] = None
+    vid: Optional[VertexVideo] = None
+    text: Optional[Chunk] = None
     if image_column:
-      input_image: VertexImage = item[image_column]
-      img = input_image.image
+      img = item[image_column]
     if video_column:
-      input_video: VertexVideo = item[video_column]
-      vid = (input_video.video, input_video.config)
+      vid = item[video_column]
     if text_column:
-      input_text: Chunk = item[text_column]
-      text = input_text.content.text
+      text = item[text_column]
     multimodal_inputs.append(
         VertexAIMultiModalInput(image=img, video=vid, contextual_text=text))
   return multimodal_inputs

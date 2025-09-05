@@ -333,7 +333,7 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
       transformed_pcoll = (
           pipeline | "CreateData" >> beam.Create([{
               image_feature_column: VertexImage(
-                  image=Image(gcs_uri=self.image_path)),
+                  image_content=Image(gcs_uri=self.image_path)),
               text_feature_column: _make_text_chunk("an image of sunflowers"),
           }])
           | "MLTransform" >> MLTransform(
@@ -358,7 +358,7 @@ class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
       transformed_pcoll = (
           pipeline | "CreateData" >> beam.Create([{
               video_feature_column: VertexVideo(
-                  video=Video(gcs_uri=self.video_path),
+                  video_content=Video(gcs_uri=self.video_path),
                   config=self.video_segment_config)
           }])
           | "MLTransform" >> MLTransform(
