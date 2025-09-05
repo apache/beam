@@ -290,13 +290,13 @@ public class BigQueryHelpers {
       }
 
       List<ErrorProto> jobErrors = job.getStatus().getErrors();
-      ErrorProto finalError = job.getStatus().getErrorResult();
-      ErrorProto causativeError = jobErrors.get(jobErrors.size() - 1);
+      String finalError = job.getStatus().getErrorResult().getMessage();
+      String causativeError =
+          jobErrors != null && !jobErrors.isEmpty()
+              ? String.format(" due to: %s", jobErrors.get(jobErrors.size() - 1).getMessage())
+              : "";
 
-      LOG.error(
-          String.format(
-              "BigQuery Error : %s due to : %s",
-              finalError.getMessage(), causativeError.getMessage()));
+      LOG.error(String.format("BigQuery Error : %s %s", finalError, causativeError));
     }
   }
 
