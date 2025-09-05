@@ -170,11 +170,8 @@ final class StructUtils {
             case DECIMAL:
               @Nullable BigDecimal decimal = row.getDecimal(column);
               // BigDecimal is not nullable
-              if (decimal == null) {
-                checkNotNull(decimal, "Null decimal at column " + column);
-              } else {
-                structBuilder.set(column).to(decimal);
-              }
+              checkNotNull(decimal, "Null decimal at column %s", column);
+              structBuilder.set(column).to(decimal);
               break;
               // TODO: implement logical type date and timestamp
             case DATETIME:

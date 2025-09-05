@@ -218,11 +218,8 @@ final class MutationUtils {
       case DECIMAL:
         @Nullable BigDecimal decimal = row.getDecimal(columnName);
         // BigDecimal is not nullable
-        if (decimal == null) {
-          checkNotNull(decimal, "Null decimal at column " + columnName);
-        } else {
-          mutationBuilder.set(columnName).to(decimal);
-        }
+        checkNotNull(decimal, "Null decimal at column %s", columnName);
+        mutationBuilder.set(columnName).to(decimal);
         break;
         // TODO: Implement logical date and datetime
       case DATETIME:

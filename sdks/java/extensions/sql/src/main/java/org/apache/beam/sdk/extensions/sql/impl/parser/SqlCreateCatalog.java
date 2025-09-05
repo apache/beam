@@ -169,7 +169,7 @@ public class SqlCreateCatalog extends SqlCreate implements BeamSqlParser.Executa
           String.format(
               "Unexpected properties entry '%s' of class '%s'", property, property.getClass()));
       SqlNodeList kv = ((SqlNodeList) property);
-      checkState(kv.size() == 2, "Expected 2 items in properties entry, but got " + kv.size());
+      checkState(kv.size() == 2, "Expected 2 items in properties entry, but got %s", kv.size());
       String key = checkStateNotNull(SqlDdlNodes.getString(kv.get(0)));
       String value = checkStateNotNull(SqlDdlNodes.getString(kv.get(1)));
       props.put(key, value);

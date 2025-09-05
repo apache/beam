@@ -64,7 +64,7 @@ public class InMemoryReader<T> extends NativeReader<T> {
     int maxIndex = encodedElements.size();
     this.startIndex = Math.min(maxIndex, firstNonNull(startIndex, 0));
     this.endIndex = Math.min(maxIndex, firstNonNull(endIndex, maxIndex));
-    checkArgument(this.startIndex >= 0, "negative start index: " + startIndex);
+    checkArgument(this.startIndex >= 0, "negative start index: %s", startIndex);
     checkArgument(
         this.endIndex >= this.startIndex,
         "end index before start: [" + this.startIndex + ", " + this.endIndex + ")");

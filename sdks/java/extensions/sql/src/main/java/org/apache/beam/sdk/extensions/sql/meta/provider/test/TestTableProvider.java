@@ -113,7 +113,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
   }
 
   public void addRows(String tableName, Row... rows) {
-    checkArgument(tables().containsKey(tableName), "Table not found: " + tableName);
+    checkArgument(tables().containsKey(tableName), "Table not found: %s", tableName);
     tables().get(tableName).rows.addAll(Arrays.asList(rows));
   }
 

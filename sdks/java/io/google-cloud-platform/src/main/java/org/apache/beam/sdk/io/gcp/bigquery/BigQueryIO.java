@@ -3476,9 +3476,9 @@ public class BigQueryIO {
             String.format(
                 " is only applicable to an unbounded PCollection, but the input PCollection is %s.",
                 input.isBounded());
-        checkArgument(getTriggeringFrequency() == null, "Triggering frequency" + error);
-        checkArgument(!getAutoSharding(), "Auto-sharding" + error);
-        checkArgument(getNumFileShards() == 0, "Number of file shards" + error);
+        checkArgument(getTriggeringFrequency() == null, "Triggering frequency %s", error);
+        checkArgument(!getAutoSharding(), "Auto-sharding %s", error);
+        checkArgument(getNumFileShards() == 0, "Number of file shards %s", error);
 
         if (getStorageApiTriggeringFrequency(bqOptions) != null) {
           LOG.warn("Setting a triggering frequency" + error);
