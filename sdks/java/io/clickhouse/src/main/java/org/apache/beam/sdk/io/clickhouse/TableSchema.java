@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.io.StringReader;
 import java.util.Arrays;
@@ -386,16 +387,17 @@ public abstract class TableSchema implements Serializable {
             throw new IllegalArgumentException("Tuple types not specified for: " + value);
           }
           // Split tuple elements (accounting for quoted strings)
-          String[] elements = cleanedTuple.split(",\\s*(?=(?:[^']*'[^']*')*[^']*$)");
+          List<String> elements =
+              Splitter.onPattern(",\\s*(?=(?:[^']*'[^']*')*[^']*$)").splitToList(cleanedTuple);
           List<Object> tupleValues = new java.util.ArrayList<>();
           int index = 0;
           for (Map.Entry<String, ColumnType> entry : tupleTypes.entrySet()) {
-            if (index >= elements.length) {
+            if (index >= elements.size()) {
               throw new IllegalArgumentException(
                   "Tuple has fewer elements than expected: " + value);
             }
             // Strip quotes from quoted strings
-            String elementValue = elements[index].replaceAll("^'|'$", "").trim();
+            String elementValue = elements.get(index).replaceAll("^'|'$", "").trim();
             tupleValues.add(parseDefaultExpression(entry.getValue(), elementValue));
             index++;
           }
