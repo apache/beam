@@ -106,16 +106,16 @@ public class JdbcIOPostgresIT {
     String tableName = DatabaseTestHelper.getTestTableName("JdbcIOPostgresIT");
     DatabaseTestHelper.createTable(dataSource, tableName);
 
-    WriteToPostgresSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration writeConfig =
-        WriteToPostgresSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+    JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration writeConfig =
+        JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
             .setJdbcUrl(jdbcUrl)
             .setUsername(dataSource.getUser())
             .setPassword(dataSource.getPassword())
             .setLocation(tableName)
             .build();
 
-    ReadFromPostgresSchemaTransformProvider.JdbcReadSchemaTransformConfiguration readConfig =
-        ReadFromPostgresSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+    JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration readConfig =
+        JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
             .setJdbcUrl(jdbcUrl)
             .setUsername(dataSource.getUser())
             .setPassword(dataSource.getPassword())
