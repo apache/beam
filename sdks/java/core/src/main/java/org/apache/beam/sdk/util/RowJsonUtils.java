@@ -56,7 +56,7 @@ public class RowJsonUtils {
       Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
       com.fasterxml.jackson.core.StreamReadConstraints streamReadConstraints =
           com.fasterxml.jackson.core.StreamReadConstraints.builder()
-              .maxStringLength(MAX_STRING_LENGTH)
+              .maxStringLength(sizeLimit)
               .build();
       jsonFactory.setStreamReadConstraints(streamReadConstraints);
     } catch (ClassNotFoundException e) {
