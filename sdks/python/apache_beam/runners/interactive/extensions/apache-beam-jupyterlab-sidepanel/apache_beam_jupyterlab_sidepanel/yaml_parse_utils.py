@@ -10,14 +10,18 @@
 #  License for the specific language governing permissions and limitations under
 #  the License.
 
-import json
-from typing import Dict, List, TypedDict, Any
 import dataclasses
+import json
 from dataclasses import dataclass
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import TypedDict
 
-from apache_beam.yaml.main import build_pipeline_components_from_yaml
-import apache_beam as beam
 import yaml
+
+import apache_beam as beam
+from apache_beam.yaml.main import build_pipeline_components_from_yaml
 
 # ======================== Type Definitions ========================
 
