@@ -60,8 +60,8 @@ dependencies {
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:managed")
-  implementation library.java.avro
-  implementation library.java.bigdataoss_util
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.joda_time
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   implementation library.java.vendored_guava_32_1_2_jre
   runtimeOnly library.java.hadoop_client
