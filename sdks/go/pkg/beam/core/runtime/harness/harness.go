@@ -704,7 +704,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 func parseTimeoutDurationFlag(ctx context.Context, elementProcessingTimeout string) time.Duration {
 	userSpecifiedTimeout, err := time.ParseDuration(elementProcessingTimeout)
 	if err != nil {
-		log.Errorf(ctx, "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
+		log.Warnf(ctx, "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
 		return 0 * time.Minute
 	}
 	return userSpecifiedTimeout

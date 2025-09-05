@@ -58,7 +58,7 @@ jobs:
         (github.event_name == 'schedule' && github.repository == 'apache/beam')
         || github.event_name == 'workflow_dispatch'
       )
-     
+
     steps:
       - uses: actions/checkout@v4
       - name: Setup environment
@@ -82,15 +82,15 @@ jobs:
         run: |
           date=$(date -u +"%Y-%m-%d")
           echo "date=$date" >> $GITHUB_ENV
-      - name: Send mail
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
-          password: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
-          subject: Beam Metrics Report ${{ env.date }}
-          to: dev@beam.apache.org
-          from: beamactions@gmail.com
-          html_body: file://${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html
+#      - name: Send mail
+#        uses: dawidd6/action-send-mail@v6
+#        with:
+#          server_address: smtp.gmail.com
+#          server_port: 465
+#          secure: true
+#          username: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
+#          password: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
+#          subject: Beam Metrics Report ${{ env.date }}
+#          to: dev@beam.apache.org
+#          from: beamactions@gmail.com
+#          html_body: file://${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html

@@ -614,7 +614,7 @@ public class DatastoreV1 {
         // limit, so we just check for INVALID_ARGUMENT and assume that that the query might have
         // a limit already set.
         if (e.getCode() == Code.INVALID_ARGUMENT) {
-          LOG.warn("Failed to translate Gql query '{}': {}", gqlQueryWithZeroLimit, e.getMessage());
+          LOG.warn("Failed to translate Gql query '{}'", gqlQueryWithZeroLimit, e);
           LOG.warn("User query might have a limit already set, so trying without zero limit");
           // Retry without the zero limit.
           return translateGqlQuery(gql, datastore, projectId, databaseId, namespace, readTime);
@@ -2440,10 +2440,10 @@ public class DatastoreV1 {
           // Only log the code and message for potentially-transient errors. The entire exception
           // will be propagated upon the last retry.
           LOG.error(
-              "Error writing batch of {} mutations to Datastore ({}): {}",
+              "Error writing batch of {} mutations to Datastore ({})",
               mutations.size(),
               exception.getCode(),
-              exception.getMessage());
+              exception);
           rpcErrors.inc();
 
           if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
