@@ -61,7 +61,6 @@ public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransfor
   public static class MySqlWriteSchemaTransform extends JdbcWriteSchemaTransform {
     public MySqlWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
       super(config, MYSQL);
-      config.validate(MYSQL);
     }
   }
 }
