@@ -41,7 +41,7 @@ repositories {
 dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
-  implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.8") {                   // Enable shading Java dependencies
+  implementation("com.gradleup.shadow:shadow-gradle-plugin:9.1.0") {                   // Enable shading Java dependencies
     exclude(group="org.codehaus.plexus", module="plexus-xml") // plexus-xml 4.x requires Java17
   }
   runtimeOnly("org.codehaus.plexus:plexus-xml:3.0.2")
