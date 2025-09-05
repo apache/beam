@@ -87,15 +87,6 @@ public class MetadataSpannerConfigFactory {
       config = config.withUsingPlainTextChannel(plainText.get());
     }
 
-    ValueProvider<String> clientCert = primaryConfig.getClientCertPath();
-    ValueProvider<String> clientKey = primaryConfig.getClientCertKeyPath();
-    if (clientCert != null
-        && clientCert.get() != null
-        && clientKey != null
-        && clientKey.get() != null) {
-      config = config.withClientCert(clientCert.get(), clientKey.get());
-    }
-
     ValueProvider<Boolean> isLocalChannelProvider = primaryConfig.getIsLocalChannelProvider();
     if (isLocalChannelProvider != null) {
       config =

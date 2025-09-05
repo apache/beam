@@ -643,35 +643,6 @@ public class SpannerIO {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public ReadAll withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withClientCert(certPath, keyPath));
-    }
-
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public ReadAll withClientCert(String certPath, String keyPath) {
-      return withClientCert(
-          ValueProvider.StaticValueProvider.of(certPath),
-          ValueProvider.StaticValueProvider.of(keyPath));
-    }
-
     /** Specifies the Cloud Spanner database. */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
@@ -930,35 +901,6 @@ public class SpannerIO {
      */
     public Read withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
-    }
-
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public Read withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withClientCert(certPath, keyPath));
-    }
-
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public Read withClientCert(String certPath, String keyPath) {
-      return withClientCert(
-          ValueProvider.StaticValueProvider.of(certPath),
-          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     /** If true the uses Cloud Spanner batch API. */
@@ -1288,36 +1230,6 @@ public class SpannerIO {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public CreateTransaction withClientCert(
-        ValueProvider<String> certPath, ValueProvider<String> keyPath) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withClientCert(certPath, keyPath));
-    }
-
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public CreateTransaction withClientCert(String certPath, String keyPath) {
-      return withClientCert(
-          ValueProvider.StaticValueProvider.of(certPath),
-          ValueProvider.StaticValueProvider.of(keyPath));
-    }
-
     @VisibleForTesting
     CreateTransaction withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       SpannerConfig config = getSpannerConfig();
@@ -1484,35 +1396,6 @@ public class SpannerIO {
      */
     public Write withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
-    }
-
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public Write withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withClientCert(certPath, keyPath));
-    }
-
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public Write withClientCert(String certPath, String keyPath) {
-      return withClientCert(
-          ValueProvider.StaticValueProvider.of(certPath),
-          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     public Write withDialectView(PCollectionView<Dialect> dialect) {
@@ -1871,10 +1754,6 @@ public class SpannerIO {
 
     abstract @Nullable ValueProvider<Boolean> getPlainText();
 
-    abstract @Nullable ValueProvider<String> getClientCertPath();
-
-    abstract @Nullable ValueProvider<String> getClientCertKeyPath();
-
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1903,10 +1782,6 @@ public class SpannerIO {
       abstract Builder setExperimentalHost(ValueProvider<String> experimentalHost);
 
       abstract Builder setPlainText(ValueProvider<Boolean> plainText);
-
-      abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
-
-      abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
       abstract ReadChangeStream build();
     }
@@ -2028,36 +1903,6 @@ public class SpannerIO {
      */
     public ReadChangeStream withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
-    }
-
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public ReadChangeStream withClientCert(
-        ValueProvider<String> certPath, ValueProvider<String> keyPath) {
-      SpannerConfig config = getSpannerConfig();
-      return withSpannerConfig(config.withClientCert(certPath, keyPath));
-    }
-
-    /**
-     * Specifies certificate paths to use for mTLS channel.
-     *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
-     * withExperimentalHost}).
-     *
-     * @param certPath Path to the client certificate file.
-     * @param keyPath Path to the client certificate key file.
-     */
-    public ReadChangeStream withClientCert(String certPath, String keyPath) {
-      return withClientCert(
-          ValueProvider.StaticValueProvider.of(certPath),
-          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     @Override
