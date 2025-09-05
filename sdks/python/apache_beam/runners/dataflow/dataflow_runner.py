@@ -378,6 +378,14 @@ class DataflowRunner(PipelineRunner):
       # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
+      # Apply DataflowRunner-specific overrides (e.g., streaming PubSub
+      # optimizations)
+      from apache_beam.runners.dataflow.ptransform_overrides import (
+          get_dataflow_transform_overrides)
+      dataflow_overrides = get_dataflow_transform_overrides(options)
+      if dataflow_overrides:
+        pipeline.replace_all(dataflow_overrides)
+
       if options.view_as(DebugOptions).lookup_experiment('use_legacy_bq_sink'):
         warnings.warn(
             "Native sinks no longer implemented; "
