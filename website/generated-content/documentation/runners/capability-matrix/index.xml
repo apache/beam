@@ -38,6 +38,7 @@ back to collapsed details
 &lt;table>
 &lt;tr>
 &lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
@@ -59,6 +60,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 Dataflow has a native drain operation, but it does not work in the presence of event time timer loops. Final implemention pending model support.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -105,6 +112,12 @@ Flink supports taking a &amp;#34;savepoint&amp;#34; of the pipeline and shutting
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
@@ -165,6 +178,18 @@ Samza has a native checkpoint capability.
 &lt;/b>
 &lt;br>
 Dataflow performs different shuffling algorithms for batch and streaming. Dataflow guarantees key-ordered delivery in streaming, though not in batch.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>Unverified : &lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -274,6 +299,7 @@ back to collapsed details
 &lt;table>
 &lt;tr>
 &lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
@@ -292,6 +318,12 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -354,6 +386,12 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -419,6 +457,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
@@ -481,6 +525,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
@@ -540,6 +590,12 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -646,6 +702,7 @@ back to collapsed details
 &lt;table>
 &lt;tr>
 &lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
@@ -661,6 +718,12 @@ back to collapsed details
 &lt;div id="how-do-refinements-relate" class="table-center big-center">
 &lt;table>
 &lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -718,6 +781,12 @@ Spark streaming natively discards elements after firing.
 &lt;/b>
 &lt;br>
 Requires that the accumulated pane fits in memory, after being passed through the combiner (if relevant)
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -819,6 +888,7 @@ back to collapsed details
 &lt;table>
 &lt;tr>
 &lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
@@ -837,6 +907,12 @@ back to collapsed details
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -897,6 +973,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -965,6 +1047,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : &lt;/p>
@@ -1027,6 +1115,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
@@ -1086,6 +1180,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1213,6 +1313,7 @@ back to collapsed details
 &lt;table>
 &lt;tr>
 &lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
@@ -1234,6 +1335,13 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 Batch mode uses large bundle sizes. Streaming uses smaller bundle sizes.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Supported with per-element transformation.
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1295,6 +1403,12 @@ Supported with per-element transformation.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1379,6 +1493,12 @@ Uses Samza&amp;#39;s partitionBy for key grouping and Beam&amp;#39;s logic for w
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
@@ -1427,6 +1547,12 @@ Some corner cases like flatten on empty collections are not yet supported.
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : efficient execution&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1499,6 +1625,12 @@ Batch mode uses pre-aggregation
 &lt;br>
 Currently composite transformations are inlined during execution. The structure is later recreated from the names, but other transform level information (if added to the model) will be lost.
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : supported via inlining&lt;/p>
@@ -1561,6 +1693,12 @@ Currently composite transformations are inlined during execution. The structure 
 &lt;/b>
 &lt;br>
 Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1642,6 +1780,12 @@ Support includes autotuning features (https://cloud.google.com/dataflow/service/
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : bounded source only&lt;/p>
@@ -1693,6 +1837,13 @@ Using Spark&amp;#39;s DatasourceV2 API in microbatch mode (Continuous streaming 
 &lt;/b>
 &lt;br>
 Gauge metrics are not supported. All other metric types are supported.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially&lt;/p>
+&lt;/b>
+&lt;br>
+StringSet metrics are not supported. All other metric types are supported.
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -1761,6 +1912,12 @@ Doesn&amp;#39;t differentiate between committed and attempted values.
 &lt;/b>
 &lt;br>
 State is supported for non-merging windows. The MapState, SetState, and MultimapState state types are supported in the following scenarios: Java pipelines that don&amp;#39;t use Streaming Engine; Java pipelines that use Streaming Engine and version 2.58.0 or later of the Java SDK. SetState, MapState, and MultimapState are not supported for pipelines that use Runner v2.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -1882,6 +2039,7 @@ back to collapsed details
 &lt;table>
 &lt;tr>
 &lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
@@ -1903,6 +2061,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 Fully supported in streaming mode. In batch mode, intermediate trigger firings are effectively meaningless.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1967,6 +2131,12 @@ Fully supported in streaming mode. In batch mode, currently watermark progress j
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
@@ -2005,6 +2175,12 @@ Fully supported in streaming mode. In batch mode, currently watermark progress j
 &lt;/b>
 &lt;br>
 Fully supported in streaming mode. In batch mode, from the perspective of triggers, processing time currently jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -2058,6 +2234,13 @@ Spark processes streams in micro-batches. The micro-batch size is actually a pre
 &lt;br>
 Fully supported in streaming mode. In batch mode, elements are processed in the largest bundles possible, so count-based triggers are effectively meaningless.
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : partially supported&lt;/p>
+&lt;/b>
+&lt;br>
+Prism will double fire on count triggers
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -2102,6 +2285,12 @@ Fully supported in streaming mode. In batch mode, elements are processed in the 
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -2165,6 +2354,12 @@ Fully supported in streaming mode. In batch mode no data is ever late.
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No&lt;/p>
@@ -2209,6 +2404,12 @@ Fully supported in streaming mode. In batch mode no data is ever late.
 &lt;/b>
 &lt;br>
 Dataflow supports timers in non-merging windows.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -2318,6 +2519,7 @@ back to collapsed details
 &lt;table>
 &lt;tr>
 &lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
@@ -2333,6 +2535,12 @@ back to collapsed details
 &lt;div id="where-in-event-time" class="table-center big-center">
 &lt;table>
 &lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : default&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : default&lt;/p>
@@ -2391,51 +2599,7 @@ back to collapsed details
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
-&lt;b>
-&lt;p>Partially : fully supported in batch mode&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : built-in&lt;/p>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2491,51 +2655,7 @@ back to collapsed details
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
-&lt;b>
-&lt;p>Partially : fully supported in batch mode&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
-&lt;/b>
-&lt;br>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style='background-color:#fff;border-color:#f6f6f6'>
-&lt;b>
-&lt;p>Yes : supported&lt;/p>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2585,7 +2705,13 @@ back to collapsed details
 &lt;tr>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
-&lt;p>Yes : supported&lt;/p>
+&lt;p>Yes : built-in&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2636,6 +2762,124 @@ back to collapsed details
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : Not supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
