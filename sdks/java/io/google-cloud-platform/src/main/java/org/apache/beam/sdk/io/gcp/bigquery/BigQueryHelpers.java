@@ -25,6 +25,7 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Dataset;
+import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
@@ -205,6 +206,7 @@ public class BigQueryHelpers {
     void runJob() throws IOException {
       ++currentAttempt;
       if (!shouldRetry()) {
+        logBigQueryError(lastJobAttempted);
         throw new RuntimeException(
             String.format(
                 "Failed to create job with prefix %s, "
@@ -280,6 +282,21 @@ public class BigQueryHelpers {
 
     boolean shouldRetry() {
       return currentAttempt < maxRetries + 1;
+    }
+
+    void logBigQueryError(@Nullable Job job) {
+      if (job == null || !parseStatus(job).equals(Status.FAILED)) {
+        return;
+      }
+
+      List<ErrorProto> jobErrors = job.getStatus().getErrors();
+      ErrorProto finalError = job.getStatus().getErrorResult();
+      ErrorProto causativeError = jobErrors.get(jobErrors.size() - 1);
+
+      LOG.error(
+          String.format(
+              "BigQuery Error : %s due to : %s",
+              finalError.getMessage(), causativeError.getMessage()));
     }
   }
 
