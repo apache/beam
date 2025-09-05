@@ -573,4 +573,26 @@ func (t *TriggerDefault) String() string {
 	return "Default"
 }
 
+// TriggerAfterProcessingTime fires once after a specified amount of processing time
+// has passed since an element was first seen.
+type TriggerAfterProcessingTime struct {
+	Delay         time.Duration
+	AlignToPeriod time.Duration
+	AlignToOffset time.Duration
+}
+
+func (t *TriggerAfterProcessingTime) onElement(input triggerInput, state *StateData) {}
+
+func (t *TriggerAfterProcessingTime) shouldFire(state *StateData) bool {
+	return false
+}
+
+func (t *TriggerAfterProcessingTime) onFire(state *StateData) {}
+
+func (t *TriggerAfterProcessingTime) reset(state *StateData) {}
+
+func (t *TriggerAfterProcessingTime) String() string {
+	return fmt.Sprintf("AfterProcessingTime[Delay: %v, AlignToPeriod: %v, AlignToOffset: %v]", t.Delay, t.AlignToPeriod, t.AlignToOffset)
+}
+
 // TODO https://github.com/apache/beam/issues/31438 Handle TriggerAfterProcessingTime
