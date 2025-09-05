@@ -25,7 +25,7 @@ plugins {
 
 applyJavaNature(
   exportJavadoc: false,
-  automaticModuleName: 'org.apache.beam.examples',
+  automaticModuleName: 'org.apache.beam.examples.iceberg',
   // iceberg requires Java11+
   requireJavaVersion: JavaVersion.VERSION_11
 )
@@ -54,6 +54,7 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   runtimeOnly project(":sdks:java:io:iceberg")
   runtimeOnly project(":sdks:java:io:iceberg:bqms")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
