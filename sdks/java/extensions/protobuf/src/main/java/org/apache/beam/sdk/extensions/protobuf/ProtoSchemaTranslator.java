@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -44,6 +41,8 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -149,6 +148,17 @@ class ProtoSchemaTranslator {
   private static Map<Descriptors.Descriptor, @Nullable Schema> alreadyVisitedSchemas =
       new HashMap<Descriptors.Descriptor, @Nullable Schema>();
 
+  /**
+   * Returns {@code true} if the proto field converts to a nullable Beam field type, {@code false}
+   * otherwise.
+   */
+  static boolean isNullable(FieldDescriptor fieldDescriptor) {
+    // Set nullable for fields with presence (proto3 optional, message, group, extension,
+    // oneof-contained or explicit presence -- proto2 optional or required), but not
+    // "required" (to exclude proto2 required).
+    return fieldDescriptor.hasPresence() && !fieldDescriptor.isRequired();
+  }
+
   /** Attach a proto field number to a type. */
   static Field withFieldNumber(Field field, int number) {
     return field.withOptions(
@@ -186,7 +196,12 @@ class ProtoSchemaTranslator {
     of the first field in the OneOf as the location of the entire OneOf.*/
     Map<Integer, Field> oneOfFieldLocation = Maps.newHashMap();
     List<Field> fields = Lists.newArrayListWithCapacity(descriptor.getFields().size());
-    for (OneofDescriptor oneofDescriptor : descriptor.getOneofs()) {
+
+    // In proto3, an optional field is internally implemented by wrapping it in a synthetic oneof.
+    // The Descriptor.getRealOneOfs() method is then used to retrieve only the "real" oneofs that
+    // you explicitly defined, filtering out these automatically generated ones.
+    // https://github.com/protocolbuffers/protobuf/blob/main/docs/implementing_proto3_presence.md#updating-a-
+    for (OneofDescriptor oneofDescriptor : descriptor.getRealOneofs()) {
       List<Field> subFields = Lists.newArrayListWithCapacity(oneofDescriptor.getFieldCount());
       Map<String, Integer> enumIds = Maps.newHashMap();
       for (FieldDescriptor fieldDescriptor : oneofDescriptor.getFields()) {
@@ -196,19 +211,18 @@ class ProtoSchemaTranslator {
         subFields.add(
             withFieldNumber(
                 Field.nullable(fieldDescriptor.getName(), fieldType), fieldDescriptor.getNumber()));
-        checkArgument(
+        Preconditions.checkArgument(
             enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
       }
       FieldType oneOfType = FieldType.logicalType(OneOfType.create(subFields, enumIds));
       oneOfFieldLocation.put(
           oneofDescriptor.getFields().get(0).getNumber(),
-          Field.of(oneofDescriptor.getName(), oneOfType));
+          Field.nullable(oneofDescriptor.getName(), oneOfType));
     }
 
     for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
       int fieldDescriptorNumber = fieldDescriptor.getNumber();
-      if (!(oneOfComponentFields.contains(fieldDescriptorNumber)
-          && fieldDescriptor.getRealContainingOneof() != null)) {
+      if (!oneOfComponentFields.contains(fieldDescriptorNumber)) {
         // Store proto field number in metadata.
         FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
         fields.add(
@@ -347,14 +361,15 @@ class ProtoSchemaTranslator {
           default:
             fieldType = FieldType.row(getSchema(protoFieldDescriptor.getMessageType()));
         }
-        // all messages are nullable in Proto
-        if (protoFieldDescriptor.isOptional()) {
-          fieldType = fieldType.withNullable(true);
-        }
         break;
       default:
         throw new RuntimeException("Field type not matched.");
     }
+
+    if (isNullable(protoFieldDescriptor)) {
+      fieldType = fieldType.withNullable(true);
+    }
+
     return fieldType;
   }
 
@@ -371,34 +386,37 @@ class ProtoSchemaTranslator {
     Schema.Options.Builder optionsBuilder = Schema.Options.builder();
     for (Map.Entry<FieldDescriptor, Object> entry : allFields.entrySet()) {
       FieldDescriptor fieldDescriptor = entry.getKey();
-      FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
-
-      switch (fieldType.getTypeName()) {
-        case BYTE:
-        case BYTES:
-        case INT16:
-        case INT32:
-        case INT64:
-        case DECIMAL:
-        case FLOAT:
-        case DOUBLE:
-        case STRING:
-        case BOOLEAN:
-        case LOGICAL_TYPE:
-        case ROW:
-        case ARRAY:
-        case ITERABLE:
-          Field field = Field.of("OPTION", fieldType);
-          ProtoDynamicMessageSchema schema = ProtoDynamicMessageSchema.forSchema(Schema.of(field));
-          @SuppressWarnings("rawtypes")
-          ProtoDynamicMessageSchema.Convert convert = schema.createConverter(field);
-          Object value = checkArgumentNotNull(convert.convertFromProtoValue(entry.getValue()));
-          optionsBuilder.setOption(prefix + fieldDescriptor.getFullName(), fieldType, value);
-          break;
-        case MAP:
-        case DATETIME:
-        default:
-          throw new IllegalStateException("These datatypes are not possible in extentions.");
+      try {
+        FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
+        switch (fieldType.getTypeName()) {
+          case BYTE:
+          case BYTES:
+          case INT16:
+          case INT32:
+          case INT64:
+          case DECIMAL:
+          case FLOAT:
+          case DOUBLE:
+          case STRING:
+          case BOOLEAN:
+          case LOGICAL_TYPE:
+          case ROW:
+          case ARRAY:
+          case ITERABLE:
+            @SuppressWarnings("unchecked")
+            ProtoBeamConverter.ProtoToBeamConverter<Object, Object> protoToBeamConverter =
+                ProtoBeamConverter.createProtoToBeamConverter(fieldType);
+            Object value = protoToBeamConverter.convert(entry.getValue());
+            optionsBuilder.setOption(prefix + fieldDescriptor.getFullName(), fieldType, value);
+            break;
+          case MAP:
+          case DATETIME:
+          default:
+            throw new IllegalStateException("These datatypes are not possible in extentions.");
+        }
+      } catch (RuntimeException e) {
+        throw new RuntimeException(
+            Strings.lenientFormat("Failed to parse option for %s", fieldDescriptor.getName()), e);
       }
     }
     return optionsBuilder;
