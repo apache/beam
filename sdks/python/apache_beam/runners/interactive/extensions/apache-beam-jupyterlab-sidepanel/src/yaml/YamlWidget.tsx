@@ -21,14 +21,14 @@ import { Yaml } from './Yaml';
  * in Jupyter labextensions.
  */
 export class YamlWidget extends ReactWidget {
-    constructor(sessionContext: ISessionContext) {
-        super();
-        this._sessionContext = sessionContext;
-    }
+  constructor(sessionContext: ISessionContext) {
+    super();
+    this._sessionContext = sessionContext;
+  }
 
-    protected render(): React.ReactElement<any> {
-        return <Yaml sessionContext={this._sessionContext} />;
-    }
+  protected render(): React.ReactElement<any> {
+    return <Yaml sessionContext={this._sessionContext} />;
+  }
 
-    private _sessionContext: ISessionContext;
+  private _sessionContext: ISessionContext;
 }

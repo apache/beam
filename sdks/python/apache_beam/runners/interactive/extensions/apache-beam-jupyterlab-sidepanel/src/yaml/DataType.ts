@@ -13,25 +13,25 @@
 export const nodeWidth = 320;
 export const nodeHeight = 100;
 
-export interface NodeData {
-    id: string;
-    label: string;
-    type?: string;
-    [key: string]: any;
+export interface INodeData {
+  id: string;
+  label: string;
+  type?: string;
+  [key: string]: any;
 }
 
-export interface EdgeData {
-    source: string;
-    target: string;
-    label?: string;
+export interface IEdgeData {
+  source: string;
+  target: string;
+  label?: string;
 }
 
-export interface FlowGraph {
-    nodes: NodeData[];
-    edges: EdgeData[];
+export interface IFlowGraph {
+  nodes: INodeData[];
+  edges: IEdgeData[];
 }
 
-export interface ApiResponse {
-    data: FlowGraph | null;
-    error: string | null;
+export interface IApiResponse {
+  data: IFlowGraph | null;
+  error: string | null;
 }
