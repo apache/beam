@@ -550,7 +550,7 @@ class PipelineOptions(HasDisplayData):
           continue
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
-      if unknown_args and display_warnings:
+      if unknown_args:
         _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
       parsed_args = known_args
     result = vars(parsed_args)
