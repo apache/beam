@@ -582,7 +582,7 @@ type TimestampTransform struct {
 
 // TriggerAfterProcessingTime fires once after a specified amount of processing time
 // has passed since an element was first seen.
-// Uses the extra state field to track if the processing time of the first element.
+// Uses the extra state field to track the processing time of the first element.
 type TriggerAfterProcessingTime struct {
 	Transforms []TimestampTransform
 }
@@ -605,7 +605,6 @@ func (t *TriggerAfterProcessingTime) applyTimestampTransforms(start mtime.Time) 
 	for _, transform := range t.Transforms {
 		ret = ret + mtime.Time(transform.Delay/time.Millisecond)
 		if transform.AlignToPeriod > 0 {
-			// Formula from https://cloud.google.com/blog/products/data-analytics/windowing-and-triggering-in-apache-beam
 			// timestamp - (timestamp % period) + period
 			// And with an offset, we adjust before and after.
 			tsMs := ret
@@ -627,7 +626,7 @@ func (t *TriggerAfterProcessingTime) shouldFire(state *StateData) bool {
 	}
 	startTime := ts.extra.(mtime.Time)
 	firingTime := t.applyTimestampTransforms(startTime)
-	return mtime.Now() > firingTime
+	return mtime.Now() >= firingTime
 }
 
 func (t *TriggerAfterProcessingTime) onFire(state *StateData) {}
