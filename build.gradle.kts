@@ -253,6 +253,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":examples:java:sql:preCommit")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:java:twitter:preCommit")
+  dependsOn(":examples:java:iceberg:build")
   dependsOn(":examples:multi-language:build")
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
@@ -380,6 +381,7 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:datacatalog:build")
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
+  dependsOn(":sdks:java:extensions:sql:iceberg:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
@@ -426,6 +428,7 @@ tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
   dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
+  dependsOn(":sdks:java:extensions:sql:iceberg:integrationTest")
   dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
 }
 

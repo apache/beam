@@ -25,6 +25,8 @@ applyJavaNature(
   exportJavadoc: false,
   validateShadowJar: false,
   shadowClosure: {},
+  // iceberg requires Java11+
+  requireJavaVersion: JavaVersion.VERSION_11
 )
 
 // We don't want to use the latest version for the entire beam sdk since beam Java users can override it themselves.
@@ -66,18 +68,17 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:managed")
   permitUnusedDeclared project(":sdks:java:managed") // BEAM-11761
-  implementation project(":sdks:java:io:iceberg")
-  permitUnusedDeclared project(":sdks:java:io:iceberg") // BEAM-11761
   implementation project(":sdks:java:io:kafka")
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
   implementation project(":sdks:java:io:kafka:upgrade")
   permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
 
-  // **** IcebergIO catalogs ****
-  // HiveCatalog
-  runtimeOnly project(path: ":sdks:java:io:iceberg:hive")
-  // BigQueryMetastoreCatalog (Java 11+)
-  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+  if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0 && project.findProperty('testJavaVersion') != '8') {
+    // iceberg ended support for Java 8 in 1.7.0
+    runtimeOnly project(":sdks:java:io:iceberg")
+    runtimeOnly project(":sdks:java:io:iceberg:hive")
+    runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+  }
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
