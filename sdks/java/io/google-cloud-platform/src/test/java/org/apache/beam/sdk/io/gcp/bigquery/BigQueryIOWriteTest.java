@@ -540,7 +540,7 @@ public class BigQueryIOWriteTest implements Serializable {
       assertThat(
           fakeDatasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
-      checkLineageSinkMetric(pipelineResult, "project-id.dataset-id.userid-" + entry.getKey());
+      checkLineageSinkMetric(pipelineResult, "project-id.dataset-id.userid-%s" + entry.getKey());
     }
   }
 
@@ -3146,7 +3146,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     for (TableReference ref : tableRefs) {
       loggedWriteRename.verifyDebug("Deleting table " + toJsonString(ref));
-      checkState(datasetService.getTable(ref) == null, "Table " + ref + " was not deleted!");
+      checkState(datasetService.getTable(ref) == null, "Table %s was not deleted!", ref);
     }
   }
 

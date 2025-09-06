@@ -147,7 +147,7 @@ public class SchemasUtils {
               .map(MatchResult.Metadata::resourceId)
               .collect(Collectors.toList());
 
-      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got " + rId.size() + " files.");
+      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got %s files.", rId.size());
 
       Reader reader =
           Channels.newReader(FileSystems.open(rId.get(0)), StandardCharsets.UTF_8.name());
