@@ -1828,6 +1828,144 @@ public class TableRowToStorageApiProtoTest {
   }
 
   @Test
+  public void testMergeUnknownRepeatedNestedFieldWithUnknownInRepeatedField() throws Exception {
+
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    fields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"))));
+    TableSchema schema = new TableSchema().setFields(fields);
+    TableRow tableRow =
+        new TableRow()
+            .set("foo", "bar")
+            .set(
+                "repeated1",
+                ImmutableList.of(
+                    new TableCell().set("key1", "valueA").set("key2", "valueC"),
+                    new TableCell()
+                        .set("key1", "valueB")
+                        .set("key2", "valueD")
+                        .set("unknown", "valueE")));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+    TableRow unknown = new TableRow();
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+
+    assertTrue(
+        ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
+    assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
+
+    ByteString bytes =
+        TableRowToStorageApiProto.mergeNewFields(
+            msg.toByteString(),
+            descriptor.toProto(),
+            TableRowToStorageApiProto.schemaToProtoTableSchema(schema),
+            schemaInformation,
+            unknown,
+            true);
+
+    DynamicMessage merged = DynamicMessage.parseFrom(descriptor, bytes);
+    assertNotNull(merged);
+    assertEquals(2, merged.getAllFields().size());
+    FieldDescriptor repeated1 = descriptor.findFieldByName("repeated1");
+    List<?> array = (List) merged.getField(repeated1);
+    assertNotNull(array);
+    assertEquals(2, array.size());
+  }
+
+  @Test
+  public void testMergeUnknownRepeatedNestedFieldWithUnknownInRepeatedFieldWhenSchemaChanges()
+      throws Exception {
+
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    fields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"))));
+    TableSchema oldSchema = new TableSchema().setFields(fields);
+
+    List<TableFieldSchema> newFields = new ArrayList<>();
+    newFields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    newFields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("type").setType("STRING"))));
+    TableSchema newSchema = new TableSchema().setFields(newFields);
+    TableRow tableRow =
+        new TableRow()
+            .set("foo", "bar")
+            .set(
+                "repeated1",
+                ImmutableList.of(
+                    new TableCell().set("key1", "valueA").set("key2", "valueC"),
+                    new TableCell()
+                        .set("key1", "valueB")
+                        .set("key2", "valueD")
+                        .set("type", "valueE")));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(oldSchema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(oldSchema);
+    TableRow unknown = new TableRow();
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+
+    assertTrue(
+        ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
+    assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("type"));
+
+    // schema is updated
+    descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(newSchema, true, false);
+    schemaInformation = TableRowToStorageApiProto.SchemaInformation.fromTableSchema(newSchema);
+
+    ByteString bytes =
+        TableRowToStorageApiProto.mergeNewFields(
+            msg.toByteString(),
+            descriptor.toProto(),
+            TableRowToStorageApiProto.schemaToProtoTableSchema(newSchema),
+            schemaInformation,
+            unknown,
+            true);
+
+    DynamicMessage merged = DynamicMessage.parseFrom(descriptor, bytes);
+    assertNotNull(merged);
+    assertEquals(2, merged.getAllFields().size());
+    FieldDescriptor repeated1 = descriptor.findFieldByName("repeated1");
+    List<?> array = (List) merged.getField(repeated1);
+    FieldDescriptor type =
+        descriptor.findFieldByName("repeated1").getMessageType().findFieldByName("type");
+    assertNotNull(array);
+    assertEquals(2, array.size());
+    assertEquals("valueE", ((DynamicMessage) array.get(1)).getField(type));
+  }
+
+  @Test
   public void testCdcFields() throws Exception {
     TableRow tableRow =
         new TableRow()
