@@ -1427,10 +1427,7 @@ func computeNextWatermarkPane(pane typex.PaneInfo) typex.PaneInfo {
 	return pane
 }
 
-// runTriggeredBundle must be called with the stage.mu lock held.
-// When in discarding mode, returns 0.
-// When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
-func (ss *stageState) runTriggeredBundle(em *ElementManager, key []byte, win typex.Window) int {
+func (ss *stageState) buildTriggeredBundle(key []byte, win typex.Window) ([]element, int) {
 	var toProcess []element
 	dnt := ss.pendingByKeys[string(key)]
 	var notYet []element
@@ -1464,23 +1461,43 @@ func (ss *stageState) runTriggeredBundle(em *ElementManager, key []byte, win typ
 		// Ensure the heap invariants are maintained.
 		heap.Init(&dnt.elements)
 	}
+	return toProcess, accumulationDiff
+}
 
+func (ss *stageState) startTriggeredBundle(key []byte, win typex.Window, genBundID func() string) (string, bool, int) {
+	toProcess, accumulationDiff := ss.buildTriggeredBundle(key, win)
+
+	if len(toProcess) == 0 {
+		return "", false, accumulationDiff
+	}
 	if ss.inprogressKeys == nil {
 		ss.inprogressKeys = set[string]{}
 	}
 	bundID := ss.makeInProgressBundle(
-		func() string { return "agg-" + em.nextBundID() },
+		genBundID,
 		toProcess,
 		ss.input,
 		singleSet(string(key)),
 		nil,
 	)
-	rb := RunBundle{StageID: ss.ID, BundleID: bundID, Watermark: ss.input}
-	ss.bundlesToInject = append(ss.bundlesToInject, rb)
-	// Bundle is marked in progress here to prevent a race condition.
-	em.refreshCond.L.Lock()
-	em.inprogressBundles.insert(rb.BundleID)
-	em.refreshCond.L.Unlock()
+
+	return bundID, true, accumulationDiff
+}
+
+// runTriggeredBundle must be called with the stage.mu lock held.
+// When in discarding mode, returns 0.
+// When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
+func (ss *stageState) runTriggeredBundle(em *ElementManager, key []byte, win typex.Window) int {
+	bundID, ok, accumulationDiff := ss.startTriggeredBundle(key, win, func() string { return "agg-" + em.nextBundID() })
+
+	if ok {
+		rb := RunBundle{StageID: ss.ID, BundleID: bundID, Watermark: ss.input}
+		ss.bundlesToInject = append(ss.bundlesToInject, rb)
+		// Bundle is marked in progress here to prevent a race condition.
+		em.refreshCond.L.Lock()
+		em.inprogressBundles.insert(rb.BundleID)
+		em.refreshCond.L.Unlock()
+	}
 	return accumulationDiff
 }
 
