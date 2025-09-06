@@ -1312,7 +1312,7 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 
 		// If we're ready, it's time to fire!
 		if ready {
-			count += ss.buildTriggeredBundle(em, e.keyBytes, e.window)
+			count += ss.runTriggeredBundle(em, e.keyBytes, e.window)
 		}
 	}
 	return count
@@ -1427,15 +1427,13 @@ func computeNextWatermarkPane(pane typex.PaneInfo) typex.PaneInfo {
 	return pane
 }
 
-// buildTriggeredBundle must be called with the stage.mu lock held.
+// runTriggeredBundle must be called with the stage.mu lock held.
 // When in discarding mode, returns 0.
 // When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
-func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win typex.Window) int {
+func (ss *stageState) runTriggeredBundle(em *ElementManager, key []byte, win typex.Window) int {
 	var toProcess []element
 	dnt := ss.pendingByKeys[string(key)]
 	var notYet []element
-
-	rb := RunBundle{StageID: ss.ID, BundleID: "agg-" + em.nextBundID(), Watermark: ss.input}
 
 	// Look at all elements for this key, and only for this window.
 	for dnt.elements.Len() > 0 {
@@ -1470,13 +1468,14 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 	if ss.inprogressKeys == nil {
 		ss.inprogressKeys = set[string]{}
 	}
-	ss.makeInProgressBundle(
-		func() string { return rb.BundleID },
+	bundID := ss.makeInProgressBundle(
+		func() string { return "agg-" + em.nextBundID() },
 		toProcess,
 		ss.input,
 		singleSet(string(key)),
 		nil,
 	)
+	rb := RunBundle{StageID: ss.ID, BundleID: bundID, Watermark: ss.input}
 	ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
 	em.refreshCond.L.Lock()
