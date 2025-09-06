@@ -96,6 +96,9 @@ public class Managed {
   public static final String ICEBERG_CDC = "iceberg_cdc";
   public static final String KAFKA = "kafka";
   public static final String BIGQUERY = "bigquery";
+  public static final String POSTGRES = "postgres";
+  public static final String MYSQL = "mysql";
+  public static final String ORACLE = "oracle";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
@@ -104,12 +107,18 @@ public class Managed {
           .put(ICEBERG_CDC, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_CDC_READ))
           .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ))
           .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ))
+          .put(POSTGRES, getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_READ))
+          .put(MYSQL, getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_READ))
+          .put(ORACLE, getUrn(ExternalTransforms.ManagedTransforms.Urns.ORACLE_READ))
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
           .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE))
           .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE))
           .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE))
+          .put(POSTGRES, getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_WRITE))
+          .put(MYSQL, getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_WRITE))
+          .put(ORACLE, getUrn(ExternalTransforms.ManagedTransforms.Urns.ORACLE_WRITE))
           .build();
 
   /**
