@@ -62,9 +62,9 @@ or
 pytest -v integration_tests.py::<yaml_file_name_without_extension>Test
 ```
 
-To run the postcommit tests:
+To run some of the postcommit tests, for example:
 
 ```bash
-pytest -v integration_tests.py --test_files_dir="extended_tests"
+pytest -v integration_tests.py --test_files_dir="extended_tests/messaging"
 ```
 

@@ -487,7 +487,7 @@ class _StripErrorMetadata(beam.PTransform):
           typing_from_runner_api(existing_fields[fld]))
 
 
-class _Validate(beam.PTransform):
+class Validate(beam.PTransform):
   """Validates each element of a PCollection against a json schema.
 
   Args:
@@ -982,7 +982,7 @@ def create_mapping_providers():
           'Partition-javascript': _Partition,
           'Partition-generic': _Partition,
           'StripErrorMetadata': _StripErrorMetadata,
-          'ValidateWithSchema': _Validate,
+          'ValidateWithSchema': Validate,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,
