@@ -27,6 +27,8 @@ General setup:
 export PIPELINE_FILE=apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml
 export KINGLEAR="gs://dataflow-samples/shakespeare/kinglear.txt"
 export TEMP_LOCATION="gs://MY-BUCKET/wordCounts/"
+export PROJECT="MY-PROJECT"
+export REGION="MY-REGION"
 
 cd <PATH_TO_BEAM_REPO>/beam/sdks/python
 ```
@@ -34,6 +36,8 @@ cd <PATH_TO_BEAM_REPO>/beam/sdks/python
 Multiline Run Example:
 ```sh
 python -m apache_beam.yaml.main \
+  --project=${PROJECT} \
+  --region=${REGION} \
   --yaml_pipeline_file="${PIPELINE_FILE}" \
   --jinja_variables='{
     "readFromTextTransform": {"path": "'"${KINGLEAR}"'"},
@@ -58,6 +62,8 @@ python -m apache_beam.yaml.main \
 
 Single Line Run Example:
 ```sh
-python -m apache_beam.yaml.main --yaml_pipeline_file="${PIPELINE_FILE}" --jinja_variables='{"readFromTextTransform": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}, "mapToFieldsSplitConfig": {"language": "python", "fields":{"value":"1"}}, "explodeTransform":{"fields":"word"}, "combineTransform":{"group_by":"word", "combine":{"value":"sum"}}, "mapToFieldsCountConfig":{"language": "python", "fields":{"output":"word + \" - \" + str(value)"}}, "writeToTextTransform":{"path":"${TEMP_LOCATION}"}}'
+python -m apache_beam.yaml.main --project=${PROJECT} --region=${REGION} \
+--yaml_pipeline_file="${PIPELINE_FILE}" --jinja_variables='{"readFromTextTransform": 
+{"path": "'"${KINGLEAR}"'"}, "mapToFieldsSplitConfig": {"language": "python", "fields":{"value":"1"}}, "explodeTransform":{"fields":"word"}, "combineTransform":{"group_by":"word", "combine":{"value":"sum"}}, "mapToFieldsCountConfig":{"language": "python", "fields":{"output":"word + \" - \" + str(value)"}}, "writeToTextTransform":{"path":"'"${TEMP_LOCATION}"'"}}'
 ```
 
