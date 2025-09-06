@@ -74,6 +74,9 @@ dependencies {
   implementation (group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.5') {
     // "kafka-clients" has to be provided since user can use its own version.
     exclude group: 'org.apache.kafka', module: 'kafka-clients'
+    // "kafka-schema-registry-client must be excluded per the Google Cloud documentation:
+    // https://cloud.google.com/managed-service-for-apache-kafka/docs/quickstart-avro#configure_and_run_the_producer
+    exclude group: "io.confluent", module: "kafka-schema-registry-client"
   }
   implementation ("io.confluent:kafka-avro-serializer:${confluentVersion}") {
     // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
