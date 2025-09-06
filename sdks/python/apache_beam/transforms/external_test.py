@@ -33,6 +33,7 @@ from apache_beam import ManagedReplacement
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.pipeline import PipelineVisitor
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.portability.api import schema_pb2
@@ -349,6 +350,22 @@ class ExternalTransformTest(unittest.TestCase):
     self.assertTrue(pipeline.contains_external_transforms)
 
   def test_external_transform_finder_leaf(self):
+    def has_external(p):
+      class Finder(PipelineVisitor):
+        def __init__(self):
+          self.matches = []
+
+        def enter_composite_transform(self, node):
+          if isinstance(node.transform, beam.ExternalTransform):
+            self.matches.append(node.full_label)
+
+        def visit_transform(self, node):
+          self.enter_composite_transform(node)
+
+      finder = Finder()
+      p.visit(finder)
+      return finder.matches
+
     pipeline = beam.Pipeline()
     _ = (
         pipeline
@@ -357,9 +374,9 @@ class ExternalTransformTest(unittest.TestCase):
             'beam:transforms:xlang:test:nooutput',
             ImplicitSchemaPayloadBuilder({'data': '0'}),
             expansion_service.ExpansionServiceServicer()))
-    pipeline.run().wait_until_finish()
 
-    self.assertTrue(pipeline.contains_external_transforms)
+    found = has_external(pipeline)
+    self.assertTrue(found, f"No ExternalTransform found; saw: {found}")
 
   def test_sanitize_java_traceback(self):
     error_string = '''

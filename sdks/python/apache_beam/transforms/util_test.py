@@ -762,7 +762,7 @@ class IdentityWindowTest(unittest.TestCase):
             equal_to(expected_windows),
             label='before_identity',
             reify_windows=True)
-        _ = (
+        after = (
             before_identity
             | 'window' >> beam.WindowInto(
                 beam.transforms.util._IdentityWindowFn(
@@ -772,6 +772,8 @@ class IdentityWindowTest(unittest.TestCase):
             # contain a window of None. IdentityWindowFn should
             # raise an exception.
             | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
+        # Terminal consumer to prevent pruning:
+        _ = after | 'count_per_element' >> beam.combiners.Count.PerElement()
 
 
 class ReshuffleTest(unittest.TestCase):
