@@ -580,6 +580,10 @@ class Pipeline(HasDisplayData):
     # type: (Union[bool, str]) -> PipelineResult
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
+    # All pipeline options are finalized at this point.
+    # Call get_all_options to print warnings on invalid options.
+    self.options.get_all_options(
+        retain_unknown_options=True, display_warnings=True)
 
     for error_handler in self._error_handlers:
       error_handler.verify_closed()

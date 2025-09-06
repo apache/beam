@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import argparse
+import difflib
 import json
 import logging
 import os
@@ -449,11 +450,30 @@ class PipelineOptions(HasDisplayData):
 
     return cls(flags)
 
+  @staticmethod
+  def _warn_on_unknown_options(unknown_args, parser):
+    if not unknown_args:
+      return
+
+    all_known_options = [
+        opt for action in parser._actions for opt in action.option_strings
+    ]
+
+    for arg in unknown_args:
+      msg = f"Unparseable argument: {arg}"
+      if arg.startswith('--'):
+        arg_name = arg.split('=', 1)[0]
+        suggestions = difflib.get_close_matches(arg_name, all_known_options)
+        if suggestions:
+          msg += f". Did you mean '{suggestions[0]}'?'"
+      _LOGGER.warning(msg)
+
   def get_all_options(
       self,
       drop_default=False,
       add_extra_args_fn: Optional[Callable[[_BeamArgumentParser], None]] = None,
-      retain_unknown_options=False) -> Dict[str, Any]:
+      retain_unknown_options=False,
+      display_warnings=False) -> Dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -485,12 +505,11 @@ class PipelineOptions(HasDisplayData):
       add_extra_args_fn(parser)
 
     known_args, unknown_args = parser.parse_known_args(self._flags)
-    if retain_unknown_options:
-      if unknown_args:
-        _LOGGER.warning(
-            'Unknown pipeline options received: %s. Ignore if flags are '
-            'used for internal purposes.' % (','.join(unknown_args)))
 
+    if display_warnings:
+      self._warn_on_unknown_options(unknown_args, parser)
+
+    if retain_unknown_options:
       seen = set()
 
       def add_new_arg(arg, **kwargs):
