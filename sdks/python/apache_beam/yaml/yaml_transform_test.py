@@ -753,6 +753,54 @@ class YamlTransformE2ETest(unittest.TestCase):
               ''')
     self.assertIn("'date' is not of type 'integer'", str(e.exception))
 
+  def test_output_schema_with_main_transform_error_handling_success(self):
+    """Test that optional output_schema works in conjunction with main transform
+    error handling."""
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: CreateVisits
+                config:
+                  elements:
+                    - {user: alice, timestamp: "not-valid"}
+                    - {user: bob, timestamp: 3}
+              - type: AssignTimestamps
+                input: CreateVisits
+                config:
+                  timestamp: timestamp
+                  error_handling:
+                    output: invalid_rows
+                  output_schema:
+                    type: object
+                    properties:
+                      user:
+                        type: string
+                      timestamp:
+                        type: boolean
+              - type: MapToFields
+                name: ExtractInvalidTimestamp
+                input: AssignTimestamps.invalid_rows
+                config:
+                  language: python
+                  fields:
+                    user: "element.user"
+                    timestamp: "element.timestamp"
+              - type: AssertEqual
+                input: ExtractInvalidTimestamp
+                config:
+                  elements:
+                    - {user: "alice", timestamp: "not-valid"}
+                    - {user: bob, timestamp: 3}
+              - type: AssertEqual
+                input: AssignTimestamps
+                config:
+                  elements: []
+          ''')
+
 
 class ErrorHandlingTest(unittest.TestCase):
   def test_error_handling_outputs(self):
