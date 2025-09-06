@@ -594,9 +594,10 @@ def expand_output_schema_transform(spec, outputs, error_handling_spec):
     _LOGGER.warning("Output_schema config is attached to a transform that has "\
     "no error_handling config specified. Any failures validating on output" \
     "schema will fail the pipeline unless the user specifies an" \
-    "error_handling config on a capable transform or the user can remove the" \
-    "output_schema config on this transform and add a ValidateWithSchema " \
-    "transform downstream of the current transform.")
+    "error_handling config on a capable transform. Alternatively, you can " \
+    "remove the output_schema config on this transform and add a " \
+    "ValidateWithSchema transform with separate error handling downstream of " \
+    "the current transform.")
 
   # The transform produced outputs with a single beam.PCollection
   if isinstance(outputs, beam.PCollection):
@@ -617,7 +618,7 @@ def expand_output_schema_transform(spec, outputs, error_handling_spec):
   # The transform produced outputs with many named PCollections and need to
   # determine which PCollection should be validated on.
   elif isinstance(outputs, dict):
-    main_output_key = _get_main_output_key(spec, outputs)
+    main_output_key = get_main_output_key(spec, outputs)
 
     validation_result = _enforce_schema(
         outputs[main_output_key],
@@ -630,7 +631,7 @@ def expand_output_schema_transform(spec, outputs, error_handling_spec):
   return outputs
 
 
-def _get_main_output_key(spec, outputs):
+def get_main_output_key(spec, outputs):
   """Determines the main output key from a dictionary of PCollections.
 
   This is used to identify which output of a multi-output transform should be
@@ -708,14 +709,10 @@ def _integrate_validation_results(
     error_output_tag = error_handling_spec['output']
     if error_output_tag in validation_result:
       schema_error_pcoll = validation_result.pop(error_output_tag)
-      if error_output_tag in outputs:
-        # The original transform also had an error output. Merge them.
-        outputs[error_output_tag] = (
-            (outputs[error_output_tag], schema_error_pcoll)
-            | f'FlattenErrors_{main_output_key}' >> beam.Flatten())
-      else:
-        # No error output in the original transform, so just add this one.
-        outputs[error_output_tag] = schema_error_pcoll
+      # The original transform also had an error output. Merge them.
+      outputs[error_output_tag] = (
+          (outputs[error_output_tag], schema_error_pcoll)
+          | f'FlattenErrors_{main_output_key}' >> beam.Flatten())
 
     # There should be no other outputs from validation.
     if validation_result:
