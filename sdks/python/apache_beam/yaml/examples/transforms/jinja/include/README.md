@@ -63,7 +63,7 @@ python -m apache_beam.yaml.main \
 Single Line Run Example:
 ```sh
 python -m apache_beam.yaml.main --project=${PROJECT} --region=${REGION} \
---yaml_pipeline_file="${PIPELINE_FILE}" --jinja_variables='{"readFromTextTransform": 
+--yaml_pipeline_file="${PIPELINE_FILE}" --jinja_variables='{"readFromTextTransform":
 {"path": "'"${KINGLEAR}"'"}, "mapToFieldsSplitConfig": {"language": "python", "fields":{"value":"1"}}, "explodeTransform":{"fields":"word"}, "combineTransform":{"group_by":"word", "combine":{"value":"sum"}}, "mapToFieldsCountConfig":{"language": "python", "fields":{"output":"word + \" - \" + str(value)"}}, "writeToTextTransform":{"path":"'"${TEMP_LOCATION}"'"}}'
 ```
 
