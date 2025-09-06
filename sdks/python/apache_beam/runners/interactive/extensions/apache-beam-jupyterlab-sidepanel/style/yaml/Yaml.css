@@ -11,13 +11,30 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-@import '~material-design-icons/iconfont/material-icons.css';
 
-@import './mdc-theme.css';
+.split-pane {
+    height: 90%;
+    display: flex;
+}
 
-@import './inspector/Inspectables.css';
-@import './inspector/InspectableView.css';
-@import './inspector/InteractiveInspector.css';
-@import './yaml/Yaml.css';
-@import './yaml/YamlEditor.css';
-@import './yaml/YamlFlow.css';
+.gutter {
+    background-color: #ccc;
+    background-clip: padding-box;
+    box-sizing: border-box;
+    z-index: 1;
+    transition: background-color 0.2s;
+}
+
+.gutter:hover {
+    background-color: #aaa;
+}
+
+.gutter.gutter-horizontal {
+    cursor: col-resize;
+    width: 6px;
+}
+
+.gutter.gutter-vertical {
+    cursor: row-resize;
+    height: 6px;
+}
