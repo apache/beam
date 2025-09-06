@@ -573,4 +573,69 @@ func (t *TriggerDefault) String() string {
 	return "Default"
 }
 
-// TODO https://github.com/apache/beam/issues/31438 Handle TriggerAfterProcessingTime
+// TimestampTransform is the engine's representation of a processing time transform.
+type TimestampTransform struct {
+	Delay         time.Duration
+	AlignToPeriod time.Duration
+	AlignToOffset time.Duration
+}
+
+// TriggerAfterProcessingTime fires once after a specified amount of processing time
+// has passed since an element was first seen.
+// Uses the extra state field to track if the processing time of the first element.
+type TriggerAfterProcessingTime struct {
+	Transforms []TimestampTransform
+}
+
+func (t *TriggerAfterProcessingTime) onElement(input triggerInput, state *StateData) {
+	ts := state.getTriggerState(t)
+	if ts.finished {
+		return
+	}
+
+	if ts.extra == nil {
+		ts.extra = mtime.Now()
+	}
+
+	state.setTriggerState(t, ts)
+}
+
+func (t *TriggerAfterProcessingTime) applyTimestampTransforms(start mtime.Time) mtime.Time {
+	ret := start
+	for _, transform := range t.Transforms {
+		ret = ret + mtime.Time(transform.Delay/time.Millisecond)
+		if transform.AlignToPeriod > 0 {
+			// Formula from https://cloud.google.com/blog/products/data-analytics/windowing-and-triggering-in-apache-beam
+			// timestamp - (timestamp % period) + period
+			// And with an offset, we adjust before and after.
+			tsMs := ret
+			periodMs := mtime.Time(transform.AlignToPeriod / time.Millisecond)
+			offsetMs := mtime.Time(transform.AlignToOffset / time.Millisecond)
+
+			adjustedMs := tsMs - offsetMs
+			alignedMs := adjustedMs - (adjustedMs % periodMs) + periodMs + offsetMs
+			ret = alignedMs
+		}
+	}
+	return ret
+}
+
+func (t *TriggerAfterProcessingTime) shouldFire(state *StateData) bool {
+	ts := state.getTriggerState(t)
+	if ts.extra == nil {
+		return false
+	}
+	startTime := ts.extra.(mtime.Time)
+	firingTime := t.applyTimestampTransforms(startTime)
+	return mtime.Now() > firingTime
+}
+
+func (t *TriggerAfterProcessingTime) onFire(state *StateData) {}
+
+func (t *TriggerAfterProcessingTime) reset(state *StateData) {
+	delete(state.Trigger, t)
+}
+
+func (t *TriggerAfterProcessingTime) String() string {
+	return fmt.Sprintf("AfterProcessingTime[%v]", t.Transforms)
+}
