@@ -31,6 +31,7 @@ from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.ml.rag.embeddings.test_utils import chunk_approximately_equals
 
 # pylint: disable=unused-import
 try:
@@ -38,19 +39,6 @@ try:
   SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
   SENTENCE_TRANSFORMERS_AVAILABLE = False
-
-
-def chunk_approximately_equals(expected, actual):
-  """Compare embeddings allowing for numerical differences."""
-  if not isinstance(expected, Chunk) or not isinstance(actual, Chunk):
-    return False
-
-  return (
-      expected.id == actual.id and expected.metadata == actual.metadata and
-      expected.content == actual.content and
-      len(expected.embedding.dense_embedding) == len(
-          actual.embedding.dense_embedding) and
-      all(isinstance(x, float) for x in actual.embedding.dense_embedding))
 
 
 @pytest.mark.uses_transformers

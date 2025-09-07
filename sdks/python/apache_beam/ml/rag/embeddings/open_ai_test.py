@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import os
 import shutil
 import tempfile
@@ -28,18 +27,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.ml.rag.embeddings.open_ai import OpenAITextEmbeddings
-
-def chunk_approximately_equals(expected, actual):
-  """Compare embeddings allowing for numerical differences."""
-  if not isinstance(expected, Chunk) or not isinstance(actual, Chunk):
-    return False
-
-  return (
-      expected.id == actual.id and expected.metadata == actual.metadata and
-      expected.content == actual.content and
-      len(expected.embedding.dense_embedding) == len(
-          actual.embedding.dense_embedding) and
-      all(isinstance(x, float) for x in actual.embedding.dense_embedding))
+from apache_beam.ml.rag.embeddings.test_utils import chunk_approximately_equals
 
 
 class OpenAITextEmbeddingsTest(unittest.TestCase):
