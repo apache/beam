@@ -132,22 +132,17 @@ def enrichment_with_tecton():
       beam.Row(user_id='user_9979340926'),
   ]
 
-  # Create connection configuration
-  # Your actual Tecton credentials
   connection_config = TectonConnectionConfig(
       url='https://explore.tecton.ai',
+      default_workspace_name='prod',
       api_key='101142fd7d775e0a1bd9e343cca2a44d'
   )
 
-  # Create features retrieval configuration
-  # Using your actual fraud detection feature service
   features_config = TectonFeaturesRetrievalConfig(
       feature_service_name='fraud_detection_feature_service',
-      entity_id='user_id',
-      workspace_name='prod'
+      entity_id='user_id'
   )
 
-  # Create the handler with both configurations
   tecton_handler = TectonFeatureStoreEnrichmentHandler(
       connection_config=connection_config,
       features_retrieval_config=features_config
