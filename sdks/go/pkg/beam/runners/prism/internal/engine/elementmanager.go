@@ -1162,9 +1162,10 @@ type stageState struct {
 type stageKind interface {
 	// addPending handles adding new pending elements to the stage appropriate for the kind.
 	addPending(ss *stageState, em *ElementManager, newPending []element) int
-	// buildEventTimeBundle handles building bundles for the stage per it's kind.
+	// buildEventTimeBundle handles building event-time bundles for the stage per it's kind.
 	buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, schedulable bool, pendingAdjustment int)
-
+	// buildProcessingTimeBundle handles building processing-time bundles for the stage per it's kind.
+	buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, schedulable bool)
 	// updatePane based on the stage state.
 	updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo
 }
@@ -1859,6 +1860,22 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
+	toProcess, minTs, newKeys, holdsInBundle, stillSchedulable := ss.kind.buildProcessingTimeBundle(ss, em, emNow)
+
+	if len(toProcess) == 0 {
+		// If we have nothing
+		return "", false, stillSchedulable
+	}
+	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
+	return bundID, true, stillSchedulable
+}
+
+func (*ordinaryStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, schedulable bool) {
+	slog.Error("ordinary stages can't have processing time elements")
+	return nil, mtime.MinTimestamp, nil, nil, false
+}
+
+func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, schedulable bool) {
 	// TODO: Determine if it's possible and a good idea to treat all EventTime processing as a MinTime
 	// Special Case for ProcessingTime handling.
 	// Eg. Always queue EventTime elements at minTime.
@@ -1866,7 +1883,7 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 	//
 	// Potentially puts too much work on the scheduling thread though.
 
-	var toProcess []element
+	// var toProcess []element
 	minTs := mtime.MaxTimestamp
 	holdsInBundle := map[mtime.Time]int{}
 
@@ -1923,12 +1940,12 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 	// Add a refresh if there are still processing time events to process.
 	stillSchedulable := (nextTime < emNow && nextTime != mtime.MaxTimestamp || len(notYet) > 0)
 
-	if len(toProcess) == 0 {
-		// If we have nothing
-		return "", false, stillSchedulable
-	}
-	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
-	return bundID, true, stillSchedulable
+	return toProcess, minTs, newKeys, holdsInBundle, stillSchedulable
+}
+
+func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, schedulable bool) {
+	slog.Error("aggregate stages can't have processing time elements")
+	return nil, mtime.MinTimestamp, nil, nil, false
 }
 
 // makeInProgressBundle is common code to store a set of elements as a bundle in progress.
