@@ -18,17 +18,13 @@ from dataclasses import dataclass, field
 import logging
 from collections.abc import Callable
 from collections.abc import Mapping
-from typing import Any, Union
+from typing import Any, Dict
 from typing import Optional
-import numpy
 
 import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
-import tecton
-
-import sys
-from io import StringIO
+from tecton_client import TectonClient, MetadataOptions, RequestOptions
 
 __all__ = [
     'TectonFeatureStoreEnrichmentHandler',
@@ -49,15 +45,25 @@ class TectonConnectionConfig:
   Attributes:
     url: The URL of the Tecton instance to connect to.
       Example: 'https://your-instance.tecton.ai'
+    default_workspace_name: The name of the workspace containing the feature
+      service. This is the workspace where your feature definitions are stored.
     api_key: The API key for authenticating with the Tecton instance.
       This should be a valid API key with appropriate permissions.
+    kwargs: Additional keyword arguments for write operations. Enables forward
+      compatibility with future Tecton connection parameters.
   """
   url: str
+  default_workspace_name: str
   api_key: str
+  kwargs: Dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
     if not self.url:
       raise ValueError('Please provide a Tecton instance URL (`url`).')
+
+    if not self.default_workspace_name:
+      raise ValueError(
+          'Please provide a workspace name (`default_workspace_name`).')
 
     if not self.api_key:
       raise ValueError('Please provide an API key (`api_key`).')
@@ -74,7 +80,6 @@ class TectonFeaturesRetrievalConfig:
     feature_service_name: The name of the feature service containing the
       features to fetch from the online Tecton feature store. This should
       match a feature service defined in your Tecton workspace.
-    workspace_name: workspace name to use for feature retrieval.
     entity_id: The entity name for the entity associated with the features.
       The `entity_id` is used to extract the entity value from the input row.
       Please provide exactly one of `entity_id` or `entity_row_fn`.
@@ -83,33 +88,38 @@ class TectonFeaturesRetrievalConfig:
       entity key value. It is used to build/extract the entity dict for
       feature retrieval. Please provide exactly one of `entity_id` or
       `entity_row_fn`.
-    include_join_keys_in_response: Whether to include join keys as part of
-      the response FeatureVector. Defaults to False.
-    request_data: Optional mapping of request context parameters to pass to
-      Tecton for real-time feature computation. These are typically used for
-      RealtimeFeatureViews that depend on request-time data. Defaults to None.
-    return_effective_times: Whether to include effective times when converting
-      FeatureVector to dictionary. Effective times indicate when each feature
-      value became valid. Defaults to False.
+    request_context_map: Optional mapping of request context parameters
+      to pass to Tecton for feature computation. These are typically used
+      for real-time features that depend on request-time data.
+    workspace_name: Optional workspace name override. If not provided,
+      uses the workspace from the connection config.
+    allow_partial_results: Whether to allow partial results if some features
+      fail to compute. Defaults to False.
+    request_options: Optional RequestOptions for controlling request behavior.
+      Defaults to None.
+    metadata_options: Optional MetadataOptions for controlling what metadata
+      is returned. Defaults to
+      MetadataOptions(include_names=True, include_data_types=True).
+    kwargs: Additional keyword arguments for feature retrieval. Enables forward
+      compatibility with future Tecton feature retrieval parameters.
   """
   feature_service_name: str
-  workspace_name: str
   entity_id: str = ""
   entity_row_fn: Optional[EntityRowFn] = None
-  include_join_keys_in_response: bool = False
-  request_data: Optional[Mapping[str, Any]] = None
-  return_effective_times: bool = False
+  request_context_map: Optional[Mapping[str, Any]] = None
+  workspace_name: Optional[str] = None
+  allow_partial_results: bool = False
+  request_options: Optional[RequestOptions] = None
+  metadata_options: Optional[MetadataOptions] = field(
+      default_factory=lambda: MetadataOptions(include_names=True,
+        include_data_types=True))
+  kwargs: Dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
     if not self.feature_service_name:
       raise ValueError(
           'Please provide a feature service name for the Tecton '
           'online feature store (`feature_service_name`).')
-
-    if not self.workspace_name:
-      raise ValueError(
-          'Please provide a workspace name for the Tecton '
-          'online feature store (`workspace_name`).')
 
     if ((not self.entity_row_fn and not self.entity_id) or
         bool(self.entity_row_fn and self.entity_id)):
@@ -154,24 +164,16 @@ class TectonFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     self._exception_level = exception_level
 
   def __enter__(self):
-    """Connect to the Tecton feature store."""
-    # Suppress Tecton SDK output to avoid cluttering test output. Redirect
-    # stdout to suppress success messages.
-    original_stdout = sys.stdout
-    sys.stdout = StringIO()
-    try:
-      tecton.login(
-        tecton_url=self._connection_config.url,
-        tecton_api_key=self._connection_config.api_key)
-    finally:
-      sys.stdout = original_stdout
-
-    self._feature_service = tecton.get_feature_service(
-      name=self._features_retrieval_config.feature_service_name,
-      workspace=self._features_retrieval_config.workspace_name)
+    """Connect with the Tecton feature store."""
+    self._client = TectonClient(
+      **unpack_dataclass_with_kwargs(self._connection_config))
 
   def __call__(self, request: beam.Row, *args, **kwargs):
-    """Fetches feature values for an entity-id from the Tecton feature store."""
+    """Fetches feature values for an entity-id from the Tecton feature store.
+
+    Args:
+      request: the input `beam.Row` to enrich.
+    """
     if self._features_retrieval_config.entity_row_fn:
       entity = self._features_retrieval_config.entity_row_fn(request)
     else:
@@ -182,15 +184,11 @@ class TectonFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
       }
 
     try:
-      response = self._feature_service.get_online_features(
-        join_keys=entity,
-        include_join_keys_in_response=self._features_retrieval_config.include_join_keys_in_response,
-        request_data=self._features_retrieval_config.request_data
-      )
-
-      feature_values = response.to_dict(
-        self._features_retrieval_config.return_effective_times
-      )
+      config = unpack_dataclass_with_kwargs(self._features_retrieval_config)
+      config.pop('entity_id', None)
+      config.pop('entity_row_fn', None)
+      response = self._client.get_features(**config,join_key_map=entity)
+      feature_values = response.get_features_dict()
     except Exception as e:
       if self._exception_level == ExceptionLevel.RAISE:
         raise RuntimeError(
@@ -205,15 +203,9 @@ class TectonFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     return request, beam.Row(**feature_values)
 
   def __exit__(self, exc_type, exc_val, exc_tb):
-    """Clean the Tecton feature store connection."""
-    # Suppress Tecton SDK output during teardown. Redirect stdout to suppress
-    # logout messages.
-    original_stdout = sys.stdout
-    sys.stdout = StringIO()
-    try:
-      tecton.logout()
-    finally:
-      sys.stdout = original_stdout
+    """Clean the instantiated Tecton client."""
+    self._client._client.close()
+    self._client = None
 
   def get_cache_key(self, request: beam.Row) -> str:
     """Returns a string formatted with unique entity-id for the feature values.
@@ -225,3 +217,16 @@ class TectonFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
       entity_id = self._features_retrieval_config.entity_id
     return f'entity_id: {request._asdict()[entity_id]}'
 
+
+def unpack_dataclass_with_kwargs(dataclass_instance):
+  """Unpacks dataclass fields into a flat dict, merging kwargs with precedence.
+
+  Args:
+    dataclass_instance: Dataclass instance to unpack.
+
+  Returns:
+    dict: Flattened dictionary with kwargs taking precedence over fields.
+  """
+  params: dict = dataclass_instance.__dict__.copy()
+  nested_kwargs = params.pop('kwargs', {})
+  return {**params, **nested_kwargs}

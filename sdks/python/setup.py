@@ -161,7 +161,7 @@ dataframe_dependency = [
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
-tecton_dependency = ['tecton>=1.2.5,<2.0.0']
+tecton_dependency = ['tecton-client>=0.4.0,<1.0.0']
 
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
