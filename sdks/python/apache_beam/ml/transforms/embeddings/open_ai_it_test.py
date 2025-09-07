@@ -23,11 +23,7 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
-
-try:
-  from sdks.python.apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
-except ImportError:
-  OpenAITextEmbeddings = None
+from apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
 
 # pylint: disable=ungrouped-imports
 try:
@@ -190,7 +186,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
 
-  def test_with_artifact_location(self):  # pylint: disable=line-too-long
+  def test_with_artifact_location(self):
     """Local artifact location test"""
     secondary_artifact_location = tempfile.mkdtemp(
         prefix='_openai_secondary_test')
@@ -235,7 +231,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
       # Clean up the temporary directory
       shutil.rmtree(secondary_artifact_location)
 
-  def test_mltransform_to_ptransform_with_openai(self):  # pylint: disable=line-too-long
+  def test_mltransform_to_ptransform_with_openai(self):
     transforms = [
         OpenAITextEmbeddings(
             columns=['x'],
