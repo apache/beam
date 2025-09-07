@@ -547,7 +547,13 @@ def load_closure(state, arg):
   if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
     arg -= len(state.co.co_varnames)
   state.stack.append(state.closure_type(arg))
+  closure_idx = arg
+  inferred_type = state.closure_type[closure_idx] if hasattr(state, 'closure_types') else state.get_inferred_type_for_closure(closure_idx)
 
+  if inferred_type is None:
+    inferred_type = typehints.Any
+
+  state.stack.append(inferred_type)
 
 def load_deref(state, arg):
   # The arg is no longer offset by len(covar_names) as of 3.11
