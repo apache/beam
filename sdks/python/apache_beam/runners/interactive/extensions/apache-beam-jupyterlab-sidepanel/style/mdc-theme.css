@@ -49,7 +49,7 @@
   color: var(--jp-ui-font-color1);
 }
 
-.mdc-form-field > label {
+.mdc-form-field>label {
   margin-bottom: 0;
 }
 
