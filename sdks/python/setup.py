@@ -161,6 +161,7 @@ dataframe_dependency = [
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
+openai_dependency = ['openai>=1.0.0,<2.0.0']
 
 
 def find_by_ext(root_dir, ext):
@@ -418,9 +419,8 @@ if __name__ == '__main__':
               'docutils>=0.18.1',
               'markdown',
               'pandas<2.3.0',
-              'openai',
               'virtualenv-clone>=0.5,<1.0',
-          ],
+          ] + openai_dependency,
           'test': [
               'cloud-sql-python-connector[pg8000]>=1.0.0,<2.0.0',
               'docstring-parser>=0.15,<1.0',
@@ -596,7 +596,8 @@ if __name__ == '__main__':
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
-          'milvus': milvus_dependency
+          'milvus': milvus_dependency,
+          'openai': openai_dependency
       },
       zip_safe=False,
       # PyPI package information.
