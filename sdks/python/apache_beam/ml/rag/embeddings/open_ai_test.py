@@ -70,9 +70,9 @@ class OpenAITextEmbeddingsTest(unittest.TestCase):
     ]
 
     embedder = OpenAITextEmbeddings(
-      model_name="text-embedding-3-small",
-      dimensions=1536,
-      api_key=os.environ.get("OPENAI_API_KEY"))
+        model_name="text-embedding-3-small",
+        dimensions=1536,
+        api_key=os.environ.get("OPENAI_API_KEY"))
 
     with TestPipeline() as p:
       embeddings = (
