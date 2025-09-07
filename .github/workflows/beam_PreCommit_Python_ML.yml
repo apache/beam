@@ -72,6 +72,16 @@ jobs:
         # These tests will only execute on ubuntu-latest (GitHub-hosted).
         # Context: https://github.com/apache/beam/pull/35585.
         os: [[self-hosted, ubuntu-20.04, main], [ubuntu-latest]]
+        exclude:
+          # Temporary exclude Python 3.9, 3.10, 3.11 from ubuntu-latest. This
+          # results in pip dependency resolution exceeded maximum depth issue.
+          # Context: https://github.com/apache/beam/pull/35816.
+          - python_version: '3.9'
+            os: [ubuntu-latest]
+          - python_version: '3.10'
+            os: [ubuntu-latest]
+          - python_version: '3.11'
+            os: [ubuntu-latest]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
