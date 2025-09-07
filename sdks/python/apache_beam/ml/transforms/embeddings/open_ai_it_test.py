@@ -32,6 +32,7 @@ except ImportError:
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
+  from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
 
@@ -76,6 +77,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
         columns=[test_query_column],
         api_key=self.api_key,
     )
+    scale_config = ScaleTo01(columns=['embedding'])
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (
           pipeline
@@ -84,10 +86,12 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
           }])
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
-                  embedding_config))
+                  embedding_config).with_transform(scale_config))
 
       def assert_element(element):
-        assert max(element.feature_1) == 1
+        embedding_values = element.embedding
+        assert 0 <= max(embedding_values) <= 1
+        assert 0 <= min(embedding_values) <= 1
 
       _ = (transformed_pcoll | beam.Map(assert_element))
 
