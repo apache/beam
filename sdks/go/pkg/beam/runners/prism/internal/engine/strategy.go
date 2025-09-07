@@ -77,6 +77,49 @@ func (ws WinStrat) String() string {
 	return fmt.Sprintf("WinStrat[AllowedLateness:%v Trigger:%v]", ws.AllowedLateness, ws.Trigger)
 }
 
+func getAfterProcessingTimeTriggers(t Trigger) []*TriggerAfterProcessingTime {
+	if t == nil {
+		return nil
+	}
+	var triggers []*TriggerAfterProcessingTime
+	switch at := t.(type) {
+	case *TriggerAfterProcessingTime:
+		return []*TriggerAfterProcessingTime{at}
+	case *TriggerAfterAll:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterAny:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterEach:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterEndOfWindow:
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Early)...)
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Late)...)
+		return triggers
+	case *TriggerOrFinally:
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Main)...)
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Finally)...)
+		return triggers
+	case *TriggerRepeatedly:
+		return getAfterProcessingTimeTriggers(at.Repeated)
+	default:
+		return nil
+	}
+}
+
+// GetAfterProcessingTimeTriggers returns all AfterProcessingTime triggers within the trigger.
+func (ws WinStrat) GetAfterProcessingTimeTriggers() []*TriggerAfterProcessingTime {
+	return getAfterProcessingTimeTriggers(ws.Trigger)
+}
+
 // triggerInput represents a Key + window + stage's trigger conditions.
 type triggerInput struct {
 	newElementCount    int  // The number of new elements since the last check.
@@ -582,7 +625,7 @@ type TimestampTransform struct {
 
 // TriggerAfterProcessingTime fires once after a specified amount of processing time
 // has passed since an element was first seen.
-// Uses the extra state field to track the processing time of the first element.
+// Uses the extra state field to track the firing time for this trigger.
 type TriggerAfterProcessingTime struct {
 	Transforms []TimestampTransform
 }
@@ -594,7 +637,7 @@ func (t *TriggerAfterProcessingTime) onElement(input triggerInput, state *StateD
 	}
 
 	if ts.extra == nil {
-		ts.extra = mtime.Now()
+		ts.extra = t.applyTimestampTransforms(mtime.Now())
 	}
 
 	state.setTriggerState(t, ts)
@@ -624,8 +667,7 @@ func (t *TriggerAfterProcessingTime) shouldFire(state *StateData) bool {
 	if ts.extra == nil {
 		return false
 	}
-	startTime := ts.extra.(mtime.Time)
-	firingTime := t.applyTimestampTransforms(startTime)
+	firingTime := ts.extra.(mtime.Time)
 	return mtime.Now() >= firingTime
 }
 

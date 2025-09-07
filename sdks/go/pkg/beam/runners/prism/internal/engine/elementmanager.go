@@ -1306,6 +1306,39 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 
 		if ready {
 			state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+		} else {
+			if pts := ss.strat.GetAfterProcessingTimeTriggers(); pts != nil {
+				for _, t := range pts {
+					ts := (&state).getTriggerState(t)
+					if ts.extra == nil || t.shouldFire((&state)) {
+						// Skipping inserting a processing time timer if the firing time
+						// is not set or it already should fire.
+						// When the after processing time triggers should fire, there are
+						// two scenarios:
+						// (1) the entire trigger of this window is ready to fire. In this
+						//     case, `ready` should be true and we won't reach here.
+						// (2) we are still waiting for other triggers (subtriggers) to
+						//     fire (e.g. AfterAll).
+						continue
+					}
+					firingTime := ts.extra.(mtime.Time)
+					notYetHolds := map[mtime.Time]int{}
+					timer := element{
+						window:        e.window,
+						timestamp:     firingTime,
+						holdTimestamp: firingTime,
+						pane:          typex.NoFiringPane(),
+						transform:     ss.ID, // Use stage id to fake transform id
+						family:        "AfterProcessingTime",
+						tag:           "",
+						sequence:      1,
+						elmBytes:      nil,
+						keyBytes:      e.keyBytes,
+					}
+					ss.processingTimeTimers.Persist(firingTime, timer, notYetHolds)
+					em.processTimeEvents.Schedule(firingTime, ss.ID)
+				}
+			}
 		}
 		// Store the state as triggers may have changed it.
 		ss.state[LinkID{}][e.window][string(e.keyBytes)] = state
