@@ -1197,7 +1197,7 @@ Proper use of return vs yield in Python Functions.
 </span>
 
 {{< highlight python >}}
-# Returning a single string instead of a sequence
+# Incorrectly Returning a single string instead of a sequence
 class ReturnIndividualElement(beam.DoFn):
     def process(self, element):
         return element
