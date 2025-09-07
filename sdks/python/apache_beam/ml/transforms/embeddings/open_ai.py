@@ -103,7 +103,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
   ) -> Iterable:
     """Makes a request to OpenAI embedding API and returns embeddings."""
     # Prepare arguments for the API call
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "model": self.model_name,
         "input": batch,
     }

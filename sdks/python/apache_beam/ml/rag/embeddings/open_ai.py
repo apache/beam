@@ -18,8 +18,6 @@
 
 from typing import Optional
 
-import openai
-
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.rag.embeddings.base import create_rag_adapter
