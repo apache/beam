@@ -258,7 +258,7 @@ public class HCatalogIO {
     }
 
     Read withSplitId(int splitId) {
-      checkArgument(splitId >= 0, "Invalid split id- %s", splitId);
+      checkArgument(splitId >= 0, "Invalid split id-%s", splitId);
       return toBuilder().setSplitId(splitId).build();
     }
 
