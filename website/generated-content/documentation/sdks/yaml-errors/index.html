@@ -48,34 +48,34 @@ another transform that will process the errors (e.g. by writing them out).
 For example,
 the following code will write all &ldquo;good&rdquo; processed records to one file and
 any &ldquo;bad&rdquo; records, along with metadata about what error was encountered,
-to a separate file.</p><pre tabindex=0><code>pipeline:
-  transforms:
-    - type: ReadFromCsv
-      config:
-        path: /path/to/input*.csv
-
-    - type: MapToFields
-      input: ReadFromCsv
-      config:
-        language: python
-        fields:
-          col1: col1
-          # This could raise a divide-by-zero error.
-          ratio: col2 / col3
-        error_handling:
-          output: my_error_output
-
-    - type: WriteToJson
-      input: MapToFields
-      config:
-        path: /path/to/output.json
-
-    - type: WriteToJson
-      name: WriteErrorsToJson
-      input: MapToFields.my_error_output
-      config:
-        path: /path/to/errors.json
-</code></pre><p>Note that with <code>error_handling</code> declared, <code>MapToFields.my_error_output</code>
+to a separate file.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>pipeline</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>transforms</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ReadFromCsv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/input*.csv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>ReadFromCsv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>language</span><span class=p>:</span><span class=w> </span><span class=l>python</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>fields</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>col1</span><span class=p>:</span><span class=w> </span><span class=l>col1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># This could raise a divide-by-zero error.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>ratio</span><span class=p>:</span><span class=w> </span><span class=l>col2 / col3</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>error_handling</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>output</span><span class=p>:</span><span class=w> </span><span class=l>my_error_output</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/output.json</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>WriteErrorsToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields.my_error_output</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/errors.json</span><span class=w>
+</span></span></span></code></pre></div><p>Note that with <code>error_handling</code> declared, <code>MapToFields.my_error_output</code>
 <strong>must</strong> be consumed; to ignore it will be an error. Any use is fine, e.g.
 logging the bad records to stdout would be sufficient (though not recommended
 for a robust pipeline).</p><p>Note also that the exact format of the error outputs is still being finalized.
@@ -86,125 +86,125 @@ the error that was encountered (e.g. error messages and tracebacks).
 To recover the bad record alone one can process the error output with the
 <code>StripErrorMetadata</code> transformation.</p><p>Some transforms allow for extra arguments in their error_handling config, e.g.
 for Python functions one can give a <code>threshold</code> which limits the relative number
-of records that can be bad before considering the entire pipeline a failure</p><pre tabindex=0><code>pipeline:
-  transforms:
-    - type: ReadFromCsv
-      config:
-        path: /path/to/input*.csv
-
-    - type: MapToFields
-      input: ReadFromCsv
-      config:
-        language: python
-        fields:
-          col1: col1
-          # This could raise a divide-by-zero error.
-          ratio: col2 / col3
-        error_handling:
-          output: my_error_output
-          # If more than 10% of records throw an error, stop the pipeline.
-          threshold: 0.1
-
-    - type: WriteToJson
-      input: MapToFields
-      config:
-        path: /path/to/output.json
-
-    - type: WriteToJson
-      name: WriteErrorsToJson
-      input: MapToFields.my_error_output
-      config:
-        path: /path/to/errors.json
-</code></pre><p>One can do arbitrary further processing on these failed records if desired,
-e.g.</p><pre tabindex=0><code>pipeline:
-  transforms:
-    - type: ReadFromCsv
-      config:
-        path: /path/to/input*.csv
-
-    - type: MapToFields
-      name: ComputeRatio
-      input: ReadFromCsv
-      config:
-        language: python
-        fields:
-          col1: col1
-          # This could raise a divide-by-zero error.
-          ratio: col2 / col3
-        error_handling:
-          output: my_error_output
-
-    - type: StripErrorMetadata
-      name: FailedRecordsWithoutMetadata
-      # Takes the error information from ComputeRatio and returns just the
-      # failing records themselves for another attempt with a different
-      # transform.
-      input: ComputeRatio.my_error_output
-
-    - type: MapToFields
-      name: ComputeRatioForBadRecords
-      input: FailedRecordsWithoutMetadata
-      config:
-        language: python
-        fields:
-          col1: col1
-          ratio: col2 / (col3 + 1)
-        error_handling:
-          output: still_bad
-
-    - type: WriteToJson
-      # Takes as input everything from the &#34;success&#34; path of both transforms.
-      input: [ComputeRatio, ComputeRatioForBadRecords]
-      config:
-        path: /path/to/output.json
-
-    - type: WriteToJson
-      name: WriteErrorsToJson
-      # These failed the first and the second transform.
-      input: ComputeRatioForBadRecords.still_bad
-      config:
-        path: /path/to/errors.json
-</code></pre><p>When using the <code>chain</code> syntax, the required error consumption can happen
-in an <code>extra_transforms</code> block.</p><pre tabindex=0><code>pipeline:
-  type: chain
-  transforms:
-    - type: ReadFromCsv
-      config:
-        path: /path/to/input*.csv
-
-    - type: MapToFields
-      name: SomeStep
-      config:
-        language: python
-        fields:
-          col1: col1
-          # This could raise a divide-by-zero error.
-          ratio: col2 / col3
-        error_handling:
-          output: errors
-
-    - type: MapToFields
-      name: AnotherStep
-      config:
-        language: python
-        fields:
-          col1: col1
-          # This could raise a divide-by-zero error.
-          inverse_ratio: 1 / ratio
-        error_handling:
-          output: errors
-
-    - type: WriteToJson
-      config:
-        path: /path/to/output.json
-
-  extra_transforms:
-    - type: WriteToJson
-      name: WriteErrors
-      input: [SomeStep.errors, AnotherStep.errors]
-      config:
-        path: /path/to/errors.json
-</code></pre></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
+of records that can be bad before considering the entire pipeline a failure</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>pipeline</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>transforms</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ReadFromCsv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/input*.csv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>ReadFromCsv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>language</span><span class=p>:</span><span class=w> </span><span class=l>python</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>fields</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>col1</span><span class=p>:</span><span class=w> </span><span class=l>col1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># This could raise a divide-by-zero error.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>ratio</span><span class=p>:</span><span class=w> </span><span class=l>col2 / col3</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>error_handling</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>output</span><span class=p>:</span><span class=w> </span><span class=l>my_error_output</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># If more than 10% of records throw an error, stop the pipeline.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>threshold</span><span class=p>:</span><span class=w> </span><span class=m>0.1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/output.json</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>WriteErrorsToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields.my_error_output</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/errors.json</span><span class=w>
+</span></span></span></code></pre></div><p>One can do arbitrary further processing on these failed records if desired,
+e.g.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>pipeline</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>transforms</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ReadFromCsv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/input*.csv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>ComputeRatio</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>ReadFromCsv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>language</span><span class=p>:</span><span class=w> </span><span class=l>python</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>fields</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>col1</span><span class=p>:</span><span class=w> </span><span class=l>col1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># This could raise a divide-by-zero error.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>ratio</span><span class=p>:</span><span class=w> </span><span class=l>col2 / col3</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>error_handling</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>output</span><span class=p>:</span><span class=w> </span><span class=l>my_error_output</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>StripErrorMetadata</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>FailedRecordsWithoutMetadata</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># Takes the error information from ComputeRatio and returns just the</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># failing records themselves for another attempt with a different</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># transform.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>ComputeRatio.my_error_output</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>ComputeRatioForBadRecords</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>FailedRecordsWithoutMetadata</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>language</span><span class=p>:</span><span class=w> </span><span class=l>python</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>fields</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>col1</span><span class=p>:</span><span class=w> </span><span class=l>col1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>ratio</span><span class=p>:</span><span class=w> </span><span class=l>col2 / (col3 + 1)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>error_handling</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>output</span><span class=p>:</span><span class=w> </span><span class=l>still_bad</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># Takes as input everything from the &#34;success&#34; path of both transforms.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=l>ComputeRatio, ComputeRatioForBadRecords]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/output.json</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>WriteErrorsToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># These failed the first and the second transform.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=l>ComputeRatioForBadRecords.still_bad</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/errors.json</span><span class=w>
+</span></span></span></code></pre></div><p>When using the <code>chain</code> syntax, the required error consumption can happen
+in an <code>extra_transforms</code> block.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>pipeline</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>chain</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>transforms</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ReadFromCsv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/input*.csv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>SomeStep</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>language</span><span class=p>:</span><span class=w> </span><span class=l>python</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>fields</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>col1</span><span class=p>:</span><span class=w> </span><span class=l>col1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># This could raise a divide-by-zero error.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>ratio</span><span class=p>:</span><span class=w> </span><span class=l>col2 / col3</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>error_handling</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>output</span><span class=p>:</span><span class=w> </span><span class=l>errors</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>MapToFields</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>AnotherStep</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>language</span><span class=p>:</span><span class=w> </span><span class=l>python</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>fields</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>col1</span><span class=p>:</span><span class=w> </span><span class=l>col1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># This could raise a divide-by-zero error.</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>inverse_ratio</span><span class=p>:</span><span class=w> </span><span class=m>1</span><span class=w> </span><span class=l>/ ratio</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>error_handling</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>output</span><span class=p>:</span><span class=w> </span><span class=l>errors</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/output.json</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>extra_transforms</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToJson</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>WriteErrors</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>input</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=l>SomeStep.errors, AnotherStep.errors]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/path/to/errors.json</span><span class=w>
+</span></span></span></code></pre></div><p>See YAML schema <a href=https://beam.apache.org/documentation/sdks/yaml-schema/>info</a> for another use of error_handling in a schema context.</p></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
 <a href=https://www.apache.org>The Apache Software Foundation</a>
 | <a href=/privacy_policy>Privacy Policy</a>
 | <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></div><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col--group><div class=footer__cols__col__logo><a href=https://github.com/apache/beam><img src=/images/logos/social-icons/github-logo-150.png class=footer__logo alt="Github logo"></a></div><div class=footer__cols__col__logo><a href=https://www.linkedin.com/company/apache-beam/><img src=/images/logos/social-icons/linkedin-logo-150.png class=footer__logo alt="Linkedin logo"></a></div></div><div class=footer__cols__col--group><div class=footer__cols__col__logo><a href=https://twitter.com/apachebeam><img src=/images/logos/social-icons/twitter-logo-150.png class=footer__logo alt="Twitter logo"></a></div><div class=footer__cols__col__logo><a href=https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ><img src=/images/logos/social-icons/youtube-logo-150.png class=footer__logo alt="Youtube logo"></a></div></div></div></div></div></footer></body></html>
