@@ -1665,6 +1665,7 @@ class ParDo(PTransformWithSideInputs):
     """
     args, kwargs = self.raw_side_inputs
     wrapper = self.label >> _ExceptionHandlingWrapper(
+    wrapper = self.label >> _ExceptionHandlingWrapper(
         self.fn,
         args,
         kwargs,
@@ -1679,6 +1680,12 @@ class ParDo(PTransformWithSideInputs):
         error_handler,
         on_failure_callback,
         allow_unsafe_userstate_in_process)
+    # Propagate resource hints
+    if hasattr(wrapper, 'transform'):
+      wrapper.transform.get_resource_hints().update(self.get_resource_hints())
+    else:
+      wrapper.get_resource_hints().update(self.get_resource_hints()) 
+    return wrapper
     # Propagate resource hints
     if hasattr(wrapper, 'transform'):
       wrapper.transform.get_resource_hints().update(self.get_resource_hints())
