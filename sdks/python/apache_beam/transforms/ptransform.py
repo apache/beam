@@ -453,6 +453,8 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       PTransform: A reference to the instance of this particular
       :class:`PTransform` object.
     """
+    if hasattr(self, 'transform'):
+      self.transform.with_resource_hints(**kwargs)
     self.get_resource_hints().update(resources.parse_resource_hints(kwargs))
     return self
 
