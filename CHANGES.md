@@ -74,7 +74,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* OpenAI embedding model added to Beam RAG module ([#36081](https://github.com/apache/beam/pull/36081))
+* OpenAI embedding model added to Beam RAG module ([#36083](https://github.com/apache/beam/issues/36083)).
 
 ## Breaking Changes
 
