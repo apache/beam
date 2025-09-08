@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "go": "lostluck",
-    "bigtable": "igorbernstein2"
+    "go": "shunping",
+    "bigtable": "robertwb"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
