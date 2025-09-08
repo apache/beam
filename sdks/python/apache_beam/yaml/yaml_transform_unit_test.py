@@ -33,6 +33,7 @@ from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import only_element
+from apache_beam.yaml.yaml_transform import expand_pipeline
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
 from apache_beam.yaml.yaml_transform import preprocess
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
@@ -986,6 +987,27 @@ class YamlTransformTest(unittest.TestCase):
     self.assertIn(
         'LogForTesting', result._providers)  # check for standard provider
     self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
+
+
+class ExpandPipelineTest(unittest.TestCase):
+  def test_expand_pipeline_with_extra_top_level_keys(self):
+    spec = '''
+      template:
+        version: "1.0"
+        author: "test_user"
+
+      pipeline:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+
+      other_metadata: "This is an ignored comment."
+    '''
+    with new_pipeline() as p:
+      expand_pipeline(p, spec, validate_schema=None)
 
 
 if __name__ == '__main__':
