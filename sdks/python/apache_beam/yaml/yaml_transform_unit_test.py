@@ -990,6 +990,34 @@ class YamlTransformTest(unittest.TestCase):
 
 
 class ExpandPipelineTest(unittest.TestCase):
+  def test_expand_pipeline_with_pipeline_key_only(self):
+    spec = '''
+      pipeline:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+    '''
+    with new_pipeline() as p:
+      expand_pipeline(p, spec, validate_schema=None)
+
+  def test_expand_pipeline_with_pipeline_and_option_keys(self):
+    spec = '''
+      pipeline:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+      options:
+        streaming: false
+    '''
+    with new_pipeline() as p:
+      expand_pipeline(p, spec, validate_schema=None)
+
   def test_expand_pipeline_with_extra_top_level_keys(self):
     spec = '''
       template:
@@ -1008,6 +1036,20 @@ class ExpandPipelineTest(unittest.TestCase):
     '''
     with new_pipeline() as p:
       expand_pipeline(p, spec, validate_schema=None)
+
+  def test_expand_pipeline_with_incorrect_pipelines_key_fails(self):
+    spec = '''
+      pipelines:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+    '''
+    with new_pipeline() as p:
+      with self.assertRaises(KeyError):
+        expand_pipeline(p, spec, validate_schema=None)
 
 
 if __name__ == '__main__':
