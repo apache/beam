@@ -2324,21 +2324,23 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     else:
       wrapped_fn = self._fn
     pardo = ParDo(
-        _ExceptionHandlingWrapperDoFn(
-            wrapped_fn,
-            self._dead_letter_tag,
-            self._exc_class,
-            self._partial,
-            self._on_failure_callback,
-            self._allow_unsafe_userstate_in_process),
-        *self._args,
-        **self._kwargs,
+      _ExceptionHandlingWrapperDoFn(
+          wrapped_fn,
+          self._dead_letter_tag,
+          self._exc_class,
+          self._partial,
+          self._on_failure_callback,
+          self._allow_unsafe_userstate_in_process,
+      ),
+      *self._args,
+      **self._kwargs,
     )
     # This is the fix: propagate hints.
     pardo.get_resource_hints().update(self.get_resource_hints())
 
     result = pcoll | pardo.with_outputs(
-        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True
+    )
     #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
     result[self._main_tag].element_type = self._fn.infer_output_type(
         pcoll.element_type)
