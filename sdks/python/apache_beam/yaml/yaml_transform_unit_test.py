@@ -973,19 +973,21 @@ class MainTest(unittest.TestCase):
 
     # Case 3: Only one output
     outputs = {'single_output': 1}
-    self.assertEqual(get_main_output_key(spec, outputs, {}), 'single_output')
+    self.assertEqual(
+        get_main_output_key(spec, outputs, error_handling_spec),
+        'single_output')
 
     # Case 4: Multiple outputs, no 'output' or 'good'
     outputs = {'another': 1, 'yet_another': 2}
     with self.assertRaisesRegex(
         ValueError, "Transform .* has outputs .* but none are named 'output'"):
-      get_main_output_key(spec, outputs, {})
+      get_main_output_key(spec, outputs, error_handling_spec)
 
     # Case 5: Empty outputs
     outputs = {}
     with self.assertRaisesRegex(
         ValueError, "Transform .* has outputs .* but none are named 'output'"):
-      get_main_output_key(spec, outputs, {})
+      get_main_output_key(spec, outputs, error_handling_spec)
 
     # Case 6: More than two outputs with 'good' present
     outputs = {'good': 1, 'bad': 2, 'something': 3}
