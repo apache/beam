@@ -26,7 +26,10 @@ import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
@@ -57,6 +60,20 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
   public PortableBigQueryDestinations(Schema rowSchema, BigQueryWriteConfiguration configuration) {
     this.clusteringFields = configuration.getClusteringFields();
     this.timePartitioningConfig = configuration.getTimePartitioningConfig();
+
+    // Validate partition field exists if time partitioning field is set
+    if (this.timePartitioningConfig != null && this.timePartitioningConfig.getField() != null) {
+      String partitionField = this.timePartitioningConfig.getField();
+
+      // Check if the partition field exists in the schema
+      boolean fieldExists =
+          rowSchema.getFields().stream().anyMatch(field -> field.getName().equals(partitionField));
+      if (!fieldExists) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The partition field '%s' does not exist in the input schema.", partitionField));
+      }
+    }
     // DYNAMIC_DESTINATIONS magic string is the old way of doing it for cross-language.
     // In that case, we do no interpolation
     if (!configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
@@ -95,9 +112,12 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
       Long expirationMs = timePartitioningConfig.getExpirationMs();
       Boolean requirePartitionFilter = timePartitioningConfig.getRequirePartitionFilter();
 
-      if (type == null) {
+      Set<String> allowedTypes = new HashSet<>(Arrays.asList("DAY", "HOUR", "MONTH", "YEAR"));
+      if (!allowedTypes.contains(type)) {
         throw new IllegalArgumentException(
-            "TimePartitioning 'type' must be specified (DAY, HOUR, MONTH, or YEAR).");
+            String.format(
+                "Invalid TimePartitioning 'type': '%s'. Allowed values are: %s",
+                type, allowedTypes));
       }
 
       timePartitioning =

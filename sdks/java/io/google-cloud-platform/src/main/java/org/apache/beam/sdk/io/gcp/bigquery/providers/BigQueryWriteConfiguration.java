@@ -62,7 +62,7 @@ public abstract class BigQueryWriteConfiguration {
   @AutoValue
   public abstract static class TimePartitioningConfig implements Serializable {
     @SchemaFieldDescription("The time partitioning type.")
-    public abstract @Nullable String getType();
+    public abstract String getType();
 
     @SchemaFieldDescription(
         "If not set, the table is partitioned by pseudo column '_PARTITIONTIME'; if set, the table is partitioned by this field.")
