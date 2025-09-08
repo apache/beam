@@ -618,7 +618,7 @@ def expand_output_schema_transform(spec, outputs, error_handling_spec):
   # The transform produced outputs with many named PCollections and need to
   # determine which PCollection should be validated on.
   elif isinstance(outputs, dict):
-    main_output_key = get_main_output_key(spec, outputs)
+    main_output_key = get_main_output_key(spec, outputs, error_handling_spec)
 
     validation_result = _enforce_schema(
         outputs[main_output_key],
@@ -631,7 +631,7 @@ def expand_output_schema_transform(spec, outputs, error_handling_spec):
   return outputs
 
 
-def get_main_output_key(spec, outputs):
+def get_main_output_key(spec, outputs, error_handling_spec):
   """Determines the main output key from a dictionary of PCollections.
 
   This is used to identify which output of a multi-output transform should be
@@ -647,6 +647,8 @@ def get_main_output_key(spec, outputs):
       messages.
     outputs: A dictionary mapping output tags to their corresponding
       PCollections.
+    error_handling_spec (dict): The `error_handling` configuration from the
+      original transform.
 
   Returns:
     The key of the main output PCollection.
@@ -664,9 +666,18 @@ def get_main_output_key(spec, outputs):
     else:
       raise ValueError(
           f"Transform {identify_object(spec)} has outputs "
-          f"{list(outputs.keys())}, but none are named 'output'. To apply "
-          "an 'output_schema', please ensure the transform has exactly one "
-          "output, or that the main output is named 'output'.")
+          f"{list(outputs.keys())}, but none are named 'output' or 'good'. To "
+          "apply an 'output_schema', please ensure the transform has exactly "
+          "one output, or that the main output is named 'output' or 'good'.")
+
+  if len(outputs) >= 3 or \
+    (len(outputs) == 2 and error_handling_spec.get('output') not in outputs):
+    _LOGGER.warning(
+        "There are currently %s outputs: %s. Only the main output will be "
+        "validated.",
+        len(outputs),
+        outputs)
+
   return main_output_key
 
 

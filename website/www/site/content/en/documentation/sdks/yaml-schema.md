@@ -116,4 +116,16 @@ found will result in the entire pipeline failing. If the user would still like
 to have some kind of output schema validation, please use the ValidateWithSchema
 transform instead.
 
+NOTE: When using the output_schema config, the main output key to validate on
+will be determined based on these criteria:
+
+  1. An output with the key 'output'.
+  2. An output with the key 'good'.
+  3. The single output if there is only one.
+
+Failures will result if the main output cannot be determined because there are
+multiple outputs and none are named 'output' or 'good'.
+
+
+
 For more detailed information on error handling, see this [page](https://beam.apache.org/documentation/sdks/yaml-errors/).
