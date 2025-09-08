@@ -28,12 +28,12 @@ from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import ensure_errors_consumed
 from apache_beam.yaml.yaml_transform import ensure_transforms_have_types
 from apache_beam.yaml.yaml_transform import expand_composite_transform
+from apache_beam.yaml.yaml_transform import expand_pipeline
 from apache_beam.yaml.yaml_transform import extract_name
 from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
 from apache_beam.yaml.yaml_transform import only_element
-from apache_beam.yaml.yaml_transform import expand_pipeline
 from apache_beam.yaml.yaml_transform import pipeline_as_composite
 from apache_beam.yaml.yaml_transform import preprocess
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
