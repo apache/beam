@@ -29,6 +29,7 @@ from apache_beam.yaml.yaml_transform import ensure_errors_consumed
 from apache_beam.yaml.yaml_transform import ensure_transforms_have_types
 from apache_beam.yaml.yaml_transform import expand_composite_transform
 from apache_beam.yaml.yaml_transform import extract_name
+from apache_beam.yaml.yaml_transform import get_main_output_key
 from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
@@ -949,6 +950,52 @@ class MainTest(unittest.TestCase):
 
   def test_only_element(self):
     self.assertEqual(only_element((1, )), 1)
+
+  def test_get_main_output_key(self):
+    spec = {'type': 'TestTransform'}
+    error_handling_spec = {'output': 'invalid_rows'}
+
+    # Case 1: 'output' key exists
+    outputs = {'output': 1, 'another': 2}
+    with self.assertLogs('apache_beam.yaml.yaml_transform',
+                         level='WARNING') as al:
+      self.assertEqual(
+          get_main_output_key(spec, outputs, error_handling_spec), 'output')
+      self.assertIn("Only the main output will be validated.", al.output[0])
+
+    # Case 2: 'good' key exists, 'output' does not
+    outputs = {'good': 1, 'another': 2}
+    with self.assertLogs('apache_beam.yaml.yaml_transform',
+                         level='WARNING') as al:
+      self.assertEqual(
+          get_main_output_key(spec, outputs, error_handling_spec), 'good')
+      self.assertIn("Only the main output will be validated.", al.output[0])
+
+    # Case 3: Only one output
+    outputs = {'single_output': 1}
+    self.assertEqual(
+        get_main_output_key(spec, outputs, error_handling_spec),
+        'single_output')
+
+    # Case 4: Multiple outputs, no 'output' or 'good'
+    outputs = {'another': 1, 'yet_another': 2}
+    with self.assertRaisesRegex(
+        ValueError, "Transform .* has outputs .* but none are named 'output'"):
+      get_main_output_key(spec, outputs, error_handling_spec)
+
+    # Case 5: Empty outputs
+    outputs = {}
+    with self.assertRaisesRegex(
+        ValueError, "Transform .* has outputs .* but none are named 'output'"):
+      get_main_output_key(spec, outputs, error_handling_spec)
+
+    # Case 6: More than two outputs with 'good' present
+    outputs = {'good': 1, 'bad': 2, 'something': 3}
+    with self.assertLogs('apache_beam.yaml.yaml_transform',
+                         level='WARNING') as al:
+      self.assertEqual(
+          get_main_output_key(spec, outputs, error_handling_spec), 'good')
+      self.assertIn("Only the main output will be validated.", al.output[0])
 
 
 class YamlTransformTest(unittest.TestCase):
