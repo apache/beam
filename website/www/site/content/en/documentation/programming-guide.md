@@ -1183,6 +1183,7 @@ func init() {
 > parameters to a single `emitter function`.
 
 </span>
+
 {{< paragraph class="language-python">}}
 Proper use of return vs yield in Python Functions.
 {{< /paragraph >}}
@@ -1240,8 +1241,11 @@ with beam.Pipeline() as pipeline:
         | "PrintWords_Return" >> beam.Map(print)  # Print each List of words
     )
   # prints:
-  # ['Apache', 'Beam', 'powerful']
-  # ['Try', 'now']
+  # Apache
+  # Beam
+  # powerful
+  # Try
+  # now
 {{< /highlight >}}
 
 <span class="language-python">
