@@ -449,7 +449,7 @@ if __name__ == '__main__':
               'pg8000>=1.31.1',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
-          ] + milvus_dependency,
+          ] + milvus_dependency + openai_dependency,
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
