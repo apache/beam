@@ -24,8 +24,7 @@ from apache_beam.ml.rag.embeddings.base import create_rag_adapter
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-from apache_beam.ml.transforms.embeddings.open_ai import (
-    _OpenAITextEmbeddingHandler, )
+from apache_beam.ml.transforms.embeddings.open_ai import _OpenAITextEmbeddingHandler
 
 __all__ = ['OpenAITextEmbeddings']
 
