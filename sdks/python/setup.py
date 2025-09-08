@@ -360,12 +360,6 @@ if __name__ == '__main__':
       install_requires=[
           'crcmod>=1.7,<2.0',
           'orjson>=3.9.7,<4',
-          # Dill doesn't have forwards-compatibility guarantees within minor
-          # version. Pickles created with a new version of dill may not unpickle
-          # using older version of dill. It is best to use the same version of
-          # dill on client and server, therefore list of allowed versions is
-          # very narrow. See: https://github.com/uqfoundation/dill/issues/341.
-          'dill>=0.3.1.1,<0.3.2',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
@@ -411,6 +405,14 @@ if __name__ == '__main__':
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
+          'dill': [
+            # Dill doesn't have forwards-compatibility guarantees within minor
+            # version. Pickles created with a new version of dill may not unpickle
+            # using older version of dill. It is best to use the same version of
+            # dill on client and server, therefore list of allowed versions is
+            # very narrow. See: https://github.com/uqfoundation/dill/issues/341.
+            'dill>=0.3.1.1,<0.3.2',
+          ],
           'docs': [
               'jinja2>=3.0,<3.2',
               'Sphinx>=7.0.0,<8.0',

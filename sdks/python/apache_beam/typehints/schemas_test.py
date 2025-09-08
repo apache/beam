@@ -21,6 +21,7 @@
 
 import itertools
 import pickle
+import pytest
 import unittest
 from typing import Any
 from typing import ByteString
@@ -30,7 +31,6 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
-import dill
 import numpy as np
 from hypothesis import given
 from hypothesis import settings
@@ -711,13 +711,18 @@ class HypothesisTest(unittest.TestCase):
         'pickler': pickle,
     },
     {
-        'pickler': dill,
+        'pickler': 'dill',
     },
     {
         'pickler': cloudpickle,
     },
 ])
+@pytest.mark.uses_dill
 class PickleTest(unittest.TestCase):
+  def setUp(self):
+    if PickleTest.pickler == 'dill':
+      self.pickler = pytest.importorskip("dill")
+
   def test_generated_class_pickle_instance(self):
     schema = schema_pb2.Schema(
         id="some-uuid",
@@ -733,7 +738,7 @@ class PickleTest(unittest.TestCase):
     self.assertEqual(instance, self.pickler.loads(self.pickler.dumps(instance)))
 
   def test_generated_class_pickle(self):
-    if self.pickler in [pickle, dill]:
+    if self.pickler in [pickle, pytest.importorskip("dill")]:
       self.skipTest('https://github.com/apache/beam/issues/22714')
 
     schema = schema_pb2.Schema(

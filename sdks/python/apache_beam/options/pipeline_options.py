@@ -1619,7 +1619,7 @@ class SetupOptions(PipelineOptions):
         help=(
             'Chooses which pickle library to use. Options are dill, '
             'cloudpickle or default.'),
-        choices=['cloudpickle', 'default', 'dill'])
+        choices=['cloudpickle', 'default', 'dill', 'dill_unsafe'])
     parser.add_argument(
         '--save_main_session',
         default=False,
@@ -1701,6 +1701,7 @@ class SetupOptions(PipelineOptions):
   def validate(self, validator):
     errors = []
     errors.extend(validator.validate_container_prebuilding_options(self))
+    errors.extend(validator.validate_pickle_library(self))
     return errors
 
 

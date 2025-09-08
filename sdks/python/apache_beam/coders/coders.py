@@ -85,9 +85,7 @@ try:
   # occurs.
   from apache_beam.internal.dill_pickler import dill
 except ImportError:
-  # We fall back to using the stock dill library in tests that don't use the
-  # full Python SDK.
-  import dill
+  dill = None  # type: ignore
 
 __all__ = [
     'Coder',
@@ -900,6 +898,12 @@ class PickleCoder(_PickleCoderBase):
 
 class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
+  def __init__(self):
+    if not dill:
+      raise RuntimeError("This pipeline contains a DillCoder which requires " \
+      "the dill package. Install the dill package with the dill extra " \
+        "e.g. apache-beam[dill]")
+
   def _create_impl(self):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 
