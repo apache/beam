@@ -59,10 +59,8 @@ public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[
   @Override
   protected Consumer<byte[], byte[]> createObject(Map<String, Object> config) {
     // This will be called after the config map processing has occurred. Therefore, we know that the
-    // property will have
-    // had it's value replaced with a local directory. We don't need to worry about the GCS prefix
-    // in this case.
-    LOG.info("config when creating the objects: {}", config);
+    // property will have had it's value replaced with a local directory.
+    // We don't need to worry about the GCS prefix in this case.
     try {
       String jaasConfig = (String) config.get(JAAS_CONFIG_PROPERTY);
       String localKeytabPath = "";
@@ -73,8 +71,7 @@ public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[
       }
 
       // Set the permissions on the file to be as strict as possible for security reasons. The
-      // keytab contains
-      // sensitive information and should be as locked down as possible.
+      // keytab contains sensitive information and should be as locked down as possible.
       Path path = Paths.get(localKeytabPath);
       Set<PosixFilePermission> perms = new HashSet<>();
       perms.add(PosixFilePermission.OWNER_READ);
@@ -100,8 +97,6 @@ public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[
 
           System.setProperty("java.security.krb5.conf", localKrb5ConfPath);
           Configuration.getConfiguration().refresh();
-          LOG.info(
-              "Successfully set and refreshed java.security.krb5.conf to {}", localKrb5ConfPath);
         }
       }
     }
@@ -119,15 +114,13 @@ public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[
             "Error matching values. Secret was discovered but its value is null");
       }
       currentSecretId = currentSecretId.substring(KEYTAB_SECRET_PREFIX.length());
-      LOG.info("currentSecretId: {} and secretId: {}", currentSecretId, secretId);
       if (!currentSecretId.equals(secretId)) {
         // A sasl.jaas.config can contain multiple keytabs in one string. Therefore, we must assume
         // that there can
         // also be multiple keytab secrets in the same string. If the currently matched secret does
         // not equal
         // the secret that we are processing (passed in via secretId) then we do not want to create
-        // a keytab file and
-        // overwrite it.
+        // a keytab file and overwrite it.
         continue;
       }
       String filename = "kafka-client-" + UUID.randomUUID().toString() + ".keytab";
@@ -141,7 +134,7 @@ public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[
         }
         Files.write(localFilePath, secretValue);
         if (!new File(localFileString).canRead()) {
-          LOG.info("The file is not readable");
+          LOG.warn("The file is not readable");
         }
         LOG.info("Successfully wrote file to path: {}", localFilePath);
       } catch (IOException e) {
@@ -150,7 +143,6 @@ public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[
     }
     // if no localFile was created, then we can assume that the secret is meant to be kept as a
     // value.
-    LOG.info("LocalFilestring: {}", localFileString);
     return localFileString.isEmpty()
         ? new String(secretValue, StandardCharsets.UTF_8)
         : localFileString;

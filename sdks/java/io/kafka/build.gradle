@@ -111,10 +111,6 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   kafkaVersions.each {"kafkaVersion$it.key" "org.apache.kafka:kafka-clients:$it.value"}
-  implementation 'com.google.cloud:google-cloud-secretmanager:2.72.0'
-  testImplementation project(path: ":runners:google-cloud-dataflow-java")
-  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
-  testImplementation project(path: ":sdks:java:io:google-cloud-platform")
 }
 
 kafkaVersions.each { kv ->
