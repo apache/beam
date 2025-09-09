@@ -220,10 +220,6 @@ public class FileAwareFactoryFnTest {
     Map<String, Object> config = new HashMap<>();
     config.put("db.password", originalValue);
 
-    // FIX: Create an anonymous inner class that extends our TestFactoryFn
-    // and overrides the resolveSecret method to return a hardcoded value.
-    // This completely avoids the call to the real getSecret method and its
-    // final class dependencies.
     TestFactoryFn factoryWithMockedSecret =
         new TestFactoryFn() {
           @Override
@@ -252,8 +248,6 @@ public class FileAwareFactoryFnTest {
     config.put("db.password", "password=" + invalidSecret);
 
     // Act & Assert
-    // The spy will call the real method here, which will throw an exception
-    // because the secret path is not parsable.
     RuntimeException ex = Assert.assertThrows(RuntimeException.class, () -> factory.apply(config));
     Assert.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
   }
