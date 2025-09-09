@@ -302,7 +302,10 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    # Attempt to drop table first using raw SQL.
+    # Drop all tables using metadata as the primary approach.
+    cls._metadata.drop_all(cls._engine)
+
+    # Fallback to raw SQL drop if needed.
     try:
       with cls._engine.connect() as conn:
         conn.execute(f"DROP TABLE IF EXISTS {cls._table_id}")
@@ -311,8 +314,6 @@ class BaseTestSQLEnrichment(unittest.TestCase):
     except Exception as e:
       _LOGGER.warning("Failed to drop table %s: %s", cls._table_id, e)
 
-    # Fallback to metadata drop as a backup.
-    cls._metadata.drop_all(cls._engine)
     cls._engine.dispose(close=True)
     cls._engine = None
 
