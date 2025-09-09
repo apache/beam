@@ -410,7 +410,7 @@ if __name__ == '__main__':
             # version. Pickles created with a new version of dill may not
             # unpickle using older version of dill. It is best to use the same
             # version of dill on client and server, therefore list of allowed
-            # versions is very narrow. 
+            # versions is very narrow.
             # See: https://github.com/uqfoundation/dill/issues/341.
             'dill>=0.3.1.1,<0.3.2',
           ],
