@@ -110,6 +110,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
@@ -163,6 +164,7 @@ public final class StreamingDataflowWorker {
   private static final Random CLIENT_ID_GENERATOR = new Random();
   private static final String CHANNELZ_PATH = "/channelz";
   private static final String BEAM_FN_API_EXPERIMENT = "beam_fn_api";
+  private static final String ELEMENT_METADATA_SUPPORTED_EXPERIMENT = "element_metadata_supported";
   private static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT =
       "streaming_engine_use_job_settings_for_heartbeat_pool";
   // Experiment make the monitor within BoundedQueueExecutor fair
@@ -815,6 +817,9 @@ public final class StreamingDataflowWorker {
     validateWorkerOptions(options);
 
     CoderTranslation.verifyModelCodersRegistered();
+    if (DataflowRunner.hasExperiment(options, ELEMENT_METADATA_SUPPORTED_EXPERIMENT)) {
+      WindowedValues.FullWindowedValueCoder.setMetadataSupported();
+    }
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
     StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);

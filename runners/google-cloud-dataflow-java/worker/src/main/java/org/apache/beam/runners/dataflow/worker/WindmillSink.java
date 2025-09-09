@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -75,7 +77,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       ByteStringOutputStream stream,
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo)
+      PaneInfo paneInfo,
+      BeamFnApi.Elements.ElementMetadata metadata)
       throws IOException {
     try {
       PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
@@ -101,12 +104,26 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     return PaneInfoCoder.INSTANCE.decode(inStream);
   }
 
+  public static BeamFnApi.Elements.ElementMetadata decodeAdditionalMetadata(
+      Coder<Collection<? extends BoundedWindow>> windowsCoder, ByteString metadata)
+      throws IOException {
+    InputStream inStream = metadata.newInput();
+    PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+    windowsCoder.decode(inStream);
+    if (paneInfo.isElementMetadata() && WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+      return BeamFnApi.Elements.ElementMetadata.parseDelimitedFrom(inStream);
+    } else {
+      // empty
+      return BeamFnApi.Elements.ElementMetadata.newBuilder().build();
+    }
+  }
+
   public static Collection<? extends BoundedWindow> decodeMetadataWindows(
       Coder<Collection<? extends BoundedWindow>> windowsCoder, ByteString metadata)
       throws IOException {
     InputStream inStream = metadata.newInput();
     PaneInfoCoder.INSTANCE.decode(inStream);
-    return windowsCoder.decode(inStream, Coder.Context.OUTER);
+    return windowsCoder.decode(inStream);
   }
 
   /** A {@link SinkFactory.Registrar} for windmill sinks. */
