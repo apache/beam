@@ -33,7 +33,7 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
-import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.RecordErrorCounterFn;
+import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.GenericRecordErrorCounterFn;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
@@ -228,7 +228,7 @@ public class KafkaWriteSchemaTransformProviderTest {
     PCollectionTuple output =
         input.apply(
             ParDo.of(
-                    new RecordErrorCounterFn(
+                    new GenericRecordErrorCounterFn(
                         "Kafka-write-error-counter", recordValueMapper, errorSchema, true))
                 .withOutputTags(RECORD_OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 

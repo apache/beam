@@ -181,13 +181,13 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
-    public static class RecordErrorCounterFn extends BaseKafkaWriterFn<GenericRecord> {
-      public RecordErrorCounterFn(
+    public static class GenericRecordErrorCounterFn extends BaseKafkaWriterFn<GenericRecord> {
+      public GenericRecordErrorCounterFn(
           String name,
-          SerializableFunction<Row, GenericRecord> toRecordsFn,
+          SerializableFunction<Row, GenericRecord> toGenericRecordsFn,
           Schema errorSchema,
           boolean handleErrors) {
-        super(name, toRecordsFn, errorSchema, handleErrors, RECORD_OUTPUT_TAG);
+        super(name, toGenericRecordsFn, errorSchema, handleErrors, RECORD_OUTPUT_TAG);
       }
     }
 
@@ -199,7 +199,7 @@ public class KafkaWriteSchemaTransformProvider
       Schema inputSchema = input.get("input").getSchema();
       org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(inputSchema);
       final SerializableFunction<Row, byte[]> toBytesFn;
-      SerializableFunction<Row, GenericRecord> toRecordsFn = null;
+      SerializableFunction<Row, GenericRecord> toGenericRecordsFn = null;
       if (configuration.getFormat().equals("RAW")) {
         int numFields = inputSchema.getFields().size();
         if (numFields != 1) {
@@ -233,7 +233,7 @@ public class KafkaWriteSchemaTransformProvider
       } else {
         if (configuration.getProducerConfigUpdates() != null
             && configuration.getProducerConfigUpdates().containsKey("schema.registry.url")) {
-          toRecordsFn = AvroUtils.getRowToGenericRecordFunction(avroSchema);
+          toGenericRecordsFn = AvroUtils.getRowToGenericRecordFunction(avroSchema);
           toBytesFn = null;
         } else {
           toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
@@ -244,17 +244,17 @@ public class KafkaWriteSchemaTransformProvider
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
       Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
       PCollectionTuple outputTuple;
-      if (toRecordsFn != null) {
-        LOG.info("Convert to GenericRecord");
+      if (toGenericRecordsFn != null) {
+        LOG.info("Convert to GenericRecord with schema {}", avroSchema);
         outputTuple =
             input
                 .get("input")
                 .apply(
                     "Map rows to Kafka messages",
                     ParDo.of(
-                            new RecordErrorCounterFn(
+                            new GenericRecordErrorCounterFn(
                                 "Kafka-write-error-counter",
-                                toRecordsFn,
+                                toGenericRecordsFn,
                                 errorSchema,
                                 handleErrors))
                         .withOutputTags(RECORD_OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
