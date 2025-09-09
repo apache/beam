@@ -1084,6 +1084,14 @@ func (em *ElementManager) refreshWatermarks() set[string] {
 	return refreshed
 }
 
+func (em *ElementManager) wakeUpAt(t mtime.Time) {
+	go func(fireAt time.Time) {
+		time.AfterFunc(time.Until(fireAt), func() {
+			em.refreshCond.Broadcast()
+		})
+	}(t.ToTime())
+}
+
 type set[K comparable] map[K]struct{}
 
 func (s set[K]) present(k K) bool {
@@ -1341,6 +1349,7 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 					// ss.watermarkHolds.Add(timer.holdTimestamp, 1)
 					ss.processingTimeTimers.Persist(firingTime, timer, notYetHolds)
 					em.processTimeEvents.Schedule(firingTime, ss.ID)
+					em.wakeUpAt(firingTime)
 				}
 			}
 		}
@@ -1938,6 +1947,7 @@ func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementM
 	for _, v := range notYet {
 		ss.processingTimeTimers.Persist(v.firing, v.timer, notYetHolds)
 		em.processTimeEvents.Schedule(v.firing, ss.ID)
+		em.wakeUpAt(v.firing)
 	}
 
 	// Add a refresh if there are still processing time events to process.
@@ -2011,6 +2021,7 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 	for _, v := range notYet {
 		ss.processingTimeTimers.Persist(v.firing, v.timer, notYetHolds)
 		em.processTimeEvents.Schedule(v.firing, ss.ID)
+		em.wakeUpAt(v.firing)
 	}
 
 	// Add a refresh if there are still processing time events to process.
