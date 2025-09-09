@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
@@ -42,12 +43,10 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.data.orc.GenericOrcWriter;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.FileAppender;
-import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
@@ -132,25 +131,15 @@ public class TestDataWarehouse extends ExternalResource {
     FileFormat format = FileFormat.fromFileName(filename);
 
     FileAppender<Record> appender;
-    switch (format) {
-      case PARQUET:
-        appender =
-            Parquet.write(fromPath(path, hadoopConf))
-                .createWriterFunc(GenericParquetWriter::buildWriter)
-                .schema(schema)
-                .overwrite()
-                .build();
-        break;
-      case ORC:
-        appender =
-            ORC.write(fromPath(path, hadoopConf))
-                .createWriterFunc(GenericOrcWriter::buildWriter)
-                .schema(schema)
-                .overwrite()
-                .build();
-        break;
-      default:
-        throw new IOException("Unable to create appender for " + format);
+    if (Objects.requireNonNull(format) == FileFormat.PARQUET) {
+      appender =
+          Parquet.write(fromPath(path, hadoopConf))
+              .createWriterFunc(GenericParquetWriter::buildWriter)
+              .schema(schema)
+              .overwrite()
+              .build();
+    } else {
+      throw new IOException("Unable to create appender for " + format);
     }
     appender.addAll(records);
     appender.close();
