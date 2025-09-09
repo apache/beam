@@ -53,7 +53,6 @@ public class KerberosConsumerFactoryFnTest {
 
   @Before
   public void setup() {
-    // Use reflection to reset the static variable before each test for isolation
     try {
       java.lang.reflect.Field field =
           KerberosConsumerFactoryFn.class.getDeclaredField("localKrb5ConfPath");
@@ -64,8 +63,6 @@ public class KerberosConsumerFactoryFnTest {
     }
 
     factory = spy(new KerberosConsumerFactoryFn(KRB5_GCS_PATH));
-
-    // Store original system property to restore it after tests
     originalKrb5Conf = System.getProperty("java.security.krb5.conf");
   }
 
@@ -102,8 +99,6 @@ public class KerberosConsumerFactoryFnTest {
             + keytabGcsPath
             + "\" principal=\"user@REALM\";");
 
-    // Use try-with-resources for all necessary static mocks
-
     try (MockedStatic<FileAwareFactoryFn> mockedStaticFactory =
             Mockito.mockStatic(FileAwareFactoryFn.class);
         MockedStatic<Configuration> mockedConfiguration = Mockito.mockStatic(Configuration.class);
@@ -120,7 +115,6 @@ public class KerberosConsumerFactoryFnTest {
           .when(() -> FileAwareFactoryFn.downloadGcsFile(keytabGcsPath, expectedKeytabLocalPath))
           .thenReturn(expectedKeytabLocalPath);
 
-      // Mock other dependencies to prevent side effects
       Configuration mockConf = Mockito.mock(Configuration.class);
       mockedConfiguration.when(Configuration::getConfiguration).thenReturn(mockConf);
       mockedFiles
