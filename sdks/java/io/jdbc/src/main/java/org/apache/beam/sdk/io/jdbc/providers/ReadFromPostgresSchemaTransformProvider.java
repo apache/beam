@@ -18,20 +18,30 @@
 package org.apache.beam.sdk.io.jdbc.providers;
 
 import static org.apache.beam.sdk.io.jdbc.JdbcUtil.POSTGRES;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.jdbc.JdbcReadSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class ReadFromPostgresSchemaTransformProvider extends JdbcReadSchemaTransformProvider {
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ReadFromPostgresSchemaTransformProvider.class);
+
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:postgres_read:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_READ);
   }
 
   @Override
@@ -42,5 +52,41 @@ public class ReadFromPostgresSchemaTransformProvider extends JdbcReadSchemaTrans
   @Override
   protected String jdbcType() {
     return POSTGRES;
+  }
+
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+      JdbcReadSchemaTransformConfiguration configuration) {
+    String jdbcType = configuration.getJdbcType();
+    if (jdbcType != null && !jdbcType.equals(jdbcType())) {
+      throw new IllegalArgumentException(
+          String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
+    }
+
+    List<@org.checkerframework.checker.nullness.qual.Nullable String> connectionInitSql =
+        configuration.getConnectionInitSql();
+    if (connectionInitSql != null && !connectionInitSql.isEmpty()) {
+      LOG.warn("Postgres does not support connectionInitSql, ignoring.");
+    }
+
+    Boolean disableAutoCommit = configuration.getDisableAutoCommit();
+    if (disableAutoCommit != null && !disableAutoCommit) {
+      LOG.warn("Postgres reads require disableAutoCommit to be true, overriding to true.");
+    }
+
+    // Override "connectionInitSql" and "disableAutoCommit" for postgres
+    configuration =
+        configuration
+            .toBuilder()
+            .setConnectionInitSql(Collections.emptyList())
+            .setDisableAutoCommit(true)
+            .build();
+    return new PostgresReadSchemaTransform(configuration);
+  }
+
+  public static class PostgresReadSchemaTransform extends JdbcReadSchemaTransform {
+    public PostgresReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
+      super(config, POSTGRES);
+    }
   }
 }

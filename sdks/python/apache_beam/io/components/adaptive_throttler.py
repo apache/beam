@@ -21,9 +21,32 @@
 
 # pytype: skip-file
 
+import logging
 import random
+import time
 
 from apache_beam.io.components import util
+from apache_beam.metrics.metric import Metrics
+
+_SECONDS_TO_MILLISECONDS = 1_000
+
+
+class ThrottlingSignaler(object):
+  """A class that handles signaling throttling of remote requests to the
+  SDK harness.
+  """
+  def __init__(self, namespace: str = ""):
+    self.throttling_metric = Metrics.counter(
+        namespace, "cumulativeThrottlingSeconds")
+
+  def signal_throttled(self, seconds: int):
+    """Signals to the runner that requests have been throttled for some amount
+    of time.
+
+    Args:
+      seconds: int, duration of throttling in seconds.
+    """
+    self.throttling_metric.inc(seconds)
 
 
 class AdaptiveThrottler(object):
@@ -94,3 +117,72 @@ class AdaptiveThrottler(object):
       now: int, time in ms since the epoch
     """
     self._successful_requests.add(now, 1)
+
+
+class ReactiveThrottler(AdaptiveThrottler):
+  """ A wrapper around the AdaptiveThrottler that also handles logging and
+  signaling throttling to the SDK harness using the provided namespace.
+
+  For usage, instantiate one instance of a ReactiveThrottler class for a
+  PTransform. When making remote calls to a service, preface that call with
+  the throttle() method to potentially pre-emptively throttle the request.
+  This will throttle future calls based on the failure rate of preceding calls,
+  with higher failure rates leading to longer periods of throttling to allow
+  system recovery. capture the timestamp of the attempted request, then execute
+  the request code. On a success, call successful_request(timestamp) to report
+  the success to the throttler. This flow looks like the following:
+  
+  def remote_call():
+    throttler.throttle()
+
+    try:
+      timestamp = time.time()
+      result = make_request()
+      throttler.successful_request(timestamp)
+      return result
+    except Exception as e:
+      # do any error handling you want to do
+      raise
+  """
+  def __init__(
+      self,
+      window_ms: int,
+      bucket_ms: int,
+      overload_ratio: float,
+      namespace: str = '',
+      throttle_delay_secs: int = 5):
+    """Initializes the ReactiveThrottler.
+
+    Args:
+      window_ms: int, length of history to consider, in ms, to set
+        throttling.
+      bucket_ms: int, granularity of time buckets that we store data in, in
+        ms.
+      overload_ratio: float, the target ratio between requests sent and
+        successful requests. This is "K" in the formula in
+        https://landing.google.com/sre/book/chapters/handling-overload.html.
+      namespace: str, the namespace to use for logging and signaling
+        throttling is occurring
+      throttle_delay_secs: int, the amount of time in seconds to wait
+        after preemptively throttled requests
+    """
+    self.throttling_signaler = ThrottlingSignaler(namespace=namespace)
+    self.logger = logging.getLogger(namespace)
+    self.throttle_delay_secs = throttle_delay_secs
+    super().__init__(
+        window_ms=window_ms, bucket_ms=bucket_ms, overload_ratio=overload_ratio)
+
+  def throttle(self):
+    """ Stops request code from advancing while the underlying
+    AdaptiveThrottler is signaling to preemptively throttle the request.
+    Automatically handles logging the throttling and signaling to the SDK
+    harness that the request is being throttled. This should be called in any
+    context where a call to a remote service is being contacted prior to the
+    call being performed.
+    """
+    while self.throttle_request(time.time() * _SECONDS_TO_MILLISECONDS):
+      self.logger.info(
+          "Delaying request for %d seconds due to previous failures",
+          self.throttle_delay_secs)
+      time.sleep(self.throttle_delay_secs)
+      self.throttling_signaler.signal_throttled(self.throttle_delay_secs)

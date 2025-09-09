@@ -1,0 +1,168 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the 'License'); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an 'AS IS' BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
+.custom-node {
+    background: linear-gradient(145deg, #ffffff, #e5e5e5);
+    border: 2px solid #ccc;
+    border-radius: 12px;
+    padding: 12px 16px;
+    width: 250px;
+    display: inline-block;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+    user-select: none;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.custom-node:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+    border-color: #4cafef;
+}
+
+.custom-node:active {
+    transform: scale(0.96);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    border-color: #2196f3;
+}
+
+/* Header */
+.custom-node-header {
+    display: flex;
+    align-items: center;
+}
+
+.custom-node-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 22px;
+    margin-right: 10px;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.custom-node-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    letter-spacing: 0.3px;
+    line-height: 1.3;
+    flex-grow: 1;
+    white-space: normal;
+}
+
+/* Handle */
+.custom-handle {
+    width: 40px !important;
+    height: 8px !important;
+    border-radius: 4px;
+    background: #00bcd4 !important;
+    border: none !important;
+    transition: background 0.2s ease;
+}
+
+.custom-handle:hover {
+    background: #008ba3 !important;
+}
+
+/* ====== Colors ====== */
+.custom-node-input {
+    border-color: #4caf50;
+}
+
+.custom-node-input .custom-node-icon {
+    background: linear-gradient(135deg, #e8f5e9, #a5d6a7);
+}
+
+.custom-node-default {
+    border-color: #2196f3;
+}
+
+.custom-node-default .custom-node-icon {
+    background: linear-gradient(135deg, #e3f2fd, #90caf9);
+}
+
+.custom-node-output {
+    border-color: #ff9800;
+}
+
+.custom-node-output .custom-node-icon {
+    background: linear-gradient(135deg, #fff3e0, #ffcc80);
+}
+
+/* ====== Input ====== */
+.custom-node-input {
+    border-color: #4caf50;
+    background: linear-gradient(145deg, #f1fbf3, #dcedc8);
+}
+
+.custom-node-input .custom-node-icon {
+    background: linear-gradient(135deg, #c8e6c9, #81c784);
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5) inset;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.custom-node-input:hover .custom-node-icon {
+    box-shadow: 0 0 12px rgba(76, 175, 80, 0.7) inset;
+    transform: scale(1.05);
+}
+
+.custom-node-input:active .custom-node-icon {
+    transform: scale(0.95);
+}
+
+.custom-node-input .custom-handle {
+    background: #43a047 !important;
+}
+
+.custom-node-input .custom-handle:hover {
+    background: #2e7d32 !important;
+}
+
+/* ====== Output ====== */
+.custom-node-output {
+    border-color: #ff9800;
+    background: linear-gradient(145deg, #fff8f0, #ffe0b2);
+}
+
+.custom-node-output .custom-node-icon {
+    background: linear-gradient(135deg, #ffcc80, #ffb74d);
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.5) inset;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.custom-node-output:hover .custom-node-icon {
+    box-shadow: 0 0 12px rgba(255, 152, 0, 0.7) inset;
+    transform: scale(1.05);
+}
+
+.custom-node-output:active .custom-node-icon {
+    transform: scale(0.95);
+}
+
+.custom-node-output .custom-handle {
+    background: #fb8c00 !important;
+}
+
+.custom-node-output .custom-handle:hover {
+    background: #ef6c00 !important;
+}

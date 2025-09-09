@@ -253,6 +253,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":examples:java:sql:preCommit")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:java:twitter:preCommit")
+  dependsOn(":examples:java:iceberg:build")
   dependsOn(":examples:multi-language:build")
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
@@ -380,6 +381,7 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:datacatalog:build")
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
+  dependsOn(":sdks:java:extensions:sql:iceberg:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
@@ -426,6 +428,7 @@ tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
   dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
+  dependsOn(":sdks:java:extensions:sql:iceberg:integrationTest")
   dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
 }
 
@@ -634,6 +637,127 @@ tasks.register("formatChanges") {
     // Write formatted content back
     changesFile.writeText(formattedLines.joinToString("\n"))
     println("CHANGES.md has been formatted according to template structure")
+  }
+}
+
+tasks.register("validateChanges") {
+  group = "verification"
+  description = "Validates CHANGES.md follows required formatting rules"
+
+  doLast {
+    val changesFile = file("CHANGES.md")
+    if (!changesFile.exists()) {
+      throw GradleException("CHANGES.md file not found")
+    }
+
+    val content = changesFile.readText()
+    val lines = content.lines()
+    val errors = mutableListOf<String>()
+
+    // Find template section boundaries
+    var templateStartIndex = -1
+    var templateEndIndex = -1
+
+    for (i in lines.indices) {
+      if (lines[i].trim() == "<!-- Template -->") {
+        templateStartIndex = i
+        println("Found template start at line ${i+1}")
+      } else if (templateStartIndex != -1 && lines[i].trim() == "-->") {
+        templateEndIndex = i
+        println("Found template end at line ${i+1}")
+        break
+      }
+    }
+
+    if (templateStartIndex == -1 || templateEndIndex == -1) {
+      throw GradleException("Template section not found in CHANGES.md")
+    }
+
+    println("Template section: lines ${templateStartIndex+1} to ${templateEndIndex+1}")
+
+    // Find unreleased section after the template section
+    var unreleasedSectionStart = -1
+    for (i in (templateEndIndex + 1) until lines.size) {
+      if (lines[i].startsWith("# [") && lines[i].contains("Unreleased")) {
+        unreleasedSectionStart = i
+        println("Found unreleased section at line ${i+1}: ${lines[i]}")
+        break
+      }
+    }
+
+    if (unreleasedSectionStart == -1) {
+      throw GradleException("Unreleased section not found in CHANGES.md")
+    }
+
+    // Check entries in the unreleased section
+    var i = unreleasedSectionStart + 1
+    println("Starting validation from line ${i+1}")
+
+    while (i < lines.size && !lines[i].startsWith("# [")) {
+      val line = lines[i].trim()
+
+      if (line.startsWith("* ") && line.isNotEmpty()) {
+        println("Checking line ${i+1}: $line")
+
+        // Skip comment lines
+        if (line.startsWith("* [comment]:")) {
+          println("  Skipping comment line")
+        } else {
+          // Rule 1: Check if language references use parentheses instead of brackets
+          val languagePattern = "\\[(Java|Python|Go|Kotlin|TypeScript|YAML)(?:/(?:Java|Python|Go|Kotlin|TypeScript|YAML))*\\]"
+          val languageRegex = Regex(languagePattern)
+
+          // Check if there's a language reference in brackets
+          val matches = languageRegex.findAll(line).toList()
+          if (matches.isNotEmpty()) {
+            for (match in matches) {
+              val matchText = match.value
+              val matchPosition = match.range.first
+              println("  Found language reference: $matchText at position $matchPosition")
+
+              // Check if this is part of an issue link or URL
+              val beforeMatch = if (matchPosition > 0) line.substring(0, matchPosition) else ""
+              val isPartOfLink = beforeMatch.contains("[#") ||
+                                beforeMatch.contains("http") ||
+                                line.contains("CVE-")
+
+              println("  Is part of link: $isPartOfLink")
+
+              if (!isPartOfLink) {
+                val error = "Line ${i+1}: Language references should use parentheses () instead of brackets []: $line"
+                println("  Adding error: $error")
+                errors.add(error)
+              }
+            }
+          } else {
+            println("  No bracketed language reference found")
+          }
+
+          // Rule 2: Check if each entry has an issue link
+          val issueLinkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/issues/[0-9a-zA-Z]+\\)\\)"
+          val issueLinkRegex = Regex(issueLinkPattern)
+
+          val hasIssueLink = issueLinkRegex.containsMatchIn(line)
+          println("  Has issue link: $hasIssueLink")
+
+          if (!hasIssueLink) {
+            val error = "Line ${i+1}: Missing or malformed issue link. Each entry should end with ([#X](https://github.com/apache/beam/issues/X)): $line"
+            println("  Adding error: $error")
+            errors.add(error)
+          }
+        }
+      }
+
+      i++
+    }
+
+    println("Found ${errors.size} errors")
+
+    if (errors.isNotEmpty()) {
+      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run ./gradlew formatChanges to correct some issues.")
+    }
+
+    println("CHANGES.md validation successful")
   }
 }
 
