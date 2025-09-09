@@ -671,7 +671,12 @@ func (t *TriggerAfterProcessingTime) shouldFire(state *StateData) bool {
 	return mtime.Now() >= firingTime
 }
 
-func (t *TriggerAfterProcessingTime) onFire(state *StateData) {}
+func (t *TriggerAfterProcessingTime) onFire(state *StateData) {
+	if !t.shouldFire(state) {
+		return
+	}
+	triggerClearAndFinish(t, state)
+}
 
 func (t *TriggerAfterProcessingTime) reset(state *StateData) {
 	delete(state.Trigger, t)

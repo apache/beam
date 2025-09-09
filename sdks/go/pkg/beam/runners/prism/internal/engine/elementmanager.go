@@ -1327,7 +1327,7 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 					timer := element{
 						window:        e.window,
 						timestamp:     firingTime,
-						holdTimestamp: firingTime,
+						holdTimestamp: e.window.MaxTimestamp(),
 						pane:          typex.NoFiringPane(),
 						transform:     ss.ID, // Use stage id to fake transform id
 						family:        "AfterProcessingTime",
@@ -1336,6 +1336,8 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 						elmBytes:      nil,
 						keyBytes:      e.keyBytes,
 					}
+					// TODO: how to deal with watermark holds for this implicit processing time timer
+					// ss.watermarkHolds.Add(timer.holdTimestamp, 1)
 					ss.processingTimeTimers.Persist(firingTime, timer, notYetHolds)
 					em.processTimeEvents.Schedule(firingTime, ss.ID)
 				}
@@ -1978,7 +1980,8 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 			if e.timestamp < minTs {
 				minTs = e.timestamp
 			}
-			holdsInBundle[e.holdTimestamp]++
+			// TODO: how to deal with watermark holds for this implicit processing time timer
+			// holdsInBundle[e.holdTimestamp]++
 
 			state := ss.state[LinkID{}][e.window][string(e.keyBytes)]
 			endOfWindowReached := e.window.MaxTimestamp() < ss.input
