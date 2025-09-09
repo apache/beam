@@ -15,18 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kafka;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+package org.apache.beam.sdk.io.kafka.file.aware.factories;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -42,13 +31,16 @@ import java.util.Set;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class FileAwareFactoryFnTest {
@@ -75,8 +67,8 @@ public class FileAwareFactoryFnTest {
   @Before
   public void setup() throws IOException {
     baseDir = "/tmp/" + TEST_FACTORY_TYPE;
-    factory = spy(new TestFactoryFn());
-    doReturn(baseDir).when(factory).getBaseDirectory();
+    factory = Mockito.spy(new TestFactoryFn());
+    Mockito.doReturn(baseDir).when(factory).getBaseDirectory();
   }
 
   @Test
@@ -93,11 +85,11 @@ public class FileAwareFactoryFnTest {
 
     // Act & Assert
     // Use try-with-resources to manage the scope of the static mock on FileSystems
-    try (MockedStatic<FileSystems> mockedFileSystems = mockStatic(FileSystems.class)) {
+    try (MockedStatic<FileSystems> mockedFileSystems = Mockito.mockStatic(FileSystems.class)) {
       // 1. Mock the underlying static FileSystems calls to avoid real network I/O
-      MatchResult.Metadata metadata = mock(MatchResult.Metadata.class);
-      ResourceId resourceId = mock(ResourceId.class);
-      when(metadata.resourceId()).thenReturn(resourceId);
+      MatchResult.Metadata metadata = Mockito.mock(MatchResult.Metadata.class);
+      ResourceId resourceId = Mockito.mock(ResourceId.class);
+      Mockito.when(metadata.resourceId()).thenReturn(resourceId);
       mockedFileSystems.when(() -> FileSystems.matchSingleFileSpec(gcsPath)).thenReturn(metadata);
 
       // 2. Mock 'open' to return a channel with no data, simulating a successful download
@@ -108,8 +100,9 @@ public class FileAwareFactoryFnTest {
       Map<String, Object> processedConfig = (Map<String, Object>) factory.apply(config);
 
       // Assert
-      assertEquals(expectedLocalPath, processedConfig.get("config.file.path"));
-      assertTrue("Local file should have been created", new File(expectedLocalPath).exists());
+      Assert.assertEquals(expectedLocalPath, processedConfig.get("config.file.path"));
+      Assert.assertTrue(
+          "Local file should have been created", new File(expectedLocalPath).exists());
     }
   }
 
@@ -121,17 +114,17 @@ public class FileAwareFactoryFnTest {
     config.put("critical.file", gcsPath);
 
     // Mock the static FileSystems.matchSingleFileSpec to throw an exception
-    try (MockedStatic<FileSystems> mockedFileSystems = mockStatic(FileSystems.class)) {
+    try (MockedStatic<FileSystems> mockedFileSystems = Mockito.mockStatic(FileSystems.class)) {
       mockedFileSystems
           .when(() -> FileSystems.matchSingleFileSpec(gcsPath))
           .thenThrow(new IOException("GCS file not found"));
 
       // Act & Assert
       RuntimeException exception =
-          assertThrows(RuntimeException.class, () -> factory.apply(config));
-      assertTrue(exception.getMessage().contains("Failed trying to process value"));
-      assertTrue(exception.getCause() instanceof IOException);
-      assertTrue(exception.getCause().getMessage().contains("Failed to download file"));
+          Assert.assertThrows(RuntimeException.class, () -> factory.apply(config));
+      Assert.assertTrue(exception.getMessage().contains("Failed trying to process value"));
+      Assert.assertTrue(exception.getCause() instanceof IOException);
+      Assert.assertTrue(exception.getCause().getMessage().contains("Failed to download file"));
     }
   }
 
@@ -147,7 +140,7 @@ public class FileAwareFactoryFnTest {
     Map<String, Object> processedConfig = (Map<String, Object>) factory.apply(config);
 
     // Assert
-    assertEquals(config, processedConfig);
+    Assert.assertEquals(config, processedConfig);
   }
 
   @Test
@@ -172,7 +165,7 @@ public class FileAwareFactoryFnTest {
     Map<String, Object> config = new HashMap<>();
     config.put("jaas.config", originalValue);
 
-    try (MockedStatic<FileSystems> mockedFileSystems = mockStatic(FileSystems.class)) {
+    try (MockedStatic<FileSystems> mockedFileSystems = Mockito.mockStatic(FileSystems.class)) {
       // Mock GCS calls for both paths
       mockSuccessfulDownload(mockedFileSystems, gcsPath1);
       mockSuccessfulDownload(mockedFileSystems, gcsPath2);
@@ -181,7 +174,7 @@ public class FileAwareFactoryFnTest {
       Map<String, Object> processedConfig = (Map<String, Object>) factory.apply(config);
 
       // Assert
-      assertEquals(expectedProcessedValue, processedConfig.get("jaas.config"));
+      Assert.assertEquals(expectedProcessedValue, processedConfig.get("jaas.config"));
     }
   }
 
@@ -193,22 +186,25 @@ public class FileAwareFactoryFnTest {
     config.put("a.file", gcsPath);
 
     // Mock GCS part to succeed
-    try (MockedStatic<FileSystems> mockedFileSystems = mockStatic(FileSystems.class);
-        MockedStatic<FileChannel> mockedFileChannel = mockStatic(FileChannel.class)) {
+    try (MockedStatic<FileSystems> mockedFileSystems = Mockito.mockStatic(FileSystems.class);
+        MockedStatic<FileChannel> mockedFileChannel = Mockito.mockStatic(FileChannel.class)) {
       mockSuccessfulDownload(mockedFileSystems, gcsPath);
 
       // Mock the local file writing part to fail
       mockedFileChannel
-          .when(() -> FileChannel.open(any(Path.class), any(Set.class)))
+          .when(
+              () ->
+                  FileChannel.open(
+                      ArgumentMatchers.any(Path.class), ArgumentMatchers.any(Set.class)))
           .thenThrow(new IOException("Permission denied"));
 
       // Act & Assert
       RuntimeException exception =
-          assertThrows(RuntimeException.class, () -> factory.apply(config));
-      assertTrue(exception.getMessage().contains("Failed trying to process value"));
-      assertTrue(exception.getCause() instanceof IOException);
+          Assert.assertThrows(RuntimeException.class, () -> factory.apply(config));
+      Assert.assertTrue(exception.getMessage().contains("Failed trying to process value"));
+      Assert.assertTrue(exception.getCause() instanceof IOException);
       // Check that the root cause is our "Permission denied" mock
-      assertTrue(exception.getCause().getCause().getMessage().contains("Permission denied"));
+      Assert.assertTrue(exception.getCause().getCause().getMessage().contains("Permission denied"));
     }
   }
 
@@ -233,7 +229,7 @@ public class FileAwareFactoryFnTest {
           @Override
           public byte[] getSecret(String secretIdentifier) {
             // Assert that the correct identifier is passed
-            assertEquals(secretVersionParsed, secretIdentifier);
+            Assert.assertEquals(secretVersionParsed, secretIdentifier);
             // Return a predictable, hardcoded value for the test
             return secretValue.getBytes(StandardCharsets.UTF_8);
           }
@@ -245,7 +241,7 @@ public class FileAwareFactoryFnTest {
         (Map<String, Object>) factoryWithMockedSecret.apply(config);
 
     // Assert
-    assertEquals(expectedProcessedValue, processedConfig.get("db.password"));
+    Assert.assertEquals(expectedProcessedValue, processedConfig.get("db.password"));
   }
 
   @Test
@@ -258,18 +254,22 @@ public class FileAwareFactoryFnTest {
     // Act & Assert
     // The spy will call the real method here, which will throw an exception
     // because the secret path is not parsable.
-    RuntimeException ex = assertThrows(RuntimeException.class, () -> factory.apply(config));
-    assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
+    RuntimeException ex = Assert.assertThrows(RuntimeException.class, () -> factory.apply(config));
+    Assert.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
   }
 
   // Helper method to reduce boilerplate in mocking successful GCS downloads
   private void mockSuccessfulDownload(MockedStatic<FileSystems> mockedFileSystems, String gcsPath) {
-    MatchResult.Metadata metadata = mock(MatchResult.Metadata.class);
-    ResourceId resourceId = mock(ResourceId.class);
-    when(metadata.resourceId()).thenReturn(resourceId);
-    mockedFileSystems.when(() -> FileSystems.matchSingleFileSpec(eq(gcsPath))).thenReturn(metadata);
+    MatchResult.Metadata metadata = Mockito.mock(MatchResult.Metadata.class);
+    ResourceId resourceId = Mockito.mock(ResourceId.class);
+    Mockito.when(metadata.resourceId()).thenReturn(resourceId);
+    mockedFileSystems
+        .when(() -> FileSystems.matchSingleFileSpec(ArgumentMatchers.eq(gcsPath)))
+        .thenReturn(metadata);
 
     ReadableByteChannel channel = Channels.newChannel(new ByteArrayInputStream(new byte[0]));
-    mockedFileSystems.when(() -> FileSystems.open(eq(resourceId))).thenReturn(channel);
+    mockedFileSystems
+        .when(() -> FileSystems.open(ArgumentMatchers.eq(resourceId)))
+        .thenReturn(channel);
   }
 }
