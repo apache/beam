@@ -85,7 +85,7 @@ try:
   # occurs.
   from apache_beam.internal.dill_pickler import dill
 except ImportError:
-  dill = None  # type: ignore
+  dill = None
 
 __all__ = [
     'Coder',
