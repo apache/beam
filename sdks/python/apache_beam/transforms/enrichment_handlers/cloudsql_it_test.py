@@ -208,7 +208,6 @@ class SQLEnrichmentTestHelper:
         raise Exception(f"Failed to insert table data: {e}")
 
 
-@pytest.mark.uses_testcontainer
 class BaseTestSQLEnrichment(unittest.TestCase):
   _table_data = [
       {
@@ -567,7 +566,6 @@ class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
   _metadata = MetaData()
 
 
-@pytest.mark.uses_testcontainer
 class BaseExternalSQLDBEnrichment(BaseTestSQLEnrichment):
   @classmethod
   def setUpClass(cls):
@@ -595,7 +593,6 @@ class BaseExternalSQLDBEnrichment(BaseTestSQLEnrichment):
     cls._db = None
 
 
-@pytest.mark.uses_testcontainer
 class TestExternalPostgresEnrichment(BaseExternalSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.POSTGRESQL
   _unique_suffix = str(uuid.uuid4())[:8]
@@ -603,7 +600,6 @@ class TestExternalPostgresEnrichment(BaseExternalSQLDBEnrichment):
   _metadata = MetaData()
 
 
-@pytest.mark.uses_testcontainer
 class TestExternalMySQLEnrichment(BaseExternalSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.MYSQL
   _unique_suffix = str(uuid.uuid4())[:8]
@@ -611,7 +607,6 @@ class TestExternalMySQLEnrichment(BaseExternalSQLDBEnrichment):
   _metadata = MetaData()
 
 
-@pytest.mark.uses_testcontainer
 class TestExternalSQLServerEnrichment(BaseExternalSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.SQLSERVER
   _unique_suffix = str(uuid.uuid4())[:8]
