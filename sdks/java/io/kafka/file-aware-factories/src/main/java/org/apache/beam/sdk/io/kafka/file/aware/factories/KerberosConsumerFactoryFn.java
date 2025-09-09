@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kafka;
+package org.apache.beam.sdk.io.kafka.file.aware.factories;
 
 import java.io.File;
 import java.io.IOException;

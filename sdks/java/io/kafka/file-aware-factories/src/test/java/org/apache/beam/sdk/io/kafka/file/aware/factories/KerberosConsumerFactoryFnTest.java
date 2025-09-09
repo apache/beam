@@ -15,17 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kafka;
+package org.apache.beam.sdk.io.kafka.file.aware.factories;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockConstruction;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,13 +32,16 @@ import java.util.stream.Stream;
 import javax.security.auth.login.Configuration;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class KerberosConsumerFactoryFnTest {
@@ -110,12 +105,13 @@ public class KerberosConsumerFactoryFnTest {
     // Use try-with-resources for all necessary static mocks
 
     try (MockedStatic<FileAwareFactoryFn> mockedStaticFactory =
-            mockStatic(FileAwareFactoryFn.class);
-        MockedStatic<Configuration> mockedConfiguration = mockStatic(Configuration.class);
-        MockedStatic<Files> mockedFiles = mockStatic(Files.class);
-        MockedConstruction<KafkaConsumer> mockedConsumer = mockConstruction(KafkaConsumer.class)) {
+            Mockito.mockStatic(FileAwareFactoryFn.class);
+        MockedStatic<Configuration> mockedConfiguration = Mockito.mockStatic(Configuration.class);
+        MockedStatic<Files> mockedFiles = Mockito.mockStatic(Files.class);
+        MockedConstruction<KafkaConsumer> mockedConsumer =
+            Mockito.mockConstruction(KafkaConsumer.class)) {
 
-      assertNotNull(mockedConsumer);
+      Assert.assertNotNull(mockedConsumer);
       // Mock the static downloadGcsFile method to prevent any GCS interaction
       mockedStaticFactory
           .when(() -> FileAwareFactoryFn.downloadGcsFile(KRB5_GCS_PATH, expectedKrb5LocalPath))
@@ -125,29 +121,34 @@ public class KerberosConsumerFactoryFnTest {
           .thenReturn(expectedKeytabLocalPath);
 
       // Mock other dependencies to prevent side effects
-      Configuration mockConf = mock(Configuration.class);
+      Configuration mockConf = Mockito.mock(Configuration.class);
       mockedConfiguration.when(Configuration::getConfiguration).thenReturn(mockConf);
       mockedFiles
-          .when(() -> Files.setPosixFilePermissions(any(Path.class), any(Set.class)))
+          .when(
+              () ->
+                  Files.setPosixFilePermissions(
+                      ArgumentMatchers.any(Path.class), ArgumentMatchers.any(Set.class)))
           .thenReturn(null);
-      mockedFiles.when(() -> Files.createDirectories(any(Path.class))).thenReturn(null);
+      mockedFiles
+          .when(() -> Files.createDirectories(ArgumentMatchers.any(Path.class)))
+          .thenReturn(null);
 
       // Act
       factory.apply(config);
 
       // Assert
       // 1. Verify that the krb5.conf system property was set correctly.
-      assertEquals(expectedKrb5LocalPath, System.getProperty("java.security.krb5.conf"));
+      Assert.assertEquals(expectedKrb5LocalPath, System.getProperty("java.security.krb5.conf"));
 
       // 2. Capture the config passed to createObject and verify the keytab path was replaced.
       ArgumentCaptor<Map<String, Object>> configCaptor = ArgumentCaptor.forClass(Map.class);
-      verify(factory).createObject(configCaptor.capture());
+      Mockito.verify(factory).createObject(configCaptor.capture());
       Map<String, Object> capturedConfig = configCaptor.getValue();
       String processedJaasConfig = (String) capturedConfig.get("sasl.jaas.config");
-      assertTrue(processedJaasConfig.contains("keyTab=\"" + expectedKeytabLocalPath + "\""));
+      Assert.assertTrue(processedJaasConfig.contains("keyTab=\"" + expectedKeytabLocalPath + "\""));
 
       // 3. Verify that the JAAS configuration was refreshed.
-      verify(mockConf).refresh();
+      Mockito.verify(mockConf).refresh();
     }
   }
 }

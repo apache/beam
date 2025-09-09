@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kafka;
+package org.apache.beam.sdk.io.kafka.file.aware.factories;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -196,9 +196,9 @@ public abstract class FileAwareFactoryFn<T>
    * @return a string with all instances of GCS paths converted to the local paths where the files
    *     sit.
    */
-    private String replacePathWithLocal(String gcsPath) throws IOException {
-      return DIRECTORY_PREFIX + "/" + factoryType + "/" + gcsPath.substring(GCS_PATH_PREFIX.length());
-    }
+  private String replacePathWithLocal(String gcsPath) throws IOException {
+    return DIRECTORY_PREFIX + "/" + factoryType + "/" + gcsPath.substring(GCS_PATH_PREFIX.length());
+  }
 
   /**
    * @throws IOException A hook for subclasses to download and process specific files before the
