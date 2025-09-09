@@ -20,6 +20,7 @@
 
 import os
 import unittest
+import uuid
 from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -211,7 +212,8 @@ class EnrichmentTestHelpers:
   def pre_sql_enrichment_test(
       is_cloudsql: bool,
       db_adapter: DatabaseTypeAdapter) -> CloudSQLEnrichmentTestDataConstruct:
-    table_id = "products"
+    unique_suffix = str(uuid.uuid4())[:8]
+    table_id = f"products_{unique_suffix}"
     columns = [
         Column("product_id", Integer, primary_key=True),
         Column("name", VARCHAR(255), nullable=False),
