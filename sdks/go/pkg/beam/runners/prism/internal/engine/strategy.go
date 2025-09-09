@@ -122,8 +122,9 @@ func (ws WinStrat) GetAfterProcessingTimeTriggers() []*TriggerAfterProcessingTim
 
 // triggerInput represents a Key + window + stage's trigger conditions.
 type triggerInput struct {
-	newElementCount    int  // The number of new elements since the last check.
-	endOfWindowReached bool // Whether or not the end of the window has been reached.
+	newElementCount    int        // The number of new elements since the last check.
+	endOfWindowReached bool       // Whether or not the end of the window has been reached.
+	emNow              mtime.Time // The current processing time in the runner.
 }
 
 // Trigger represents a trigger for a windowing strategy.  A trigger determines when
@@ -630,6 +631,11 @@ type TriggerAfterProcessingTime struct {
 	Transforms []TimestampTransform
 }
 
+type afterProcessingTimeState struct {
+	emNow      mtime.Time
+	firingTime mtime.Time
+}
+
 func (t *TriggerAfterProcessingTime) onElement(input triggerInput, state *StateData) {
 	ts := state.getTriggerState(t)
 	if ts.finished {
@@ -637,7 +643,14 @@ func (t *TriggerAfterProcessingTime) onElement(input triggerInput, state *StateD
 	}
 
 	if ts.extra == nil {
-		ts.extra = t.applyTimestampTransforms(mtime.Now())
+		ts.extra = afterProcessingTimeState{
+			emNow:      input.emNow,
+			firingTime: t.applyTimestampTransforms(input.emNow),
+		}
+	} else {
+		s, _ := ts.extra.(afterProcessingTimeState)
+		s.emNow = input.emNow
+		ts.extra = s
 	}
 
 	state.setTriggerState(t, ts)
@@ -667,8 +680,8 @@ func (t *TriggerAfterProcessingTime) shouldFire(state *StateData) bool {
 	if ts.extra == nil {
 		return false
 	}
-	firingTime := ts.extra.(mtime.Time)
-	return mtime.Now() >= firingTime
+	s := ts.extra.(afterProcessingTimeState)
+	return s.emNow >= s.firingTime
 }
 
 func (t *TriggerAfterProcessingTime) onFire(state *StateData) {

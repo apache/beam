@@ -1303,6 +1303,7 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 		ready := ss.strat.IsTriggerReady(triggerInput{
 			newElementCount:    1,
 			endOfWindowReached: endOfWindowReached,
+			emNow:              em.ProcessingTimeNow(),
 		}, &state)
 
 		if ready {
@@ -1322,7 +1323,7 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 						//     fire (e.g. AfterAll).
 						continue
 					}
-					firingTime := ts.extra.(mtime.Time)
+					firingTime := ts.extra.(afterProcessingTimeState).firingTime
 					notYetHolds := map[mtime.Time]int{}
 					timer := element{
 						window:        e.window,
@@ -1988,6 +1989,7 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 			ready := ss.strat.IsTriggerReady(triggerInput{
 				newElementCount:    0,
 				endOfWindowReached: endOfWindowReached,
+				emNow:              emNow,
 			}, &state)
 
 			if ready {
