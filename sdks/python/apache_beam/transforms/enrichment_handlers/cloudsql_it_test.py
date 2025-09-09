@@ -302,6 +302,16 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
+    # Attempt to drop table first using raw SQL.
+    try:
+      with cls._engine.connect() as conn:
+        conn.execute(f"DROP TABLE IF EXISTS {cls._table_id}")
+        conn.commit()
+        _LOGGER.info(f"Dropped table {cls._table_id}")
+    except Exception as e:
+      _LOGGER.warning(f"Failed to drop table {cls._table_id}: {e}")
+
+    # Fallback to metadata drop as a backup.
     cls._metadata.drop_all(cls._engine)
     cls._engine.dispose(close=True)
     cls._engine = None
@@ -552,7 +562,8 @@ class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.POSTGRESQL
 
   # Configuration required for locating the CloudSQL instance.
-  _table_id = "product_details_cloudsql_pg_enrichment"
+  _unique_suffix = str(uuid.uuid4())[:8]
+  _table_id = f"product_details_cloudsql_pg_enrichment_{_unique_suffix}"
   _gcp_project_id = "apache-beam-testing"
   _region = "us-central1"
   _instance_name = "beam-integration-tests"
