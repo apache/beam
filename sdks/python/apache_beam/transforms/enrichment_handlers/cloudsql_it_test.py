@@ -330,7 +330,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         max_batch_size=100,
     )
 
-    with TestPipeline(is_integration_test=True) as test_pipeline:
+    with TestPipeline() as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
       assert_that(pcoll, equal_to(expected_rows))
@@ -357,7 +357,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         min_batch_size=2,
         max_batch_size=100,
     )
-    with TestPipeline(is_integration_test=True) as test_pipeline:
+    with TestPipeline() as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
       assert_that(pcoll, equal_to(expected_rows))
@@ -384,7 +384,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         min_batch_size=8,
         max_batch_size=100,
     )
-    with TestPipeline(is_integration_test=True) as test_pipeline:
+    with TestPipeline() as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
       assert_that(pcoll, equal_to(expected_rows))
@@ -404,7 +404,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     handler = CloudSQLEnrichmentHandler(
         connection_config=self._connection_config, query_config=query_config)
-    with TestPipeline(is_integration_test=True) as test_pipeline:
+    with TestPipeline() as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
       assert_that(pcoll, equal_to(expected_rows))
@@ -429,7 +429,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         query_config=query_config,
         min_batch_size=2,
         max_batch_size=100)
-    with TestPipeline(is_integration_test=True) as test_pipeline:
+    with TestPipeline() as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
       assert_that(pcoll, equal_to(expected_rows))
@@ -481,7 +481,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         query_config=query_config,
         min_batch_size=2,
         max_batch_size=100)
-    with TestPipeline(is_integration_test=True) as test_pipeline:
+    with TestPipeline() as test_pipeline:
       pcoll_populate_cache = (
           test_pipeline
           | beam.Create(requests)
@@ -506,7 +506,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         side_effect=Exception("Database should not be called on a cache hit."))
 
     # Run a second pipeline to verify cache is being used.
-    with TestPipeline(is_integration_test=True) as test_pipeline:
+    with TestPipeline() as test_pipeline:
       pcoll_cached = (
           test_pipeline
           | beam.Create(requests)
