@@ -660,56 +660,69 @@ abstract class ReadFromKafkaDoFn<K, V>
 
         // Visible progress within the consumer polling timeout.
         // Partially or fully claim and process records in this batch.
-        for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
-          if (!tracker.tryClaim(rawRecord.offset())) {
-            consumer.seek(topicPartition, rawRecord.offset());
-            consumer.pause(Collections.singleton(topicPartition));
+        long rawSizesSum = 0L;
+        long rawSizesCount = 0L;
+        long rawSizesMin = Long.MAX_VALUE;
+        long rawSizesMax = Long.MIN_VALUE;
+        try {
+          for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
+            if (!tracker.tryClaim(rawRecord.offset())) {
+              consumer.seek(topicPartition, rawRecord.offset());
+              consumer.pause(Collections.singleton(topicPartition));
 
-            return ProcessContinuation.stop();
+              return ProcessContinuation.stop();
+            }
+            expectedOffset = rawRecord.offset() + 1;
+            try {
+              KafkaRecord<K, V> kafkaRecord =
+                  new KafkaRecord<>(
+                      rawRecord.topic(),
+                      rawRecord.partition(),
+                      rawRecord.offset(),
+                      ConsumerSpEL.getRecordTimestamp(rawRecord),
+                      ConsumerSpEL.getRecordTimestampType(rawRecord),
+                      ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
+                      ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
+                      ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
+              int recordSize =
+                  (rawRecord.key() == null ? 0 : rawRecord.key().length)
+                      + (rawRecord.value() == null ? 0 : rawRecord.value().length);
+              rawSizesSum = rawSizesSum + recordSize;
+              rawSizesCount = rawSizesCount + 1L;
+              rawSizesMin = Math.min(rawSizesMin, recordSize);
+              rawSizesMax = Math.max(rawSizesMax, recordSize);
+              Instant outputTimestamp;
+              // The outputTimestamp and watermark will be computed by timestampPolicy, where the
+              // WatermarkEstimator should be a manual one.
+              if (timestampPolicy != null) {
+                TimestampPolicyContext context =
+                    updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+                outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
+              } else {
+                Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
+                outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
+              }
+              receiver
+                  .get(recordTag)
+                  .outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
+            } catch (SerializationException e) {
+              // This exception should only occur during the key and value deserialization when
+              // creating the Kafka Record
+              badRecordRouter.route(
+                  receiver,
+                  rawRecord,
+                  null,
+                  e,
+                  "Failure deserializing Key or Value of Kakfa record reading from Kafka");
+              if (timestampPolicy != null) {
+                updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+              }
+            }
           }
-          expectedOffset = rawRecord.offset() + 1;
-          try {
-            KafkaRecord<K, V> kafkaRecord =
-                new KafkaRecord<>(
-                    rawRecord.topic(),
-                    rawRecord.partition(),
-                    rawRecord.offset(),
-                    ConsumerSpEL.getRecordTimestamp(rawRecord),
-                    ConsumerSpEL.getRecordTimestampType(rawRecord),
-                    ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                    ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
-                    ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
-            int recordSize =
-                (rawRecord.key() == null ? 0 : rawRecord.key().length)
-                    + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-            avgRecordSize.update(recordSize);
-            rawSizes.update(recordSize);
-            Instant outputTimestamp;
-            // The outputTimestamp and watermark will be computed by timestampPolicy, where the
-            // WatermarkEstimator should be a manual one.
-            if (timestampPolicy != null) {
-              TimestampPolicyContext context =
-                  updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
-              outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
-            } else {
-              Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
-              outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
-            }
-            receiver
-                .get(recordTag)
-                .outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
-          } catch (SerializationException e) {
-            // This exception should only occur during the key and value deserialization when
-            // creating the Kafka Record
-            badRecordRouter.route(
-                receiver,
-                rawRecord,
-                null,
-                e,
-                "Failure deserializing Key or Value of Kakfa record reading from Kafka");
-            if (timestampPolicy != null) {
-              updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
-            }
+        } finally {
+          if (rawSizesCount > 0L) {
+            avgRecordSize.update(rawSizesSum, rawSizesCount);
+            rawSizes.update(rawSizesSum, rawSizesCount, rawSizesMin, rawSizesMax);
           }
         }
 
