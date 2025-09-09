@@ -1,3 +1,5 @@
+package org.apache.beam.sdk.extensions.kafka.factories;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -15,8 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.kafka.factories;
-
 import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
@@ -207,6 +207,7 @@ public abstract class FileAwareFactoryFn<T>
    * @return a string with all instances of external paths converted to the local paths where the
    *     files sit.
    */
+<<<<<<<< HEAD:sdks/java/extensions/kafka-factories/src/main/java/org/apache/beam/sdk/extensions/kafka/factories/FileAwareFactoryFn.java
   private String replacePathWithLocal(String externalPath) throws IOException {
     String externalBucketPrefixIdentifier = "://";
     int externalBucketPrefixIndex = externalPath.lastIndexOf(externalBucketPrefixIdentifier);
@@ -215,6 +216,11 @@ public abstract class FileAwareFactoryFn<T>
       throw new RuntimeException(
           "The provided external bucket could not be matched to a known source.");
     }
+========
+  private String replacePathWithLocal(String gcsPath) throws IOException {
+    return DIRECTORY_PREFIX + "/" + factoryType + "/" + gcsPath.substring(GCS_PATH_PREFIX.length());
+  }
+>>>>>>>> 310d0224d6 (Migrate to a new module such that kafka remains GCP Agnostic.):sdks/java/io/kafka/file-aware-factories/src/main/java/org/apache/beam/sdk/io/kafka/file/aware/factories/FileAwareFactoryFn.java
 
     int prefixLength = externalBucketPrefixIndex + externalBucketPrefixIdentifier.length();
     return DIRECTORY_PREFIX + "/" + factoryType + "/" + externalPath.substring(prefixLength);
