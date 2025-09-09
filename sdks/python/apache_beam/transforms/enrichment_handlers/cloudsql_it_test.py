@@ -307,9 +307,9 @@ class BaseTestSQLEnrichment(unittest.TestCase):
       with cls._engine.connect() as conn:
         conn.execute(f"DROP TABLE IF EXISTS {cls._table_id}")
         conn.commit()
-        _LOGGER.info(f"Dropped table {cls._table_id}")
+        _LOGGER.info("Dropped table %s", cls._table_id)
     except Exception as e:
-      _LOGGER.warning(f"Failed to drop table {cls._table_id}: {e}")
+      _LOGGER.warning("Failed to drop table %s: %s", cls._table_id, e)
 
     # Fallback to metadata drop as a backup.
     cls._metadata.drop_all(cls._engine)
