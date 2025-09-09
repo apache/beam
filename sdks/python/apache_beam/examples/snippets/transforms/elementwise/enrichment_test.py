@@ -143,6 +143,9 @@ class EnrichmentTest(unittest.TestCase):
     self.maxDiff = None
     self.assertEqual(output, expected)
 
+  @unittest.skipUnless(
+      os.environ.get('ALLOYDB_PASSWORD'),
+      "ALLOYDB_PASSWORD environment var is not provided")
   def test_enrichment_with_google_cloudsql_pg(self, mock_stdout):
     db_adapter = DatabaseTypeAdapter.POSTGRESQL
     with EnrichmentTestHelpers.sql_test_context(True, db_adapter):
