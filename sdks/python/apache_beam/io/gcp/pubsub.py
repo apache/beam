@@ -553,7 +553,7 @@ class _PubSubWriteDoFn(DoFn):
   and publishing them in batches to optimize performance.
   """
   BUFFER_SIZE_ELEMENTS = 100
-  FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
+  FLUSH_TIMEOUT_SECS = 5 * 60 # 5 minutes
 
   def __init__(self, transform):
     self.project = transform.project
