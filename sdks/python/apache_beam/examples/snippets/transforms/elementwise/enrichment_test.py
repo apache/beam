@@ -232,6 +232,7 @@ class EnrichmentTestHelpers:
     metadata = MetaData()
 
     connection_config: ConnectionConfig
+    db = None
     if is_cloudsql:
       gcp_project_id = "apache-beam-testing"
       region = "us-central1"
