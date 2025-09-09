@@ -131,7 +131,7 @@ def enrichment_with_google_cloudsql_pg():
 
   database_adapter = DatabaseTypeAdapter.POSTGRESQL
   database_uri = os.environ.get("GOOGLE_CLOUD_SQL_DB_URI")
-  database_user = int(os.environ.get("GOOGLE_CLOUD_SQL_DB_USER"))
+  database_user = os.environ.get("GOOGLE_CLOUD_SQL_DB_USER")
   database_password = os.environ.get("GOOGLE_CLOUD_SQL_DB_PASSWORD")
   database_id = os.environ.get("GOOGLE_CLOUD_SQL_DB_ID")
   table_id = os.environ.get("GOOGLE_CLOUD_SQL_DB_TABLE_ID")
