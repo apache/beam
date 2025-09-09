@@ -115,6 +115,10 @@ public class KerberosConsumerFactoryFnTest {
           .when(() -> FileAwareFactoryFn.downloadGcsFile(keytabGcsPath, expectedKeytabLocalPath))
           .thenReturn(expectedKeytabLocalPath);
 
+<<<<<<<< HEAD:sdks/java/extensions/kafka-factories/src/test/java/org/apache/beam/sdk/io/kafka/file/aware/factories/KerberosConsumerFactoryFnTest.java
+========
+      // Mock other dependencies to prevent side effects
+>>>>>>>> 5afde061ac (Migrate to a new module such that kafka remains GCP Agnostic.):sdks/java/io/kafka/file-aware-factories/src/test/java/org/apache/beam/sdk/io/kafka/file/aware/factories/KerberosConsumerFactoryFnTest.java
       Configuration mockConf = Mockito.mock(Configuration.class);
       mockedConfiguration.when(Configuration::getConfiguration).thenReturn(mockConf);
       mockedFiles
