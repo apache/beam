@@ -720,7 +720,8 @@ class HypothesisTest(unittest.TestCase):
 @pytest.mark.uses_dill
 class PickleTest(unittest.TestCase):
   def setUp(self):
-    if PickleTest.pickler == 'dill':
+    # pylint: disable=access-member-before-definition
+    if self.pickler == 'dill':
       self.pickler = pytest.importorskip("dill")
 
   def test_generated_class_pickle_instance(self):

@@ -407,10 +407,11 @@ if __name__ == '__main__':
       extras_require={
           'dill': [
             # Dill doesn't have forwards-compatibility guarantees within minor
-            # version. Pickles created with a new version of dill may not unpickle
-            # using older version of dill. It is best to use the same version of
-            # dill on client and server, therefore list of allowed versions is
-            # very narrow. See: https://github.com/uqfoundation/dill/issues/341.
+            # version. Pickles created with a new version of dill may not
+            # unpickle using older version of dill. It is best to use the same
+            # version of dill on client and server, therefore list of allowed
+            # versions is very narrow. 
+            # See: https://github.com/uqfoundation/dill/issues/341.
             'dill>=0.3.1.1,<0.3.2',
           ],
           'docs': [

@@ -33,7 +33,7 @@ from apache_beam.internal import cloudpickle_pickler
 try:
   from apache_beam.internal import dill_pickler
 except ImportError:
-  dill_pickler = None
+  dill_pickler = None  # type: ignore[assignment]
 
 USE_CLOUDPICKLE = 'cloudpickle'
 USE_DILL = 'dill'
