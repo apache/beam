@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT;
@@ -63,7 +64,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.joda.time.Duration;
-import org.joda.time.format.DateTimeFormat;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -238,9 +238,7 @@ public class IcebergReadWriteIT {
                 (float) 1.0,
                 1.0,
                 true,
-                DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
-                    .withZoneUTC()
-                    .parseDateTime("2018-05-28 20:17:40.123"),
+                parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
                 "varchar",
                 "char",
                 asList("123", "456"),

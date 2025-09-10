@@ -34,8 +34,8 @@ import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,15 +59,11 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
-import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
-import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.ReadableDateTime;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -536,35 +532,13 @@ public class RecordWriterManagerTest {
     assertEquals(1, dataFile.getRecordCount());
     // build this string: bool=true/int=1/long=1/float=1.0/double=1.0/str=str
     List<String> expectedPartitions = new ArrayList<>();
-
-    for (PartitionField field : spec.fields()) {
-      String name = field.name();
-      Type type = spec.schema().findType(name);
-      Transform<Object, Object> transform = (Transform<Object, Object>) field.transform();
-      String val;
-      switch (name) {
-        case "date":
-          LocalDate localDate = checkStateNotNull(row.getValue(name));
-          Integer day = Integer.parseInt(String.valueOf(localDate.toEpochDay()));
-          val = transform.toHumanString(type, day);
-          break;
-        case "time":
-          LocalTime localTime = checkStateNotNull(row.getValue(name));
-          val = transform.toHumanString(type, localTime.toNanoOfDay() / 1000);
-          break;
-        case "datetime":
-          LocalDateTime ldt = checkStateNotNull(row.getValue(name));
-          val = transform.toHumanString(type, DateTimeUtil.microsFromTimestamp(ldt));
-          break;
-        case "datetime_tz":
-          ReadableDateTime dt = checkStateNotNull(row.getDateTime(name));
-          val = transform.toHumanString(type, dt.getMillis() * 1000);
-          break;
-        default:
-          val = transform.toHumanString(type, checkStateNotNull(row.getValue(name)));
-          break;
+    List<String> dateTypes = Arrays.asList("date", "time", "datetime", "datetime_tz");
+    for (Schema.Field field : primitiveTypeSchema.getFields()) {
+      Object val = checkStateNotNull(row.getValue(field.getName()));
+      if (dateTypes.contains(field.getName())) {
+        val = URLEncoder.encode(val.toString(), UTF_8.toString());
       }
-      expectedPartitions.add(name + "=" + URLEncoder.encode(val, UTF_8.toString()));
+      expectedPartitions.add(field.getName() + "=" + val);
     }
     String expectedPartitionPath = String.join("/", expectedPartitions);
     assertEquals(expectedPartitionPath, dataFile.getPartitionPath());
