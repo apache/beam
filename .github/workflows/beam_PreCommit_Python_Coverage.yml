@@ -54,7 +54,6 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   HF_INFERENCE_TOKEN: ${{ secrets.HF_INFERENCE_TOKEN }}
-  ALLOYDB_PASSWORD: ${{ secrets.ALLOYDB_PASSWORD }}
 
 
 jobs:
@@ -113,7 +112,7 @@ jobs:
           TESTCONTAINERS_HOST_OVERRIDE: ${{ contains(matrix.os, 'self-hosted') && env.DIND_IP || '' }}
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: "/var/run/docker.sock"
           TESTCONTAINERS_RYUK_DISABLED: "false"
-          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"          
+          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"
           PYTEST_ADDOPTS: "-v --tb=short --maxfail=3 --durations=20 --reruns=2 --reruns-delay=5"
           TC_TIMEOUT: "120"
           TC_MAX_TRIES: "120"
