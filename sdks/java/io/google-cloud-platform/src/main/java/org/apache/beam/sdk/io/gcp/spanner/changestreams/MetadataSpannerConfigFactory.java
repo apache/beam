@@ -77,6 +77,16 @@ public class MetadataSpannerConfigFactory {
       config = config.withEmulatorHost(StaticValueProvider.of(emulatorHost.get()));
     }
 
+    ValueProvider<String> experimentalHost = primaryConfig.getExperimentalHost();
+    if (experimentalHost != null && experimentalHost.get() != null) {
+      config = config.withExperimentalHost(experimentalHost.get());
+    }
+
+    ValueProvider<Boolean> plainText = primaryConfig.getPlainText();
+    if (plainText != null && plainText.get() != null) {
+      config = config.withUsingPlainTextChannel(plainText.get());
+    }
+
     ValueProvider<Boolean> isLocalChannelProvider = primaryConfig.getIsLocalChannelProvider();
     if (isLocalChannelProvider != null) {
       config =

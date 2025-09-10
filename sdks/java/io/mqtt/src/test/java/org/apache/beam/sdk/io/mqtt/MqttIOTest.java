@@ -27,6 +27,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -50,11 +51,13 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.fusesource.hawtbuf.Buffer;
 import org.fusesource.mqtt.client.BlockingConnection;
+import org.fusesource.mqtt.client.Callback;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
 import org.fusesource.mqtt.client.QoS;
 import org.fusesource.mqtt.client.Topic;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -284,6 +287,61 @@ public class MqttIOTest {
 
     // should stop before the test timeout
     pipeline.run();
+  }
+
+  private static class FakeMessage extends Message {
+
+    private int ackCount;
+
+    public FakeMessage() {
+      super(null, null, null, null);
+      this.ackCount = 0;
+    }
+
+    @Override
+    public void ack() {
+      ++ackCount;
+    }
+
+    @Override
+    public void ack(final Callback<Void> unused) {
+      ++ackCount;
+    }
+
+    public int getAckCount() {
+      return ackCount;
+    }
+  }
+
+  @Test
+  public void testReadCheckpoint() {
+    MqttIO.MqttCheckpointMark.Preparer preparer = new MqttIO.MqttCheckpointMark.Preparer("id");
+    ArrayList<Message> messages = new ArrayList<>();
+    for (int i = 0; i < 5; ++i) {
+      messages.add(new FakeMessage());
+    }
+    preparer.add(messages.get(0), Instant.ofEpochMilli(20));
+    preparer.add(messages.get(1), Instant.ofEpochMilli(10));
+    preparer.add(messages.get(2), Instant.ofEpochMilli(30));
+    assertEquals(Instant.ofEpochMilli(10), preparer.oldestMessageTimestamp);
+    MqttIO.MqttCheckpointMark checkpointA = preparer.newCheckpoint();
+    preparer.add(messages.get(3), Instant.ofEpochMilli(40));
+    preparer.add(messages.get(4), Instant.ofEpochMilli(50));
+    MqttIO.MqttCheckpointMark checkpointB = preparer.newCheckpoint();
+    assertTrue(
+        Arrays.stream(messages.toArray()).allMatch((m -> ((FakeMessage) m).getAckCount() == 0)));
+    checkpointA.finalizeCheckpoint();
+    // only messages in finalized checkpoint acked
+    assertTrue(
+        Arrays.stream(messages.subList(0, 3).toArray())
+            .allMatch((m -> ((FakeMessage) m).getAckCount() == 1)));
+    assertTrue(
+        Arrays.stream(messages.subList(3, 5).toArray())
+            .allMatch((m -> ((FakeMessage) m).getAckCount() == 0)));
+    checkpointB.finalizeCheckpoint();
+    // all messaged acked once
+    assertTrue(
+        Arrays.stream(messages.toArray()).allMatch((m -> ((FakeMessage) m).getAckCount() == 1)));
   }
 
   @Test
@@ -560,7 +618,6 @@ public class MqttIOTest {
     // the number of messages of the decoded checkpoint should be zero
     assertEquals(0, cp2.messages.size());
     assertEquals(cp1.clientId, cp2.clientId);
-    assertEquals(cp1.oldestMessageTimestamp, cp2.oldestMessageTimestamp);
   }
 
   /**

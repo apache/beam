@@ -372,3 +372,7 @@ include("sdks:java:io:iceberg:bqms")
 findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"
 include("it:clickhouse")
 findProject(":it:clickhouse")?.name = "clickhouse"
+include("sdks:java:extensions:sql:iceberg")
+findProject(":sdks:java:extensions:sql:iceberg")?.name = "iceberg"
+include("examples:java:iceberg")
+findProject(":examples:java:iceberg")?.name = "iceberg"
