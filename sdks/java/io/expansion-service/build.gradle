@@ -33,8 +33,6 @@ applyJavaNature(
 configurations.runtimeClasspath {
   // Pin kafka-clients version due to <3.4.0 missing auth callback classes.
   resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.9.0'
-  // iceberg needs avro:1.12.0
-  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
   // force parquet-avro:1.15.2 to fix CVE-2025-46762
   resolutionStrategy.force 'org.apache.parquet:parquet-avro:1.15.2'
 
