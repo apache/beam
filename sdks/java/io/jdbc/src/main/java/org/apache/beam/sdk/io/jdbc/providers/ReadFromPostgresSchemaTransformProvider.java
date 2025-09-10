@@ -58,7 +58,7 @@ public class ReadFromPostgresSchemaTransformProvider extends JdbcReadSchemaTrans
   public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       JdbcReadSchemaTransformConfiguration configuration) {
     String jdbcType = configuration.getJdbcType();
-    if (jdbcType != null && !jdbcType.equals(jdbcType())) {
+    if (jdbcType != null && !jdbcType.isEmpty() && !jdbcType.equals(jdbcType())) {
       throw new IllegalArgumentException(
           String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
     }
