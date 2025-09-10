@@ -20058,6 +20058,10 @@ Pydoc&lt;/a
 &lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-bigtable/#example">Enrichment with Bigtable&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;td style="text-align:left">Cloud SQL (PostgreSQL, MySQL, SQLServer)&lt;/td>
+&lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-cloudsql">Enrichment with CloudSQL&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
 &lt;td style="text-align:left">Vertex AI Feature Store&lt;/td>
 &lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store">Enrichment with Vertex AI Feature Store&lt;/a>&lt;/td>
 &lt;/tr>
@@ -20268,6 +20272,481 @@ Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={&amp;#39;produc
 class="button"
 target="_blank"
 href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Enrichment with CloudSQL</title><link>/documentation/transforms/python/elementwise/enrichment-cloudsql/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/enrichment-cloudsql/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="use-cloudsql-to-enrich-data">Use CloudSQL to enrich data&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table>
+&lt;tr>
+&lt;td>
+&lt;a>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.cloudsql.html#apache_beam.transforms.enrichment_handlers.cloudsql.CloudSQLEnrichmentHandler"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>Starting with Apache Beam 2.69.0, the enrichment transform includes
+built-in enrichment handler support for the
+&lt;a href="https://cloud.google.com/sql/docs">Google CloudSQL&lt;/a>. This handler allows your
+Beam pipeline to enrich data using SQL databases, with built-in support for:&lt;/p>
+&lt;ul>
+&lt;li>Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL&lt;/li>
+&lt;li>Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or
+on-premises databases)&lt;/li>
+&lt;/ul>
+&lt;p>The following example demonstrates how to create a pipeline that use the
+enrichment transform with the
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.cloudsql.html#apache_beam.transforms.enrichment_handlers.cloudsql.CloudSQLEnrichmentHandler">&lt;code>CloudSQLEnrichmentHandler&lt;/code>&lt;/a> handler.&lt;/p>
+&lt;h2 id="example-1-enrichment-with-google-cloudsql-managed-postgresql">Example 1: Enrichment with Google CloudSQL (Managed PostgreSQL)&lt;/h2>
+&lt;p>The data in the CloudSQL PostgreSQL table &lt;code>products&lt;/code> follows this format:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">product_id&lt;/th>
+&lt;th style="text-align:center">name&lt;/th>
+&lt;th style="text-align:center">quantity&lt;/th>
+&lt;th style="text-align:center">region_id&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">A&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">B&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">C&lt;/td>
+&lt;td style="text-align:center">10&lt;/td>
+&lt;td style="text-align:center">4&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment_handlers.cloudsql&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">DatabaseTypeAdapter&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">TableFieldsQueryConfig&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">CloudSQLConnectionConfig&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">os&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_adapter&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DatabaseTypeAdapter&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">POSTGRESQL&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_uri&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;GOOGLE_CLOUD_SQL_DB_URI&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_user&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;GOOGLE_CLOUD_SQL_DB_USER&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_password&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;GOOGLE_CLOUD_SQL_DB_PASSWORD&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;GOOGLE_CLOUD_SQL_DB_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">table_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;GOOGLE_CLOUD_SQL_DB_TABLE_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">where_clause_template&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;product_id = :pid&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">where_clause_fields&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;product_id&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;A&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;B&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;C&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">connection_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CloudSQLConnectionConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">db_adapter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_adapter&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">instance_connection_uri&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_uri&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">user&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_user&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">password&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_password&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">db_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">query_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TableFieldsQueryConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_template&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_template&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_fields&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_fields&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">cloudsql_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">connection_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">connection_config&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">query_config&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;Enrich W/ Google CloudSQL PostgreSQL&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">cloudsql_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>Row(product_id=1, name=&amp;#39;A&amp;#39;, quantity=2, region_id=3)
+Row(product_id=2, name=&amp;#39;B&amp;#39;, quantity=3, region_id=1)
+Row(product_id=3, name=&amp;#39;C&amp;#39;, quantity=10, region_id=4)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="example-2-enrichment-with-unmanaged-postgresql">Example 2: Enrichment with Unmanaged PostgreSQL&lt;/h2>
+&lt;p>The data in the Unmanaged PostgreSQL table &lt;code>products&lt;/code> follows this format:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">product_id&lt;/th>
+&lt;th style="text-align:center">name&lt;/th>
+&lt;th style="text-align:center">quantity&lt;/th>
+&lt;th style="text-align:center">region_id&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">A&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">B&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">C&lt;/td>
+&lt;td style="text-align:center">10&lt;/td>
+&lt;td style="text-align:center">4&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment_handlers.cloudsql&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">DatabaseTypeAdapter&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">TableFieldsQueryConfig&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ExternalSQLDBConnectionConfig&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">os&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_adapter&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DatabaseTypeAdapter&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">POSTGRESQL&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_host&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_HOST&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_port&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_PORT&amp;#34;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_user&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_USER&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_password&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_PASSWORD&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">table_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_TABLE_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">where_clause_template&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;product_id = :pid&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">where_clause_fields&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;product_id&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;A&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;B&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;C&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">connection_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ExternalSQLDBConnectionConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">db_adapter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_adapter&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">host&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_host&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">port&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_port&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">user&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_user&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">password&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_password&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">db_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">query_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TableFieldsQueryConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_template&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_template&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_fields&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_fields&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">cloudsql_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">connection_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">connection_config&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">query_config&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ Unmanaged PostgreSQL&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">cloudsql_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>Row(product_id=1, name=&amp;#39;A&amp;#39;, quantity=2, region_id=3)
+Row(product_id=2, name=&amp;#39;B&amp;#39;, quantity=3, region_id=1)
+Row(product_id=3, name=&amp;#39;C&amp;#39;, quantity=10, region_id=4)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="example-3-enrichment-with-unmanaged-mysql">Example 3: Enrichment with Unmanaged MySQL&lt;/h2>
+&lt;p>The data in the Unmanaged MySQL table &lt;code>products&lt;/code> follows this format:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">product_id&lt;/th>
+&lt;th style="text-align:center">name&lt;/th>
+&lt;th style="text-align:center">quantity&lt;/th>
+&lt;th style="text-align:center">region_id&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">A&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">B&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">C&lt;/td>
+&lt;td style="text-align:center">10&lt;/td>
+&lt;td style="text-align:center">4&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment_handlers.cloudsql&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">DatabaseTypeAdapter&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">TableFieldsQueryConfig&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ExternalSQLDBConnectionConfig&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">os&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_adapter&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DatabaseTypeAdapter&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MYSQL&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_host&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_HOST&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_port&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_PORT&amp;#34;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_user&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_USER&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_password&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_PASSWORD&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">table_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_TABLE_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">where_clause_template&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;product_id = :pid&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">where_clause_fields&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;product_id&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;A&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;B&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;C&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">connection_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ExternalSQLDBConnectionConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">db_adapter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_adapter&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">host&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_host&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">port&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_port&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">user&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_user&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">password&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_password&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">db_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">query_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TableFieldsQueryConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_template&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_template&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_fields&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_fields&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">cloudsql_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">connection_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">connection_config&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">query_config&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ Unmanaged MySQL&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">cloudsql_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>Row(product_id=1, name=&amp;#39;A&amp;#39;, quantity=2, region_id=3)
+Row(product_id=2, name=&amp;#39;B&amp;#39;, quantity=3, region_id=1)
+Row(product_id=3, name=&amp;#39;C&amp;#39;, quantity=10, region_id=4)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="example-4-enrichment-with-unmanaged-microsoft-sql-server">Example 4: Enrichment with Unmanaged Microsoft SQL Server&lt;/h2>
+&lt;p>The data in the Unmanaged Microsoft SQL Server table &lt;code>products&lt;/code> follows this
+format:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">product_id&lt;/th>
+&lt;th style="text-align:center">name&lt;/th>
+&lt;th style="text-align:center">quantity&lt;/th>
+&lt;th style="text-align:center">region_id&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">A&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">B&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">C&lt;/td>
+&lt;td style="text-align:center">10&lt;/td>
+&lt;td style="text-align:center">4&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment_handlers.cloudsql&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">DatabaseTypeAdapter&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">TableFieldsQueryConfig&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ExternalSQLDBConnectionConfig&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">os&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_adapter&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DatabaseTypeAdapter&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SQLSERVER&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_host&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_HOST&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_port&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_PORT&amp;#34;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_user&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_USER&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_password&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_PASSWORD&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">database_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">table_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;EXTERNAL_SQL_DB_TABLE_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">where_clause_template&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;product_id = :pid&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">where_clause_fields&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;product_id&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;A&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;B&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;C&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">connection_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ExternalSQLDBConnectionConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">db_adapter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_adapter&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">host&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_host&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">port&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_port&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">user&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_user&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">password&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_password&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">db_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">database_id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">query_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TableFieldsQueryConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_template&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_template&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_fields&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_fields&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">cloudsql_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">connection_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">connection_config&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">query_config&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ Unmanaged SQL Server&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">cloudsql_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>Row(product_id=1, name=&amp;#39;A&amp;#39;, quantity=2, region_id=3)
+Row(product_id=2, name=&amp;#39;B&amp;#39;, quantity=3, region_id=1)
+Row(product_id=3, name=&amp;#39;C&amp;#39;, quantity=10, region_id=4)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2>
+&lt;p>Not applicable.&lt;/p>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.cloudsql.html#apache_beam.transforms.enrichment_handlers.cloudsql.CloudSQLEnrichmentHandler"
 >&lt;img
 src="https://beam.apache.org/images/logos/sdks/python.png"
 width="32px"
@@ -20687,127 +21166,4 @@ original attempt, as shown in the diagram.&lt;/p>
 &lt;p>All &lt;code>DoFns&lt;/code> that experience coupled failures are terminated and must be torn
 down since they aren’t following the normal &lt;code>DoFn&lt;/code> lifecycle .&lt;/p>
 &lt;p>Executing transforms this way allows a runner to avoid persisting elements
-between transforms, saving on persistence costs.&lt;/p></description></item><item><title>Documentation: File processing patterns</title><link>/documentation/patterns/file-processing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/file-processing/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="file-processing-patterns">File processing patterns&lt;/h1>
-&lt;p>This page describes common file processing tasks. For more information on file-based I/O, see &lt;a href="/documentation/programming-guide/#pipeline-io">Pipeline I/O&lt;/a> and &lt;a href="/documentation/programming-guide/#file-based-data">File-based input and output data&lt;/a>.&lt;/p>
-&lt;nav class="language-switcher">
-&lt;strong>Adapt for:&lt;/strong>
-&lt;ul>
-&lt;li data-value="java" class="active">Java SDK&lt;/li>
-&lt;li data-value="py">Python SDK&lt;/li>
-&lt;/ul>
-&lt;/nav>
-&lt;h2 id="processing-files-as-they-arrive">Processing files as they arrive&lt;/h2>
-&lt;p>This section shows you how to process files as they arrive in your file system or object store (like Google Cloud Storage). You can continuously read files or trigger stream and processing pipelines when a file arrives.&lt;/p>
-&lt;h3 id="continuous-read-mode">Continuous read mode&lt;/h3>
-&lt;p class="language-java">You can use &lt;code>FileIO&lt;/code> or &lt;code>TextIO&lt;/code> to continuously read the source for new files.&lt;/p>
-&lt;p class="language-java">Use the &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html">&lt;code>FileIO&lt;/code>&lt;/a> class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded &lt;code>PCollection&amp;lt;Metadata&amp;gt;&lt;/code>, and stops if no new files appear for one hour:&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// This produces PCollection&amp;lt;MatchResult.Metadata&amp;gt;
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">FileIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">match&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">filepattern&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;...&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">continuously&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardSeconds&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">30&lt;/span>&lt;span class="o">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">Watch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Growth&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">afterTimeSinceNewOutput&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardHours&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">))));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="language-java">The &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html">&lt;code>TextIO&lt;/code>&lt;/a> class &lt;code>watchForNewFiles&lt;/code> property streams new file matches.&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// This produces PCollection&amp;lt;String&amp;gt;
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">TextIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">from&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;&amp;lt;path-to-files&amp;gt;/*&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">watchForNewFiles&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Check for new files every minute.
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Stop watching the file pattern if no new files appear for an hour.
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">Watch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Growth&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">afterTimeSinceNewOutput&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardHours&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">))));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="language-java">Some runners may retain file lists during updates, but file lists don’t persist when you restart a pipeline. You can save file lists by:&lt;/p>
-&lt;p class="language-java">&lt;ul>
-&lt;li>Storing processed filenames in an external file and deduplicating the lists at the next transform&lt;/li>
-&lt;li>Adding timestamps to filenames, writing a glob pattern to pull in only new files, and matching the pattern when the pipeline restarts&lt;/li>
-&lt;/ul>
-&lt;/p>
-&lt;p class="language-py">The continuous-read option is not available for Python.&lt;/p>
-&lt;h3 id="stream-processing-triggered-from-external-source">Stream processing triggered from external source&lt;/h3>
-&lt;p>A streaming pipeline can process data from an unbounded source. For example, to trigger stream processing with Google Cloud Pub/Sub:&lt;/p>
-&lt;ol>
-&lt;li>Use an external process to detect when new files arrive.&lt;/li>
-&lt;li>Send a Google Cloud Pub/Sub message with a URI to the file.&lt;/li>
-&lt;li>Access the URI from a &lt;code>DoFn&lt;/code> that follows the Google Cloud Pub/Sub source.&lt;/li>
-&lt;li>Process the file.&lt;/li>
-&lt;/ol>
-&lt;h3 id="batch-processing-triggered-from-external-source">Batch processing triggered from external source&lt;/h3>
-&lt;p>To start or schedule a batch pipeline job when a file arrives, write the triggering event in the source file itself. This has the most latency because the pipeline must initialize before processing. It’s best suited for low-frequency, large, file-size updates.&lt;/p>
-&lt;h2 id="accessing-filenames">Accessing filenames&lt;/h2>
-&lt;p class="language-java">Use the &lt;code>FileIO&lt;/code> class to read filenames in a pipeline job. &lt;code>FileIO&lt;/code> returns a &lt;code>PCollection&amp;lt;ReadableFile&amp;gt;&lt;/code> object, and the &lt;code>ReadableFile&lt;/code> instance contains the filename.&lt;/p>
-&lt;p class="language-java">To access filenames:&lt;/p>
-&lt;p class="language-java">&lt;ol>
-&lt;li>Create a &lt;code>ReadableFile&lt;/code> instance with &lt;code>FileIO&lt;/code>. &lt;code>FileIO&lt;/code> returns a &lt;code>PCollection&amp;lt;ReadableFile&amp;gt;&lt;/code> object. The &lt;code>ReadableFile&lt;/code> class contains the filename.&lt;/li>
-&lt;li>Call the &lt;code>readFullyAsUTF8String()&lt;/code> method to read the file into memory and return the filename as a &lt;code>String&lt;/code> object. If memory is limited, you can use utility classes like &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileSystems.html">&lt;code>FileSystems&lt;/code>&lt;/a> to work directly with the file.&lt;/li>
-&lt;/ol>
-&lt;/p>
-&lt;p class="language-py">To read filenames in a pipeline job:&lt;/p>
-&lt;p class="language-py">&lt;ol>
-&lt;li>Collect the list of file URIs. You can use the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems">&lt;code>FileSystems&lt;/code>&lt;/a> module to get a list of files that match a glob pattern.&lt;/li>
-&lt;li>Pass the file URIs to a &lt;code>PCollection&lt;/code>.&lt;/li>
-&lt;/ol>
-&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">FileIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">match&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">filepattern&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;hdfs://path/to/*.gz&amp;#34;&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// The withCompression method is optional. By default, the Beam SDK detects compression from
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// the filename.
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">FileIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readMatches&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">withCompression&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Compression&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">GZIP&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">FileIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">ReadableFile&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@ProcessElement&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="nd">@Element&lt;/span> &lt;span class="n">FileIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">ReadableFile&lt;/span> &lt;span class="n">file&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// We can now access the file and its metadata.
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">LOG&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">info&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;File Metadata resourceId is {} &amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">file&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getMetadata&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">resourceId&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">readable_files&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pipeline&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">fileio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MatchFiles&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;hdfs://path/to/*.txt&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">fileio&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadMatches&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Reshuffle&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">files_and_contents&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">readable_files&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">metadata&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">path&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read_utf8&lt;/span>&lt;span class="p">())))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+between transforms, saving on persistence costs.&lt;/p></description></item></channel></rss>
