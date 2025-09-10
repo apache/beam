@@ -41,6 +41,8 @@ public class RowJsonUtils {
   //
   private static int defaultBufferLimit;
 
+  private static final boolean STREAM_READ_CONSTRAINTS_AVAILABLE = streamReadConstraintsAvailable();
+
   /**
    * Increase the default jackson-databind stream read constraint.
    *
@@ -70,6 +72,25 @@ public class RowJsonUtils {
     increaseDefaultStreamReadConstraints(MAX_STRING_LENGTH);
   }
 
+  private static boolean streamReadConstraintsAvailable() {
+    try {
+      Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
+      return true;
+    } catch (ClassNotFoundException e) {
+      return false;
+    }
+  }
+
+  private static class StreamReadConstraintsHelper {
+    static void setStreamReadConstraints(JsonFactory jsonFactory, int sizeLimit) {
+      com.fasterxml.jackson.core.StreamReadConstraints streamReadConstraints =
+          com.fasterxml.jackson.core.StreamReadConstraints.builder()
+              .maxStringLength(sizeLimit)
+              .build();
+      jsonFactory.setStreamReadConstraints(streamReadConstraints);
+    }
+  }
+
   /**
    * Creates a thread-safe JsonFactory with custom stream read constraints.
    *
@@ -83,16 +104,8 @@ public class RowJsonUtils {
   public static JsonFactory createJsonFactory(int sizeLimit) {
     sizeLimit = Math.max(sizeLimit, MAX_STRING_LENGTH);
     JsonFactory jsonFactory = new JsonFactory();
-    try {
-      // Check if StreamReadConstraints is available (Jackson 2.15+)
-      Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
-      com.fasterxml.jackson.core.StreamReadConstraints streamReadConstraints =
-          com.fasterxml.jackson.core.StreamReadConstraints.builder()
-              .maxStringLength(sizeLimit)
-              .build();
-      jsonFactory.setStreamReadConstraints(streamReadConstraints);
-    } catch (ClassNotFoundException e) {
-      // If the class is not found (i.e., Jackson version < 2.15), do nothing.
+    if (STREAM_READ_CONSTRAINTS_AVAILABLE) {
+      StreamReadConstraintsHelper.setStreamReadConstraints(jsonFactory, sizeLimit);
     }
     return jsonFactory;
   }
