@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -468,7 +469,7 @@ func ExtractProfilerServiceName(options string, metadata map[string]string) stri
 		if jobName, exists := metadata["job_name"]; exists {
 			profilerServiceName = jobName
 		}else {
-            return errors.New("required job_name missing from metadata, profiling will not be enabled without it")
+            return errors.New("required job_name missing from metadata, profiling will not be enabled without it").Error()
         }
 	}
 
