@@ -56,7 +56,7 @@ const (
 	googleCloudProfilerAgentBaseArgs    = "-agentpath:/opt/google_cloud_profiler/profiler_java_agent.so=-logtostderr,-cprof_service=%s,-cprof_service_version=%s"
 	googleCloudProfilerAgentHeapArgs    = googleCloudProfilerAgentBaseArgs + ",-cprof_enable_heap_sampling,-cprof_heap_sampling_interval=2097152"
 	jammAgentArgs                       = "-javaagent:/opt/apache/beam/jars/jamm.jar"
-	openTelemetryAgentArgs              = "-javaagent:/opt/apache/beam/jars/opentelemetry-javaagent.jar"
+	openTelemetryAgentArgs              = "-javaagent:/opt/apache/beam/jars/opentelemetry-javaagent.jar=otel.javaagent.extensions=/opt/opentelemetry/extensions"
 )
 
 func main() {
@@ -283,6 +283,15 @@ func main() {
 		if modules, ok := pipelineOptions.GetStructValue().GetFields()["jdkAddRootModules"]; ok {
 			for _, module := range modules.GetListValue().GetValues() {
 				args = append(args, "--add-modules="+module.GetStringValue())
+			}
+		}
+
+		// Add OpenTelemetry properties specified in pipeline options
+		if properties, ok := pipelineOptions.GetStructValue().GetFields()["openTelemetryProperties"]; ok {
+			for key, value := range properties.GetStructValue().GetFields() {
+				if strings.HasPrefix(key, "otel.") {
+					args = append(args, "-D"+key+"="+value.GetStringValue())
+				}
 			}
 		}
 	}

@@ -443,6 +443,17 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   void setElementProcessingTimeoutMinutes(int value);
 
+  /**
+   * The OpenTelemetry properties that will be appended to the set of system properties for SDK
+   * harness instances.
+   */
+  @Description(
+      "The OpenTelemetry properties that will be appended to the set of system properties for SDK "
+          + "harness instances.")
+  Map<String, String> getOpenTelemetryProperties();
+
+  void setOpenTelemetryProperties(Map<String, String> value);
+
   @JsonIgnore
   @Hidden
   @Default.InstanceFactory(GlobalOpenTelemetryFactory.class)

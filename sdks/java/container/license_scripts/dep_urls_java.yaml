@@ -70,8 +70,8 @@ opentelemetry-bom:
     license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.47.0/LICENSE"
     type: "Apache License 2.0"
 opentelemetry-instrumentation-bom:
-  '2.13.0':
-    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java-instrumentation/v2.13.0/LICENSE"
+  '2.13.3':
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java-instrumentation/v2.13.3/LICENSE"
     type: "Apache License 2.0"
 zstd-jni:
   '1.5.2-5':

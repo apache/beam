@@ -57,6 +57,7 @@ task copyDockerfileDependencies(type: Copy) {
     }
     rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
     rename 'jamm.*.jar', 'jamm.jar'
+    rename 'opentelemetry-gcp-auth-extension-.*\\.jar', 'opentelemetry-gcp-auth-extension.jar'
     rename 'opentelemetry-javaagent-.*\\.jar', 'opentelemetry-javaagent.jar'
 
     setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
