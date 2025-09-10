@@ -116,3 +116,45 @@ def enrichment_with_vertex_ai_legacy():
         | "Enrich W/ Vertex AI" >> Enrichment(vertex_ai_handler)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_vertex_ai_legacy]
+
+
+def enrichment_with_tecton():
+  # [START enrichment_with_tecton]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.tecton_feature_store import (
+    TectonConnectionConfig, TectonFeaturesRetrievalConfig,
+    TectonFeatureStoreEnrichmentHandler)
+
+  data = [
+      beam.Row(user_id='user_1990251765'),
+      beam.Row(user_id='user_1284832379'),
+      beam.Row(user_id='user_9979340926'),
+  ]
+
+  connection_config = TectonConnectionConfig(
+      url='https://explore.tecton.ai',
+      default_workspace_name='prod',
+      api_key='101142fd7d775e0a1bd9e343cca2a44d'
+  )
+
+  features_config = TectonFeaturesRetrievalConfig(
+      feature_service_name='fraud_detection_feature_service',
+      entity_id='user_id'
+  )
+
+  tecton_handler = TectonFeatureStoreEnrichmentHandler(
+      connection_config=connection_config,
+      features_retrieval_config=features_config
+  )
+
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ Tecton" >> Enrichment(tecton_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_tecton]
+
+
+enrichment_with_tecton()

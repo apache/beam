@@ -161,7 +161,7 @@ dataframe_dependency = [
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
-
+tecton_dependency = ['tecton-client>=0.4.0,<1.0.0']
 
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
@@ -449,7 +449,7 @@ if __name__ == '__main__':
               'pg8000>=1.31.1',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
-          ] + milvus_dependency,
+          ] + milvus_dependency + tecton_dependency,
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',

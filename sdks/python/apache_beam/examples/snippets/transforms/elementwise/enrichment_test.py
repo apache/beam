@@ -28,6 +28,7 @@ try:
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_bigtable, \
   enrichment_with_vertex_ai_legacy
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_vertex_ai
+  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_tecton
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
@@ -57,6 +58,15 @@ Row(entity_id='movie_01', title='The Shawshank Redemption', genres='Drama')
 Row(entity_id='movie_02', title='The Shining', genres='Horror')
 Row(entity_id='movie_04', title='The Dark Knight', genres='Action')
   [END enrichment_with_vertex_ai_legacy]'''.splitlines()[1:-1]
+  return expected
+
+
+def validate_enrichment_with_tecton():
+  expected = '''[START enrichment_with_tecton]
+Row(user_id='user_9979340926', user_transaction_metrics.amount_count_1d_1d=1, user_transaction_metrics.amount_count_3d_1d=3, user_transaction_metrics.amount_count_7d_1d=7, user_transaction_metrics.amount_mean_1d_1d=65.05, user_transaction_metrics.amount_mean_3d_1d=42.72333333333333, user_transaction_metrics.amount_mean_7d_1d=32.955714285714286)
+Row(user_id='user_1990251765', user_transaction_metrics.amount_count_1d_1d=None, user_transaction_metrics.amount_count_3d_1d=2, user_transaction_metrics.amount_count_7d_1d=3, user_transaction_metrics.amount_mean_1d_1d=None, user_transaction_metrics.amount_mean_3d_1d=25.880000000000003, user_transaction_metrics.amount_mean_7d_1d=27.796666666666667)
+Row(user_id='user_1284832379', user_transaction_metrics.amount_count_1d_1d=2, user_transaction_metrics.amount_count_3d_1d=6, user_transaction_metrics.amount_count_7d_1d=12, user_transaction_metrics.amount_mean_1d_1d=111.465, user_transaction_metrics.amount_mean_3d_1d=61.961666666666666, user_transaction_metrics.amount_mean_7d_1d=171.5625)
+  [END enrichment_with_tecton]'''.splitlines()[1:-1]
   return expected
 
 
@@ -106,6 +116,16 @@ class EnrichmentTest(unittest.TestCase):
     self.assertEqual(
         std_out_to_dict(output, 'entity_id'),
         std_out_to_dict(expected, 'entity_id'))
+
+  def test_enrichment_with_tecton(self, mock_stdout):
+    enrichment_with_tecton()
+    output = mock_stdout.getvalue().splitlines()
+    expected = validate_enrichment_with_tecton()
+
+    self.assertEqual(len(output), len(expected))
+    self.assertEqual(
+        std_out_to_dict(output, 'user_id'),
+        std_out_to_dict(expected, 'user_id'))
 
 
 if __name__ == '__main__':
