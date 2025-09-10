@@ -206,7 +206,7 @@ class PipelineOptionsValidator(object):
     return []
 
   def validate_pickle_library(self, view):
-    """Validates a GCS path against gs://bucket/object URI format."""
+    """Validates the pickle_library option."""
     if view.pickle_library == 'default' or view.pickle_library == 'cloudpickle':
       return []
 
