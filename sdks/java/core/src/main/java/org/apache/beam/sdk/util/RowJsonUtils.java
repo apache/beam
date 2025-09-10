@@ -38,6 +38,38 @@ public class RowJsonUtils {
   // The maximum string length for the JSON parser, set to 100 MB.
   public static final int MAX_STRING_LENGTH = 100 * 1024 * 1024;
 
+  //
+  private static int defaultBufferLimit;
+
+  /**
+   * Increase the default jackson-databind stream read constraint.
+   *
+   * <p>StreamReadConstraints was introduced in jackson 2.15 causing string > 20MB (5MB in 2.15.0)
+   * parsing failure. This has caused regressions in its dependencies include Beam. Here we
+   * overwrite the default buffer size limit to 100 MB, and exposes this interface for higher limit.
+   * If needed, call this method during pipeline run time, e.g. in DoFn.setup.
+   */
+  public static void increaseDefaultStreamReadConstraints(int newLimit) {
+    if (newLimit <= defaultBufferLimit) {
+      return;
+    }
+    try {
+      Class<?> unused = Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
+
+      com.fasterxml.jackson.core.StreamReadConstraints.overrideDefaultStreamReadConstraints(
+          com.fasterxml.jackson.core.StreamReadConstraints.builder()
+              .maxStringLength(newLimit)
+              .build());
+    } catch (ClassNotFoundException e) {
+      // <2.15, do nothing
+    }
+    defaultBufferLimit = newLimit;
+  }
+
+  static {
+    increaseDefaultStreamReadConstraints(MAX_STRING_LENGTH);
+  }
+
   /**
    * Creates a thread-safe JsonFactory with custom stream read constraints.
    *
