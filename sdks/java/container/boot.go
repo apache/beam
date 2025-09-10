@@ -186,6 +186,7 @@ func main() {
 		lim = HeapSizeLimit(size)
 	}
 
+	env := map[string]string{}
 	args := []string{
 		"-Xmx" + strconv.FormatUint(lim, 10),
 		// ParallelGC the most adequate for high throughput and lower CPU utilization
@@ -294,6 +295,17 @@ func main() {
 				}
 			}
 		}
+
+		// TODO(sjvanrossum): Remove this section when Dataflow sets this environment variable
+		// Add GOOGLE_CLOUD_PROJECT environment variable if unset
+		if _, ok := os.LookupEnv("GOOGLE_CLOUD_PROJECT"); !ok {
+			if project, ok := pipelineOptions.GetStructValue().GetFields()["project"]; ok {
+				if p := project.GetStringValue(); len(p) > 0 {
+					env["GOOGLE_CLOUD_PROJECT"] = p
+					logger.Printf(ctx, "Setting GOOGLE_CLOUD_PROJECT environment variable.")
+				}
+			}
+		}
 	}
 	// Automatically open modules for Java 11+
 	openModuleAgentJar := "/opt/apache/beam/jars/open-module-agent.jar"
@@ -303,7 +315,7 @@ func main() {
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
 
-	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
+	logger.Fatalf(ctx, "Java exited: %v", execx.ExecuteEnv(env, "java", args...))
 }
 
 // heapSizeLimit returns 80% of the runner limit, if provided. If not provided,
