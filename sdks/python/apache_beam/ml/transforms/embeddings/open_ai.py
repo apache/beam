@@ -21,16 +21,17 @@ from typing import Optional
 from typing import TypeVar
 from typing import Union
 
-import apache_beam as beam
 import openai
+from openai import APIError
+from openai import RateLimitError
+
+import apache_beam as beam
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row
-from openai import APIError
-from openai import RateLimitError
 
 __all__ = ["OpenAITextEmbeddings"]
 
@@ -103,12 +104,12 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
   ) -> Iterable:
     """Makes a request to OpenAI embedding API and returns embeddings."""
     # Prepare arguments for the API call
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "model": self.model_name,
         "input": batch,
     }
     if self.dimensions:
-      kwargs["dimensions"] = [str(self.dimensions)]
+      kwargs["dimensions"] = self.dimensions
     if self.user:
       kwargs["user"] = self.user
 
@@ -139,7 +140,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
     """
     Embedding Config for OpenAI Text Embedding models.
     Text Embeddings are generated for a batch of text using the OpenAI API.
-    
+
     Args:
       model_name: Name of the OpenAI embedding model
       columns: The columns where the embeddings will be stored in the output
