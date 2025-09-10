@@ -1161,6 +1161,8 @@ type stageState struct {
 	inprogressHoldsByBundle map[string]map[mtime.Time]int // bundle to associated holds.
 
 	processingTimeTimers *timerHandler
+
+	watermarkAdvanced bool // whether the watermark for this stage has advanced
 }
 
 // stageKind handles behavioral differences between ordinary, stateful, and aggregation stage kinds.
@@ -2144,6 +2146,7 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	// If bigger, advance the input watermark.
 	if newIn > ss.input {
 		ss.input = newIn
+		ss.watermarkAdvanced = true
 	}
 	// The output starts with the new input as the basis.
 	newOut := ss.input
@@ -2302,7 +2305,7 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 	// then we can't yet process this stage.
 	inputW := ss.input
 	_, upstreamW := ss.UpstreamWatermark()
-	if inputW == upstreamW {
+	if inputW == upstreamW && !ss.watermarkAdvanced {
 		slog.Debug("bundleReady: unchanged upstream watermark",
 			slog.String("stage", ss.ID),
 			slog.Group("watermark",
@@ -2310,6 +2313,8 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 				slog.Any("input", inputW)))
 		return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
 	}
+
+	ss.watermarkAdvanced = false
 	ready := true
 	for _, side := range ss.sides {
 		pID, ok := em.pcolParents[side.Global]
