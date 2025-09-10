@@ -54,6 +54,8 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.PulsarContainer;
 import org.testcontainers.utility.DockerImageName;
 
+// TODO(https://github.com/apache/beam/issues/31078) exceptions are currently suppressed
+@SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
 @RunWith(JUnit4.class)
 public class PulsarIOTest {
 

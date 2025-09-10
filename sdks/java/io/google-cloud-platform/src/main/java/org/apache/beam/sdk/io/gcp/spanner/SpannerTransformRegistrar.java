@@ -79,6 +79,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
     String projectId = "";
     @Nullable String host;
     @Nullable String emulatorHost;
+    @Nullable String experimentalHost;
+    @Nullable Boolean plainText;
 
     public void setInstanceId(String instanceId) {
       this.instanceId = instanceId;
@@ -98,6 +100,14 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     public void setEmulatorHost(@Nullable String emulatorHost) {
       this.emulatorHost = emulatorHost;
+    }
+
+    public void setExperimentalHost(@Nullable String experimentalHost) {
+      this.experimentalHost = experimentalHost;
+    }
+
+    public void setPlainText(@Nullable Boolean plainText) {
+      this.plainText = plainText;
     }
 
     void checkMandatoryFields() {
@@ -232,6 +242,12 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       }
       if (configuration.emulatorHost != null) {
         readTransform = readTransform.withEmulatorHost(configuration.emulatorHost);
+      }
+      if (configuration.experimentalHost != null) {
+        readTransform = readTransform.withExperimentalHost(configuration.experimentalHost);
+      }
+      if (configuration.plainText != null) {
+        readTransform = readTransform.withUsingPlainTextChannel(configuration.plainText);
       }
       @Nullable TimestampBound timestampBound = configuration.getTimestampBound();
       if (timestampBound != null) {
@@ -370,6 +386,12 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       }
       if (configuration.emulatorHost != null) {
         writeTransform = writeTransform.withEmulatorHost(configuration.emulatorHost);
+      }
+      if (configuration.experimentalHost != null) {
+        writeTransform = writeTransform.withExperimentalHost(configuration.experimentalHost);
+      }
+      if (configuration.plainText != null) {
+        writeTransform = writeTransform.withUsingPlainTextChannel(configuration.plainText);
       }
       if (configuration.commitDeadline != null) {
         writeTransform = writeTransform.withCommitDeadline(configuration.commitDeadline);
