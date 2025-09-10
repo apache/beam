@@ -1,4 +1,5 @@
 {
   "https://github.com/apache/beam/pull/36138": "Cleanly separating v1 worker and v2 sdk harness container image handling",
+  "https://github.com/apache/beam/pull/34902": "Introducing OutputBuilder",
   "revision":  1
 }
