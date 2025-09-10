@@ -67,7 +67,9 @@ public class InMemoryReader<T> extends NativeReader<T> {
     checkArgument(this.startIndex >= 0, "negative start index: %s", startIndex);
     checkArgument(
         this.endIndex >= this.startIndex,
-        "end index before start: [" + this.startIndex + ", " + this.endIndex + ")");
+        "end index before start: [%s, %s)",
+        this.startIndex,
+        this.endIndex);
     this.coder = coder;
   }
 

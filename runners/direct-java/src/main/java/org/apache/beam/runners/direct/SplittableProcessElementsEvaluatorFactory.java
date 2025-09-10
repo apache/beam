@@ -65,7 +65,7 @@ class SplittableProcessElementsEvaluatorFactory<
               public DoFnLifecycleManager load(final AppliedPTransform<?, ?, ?> application) {
                 checkArgument(
                     ProcessElements.class.isInstance(application.getTransform()),
-                    "No know extraction of the fn from " + application);
+                    "No know extraction of the fn from %s", application);
                 final ProcessElements<
                         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
                     transform =

@@ -540,7 +540,7 @@ public class BigQueryIOWriteTest implements Serializable {
       assertThat(
           fakeDatasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
-      checkLineageSinkMetric(pipelineResult, "project-id.dataset-id.userid-%s" + entry.getKey());
+      checkLineageSinkMetric(pipelineResult, "project-id.dataset-id.userid-" + entry.getKey());
     }
   }
 
