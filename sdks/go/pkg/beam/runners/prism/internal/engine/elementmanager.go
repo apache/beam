@@ -1897,7 +1897,6 @@ func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementM
 	//
 	// Potentially puts too much work on the scheduling thread though.
 
-	// var toProcess []element
 	minTs := mtime.MaxTimestamp
 	holdsInBundle := map[mtime.Time]int{}
 
