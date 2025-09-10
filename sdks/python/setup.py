@@ -441,7 +441,7 @@ if __name__ == '__main__':
               'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
               'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
               'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
-              'cryptography>=41.0.2',
+              'cryptography>=45.0.7',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
               'python-tds>=1.16.1',
