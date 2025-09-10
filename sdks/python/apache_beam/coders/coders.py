@@ -900,9 +900,10 @@ class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
   def __init__(self):
     if not dill:
-      raise RuntimeError("This pipeline contains a DillCoder which requires " \
-      "the dill package. Install the dill package with the dill extra " \
-        "e.g. apache-beam[dill]")
+      raise RuntimeError(
+          "This pipeline contains a DillCoder which requires "
+          "the dill package. Install the dill package with the dill extra "
+          "e.g. apache-beam[dill]")
 
   def _create_impl(self):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)

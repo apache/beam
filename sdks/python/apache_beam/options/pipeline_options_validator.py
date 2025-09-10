@@ -124,10 +124,10 @@ class PipelineOptionsValidator(object):
       'with the dill extra e.g. apache-beam[gcp, dill]. Dill package was not '
       'found')
   ERR_UNSAFE_DILL_VERSION = (
-      'Dill version 0.3.1.1 is required when using pickle_library=dill. Other'
+      'Dill version 0.3.1.1 is required when using pickle_library=dill. Other '
       'versions of dill are untested with Apache Beam. To install the supported'
-      'dill version instal apache-beam[dill] extra. To use an unsupported dill '
-      'version, use pickle_library=dill_unsafe. %s')
+      ' dill version instal apache-beam[dill] extra. To use an unsupported '
+      'dill version, use pickle_library=dill_unsafe. %s')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
