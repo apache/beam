@@ -21,31 +21,13 @@ on:
     branches: ['master', 'release-*']
     paths:
       - "sdks/java/io/pulsar/**"
-      - "sdks/java/io/common/**"
-      - "sdks/java/core/src/main/**"
-      - "build.gradle"
-      - "buildSrc/**"
-      - "gradle/**"
-      - "gradle.properties"
-      - "gradlew"
-      - "gradle.bat"
-      - "settings.gradle.kts"
       - ".github/workflows/beam_PreCommit_Java_Pulsar_IO_Direct.yml"
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
       - "sdks/java/io/pulsar/**"
-      - "sdks/java/io/common/**"
-      - "sdks/java/core/src/main/**"
+      - ".github/workflows/beam_PreCommit_Java_Pulsar_IO_Direct.yml"
       - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/beam_PreCommit_Java_Pulsar_IO_Direct.json'
-      - "build.gradle"
-      - "buildSrc/**"
-      - "gradle/**"
-      - "gradle.properties"
-      - "gradlew"
-      - "gradle.bat"
-      - "settings.gradle.kts"
   issue_comment:
     types: [created]
   schedule:
@@ -107,6 +89,13 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:pulsar:build
+          arguments: |
+            -PdisableSpotlessCheck=true \
+            -PdisableCheckStyle=true \
+      - name: run Pulsar IO IT script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:io:pulsar:integrationTest
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \

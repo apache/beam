@@ -355,6 +355,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:mqtt:build")
   dependsOn(":sdks:java:io:neo4j:build")
   dependsOn(":sdks:java:io:parquet:build")
+  dependsOn(":sdks:java:io:pulsar:build")
   dependsOn(":sdks:java:io:rabbitmq:build")
   dependsOn(":sdks:java:io:redis:build")
   dependsOn(":sdks:java:io:rrio:build")
