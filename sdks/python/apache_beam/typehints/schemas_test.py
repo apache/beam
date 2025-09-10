@@ -21,7 +21,6 @@
 
 import itertools
 import pickle
-import pytest
 import unittest
 from typing import Any
 from typing import ByteString
@@ -32,6 +31,7 @@ from typing import Optional
 from typing import Sequence
 
 import numpy as np
+import pytest
 from hypothesis import given
 from hypothesis import settings
 from parameterized import parameterized

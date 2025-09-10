@@ -19,13 +19,13 @@
 
 # pytype: skip-file
 
-import pytest
 import random
 import sys
 import threading
 import types
 import unittest
 
+import pytest
 from parameterized import param
 from parameterized import parameterized
 

@@ -19,10 +19,10 @@ import copy
 import dataclasses
 import logging
 import os
-import pytest
 import unittest
 from typing import Optional
 
+import pytest
 from parameterized import parameterized
 
 from apache_beam.internal.cloudpickle import cloudpickle

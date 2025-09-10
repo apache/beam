@@ -23,7 +23,6 @@ import logging
 import unittest
 
 import pytest
-
 from hamcrest import assert_that
 from hamcrest import contains_string
 from hamcrest import only_contains
