@@ -48,7 +48,7 @@ import org.joda.time.Duration;
 public class Redistribute {
   /** @return a {@link RedistributeArbitrarily} transform with default configuration. */
   public static <T> RedistributeArbitrarily<T> arbitrarily() {
-    return new RedistributeArbitrarily<>(null, false);
+    return new RedistributeArbitrarily<>(null, false, false);
   }
 
   /** @return a {@link RedistributeByKey} transform with default configuration. */
@@ -131,23 +131,33 @@ public class Redistribute {
   public static class RedistributeArbitrarily<T>
       extends PTransform<PCollection<T>, PCollection<T>> {
     // The number of buckets to shard into.
-    // A runner is free to ignore this (a runner may ignore the transorm
+    // A runner is free to ignore this (a runner may ignore the transform
     // entirely!) This is a performance optimization to prevent having
     // unit sized bundles on the output. If unset, uses a random integer key.
     private @Nullable Integer numBuckets = null;
     private boolean allowDuplicates = false;
+    private boolean deterministicSharding = false;
 
-    private RedistributeArbitrarily(@Nullable Integer numBuckets, boolean allowDuplicates) {
+    private RedistributeArbitrarily(
+        @Nullable Integer numBuckets, boolean allowDuplicates, boolean deterministicSharding) {
       this.numBuckets = numBuckets;
       this.allowDuplicates = allowDuplicates;
+      this.deterministicSharding = deterministicSharding;
     }
 
     public RedistributeArbitrarily<T> withNumBuckets(@Nullable Integer numBuckets) {
-      return new RedistributeArbitrarily<>(numBuckets, this.allowDuplicates);
+      return new RedistributeArbitrarily<>(
+          numBuckets, this.allowDuplicates, this.deterministicSharding);
     }
 
     public RedistributeArbitrarily<T> withAllowDuplicates(boolean allowDuplicates) {
-      return new RedistributeArbitrarily<>(this.numBuckets, allowDuplicates);
+      return new RedistributeArbitrarily<>(
+          this.numBuckets, allowDuplicates, this.deterministicSharding);
+    }
+
+    public RedistributeArbitrarily<T> withDeterministicSharding(boolean deterministicSharding) {
+      return new RedistributeArbitrarily<>(
+          this.numBuckets, this.allowDuplicates, deterministicSharding);
     }
 
     public boolean getAllowDuplicates() {
@@ -157,7 +167,9 @@ public class Redistribute {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return input
-          .apply("Pair with random key", ParDo.of(new AssignShardFn<>(numBuckets)))
+          .apply(
+              "Pair with key",
+              ParDo.of(new AssignShardFn<>(numBuckets, this.deterministicSharding)))
           .apply(Redistribute.<Integer, T>byKey().withAllowDuplicates(this.allowDuplicates))
           .apply(Values.create());
     }
@@ -191,21 +203,31 @@ public class Redistribute {
   }
 
   static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {
-    private int shard;
+    private int randomShard;
     private @Nullable Integer numBuckets;
+    private boolean deterministicSharding;
 
-    public AssignShardFn(@Nullable Integer numBuckets) {
+    public AssignShardFn(@Nullable Integer numBuckets, boolean deterministicSharding) {
       this.numBuckets = numBuckets;
+      this.deterministicSharding = deterministicSharding;
+      this.randomShard = 0;
     }
 
     @Setup
     public void setup() {
-      shard = ThreadLocalRandom.current().nextInt();
+      if (deterministicSharding) {
+        randomShard = ThreadLocalRandom.current().nextInt();
+      }
     }
 
     @ProcessElement
     public void processElement(@Element T element, OutputReceiver<KV<Integer, T>> r) {
-      ++shard;
+      int shard = 0;
+      if (deterministicSharding && element != null) {
+        shard = element.hashCode();
+      } else {
+        shard = ++randomShard;
+      }
       // Smear the shard into something more random-looking, to avoid issues
       // with runners that don't properly hash the key being shuffled, but rely
       // on it being random-looking. E.g. Spark takes the Java hashCode() of keys,
