@@ -223,7 +223,9 @@ public class Redistribute {
     }
 
     static int bucket(int hash, @Nullable Integer numBuckets) {
-      if (numBuckets == null) { return hash; }
+      if (numBuckets == null) {
+        return hash;
+      }
       UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
       return UnsignedInteger.fromIntBits(hash).mod(unsignedNumBuckets).intValue();
     }
