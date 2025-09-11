@@ -303,8 +303,9 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       element: 'ReadFromBigQueryRequest'):
     location = bq.get_query_location(
         self._get_project(), element.query, not element.use_standard_sql)
+    temp_dataset_project = self._get_temp_dataset_project()
     bq.create_temporary_dataset(
-        self._get_project(), location, kms_key=self.kms_key)
+        temp_dataset_project, location, kms_key=self.kms_key)
 
   def _execute_query(
       self,

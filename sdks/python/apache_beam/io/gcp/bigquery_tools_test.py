@@ -303,8 +303,8 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   def test_create_temporary_dataset_with_kms_key(self):
     kms_key = (
-      'projects/my-project/locations/global/keyRings/my-kr/'
-      'cryptoKeys/my-key'
+        'projects/my-project/locations/global/keyRings/my-kr/'
+        'cryptoKeys/my-key'
     )
     client = mock.Mock()
     client.datasets.Get.side_effect = HttpError(
