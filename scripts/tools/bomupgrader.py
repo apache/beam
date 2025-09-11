@@ -52,7 +52,7 @@ class BeamModulePluginProcessor:
       "grpc":
           "io.grpc:grpc-netty",  # use "grpc-netty" to pick up proper netty version
       "netty": "io.netty:netty-transport",
-      "opentelemetry_instrumentation": "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom",
+      "opentelemetry": "io.opentelemetry:opentelemetry-sdk",
       "protobuf": "com.google.protobuf:protobuf-java"
   }
   # dependencies managed by GCP-BOM that used the dependencies in KNOWN_DEPS
