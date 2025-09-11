@@ -210,7 +210,7 @@ public class Redistribute {
   }
 
   static class Sharding {
-    static int Smear(int shard) {
+    static int smear(int shard) {
       // Smear the shard into something more random-looking, to avoid issues
       // with runners that don't properly hash the key being shuffled, but rely
       // on it being random-looking. E.g. Spark takes the Java hashCode() of keys,
@@ -222,8 +222,8 @@ public class Redistribute {
       return 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
     }
 
-    static int Bucket(int hash, @Nullable Integer numBuckets) {
-      if (numBuckets == null) return hash;
+    static int bucket(int hash, @Nullable Integer numBuckets) {
+      if (numBuckets == null) { return hash; }
       UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
       return UnsignedInteger.fromIntBits(hash).mod(unsignedNumBuckets).intValue();
     }
@@ -244,8 +244,8 @@ public class Redistribute {
 
     @ProcessElement
     public void processElement(@Element T element, OutputReceiver<KV<Integer, T>> r) {
-      int hash = Sharding.Smear(++shard);
-      hash = Sharding.Bucket(hash, numBuckets);
+      int hash = Sharding.smear(++shard);
+      hash = Sharding.bucket(hash, numBuckets);
       r.output(KV.of(hash, element));
     }
   }
@@ -260,7 +260,7 @@ public class Redistribute {
     @ProcessElement
     public void processElement(ProcessContext context) {
       int hash = Hashing.farmHashFingerprint64().hashLong(context.currentRecordOffset()).asInt();
-      hash = Sharding.Bucket(hash, numBuckets);
+      hash = Sharding.bucket(hash, numBuckets);
       context.output(KV.of(hash, context.element()));
     }
   }
