@@ -209,6 +209,133 @@ class TestBigQueryToSchema(unittest.TestCase):
           query='SELECT name FROM dataset.sample_table',
           output_type='BEAM_ROW')
 
-  if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
-    unittest.main()
+  def test_geography_type_support(self):
+    """Test that GEOGRAPHY type is properly supported in schema conversion."""
+    fields = [
+        bigquery.TableFieldSchema(
+            name='location', type='GEOGRAPHY', mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name='locations', type='GEOGRAPHY', mode="REPEATED"),
+        bigquery.TableFieldSchema(
+            name='required_location', type='GEOGRAPHY', mode="REQUIRED")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        the_table_schema=schema)
+
+    expected_annotations = {
+        'location': typing.Optional[str],
+        'locations': typing.Sequence[str],
+        'required_location': str
+    }
+
+    self.assertEqual(usertype.__annotations__, expected_annotations)
+
+  def test_geography_in_bq_to_python_types_mapping(self):
+    """Test that GEOGRAPHY is included in BIG_QUERY_TO_PYTHON_TYPES mapping."""
+    from apache_beam.io.gcp.bigquery_schema_tools import BIG_QUERY_TO_PYTHON_TYPES
+
+    self.assertIn("GEOGRAPHY", BIG_QUERY_TO_PYTHON_TYPES)
+    self.assertEqual(BIG_QUERY_TO_PYTHON_TYPES["GEOGRAPHY"], str)
+
+  def test_geography_field_type_conversion(self):
+    """Test bq_field_to_type function with GEOGRAPHY fields."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # Test required GEOGRAPHY field
+    result = bq_field_to_type("GEOGRAPHY", "REQUIRED")
+    self.assertEqual(result, str)
+
+    # Test nullable GEOGRAPHY field
+    result = bq_field_to_type("GEOGRAPHY", "NULLABLE")
+    self.assertEqual(result, typing.Optional[str])
+
+    # Test repeated GEOGRAPHY field
+    result = bq_field_to_type("GEOGRAPHY", "REPEATED")
+    self.assertEqual(result, typing.Sequence[str])
+
+    # Test GEOGRAPHY field with None mode (should default to nullable)
+    result = bq_field_to_type("GEOGRAPHY", None)
+    self.assertEqual(result, typing.Optional[str])
+
+    # Test GEOGRAPHY field with empty mode (should default to nullable)
+    result = bq_field_to_type("GEOGRAPHY", "")
+    self.assertEqual(result, typing.Optional[str])
+
+  def test_convert_to_usertype_with_geography(self):
+    """Test convert_to_usertype function with GEOGRAPHY fields."""
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='location', type='GEOGRAPHY', mode="NULLABLE"),
+            bigquery.TableFieldSchema(
+                name='name', type='STRING', mode="REQUIRED")
+        ])
+
+    conversion_transform = bigquery_schema_tools.convert_to_usertype(schema)
+
+    # Verify the transform is created successfully
+    self.assertIsNotNone(conversion_transform)
+
+    # The transform should be a ParDo with BeamSchemaConversionDoFn
+    self.assertIsInstance(conversion_transform, beam.ParDo)
+
+  def test_beam_schema_conversion_dofn_with_geography(self):
+    """Test BeamSchemaConversionDoFn with GEOGRAPHY data."""
+    from apache_beam.io.gcp.bigquery_schema_tools import BeamSchemaConversionDoFn
+
+    # Create a user type with GEOGRAPHY field
+    fields = [
+        bigquery.TableFieldSchema(name='id', type='INTEGER', mode="REQUIRED"),
+        bigquery.TableFieldSchema(
+            name='location', type='GEOGRAPHY', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    # Create the DoFn
+    dofn = BeamSchemaConversionDoFn(usertype)
+
+    # Test processing a dictionary with GEOGRAPHY data
+    input_dict = {'id': 1, 'location': 'POINT(30 10)'}
+
+    results = list(dofn.process(input_dict))
+    self.assertEqual(len(results), 1)
+
+    result = results[0]
+    self.assertEqual(result.id, 1)
+    self.assertEqual(result.location, 'POINT(30 10)')
+
+  def test_geography_with_complex_wkt(self):
+    """Test GEOGRAPHY type with complex Well-Known Text geometries."""
+    fields = [
+        bigquery.TableFieldSchema(
+            name='simple_point', type='GEOGRAPHY', mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name='linestring', type='GEOGRAPHY', mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name='polygon', type='GEOGRAPHY', mode="NULLABLE"),
+        bigquery.TableFieldSchema(
+            name='multigeometry', type='GEOGRAPHY', mode="NULLABLE")
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    # All GEOGRAPHY fields should map to Optional[str]
+    expected_annotations = {
+        'simple_point': typing.Optional[str],
+        'linestring': typing.Optional[str],
+        'polygon': typing.Optional[str],
+        'multigeometry': typing.Optional[str]
+    }
+
+    self.assertEqual(usertype.__annotations__, expected_annotations)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

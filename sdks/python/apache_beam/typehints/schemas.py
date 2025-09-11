@@ -1061,6 +1061,47 @@ class FixedPrecisionDecimalLogicalType(
     return cls()
 
 
+@LogicalType.register_logical_type
+class GeographyType(LogicalType[str, str, str]):
+  """
+  For internal use only; no backwards-compatibility guarantees.
+
+  Support for BigQuery GEOGRAPHY logical type. GEOGRAPHY data type works with
+  Well-Known Text (WKT) format for reading and writing to BigQuery.
+  """
+  def __init__(self, argument=""):
+    pass
+
+  @classmethod
+  def representation_type(cls) -> type:
+    return str
+
+  @classmethod
+  def urn(cls):
+    return "beam:logical_type:geography:v1"
+
+  @classmethod
+  def language_type(cls):
+    return str
+
+  def to_representation_type(self, value: str) -> str:
+    return value
+
+  def to_language_type(self, value: str) -> str:
+    return value
+
+  @classmethod
+  def argument_type(cls):
+    return str
+
+  def argument(self):
+    return ""
+
+  @classmethod
+  def _from_typing(cls, typ):
+    return cls()
+
+
 # TODO(yathu,BEAM-10722): Investigate and resolve conflicts in logical type
 # registration when more than one logical types sharing the same language type
 LogicalType.register_logical_type(DecimalLogicalType)

@@ -600,6 +600,112 @@ class SchemaTest(unittest.TestCase):
             schema_registry=SchemaTypeRegistry()),
         PythonCallableWithSource)
 
+  def test_geography_type_maps_to_logical_type(self):
+    from apache_beam.typehints.schemas import GeographyType
+    self.assertEqual(
+        schema_pb2.FieldType(
+            logical_type=schema_pb2.LogicalType(
+                urn="beam:logical_type:geography:v1",
+                representation=typing_to_runner_api(str))),
+        typing_to_runner_api(GeographyType))
+    self.assertEqual(
+        typing_from_runner_api(
+            schema_pb2.FieldType(
+                logical_type=schema_pb2.LogicalType(
+                    urn="beam:logical_type:geography:v1",
+                    representation=typing_to_runner_api(str))),
+            schema_registry=SchemaTypeRegistry()),
+        GeographyType)
+
+  def test_optional_geography_type_maps_to_logical_type(self):
+    from apache_beam.typehints.schemas import GeographyType
+    self.assertEqual(
+        schema_pb2.FieldType(
+            nullable=True,
+            logical_type=schema_pb2.LogicalType(
+                urn="beam:logical_type:geography:v1",
+                representation=typing_to_runner_api(str))),
+        typing_to_runner_api(Optional[GeographyType]))
+    self.assertEqual(
+        typing_from_runner_api(
+            schema_pb2.FieldType(
+                nullable=True,
+                logical_type=schema_pb2.LogicalType(
+                    urn="beam:logical_type:geography:v1",
+                    representation=typing_to_runner_api(str))),
+            schema_registry=SchemaTypeRegistry()),
+        Optional[GeographyType])
+
+  def test_geography_type_instantiation(self):
+    from apache_beam.typehints.schemas import GeographyType
+
+    # Test basic instantiation
+    gt = GeographyType()
+    self.assertEqual(gt.urn(), "beam:logical_type:geography:v1")
+    self.assertEqual(gt.language_type(), str)
+    self.assertEqual(gt.representation_type(), str)
+    self.assertEqual(gt.argument_type(), str)
+    self.assertEqual(gt.argument(), "")
+
+    # Test instantiation with argument
+    gt_with_arg = GeographyType("test_arg")
+    self.assertEqual(gt_with_arg.argument(), "")
+
+  def test_geography_type_conversion_methods(self):
+    from apache_beam.typehints.schemas import GeographyType
+
+    gt = GeographyType()
+
+    # Test various WKT formats
+    test_cases = [
+        "POINT(30 10)",
+        "LINESTRING(30 10, 10 30, 40 40)",
+        "POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))",
+        "MULTIPOINT((10 40), (40 30), (20 20), (30 10))",
+        "MULTILINESTRING((10 10, 20 20, 10 40), (40 40, 30 30, 40 20, 30 10))",
+        "GEOMETRYCOLLECTION(POINT(4 6),LINESTRING(4 6,7 10))"
+    ]
+
+    for wkt in test_cases:
+      # Test to_representation_type
+      result = gt.to_representation_type(wkt)
+      self.assertEqual(result, wkt)
+      self.assertIsInstance(result, str)
+
+      # Test to_language_type
+      result = gt.to_language_type(wkt)
+      self.assertEqual(result, wkt)
+      self.assertIsInstance(result, str)
+
+  def test_geography_type_from_typing(self):
+    from apache_beam.typehints.schemas import GeographyType
+
+    # Test _from_typing class method
+    gt = GeographyType._from_typing(str)
+    self.assertIsInstance(gt, GeographyType)
+    self.assertEqual(gt.urn(), "beam:logical_type:geography:v1")
+
+  def test_geography_type_schema_integration(self):
+    from apache_beam.typehints.schemas import GeographyType, named_fields_to_schema
+
+    # Test schema creation with GeographyType
+    fields = [('location', GeographyType), ('name', str)]
+    schema = named_fields_to_schema(fields)
+
+    self.assertEqual(len(schema.fields), 2)
+
+    # Check geography field
+    geo_field = schema.fields[0]
+    self.assertEqual(geo_field.name, 'location')
+    self.assertTrue(geo_field.type.HasField('logical_type'))
+    self.assertEqual(
+        geo_field.type.logical_type.urn, "beam:logical_type:geography:v1")
+
+    # Check string field
+    str_field = schema.fields[1]
+    self.assertEqual(str_field.name, 'name')
+    self.assertEqual(str_field.type.atomic_type, schema_pb2.STRING)
+
   def test_trivial_example(self):
     MyCuteClass = NamedTuple(
         'MyCuteClass',
