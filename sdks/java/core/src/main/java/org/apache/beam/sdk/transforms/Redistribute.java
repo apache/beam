@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedInteger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -166,10 +167,16 @@ public class Redistribute {
 
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      return input
-          .apply(
-              "Pair with key",
-              ParDo.of(new AssignShardFn<>(numBuckets, this.deterministicSharding)))
+      PCollection<KV<Integer, T>> sharded;
+      if (deterministicSharding) {
+        sharded =
+            input.apply(
+                "Pair with deterministic key",
+                ParDo.of(new AssignDeterministicShardFn<T>(numBuckets)));
+      } else {
+        sharded = input.apply("Pair with random key", ParDo.of(new AssignShardFn<T>(numBuckets)));
+      }
+      return sharded
           .apply(Redistribute.<Integer, T>byKey().withAllowDuplicates(this.allowDuplicates))
           .apply(Values.create());
     }
@@ -202,46 +209,59 @@ public class Redistribute {
     }
   }
 
-  static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {
-    private int randomShard;
-    private @Nullable Integer numBuckets;
-    private boolean deterministicSharding;
-
-    public AssignShardFn(@Nullable Integer numBuckets, boolean deterministicSharding) {
-      this.numBuckets = numBuckets;
-      this.deterministicSharding = deterministicSharding;
-      this.randomShard = 0;
-    }
-
-    @Setup
-    public void setup() {
-      if (deterministicSharding) {
-        randomShard = ThreadLocalRandom.current().nextInt();
-      }
-    }
-
-    @ProcessElement
-    public void processElement(@Element T element, OutputReceiver<KV<Integer, T>> r) {
-      int shard = 0;
-      if (deterministicSharding && element != null) {
-        shard = element.hashCode();
-      } else {
-        shard = ++randomShard;
-      }
+  static class Sharding {
+    static int Smear(int shard) {
       // Smear the shard into something more random-looking, to avoid issues
       // with runners that don't properly hash the key being shuffled, but rely
       // on it being random-looking. E.g. Spark takes the Java hashCode() of keys,
-      // which for Integer is a no-op and it is an issue:
+      // which for Integer is a no-op, and it is an issue:
       // http://hydronitrogen.com/poor-hash-partitioning-of-timestamps-integers-and-longs-in-
       // spark.html
       // This hashing strategy is copied from
       // org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Hashing.smear().
-      int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
-      if (numBuckets != null) {
-        UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
-        hashOfShard = UnsignedInteger.fromIntBits(hashOfShard).mod(unsignedNumBuckets).intValue();
-      }
-      r.output(KV.of(hashOfShard, element));
+      return 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
+    }
+
+    static int Bucket(int hash, @Nullable Integer numBuckets) {
+      if (numBuckets == null) return hash;
+      UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
+      return UnsignedInteger.fromIntBits(hash).mod(unsignedNumBuckets).intValue();
+    }
+  }
+
+  static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {
+    private int shard;
+    private @Nullable Integer numBuckets;
+
+    public AssignShardFn(@Nullable Integer numBuckets) {
+      this.numBuckets = numBuckets;
+    }
+
+    @Setup
+    public void setup() {
+      shard = ThreadLocalRandom.current().nextInt();
+    }
+
+    @ProcessElement
+    public void processElement(@Element T element, OutputReceiver<KV<Integer, T>> r) {
+      int hash = Sharding.Smear(++shard);
+      hash = Sharding.Bucket(hash, numBuckets);
+      r.output(KV.of(hash, element));
+    }
+  }
+
+  static class AssignDeterministicShardFn<T> extends DoFn<T, KV<Integer, T>> {
+    private @Nullable Integer numBuckets;
+
+    public AssignDeterministicShardFn(@Nullable Integer numBuckets) {
+      this.numBuckets = numBuckets;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      int hash = Hashing.farmHashFingerprint64().hashLong(context.currentRecordOffset()).asInt();
+      hash = Sharding.Bucket(hash, numBuckets);
+      context.output(KV.of(hash, context.element()));
     }
   }
 
