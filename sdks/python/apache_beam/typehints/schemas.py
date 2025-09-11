@@ -350,7 +350,7 @@ class SchemaTranslation(object):
 
     try:
       if LogicalType.is_known_logical_type(type_):
-        logical_type = type_
+        logical_type = type_()
       else:
         logical_type = LogicalType.from_typing(type_)
     except ValueError:

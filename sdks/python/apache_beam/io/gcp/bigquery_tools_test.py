@@ -1068,7 +1068,7 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
 class TestGeographyTypeSupport(unittest.TestCase):
   """Tests for GEOGRAPHY data type support in BigQuery."""
   def test_geography_in_bigquery_type_mapping(self):
-    """Test that GEOGRAPHY is properly mapped in BIGQUERY_TYPE_TO_PYTHON_TYPE."""
+    """Test that GEOGRAPHY is properly mapped in type mapping."""
     from apache_beam.io.gcp.bigquery_tools import BIGQUERY_TYPE_TO_PYTHON_TYPE
 
     self.assertIn("GEOGRAPHY", BIGQUERY_TYPE_TO_PYTHON_TYPE)
@@ -1077,7 +1077,6 @@ class TestGeographyTypeSupport(unittest.TestCase):
   def test_geography_field_conversion(self):
     """Test that GEOGRAPHY fields are converted correctly."""
     from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-    from apache_beam.io.gcp.internal.clients import bigquery
 
     # Create a mock field with GEOGRAPHY type
     field = bigquery.TableFieldSchema()
@@ -1199,9 +1198,8 @@ class TestGeographyTypeSupport(unittest.TestCase):
     self.assertIsInstance(decoded["location"], str)
 
   def test_geography_with_special_characters(self):
-    """Test GEOGRAPHY values with special characters and complex geometries."""
+    """Test GEOGRAPHY values with special characters and geometries."""
     from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-    from apache_beam.io.gcp.internal.clients import bigquery
 
     field = bigquery.TableFieldSchema()
     field.type = 'GEOGRAPHY'
@@ -1211,7 +1209,9 @@ class TestGeographyTypeSupport(unittest.TestCase):
     wrapper = BigQueryWrapper()
 
     # Test complex WKT with various coordinate systems and precision
-    complex_wkt = "POLYGON((-122.4194 37.7749, -122.4094 37.7849, -122.3994 37.7749, -122.4194 37.7749))"
+    complex_wkt = (
+        "POLYGON((-122.4194 37.7749, -122.4094 37.7849, "
+        "-122.3994 37.7749, -122.4194 37.7749))")
 
     result = wrapper._convert_cell_value_to_dict(complex_wkt, field)
     self.assertEqual(result, complex_wkt)
