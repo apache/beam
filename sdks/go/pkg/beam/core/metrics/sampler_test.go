@@ -17,6 +17,7 @@ package metrics
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -44,7 +45,7 @@ func TestSampler(t *testing.T) {
 	bctx := SetBundleID(ctx, "test")
 	interval := 200 * time.Millisecond
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, 0*time.Minute)
 
 	pctx := SetPTransformID(bctx, "transform")
 	label := "transform"
@@ -88,7 +89,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	bctx := SetBundleID(ctx, "bundle")
 	interval := 200 * time.Millisecond
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, 0*time.Minute)
 
 	ctxA := SetPTransformID(bctx, "transformA")
 	ctxB := SetPTransformID(bctx, "transformB")
@@ -136,6 +137,50 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	checkBundleState(bctx, t, s, 6, 0)
 }
 
+func TestSamplerWithoutRestartLullTimeout(t *testing.T) {
+	ctx := context.Background()
+	bctx := SetBundleID(ctx, "test")
+	interval := 20 * time.Minute
+	st := GetStore(bctx)
+	s := NewSampler(st, 0*time.Minute)
+
+	pctx := SetPTransformID(bctx, "transform")
+
+	pt := NewPTransformState("transform")
+
+	pt.Set(pctx, StartBundle)
+	if got, want := s.Sample(bctx, interval), error(nil); got != want {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
+	}
+}
+
+func TestSamplerWithRestartLullTimeout(t *testing.T) {
+	ctx := context.Background()
+	bctx := SetBundleID(ctx, "test")
+	interval := 4 * time.Minute
+	st := GetStore(bctx)
+	s := NewSampler(st, 10*time.Minute)
+
+	pctx := SetPTransformID(bctx, "transform")
+
+	pt := NewPTransformState("transform")
+
+	pt.Set(pctx, StartBundle)
+	if got, want := s.Sample(bctx, interval), error(nil); got != want {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
+	}
+	if got, want := s.Sample(bctx, interval), error(nil); got != want {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
+	}
+	if got, want := s.Sample(bctx, interval), error(nil); got != want {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
+	}
+	err := s.Sample(bctx, interval)
+	if err == nil || !strings.Contains(err.Error(), "SDK harness will be terminated") {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", err, "SDK harness will be terminated")
+	}
+}
+
 // goos: darwin
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
@@ -165,7 +210,7 @@ func BenchmarkMsec_Sample(b *testing.B) {
 	pt := NewPTransformState("transform")
 	pt.Set(pctx, StartBundle)
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, 0*time.Minute)
 	interval := 200 * time.Millisecond
 	for i := 0; i < b.N; i++ {
 		s.Sample(bctx, interval)
@@ -182,7 +227,7 @@ func BenchmarkMsec_Combined(b *testing.B) {
 	bctx := SetBundleID(ctx, "benchmark")
 
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, 0*time.Minute)
 	done := make(chan int)
 	interval := 200 * time.Millisecond
 	go func(done chan int, s StateSampler) {

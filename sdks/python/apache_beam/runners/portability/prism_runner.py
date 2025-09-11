@@ -22,7 +22,9 @@
 # sunset it
 from __future__ import annotations
 
+import datetime
 import hashlib
+import json
 import logging
 import os
 import platform
@@ -111,11 +113,55 @@ def _rename_if_different(src, dst):
     os.rename(src, dst)
 
 
+class PrismRunnerLogFilter(logging.Filter):
+  COMMON_FIELDS = set(["level", "source", "msg", "time"])
+
+  def filter(self, record):
+    if record.funcName == 'log_stdout':
+      try:
+        message = record.getMessage()
+        json_record = json.loads(message)
+        record.levelno = getattr(logging, json_record["level"])
+        record.levelname = logging.getLevelName(record.levelno)
+        if "source" in json_record:
+          record.funcName = json_record["source"]["function"]
+          record.pathname = json_record["source"]["file"]
+          record.filename = os.path.basename(record.pathname)
+          record.lineno = json_record["source"]["line"]
+        record.created = datetime.datetime.fromisoformat(
+            json_record["time"]).timestamp()
+        extras = {
+            k: v
+            for k, v in json_record.items()
+            if k not in PrismRunnerLogFilter.COMMON_FIELDS
+        }
+
+        if json_record["msg"] == "log from SDK worker":
+          # TODO: Use location and time inside the nested message to set record
+          record.name = "SdkWorker" + "@" + json_record["worker"]["ID"]
+          record.msg = json_record["sdk"]["msg"]
+        else:
+          record.name = "PrismRunner"
+          record.msg = (
+              f"{json_record['msg']} "
+              f"({', '.join(f'{k}={v!r}' for k, v in extras.items())})")
+      except (json.JSONDecodeError,
+              KeyError,
+              ValueError,
+              TypeError,
+              AttributeError):
+        # The log parsing/filtering is best-effort.
+        pass
+
+    return True  # Always return True to allow the record to pass.
+
+
 class PrismJobServer(job_server.SubprocessJobServer):
   BIN_CACHE = os.path.expanduser("~/.apache_beam/cache/prism/bin")
 
   def __init__(self, options):
     super().__init__()
+
     prism_options = options.view_as(pipeline_options.PrismRunnerOptions)
     # Options flow:
     # If the path is set, always download and unzip the provided path,
@@ -129,6 +175,14 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     job_options = options.view_as(pipeline_options.JobServerOptions)
     self._job_port = job_options.job_port
+
+    self._log_level = prism_options.prism_log_level
+    self._log_kind = prism_options.prism_log_kind
+
+    # override console to json with log filter enabled
+    if self._log_kind == "console":
+      self._log_kind = "json"
+      self._log_filter = PrismRunnerLogFilter()
 
   # the method is only kept for testing and backward compatibility
   @classmethod
@@ -181,8 +235,13 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     _LOGGER.info("Prism binary path resolved to: %s", target_url)
     # Make sure the binary is executable.
-    st = os.stat(target_url)
-    os.chmod(target_url, st.st_mode | stat.S_IEXEC)
+    try:
+      st = os.stat(target_url)
+      os.chmod(target_url, st.st_mode | stat.S_IEXEC)
+    except PermissionError:
+      _LOGGER.warning(
+          'Could not change permissions of prism binary; invoking may fail if '
+          + 'current process does not have exec permissions on binary.')
     return target_url
 
   @staticmethod
@@ -420,6 +479,10 @@ class PrismJobServer(job_server.SubprocessJobServer):
     return [
         '--job_port',
         job_port,
+        '--log_level',
+        self._log_level,
+        '--log_kind',
+        self._log_kind,
         '--serve_http',
         False,
     ]

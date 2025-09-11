@@ -410,9 +410,15 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
+		timeoutDuration := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout"))
 
-		sampler := newSampler(store)
-		go sampler.start(ctx, samplePeriod)
+		sampler := newSampler(store, timeoutDuration)
+		go func() {
+			samplerErr := sampler.start(ctx, samplePeriod)
+			if samplerErr != nil {
+				log.Exitf(ctx, "Failed to sample: %v, the SDK harness will be terminated.", samplerErr)
+			}
+		}()
 
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
 
@@ -690,6 +696,18 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 	default:
 		return fail(ctx, instID, "Unexpected request: %v", req)
 	}
+}
+
+// Parses the element_processing_timeout flag and returns the corresponding time.Duration.
+// The element_processing_timeout flag is expected to be a duration string (e.g., "5m", "1h", etc.)or -1.
+// Otherwise, it defaults to no timeout (0 minutes).
+func parseTimeoutDurationFlag(ctx context.Context, elementProcessingTimeout string) time.Duration {
+	userSpecifiedTimeout, err := time.ParseDuration(elementProcessingTimeout)
+	if err != nil {
+		log.Warnf(ctx, "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
+		return 0 * time.Minute
+	}
+	return userSpecifiedTimeout
 }
 
 // getPlanOrResponse returns the plan for the given instruction id.

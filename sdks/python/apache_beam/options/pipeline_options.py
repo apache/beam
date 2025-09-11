@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import argparse
+import difflib
 import json
 import logging
 import os
@@ -226,7 +227,7 @@ class _CommaSeparatedListAction(argparse.Action):
   a list. This allows options like --experiments=abc,def to be treated
   as separate experiments 'abc' and 'def', similar to how Java SDK handles
   them.
-  
+
   If there are key=value experiments in a raw argument, the remaining part of
   the argument are treated as values and won't split further. For example:
   'abc,def,master_key=k1=v1,k2=v2' becomes
@@ -449,11 +450,30 @@ class PipelineOptions(HasDisplayData):
 
     return cls(flags)
 
+  @staticmethod
+  def _warn_on_unknown_options(unknown_args, parser):
+    if not unknown_args:
+      return
+
+    all_known_options = [
+        opt for action in parser._actions for opt in action.option_strings
+    ]
+
+    for arg in unknown_args:
+      msg = f"Unparseable argument: {arg}"
+      if arg.startswith('--'):
+        arg_name = arg.split('=', 1)[0]
+        suggestions = difflib.get_close_matches(arg_name, all_known_options)
+        if suggestions:
+          msg += f". Did you mean '{suggestions[0]}'?'"
+      _LOGGER.warning(msg)
+
   def get_all_options(
       self,
       drop_default=False,
       add_extra_args_fn: Optional[Callable[[_BeamArgumentParser], None]] = None,
-      retain_unknown_options=False) -> Dict[str, Any]:
+      retain_unknown_options=False,
+      display_warnings=False) -> Dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -485,12 +505,11 @@ class PipelineOptions(HasDisplayData):
       add_extra_args_fn(parser)
 
     known_args, unknown_args = parser.parse_known_args(self._flags)
-    if retain_unknown_options:
-      if unknown_args:
-        _LOGGER.warning(
-            'Unknown pipeline options received: %s. Ignore if flags are '
-            'used for internal purposes.' % (','.join(unknown_args)))
 
+    if display_warnings:
+      self._warn_on_unknown_options(unknown_args, parser)
+
+    if retain_unknown_options:
       seen = set()
 
       def add_new_arg(arg, **kwargs):
@@ -1021,9 +1040,10 @@ class GoogleCloudOptions(PipelineOptions):
         'updating-a-pipeline')
     parser.add_argument(
         '--enable_streaming_engine',
-        default=False,
+        default=True,
         action='store_true',
-        help='Enable Windmill Service for this Dataflow job. ')
+        help='Deprecated. All Python streaming pipelines on Dataflow'
+        'use Streaming Engine.')
     parser.add_argument(
         '--dataflow_kms_key',
         default=None,
@@ -1455,6 +1475,15 @@ class WorkerOptions(PipelineOptions):
             'responsible for executing the user code and communicating with '
             'the runner. Depending on the runner, there may be more than one '
             'SDK Harness process running on the same worker node.'))
+    parser.add_argument(
+        '--element_processing_timeout_minutes',
+        type=int,
+        default=None,
+        help=(
+            'The time limit (in minutes) for any PTransform to finish '
+            'processing a single element. If exceeded, the SDK worker '
+            'process self-terminates and processing may be restarted '
+            'by a runner.'))
 
   def validate(self, validator):
     errors = []
@@ -1942,6 +1971,20 @@ class PrismRunnerOptions(PipelineOptions):
         'downloading a zipped prism binary, for the current platform. If '
         'prism_location is set to a Github Release page URL, them it will use '
         'that release page as a base when constructing the download URL.')
+    parser.add_argument(
+        '--prism_log_level',
+        default="info",
+        choices=["debug", "info", "warn", "error"],
+        help=(
+            'Controls the log level in Prism. Values can be "debug", "info", '
+            '"warn", and "error". Default log level is "info".'))
+    parser.add_argument(
+        '--prism_log_kind',
+        default="console",
+        choices=["dev", "json", "text", "console"],
+        help=(
+            'Controls the log format in Prism. Values can be "dev", "json", '
+            '"text", and "console". Default log format is "console".'))
 
 
 class TestOptions(PipelineOptions):

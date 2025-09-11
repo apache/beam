@@ -60,7 +60,7 @@ class CloserReference<T extends AutoCloseable> implements Supplier<T> {
     }
   }
 
-  @SuppressWarnings("deprecation")
+  @SuppressWarnings({"deprecation", "Finalize"})
   @Override
   protected void finalize() {
     SystemExecutors.getFuturesExecutor().execute(new Closer(object));

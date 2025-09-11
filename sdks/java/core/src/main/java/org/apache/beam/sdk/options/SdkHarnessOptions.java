@@ -427,4 +427,17 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
           : Duration.ofMinutes(1);
     }
   }
+
+  /**
+   * The time limit (in minute) that an SDK worker allows for a PTransform operation before
+   * signaling the runner harness to restart the SDK worker.
+   */
+  @Description(
+      "The time limit (in minutes) for any PTransform to finish processing a single element."
+          + " If exceeded, the SDK worker process self-terminates and processing may be restarted by a runner."
+          + " There is no time limit if the value is set to 0.")
+  @NonNegative
+  int getElementProcessingTimeoutMinutes();
+
+  void setElementProcessingTimeoutMinutes(int value);
 }

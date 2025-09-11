@@ -34,16 +34,20 @@ from unittest.mock import patch
 import hamcrest as hc
 import numpy as np
 import pytest
+from parameterized import param
+from parameterized import parameterized
 from parameterized import parameterized_class
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam import pvalue
 from apache_beam import typehints
+from apache_beam.coders import coders_test_common
 from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StreamingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -572,7 +576,7 @@ class PTransformTest(unittest.TestCase):
       def decode(self, encoded):
         return MyObject(pickle.loads(encoded)[0])
 
-      def as_deterministic_coder(self, *args):
+      def as_deterministic_coder(self, *args, **kwargs):
         return MydeterministicObjectCoder()
 
       def to_type_hint(self):
@@ -718,6 +722,67 @@ class PTransformTest(unittest.TestCase):
       pcoll = pipeline | 'Input' >> beam.Create(input)
       result = (pcoll, ) | 'Single Flatten' >> beam.Flatten()
       assert_that(result, equal_to(input))
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  @pytest.mark.it_validatesrunner
+  def test_group_by_key_importable_special_types(self, compat_version):
+    def generate(_):
+      for _ in range(100):
+        yield (coders_test_common.MyTypedNamedTuple(1, 'a'), 1)
+
+    pipeline = TestPipeline(is_integration_test=True)
+    if compat_version:
+      pipeline.get_pipeline_options().view_as(
+          StreamingOptions).update_compatibility_version = compat_version
+    with pipeline as p:
+      result = (
+          p
+          | 'Create' >> beam.Create([i for i in range(100)])
+          | 'Generate' >> beam.ParDo(generate)
+          | 'Reshuffle' >> beam.Reshuffle()
+          | 'GBK' >> beam.GroupByKey())
+      assert_that(
+          result,
+          equal_to([(
+              coders_test_common.MyTypedNamedTuple(1, 'a'),
+              [1 for i in range(10000)])]))
+
+  @pytest.mark.it_validatesrunner
+  def test_group_by_key_dynamic_special_types(self):
+    def create_dynamic_named_tuple():
+      return collections.namedtuple('DynamicNamedTuple', ['x', 'y'])
+
+    dynamic_named_tuple = create_dynamic_named_tuple()
+
+    # Standard FastPrimitivesCoder falls back to python PickleCoder which
+    # cannot serialize dynamic types or types defined in __main__. Use
+    # CloudPickleCoder as fallback coder for non-deterministic steps.
+    class FastPrimitivesCoderV2(beam.coders.FastPrimitivesCoder):
+      def __init__(self):
+        super().__init__(fallback_coder=beam.coders.CloudpickleCoder())
+
+    beam.coders.typecoders.registry.register_coder(
+        dynamic_named_tuple, FastPrimitivesCoderV2)
+
+    def generate(_):
+      for _ in range(100):
+        yield (dynamic_named_tuple(1, 'a'), 1)
+
+    pipeline = TestPipeline(is_integration_test=True)
+
+    with pipeline as p:
+      result = (
+          p
+          | 'Create' >> beam.Create([i for i in range(100)])
+          | 'Reshuffle' >> beam.Reshuffle()
+          | 'Generate' >> beam.ParDo(generate).with_output_types(
+              tuple[dynamic_named_tuple, int])
+          | 'GBK' >> beam.GroupByKey()
+          | 'Count Elements' >> beam.Map(lambda x: len(x[1])))
+      assert_that(result, equal_to([10000]))
 
   # TODO(https://github.com/apache/beam/issues/20067): Does not work in
   # streaming mode on Dataflow.
@@ -1156,6 +1221,39 @@ class PTransformLabelsTest(unittest.TestCase):
     self.assertTrue('*Sample*/ToPairs' in pipeline.applied_labels)
     self.assertTrue('*Sample*/Group' in pipeline.applied_labels)
     self.assertTrue('*Sample*/Distinct' in pipeline.applied_labels)
+
+  def test_ptransformfn_default_label(self):
+    @beam.ptransform_fn
+    def MyTransform(self, suffix="xyz"):
+      return pcoll | beam.Map(lambda s: s + suffix)
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | beam.Create(['a', 'b', 'c'])
+
+    _ = pcoll | MyTransform()
+    self.assertIn('MyTransform', pipeline.applied_labels)
+    _ = pcoll | MyTransform("suffix")
+    self.assertIn('MyTransform(suffix)', pipeline.applied_labels)
+    _ = pcoll | MyTransform("looooooooooooooooooooooooooooooooooooooooong")
+    self.assertIn('MyTransform(looooooooo...oooong)', pipeline.applied_labels)
+
+  def test_ptransformfn_legacy_default_label(self):
+    @beam.ptransform_fn
+    def MyTransform(self, suffix="xyz"):
+      return pcoll | beam.Map(lambda s: s + suffix)
+
+    pipeline = TestPipeline(
+        options=PipelineOptions(update_compatibility_version='2.67.0'))
+    pcoll = pipeline | beam.Create(['a', 'b', 'c'])
+
+    _ = pcoll | MyTransform()
+    self.assertIn('MyTransform', pipeline.applied_labels)
+    _ = pcoll | MyTransform("suffix")
+    self.assertIn('MyTransform(suffix)', pipeline.applied_labels)
+    _ = pcoll | MyTransform("looooooooooooooooooooooooooooooooooooooooong")
+    self.assertIn(
+        'MyTransform(looooooooooooooooooooooooooooooooooooooooong)',
+        pipeline.applied_labels)
 
   def test_combine_with_label(self):
     vals = [1, 2, 3, 4, 5, 6, 7]

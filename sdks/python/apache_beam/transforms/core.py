@@ -29,6 +29,8 @@ import time
 import traceback
 import types
 import typing
+from collections import defaultdict
+from functools import wraps
 from itertools import dropwhile
 
 from apache_beam import coders
@@ -1595,7 +1597,8 @@ class ParDo(PTransformWithSideInputs):
       timeout=None,
       error_handler=None,
       on_failure_callback: typing.Optional[typing.Callable[
-          [Exception, typing.Any], None]] = None):
+          [Exception, typing.Any], None]] = None,
+      allow_unsafe_userstate_in_process=False):
     """Automatically provides a dead letter output for saving bad inputs.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1652,6 +1655,13 @@ class ParDo(PTransformWithSideInputs):
           the exception will be of type `TimeoutError`. Be careful with this
           callback - if you set a timeout, it will not apply to the callback,
           and if the callback fails it will not be retried.
+      allow_unsafe_userstate_in_process: If False, user state will not be
+          permitted in the DoFn's process method. This is disabled by default
+          because user state is potentially unsafe with exception handling
+          since it can be successfully stored or cleared even if the associated
+          element fails and is routed to a dead letter queue. Semantics around
+          state in this kind of failure scenario are not well defined and are
+          subject to change.
     """
     args, kwargs = self.raw_side_inputs
     return self.label >> _ExceptionHandlingWrapper(
@@ -1667,7 +1677,8 @@ class ParDo(PTransformWithSideInputs):
         threshold_windowing,
         timeout,
         error_handler,
-        on_failure_callback)
+        on_failure_callback,
+        allow_unsafe_userstate_in_process)
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -2272,7 +2283,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       threshold_windowing,
       timeout,
       error_handler,
-      on_failure_callback):
+      on_failure_callback,
+      allow_unsafe_userstate_in_process):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2288,8 +2300,17 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._timeout = timeout
     self._error_handler = error_handler
     self._on_failure_callback = on_failure_callback
+    self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
 
   def expand(self, pcoll):
+    if self._allow_unsafe_userstate_in_process:
+      if self._use_subprocess or self._timeout:
+        # TODO(https://github.com/apache/beam/issues/35976): Implement this
+        raise Exception(
+            'allow_unsafe_userstate_in_process is incompatible with ' +
+            'exception handling done with subprocesses or timeouts. If you ' +
+            'need this feature, comment in ' +
+            'https://github.com/apache/beam/issues/35976')
     if self._use_subprocess:
       wrapped_fn = _SubprocessDoFn(self._fn, timeout=self._timeout)
     elif self._timeout:
@@ -2302,7 +2323,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
             self._dead_letter_tag,
             self._exc_class,
             self._partial,
-            self._on_failure_callback),
+            self._on_failure_callback,
+            self._allow_unsafe_userstate_in_process),
         *self._args,
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
@@ -2346,12 +2368,43 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
 class _ExceptionHandlingWrapperDoFn(DoFn):
   def __init__(
-      self, fn, dead_letter_tag, exc_class, partial, on_failure_callback):
+      self,
+      fn,
+      dead_letter_tag,
+      exc_class,
+      partial,
+      on_failure_callback,
+      allow_unsafe_userstate_in_process):
     self._fn = fn
     self._dead_letter_tag = dead_letter_tag
     self._exc_class = exc_class
     self._partial = partial
     self._on_failure_callback = on_failure_callback
+
+    # Wrap process and expose any top level state params so that process can
+    # handle state and timers.
+    if allow_unsafe_userstate_in_process:
+
+      @wraps(self._fn.process)
+      def process_wrapper(self, *args, **kwargs):
+        return self.exception_handling_wrapper_do_fn_custom_process(
+            *args, **kwargs)
+
+      self.process = types.MethodType(process_wrapper, self)
+    else:
+      self.process = self.exception_handling_wrapper_do_fn_custom_process
+      process_sig = inspect.signature(self._fn.process)
+      for name, param in process_sig.parameters.items():
+        if isinstance(param.default, (DoFn.StateParam, DoFn.TimerParam)):
+          logging.warning(
+              'State or timer parameter {} detected in process method of ' +
+              '{}. State and timers are unsupported when using ' +
+              'with_exception_handling and may lead to errors. To enable ' +
+              'state and timers with limited consistency guarantees, pass ' +
+              'in the allow_unsafe_userstate_in_process parameters to the ' +
+              'with_exception_handling method.',
+              name,
+              self.fn)
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
@@ -2360,7 +2413,7 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
     else:
       return getattr(self._fn, name)
 
-  def process(self, *args, **kwargs):
+  def exception_handling_wrapper_do_fn_custom_process(self, *args, **kwargs):
     try:
       result = self._fn.process(*args, **kwargs)
       if not self._partial:
@@ -2927,6 +2980,22 @@ class CombinePerKey(PTransformWithSideInputs):
   Returns:
     A PObject holding the result of the combine operation.
   """
+  def __new__(cls, *args, **kwargs):
+    def has_side_inputs():
+      return (
+          any(isinstance(arg, pvalue.AsSideInput) for arg in args) or
+          any(isinstance(arg, pvalue.AsSideInput) for arg in kwargs.values()))
+
+    if has_side_inputs():
+      # If the CombineFn has deferred side inputs, the python SDK
+      # doesn't implement it.
+      # Use a ParDo-based CombinePerKey instead.
+      from apache_beam.transforms.combiners import \
+        LiftedCombinePerKey
+      combine_fn, *args = args
+      return LiftedCombinePerKey(combine_fn, args, kwargs)
+    return super(CombinePerKey, cls).__new__(cls)
+
   def with_hot_key_fanout(self, fanout):
     """A per-key combine operation like self but with two levels of aggregation.
 
@@ -3573,7 +3642,13 @@ class Partition(PTransformWithSideInputs):
     """A DoFn that applies a PartitionFn."""
     def process(self, element, partitionfn, n, *args, **kwargs):
       partition = partitionfn.partition_for(element, n, *args, **kwargs)
-      if not 0 <= partition < n:
+      import numbers
+      if isinstance(partition,
+                    bool) or not isinstance(partition, numbers.Integral):
+        raise ValueError(
+            f"PartitionFn yielded a '{type(partition).__name__}' "
+            "when it should only yield integers")
+      if not 0 <= int(partition) < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
             '%d not in [0, %d)' % (partition, n))
@@ -3849,6 +3924,15 @@ class Flatten(PTransform):
       raise ValueError(
           'Input to Flatten must be an iterable. '
           'Got a value of type %s instead.' % type(pvalueish))
+
+    # Spot check to see if any of the items are iterables of PCollections
+    # and raise an error if so. This is always a user-error
+    for idx, item in enumerate(pvalueish):
+      if isinstance(item, (list, tuple)) and any(
+          isinstance(sub_item, pvalue.PCollection) for sub_item in item):
+        raise TypeError(
+            'Inputs to Flatten cannot include an iterable of PCollections. '
+            f'(input at index {idx}: "{item}")')
     return pvalueish, pvalueish
 
   def expand(self, pcolls):
@@ -3946,9 +4030,41 @@ class Create(PTransform):
   def infer_output_type(self, unused_input_type):
     if not self.values:
       return typehints.Any
-    return typehints.Union[[
-        trivial_inference.instance_to_type(v) for v in self.values
-    ]]
+
+    # No field data - just use default Union.
+    if not hasattr(self.values[0], 'as_dict'):
+      return typehints.Union[[
+          trivial_inference.instance_to_type(v) for v in self.values
+      ]]
+
+    first_fields = self.values[0].as_dict().keys()
+
+    # Save field types for each field
+    field_types_by_field = defaultdict(set)
+    for row in self.values:
+      row_dict = row.as_dict()
+      for field in first_fields:
+        field_types_by_field[field].add(
+            trivial_inference.instance_to_type(row_dict.get(field)))
+
+    # Determine the appropriate type for each field
+    final_fields = []
+    for field in first_fields:
+      field_types = field_types_by_field[field]
+      non_none_types = {t for t in field_types if t is not type(None)}
+
+      if len(non_none_types) > 1:
+        final_type = typehints.Union[tuple(non_none_types)]
+      elif len(non_none_types) == 1 and len(field_types) == 1:
+        final_type = non_none_types.pop()
+      elif len(non_none_types) == 1 and len(field_types) == 2:
+        final_type = typehints.Optional[non_none_types.pop()]
+      else:
+        raise TypeError("No types found for field %s", field)
+
+      final_fields.append((field, final_type))
+
+    return row_type.RowTypeConstraint.from_fields(final_fields)
 
   def get_output_type(self):
     return (

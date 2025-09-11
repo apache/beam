@@ -82,7 +82,7 @@ class SqlTransform(ExternalTransform):
     Creates a SqlTransform which will be expanded to Java's SqlTransform.
     (See class docs).
     :param query: The SQL query.
-    :param dialect: (optional) The dialect, e.g. use 'zetasql' for ZetaSQL.
+    :param dialect: (optional, deprecated) The dialect.
     :param ddl: (optional) The DDL statement.
     :param expansion_service: (optional) The URL of the expansion service to use
     """

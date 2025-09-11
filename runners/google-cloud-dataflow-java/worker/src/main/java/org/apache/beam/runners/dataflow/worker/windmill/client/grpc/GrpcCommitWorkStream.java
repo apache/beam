@@ -22,12 +22,14 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -74,6 +76,7 @@ final class GrpcCommitWorkStream
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
   private final int streamingRpcBatchLimit;
+  private volatile boolean logMissingResponse = true;
 
   private GrpcCommitWorkStream(
       String backendWorkerToken,
@@ -85,16 +88,19 @@ final class GrpcCommitWorkStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       AtomicLong idGenerator,
-      int streamingRpcBatchLimit) {
+      int streamingRpcBatchLimit,
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     super(
         LOG,
-        "CommitWorkStream",
         startCommitWorkRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        halfClosePhysicalStreamAfter,
+        executor);
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
@@ -110,7 +116,9 @@ final class GrpcCommitWorkStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       AtomicLong idGenerator,
-      int streamingRpcBatchLimit) {
+      int streamingRpcBatchLimit,
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     return new GrpcCommitWorkStream(
         backendWorkerToken,
         startCommitWorkRpcFn,
@@ -120,25 +128,33 @@ final class GrpcCommitWorkStream
         logEveryNStreamFailures,
         jobHeader,
         idGenerator,
-        streamingRpcBatchLimit);
+        streamingRpcBatchLimit,
+        halfClosePhysicalStreamAfter,
+        executor);
   }
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    writer.format("CommitWorkStream: %d pending", pending.size());
+    writer.format("CommitWorkStream: %d pending ", pending.size());
   }
 
   @Override
-  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
-    trySend(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
+  @SuppressWarnings("ReferenceEquality")
+  protected synchronized void onFlushPending(boolean isNewStream)
+      throws WindmillStreamShutdownException {
+    if (isNewStream) {
+      trySend(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
+    }
     // Flush all pending requests that are no longer on active streams.
     try (Batcher resendBatcher = new Batcher()) {
       for (Map.Entry<Long, StreamAndRequest> entry : pending.entrySet()) {
         CommitWorkPhysicalStreamHandler requestHandler = entry.getValue().handler;
         checkState(requestHandler != currentPhysicalStream);
-        // When we have streams closing in the background we should avoid retrying the requests
-        // active on those streams.
-
+        if (requestHandler != null && closingPhysicalStreams.contains(requestHandler)) {
+          LOG.debug(
+              "Not resending request that is active on background half-closing physical stream.");
+          continue;
+        }
         long id = entry.getKey();
         PendingRequest request = entry.getValue().request;
         if (!resendBatcher.canAccept(request.getBytes())) {
@@ -169,6 +185,7 @@ final class GrpcCommitWorkStream
 
   private class CommitWorkPhysicalStreamHandler extends PhysicalStreamHandler {
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public void onResponse(StreamingCommitResponse response) {
       CommitCompletionFailureHandler failureHandler = new CommitCompletionFailureHandler();
       for (int i = 0; i < response.getRequestIdCount(); ++i) {
@@ -184,7 +201,9 @@ final class GrpcCommitWorkStream
 
         @Nullable StreamAndRequest entry = pending.remove(requestId);
         if (entry == null) {
-          LOG.error("Got unknown commit request ID: {}", requestId);
+          if (logMissingResponse) {
+            LOG.error("Got unknown commit request ID: {}", requestId);
+          }
           continue;
         }
         if (entry.handler != this) {
@@ -206,6 +225,7 @@ final class GrpcCommitWorkStream
     }
 
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public boolean hasPendingRequests() {
       return pending.entrySet().stream().anyMatch(e -> e.getValue().handler == this);
     }
@@ -218,6 +238,7 @@ final class GrpcCommitWorkStream
     }
 
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public void appendHtml(PrintWriter writer) {
       writer.format(
           "CommitWorkStream: %d pending",
@@ -232,6 +253,7 @@ final class GrpcCommitWorkStream
 
   @Override
   protected synchronized void shutdownInternal() {
+    logMissingResponse = false;
     Iterator<StreamAndRequest> pendingRequests = pending.values().iterator();
     while (pendingRequests.hasNext()) {
       PendingRequest pendingRequest = pendingRequests.next().request;

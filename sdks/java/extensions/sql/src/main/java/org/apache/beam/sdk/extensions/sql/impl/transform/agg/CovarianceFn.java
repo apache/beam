@@ -32,7 +32,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
 
 /**
  * {@link Combine.CombineFn} for <em>Covariance</em> on {@link Number} types.
@@ -58,7 +58,7 @@ public class CovarianceFn<T extends Number>
   private boolean isSample; // flag to determine return value should be Covariance Pop or Sample
   private SerializableFunction<BigDecimal, T> decimalConverter;
 
-  public static <V extends Number> CovarianceFn newPopulation(Schema.TypeName typeName) {
+  public static CovarianceFn newPopulation(Schema.TypeName typeName) {
     return newPopulation(BigDecimalConverter.forSqlType(typeName));
   }
 
@@ -68,7 +68,7 @@ public class CovarianceFn<T extends Number>
     return new CovarianceFn<>(POP, decimalConverter);
   }
 
-  public static <V extends Number> CovarianceFn newSample(Schema.TypeName typeName) {
+  public static CovarianceFn newSample(Schema.TypeName typeName) {
     return newSample(BigDecimalConverter.forSqlType(typeName));
   }
 

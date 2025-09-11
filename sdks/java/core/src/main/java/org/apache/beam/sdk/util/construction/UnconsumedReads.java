@@ -69,6 +69,6 @@ public class UnconsumedReads {
 
   private static class NoOpDoFn<T> extends DoFn<T, T> {
     @ProcessElement
-    public void doNothing(ProcessContext context) {}
+    public void doNothing(ProcessContext unused) {}
   }
 }

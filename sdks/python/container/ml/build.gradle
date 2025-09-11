@@ -1,0 +1,64 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyPythonNature()
+
+description = "Apache Beam :: SDKs :: Python :: Container :: ML"
+int min_python_version=project.ext.minPythonVersion
+int max_python_version=project.ext.maxPythonVersion
+
+
+tasks.register("buildAll") {
+    for(int ver=min_python_version; ver<=max_python_version; ++ver) {
+        dependsOn ':sdks:python:container:ml:py3' + ver + ':docker'
+    }
+}
+
+for(int i=min_python_version; i<=max_python_version; ++i) {
+    String min_version = "3" + min_python_version
+    String cur = "3" + i
+    String prev = "3" + (i-1)
+    tasks.register("push" + cur) {
+        if (cur != min_version) {
+            // Enforce ordering to allow the prune step to happen between runs.
+            // This will ensure we don't use up too much space (especially in CI environments)
+            if (!project.hasProperty("skip-python-3" + prev + "-images")) {
+                mustRunAfter(":sdks:python:container:ml:push" + prev)
+            }
+        }
+        dependsOn ':sdks:python:container:ml:py' + cur + ':docker'
+
+        doLast {
+            if (project.hasProperty("prune-images")) {
+                exec {
+                    executable("docker")
+                    args("system", "prune", "-a", "--force")
+                }
+            }
+        }
+    }
+}
+
+tasks.register("pushAll") {
+    for(int ver=min_python_version; ver<=max_python_version; ++ver) {
+        if (!project.hasProperty("skip-python-3" + ver + "-images")) {
+            dependsOn ':sdks:python:container:ml:push3' + ver
+        }
+    }
+}

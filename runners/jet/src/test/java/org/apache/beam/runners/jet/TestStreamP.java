@@ -82,7 +82,7 @@ public class TestStreamP extends AbstractProcessor {
                     }));
   }
 
-  public static <T> ProcessorMetaSupplier supplier(
+  public static ProcessorMetaSupplier supplier(
       byte[] payload, TestStream.TestStreamCoder payloadCoder, Coder outputCoder) {
     return ProcessorMetaSupplier.forceTotalParallelismOne(
         ProcessorSupplier.of(

@@ -28,12 +28,15 @@ import { SidePanel } from './SidePanel';
 import {
   InteractiveInspectorWidget
 } from './inspector/InteractiveInspectorWidget';
+import { YamlWidget } from './yaml/YamlWidget';
 
 namespace CommandIDs {
   export const open_inspector =
     'apache-beam-jupyterlab-sidepanel:open_inspector';
   export const open_clusters_panel =
     'apache-beam-jupyterlab-sidepanel:open_clusters_panel';
+  export const open_yaml_editor =
+    'apache-beam-jupyterlab-sidepanel:open_yaml_editor';
 }
 
 /**
@@ -67,6 +70,7 @@ function activate(
   const category = 'Interactive Beam';
   const inspectorCommandLabel = 'Open Inspector';
   const clustersCommandLabel = 'Manage Clusters';
+  const yamlCommandLabel = 'Edit YAML Pipeline';
   const { commands, shell, serviceManager } = app;
 
   async function createInspectorPanel(): Promise<SidePanel> {
@@ -105,6 +109,24 @@ function activate(
     return panel;
   }
 
+  async function createYamlPanel(): Promise<SidePanel> {
+    const sessionContext = new SessionContext({
+      sessionManager: serviceManager.sessions,
+      specsManager: serviceManager.kernelspecs,
+      name: 'Interactive Beam YAML Session'
+    });
+    const yamlEditor = new YamlWidget(sessionContext);
+    const panel = new SidePanel(
+      serviceManager,
+      rendermime,
+      sessionContext,
+      'Interactive Beam YAML Editor',
+      yamlEditor
+    );
+    activatePanel(panel);
+    return panel;
+  }
+
   function activatePanel(panel: SidePanel): void {
     shell.add(panel, 'main');
     shell.activateById(panel.id);
@@ -122,6 +144,12 @@ function activate(
     execute: createClustersPanel
   });
 
+  // The open_yaml_editor command is also used by the below entry points.
+  commands.addCommand(CommandIDs.open_yaml_editor, {
+    label: yamlCommandLabel,
+    execute: createYamlPanel
+  });
+
   // Entry point in launcher.
   if (launcher) {
     launcher.add({
@@ -132,6 +160,10 @@ function activate(
       command: CommandIDs.open_clusters_panel,
       category: category
     });
+    launcher.add({
+      command: CommandIDs.open_yaml_editor,
+      category: category
+    });
   }
 
   // Entry point in top menu.
@@ -140,10 +172,11 @@ function activate(
   mainMenu.addMenu(menu);
   menu.addItem({ command: CommandIDs.open_inspector });
   menu.addItem({ command: CommandIDs.open_clusters_panel });
+  menu.addItem({ command: CommandIDs.open_yaml_editor });
 
   // Entry point in commands palette.
   palette.addItem({ command: CommandIDs.open_inspector, category });
   palette.addItem({ command: CommandIDs.open_clusters_panel, category });
+  palette.addItem({ command: CommandIDs.open_yaml_editor, category });
 }
-
 export default extension;
