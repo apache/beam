@@ -606,14 +606,20 @@ class SchemaTest(unittest.TestCase):
         schema_pb2.FieldType(
             logical_type=schema_pb2.LogicalType(
                 urn="beam:logical_type:geography:v1",
-                representation=typing_to_runner_api(str))),
+                representation=typing_to_runner_api(str),
+                argument_type=typing_to_runner_api(str),
+                argument=schema_pb2.FieldValue(
+                    atomic_value=schema_pb2.AtomicValue(string_value="")))),
         typing_to_runner_api(GeographyType))
     self.assertEqual(
         typing_from_runner_api(
             schema_pb2.FieldType(
                 logical_type=schema_pb2.LogicalType(
                     urn="beam:logical_type:geography:v1",
-                    representation=typing_to_runner_api(str))),
+                    representation=typing_to_runner_api(str),
+                    argument_type=typing_to_runner_api(str),
+                    argument=schema_pb2.FieldValue(
+                        atomic_value=schema_pb2.AtomicValue(string_value="")))),
             schema_registry=SchemaTypeRegistry()),
         GeographyType)
 
@@ -624,7 +630,10 @@ class SchemaTest(unittest.TestCase):
             nullable=True,
             logical_type=schema_pb2.LogicalType(
                 urn="beam:logical_type:geography:v1",
-                representation=typing_to_runner_api(str))),
+                representation=typing_to_runner_api(str),
+                argument_type=typing_to_runner_api(str),
+                argument=schema_pb2.FieldValue(
+                    atomic_value=schema_pb2.AtomicValue(string_value="")))),
         typing_to_runner_api(Optional[GeographyType]))
     self.assertEqual(
         typing_from_runner_api(
@@ -632,7 +641,10 @@ class SchemaTest(unittest.TestCase):
                 nullable=True,
                 logical_type=schema_pb2.LogicalType(
                     urn="beam:logical_type:geography:v1",
-                    representation=typing_to_runner_api(str))),
+                    representation=typing_to_runner_api(str),
+                    argument_type=typing_to_runner_api(str),
+                    argument=schema_pb2.FieldValue(
+                        atomic_value=schema_pb2.AtomicValue(string_value="")))),
             schema_registry=SchemaTypeRegistry()),
         Optional[GeographyType])
 

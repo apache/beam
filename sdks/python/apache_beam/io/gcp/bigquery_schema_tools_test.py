@@ -21,6 +21,7 @@ import unittest.mock
 import mock
 import numpy as np
 
+import apache_beam as beam
 import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
