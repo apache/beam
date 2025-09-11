@@ -634,6 +634,9 @@ class BeamModulePlugin implements Plugin<Project> {
     def netty_version = "4.1.110.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
     def opentelemetry_version = "1.47.0"
+    // [manual] determined by: https://github.com/open-telemetry/opentelemetry-java-contrib/releases, consistent with: opentelemetry_instrumentation_bom
+    def opentelemetry_contrib_version = "1.44.0"
+    // [manual] determined by: https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases, consistent with: opentelemetry_bom
     def opentelemetry_instrumentation_version = "2.13.3"
     def postgres_version = "42.2.16"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
@@ -855,7 +858,9 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // google_cloud_platform_libraries_bom sets version
-        opentelemetry_instrumentation_bom           : "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:$opentelemetry_instrumentation_version",
+        opentelemetry_bom                           : "io.opentelemetry:opentelemetry-bom-alpha:$opentelemetry_version-alpha", // opentelemetry_contrib_gcp_auth_extension requires alpha
+        opentelemetry_contrib_gcp_auth_extension    : "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:$opentelemetry_contrib_version-alpha:shadow",
+        opentelemetry_instrumentation_bom           : "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:$opentelemetry_instrumentation_version-alpha", // opentelemetry_contrib_gcp_auth_extension requires alpha
         opentelemetry_javaagent                     : "io.opentelemetry.javaagent:opentelemetry-javaagent", // opentelemetry_instrumentation_bom sets version
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",

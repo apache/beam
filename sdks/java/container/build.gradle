@@ -44,7 +44,7 @@ dependencies {
   dockerDependency library.java.jamm
   dockerDependency platform(library.java.opentelemetry_instrumentation_bom)
   dockerDependency library.java.opentelemetry_javaagent
-  dockerDependency "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:1.48.0-alpha:shadow"
+  dockerDependency library.java.opentelemetry_contrib_gcp_auth_extension
 }
 
 goBuild {
