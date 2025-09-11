@@ -26,21 +26,21 @@ import org.apache.beam.sdk.metrics.Metrics;
  * are reasonable considerations.
  */
 public class ThrottlingSignaler {
-  private Counter throttle_counter;
+  private final Counter throttleCounter;
 
   public ThrottlingSignaler(String namespace) {
-    this.throttle_counter = Metrics.counter(namespace, Metrics.THROTTLE_TIME_COUNTER_NAME);
+    this.throttleCounter = Metrics.counter(namespace, Metrics.THROTTLE_TIME_COUNTER_NAME);
   }
 
   public ThrottlingSignaler() {
-    ThrottlingSignaler("");
+    this("");
   }
 
-  /** 
+  /**
    * Signal that a transform has been throttled for an amount of time
    * represented in milliseconds.
    */
   public void signalThrottling(long milliseconds) {
-    throttle_counter.inc(milliseconds);
+    throttleCounter.inc(milliseconds);
   }
 }
