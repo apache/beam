@@ -314,7 +314,7 @@ public abstract class TableSchema implements Serializable {
      * @return value of ClickHouse expression
      */
     public static Object parseDefaultExpression(ColumnType columnType, String value) {
-      if (value == null || value.isEmpty()) {
+      if (value == null) {
         return null;
       }
 
@@ -349,7 +349,6 @@ public abstract class TableSchema implements Serializable {
         case DATE:
         case DATETIME:
           // ClickHouse DateTime/Date format: 'YYYY-MM-DD HH:MM:SS' or 'YYYY-MM-DD'
-          // Convert to Joda DateTime (used by Beam Schema.FieldType.DATETIME)
           try {
             String formattedValue = value.contains(" ") ? value : value + " 00:00:00";
             return new org.joda.time.DateTime(
@@ -358,7 +357,8 @@ public abstract class TableSchema implements Serializable {
                         java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                     .atZone(java.time.ZoneId.of("UTC"))
                     .toInstant()
-                    .toEpochMilli());
+                    .toEpochMilli(),
+                org.joda.time.DateTimeZone.UTC);
           } catch (java.time.format.DateTimeParseException e) {
             throw new IllegalArgumentException("Invalid DateTime/Date format: " + value, e);
           }
