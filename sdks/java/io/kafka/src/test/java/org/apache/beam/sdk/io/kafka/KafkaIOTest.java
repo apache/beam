@@ -793,6 +793,50 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testDefaultRedistributeNumKeys() {
+    int numElements = 1000;
+    // Redistribute is not used.
+    KafkaIO.Read<Integer, Long> read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            false, /*redistribute*/
+            false, /*allowDuplicates*/
+            null, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null /*topics*/);
+    assertEquals(0, read.getRedistributeNumKeys());
+
+    // Redistribute is used and defaulted the number of keys.
+    read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            true, /*redistribute*/
+            false, /*allowDuplicates*/
+            null, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null /*topics*/);
+    // Default is by DEFAULT_REDISTRIBUTE_NUM_KEYS in KafkaIO.
+    assertEquals(32768, read.getRedistributeNumKeys());
+
+    // Redistribute is used and specified the number of keys.
+    read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            true, /*redistribute*/
+            false, /*allowDuplicates*/
+            10, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null /*topics*/);
+    assertEquals(10, read.getRedistributeNumKeys());
+  }
+
+  @Test
   public void testDisableRedistributeKafkaOffsetLegacy() {
     thrown.expect(Exception.class);
     thrown.expectMessage(
