@@ -30,6 +30,7 @@ import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -795,7 +796,7 @@ public class KafkaIOTest {
   @Test
   public void testDefaultRedistributeNumKeys() {
     int numElements = 1000;
-    // Redistribute is not used.
+    // Redistribute is not used and does not modify the read transform further.
     KafkaIO.Read<Integer, Long> read =
         mkKafkaReadTransform(
             numElements,
@@ -806,9 +807,10 @@ public class KafkaIOTest {
             null, /*numKeys*/
             null, /*offsetDeduplication*/
             null /*topics*/);
+    assertFalse(read.isRedistributed());
     assertEquals(0, read.getRedistributeNumKeys());
 
-    // Redistribute is used and defaulted the number of keys.
+    // Redistribute is used and defaulted the number of keys due to no user setting.
     read =
         mkKafkaReadTransform(
             numElements,
@@ -819,10 +821,11 @@ public class KafkaIOTest {
             null, /*numKeys*/
             null, /*offsetDeduplication*/
             null /*topics*/);
-    // Default is by DEFAULT_REDISTRIBUTE_NUM_KEYS in KafkaIO.
+    assertTrue(read.isRedistributed());
+    // Default is defined by DEFAULT_REDISTRIBUTE_NUM_KEYS in KafkaIO.
     assertEquals(32768, read.getRedistributeNumKeys());
 
-    // Redistribute is used and specified the number of keys.
+    // Redistribute is set with user-specified the number of keys.
     read =
         mkKafkaReadTransform(
             numElements,
@@ -833,6 +836,7 @@ public class KafkaIOTest {
             10, /*numKeys*/
             null, /*offsetDeduplication*/
             null /*topics*/);
+    assertTrue(read.isRedistributed());
     assertEquals(10, read.getRedistributeNumKeys());
   }
 
