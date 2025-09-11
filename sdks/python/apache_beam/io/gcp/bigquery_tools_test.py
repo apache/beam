@@ -302,18 +302,22 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
 
   def test_create_temporary_dataset_with_kms_key(self):
-    kms_key = 'projects/my-project/locations/global/keyRings/my-kr/cryptoKeys/my-key'
+    kms_key = (
+      'projects/my-project/locations/global/keyRings/my-kr/'
+      'cryptoKeys/my-key'
+    )
     client = mock.Mock()
     client.datasets.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
 
     client.datasets.Insert.return_value = bigquery.Dataset(
-      datasetReference=bigquery.DatasetReference(
-          projectId='project-id', datasetId='temp_dataset'))
+        datasetReference=bigquery.DatasetReference(
+            projectId='project-id', datasetId='temp_dataset'))
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
 
     try:
-      wrapper.create_temporary_dataset('project-id', 'location', kms_key=kms_key)
+      wrapper.create_temporary_dataset(
+          'project-id', 'location', kms_key=kms_key)
     except Exception:
       pass
 
@@ -321,11 +325,10 @@ class TestBigQueryWrapper(unittest.TestCase):
     insert_request = args[0]  # BigqueryDatasetsInsertRequest
     inserted_dataset = insert_request.dataset  # Actual Dataset object
 
-  # Assertions
+    # Assertions
     self.assertIsNotNone(inserted_dataset.defaultEncryptionConfiguration)
     self.assertEqual(
-      inserted_dataset.defaultEncryptionConfiguration.kmsKeyName,
-      kms_key)
+        inserted_dataset.defaultEncryptionConfiguration.kmsKeyName, kms_key)
 
   def test_get_or_create_dataset_fetched(self):
     client = mock.Mock()

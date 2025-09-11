@@ -334,9 +334,7 @@ def _build_filter_from_labels(labels):
 
 
 def _build_dataset_encryption_config(kms_key):
-  return bigquery.EncryptionConfiguration(
-      kmsKeyName=kms_key
-  )
+  return bigquery.EncryptionConfiguration(kmsKeyName=kms_key)
 
 
 class BigQueryWrapper(object):
@@ -853,8 +851,9 @@ class BigQueryWrapper(object):
         if labels is not None:
           dataset.labels = _build_dataset_labels(labels)
         if kms_key is not None:
-          dataset.defaultEncryptionConfiguration = _build_dataset_encryption_config(
-            kms_key)  
+          dataset.defaultEncryptionConfiguration = (
+              _build_dataset_encryption_config(kms_key)
+          )
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
@@ -926,11 +925,14 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def create_temporary_dataset(self, project_id, location,
-                                labels=None, kms_key=None):
+  def create_temporary_dataset(
+      self, project_id, location,labels=None, kms_key=None):
     self.get_or_create_dataset(
-        project_id, self.temp_dataset_id, location=location, labels=labels,
-          kms_key=kms_key)
+        project_id,
+        self.temp_dataset_id,
+        location=location,
+        labels=labels,
+        kms_key=kms_key)
 
     if (project_id is not None and not self.is_user_configured_dataset() and
         not self.created_temp_dataset):
