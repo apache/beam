@@ -65,12 +65,16 @@ org.eclipse.jgit:
   '4.4.1.201607150455-r':
     license: "https://www.eclipse.org/org/documents/edl-v10.html"
     type: "Eclipse Distribution License - v1.0"
-opentelemetry-bom:
-  '1.47.0':
+opentelemetry-bom-alpha:
+  '1.47.0-alpha':
     license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.47.0/LICENSE"
     type: "Apache License 2.0"
-opentelemetry-instrumentation-bom:
-  '2.13.3':
+opentelemetry-gcp-auth-extension:
+  '1.44.0-alpha':
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java-contrib/v1.44.0/LICENSE"
+    type: "Apache License 2.0"
+opentelemetry-instrumentation-bom-alpha:
+  '2.13.3-alpha':
     license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java-instrumentation/v2.13.3/LICENSE"
     type: "Apache License 2.0"
 zstd-jni:
