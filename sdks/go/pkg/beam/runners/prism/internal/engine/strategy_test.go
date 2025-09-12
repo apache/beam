@@ -488,11 +488,30 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{emNow: 0}, false},
 				{triggerInput{emNow: 1000}, false},
 				{triggerInput{emNow: 2000}, false},
-				{triggerInput{emNow: 3000}, true},  // first the first time
-				{triggerInput{emNow: 4000}, false}, // trigger firing time is set again
+				{triggerInput{emNow: 3000}, true}, // firing the first time, trigger set again
+				{triggerInput{emNow: 4000}, false},
 				{triggerInput{emNow: 5000}, false},
-				{triggerInput{emNow: 6000}, false},
-				{triggerInput{emNow: 7000}, true}, // trigger firing again
+				{triggerInput{emNow: 6000}, true}, // firing the second time
+			},
+		}, {
+			name: "afterProcessingTime_Repeated_AcrossWindows", trig: &TriggerRepeatedly{
+				&TriggerAfterProcessingTime{
+					Transforms: []TimestampTransform{
+						{Delay: 3 * time.Second},
+					}}},
+			inputs: []io{
+				{triggerInput{emNow: 0}, false},
+				{triggerInput{emNow: 1000}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 3000}, true}, // fire the first time, trigger is set again
+				{triggerInput{emNow: 4000}, false},
+				{triggerInput{emNow: 5000}, false},
+				{triggerInput{emNow: 6000,
+					endOfWindowReached: true}, true}, // fire the second time, reach end of window and start over
+				{triggerInput{emNow: 7000}, false}, // trigger firing time is set to 7s + 3s = 10s
+				{triggerInput{emNow: 8000}, false},
+				{triggerInput{emNow: 9000}, false},
+				{triggerInput{emNow: 10000}, true}, // fire in the new window
 			},
 		}, {
 			name: "default",

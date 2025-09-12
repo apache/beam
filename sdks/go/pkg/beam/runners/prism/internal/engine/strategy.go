@@ -589,8 +589,9 @@ type TriggerAfterProcessingTime struct {
 }
 
 type afterProcessingTimeState struct {
-	emNow      mtime.Time
-	firingTime mtime.Time
+	emNow              mtime.Time
+	firingTime         mtime.Time
+	endOfWindowReached bool
 }
 
 func (t *TriggerAfterProcessingTime) onElement(input triggerInput, state *StateData) {
@@ -601,12 +602,14 @@ func (t *TriggerAfterProcessingTime) onElement(input triggerInput, state *StateD
 
 	if ts.extra == nil {
 		ts.extra = afterProcessingTimeState{
-			emNow:      input.emNow,
-			firingTime: t.applyTimestampTransforms(input.emNow),
+			emNow:              input.emNow,
+			firingTime:         t.applyTimestampTransforms(input.emNow),
+			endOfWindowReached: input.endOfWindowReached,
 		}
 	} else {
 		s, _ := ts.extra.(afterProcessingTimeState)
 		s.emNow = input.emNow
+		s.endOfWindowReached = input.endOfWindowReached
 		ts.extra = s
 	}
 
@@ -634,7 +637,7 @@ func (t *TriggerAfterProcessingTime) applyTimestampTransforms(start mtime.Time) 
 
 func (t *TriggerAfterProcessingTime) shouldFire(state *StateData) bool {
 	ts := state.getTriggerState(t)
-	if ts.extra == nil {
+	if ts.extra == nil || ts.finished {
 		return false
 	}
 	s := ts.extra.(afterProcessingTimeState)
@@ -646,11 +649,28 @@ func (t *TriggerAfterProcessingTime) onFire(state *StateData) {
 	if ts.finished {
 		return
 	}
-	triggerClearAndFinish(t, state)
+
+	// We don't reset the state here, only mark it as finished
+	ts.finished = true
+	state.setTriggerState(t, ts)
 }
 
 func (t *TriggerAfterProcessingTime) reset(state *StateData) {
-	delete(state.Trigger, t)
+	ts := state.getTriggerState(t)
+	if ts.extra != nil {
+		if ts.extra.(afterProcessingTimeState).endOfWindowReached {
+			delete(state.Trigger, t)
+			return
+		}
+	}
+
+	// Not reaching the end of window yet.
+	// We keep the state (especially the next possible firing time) in case the trigger is called again
+	ts.finished = false
+	s := ts.extra.(afterProcessingTimeState)
+	s.firingTime = t.applyTimestampTransforms(s.firingTime) // compute next possible firing time
+	ts.extra = s
+	state.setTriggerState(t, ts)
 }
 
 func (t *TriggerAfterProcessingTime) String() string {
