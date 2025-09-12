@@ -2230,7 +2230,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             }
 
             Coder<T> outputCoder = (Coder<T>) outputCoders.get(tag);
-            checkState(outputCoder != null, "No output tag for " + tag);
+            checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
                 "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
@@ -2603,7 +2603,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             }
 
             Coder<T> outputCoder = (Coder<T>) outputCoders.get(tag);
-            checkState(outputCoder != null, "No output tag for " + tag);
+            checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
                 "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
@@ -2942,7 +2942,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             }
 
             Coder<T> outputCoder = (Coder<T>) outputCoders.get(tag);
-            checkState(outputCoder != null, "No output tag for " + tag);
+            checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
                 "Output with tag " + tag + " must have a schema in order to call getRowReceiver");

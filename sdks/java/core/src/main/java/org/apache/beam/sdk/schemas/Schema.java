@@ -325,7 +325,8 @@ public class Schema implements Serializable {
     for (Field field : this.fields) {
       Preconditions.checkArgument(
           fieldIndicesMutable.get(field.getName()) == null,
-          "Duplicate field " + field.getName() + " added to schema");
+          "Duplicate field %s added to schema",
+          field.getName());
       encodingPositions.put(field.getName(), index);
       fieldIndicesMutable.put(field.getName(), index++);
     }

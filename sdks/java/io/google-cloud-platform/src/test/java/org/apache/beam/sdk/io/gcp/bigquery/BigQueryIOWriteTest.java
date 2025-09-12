@@ -3146,7 +3146,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     for (TableReference ref : tableRefs) {
       loggedWriteRename.verifyDebug("Deleting table " + toJsonString(ref));
-      checkState(datasetService.getTable(ref) == null, "Table " + ref + " was not deleted!");
+      checkState(datasetService.getTable(ref) == null, "Table %s was not deleted!", ref);
     }
   }
 

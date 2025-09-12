@@ -171,7 +171,7 @@ final class StructUtils {
               @Nullable BigDecimal decimal = row.getDecimal(column);
               // BigDecimal is not nullable
               if (decimal == null) {
-                checkNotNull(decimal, "Null decimal at column " + column);
+                checkNotNull(decimal, "Null decimal at column %s", column);
               } else {
                 structBuilder.set(column).to(decimal);
               }

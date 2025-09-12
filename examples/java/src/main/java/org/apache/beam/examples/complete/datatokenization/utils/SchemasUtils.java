@@ -140,14 +140,15 @@ public class SchemasUtils {
       result = FileSystems.match(filePath);
       checkArgument(
           result.status() == MatchResult.Status.OK && !result.metadata().isEmpty(),
-          "Failed to match any files with the pattern: " + filePath);
+          "Failed to match any files with the pattern: %s",
+          filePath);
 
       List<ResourceId> rId =
           result.metadata().stream()
               .map(MatchResult.Metadata::resourceId)
               .collect(Collectors.toList());
 
-      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got " + rId.size() + " files.");
+      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got %s files.", rId.size());
 
       Reader reader =
           Channels.newReader(FileSystems.open(rId.get(0)), StandardCharsets.UTF_8.name());
