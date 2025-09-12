@@ -593,11 +593,21 @@ class _PubSubWriteDoFn(DoFn):
 
     import time
 
-    # The elements in buffer are already serialized bytes from the previous
-    # transforms
-    futures = [
-        self._pub_client.publish(self._topic, elem) for elem in self._buffer
-    ]
+    # The elements in buffer are serialized protobuf bytes from the previous
+    # transforms. We need to deserialize them to extract data and attributes.
+    futures = []
+    for elem in self._buffer:
+      # Deserialize the protobuf to get the original PubsubMessage
+      pubsub_msg = PubsubMessage._from_proto_str(elem)
+
+      # Publish with the correct data and attributes
+      if self.with_attributes and pubsub_msg.attributes:
+        future = self._pub_client.publish(
+            self._topic, pubsub_msg.data, **pubsub_msg.attributes)
+      else:
+        future = self._pub_client.publish(self._topic, pubsub_msg.data)
+
+      futures.append(future)
 
     timer_start = time.time()
     for future in futures:
