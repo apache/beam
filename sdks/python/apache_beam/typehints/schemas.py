@@ -556,7 +556,7 @@ class SchemaTranslation(object):
             fieldtype_proto.logical_type)
         # Special case for GeographyType: return the logical type class itself
         # instead of the language_type to maintain semantic meaning
-        if fieldtype_proto.logical_type.urn == "beam:logical_type:geography:v1":
+        if fieldtype_proto.logical_type.urn == GeographyType.urn():
           return type(logical_type_instance)
         else:
           return logical_type_instance.language_type()
