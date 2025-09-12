@@ -514,6 +514,23 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{emNow: 10000}, true}, // fire in the new window
 			},
 		}, {
+			name: "afterProcessingTime_Repeated_Composite", trig: &TriggerRepeatedly{
+				&TriggerAfterAny{SubTriggers: []Trigger{
+					&TriggerAfterProcessingTime{
+						Transforms: []TimestampTransform{
+							{Delay: 3 * time.Second},
+						},
+					},
+					&TriggerElementCount{ElementCount: 2},
+				}}},
+			inputs: []io{
+				{triggerInput{emNow: 0, newElementCount: 1}, false},    // ElmCount = 1, set AfterProcessingTime trigger firing time to 3s
+				{triggerInput{emNow: 1000, newElementCount: 1}, true},  // ElmCount = 2, fire ElmCount trigger and reset ElmCount and AfterProcessingTime firing time (4s)
+				{triggerInput{emNow: 4000, newElementCount: 1}, true},  // ElmCount = 1, fire AfterProcessingTime trigger and reset ElmCount and AfterProcessingTime firing time (7s)
+				{triggerInput{emNow: 5000, newElementCount: 1}, false}, // ElmCount = 1
+				{triggerInput{emNow: 5500, newElementCount: 1}, true},  // ElmCount = 2, fire ElmCount trigger
+			},
+		}, {
 			name: "default",
 			trig: &TriggerDefault{},
 			inputs: []io{
