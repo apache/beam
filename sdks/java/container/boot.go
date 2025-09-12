@@ -56,7 +56,7 @@ const (
 	googleCloudProfilerAgentBaseArgs    = "-agentpath:/opt/google_cloud_profiler/profiler_java_agent.so=-logtostderr,-cprof_service=%s,-cprof_service_version=%s"
 	googleCloudProfilerAgentHeapArgs    = googleCloudProfilerAgentBaseArgs + ",-cprof_enable_heap_sampling,-cprof_heap_sampling_interval=2097152"
 	jammAgentArgs                       = "-javaagent:/opt/apache/beam/jars/jamm.jar"
-	openTelemetryAgentArgs              = "-javaagent:/opt/apache/beam/jars/opentelemetry-javaagent.jar=otel.javaagent.extensions=/opt/opentelemetry/extensions"
+	openTelemetryAgentArgs              = "-javaagent:/opt/apache/beam/jars/opentelemetry-javaagent.jar -Dotel.javaagent.extensions=/opt/opentelemetry/extensions"
 )
 
 func main() {
