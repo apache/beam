@@ -21,7 +21,6 @@ import sys
 from typing import List, TypedDict
 from google.api_core.exceptions import PermissionDenied
 # Importing custom modules
-from gcp_logger import GCSLogHandler, GCPLogger
 from secret_manager import SecretManager
 from service_account import ServiceAccountManager
 
@@ -34,8 +33,6 @@ class ConfigDict(TypedDict):
     project_id: str
     rotation_interval: int
     grace_period: int
-    bucket_name: str
-    log_file_prefix: str
     logging_level: str
 
 class AuthorizedUser(TypedDict):
@@ -57,7 +54,7 @@ def load_config() -> ConfigDict:
     if not config:
         raise ValueError("Configuration file is empty or invalid.")
 
-    required_keys = set(['project_id', 'rotation_interval', 'grace_period', 'bucket_name', 'log_file_prefix'])
+    required_keys = set(['project_id', 'rotation_interval', 'grace_period'])
     missing_keys = required_keys - config.keys()
     if missing_keys:
         raise ValueError(f"Missing required configuration keys: {', '.join(missing_keys)}")
@@ -66,10 +63,6 @@ def load_config() -> ConfigDict:
         raise ValueError("Configuration 'rotation_interval' must be a positive integer.")
     if not isinstance(config['grace_period'], int) or config['grace_period'] < 0:
         raise ValueError("Configuration 'grace_period' must be a non-negative integer.")
-    if not isinstance(config['bucket_name'], str) or not config['bucket_name'].strip():
-        raise ValueError("Configuration 'bucket_name' must be a non-empty string.")
-    if not isinstance(config['log_file_prefix'], str) or not config['log_file_prefix'].strip():
-        raise ValueError("Configuration 'log_file_prefix' must be a non-empty string.")
     if 'logging_level' in config:
         if not isinstance(config['logging_level'], str) or config['logging_level'].strip() not in logging._nameToLevel:
             raise ValueError("Configuration 'logging_level' must be one of: " + ", ".join(logging._nameToLevel.keys()))
@@ -105,6 +98,7 @@ def parse_arguments():
         epilog="""
 Examples:
   python keys.py --cron                 # Run key rotation for accounts that need it, ran only by cron job
+  python keys.py --cron-dry-run         # Run a dry run of the key rotation cron job
   python keys.py --get-key my-sa        # Get the latest key for service account 'my-sa', ran by users
         """
     )
@@ -114,6 +108,11 @@ Examples:
         '--cron',
         action='store_true',
         help='Run the cron job to rotate keys that require rotation'
+    )
+    group.add_argument(
+        '--cron-dry-run',
+        action='store_true',
+        help='Run a dry run of the cron job to see what would be rotated'
     )
     group.add_argument(
         '--get-key',
@@ -159,18 +158,20 @@ class KeyService:
         self.project_id = config['project_id']
         rotation_interval = config['rotation_interval']
         grace_period = config['grace_period']
-        bucket_name = config['bucket_name']
-        log_file_prefix = config['log_file_prefix']
         logging_level = config['logging_level']
 
         self.service_accounts = service_accounts_config['service_accounts']
         self.enable_logging = enable_logging
 
+        self.logger = logging.getLogger("KeyService")
         if self.enable_logging:
-            self.logger = GCPLogger("KeyService", logging_level, bucket_name, log_file_prefix, self.project_id)
+            self.logger.setLevel(logging_level)
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
         else:
             # Create a null logger that doesn't actually log anything
-            self.logger = logging.getLogger("KeyService")
             self.logger.setLevel(logging.CRITICAL + 1)  # Set to a level higher than CRITICAL to disable all logging
 
         self.secret_manager_client = SecretManager(self.project_id, self.logger, rotation_interval, grace_period)
@@ -179,28 +180,6 @@ class KeyService:
         if self.enable_logging:
             self.logger.info(f"Initialized KeyService for project: {self.project_id}")
 
-    def __del__(self) -> None:
-        """Manually flush all logs to Google Cloud Storage."""
-        try:
-            if self.enable_logging:
-                for handler in self.logger.handlers:
-                    if isinstance(handler, GCSLogHandler):
-                        handler.flush_to_gcs()
-        except Exception:
-            pass
-
-    def cleanup(self) -> None:
-        """Explicit cleanup method to flush logs and close resources."""
-        try:
-            if self.enable_logging:
-                self.logger.info("KeyService cleanup: Flushing logs to Google Cloud Storage")
-                for handler in self.logger.handlers:
-                    if isinstance(handler, GCSLogHandler):
-                        handler.flush_to_gcs()
-        except Exception as e:
-            if self.enable_logging:
-                self.logger.error(f"Error during cleanup: {e}")
-
     def _start_all_service_accounts(self) -> None:
         """
         Reads the service accounts configuration and checks for service accounts.
@@ -208,7 +187,7 @@ class KeyService:
         1. If a service account exists and is managed, it checks if the secret exists and updates access if needed.
         2. If the service account exists but the secret does not, it creates the secret and clears the service account
               keys as now keys will be managed by the Secret Manager.
-        3. If neither the service account nor the secret exists , it creates both.
+        3. If neither the service account nor the secret exists, it creates and initializes both.
         4. If any other case is encountered, it logs an error and skips the account.
         """
 
@@ -257,7 +236,7 @@ class KeyService:
             except Exception as e:
                 self.logger.error(f"Error creating service account or secret for {account_id}: {e}")
 
-    def cron(self) -> None:
+    def cron(self, dry_run: bool = False) -> None:
         """
         Cron job to rotate service account keys and secrets.
 
@@ -268,20 +247,31 @@ class KeyService:
             1.1. If the key is due for rotation, it will rotate the key and update the secret in Secret Manager.
             1.2. If the key is not due for rotation, it will log that no action is needed.
         2. Check for keys that have expired the grace period and delete them from both the service account and Secret Manager.
+        
+        Args:
+            dry_run (bool): If True, the method will only log the actions that would be taken.
         """
 
-        self.logger.info("Starting cron job for service account key rotation")
-        self._start_all_service_accounts()
+        if dry_run:
+            self.logger.info("Starting cron job DRY RUN for service account key rotation")
+        else:
+            self.logger.info("Starting cron job for service account key rotation")
+        
+        if not dry_run:
+            self._start_all_service_accounts()
 
         for account in self.service_accounts:
             account_id = account['account_id']
             secret_name = f"{account_id}-key"
             try:
                 if self.secret_manager_client._is_key_rotation_due(secret_name):
-                    self.logger.info(f"Service account key for {account_id} is due for rotation, rotating key")
-                    new_key = self.service_account_manager.create_service_account_key(account_id)
-                    new_key_id = new_key.name.split('/')[-1]
-                    self.secret_manager_client.add_secret_version(secret_name, new_key_id, new_key.private_key_data)
+                    if dry_run:
+                        self.logger.info(f"[DRY RUN] Service account key for {account_id} is due for rotation, would rotate key.")
+                    else:
+                        self.logger.info(f"Service account key for {account_id} is due for rotation, rotating key")
+                        new_key = self.service_account_manager.create_service_account_key(account_id)
+                        new_key_id = new_key.name.split('/')[-1]
+                        self.secret_manager_client.add_secret_version(secret_name, new_key_id, new_key.private_key_data)
                 else:
                     self.logger.debug(f"Service account key for {account_id} is not due for rotation")
             except Exception as e:
@@ -294,13 +284,19 @@ class KeyService:
         for secret_id, key_ids in keys_to_delete:
             try:
                 for key_id in key_ids:
-                    self.logger.info(f"Deleting expired key {key_id} for secret {secret_id}")
-                    self.service_account_manager.delete_service_account_key(secret_id, key_id)
+                    if dry_run:
+                        self.logger.info(f"[DRY RUN] Would delete expired key {key_id} for secret {secret_id}")
+                    else:
+                        self.logger.info(f"Deleting expired key {key_id} for secret {secret_id}")
+                        self.service_account_manager.delete_service_account_key(secret_id, key_id)
             except Exception as e:
                 self.logger.error(f"Error deleting expired keys for secret {secret_id}: {e}")
                 continue
 
-        self.logger.info("Cron job for service account key rotation completed")
+        if dry_run:
+            self.logger.info("Cron job DRY RUN for service account key rotation completed")
+        else:
+            self.logger.info("Cron job for service account key rotation completed")
 
     def get_latest_service_account_key(self, account_id: str) -> str:
         """
@@ -339,11 +335,13 @@ def main():
         config = load_config()
         service_accounts_config = load_service_accounts_config()
         
-        if args.cron:
-            print("Running cron job for key rotation...")
+        if args.cron or args.cron_dry_run:
+            is_dry_run = args.cron_dry_run
+            run_type = "dry run" if is_dry_run else "job"
+            print(f"Running cron {run_type} for key rotation...")
             key_service = KeyService(config, service_accounts_config)
-            key_service.cron()
-            print("Cron job completed successfully.")
+            key_service.cron(dry_run=is_dry_run)
+            print(f"Cron {run_type} completed successfully.")
             
         elif args.get_key:
             account_id = args.get_key
@@ -379,11 +377,6 @@ def main():
         print(f"An error occurred: {e}")
         logging.error(f"An error occurred: {e}")
         logging.error(f"Full traceback: {traceback.format_exc()}")
-        if key_service is not None:
-            try:
-                key_service.cleanup()
-            except:
-                pass
         sys.exit(1)
 
 if __name__ == "__main__":

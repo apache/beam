@@ -185,7 +185,8 @@ class FnApiWorkerStatusHandler(object):
         self._status_channel)
     self._responses = queue.Queue()
     self.log_lull_timeout_ns = log_lull_timeout_ns
-    if element_processing_timeout_minutes:
+    if (element_processing_timeout_minutes and
+        element_processing_timeout_minutes > 0):
       self._element_processing_timeout_ns = (
           element_processing_timeout_minutes * 60 * 1e9)
     else:
@@ -285,12 +286,13 @@ class FnApiWorkerStatusHandler(object):
     if timeout_exceeded:
       _LOGGER.error(
           (
-              'Operation ongoing in bundle %s%s for at least %.2f seconds'
-              ' without outputting or completing.\n'
+              'Processing of an element in bundle %s%s has exceeded the '
+              'specified timeout of %.2f minutes. SDK harness will be '
+              'terminated.\n'
               'Current Traceback:\n%s'),
           instruction,
           step_name_log,
-          lull_seconds,
+          self._element_processing_timeout_ns / 1e9 / 60,
           stack_trace,
       )
       from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness

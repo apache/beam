@@ -30,9 +30,5 @@ grace_period: 2
 
 # LOGGING
 
-# The secret rotation logs will be stored in a GCP bucket.
-bucket_name: "beam-terraform-infra-state"
-# The log file will be stored in the bucket with the following prefix
-log_file_prefix: "beam-secrets-rotation"
 # Logging level for the secrets rotation service
 logging_level: "DEBUG" # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL

@@ -612,6 +612,37 @@ public class SpannerIO {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
     }
 
+    /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
+    public ReadAll withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
+    }
+
+    public ReadAll withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public ReadAll withUsingPlainTextChannel(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withUsingPlainTextChannel(plainText));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public ReadAll withUsingPlainTextChannel(boolean plainText) {
+      return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
     /** Specifies the Cloud Spanner database. */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
@@ -839,6 +870,37 @@ public class SpannerIO {
 
     public Read withEmulatorHost(String emulatorHost) {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
+    /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
+    public Read withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
+    }
+
+    public Read withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public Read withUsingPlainTextChannel(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withUsingPlainTextChannel(plainText));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public Read withUsingPlainTextChannel(boolean plainText) {
+      return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
     /** If true the uses Cloud Spanner batch API. */
@@ -1137,6 +1199,37 @@ public class SpannerIO {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
     }
 
+    /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
+    public CreateTransaction withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
+    }
+
+    public CreateTransaction withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public CreateTransaction withUsingPlainTextChannel(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withUsingPlainTextChannel(plainText));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public CreateTransaction withUsingPlainTextChannel(boolean plainText) {
+      return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
     @VisibleForTesting
     CreateTransaction withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       SpannerConfig config = getSpannerConfig();
@@ -1272,6 +1365,37 @@ public class SpannerIO {
 
     public Write withEmulatorHost(String emulatorHost) {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
+    /** Specifies the SpannerOptions experimental host (setExperimentalHost). */
+    public Write withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
+    }
+
+    public Write withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public Write withUsingPlainTextChannel(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withUsingPlainTextChannel(plainText));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public Write withUsingPlainTextChannel(boolean plainText) {
+      return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
     public Write withDialectView(PCollectionView<Dialect> dialect) {
@@ -1626,6 +1750,10 @@ public class SpannerIO {
 
     abstract @Nullable Duration getWatermarkRefreshRate();
 
+    abstract @Nullable ValueProvider<String> getExperimentalHost();
+
+    abstract @Nullable ValueProvider<Boolean> getPlainText();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1650,6 +1778,10 @@ public class SpannerIO {
       abstract Builder setTraceSampleProbability(Double probability);
 
       abstract Builder setWatermarkRefreshRate(Duration refreshRate);
+
+      abstract Builder setExperimentalHost(ValueProvider<String> experimentalHost);
+
+      abstract Builder setPlainText(ValueProvider<Boolean> plainText);
 
       abstract ReadChangeStream build();
     }
@@ -1739,6 +1871,38 @@ public class SpannerIO {
 
     public ReadChangeStream withWatermarkRefreshRate(Duration refreshRate) {
       return toBuilder().setWatermarkRefreshRate(refreshRate).build();
+    }
+
+    /** Specifies the experimental host to set on SpannerOptions (setExperimentalHost). */
+    public ReadChangeStream withExperimentalHost(ValueProvider<String> experimentalHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExperimentalHost(experimentalHost));
+    }
+
+    /** Specifies the experimental host to set on SpannerOptions (setExperimentalHost). */
+    public ReadChangeStream withExperimentalHost(String experimentalHost) {
+      return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public ReadChangeStream withUsingPlainTextChannel(ValueProvider<Boolean> plainText) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withUsingPlainTextChannel(plainText));
+    }
+
+    /**
+     * Specifies whether to use plaintext channel.
+     *
+     * <p>Note: This parameter is only valid when using an experimental host (set via {@code
+     * withExperimentalHost}).
+     */
+    public ReadChangeStream withUsingPlainTextChannel(boolean plainText) {
+      return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
     @Override
@@ -2461,11 +2625,10 @@ public class SpannerIO {
             }
             LOG.info(
                 "DEADLINE_EXCEEDED writing batch of {} mutations to Cloud Spanner, "
-                    + "retrying after backoff of {}ms\n"
-                    + "({})",
+                    + "retrying after backoff of {}ms",
                 mutations.size(),
                 sleepTimeMsecs,
-                exception.getMessage());
+                exception);
             spannerWriteRetries.inc();
             try {
               sleeper.sleep(sleepTimeMsecs);

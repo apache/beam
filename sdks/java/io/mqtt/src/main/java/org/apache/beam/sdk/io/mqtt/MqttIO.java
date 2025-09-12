@@ -422,20 +422,16 @@ public class MqttIO {
   static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
     @VisibleForTesting String clientId;
-    @VisibleForTesting Instant oldestMessageTimestamp = Instant.now();
     @VisibleForTesting transient List<Message> messages = new ArrayList<>();
 
-    public MqttCheckpointMark() {}
-
-    public MqttCheckpointMark(String id) {
-      clientId = id;
+    public MqttCheckpointMark(String id, List<Message> messages) {
+      this.clientId = id;
+      this.messages = messages;
     }
 
-    public void add(Message message, Instant timestamp) {
-      if (timestamp.isBefore(oldestMessageTimestamp)) {
-        oldestMessageTimestamp = timestamp;
-      }
-      messages.add(message);
+    @VisibleForTesting
+    MqttCheckpointMark(String id) {
+      this.clientId = id;
     }
 
     @Override
@@ -448,7 +444,6 @@ public class MqttIO {
           LOG.warn("Can't ack message for client ID {}", clientId, e);
         }
       }
-      oldestMessageTimestamp = Instant.now();
       messages.clear();
     }
 
@@ -464,7 +459,6 @@ public class MqttIO {
       if (other instanceof MqttCheckpointMark) {
         MqttCheckpointMark that = (MqttCheckpointMark) other;
         return Objects.equals(this.clientId, that.clientId)
-            && Objects.equals(this.oldestMessageTimestamp, that.oldestMessageTimestamp)
             && Objects.deepEquals(this.messages, that.messages);
       } else {
         return false;
@@ -473,7 +467,38 @@ public class MqttIO {
 
     @Override
     public int hashCode() {
-      return Objects.hash(clientId, oldestMessageTimestamp, messages);
+      return Objects.hash(clientId, messages);
+    }
+
+    static class Preparer {
+      @VisibleForTesting String clientId;
+      @VisibleForTesting Instant oldestMessageTimestamp = Instant.now();
+      @VisibleForTesting transient List<Message> messages = new ArrayList<>();
+
+      public Preparer(MqttCheckpointMark checkpointMark) {
+        clientId = checkpointMark.clientId;
+        messages = checkpointMark.messages;
+      }
+
+      public Preparer(String id) {
+        clientId = id;
+      }
+
+      public Preparer() {}
+
+      public void add(Message message, Instant timestamp) {
+        if (timestamp.isBefore(oldestMessageTimestamp)) {
+          oldestMessageTimestamp = timestamp;
+        }
+        messages.add(message);
+      }
+
+      MqttCheckpointMark newCheckpoint() {
+        List<Message> currentMessages = messages;
+        messages = new ArrayList<>();
+        oldestMessageTimestamp = Instant.now();
+        return new MqttCheckpointMark(clientId, currentMessages);
+      }
     }
   }
 
@@ -489,16 +514,20 @@ public class MqttIO {
     @Override
     @SuppressWarnings("unchecked")
     public UnboundedReader<T> createReader(
-        PipelineOptions options, MqttCheckpointMark checkpointMark) {
+        PipelineOptions options, @Nullable MqttCheckpointMark checkpointMark) {
       final UnboundedMqttReader<T> unboundedMqttReader;
+      MqttCheckpointMark.Preparer preparer =
+          checkpointMark == null
+              ? new MqttCheckpointMark.Preparer()
+              : new MqttCheckpointMark.Preparer(checkpointMark);
       if (spec.withMetadata()) {
         unboundedMqttReader =
             new UnboundedMqttReader<>(
                 this,
-                checkpointMark,
+                preparer,
                 message -> (T) MqttRecord.of(message.getTopic(), message.getPayload()));
       } else {
-        unboundedMqttReader = new UnboundedMqttReader<>(this, checkpointMark);
+        unboundedMqttReader = new UnboundedMqttReader<>(this, preparer);
       }
 
       return unboundedMqttReader;
@@ -538,25 +567,26 @@ public class MqttIO {
     private BlockingConnection connection;
     private T current;
     private Instant currentTimestamp;
-    private MqttCheckpointMark checkpointMark;
+    private final MqttCheckpointMark.Preparer checkpointPreparer;
     private SerializableFunction<Message, T> extractFn;
 
-    public UnboundedMqttReader(UnboundedMqttSource<T> source, MqttCheckpointMark checkpointMark) {
+    public UnboundedMqttReader(
+        UnboundedMqttSource<T> source, MqttCheckpointMark.Preparer checkpointPreparer) {
       this.source = source;
       this.current = null;
-      if (checkpointMark != null) {
-        this.checkpointMark = checkpointMark;
+      if (checkpointPreparer != null) {
+        this.checkpointPreparer = checkpointPreparer;
       } else {
-        this.checkpointMark = new MqttCheckpointMark();
+        this.checkpointPreparer = new MqttCheckpointMark.Preparer();
       }
       this.extractFn = message -> (T) message.getPayload();
     }
 
     public UnboundedMqttReader(
         UnboundedMqttSource<T> source,
-        MqttCheckpointMark checkpointMark,
+        MqttCheckpointMark.Preparer checkpointPreparer,
         SerializableFunction<Message, T> extractFn) {
-      this(source, checkpointMark);
+      this(source, checkpointPreparer);
       this.extractFn = extractFn;
     }
 
@@ -567,7 +597,7 @@ public class MqttIO {
       try {
         client = spec.connectionConfiguration().createClient();
         LOG.debug("Reader client ID is {}", client.getClientId());
-        checkpointMark.clientId = client.getClientId().toString();
+        checkpointPreparer.clientId = client.getClientId().toString();
         connection = createConnection(client);
         connection.subscribe(
             new Topic[] {new Topic(spec.connectionConfiguration().getTopic(), QoS.AT_LEAST_ONCE)});
@@ -587,7 +617,7 @@ public class MqttIO {
         }
         current = this.extractFn.apply(message);
         currentTimestamp = Instant.now();
-        checkpointMark.add(message, currentTimestamp);
+        checkpointPreparer.add(message, currentTimestamp);
       } catch (Exception e) {
         throw new IOException(e);
       }
@@ -608,12 +638,12 @@ public class MqttIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.oldestMessageTimestamp;
+      return checkpointPreparer.oldestMessageTimestamp;
     }
 
     @Override
     public UnboundedSource.CheckpointMark getCheckpointMark() {
-      return checkpointMark;
+      return checkpointPreparer.newCheckpoint();
     }
 
     @Override

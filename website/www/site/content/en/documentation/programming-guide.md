@@ -1184,6 +1184,104 @@ func init() {
 
 </span>
 
+{{< paragraph class="language-python">}}
+Proper use of return vs yield in Python Functions.
+{{< /paragraph >}}
+
+<span class="language-python">
+
+> **Returning a single element (e.g., `return element`) is incorrect**
+> The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string
+> (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`) or incorrect results since the return value
+> will be treated as an iterable. Always ensure your return type is iterable.
+
+</span>
+
+{{< highlight python >}}
+# Incorrectly Returning a single string instead of a sequence
+class ReturnIndividualElement(beam.DoFn):
+    def process(self, element):
+        return element
+
+with beam.Pipeline() as pipeline:
+    (
+        pipeline
+        | "CreateExamples" >> beam.Create(["foo"])
+        | "MapIncorrect" >> beam.ParDo(ReturnIndividualElement())
+        | "Print" >> beam.Map(print)
+    )
+  # prints:
+  # f
+  # o
+  # o
+{{< /highlight >}}
+
+<span class="language-python">
+
+> **Returning a list (e.g., `return [element1, element2]`) is valid because List is Iterable**
+> This approach works well when emitting multiple outputs from a single call and is easy to read for small datasets.
+
+</span>
+
+{{< highlight python >}}
+# Returning a list of strings
+class ReturnWordsFn(beam.DoFn):
+    def process(self, element):
+        # Split the sentence and return all words longer than 2 characters as a list
+        return [word for word in element.split() if len(word) > 2]
+
+with beam.Pipeline() as pipeline:
+    (
+        pipeline
+        | "CreateSentences_Return" >> beam.Create([  # Create a collection of sentences
+            "Apache Beam is powerful",               # Sentence 1
+            "Try it now"                             # Sentence 2
+        ])
+        | "SplitWithReturn" >> beam.ParDo(ReturnWordsFn())  # Apply the custom DoFn to split words
+        | "PrintWords_Return" >> beam.Map(print)  # Print each List of words
+    )
+  # prints:
+  # Apache
+  # Beam
+  # powerful
+  # Try
+  # now
+{{< /highlight >}}
+
+<span class="language-python">
+
+> **Using `yield` (e.g., `yield element`) is also valid**
+> This approach can be useful for generating multiple outputs more flexibly, especially in cases where conditional logic or loops are involved.
+
+</span>
+
+{{< highlight python >}}
+# Yielding each line one at a time
+class YieldWordsFn(beam.DoFn):
+    def process(self, element):
+        # Splitting the sentence and yielding words that have more than 2 characters
+        for word in element.split():
+            if len(word) > 2:
+                yield word
+
+with beam.Pipeline() as pipeline:
+    (
+        pipeline
+        | "CreateSentences_Yield" >> beam.Create([  # Create a collection of sentences
+            "Apache Beam is powerful",              # Sentence 1
+            "Try it now"                            # Sentence 2
+        ])
+        | "SplitWithYield" >> beam.ParDo(YieldWordsFn())  # Apply the custom DoFn to split words
+        | "PrintWords_Yield" >> beam.Map(print)  # Print each word
+    )
+  # prints:
+  # Apache
+  # Beam
+  # powerful
+  # Try
+  # now
+{{< /highlight >}}
+
 A given `DoFn` instance generally gets invoked one or more times to process some
 arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of
 invocations; it may be invoked multiple times on a given worker node to account

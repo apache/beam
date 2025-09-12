@@ -588,11 +588,10 @@ public class GroupAlsoByWindowProperties {
 
   private static final PipelineOptions OPTIONS = PipelineOptionsFactory.create();
 
-  private static <K, InputT, OutputT, W extends BoundedWindow>
-      List<WindowedValue<KV<K, OutputT>>> processElement(
-          BatchGroupAlsoByWindowFn<K, InputT, OutputT> fn,
-          KV<K, Iterable<WindowedValue<InputT>>> element)
-          throws Exception {
+  private static <K, InputT, OutputT> List<WindowedValue<KV<K, OutputT>>> processElement(
+      BatchGroupAlsoByWindowFn<K, InputT, OutputT> fn,
+      KV<K, Iterable<WindowedValue<InputT>>> element)
+      throws Exception {
     TestOutput<K, OutputT> output = new TestOutput<>();
     fn.processElement(
         element, OPTIONS, null /* timerInternals */, NullSideInputReader.empty(), output);

@@ -654,6 +654,19 @@ Tips for using the Dataflow runner:
 
 ## Appendix
 
+### Formatting CHANGES.md
+
+When updating the `CHANGES.md` file with your changes, use the following Gradle command to ensure proper formatting:
+
+```shell
+./gradlew formatChanges
+```
+
+This command:
+* Organizes sections in the correct order according to the template
+* Ensures all required sections are present
+* Preserves existing content while maintaining consistent formatting
+
 ### Common Issues
 
 * If you run into some strange errors such as `java.lang.NoClassDefFoundError` or errors related to proto changes, try these:

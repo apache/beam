@@ -759,9 +759,12 @@ def _unify_element_with_schema(element, target_schema):
   elif isinstance(element, dict):
     element_dict = element
   else:
-    # This element is not a row, so it can't be unified with a
-    # row schema.
-    return element
+    # This element is not a row-like object. If the target schema has a single
+    # field, assume this element is the value for that field.
+    if len(target_schema._fields) == 1:
+      return target_schema(**{target_schema._fields[0]: element})
+    else:
+      return element
 
   # Create new element with only the fields that exist in the original
   # element plus None for fields that are expected but missing

@@ -400,16 +400,16 @@ public class ExecutionStateSampler {
           if (thread == null) {
             timeoutMessage =
                 String.format(
-                    "Operation ongoing in bundle %s for at least %s without outputting "
-                        + "or completing (stack trace unable to be generated). The SDK worker will restart.",
+                    "Processing of an element in bundle %s has exceeded the specified timeout of %s "
+                        + "(stack trace unable to be generated). The SDK worker will be terminated.",
                     processBundleId.get(),
                     DURATION_FORMATTER.print(
                         Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()));
           } else if (currentExecutionState == null) {
             timeoutMessage =
                 String.format(
-                    "Operation ongoing in bundle %s for at least %s without outputting "
-                        + "or completing:%n  at %s. The SDK worker will restart.",
+                    "Processing of an element in bundle %s has exceeded the specified timeout of %s "
+                        + "without outputting or completing:%n  at %s. The SDK worker will be terminated.",
                     processBundleId.get(),
                     DURATION_FORMATTER.print(
                         Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()),
@@ -417,8 +417,9 @@ public class ExecutionStateSampler {
           } else {
             timeoutMessage =
                 String.format(
-                    "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} "
-                        + "for at least %s without outputting or completing:%n  at %s. The SDK worker will restart.",
+                    "Processing of an element in bundle %s for PTransform{id=%s, name=%s, state=%s} "
+                        + "has exceeded the specified timeout of %s without outputting or completing:%n  at %s. "
+                        + "The SDK worker will be terminated.",
                     processBundleId.get(),
                     currentExecutionState.ptransformId,
                     currentExecutionState.ptransformUniqueName,

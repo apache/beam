@@ -28,6 +28,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.infra.Blackhole;
 
+@SuppressWarnings("SameNameButDifferent")
 public interface RowBundles {
   @State(Scope.Benchmark)
   class IntBundle extends RowBundle<IntBundle.Field> {

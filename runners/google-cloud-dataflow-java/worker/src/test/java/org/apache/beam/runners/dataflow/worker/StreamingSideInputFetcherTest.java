@@ -181,7 +181,7 @@ public class StreamingSideInputFetcherTest {
     assertThat(restTimers, Matchers.contains(timer2));
   }
 
-  private <ReceiverT> StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
+  private StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
       List<PCollectionView<String>> views) throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Iterable<PCollectionView<?>> typedViews = (Iterable) views;

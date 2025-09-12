@@ -176,8 +176,8 @@ func TestSamplerWithRestartLullTimeout(t *testing.T) {
 		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
 	}
 	err := s.Sample(bctx, interval)
-	if err == nil || !strings.Contains(err.Error(), "the SDK harness will be terminated and restarted") {
-		t.Errorf("s.sample(bctx, interval) = %v, want %v", err, "the SDK harness will be terminated and restarted")
+	if err == nil || !strings.Contains(err.Error(), "SDK harness will be terminated") {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", err, "SDK harness will be terminated")
 	}
 }
 

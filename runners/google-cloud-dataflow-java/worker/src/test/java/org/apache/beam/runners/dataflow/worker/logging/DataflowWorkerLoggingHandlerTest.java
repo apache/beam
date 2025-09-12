@@ -108,6 +108,17 @@ public class DataflowWorkerLoggingHandlerTest {
     return new String(output.toByteArray(), StandardCharsets.UTF_8);
   }
 
+  private static String createJsonWithCustomMdc(LogRecord record) throws IOException {
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    FixedOutputStreamFactory factory = new FixedOutputStreamFactory(output);
+    DataflowWorkerLoggingHandler handler = new DataflowWorkerLoggingHandler(factory, 0);
+    handler.setLogMdc(true);
+    // Format the record as JSON.
+    handler.publish(record);
+    // Decode the binary output as UTF-8 and return the generated string.
+    return new String(output.toByteArray(), StandardCharsets.UTF_8);
+  }
+
   /**
    * Encodes a {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry} into a Json string.
    */
@@ -233,14 +244,14 @@ public class DataflowWorkerLoggingHandlerTest {
             return MDC.get("testMdcKey") + ":" + super.formatMessage(record);
           }
         };
-    MDC.put("testMdcKey", "testMdcValue");
-
-    assertEquals(
-        "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
-            + "\"message\":\"testMdcValue:test.message\",\"thread\":\"2\",\"job\":\"testJobId\","
-            + "\"worker\":\"testWorkerId\",\"work\":\"testWorkId\",\"logger\":\"LoggerName\"}"
-            + System.lineSeparator(),
-        createJson(createLogRecord("test.message", null /* throwable */), customFormatter));
+    try (MDC.MDCCloseable ignored = MDC.putCloseable("testMdcKey", "testMdcValue")) {
+      assertEquals(
+          "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
+              + "\"message\":\"testMdcValue:test.message\",\"thread\":\"2\",\"job\":\"testJobId\","
+              + "\"worker\":\"testWorkerId\",\"work\":\"testWorkId\",\"logger\":\"LoggerName\"}"
+              + System.lineSeparator(),
+          createJson(createLogRecord("test.message", null /* throwable */), customFormatter));
+    }
   }
 
   @Test
@@ -297,6 +308,40 @@ public class DataflowWorkerLoggingHandlerTest {
             + "\"}"
             + System.lineSeparator(),
         createJson(createLogRecord(null /* message */, createThrowable())));
+  }
+
+  @Test
+  public void testWithCustomDataEnabledNoMdc() throws IOException {
+    assertEquals(
+        "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
+            + "\"message\":\"test.message\",\"thread\":\"2\",\"logger\":\"LoggerName\"}"
+            + System.lineSeparator(),
+        createJsonWithCustomMdc(createLogRecord("test.message", null)));
+  }
+
+  @Test
+  public void testWithCustomDataDisabledWithMdc() throws IOException {
+    MDC.clear();
+    try (MDC.MDCCloseable closeable = MDC.putCloseable("key1", "cool value")) {
+      assertEquals(
+          "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
+              + "\"message\":\"test.message\",\"thread\":\"2\",\"logger\":\"LoggerName\"}"
+              + System.lineSeparator(),
+          createJson(createLogRecord("test.message", null)));
+    }
+  }
+
+  @Test
+  public void testWithCustomDataEnabledWithMdc() throws IOException {
+    try (MDC.MDCCloseable ignored = MDC.putCloseable("key1", "cool value");
+        MDC.MDCCloseable ignored2 = MDC.putCloseable("key2", "another")) {
+      assertEquals(
+          "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
+              + "\"message\":\"test.message\",\"thread\":\"2\",\"logger\":\"LoggerName\","
+              + "\"custom_data\":{\"key1\":\"cool value\",\"key2\":\"another\"}}"
+              + System.lineSeparator(),
+          createJsonWithCustomMdc(createLogRecord("test.message", null)));
+    }
   }
 
   @Test

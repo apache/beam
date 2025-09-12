@@ -168,18 +168,23 @@ public final class KafkaIOUtils {
       AVG.lazySet(this, Double.doubleToRawLongBits(value));
     }
 
-    private long incrementAndGetNumUpdates() {
-      final long nextNumUpdates = Math.min(MOVING_AVG_WINDOW, numUpdates + 1);
-      numUpdates = nextNumUpdates;
-      return nextNumUpdates;
-    }
-
     public void update(final double quantity) {
       final double prevAvg = getAvg(); // volatile load (acquire)
 
-      final long nextNumUpdates = incrementAndGetNumUpdates(); // normal load/store
-      final double nextAvg = prevAvg + (quantity - prevAvg) / nextNumUpdates; // normal load/store
+      final long nextNumUpdates = numUpdates + 1; // normal load
+      final double nextAvg = prevAvg + (quantity - prevAvg) / nextNumUpdates;
 
+      numUpdates = Math.min(MOVING_AVG_WINDOW, nextNumUpdates); // normal store
+      setAvg(nextAvg); // ordered store (release)
+    }
+
+    public void update(final double sum, final long count) {
+      final double prevAvg = getAvg(); // volatile load (acquire)
+
+      final long nextNumUpdates = numUpdates + count; // normal load
+      final double nextAvg = prevAvg + (sum / count - prevAvg) * ((double) count / nextNumUpdates);
+
+      numUpdates = Math.min(MOVING_AVG_WINDOW, nextNumUpdates); // normal store
       setAvg(nextAvg); // ordered store (release)
     }
 

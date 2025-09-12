@@ -678,7 +678,8 @@ def _kafka_test_preprocessor(
     'test_ml_preprocessing_yaml',
     'test_anomaly_scoring_yaml',
     'test_wordCountInclude_yaml',
-    'test_wordCountImport_yaml'
+    'test_wordCountImport_yaml',
+    'test_iceberg_to_alloydb_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
@@ -749,7 +750,8 @@ def _file_io_read_test_preprocessor(
   return test_spec
 
 
-@YamlExamplesTestSuite.register_test_preprocessor(['test_iceberg_read_yaml'])
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_iceberg_read_yaml', 'test_iceberg_to_alloydb_yaml'])
 def _iceberg_io_read_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """

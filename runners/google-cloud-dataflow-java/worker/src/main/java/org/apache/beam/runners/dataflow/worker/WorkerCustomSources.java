@@ -254,7 +254,8 @@ public class WorkerCustomSources {
     // the sources into numBundlesLimit compressed serialized bundles.
     while (serializedSize > apiByteLimit || bundles.size() > numBundlesLimit) {
       // bundle size constrained by API limit, adds 5% allowance
-      int targetBundleSizeApiLimit = (int) (bundles.size() * apiByteLimit / serializedSize * 0.95);
+      int targetBundleSizeApiLimit =
+          (int) ((double) (bundles.size() * apiByteLimit) / serializedSize * 0.95);
       // bundle size constrained by numBundlesLimit
       int targetBundleSizeBundleLimit = Math.min(numBundlesLimit, bundles.size() - 1);
       int targetBundleSize = Math.min(targetBundleSizeApiLimit, targetBundleSizeBundleLimit);

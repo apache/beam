@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,7 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.metrics.Counter;
@@ -74,6 +79,8 @@ public class KafkaWriteSchemaTransformProvider
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   public static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
       new TupleTag<KV<byte[], byte[]>>() {};
+  public static final TupleTag<KV<byte[], GenericRecord>> RECORD_OUTPUT_TAG =
+      new TupleTag<KV<byte[], GenericRecord>>() {};
   private static final Logger LOG =
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
@@ -118,29 +125,32 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
-    public static class ErrorCounterFn extends DoFn<Row, KV<byte[], byte[]>> {
-      private final SerializableFunction<Row, byte[]> toBytesFn;
+    public abstract static class BaseKafkaWriterFn<T> extends DoFn<Row, KV<byte[], T>> {
+      private final SerializableFunction<Row, T> conversionFn;
       private final Counter errorCounter;
       private Long errorsInBundle = 0L;
       private final boolean handleErrors;
       private final Schema errorSchema;
+      private final TupleTag<KV<byte[], T>> successTag;
 
-      public ErrorCounterFn(
+      public BaseKafkaWriterFn(
           String name,
-          SerializableFunction<Row, byte[]> toBytesFn,
+          SerializableFunction<Row, T> conversionFn,
           Schema errorSchema,
-          boolean handleErrors) {
-        this.toBytesFn = toBytesFn;
+          boolean handleErrors,
+          TupleTag<KV<byte[], T>> successTag) {
+        this.conversionFn = conversionFn;
         this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
         this.handleErrors = handleErrors;
         this.errorSchema = errorSchema;
+        this.successTag = successTag;
       }
 
       @ProcessElement
       public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
-        KV<byte[], byte[]> output = null;
+        KV<byte[], T> output = null;
         try {
-          output = KV.of(new byte[1], toBytesFn.apply(row));
+          output = KV.of(new byte[1], conversionFn.apply(row));
         } catch (Exception e) {
           if (!handleErrors) {
             throw new RuntimeException(e);
@@ -150,7 +160,7 @@ public class KafkaWriteSchemaTransformProvider
           receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
         }
         if (output != null) {
-          receiver.get(OUTPUT_TAG).output(output);
+          receiver.get(successTag).output(output);
         }
       }
 
@@ -161,13 +171,35 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
+    public static class ErrorCounterFn extends BaseKafkaWriterFn<byte[]> {
+      public ErrorCounterFn(
+          String name,
+          SerializableFunction<Row, byte[]> toBytesFn,
+          Schema errorSchema,
+          boolean handleErrors) {
+        super(name, toBytesFn, errorSchema, handleErrors, OUTPUT_TAG);
+      }
+    }
+
+    public static class GenericRecordErrorCounterFn extends BaseKafkaWriterFn<GenericRecord> {
+      public GenericRecordErrorCounterFn(
+          String name,
+          SerializableFunction<Row, GenericRecord> toGenericRecordsFn,
+          Schema errorSchema,
+          boolean handleErrors) {
+        super(name, toGenericRecordsFn, errorSchema, handleErrors, RECORD_OUTPUT_TAG);
+      }
+    }
+
     @SuppressWarnings({
       "nullness" // TODO(https://github.com/apache/beam/issues/20497)
     })
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get("input").getSchema();
+      org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(inputSchema);
       final SerializableFunction<Row, byte[]> toBytesFn;
+      SerializableFunction<Row, GenericRecord> toGenericRecordsFn = null;
       if (configuration.getFormat().equals("RAW")) {
         int numFields = inputSchema.getFields().size();
         if (numFields != 1) {
@@ -198,36 +230,70 @@ public class KafkaWriteSchemaTransformProvider
           throw new IllegalArgumentException(
               "At least a descriptorPath or a proto Schema is required.");
         }
-
       } else {
-        toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+        if (configuration.getProducerConfigUpdates() != null
+            && configuration.getProducerConfigUpdates().containsKey("schema.registry.url")) {
+          toGenericRecordsFn = AvroUtils.getRowToGenericRecordFunction(avroSchema);
+          toBytesFn = null;
+        } else {
+          toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+        }
       }
 
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
       Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
-      PCollectionTuple outputTuple =
-          input
-              .get("input")
-              .apply(
-                  "Map rows to Kafka messages",
-                  ParDo.of(
-                          new ErrorCounterFn(
-                              "Kafka-write-error-counter", toBytesFn, errorSchema, handleErrors))
-                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+      PCollectionTuple outputTuple;
+      if (toGenericRecordsFn != null) {
+        LOG.info("Convert to GenericRecord with schema {}", avroSchema);
+        outputTuple =
+            input
+                .get("input")
+                .apply(
+                    "Map rows to Kafka messages",
+                    ParDo.of(
+                            new GenericRecordErrorCounterFn(
+                                "Kafka-write-error-counter",
+                                toGenericRecordsFn,
+                                errorSchema,
+                                handleErrors))
+                        .withOutputTags(RECORD_OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+        HashMap<String, Object> producerConfig = new HashMap<>(configOverrides);
+        outputTuple
+            .get(RECORD_OUTPUT_TAG)
+            .setCoder(KvCoder.of(ByteArrayCoder.of(), AvroCoder.of(avroSchema)))
+            .apply(
+                "Map Rows to GenericRecords",
+                KafkaIO.<byte[], GenericRecord>write()
+                    .withTopic(configuration.getTopic())
+                    .withBootstrapServers(configuration.getBootstrapServers())
+                    .withProducerConfigUpdates(producerConfig)
+                    .withKeySerializer(ByteArraySerializer.class)
+                    .withValueSerializer((Class) KafkaAvroSerializer.class));
+      } else {
+        outputTuple =
+            input
+                .get("input")
+                .apply(
+                    "Map rows to Kafka messages",
+                    ParDo.of(
+                            new ErrorCounterFn(
+                                "Kafka-write-error-counter", toBytesFn, errorSchema, handleErrors))
+                        .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-      outputTuple
-          .get(OUTPUT_TAG)
-          .apply(
-              KafkaIO.<byte[], byte[]>write()
-                  .withTopic(configuration.getTopic())
-                  .withBootstrapServers(configuration.getBootstrapServers())
-                  .withProducerConfigUpdates(
-                      configOverrides == null
-                          ? new HashMap<>()
-                          : new HashMap<String, Object>(configOverrides))
-                  .withKeySerializer(ByteArraySerializer.class)
-                  .withValueSerializer(ByteArraySerializer.class));
+        outputTuple
+            .get(OUTPUT_TAG)
+            .apply(
+                KafkaIO.<byte[], byte[]>write()
+                    .withTopic(configuration.getTopic())
+                    .withBootstrapServers(configuration.getBootstrapServers())
+                    .withProducerConfigUpdates(
+                        configOverrides == null
+                            ? new HashMap<>()
+                            : new HashMap<String, Object>(configOverrides))
+                    .withKeySerializer(ByteArraySerializer.class)
+                    .withValueSerializer(ByteArraySerializer.class));
+      }
 
       // TODO: include output from KafkaIO Write once updated from PDone
       PCollection<Row> errorOutput =

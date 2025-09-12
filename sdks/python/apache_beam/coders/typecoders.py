@@ -84,6 +84,7 @@ class CoderRegistry(object):
     self._coders: Dict[Any, Type[coders.Coder]] = {}
     self.custom_types: List[Any] = []
     self.register_standard_coders(fallback_coder)
+    self.update_compatibility_version = None
 
   def register_standard_coders(self, fallback_coder):
     """Register coders for all basic and composite types."""

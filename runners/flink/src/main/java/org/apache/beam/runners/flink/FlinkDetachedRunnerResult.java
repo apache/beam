@@ -98,7 +98,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
         return state;
       }
       try {
-        Thread.sleep(jobCheckIntervalInSecs * 1000);
+        Thread.sleep(jobCheckIntervalInSecs * 1000L);
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }

@@ -55,8 +55,7 @@ from typing import TypeVar
 from typing import Union
 
 import apache_beam as beam
-from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
-from apache_beam.metrics.metric import Metrics
+from apache_beam.io.components.adaptive_throttler import ReactiveThrottler
 from apache_beam.utils import multi_process_shared
 from apache_beam.utils import retry
 from apache_beam.utils import shared
@@ -354,14 +353,16 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       window_ms: int = 1 * _MILLISECOND_TO_SECOND,
       bucket_ms: int = 1 * _MILLISECOND_TO_SECOND,
       overload_ratio: float = 2):
-    """Initializes metrics tracking + an AdaptiveThrottler class for enabling
-    client-side throttling for remote calls to an inference service.
+    """Initializes a ReactiveThrottler class for enabling
+    client-side throttling for remote calls to an inference service. Also wraps
+    provided calls to the service with retry logic.
+    
     See https://s.apache.org/beam-client-side-throttling for more details
     on the configuration of the throttling and retry
     mechanics.
 
     Args:
-      namespace: the metrics and logging namespace 
+      namespace: the metrics and logging namespace
       num_retries: the maximum number of times to retry a request on retriable
         errors before failing
       throttle_delay_secs: the amount of time to throttle when the client-side
@@ -372,19 +373,18 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       window_ms: length of history to consider, in ms, to set throttling.
       bucket_ms: granularity of time buckets that we store data in, in ms.
       overload_ratio: the target ratio between requests sent and successful
-        requests. This is "K" in the formula in 
+        requests. This is "K" in the formula in
         https://landing.google.com/sre/book/chapters/handling-overload.html.
     """
-    # Configure AdaptiveThrottler and throttling metrics for client-side
-    # throttling behavior.
-    self.throttled_secs = Metrics.counter(
-        namespace, "cumulativeThrottlingSeconds")
-    self.throttler = AdaptiveThrottler(
-        window_ms=window_ms, bucket_ms=bucket_ms, overload_ratio=overload_ratio)
+    # Configure ReactiveThrottler for client-side throttling behavior.
+    self.throttler = ReactiveThrottler(
+        window_ms=window_ms,
+        bucket_ms=bucket_ms,
+        overload_ratio=overload_ratio,
+        namespace=namespace,
+        throttle_delay_secs=throttle_delay_secs)
     self.logger = logging.getLogger(namespace)
-
     self.num_retries = num_retries
-    self.throttle_delay_secs = throttle_delay_secs
     self.retry_filter = retry_filter
 
   def __init_subclass__(cls):
@@ -434,12 +434,7 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
     Returns:
       An Iterable of Predictions.
     """
-    while self.throttler.throttle_request(time.time() * _MILLISECOND_TO_SECOND):
-      self.logger.info(
-          "Delaying request for %d seconds due to previous failures",
-          self.throttle_delay_secs)
-      time.sleep(self.throttle_delay_secs)
-      self.throttled_secs.inc(self.throttle_delay_secs)
+    self.throttler.throttle()
 
     try:
       req_time = time.time()
@@ -1642,7 +1637,7 @@ class _ModelRoutingStrategy():
 
 class _ModelStatus():
   """A class holding any metadata about a model required by RunInference.
-  
+
     Currently, this only includes whether or not the model is valid. Uses the
     model tag to map models to metadata.
   """
@@ -1656,7 +1651,7 @@ class _ModelStatus():
 
   def try_mark_current_model_invalid(self, min_model_life_seconds):
     """Mark the current model invalid.
-    
+
       Since we don't have sufficient information to say which model is being
       marked invalid, but there may be multiple active models, we will mark all
       models currently in use as inactive so that they all get reloaded. To
@@ -1678,7 +1673,7 @@ class _ModelStatus():
 
   def get_valid_tag(self, tag: str) -> str:
     """Takes in a proposed valid tag and returns a valid one.
-    
+
       Will always return a valid tag. If the passed in tag is valid, this
       function will simply return it, otherwise it will deterministically
       generate a new tag to use instead. The new tag will be the original tag
@@ -1747,7 +1742,7 @@ def load_model_status(
 
 class _SharedModelWrapper():
   """A router class to map incoming calls to the correct model.
-  
+
     This allows us to round robin calls to models sitting in different
     processes so that we can more efficiently use resources (e.g. GPUs).
   """

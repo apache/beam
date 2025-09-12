@@ -44,7 +44,17 @@ This section is intended for developers who need to manage service accounts and 
 
 ### How it works
 
-This module provide a script `keys.py` that allows you to manage the service accounts and their keys. This script is run as a cron job daily to ensure that service account keys are rotated regularly and that the latest keys are available for authorized users. It is also run every time a PR is merged over the `keys.yaml` file to ensure that the service accounts, their keys and authorized users are up to date.
+This module provide a script `keys.py` that allows you to manage the service accounts and their keys. This script is run automatically by a GitHub Action to ensure that service account keys are rotated regularly and that the latest keys are available for authorized users. It is also run every time a PR is merged over the `keys.yaml` file to ensure that the service accounts, their keys and authorized users are up to date.
+
+### Automation with GitHub Actions
+
+A GitHub Actions workflow is set up to automate the execution of the `keys.py` script. This workflow is defined in `.github/workflows/beam_Infrastructure_ServiceAccountKeys.yml`.
+
+The workflow is triggered automatically on the following events:
+- A push to the `main` branch that includes changes to the `infra/keys/keys.yaml` file.
+- A manual trigger (`workflow_dispatch`) by a developer.
+
+When triggered, the workflow runs the `python keys.py --cron` command, which handles the creation and rotation of service account keys based on the configuration in `keys.yaml` and `config.yaml`.
 
 ### Files
 
@@ -88,6 +98,6 @@ This will rotate keys for all service accounts defined in the `keys.yaml` file t
 To retrieve the latest service account key, use the `--get-key` flag:
 
 ```bash
-python main.py --get-key my-service-account
+python keys.py --get-key my-service-account
 ```
 

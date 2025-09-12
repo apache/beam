@@ -63,11 +63,11 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) error {
 		}
 
 		if s.millisSinceLastTransition > s.nextLogTime {
-			log.Infof(ctx, "Operation ongoing in transform %v for at least %v ms without outputting or completing in state %v", ps.pid, s.millisSinceLastTransition, getState(ps.state))
+			log.Infof(ctx, "Operation ongoing in transform %v for at least %v without outputting or completing in state %v", ps.pid, s.millisSinceLastTransition, getState(ps.state))
 			s.nextLogTime += s.logInterval
 		}
 		if s.restartLullTimeout > 0 && s.millisSinceLastTransition > s.restartLullTimeout {
-			return errors.Errorf("Operation ongoing in transform %v for at least %v ms without outputting or completing in state %v, the SDK harness will be terminated and restarted", ps.pid, s.millisSinceLastTransition, getState(ps.state))
+			return errors.Errorf("Processing of an element in transform %v has exceeded the specified timeout of %v without outputting or completing in state %v, SDK harness will be terminated", ps.pid, s.restartLullTimeout, getState(ps.state))
 		}
 	}
 	return nil
