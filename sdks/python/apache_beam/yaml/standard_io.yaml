@@ -45,9 +45,15 @@
       type: beamJar
       transforms:
         'ReadFromBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
-        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_write:v1'
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+        managed_replacement:
+          # Following transforms may be replaced with equivalent managed transforms,
+          # if the pipelines 'updateCompatibilityBeamVersion' match the provided
+          # version.
+          'ReadFromKafka': '2.65.0'
+          'WriteToKafka': '2.65.0'
 
 # Kafka
 - type: renaming
