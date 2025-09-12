@@ -461,7 +461,27 @@ func buildTrigger(tpb *pipepb.Trigger) engine.Trigger {
 		}
 	case *pipepb.Trigger_Repeat_:
 		return &engine.TriggerRepeatedly{Repeated: buildTrigger(at.Repeat.GetSubtrigger())}
-	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+	case *pipepb.Trigger_AfterProcessingTime_:
+		var transforms []engine.TimestampTransform
+		for _, ts := range at.AfterProcessingTime.GetTimestampTransforms() {
+			var delay, period, offset time.Duration
+			if d := ts.GetDelay(); d != nil {
+				delay = time.Duration(d.GetDelayMillis()) * time.Millisecond
+			}
+			if align := ts.GetAlignTo(); align != nil {
+				period = time.Duration(align.GetPeriod()) * time.Millisecond
+				offset = time.Duration(align.GetOffset()) * time.Millisecond
+			}
+			transforms = append(transforms, engine.TimestampTransform{
+				Delay:         delay,
+				AlignToPeriod: period,
+				AlignToOffset: offset,
+			})
+		}
+		return &engine.TriggerAfterProcessingTime{
+			Transforms: transforms,
+		}
+	case *pipepb.Trigger_AfterSynchronizedProcessingTime_:
 		panic(fmt.Sprintf("unsupported trigger: %v", prototext.Format(tpb)))
 	default:
 		return &engine.TriggerDefault{}

@@ -402,6 +402,99 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
 			},
 		}, {
+			name: "afterProcessingTime_Delay_Exact",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{Delay: 3 * time.Second},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 0}, false},
+				{triggerInput{emNow: 1000}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 3000}, true},
+				{triggerInput{emNow: 4000}, false},
+				{triggerInput{emNow: 5000}, false},
+				{triggerInput{emNow: 6000}, false},
+				{triggerInput{emNow: 7000}, false},
+			},
+		}, {
+			name: "afterProcessingTime_Delay_Late",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{Delay: 3 * time.Second},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 0}, false},
+				{triggerInput{emNow: 1000}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 3001}, true}, // a little after the expected firing time
+				{triggerInput{emNow: 4000}, false},
+			},
+		}, {
+			name: "afterProcessingTime_AlignToPeriodOnly",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{AlignToPeriod: 5 * time.Second},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 1500}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 4999}, false},
+				{triggerInput{emNow: 5000}, true}, // 1.5 is aligned to 5
+				{triggerInput{emNow: 5001}, false},
+			},
+		}, {
+			name: "afterProcessingTime_AlignToPeriodAndOffset",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{AlignToPeriod: 5 * time.Second, AlignToOffset: 200 * time.Millisecond},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 1500}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 5119}, false},
+				{triggerInput{emNow: 5200}, true}, // 1.5 is aligned to 5.2
+				{triggerInput{emNow: 5201}, false},
+			},
+		}, {
+			name: "afterProcessingTime_TwoTransforms",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{AlignToPeriod: 5 * time.Second, AlignToOffset: 200 * time.Millisecond},
+					{Delay: 1 * time.Second},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 1500}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 5119}, false},
+				{triggerInput{emNow: 5200}, false},
+				{triggerInput{emNow: 5201}, false},
+				{triggerInput{emNow: 6119}, false},
+				{triggerInput{emNow: 6200}, true}, // 1.5 is aligned to 6.2
+				{triggerInput{emNow: 6201}, false},
+			},
+		}, {
+			name: "afterProcessingTime_Repeated", trig: &TriggerRepeatedly{
+				&TriggerAfterProcessingTime{
+					Transforms: []TimestampTransform{
+						{Delay: 3 * time.Second},
+					}}},
+			inputs: []io{
+				{triggerInput{emNow: 0}, false},
+				{triggerInput{emNow: 1000}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 3000}, true},  // first the first time
+				{triggerInput{emNow: 4000}, false}, // trigger firing time is set again
+				{triggerInput{emNow: 5000}, false},
+				{triggerInput{emNow: 6000}, false},
+				{triggerInput{emNow: 7000}, true}, // trigger firing again
+			},
+		}, {
 			name: "default",
 			trig: &TriggerDefault{},
 			inputs: []io{
