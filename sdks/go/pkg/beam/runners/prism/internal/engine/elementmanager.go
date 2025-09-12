@@ -1153,6 +1153,7 @@ type stageState struct {
 	input              mtime.Time // input watermark for the parallel input.
 	output             mtime.Time // Output watermark for the whole stage
 	estimatedOutput    mtime.Time // Estimated watermark output from DoFns
+	preRefreshedInput  mtime.Time // input watermark before the last watermark refresh
 
 	pending    elementHeap                          // pending input elements for this stage that are to be processesd
 	inprogress map[string]elements                  // inprogress elements by active bundles, keyed by bundle
@@ -2014,6 +2015,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 		newIn = minPending
 	}
 
+	ss.preRefreshedInput = ss.input
+
 	// If bigger, advance the input watermark.
 	if newIn > ss.input {
 		ss.input = newIn
@@ -2171,12 +2174,13 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 	ptimeEventsReady := ss.processingTimeTimers.Peek() <= emNow || emNow == mtime.MaxTimestamp
 	injectedReady := len(ss.bundlesToInject) > 0
 
-	// If the upstream watermark and the input watermark are the same,
+	// If the upstream watermark, the input watermark, and the input watermark before the last refresh are the same,
 	// then we can't yet process this stage.
 	inputW := ss.input
 	_, upstreamW := ss.UpstreamWatermark()
-	if inputW == upstreamW {
-		slog.Debug("bundleReady: unchanged upstream watermark",
+	preRefreshInputW := ss.preRefreshedInput
+	if inputW == upstreamW && preRefreshInputW == inputW {
+		slog.Debug("bundleReady: unchanged upstream/input watermark",
 			slog.String("stage", ss.ID),
 			slog.Group("watermark",
 				slog.Any("upstream", upstreamW),
