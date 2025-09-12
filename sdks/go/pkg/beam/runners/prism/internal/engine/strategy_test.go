@@ -409,10 +409,10 @@ func TestTriggers_isReady(t *testing.T) {
 				},
 			},
 			inputs: []io{
-				{triggerInput{emNow: 0}, false},
+				{triggerInput{emNow: 0}, false}, // the trigger is set to fire at 3s after 0
 				{triggerInput{emNow: 1000}, false},
 				{triggerInput{emNow: 2000}, false},
-				{triggerInput{emNow: 3000}, true},
+				{triggerInput{emNow: 3000}, true}, // fire
 				{triggerInput{emNow: 4000}, false},
 				{triggerInput{emNow: 5000}, false},
 				{triggerInput{emNow: 6000}, false},
@@ -426,10 +426,10 @@ func TestTriggers_isReady(t *testing.T) {
 				},
 			},
 			inputs: []io{
-				{triggerInput{emNow: 0}, false},
+				{triggerInput{emNow: 0}, false}, // the trigger is set to fire at 3s after 0
 				{triggerInput{emNow: 1000}, false},
 				{triggerInput{emNow: 2000}, false},
-				{triggerInput{emNow: 3001}, true}, // a little after the expected firing time
+				{triggerInput{emNow: 3001}, true}, // fire a little after the preset time
 				{triggerInput{emNow: 4000}, false},
 			},
 		}, {
@@ -440,10 +440,10 @@ func TestTriggers_isReady(t *testing.T) {
 				},
 			},
 			inputs: []io{
-				{triggerInput{emNow: 1500}, false},
+				{triggerInput{emNow: 1500}, false}, // align 1.5s to 5s
 				{triggerInput{emNow: 2000}, false},
 				{triggerInput{emNow: 4999}, false},
-				{triggerInput{emNow: 5000}, true}, // 1.5 is aligned to 5
+				{triggerInput{emNow: 5000}, true}, // fire at 5
 				{triggerInput{emNow: 5001}, false},
 			},
 		}, {
@@ -454,10 +454,10 @@ func TestTriggers_isReady(t *testing.T) {
 				},
 			},
 			inputs: []io{
-				{triggerInput{emNow: 1500}, false},
+				{triggerInput{emNow: 1500}, false}, // align 1.5s to 5s plus an 0.2 offset
 				{triggerInput{emNow: 2000}, false},
 				{triggerInput{emNow: 5119}, false},
-				{triggerInput{emNow: 5200}, true}, // 1.5 is aligned to 5.2
+				{triggerInput{emNow: 5200}, true}, // fire at 5.2s
 				{triggerInput{emNow: 5201}, false},
 			},
 		}, {
@@ -469,13 +469,13 @@ func TestTriggers_isReady(t *testing.T) {
 				},
 			},
 			inputs: []io{
-				{triggerInput{emNow: 1500}, false},
+				{triggerInput{emNow: 1500}, false}, // align 1.5s to 5s plus an 0.2 offset and a 1s delay
 				{triggerInput{emNow: 2000}, false},
 				{triggerInput{emNow: 5119}, false},
 				{triggerInput{emNow: 5200}, false},
 				{triggerInput{emNow: 5201}, false},
 				{triggerInput{emNow: 6119}, false},
-				{triggerInput{emNow: 6200}, true}, // 1.5 is aligned to 6.2
+				{triggerInput{emNow: 6200}, true}, // fire
 				{triggerInput{emNow: 6201}, false},
 			},
 		}, {
