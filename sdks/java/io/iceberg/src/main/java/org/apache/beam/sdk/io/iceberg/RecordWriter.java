@@ -97,7 +97,7 @@ class RecordWriter {
       case PARQUET:
         icebergDataWriter =
             Parquet.writeData(outputFile)
-                .createWriterFunc(GenericParquetWriter::buildWriter)
+                .createWriterFunc(GenericParquetWriter::create)
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)

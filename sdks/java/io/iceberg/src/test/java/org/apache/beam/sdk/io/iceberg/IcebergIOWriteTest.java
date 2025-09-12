@@ -328,7 +328,7 @@ public class IcebergIOWriteTest implements Serializable {
     OutputFile outputFile = table.io().newOutputFile(TEMPORARY_FOLDER.newFile().toString());
     DataWriter<Record> icebergDataWriter =
         Parquet.writeData(outputFile)
-            .createWriterFunc(GenericParquetWriter::buildWriter)
+            .createWriterFunc(GenericParquetWriter::create)
             .schema(table.schema())
             .withSpec(table.spec())
             .overwrite()
