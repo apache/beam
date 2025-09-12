@@ -610,8 +610,8 @@ public class GroupAlsoByWindowProperties {
     private final List<WindowedValue<KV<K, OutputT>>> output = new ArrayList<>();
 
     @Override
-    public void output(WindowedValue<KV<K, OutputT>> valueWithMetadata) {
-      this.output.add(valueWithMetadata);
+    public void output(WindowedValue<KV<K, OutputT>> windowedValue) {
+      this.output.add(windowedValue);
     }
 
     public List<WindowedValue<KV<K, OutputT>>> getOutput() {
