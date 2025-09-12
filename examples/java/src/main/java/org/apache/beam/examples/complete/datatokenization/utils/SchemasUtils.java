@@ -140,7 +140,8 @@ public class SchemasUtils {
       result = FileSystems.match(filePath);
       checkArgument(
           result.status() == MatchResult.Status.OK && !result.metadata().isEmpty(),
-          "Failed to match any files with the pattern: %s", filePath);
+          "Failed to match any files with the pattern: %s",
+          filePath);
 
       List<ResourceId> rId =
           result.metadata().stream()

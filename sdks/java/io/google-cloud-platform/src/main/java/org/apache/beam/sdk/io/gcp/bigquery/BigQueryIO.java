@@ -3472,26 +3472,22 @@ public class BigQueryIO {
           }
         }
       } else { // PCollection is bounded
-        String error =
-            String.format(
-                " is only applicable to an unbounded PCollection, but the input PCollection is %s.",
-                input.isBounded());
         checkArgument(
             getTriggeringFrequency() == null,
-            "Triggering frequency is only applicable to an unbounded PCollection");
+            "Triggering frequency is only applicable to an unbounded PCollection.");
         checkArgument(
-            !getAutoSharding(), "Auto-sharding is only applicable to an unbounded PCollection");
+            !getAutoSharding(), "Auto-sharding is only applicable to an unbounded PCollection.");
         checkArgument(
             getNumFileShards() == 0,
-            "Number of file shards is only applicable to an unbounded PCollectoin");
+            "Number of file shards is only applicable to an unbounded PCollection.");
 
         if (getStorageApiTriggeringFrequency(bqOptions) != null) {
           LOG.warn(
-              "Setting the triggering frequency is only applicable to an unbounded PCollection");
+              "Setting the triggering frequency is only applicable to an unbounded PCollection.");
         }
         if (getStorageApiNumStreams(bqOptions) != 0) {
           LOG.warn(
-              "Setting the number of Storage API streams is only applicable to an unbounded PCollection");
+              "Setting the number of Storage API streams is only applicable to an unbounded PCollection.");
         }
       }
 

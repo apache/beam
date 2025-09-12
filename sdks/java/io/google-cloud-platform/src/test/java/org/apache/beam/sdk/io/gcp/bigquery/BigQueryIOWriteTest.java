@@ -2717,8 +2717,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Auto-sharding is only applicable to an unbounded PCollection, but the input PCollection is BOUNDED.");
+    thrown.expectMessage("Auto-sharding is only applicable to an unbounded PCollection.");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
