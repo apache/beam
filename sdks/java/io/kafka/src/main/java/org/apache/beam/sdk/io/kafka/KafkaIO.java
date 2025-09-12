@@ -655,6 +655,8 @@ public class KafkaIO {
 
   ///////////////////////// Read Support \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+  private static final int DEFAULT_REDISTRIBUTE_NUM_KEYS = 32768;
+
   /**
    * A {@link PTransform} to read from Kafka topics. See {@link KafkaIO} for more information on
    * usage and configuration.
@@ -1099,7 +1101,11 @@ public class KafkaIO {
      * @return an updated {@link Read} transform.
      */
     public Read<K, V> withRedistribute() {
-      return toBuilder().setRedistributed(true).build();
+      Builder<K, V> builder = toBuilder().setRedistributed(true);
+      if (getRedistributeNumKeys() == 0) {
+        builder = builder.setRedistributeNumKeys(DEFAULT_REDISTRIBUTE_NUM_KEYS);
+      }
+      return builder.build();
     }
 
     /**
@@ -2667,7 +2673,11 @@ public class KafkaIO {
 
     /** Enable Redistribute. */
     public ReadSourceDescriptors<K, V> withRedistribute() {
-      return toBuilder().setRedistribute(true).build();
+      Builder<K, V> builder = toBuilder().setRedistribute(true);
+      if (getRedistributeNumKeys() == 0) {
+        builder = builder.setRedistributeNumKeys(DEFAULT_REDISTRIBUTE_NUM_KEYS);
+      }
+      return builder.build();
     }
 
     public ReadSourceDescriptors<K, V> withAllowDuplicates() {
