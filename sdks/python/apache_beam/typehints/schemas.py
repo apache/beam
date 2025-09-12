@@ -554,7 +554,12 @@ class SchemaTranslation(object):
       else:
         logical_type_instance = LogicalType.from_runner_api(
             fieldtype_proto.logical_type)
-        return type(logical_type_instance)
+        # Special case for GeographyType: return the logical type class itself
+        # instead of the language_type to maintain semantic meaning
+        if fieldtype_proto.logical_type.urn == "beam:logical_type:geography:v1":
+          return type(logical_type_instance)
+        else:
+          return logical_type_instance.language_type()
 
     elif type_info == "iterable_type":
       return Sequence[self.typing_from_runner_api(
