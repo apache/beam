@@ -552,8 +552,9 @@ class SchemaTranslation(object):
       if fieldtype_proto.logical_type.urn == PYTHON_ANY_URN:
         return Any
       else:
-        return LogicalType.from_runner_api(
-            fieldtype_proto.logical_type).language_type()
+        logical_type_instance = LogicalType.from_runner_api(
+            fieldtype_proto.logical_type)
+        return type(logical_type_instance)
 
     elif type_info == "iterable_type":
       return Sequence[self.typing_from_runner_api(
