@@ -57,7 +57,7 @@ env:
 
 jobs:
   beam_PreCommit_Python_ML:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) (${{ join(matrix.os, ', ') }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 180
     strategy:
@@ -70,9 +70,18 @@ jobs:
         # Some tests (marked require_docker_in_docker) can't run on Beam's
         # self-hosted runners due to Docker-in-Docker environment constraint.
         # These tests will only execute on ubuntu-latest (GitHub-hosted).
-        # Context: https://github.com/apache/beam/pull/35585
-        # Temporary removed the ubuntu-latest env till resolving deps issues.
-        os: [[self-hosted, ubuntu-20.04, main]]
+        # Context: https://github.com/apache/beam/pull/35585.
+        os: [[self-hosted, ubuntu-20.04, main], [ubuntu-latest]]
+        exclude:
+          # Temporary exclude Python 3.9, 3.10, 3.11 from ubuntu-latest. This
+          # results in pip dependency resolution exceeded maximum depth issue.
+          # Context: https://github.com/apache/beam/pull/35816.
+          - python_version: '3.9'
+            os: [ubuntu-latest]
+          - python_version: '3.10'
+            os: [ubuntu-latest]
+          - python_version: '3.11'
+            os: [ubuntu-latest]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -86,7 +95,7 @@ jobs:
         with:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) (${{ join(matrix.os, ', ') }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -113,7 +122,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: Python ${{ matrix.python_version }} Test Results
+          name: Python ${{ matrix.python_version }} Test Results ${{ matrix.os }}
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -123,3 +132,4 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
           large_files: true
+          check_name: "Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})"
