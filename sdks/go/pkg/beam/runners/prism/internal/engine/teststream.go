@@ -252,7 +252,7 @@ type tsFinalEvent struct {
 func (ev tsFinalEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.UpdateHold(em, mtime.MaxTimestamp)
 	ss := em.stages[ev.stageID]
-	kickSet := ss.updateWatermarks(em)
+	kickSet, _ := ss.updateWatermarks(em)
 	kickSet.insert(ev.stageID)
 	em.changedStages.merge(kickSet)
 }
