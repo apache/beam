@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "m-trieu",
-    "go": "shunping"
+    "java": "kennknowles",
+    "go": "jrmccluskey"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
