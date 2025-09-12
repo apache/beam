@@ -609,7 +609,7 @@ class SchemaTest(unittest.TestCase):
                 representation=typing_to_runner_api(str),
                 argument_type=typing_to_runner_api(str),
                 argument=schema_pb2.FieldValue(
-                    atomic_value=schema_pb2.AtomicValue(string_value="")))),
+                    atomic_value=schema_pb2.AtomicTypeValue(string="")))),
         typing_to_runner_api(GeographyType))
     self.assertEqual(
         typing_from_runner_api(
@@ -619,7 +619,7 @@ class SchemaTest(unittest.TestCase):
                     representation=typing_to_runner_api(str),
                     argument_type=typing_to_runner_api(str),
                     argument=schema_pb2.FieldValue(
-                        atomic_value=schema_pb2.AtomicValue(string_value="")))),
+                        atomic_value=schema_pb2.AtomicTypeValue(string="")))),
             schema_registry=SchemaTypeRegistry()),
         GeographyType)
 
@@ -633,7 +633,7 @@ class SchemaTest(unittest.TestCase):
                 representation=typing_to_runner_api(str),
                 argument_type=typing_to_runner_api(str),
                 argument=schema_pb2.FieldValue(
-                    atomic_value=schema_pb2.AtomicValue(string_value="")))),
+                    atomic_value=schema_pb2.AtomicTypeValue(string="")))),
         typing_to_runner_api(Optional[GeographyType]))
     self.assertEqual(
         typing_from_runner_api(
@@ -644,7 +644,7 @@ class SchemaTest(unittest.TestCase):
                     representation=typing_to_runner_api(str),
                     argument_type=typing_to_runner_api(str),
                     argument=schema_pb2.FieldValue(
-                        atomic_value=schema_pb2.AtomicValue(string_value="")))),
+                        atomic_value=schema_pb2.AtomicTypeValue(string="")))),
             schema_registry=SchemaTypeRegistry()),
         Optional[GeographyType])
 
