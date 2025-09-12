@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A descriptor for ClickHouse table schema. */
@@ -313,6 +314,10 @@ public abstract class TableSchema implements Serializable {
      * @return value of ClickHouse expression
      */
     public static Object parseDefaultExpression(ColumnType columnType, String value) {
+      if (value == null) {
+        return null;
+      }
+
       switch (columnType.typeName()) {
         case INT8:
           return Byte.valueOf(value);
@@ -322,11 +327,6 @@ public abstract class TableSchema implements Serializable {
           return Integer.valueOf(value);
         case INT64:
           return Long.valueOf(value);
-        case ENUM16:
-        case ENUM8:
-        case FIXEDSTRING:
-        case STRING:
-          return value;
         case UINT8:
           return Short.valueOf(value);
         case UINT16:
@@ -335,8 +335,73 @@ public abstract class TableSchema implements Serializable {
           return Long.valueOf(value);
         case UINT64:
           return Long.valueOf(value);
+        case ENUM8:
+        case ENUM16:
+        case FIXEDSTRING:
+        case STRING:
+          return value;
         case BOOL:
           return Boolean.valueOf(value);
+        case FLOAT32:
+          return Float.valueOf(value);
+        case FLOAT64:
+          return Double.valueOf(value);
+        case DATE:
+        case DATETIME:
+          // ClickHouse DateTime/Date format: 'YYYY-MM-DD HH:MM:SS' or 'YYYY-MM-DD'
+          try {
+            String formattedValue = value.contains(" ") ? value : value + " 00:00:00";
+            return new org.joda.time.DateTime(
+                java.time.LocalDateTime.parse(
+                        formattedValue,
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    .atZone(java.time.ZoneId.of("UTC"))
+                    .toInstant()
+                    .toEpochMilli(),
+                org.joda.time.DateTimeZone.UTC);
+          } catch (java.time.format.DateTimeParseException e) {
+            throw new IllegalArgumentException("Invalid DateTime/Date format: " + value, e);
+          }
+        case ARRAY:
+          // ClickHouse Array format: '[1,2,3]' or '["a","b"]'
+          String cleanedArray = value.replaceAll("[\\[\\]']", "").trim();
+          if (cleanedArray.isEmpty()) {
+            return new java.util.ArrayList<>();
+          }
+          // Recursively parse array elements based on arrayElementType
+          ColumnType elementType = columnType.arrayElementType();
+          if (elementType == null) {
+            throw new IllegalArgumentException("Array element type not specified for: " + value);
+          }
+          return Arrays.stream(cleanedArray.split(",\\s*"))
+              .map(element -> parseDefaultExpression(elementType, element))
+              .collect(Collectors.toList());
+        case TUPLE:
+          // ClickHouse Tuple format: '(1,"a")' or '('1','a')' after tuplePreprocessing
+          String cleanedTuple = value.replaceAll("[\\(\\)]", "").trim();
+          if (cleanedTuple.isEmpty()) {
+            return new java.util.ArrayList<>();
+          }
+          Map<String, ColumnType> tupleTypes = columnType.tupleTypes();
+          if (tupleTypes == null || tupleTypes.isEmpty()) {
+            throw new IllegalArgumentException("Tuple types not specified for: " + value);
+          }
+          // Split tuple elements (accounting for quoted strings)
+          List<String> elements =
+              Splitter.onPattern(",\\s*(?=(?:[^']*'[^']*')*[^']*$)").splitToList(cleanedTuple);
+          List<Object> tupleValues = new java.util.ArrayList<>();
+          int index = 0;
+          for (Map.Entry<String, ColumnType> entry : tupleTypes.entrySet()) {
+            if (index >= elements.size()) {
+              throw new IllegalArgumentException(
+                  "Tuple has fewer elements than expected: " + value);
+            }
+            // Strip quotes from quoted strings
+            String elementValue = elements.get(index).replaceAll("^'|'$", "").trim();
+            tupleValues.add(parseDefaultExpression(entry.getValue(), elementValue));
+            index++;
+          }
+          return tupleValues;
         default:
           throw new UnsupportedOperationException("Unsupported type: " + columnType);
       }
