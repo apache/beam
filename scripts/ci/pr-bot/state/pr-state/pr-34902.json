@@ -2,7 +2,7 @@
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {},
   "nextAction": "Author",
-  "stopReviewerNotifications": false,
+  "stopReviewerNotifications": true,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
