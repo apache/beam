@@ -576,8 +576,18 @@ class _PubSubWriteDoFn(DoFn):
       from apache_beam.options.pipeline_options import StandardOptions
 
       # Check if using DirectRunner
-      runner_name = getattr(pipeline_options, 'runner', None)
-      if runner_name is None or 'DirectRunner' in str(runner_name):
+      try:
+        # Get runner from pipeline options
+        all_options = pipeline_options.get_all_options()
+        runner_name = all_options.get('runner', StandardOptions.DEFAULT_RUNNER)
+
+        # Check if it's a DirectRunner variant
+        if (runner_name in StandardOptions.LOCAL_RUNNERS or
+            'DirectRunner' in str(runner_name) or
+            'TestDirectRunner' in str(runner_name)):
+          should_raise_error = True
+      except Exception:
+        # If we can't determine runner, assume DirectRunner for safety
         should_raise_error = True
 
       # Check if in batch mode (not streaming)
@@ -589,14 +599,32 @@ class _PubSubWriteDoFn(DoFn):
       should_raise_error = True
 
     if should_raise_error:
+      # Log debug information for troubleshooting
+      import logging
+      runner_info = getattr(
+          pipeline_options, 'runner',
+          'None') if pipeline_options else 'No options'
+      streaming_info = 'Unknown'
+      if pipeline_options:
+        try:
+          standard_options = pipeline_options.view_as(StandardOptions)
+          streaming_info = f'streaming={standard_options.streaming}'
+        except:
+          streaming_info = 'streaming=unknown'
+
+      logging.warning(
+          f'PubSub unsupported feature check: '
+          f'runner={runner_info}, {streaming_info}')
+
       if transform.id_label:
         raise NotImplementedError(
-            'id_label is not supported for PubSub writes with DirectRunner '
-            'or in batch mode')
+            f'id_label is not supported for PubSub writes with DirectRunner '
+            f'or in batch mode (runner={runner_info}, {streaming_info})')
       if transform.timestamp_attribute:
         raise NotImplementedError(
-            'timestamp_attribute is not supported for PubSub writes with '
-            'DirectRunner or in batch mode')
+            f'timestamp_attribute is not supported for PubSub writes with '
+            f'DirectRunner or in batch mode '
+            f'(runner={runner_info}, {streaming_info})')
 
   def setup(self):
     from google.cloud import pubsub
