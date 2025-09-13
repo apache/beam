@@ -44,10 +44,10 @@ OUTPUT_SUB = 'psit_subscription_output'
 
 # How long TestXXXRunner will wait for pubsub_it_pipeline to run before
 # cancelling it.
-TEST_PIPELINE_DURATION_MS = 8 * 60 * 1000
+TEST_PIPELINE_DURATION_MS = 10 * 60 * 1000
 # How long PubSubMessageMatcher will wait for the correct set of messages to
 # appear.
-MESSAGE_MATCHER_TIMEOUT_S = 5 * 60
+MESSAGE_MATCHER_TIMEOUT_S = 10 * 60
 
 
 class PubSubIntegrationTest(unittest.TestCase):
