@@ -35,10 +35,13 @@ import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.EnumMap;
+import java.util.Map;
 import java.util.logging.ErrorManager;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -47,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
+import org.slf4j.MDC;
 
 /**
  * Formats {@link LogRecord} into JSON format for Cloud Logging. Any exception is represented using
@@ -82,6 +86,10 @@ public class DataflowWorkerLoggingHandler extends Handler {
    * spreading the same log entry across multiple disk flushes.
    */
   private static final int LOGGING_WRITER_BUFFER_SIZE = 262144; // 256kb
+
+  /** If true, add SLF4J MDC to custom_data of the log message. */
+  @GuardedBy("this")
+  private boolean logCustomMdc = false;
 
   /**
    * Formats the throwable as per {@link Throwable#printStackTrace()}.
@@ -121,6 +129,10 @@ public class DataflowWorkerLoggingHandler extends Handler {
             .getFactory();
     this.sizeLimit = sizeLimit < 1 ? Long.MAX_VALUE : sizeLimit;
     createOutputStream();
+  }
+
+  public synchronized void setLogMdc(boolean enabled) {
+    this.logCustomMdc = enabled;
   }
 
   @Override
@@ -171,6 +183,24 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotEmpty("work", DataflowWorkerLoggingMDC.getWorkId());
       writeIfNotEmpty("logger", record.getLoggerName());
       writeIfNotEmpty("exception", formatException(record.getThrown()));
+      if (logCustomMdc) {
+        @Nullable Map<String, String> mdcMap = MDC.getCopyOfContextMap();
+        if (mdcMap != null && !mdcMap.isEmpty()) {
+          generator.writeFieldName("custom_data");
+          generator.writeStartObject();
+          mdcMap.entrySet().stream()
+              .sorted(Map.Entry.comparingByKey())
+              .forEach(
+                  (entry) -> {
+                    try {
+                      generator.writeStringField(entry.getKey(), entry.getValue());
+                    } catch (IOException e) {
+                      throw new RuntimeException(e);
+                    }
+                  });
+          generator.writeEndObject();
+        }
+      }
       generator.writeEndObject();
       generator.writeRaw(System.lineSeparator());
     } catch (IOException | RuntimeException e) {
