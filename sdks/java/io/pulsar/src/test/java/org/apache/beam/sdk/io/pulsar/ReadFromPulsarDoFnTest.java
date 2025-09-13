@@ -46,23 +46,19 @@ public class ReadFromPulsarDoFnTest {
   public static final String TOPIC = "PULSARIO_READFROMPULSAR_TEST";
   public static final int NUMBEROFMESSAGES = 100;
 
-  private final ReadFromPulsarDoFn dofnInstance = new ReadFromPulsarDoFn(readSourceDescriptor());
-  public FakePulsarReader fakePulsarReader = new FakePulsarReader(TOPIC, NUMBEROFMESSAGES);
+  private final NaiveReadFromPulsarDoFn<PulsarMessage> dofnInstance =
+      new NaiveReadFromPulsarDoFn<>(readSourceDescriptor());
+  public FakePulsarReader fakePulsarReader =
+      new FakePulsarReader(TOPIC, NUMBEROFMESSAGES, Instant.now().getMillis());
   private FakePulsarClient fakePulsarClient = new FakePulsarClient(fakePulsarReader);
 
-  private PulsarIO.Read readSourceDescriptor() {
+  private PulsarIO.Read<PulsarMessage> readSourceDescriptor() {
     return PulsarIO.read()
         .withClientUrl(SERVICE_URL)
         .withTopic(TOPIC)
         .withAdminUrl(ADMIN_URL)
         .withPublishTime()
-        .withPulsarClient(
-            new SerializableFunction<String, PulsarClient>() {
-              @Override
-              public PulsarClient apply(String input) {
-                return fakePulsarClient;
-              }
-            });
+        .withPulsarClient((SerializableFunction<String, PulsarClient>) ignored -> fakePulsarClient);
   }
 
   @Before
@@ -76,8 +72,7 @@ public class ReadFromPulsarDoFnTest {
     long expectedStartOffset = 0;
     OffsetRange result =
         dofnInstance.getInitialRestriction(
-            PulsarSourceDescriptor.of(
-                TOPIC, expectedStartOffset, null, null, SERVICE_URL, ADMIN_URL));
+            PulsarSourceDescriptor.of(TOPIC, expectedStartOffset, null, null));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -86,8 +81,7 @@ public class ReadFromPulsarDoFnTest {
     long expectedStartOffset = Instant.now().getMillis();
     OffsetRange result =
         dofnInstance.getInitialRestriction(
-            PulsarSourceDescriptor.of(
-                TOPIC, expectedStartOffset, null, null, SERVICE_URL, ADMIN_URL));
+            PulsarSourceDescriptor.of(TOPIC, expectedStartOffset, null, null));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -97,7 +91,7 @@ public class ReadFromPulsarDoFnTest {
     long endOffset = fakePulsarReader.getEndTimestamp();
     OffsetRange result =
         dofnInstance.getInitialRestriction(
-            PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null, SERVICE_URL, ADMIN_URL));
+            PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null));
     assertEquals(new OffsetRange(startOffset, endOffset), result);
   }
 
@@ -108,9 +102,9 @@ public class ReadFromPulsarDoFnTest {
     long endOffset = fakePulsarReader.getEndTimestamp();
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(startOffset, endOffset));
     PulsarSourceDescriptor descriptor =
-        PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null, SERVICE_URL, ADMIN_URL);
+        PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null);
     DoFn.ProcessContinuation result =
-        dofnInstance.processElement(descriptor, tracker, null, (DoFn.OutputReceiver) receiver);
+        dofnInstance.processElement(descriptor, tracker, null, receiver);
     int expectedResultWithoutCountingLastOffset = NUMBEROFMESSAGES - 1;
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     assertEquals(expectedResultWithoutCountingLastOffset, receiver.getOutputs().size());
@@ -120,13 +114,11 @@ public class ReadFromPulsarDoFnTest {
   public void testProcessElementWhenEndMessageIdIsDefined() throws Exception {
     MockOutputReceiver receiver = new MockOutputReceiver();
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
-    MessageId endMessageId = DefaultImplementation.newMessageId(50L, 50L, 50);
+    MessageId endMessageId =
+        DefaultImplementation.getDefaultImplementation().newMessageId(50L, 50L, 50);
     DoFn.ProcessContinuation result =
         dofnInstance.processElement(
-            PulsarSourceDescriptor.of(TOPIC, null, null, endMessageId, SERVICE_URL, ADMIN_URL),
-            tracker,
-            null,
-            (DoFn.OutputReceiver) receiver);
+            PulsarSourceDescriptor.of(TOPIC, null, null, endMessageId), tracker, null, receiver);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     assertEquals(50, receiver.getOutputs().size());
   }
@@ -138,10 +130,7 @@ public class ReadFromPulsarDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     DoFn.ProcessContinuation result =
         dofnInstance.processElement(
-            PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL, ADMIN_URL),
-            tracker,
-            null,
-            (DoFn.OutputReceiver) receiver);
+            PulsarSourceDescriptor.of(TOPIC, null, null, null), tracker, null, receiver);
     assertEquals(DoFn.ProcessContinuation.resume(), result);
     assertTrue(receiver.getOutputs().isEmpty());
   }
@@ -153,10 +142,7 @@ public class ReadFromPulsarDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     DoFn.ProcessContinuation result =
         dofnInstance.processElement(
-            PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL, ADMIN_URL),
-            tracker,
-            null,
-            (DoFn.OutputReceiver) receiver);
+            PulsarSourceDescriptor.of(TOPIC, null, null, null), tracker, null, receiver);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
   }
 
