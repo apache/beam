@@ -608,13 +608,14 @@ class _PubSubWriteDoFn(DoFn):
       if pipeline_options:
         try:
           standard_options = pipeline_options.view_as(StandardOptions)
-          streaming_info = f'streaming={standard_options.streaming}'
-        except:
+          streaming_info = 'streaming=%s' % standard_options.streaming
+        except Exception:
           streaming_info = 'streaming=unknown'
 
       logging.warning(
-          f'PubSub unsupported feature check: '
-          f'runner={runner_info}, {streaming_info}')
+          'PubSub unsupported feature check: runner=%s, %s',
+          runner_info,
+          streaming_info)
 
       if transform.id_label:
         raise NotImplementedError(
