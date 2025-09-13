@@ -452,14 +452,14 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				}
 				if ready {
 					bundleID, ok, reschedule, pendingAdjustment := ss.startEventTimeBundle(watermark, nextBundID)
+					if pendingAdjustment != 0 {
+						em.addPending(pendingAdjustment)
+					}
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.changedStages.insert(stageID)
 					}
 					if ok {
-						if pendingAdjustment > 0 {
-							em.addPending(pendingAdjustment)
-						}
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -1779,40 +1779,42 @@ keysPerBundle:
 		handledWindows := set[typex.Window]{}
 		for _, elm := range toProcessForKey {
 			state := ss.state[LinkID{}][elm.window][string(elm.keyBytes)]
-			if handledWindows.present(elm.window) {
-				// The pane is already correct for this key + window + firing.
-				if ss.strat.Accumulating && !state.Pane.IsLast {
-					// If this isn't the last pane, then we must add the element back to the pending store for subsequent firings.
-					heap.Push(&dnt.elements, elm)
-					accumulatingPendingAdjustment++
+
+			ready := ss.strat.IsTriggerReady(triggerInput{
+				newElementCount:    0,
+				endOfWindowReached: true, // event-time bundle for aggregate stage would only occur after reaching end of window.
+			}, &state)
+
+			if ready {
+				toProcess = append(toProcess, elm)
+
+				if !handledWindows.present(elm.window) {
+					handledWindows.insert(elm.window)
+
+					state.Pane = computeNextWatermarkPane(state.Pane)
+					// Determine if this is the last pane.
+					// Check if this is the post closing firing, which will be the last one.
+					// Unless it's the ontime pane, at which point it can never be last.
+					if watermark > ss.strat.EarliestCompletion(elm.window) && state.Pane.Timing != typex.PaneOnTime {
+						state.Pane.IsLast = true
+					}
+					if ss.strat.AllowedLateness == 0 || ss.strat.IsNeverTrigger() {
+						// If the allowed lateness is zero, then this will be the last pane.
+						// If this is the NeverTrigger, it's the last pane.
+						state.Pane.IsLast = true
+					}
+					ss.state[LinkID{}][elm.window][string(elm.keyBytes)] = state
+				} else {
+					accumulatingPendingAdjustment--
 				}
-				continue
 			}
-			handledWindows.insert(elm.window)
 
-			state.Pane = computeNextWatermarkPane(state.Pane)
-			// Determine if this is the last pane.
-			// Check if this is the post closing firing, which will be the last one.
-			// Unless it's the ontime pane, at which point it can never be last.
-			if watermark > ss.strat.EarliestCompletion(elm.window) && state.Pane.Timing != typex.PaneOnTime {
-				state.Pane.IsLast = true
-			}
-			if ss.strat.AllowedLateness == 0 || ss.strat.IsNeverTrigger() {
-				// If the allowed lateness is zero, then this will be the last pane.
-				// If this is the NeverTrigger, it's the last pane.
-				state.Pane.IsLast = true
-			}
-			ss.state[LinkID{}][elm.window][string(elm.keyBytes)] = state
-
-			// The pane is already correct for this key + window + firing.
+			// If accumulating and this isn't the last pane, add the element back to the pending store for subsequent firings.
 			if ss.strat.Accumulating && !state.Pane.IsLast {
-				// If this isn't the last pane, then we must add the element back to the pending store for subsequent firings.
 				heap.Push(&dnt.elements, elm)
 				accumulatingPendingAdjustment++
 			}
 		}
-
-		toProcess = append(toProcess, toProcessForKey...)
 
 		if dnt.elements.Len() == 0 {
 			delete(ss.pendingByKeys, k)

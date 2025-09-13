@@ -17,6 +17,7 @@ package engine
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -49,11 +50,18 @@ type WinStrat struct {
 	Accumulating    bool          // If true, elements remain pending until the last firing.
 
 	Trigger Trigger // Evaluated during execution.
+
+	mu sync.Mutex
 }
 
 // IsTriggerReady updates the trigger state with the given input, and returns
 // if the trigger is ready to fire.
 func (ws WinStrat) IsTriggerReady(input triggerInput, state *StateData) bool {
+	// IsTriggerReady can be called in watermark evaluation goroutine or
+	// stage execution goroutine. We need to guard it with mutex.
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+
 	ws.Trigger.onElement(input, state)
 
 	if ws.Trigger.shouldFire(state) {
