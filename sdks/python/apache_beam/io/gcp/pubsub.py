@@ -574,7 +574,7 @@ class _PubSubWriteDoFn(DoFn):
 
     if pipeline_options:
       from apache_beam.options.pipeline_options import StandardOptions
-      
+
       # Check if using DirectRunner
       runner_name = getattr(pipeline_options, 'runner', None)
       if runner_name and 'DirectRunner' in str(runner_name):
