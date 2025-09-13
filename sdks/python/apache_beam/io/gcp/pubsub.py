@@ -577,7 +577,7 @@ class _PubSubWriteDoFn(DoFn):
 
       # Check if using DirectRunner
       runner_name = getattr(pipeline_options, 'runner', None)
-      if runner_name and 'DirectRunner' in str(runner_name):
+      if runner_name is None or 'DirectRunner' in str(runner_name):
         should_raise_error = True
 
       # Check if in batch mode (not streaming)
