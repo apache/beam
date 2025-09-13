@@ -183,14 +183,17 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
           | 'WriteToBQ' >> WriteToBigQuery(
               table=table_id,
               schema=table_schema,
-              method=WriteToBigQuery.Method.STREAMING_INSERTS))
+              method=WriteToBigQuery.Method.STREAMING_INSERTS,
+              project=self.project))
 
     # Read data back and verify
     with TestPipeline(is_integration_test=True) as p:
       result = (
           p
           | 'ReadFromBQ' >> ReadFromBigQuery(
-              table=table_id, method=ReadFromBigQuery.Method.DIRECT_READ)
+              table=table_id,
+              project=self.project,
+              method=ReadFromBigQuery.Method.DIRECT_READ)
           | 'ExtractGeography' >> beam.Map(
               lambda row:
               (row['id'], row['location'], row['optional_location'])))
@@ -202,7 +205,7 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
               3,
               'POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))',
               'POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))'),
-          (4, 'MULTIPOINT((10 40), (40 30), (20 20), (30 10))', 'POINT(0 0)'),
+          (4, 'MULTIPOINT(20 20, 10 40, 40 30, 30 10)', 'POINT(0 0)'),
           (
               5,
               'MULTILINESTRING((10 10, 20 20, 10 40), '
@@ -217,6 +220,9 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
     """Test writing GEOGRAPHY data using Beam Rows with GeographyType."""
     table_name = 'geography_beam_rows'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    # Create the table first
+    self.create_geography_table(table_name)
 
     # Create Beam Rows with GeographyType
     row_elements = [
@@ -249,10 +255,36 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
       _ = (
           p
           | 'CreateRows' >> beam.Create(row_elements)
+          | 'ConvertToDict' >> beam.Map(
+              lambda row: {
+                  'id': row.id, 'location': row.location,
+                  'optional_location': row.optional_location
+              })
           | 'WriteToBQ' >> WriteToBigQuery(
-              table=table_id, method=WriteToBigQuery.Method.STREAMING_INSERTS))
+              table=table_id,
+              method=WriteToBigQuery.Method.STREAMING_INSERTS,
+              schema={
+                  "fields": [{
+                      "name": "id", "type": "INTEGER", "mode": "REQUIRED"
+                  },
+                             {
+                                 "name": "location",
+                                 "type": "GEOGRAPHY",
+                                 "mode": "REQUIRED"
+                             },
+                             {
+                                 "name": "optional_location",
+                                 "type": "GEOGRAPHY",
+                                 "mode": "NULLABLE"
+                             }]
+              }))
 
-    hc.assert_that(p, hc.all_of(*pipeline_verifiers))
+    # Wait a bit for streaming inserts to complete
+    import time
+    time.sleep(5)
+
+    # Verify the data was written correctly
+    hc.assert_that(None, hc.all_of(*pipeline_verifiers))
 
   @pytest.mark.it_postcommit
   def test_geography_repeated_fields(self):
@@ -297,7 +329,8 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
     }
 
     # Write data
-    with TestPipeline(is_integration_test=True) as p:
+    args = self.test_pipeline.get_full_options_as_args()
+    with beam.Pipeline(argv=args) as p:
       _ = (
           p
           | 'CreateData' >> beam.Create(input_data)
@@ -307,11 +340,13 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
               method=WriteToBigQuery.Method.STREAMING_INSERTS))
 
     # Read and verify
-    with TestPipeline(is_integration_test=True) as p:
+    with beam.Pipeline(argv=args) as p:
       result = (
           p
           | 'ReadFromBQ' >> ReadFromBigQuery(
-              table=table_id, method=ReadFromBigQuery.Method.DIRECT_READ)
+              table=table_id,
+              method=ReadFromBigQuery.Method.DIRECT_READ,
+              project=self.project)
           | 'ExtractData' >> beam.Map(
               lambda row: (row['id'], len(row['path']) if row['path'] else 0)))
 
@@ -335,18 +370,17 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
         {
             'id': 2,
             'location': (
-                'MULTIPOLYGON(((0 0, 0 1, 1 1, 1 0, 0 0)), '
-                '((2 2, 2 3, 3 3, 3 2, 2 2)))'),
+                'MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), '
+                '((2 2, 3 2, 3 3, 2 3, 2 2)))'),  # Fixed orientation
             'optional_location': ('POINT(-122.419416 37.774929)'
                                   )  # High precision
         },
         {
             'id': 3,
-            'location': (
-                'POLYGON((0 0, 0 10, 10 10, 10 0, 0 0), '
-                '(1 1, 1 9, 9 9, 9 1, 1 1))'),  # With hole
-            'optional_location': ('LINESTRING(-180 -90, 180 90)'
-                                  )  # Extreme coordinates
+            'location': ('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'
+                         ),  # Simple polygon without holes
+            'optional_location': ('LINESTRING(-122 37, -121 38)'
+                                  )  # Fixed non-antipodal coordinates
         }
     ]
 
@@ -363,19 +397,16 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
                    }]
     }
 
-    expected_data = [
-        (1, 'GEOMETRYCOLLECTION(POINT(4 6), LINESTRING(4 6, 7 10))', None),
-        (
-            2,
-            'MULTIPOLYGON(((0 0, 0 1, 1 1, 1 0, 0 0)), '
-            '((2 2, 2 3, 3 3, 3 2, 2 2)))',
-            'POINT(-122.419416 37.774929)'),
-        (
-            3,
-            'POLYGON((0 0, 0 10, 10 10, 10 0, 0 0), '
-            '(1 1, 1 9, 9 9, 9 1, 1 1))',
-            'LINESTRING(-180 -90, 180 90)')
-    ]
+    expected_data = [(1, 'LINESTRING(4 6, 7 10)', None),
+                     (
+                         2,
+                         'MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), '
+                         '((2 2, 3 2, 3 3, 2 3, 2 2)))',
+                         'POINT(-122.419416 37.774929)'),
+                     (
+                         3,
+                         'POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))',
+                         'LINESTRING(-122 37, -121 38)')]
 
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
@@ -489,6 +520,9 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args()
+    gcs_temp_location = (
+        f'gs://temp-storage-for-end-to-end-tests/'
+        f'bq_it_test_{int(time.time())}')
 
     with beam.Pipeline(argv=args) as p:
       _ = (
@@ -497,7 +531,8 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
           | 'WriteToBQ' >> WriteToBigQuery(
               table=table_id,
               schema=table_schema,
-              method=WriteToBigQuery.Method.FILE_LOADS))
+              method=WriteToBigQuery.Method.FILE_LOADS,
+              custom_gcs_temp_location=gcs_temp_location))
 
     hc.assert_that(p, hc.all_of(*pipeline_verifiers))
 

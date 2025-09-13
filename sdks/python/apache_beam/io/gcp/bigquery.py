@@ -1028,6 +1028,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self._step_name = step_name
     self._source_uuid = unique_id
 
+  def _get_project(self):
+    """Returns the project that queries and exports will be billed to."""
+    if self.pipeline_options:
+      project = self.pipeline_options.view_as(GoogleCloudOptions).project
+      if isinstance(project, vp.ValueProvider):
+        project = project.get()
+      if project:
+        return project
+    return self.project
+
   def _get_parent_project(self):
     """Returns the project that will be billed."""
     if self.temp_table:
@@ -1159,6 +1169,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
       if self.query is not None:
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
+
+      if not self.table_reference.projectId:
+        self.table_reference.projectId = self._get_project()
 
       requested_session = bq_storage.types.ReadSession()
       requested_session.table = 'projects/{}/datasets/{}/tables/{}'.format(
