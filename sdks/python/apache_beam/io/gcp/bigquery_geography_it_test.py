@@ -37,7 +37,6 @@ from apache_beam.io.gcp.tests.bigquery_matcher import (
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.typehints.schemas import GeographyType
 
 try:
   from apitools.base.py.exceptions import HttpError
@@ -280,7 +279,6 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
               }))
 
     # Wait a bit for streaming inserts to complete
-    import time
     time.sleep(5)
 
     # Verify the data was written correctly
