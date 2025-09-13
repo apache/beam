@@ -32,6 +32,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 
 # pytype: skip-file
 
+import logging
 import re
 from typing import Any
 from typing import List
@@ -56,6 +57,8 @@ try:
   from google.cloud import pubsub
 except ImportError:
   pubsub = None
+
+_LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     'MultipleReadFromPubSub',
@@ -565,10 +568,12 @@ class _PubSubWriteDoFn(DoFn):
     # TODO(https://github.com/apache/beam/issues/18939): Add support for
     # id_label and timestamp_attribute.
     if transform.id_label:
-      raise NotImplementedError('id_label is not supported for PubSub writes')
+      _LOGGER.warning(
+          'id_label is not supported for PubSub writes and will be ignored')
     if transform.timestamp_attribute:
-      raise NotImplementedError(
-          'timestamp_attribute is not supported for PubSub writes')
+      _LOGGER.warning(
+          'timestamp_attribute is not supported for PubSub writes and will be '
+          'ignored')
 
   def setup(self):
     from google.cloud import pubsub

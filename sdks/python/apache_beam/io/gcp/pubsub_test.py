@@ -973,10 +973,10 @@ class TestWriteToPubSub(unittest.TestCase):
     attributes = {'key': 'value'}
     payloads = [PubsubMessage(data, attributes)]
 
+    # Test that id_label logs a warning instead of raising an exception
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    with self.assertRaisesRegex(NotImplementedError,
-                                r'id_label is not supported'):
+    with self.assertLogs(level='WARNING') as log:
       with TestPipeline(options=options) as p:
         _ = (
             p
@@ -985,11 +985,14 @@ class TestWriteToPubSub(unittest.TestCase):
                 'projects/fakeprj/topics/a_topic',
                 id_label='a_label',
                 with_attributes=True))
+    self.assertIn(
+        'id_label is not supported for PubSub writes and will be ignored',
+        str(log.output))
 
+    # Test that timestamp_attribute logs a warning instead of raising an exception
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    with self.assertRaisesRegex(NotImplementedError,
-                                r'timestamp_attribute is not supported'):
+    with self.assertLogs(level='WARNING') as log:
       with TestPipeline(options=options) as p:
         _ = (
             p
@@ -998,6 +1001,9 @@ class TestWriteToPubSub(unittest.TestCase):
                 'projects/fakeprj/topics/a_topic',
                 timestamp_attribute='timestamp',
                 with_attributes=True))
+    self.assertIn(
+        'timestamp_attribute is not supported for PubSub writes and will be ignored',
+        str(log.output))
 
   def test_runner_api_transformation(self, unused_mock_pubsub):
     sink = _PubSubSink(
