@@ -582,9 +582,9 @@ class _PubSubWriteDoFn(DoFn):
         runner_name = all_options.get('runner', StandardOptions.DEFAULT_RUNNER)
 
         # Check if it's a DirectRunner variant
-        if (runner_name in StandardOptions.LOCAL_RUNNERS or
-            'DirectRunner' in str(runner_name) or
-            'TestDirectRunner' in str(runner_name)):
+        if (runner_name is None or
+            (runner_name in StandardOptions.LOCAL_RUNNERS or 'DirectRunner'
+             in str(runner_name) or 'TestDirectRunner' in str(runner_name))):
           should_raise_error = True
       except Exception:
         # If we can't determine runner, assume DirectRunner for safety
@@ -598,24 +598,25 @@ class _PubSubWriteDoFn(DoFn):
       # If no pipeline options available, fall back to original behavior
       should_raise_error = True
 
-    if should_raise_error:
-      # Log debug information for troubleshooting
-      import logging
-      runner_info = getattr(
-          pipeline_options, 'runner',
-          'None') if pipeline_options else 'No options'
-      streaming_info = 'Unknown'
-      if pipeline_options:
-        try:
-          standard_options = pipeline_options.view_as(StandardOptions)
-          streaming_info = 'streaming=%s' % standard_options.streaming
-        except Exception:
-          streaming_info = 'streaming=unknown'
+    # Log debug information for troubleshooting
+    import logging
+    runner_info = getattr(
+        pipeline_options, 'runner',
+        'None') if pipeline_options else 'No options'
+    streaming_info = 'Unknown'
+    if pipeline_options:
+      try:
+        standard_options = pipeline_options.view_as(StandardOptions)
+        streaming_info = 'streaming=%s' % standard_options.streaming
+      except Exception:
+        streaming_info = 'streaming=unknown'
 
-      logging.warning(
-          'PubSub unsupported feature check: runner=%s, %s',
-          runner_info,
-          streaming_info)
+    logging.debug(
+        'PubSub unsupported feature check: runner=%s, %s',
+        runner_info,
+        streaming_info)
+
+    if should_raise_error:
 
       if transform.id_label:
         raise NotImplementedError(
