@@ -850,7 +850,8 @@ class _CustomBigQuerySource(BoundedSource):
       return
     location = bq.get_query_location(
         self._get_project(), self.query.get(), self.use_legacy_sql)
-    bq.create_temporary_dataset(self._get_project(), location)
+    bq.create_temporary_dataset(
+        self._get_project(), location, kms_key=self.kms_key)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
@@ -1062,7 +1063,10 @@ class _CustomBigQueryStorageSource(BoundedSource):
         self._get_parent_project(), self.query.get(), self.use_legacy_sql)
     _LOGGER.warning("### Labels: %s", str(self.bigquery_dataset_labels))
     bq.create_temporary_dataset(
-        self._get_parent_project(), location, self.bigquery_dataset_labels)
+        self._get_parent_project(),
+        location,
+        self.bigquery_dataset_labels,
+        kms_key=self.kms_key)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):

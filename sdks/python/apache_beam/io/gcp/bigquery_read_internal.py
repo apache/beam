@@ -319,7 +319,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     # Use the project from temp_dataset if it's a DatasetReference,
     # otherwise use the pipeline project
     temp_dataset_project = self._get_temp_dataset_project()
-    bq.create_temporary_dataset(temp_dataset_project, location)
+    bq.create_temporary_dataset(
+        temp_dataset_project, location, kms_key=self.kms_key)
 
   def _execute_query(
       self,
