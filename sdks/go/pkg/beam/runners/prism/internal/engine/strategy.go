@@ -17,6 +17,7 @@ package engine
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -49,11 +50,18 @@ type WinStrat struct {
 	Accumulating    bool          // If true, elements remain pending until the last firing.
 
 	Trigger Trigger // Evaluated during execution.
+
+	mu sync.Mutex
 }
 
 // IsTriggerReady updates the trigger state with the given input, and returns
 // if the trigger is ready to fire.
 func (ws WinStrat) IsTriggerReady(input triggerInput, state *StateData) bool {
+	// IsTriggerReady can be called in watermark evaluation goroutine or
+	// stage execution goroutine. We need to guard it with mutex.
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+
 	ws.Trigger.onElement(input, state)
 
 	if ws.Trigger.shouldFire(state) {
@@ -115,25 +123,43 @@ func (ts triggerState) String() string {
 	return fmt.Sprintf("triggerState[finished: %v; state: %v]", ts.finished, ts.extra)
 }
 
-// nullTrigger is a 0 size object that exists to be embedded in triggers that
-// perform no action on trigger method calls. Triggers with this embedded will
-// gain an implementation of the trigger methods that do nothing, and behavior
-// must be overridden by the trigger for correct evaluation.
-type nullTrigger struct{}
-
-func (nullTrigger) onElement(triggerInput, *StateData) {}
-func (nullTrigger) onFire(*StateData)                  {}
-func (nullTrigger) reset(*StateData)                   {}
-
 // TriggerNever is never ready.
 // There will only be an ON_TIME output and a final output at window expiration.
-type TriggerNever struct{ nullTrigger }
+type TriggerNever struct{}
 
-func (*TriggerNever) shouldFire(*StateData) bool {
-	return false
+func (t *TriggerNever) onElement(input triggerInput, state *StateData) {
+	ts := state.getTriggerState(t)
+	if ts.finished {
+		return
+	}
+	if ts.extra == nil {
+		ts.extra = false
+	}
+	ts.extra = input.endOfWindowReached
+	state.setTriggerState(t, ts)
 }
 
-func (t *TriggerNever) reset(state *StateData) {}
+func (t *TriggerNever) shouldFire(state *StateData) bool {
+	ts := state.getTriggerState(t)
+	if ts.finished {
+		return false
+	}
+	if ts.extra == nil {
+		return false
+	}
+	return ts.extra.(bool)
+}
+
+func (t *TriggerNever) onFire(state *StateData) {
+	if !t.shouldFire(state) {
+		return
+	}
+	triggerClearAndFinish(t, state)
+}
+
+func (t *TriggerNever) reset(state *StateData) {
+	delete(state.Trigger, t)
+}
 
 func (t *TriggerNever) String() string {
 	return "Never"
@@ -142,11 +168,17 @@ func (t *TriggerNever) String() string {
 // TriggerAlways is always ready.
 // There will be an output for every element, and a final output at window expiration.
 // Equivalent to TriggerRepeatedly {TriggerElementCount{1}}
-type TriggerAlways struct{ nullTrigger }
+type TriggerAlways struct{}
 
 func (*TriggerAlways) shouldFire(*StateData) bool {
 	return true
 }
+
+func (t *TriggerAlways) onElement(input triggerInput, state *StateData) {}
+
+func (t *TriggerAlways) onFire(state *StateData) {}
+
+func (t *TriggerAlways) reset(state *StateData) {}
 
 func subTriggersOnElement(t Trigger, input triggerInput, state *StateData, subTriggers []Trigger) {
 	ts := state.getTriggerState(t)
@@ -475,32 +507,41 @@ type TriggerAfterEndOfWindow struct {
 	Early, Late Trigger
 }
 
+type afterEndOfWindowState struct {
+	endOfWindow, pastEndOfWindow bool
+}
+
 func (t *TriggerAfterEndOfWindow) onElement(input triggerInput, state *StateData) {
 	ts := state.getTriggerState(t)
 	if ts.finished {
 		return
 	}
+
+	var s afterEndOfWindowState
 	if ts.extra == nil {
-		ts.extra = false
+		s = afterEndOfWindowState{endOfWindow: false, pastEndOfWindow: false}
+		ts.extra = s
 	}
-	previouslyEndOfWindow := ts.extra.(bool)
-	if !previouslyEndOfWindow && input.endOfWindowReached {
+	s = ts.extra.(afterEndOfWindowState)
+
+	if input.newElementCount > 0 && s.endOfWindow && input.endOfWindowReached {
+		s.pastEndOfWindow = true
+	}
+	s.endOfWindow = input.endOfWindowReached
+
+	if !s.pastEndOfWindow && s.endOfWindow {
 		// We have transitioned. Clear early state and mark it finished
 		if t.Early != nil {
 			triggerClearAndFinish(t.Early, state)
 		}
-		if t.Late == nil {
-			triggerClearAndFinish(t, state)
-			return
-		}
 	}
-	ts.extra = input.endOfWindowReached
+	ts.extra = s
 	state.setTriggerState(t, ts)
 
 	if t.Early != nil && !state.getTriggerState(t.Early).finished {
 		t.Early.onElement(input, state)
 		return
-	} else if t.Late != nil && input.endOfWindowReached {
+	} else if t.Late != nil && s.pastEndOfWindow {
 		t.Late.onElement(input, state)
 	}
 }
@@ -510,11 +551,25 @@ func (t *TriggerAfterEndOfWindow) shouldFire(state *StateData) bool {
 	if ts.finished {
 		return false
 	}
+	if ts.extra == nil {
+		return false
+	}
+	s := ts.extra.(afterEndOfWindowState)
+	if !s.pastEndOfWindow && s.endOfWindow {
+		// on-time firing
+		return true
+	}
+
 	if t.Early != nil && !state.getTriggerState(t.Early).finished {
-		return t.Early.shouldFire(state) || ts.extra.(bool)
-	} else if t.Late != nil && ts.extra.(bool) {
+		// early firing
+		return t.Early.shouldFire(state)
+	}
+
+	if t.Late != nil && s.pastEndOfWindow {
+		// late firing
 		return t.Late.shouldFire(state)
 	}
+
 	return false
 }
 
@@ -523,17 +578,33 @@ func (t *TriggerAfterEndOfWindow) onFire(state *StateData) {
 	if ts.finished {
 		return
 	}
+
 	if t.Early != nil && !state.getTriggerState(t.Early).finished {
+		// early firing
 		if t.Early.shouldFire(state) {
 			t.Early.onFire(state)
+			// implicitly repeat early trigger
 			if state.getTriggerState(t.Early).finished {
 				t.Early.reset(state)
 			}
 		}
-	} else if t.Late == nil {
 		return
-	} else if ts.extra.(bool) { // If we're in late firings.
+	}
+
+	s := ts.extra.(afterEndOfWindowState)
+	if !s.pastEndOfWindow && s.endOfWindow {
+		// on-time firing
+		if t.Late == nil {
+			// There is no triggers for late data. The current trigger is finished.
+			triggerClearAndFinish(t, state)
+		}
+		return
+	}
+
+	if s.pastEndOfWindow {
+		// late firing
 		t.Late.onFire(state)
+		// implicitly repeat late trigger
 		if state.getTriggerState(t.Late).finished {
 			t.Late.reset(state)
 		}
@@ -572,6 +643,9 @@ func (t *TriggerDefault) onElement(input triggerInput, state *StateData) {
 
 func (t *TriggerDefault) shouldFire(state *StateData) bool {
 	ts := state.getTriggerState(t)
+	if ts.extra == nil {
+		return false
+	}
 	return ts.extra.(bool)
 }
 

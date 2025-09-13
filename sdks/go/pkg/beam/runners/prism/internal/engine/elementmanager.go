@@ -452,14 +452,14 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				}
 				if ready {
 					bundleID, ok, reschedule, pendingAdjustment := ss.startEventTimeBundle(watermark, nextBundID)
+					if pendingAdjustment != 0 {
+						em.addPending(pendingAdjustment)
+					}
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.changedStages.insert(stageID)
 					}
 					if ok {
-						if pendingAdjustment > 0 {
-							em.addPending(pendingAdjustment)
-						}
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -1789,40 +1789,46 @@ keysPerBundle:
 		handledWindows := set[typex.Window]{}
 		for _, elm := range toProcessForKey {
 			state := ss.state[LinkID{}][elm.window][string(elm.keyBytes)]
-			if handledWindows.present(elm.window) {
-				// The pane is already correct for this key + window + firing.
-				if ss.strat.Accumulating && !state.Pane.IsLast {
-					// If this isn't the last pane, then we must add the element back to the pending store for subsequent firings.
-					heap.Push(&dnt.elements, elm)
-					accumulatingPendingAdjustment++
+
+			// Check if the trigger is ready to fire before putting it into toProcess.
+			// Notice that for some trigger types (e.g. TriggerElementCount, TriggerAfterProcessingTime)
+			// the on-time pane is not always fired.
+			ready := ss.strat.IsTriggerReady(triggerInput{
+				newElementCount:    0,
+				endOfWindowReached: true, // event-time bundle for aggregate stage would only occur after reaching end of window.
+			}, &state)
+
+			if ready {
+				toProcess = append(toProcess, elm)
+
+				if !handledWindows.present(elm.window) {
+					handledWindows.insert(elm.window)
+
+					state.Pane = computeNextWatermarkPane(state.Pane)
+					// Determine if this is the last pane.
+					// Check if this is the post closing firing, which will be the last one.
+					// Unless it's the ontime pane, at which point it can never be last.
+					if watermark > ss.strat.EarliestCompletion(elm.window) && state.Pane.Timing != typex.PaneOnTime {
+						state.Pane.IsLast = true
+					}
+					if ss.strat.AllowedLateness == 0 || ss.strat.IsNeverTrigger() {
+						// If the allowed lateness is zero, then this will be the last pane.
+						// If this is the NeverTrigger, it's the last pane.
+						state.Pane.IsLast = true
+					}
+					ss.state[LinkID{}][elm.window][string(elm.keyBytes)] = state
 				}
-				continue
+			} else {
+				// Take out the number of elements that we don't want to fire.
+				accumulatingPendingAdjustment--
 			}
-			handledWindows.insert(elm.window)
 
-			state.Pane = computeNextWatermarkPane(state.Pane)
-			// Determine if this is the last pane.
-			// Check if this is the post closing firing, which will be the last one.
-			// Unless it's the ontime pane, at which point it can never be last.
-			if watermark > ss.strat.EarliestCompletion(elm.window) && state.Pane.Timing != typex.PaneOnTime {
-				state.Pane.IsLast = true
-			}
-			if ss.strat.AllowedLateness == 0 || ss.strat.IsNeverTrigger() {
-				// If the allowed lateness is zero, then this will be the last pane.
-				// If this is the NeverTrigger, it's the last pane.
-				state.Pane.IsLast = true
-			}
-			ss.state[LinkID{}][elm.window][string(elm.keyBytes)] = state
-
-			// The pane is already correct for this key + window + firing.
+			// If accumulating and this isn't the last pane, add the element back to the pending store for subsequent firings.
 			if ss.strat.Accumulating && !state.Pane.IsLast {
-				// If this isn't the last pane, then we must add the element back to the pending store for subsequent firings.
 				heap.Push(&dnt.elements, elm)
 				accumulatingPendingAdjustment++
 			}
 		}
-
-		toProcess = append(toProcess, toProcessForKey...)
 
 		if dnt.elements.Len() == 0 {
 			delete(ss.pendingByKeys, k)
@@ -1833,7 +1839,16 @@ keysPerBundle:
 	}
 
 	// If this is an aggregate, we need a watermark change in order to reschedule
-	stillSchedulable := false
+	var stillSchedulable bool
+	if watermark == mtime.MaxTimestamp && minTs < mtime.MaxTimestamp {
+		// This happens when the upstream watermark is changed to MaxTimestamp for the
+		// first time and there is something to process (minTs < MaxTimestamp) for this
+		// stage. In this case, we will need to let it schedule one more time, ensuring that
+		// upstream MaxTimstamp watermark will be propagated to the current and future stages.
+		stillSchedulable = true
+	} else {
+		stillSchedulable = false
+	}
 
 	return toProcess, minTs, newKeys, holdsInBundle, stillSchedulable, accumulatingPendingAdjustment
 }
