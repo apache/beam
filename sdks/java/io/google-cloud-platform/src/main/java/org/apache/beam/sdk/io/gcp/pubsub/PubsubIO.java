@@ -1559,9 +1559,8 @@ public class PubsubIO {
 
     /**
      * Writes any serialization failures out to the Error Handler. See {@link ErrorHandler} for
-     * details on how to configure an Error Handler. Error Handlers are not well supported when
-     * writing to topics with schemas, and it is not recommended to configure an error handler if
-     * the target topic has a schema.
+     * details on how to configure an Error Handler. Schema errors are not handled by Error
+     * Handlers, and will be handled using the default behavior of the runner.
      */
     public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return toBuilder()

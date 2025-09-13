@@ -82,3 +82,90 @@ pipelines:
           config:
             elements:
               - {user: bob, timestamp: 3}
+
+# Assign timestamp to beam row element with error handling and output schema
+# check.
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          name: CreateVisits
+          config:
+            elements:
+              - {user: alice, timestamp: "not-valid"}
+              - {user: bob, timestamp: 3}
+        - type: AssignTimestamps
+          input: CreateVisits
+          config:
+            timestamp: timestamp
+            error_handling:
+              output: invalid_rows
+            output_schema:
+              type: object
+              properties:
+                user:
+                  type: string
+                timestamp:
+                  type: integer
+        - type: MapToFields
+          name: ExtractInvalidTimestamp
+          input: AssignTimestamps.invalid_rows
+          config:
+            language: python
+            fields:
+              user: "element.user"
+              timestamp: "element.timestamp"
+        - type: AssertEqual
+          input: ExtractInvalidTimestamp
+          config:
+            elements:
+              - {user: "alice", timestamp: "not-valid"}
+        - type: AssertEqual
+          input: AssignTimestamps
+          config:
+            elements: 
+              - {user: bob, timestamp: 3}
+
+# Assign timestamp to beam row element with error handling and output schema
+# check with more error handling.
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          name: CreateVisits
+          config:
+            elements:
+              - {user: alice, timestamp: "not-valid"}
+              - {user: bob, timestamp: 3}
+        - type: AssignTimestamps
+          input: CreateVisits
+          config:
+            timestamp: timestamp
+            error_handling:
+              output: invalid_rows
+            output_schema:
+              type: object
+              properties:
+                user:
+                  type: string
+                timestamp:
+                  type: boolean
+        - type: MapToFields
+          name: ExtractInvalidTimestamp
+          input: AssignTimestamps.invalid_rows
+          config:
+            language: python
+            fields:
+              user: "element.user"
+              timestamp: "element.timestamp"
+        - type: AssertEqual
+          input: ExtractInvalidTimestamp
+          config:
+            elements:
+              - {user: "alice", timestamp: "not-valid"}
+              - {user: bob, timestamp: 3}
+        - type: AssertEqual
+          input: AssignTimestamps
+          config:
+            elements: []
+

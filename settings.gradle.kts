@@ -296,6 +296,12 @@ include(":sdks:python:container:distroless:py310")
 include(":sdks:python:container:distroless:py311")
 include(":sdks:python:container:distroless:py312")
 include(":sdks:python:container:distroless:py313")
+include(":sdks:python:container:ml")
+include(":sdks:python:container:ml:py39")
+include(":sdks:python:container:ml:py310")
+include(":sdks:python:container:ml:py311")
+include(":sdks:python:container:ml:py312")
+include(":sdks:python:container:ml:py313")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
 include(":sdks:python:test-suites:dataflow:py39")
@@ -372,3 +378,7 @@ include("sdks:java:io:iceberg:bqms")
 findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"
 include("it:clickhouse")
 findProject(":it:clickhouse")?.name = "clickhouse"
+include("sdks:java:extensions:sql:iceberg")
+findProject(":sdks:java:extensions:sql:iceberg")?.name = "iceberg"
+include("examples:java:iceberg")
+findProject(":examples:java:iceberg")?.name = "iceberg"

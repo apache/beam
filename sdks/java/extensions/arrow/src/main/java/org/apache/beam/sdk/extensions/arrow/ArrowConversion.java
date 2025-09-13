@@ -155,8 +155,20 @@ public class ArrowConversion {
                   }
 
                   @Override
+                  public FieldType visit(ArrowType.Utf8View type) {
+                    throw new IllegalArgumentException(
+                        "Type \'" + type.toString() + "\' not supported.");
+                  }
+
+                  @Override
                   public FieldType visit(ArrowType.Binary type) {
                     return FieldType.BYTES;
+                  }
+
+                  @Override
+                  public FieldType visit(ArrowType.BinaryView type) {
+                    throw new IllegalArgumentException(
+                        "Type \'" + type.toString() + "\' not supported.");
                   }
 
                   @Override
@@ -209,6 +221,12 @@ public class ArrowConversion {
 
                   @Override
                   public FieldType visit(ArrowType.Duration type) {
+                    throw new IllegalArgumentException(
+                        "Type \'" + type.toString() + "\' not supported.");
+                  }
+
+                  @Override
+                  public FieldType visit(ArrowType.ListView type) {
                     throw new IllegalArgumentException(
                         "Type \'" + type.toString() + "\' not supported.");
                   }
@@ -377,6 +395,11 @@ public class ArrowConversion {
       }
 
       @Override
+      public Optional<Function<Object, Object>> visit(ArrowType.ListView listView) {
+        return Optional.empty();
+      }
+
+      @Override
       public Optional<Function<Object, Object>> visit(ArrowType.Int type) {
         return Optional.empty();
       }
@@ -392,7 +415,17 @@ public class ArrowConversion {
       }
 
       @Override
+      public Optional<Function<Object, Object>> visit(ArrowType.Utf8View utf8View) {
+        return Optional.empty();
+      }
+
+      @Override
       public Optional<Function<Object, Object>> visit(ArrowType.Binary type) {
+        return Optional.empty();
+      }
+
+      @Override
+      public Optional<Function<Object, Object>> visit(ArrowType.BinaryView binaryView) {
         return Optional.empty();
       }
 

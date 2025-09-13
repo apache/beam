@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
  * A wrapper around a trigger used during execution. While an actual trigger may appear multiple
@@ -42,18 +41,17 @@ public class ExecutableTriggerStateMachine implements Serializable {
   private final List<ExecutableTriggerStateMachine> subTriggers = new ArrayList<>();
   private final TriggerStateMachine trigger;
 
-  public static <W extends BoundedWindow> ExecutableTriggerStateMachine create(
-      TriggerStateMachine trigger) {
+  public static ExecutableTriggerStateMachine create(TriggerStateMachine trigger) {
     return create(trigger, 0);
   }
 
-  private static <W extends BoundedWindow> ExecutableTriggerStateMachine create(
+  private static ExecutableTriggerStateMachine create(
       TriggerStateMachine trigger, int nextUnusedIndex) {
 
     return new ExecutableTriggerStateMachine(trigger, nextUnusedIndex);
   }
 
-  public static <W extends BoundedWindow> ExecutableTriggerStateMachine createForOnceTrigger(
+  public static ExecutableTriggerStateMachine createForOnceTrigger(
       TriggerStateMachine trigger, int nextUnusedIndex) {
     return new ExecutableTriggerStateMachine(trigger, nextUnusedIndex);
   }

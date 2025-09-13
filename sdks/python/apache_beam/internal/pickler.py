@@ -29,10 +29,15 @@ the coders.*PickleCoder classes should be used instead.
 """
 
 from apache_beam.internal import cloudpickle_pickler
-from apache_beam.internal import dill_pickler
+
+try:
+  from apache_beam.internal import dill_pickler
+except ImportError:
+  dill_pickler = None  # type: ignore[assignment]
 
 USE_CLOUDPICKLE = 'cloudpickle'
 USE_DILL = 'dill'
+USE_DILL_UNSAFE = 'dill_unsafe'
 
 DEFAULT_PICKLE_LIB = USE_CLOUDPICKLE
 desired_pickle_lib = cloudpickle_pickler
@@ -74,14 +79,29 @@ def load_session(file_path):
 def set_library(selected_library=DEFAULT_PICKLE_LIB):
   """ Sets pickle library that will be used. """
   global desired_pickle_lib
+
+  if selected_library == USE_DILL and not dill_pickler:
+    raise ImportError(
+        "Pipeline option pickle_library=dill is set, but dill is not "
+        "installed. Install apache-beam with the dill extras package "
+        "e.g. apache-beam[dill].")
+  if selected_library == USE_DILL_UNSAFE and not dill_pickler:
+    raise ImportError(
+        "Pipeline option pickle_library=dill_unsafe is set, but dill is not "
+        "installed. Install dill in job submission and runtime environments.")
+
+  is_currently_dill = (desired_pickle_lib == dill_pickler)
+  dill_is_requested = (
+      selected_library == USE_DILL or selected_library == USE_DILL_UNSAFE)
+
   # If switching to or from dill, update the pickler hook overrides.
-  if (selected_library == USE_DILL) != (desired_pickle_lib == dill_pickler):
+  if is_currently_dill != dill_is_requested:
     dill_pickler.override_pickler_hooks(selected_library == USE_DILL)
 
   if selected_library == 'default':
     selected_library = DEFAULT_PICKLE_LIB
 
-  if selected_library == USE_DILL:
+  if dill_is_requested:
     desired_pickle_lib = dill_pickler
   elif selected_library == USE_CLOUDPICKLE:
     desired_pickle_lib = cloudpickle_pickler
