@@ -32,7 +32,6 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 
 # pytype: skip-file
 
-import logging
 import re
 from typing import Any
 from typing import List
@@ -57,8 +56,6 @@ try:
   from google.cloud import pubsub
 except ImportError:
   pubsub = None
-
-_LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     'MultipleReadFromPubSub',
@@ -417,6 +414,7 @@ class WriteToPubSub(PTransform):
     self.project, self.topic_name = parse_topic(topic)
     self.full_topic = topic
     self._sink = _PubSubSink(topic, id_label, timestamp_attribute)
+    self.pipeline_options = None  # Will be set during expand()
 
   @staticmethod
   def message_to_proto_str(element: PubsubMessage) -> bytes:
@@ -432,6 +430,9 @@ class WriteToPubSub(PTransform):
     return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
+    # Store pipeline options for use in DoFn
+    self.pipeline_options = pcoll.pipeline.options if pcoll.pipeline else None
+
     if self.with_attributes:
       pcoll = pcoll | 'ToProtobufX' >> ParDo(
           _AddMetricsAndMap(
@@ -567,13 +568,36 @@ class _PubSubWriteDoFn(DoFn):
 
     # TODO(https://github.com/apache/beam/issues/18939): Add support for
     # id_label and timestamp_attribute.
-    if transform.id_label:
-      _LOGGER.warning(
-          'id_label is not supported for PubSub writes and will be ignored')
-    if transform.timestamp_attribute:
-      _LOGGER.warning(
-          'timestamp_attribute is not supported for PubSub writes and will be '
-          'ignored')
+    # Only raise errors for DirectRunner or batch pipelines
+    pipeline_options = transform.pipeline_options
+    should_raise_error = False
+
+    if pipeline_options:
+      from apache_beam.options.pipeline_options import StandardOptions
+      from apache_beam.runners.direct.direct_runner import DirectRunner
+
+      # Check if using DirectRunner
+      runner_name = getattr(pipeline_options, 'runner', None)
+      if runner_name and 'DirectRunner' in str(runner_name):
+        should_raise_error = True
+
+      # Check if in batch mode (not streaming)
+      standard_options = pipeline_options.view_as(StandardOptions)
+      if not standard_options.streaming:
+        should_raise_error = True
+    else:
+      # If no pipeline options available, fall back to original behavior
+      should_raise_error = True
+
+    if should_raise_error:
+      if transform.id_label:
+        raise NotImplementedError(
+            'id_label is not supported for PubSub writes with DirectRunner '
+            'or in batch mode')
+      if transform.timestamp_attribute:
+        raise NotImplementedError(
+            'timestamp_attribute is not supported for PubSub writes with '
+            'DirectRunner or in batch mode')
 
   def setup(self):
     from google.cloud import pubsub
