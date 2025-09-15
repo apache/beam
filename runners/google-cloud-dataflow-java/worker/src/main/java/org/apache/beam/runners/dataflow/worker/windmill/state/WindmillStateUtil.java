@@ -18,30 +18,50 @@
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class WindmillStateUtil {
+
+  private static final ThreadLocal<@Nullable SoftReference<@Nullable ByteStringOutputStream>>
+      threadLocalOutputStream = new ThreadLocal<>();
 
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
   @VisibleForTesting
   static ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
+    // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
+    // a lot, and this leads to better performance results. See associated benchmarks.
+    ByteStringOutputStream stream = getByteStringOutputStream();
     try {
-      // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
-      // a lot, and this leads to better performance results. See associated benchmarks.
-      ByteStringOutputStream stream = new ByteStringOutputStream();
       // stringKey starts and ends with a slash.  We separate it from the
       // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
       // ID comes from the user.
       namespace.appendTo(stream);
       stream.append('+');
       address.appendTo(stream);
-      return stream.toByteString();
+      return stream.toByteStringAndReset();
     } catch (IOException e) {
+      stream.toByteStringAndReset();
       throw new RuntimeException(e);
+    } catch (RuntimeException e) {
+      stream.toByteStringAndReset();
+      throw e;
     }
+  }
+
+  private static ByteStringOutputStream getByteStringOutputStream() {
+    @Nullable
+    SoftReference<@Nullable ByteStringOutputStream> refStream = threadLocalOutputStream.get();
+    @Nullable ByteStringOutputStream stream = refStream == null ? null : refStream.get();
+    if (stream == null) {
+      stream = new ByteStringOutputStream();
+      threadLocalOutputStream.set(new SoftReference<>(stream));
+    }
+    return stream;
   }
 }

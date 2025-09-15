@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -54,6 +53,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
+
   private WindmillStreamWriter writer;
   private final Coder<T> valueCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -71,15 +71,29 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     this.context = context;
   }
 
+  private static ByteString encodeMetadata(
+      ByteStringOutputStream stream,
+      Coder<Collection<? extends BoundedWindow>> windowsCoder,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo)
+      throws IOException {
+    try {
+      PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
+      windowsCoder.encode(windows, stream, Coder.Context.OUTER);
+      return stream.toByteStringAndReset();
+    } catch (Exception e) {
+      stream.toByteStringAndReset();
+      throw e;
+    }
+  }
+
   public static ByteString encodeMetadata(
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Collection<? extends BoundedWindow> windows,
       PaneInfo paneInfo)
       throws IOException {
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
-    windowsCoder.encode(windows, stream, Coder.Context.OUTER);
-    return stream.toByteString();
+    return encodeMetadata(stream, windowsCoder, windows, paneInfo);
   }
 
   public static PaneInfo decodeMetadataPane(ByteString metadata) throws IOException {
@@ -109,6 +123,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   }
 
   public static class Factory implements SinkFactory {
+
     @Override
     public WindmillSink<?> create(
         CloudObject spec,
@@ -133,6 +148,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   }
 
   class WindmillStreamWriter implements SinkWriter<WindowedValue<T>> {
+
     private Map<ByteString, Windmill.KeyedMessageBundle.Builder> productionMap;
     private final String destinationName;
     private final ByteStringOutputStream stream; // Kept across encodes for buffer reuse.
@@ -144,10 +160,10 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      checkState(
-          stream.size() == 0,
-          "Expected output stream to be empty but had %s",
-          stream.toByteString());
+      if (stream.size() != 0) {
+        throw new IllegalStateException(
+            "Expected output stream to be empty but had " + stream.toByteString());
+      }
       try {
         coder.encode(object, stream, Coder.Context.OUTER);
         return stream.toByteStringAndReset();
@@ -162,7 +178,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
-      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPaneInfo());
+      ByteString metadata =
+          encodeMetadata(stream, windowsCoder, data.getWindows(), data.getPaneInfo());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();
