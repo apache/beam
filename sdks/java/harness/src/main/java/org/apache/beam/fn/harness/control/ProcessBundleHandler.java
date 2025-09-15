@@ -128,11 +128,6 @@ import org.slf4j.LoggerFactory;
 })
 public class ProcessBundleHandler {
 
-  // TODO: What should the initial set of URNs be?
-  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
-  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
-  public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
-
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   @VisibleForTesting static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;
 
@@ -827,8 +822,9 @@ public class ProcessBundleHandler {
     List<PipelineNode.PTransformNode> reverseTopologicallyOrderedTransforms =
         StreamSupport.stream(
                 queryablePipeline.getTopologicallyOrderedTransforms().spliterator(), false)
-            .collect(Collectors.toList());
-    Collections.reverse(reverseTopologicallyOrderedTransforms);
+            .collect(
+                Collectors.collectingAndThen(
+                    Collectors.toCollection(ArrayList::new), Lists::reverse));
 
     for (PipelineNode.PTransformNode pTransformNode : reverseTopologicallyOrderedTransforms) {
       addRunnerAndConsumersForPTransform(
