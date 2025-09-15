@@ -822,6 +822,8 @@ public class ProcessBundleHandler {
 
     QueryablePipeline queryablePipeline =
         QueryablePipeline.forTransforms(bundleDescriptor.getTransformsMap().keySet(), components);
+
+    // Get the transforms in topological order, reverse and build the DAG.
     List<PipelineNode.PTransformNode> reverseTopologicallyOrderedTransforms =
         StreamSupport.stream(
                 queryablePipeline.getTopologicallyOrderedTransforms().spliterator(), false)
