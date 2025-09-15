@@ -43,7 +43,7 @@ jobs:
           python-version: 3.11
       - run: pip install requests google-cloud-storage looker-sdk
       - name: Authenticate on GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           credentials_json: ${{ secrets.GCP_SA_KEY }}
