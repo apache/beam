@@ -230,6 +230,7 @@ func main() {
 	if enableOpenTelemetryAgent {
 		args = append(args, openTelemetryAgentArgs)
 		os.Setenv("OTEL_JAVAAGENT_EXTENSIONS", "/opt/opentelemetry/extensions")
+		os.Setenv("OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED", "true")
 		logger.Printf(ctx, "Enabling OpenTelemetry agent.")
 	}
 
