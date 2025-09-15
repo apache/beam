@@ -1,3 +1,5 @@
+import java.util.TreeMap
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -692,12 +694,31 @@ tasks.register("validateChanges") {
 
     // Check entries in the unreleased section
     var i = unreleasedSectionStart + 1
-    println("Starting validation from line ${i+1}")
-
+    val items = TreeMap<Int, String>()
+    var lastline = 0
+    var item = ""
     while (i < lines.size && !lines[i].startsWith("# [")) {
       val line = lines[i].trim()
+      if (line.isEmpty()) {
+        // skip
+      } else if (line.startsWith("* ")) {
+        items.put(lastline, item)
+        lastline = i
+        item = line
+      } else if (line.startsWith("##")) {
+        items.put(lastline, item)
+        lastline = i
+        item = ""
+      } else {
+        item += line
+      }
+      i++
+    }
+    items.put(lastline, item)
+    println("Starting validation from line ${i+1}")
 
-      if (line.startsWith("* ") && line.isNotEmpty()) {
+    items.forEach { (i, line) ->
+      if (line.startsWith("* ")) {
         println("Checking line ${i+1}: $line")
 
         // Skip comment lines
@@ -748,8 +769,6 @@ tasks.register("validateChanges") {
           }
         }
       }
-
-      i++
     }
 
     println("Found ${errors.size} errors")
