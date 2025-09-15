@@ -136,11 +136,15 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     private Map<ByteString, Windmill.KeyedMessageBundle.Builder> productionMap;
     private final String destinationName;
     private final ByteStringOutputStream stream; // Kept across encodes for buffer reuse.
+    private final Windmill.Message.Builder messageBuilder;
+    private final Windmill.OutputMessageBundle.Builder outputBuilder;
 
     private WindmillStreamWriter(String destinationName) {
       this.destinationName = destinationName;
       productionMap = new HashMap<>();
       stream = new ByteStringOutputStream();
+      messageBuilder = Windmill.Message.newBuilder();
+      outputBuilder = Windmill.OutputMessageBundle.newBuilder();
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
@@ -215,12 +219,12 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         productionMap.put(key, keyedOutput);
       }
 
-      Windmill.Message.Builder builder =
-          Windmill.Message.newBuilder()
-              .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
-              .setData(value)
-              .setMetadata(metadata);
-      keyedOutput.addMessages(builder.build());
+      messageBuilder.clear();
+      messageBuilder
+          .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
+          .setData(value)
+          .setMetadata(metadata);
+      keyedOutput.addMessages(messageBuilder.build());
 
       long offsetSize = 0;
       if (context.offsetBasedDeduplicationSupported()) {
@@ -263,8 +267,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public void close() throws IOException {
-      Windmill.OutputMessageBundle.Builder outputBuilder =
-          Windmill.OutputMessageBundle.newBuilder().setDestinationStreamId(destinationName);
+      outputBuilder.clear();
+      outputBuilder.setDestinationStreamId(destinationName);
 
       for (Windmill.KeyedMessageBundle.Builder keyedOutput : productionMap.values()) {
         outputBuilder.addBundles(keyedOutput.build());
