@@ -86,6 +86,9 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
+  function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java/Python)
+  ([#36141](https://github.com/apache/beam/pull/36141)).
 
 ## Known Issues
 
