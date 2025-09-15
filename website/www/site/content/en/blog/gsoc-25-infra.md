@@ -67,6 +67,10 @@ This project has been an incredible learning experience for me. I have gained a 
 
 I also learned a lot about working in an open source community, having direct communication with such experienced developers, and the importance of collaboration and communication in a distributed team. I am grateful for the opportunity to work on such an important project and to contribute to the Apache Beam community.
 
+Finally, a special thanks to my mentor, Pablo Estrada, for his guidance and support throughout the summer. I am grateful not only for his amazing technical skills but especially for his patience and encouragement on my journey contributing to open source.
+
+You can find my final report [here](https://gist.github.com/ksobrenat32/b028b8303393afbe73a8fc5e17daff90) if you want to take a look at the details of my work.
+
 ## Advice for Future Participants
 
 If you are considering participating in Google Summer of Code, my advice would be to choose an area you are passionate about; this will make any coding challenge easier to overcome. Also, don't be afraid to ask questions and seek help from your mentors and the community. At the start, I made that mistake, and I learned that asking for help is a sign of strength, not weakness.
