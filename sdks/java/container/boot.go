@@ -231,6 +231,11 @@ func main() {
 		args = append(args, openTelemetryAgentArgs)
 		os.Setenv("OTEL_JAVAAGENT_EXTENSIONS", "/opt/opentelemetry/extensions")
 		os.Setenv("OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED", "true")
+		if metadata := info.GetMetadata(); metadata != nil {
+			if jobName, ok := metadata["job_name"]; ok {
+				os.Setenv("OTEL_SERVICE_NAME", jobName)
+			}
+		}
 		logger.Printf(ctx, "Enabling OpenTelemetry agent.")
 	}
 
