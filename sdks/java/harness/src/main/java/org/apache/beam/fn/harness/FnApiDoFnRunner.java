@@ -1897,17 +1897,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       // timer is in the EVENT time domain.
       try {
         TimeDomain timeDomain =
-          translateTimeDomain(parDoPayload.getTimerFamilySpecsMap().get(timerId).getTimeDomain());
+            translateTimeDomain(parDoPayload.getTimerFamilySpecsMap().get(timerId).getTimeDomain());
         return new FnApiTimer(
-          timerId,
-          ((KV) currentElement.getValue()).getKey(),
-          "",
-          currentWindow,
-          currentElement.getTimestamp(),
-          currentElement.getTimestamp(),
-          currentElement.getPaneInfo(),
-          timeDomain);
-      } catch(Exception e) {
+            timerId,
+            ((KV) currentElement.getValue()).getKey(),
+            "",
+            currentWindow,
+            currentElement.getTimestamp(),
+            currentElement.getTimestamp(),
+            currentElement.getPaneInfo(),
+            timeDomain);
+      } catch (Exception e) {
         throw new RuntimeException("Unable to create timer for timer:" + e.getMessage(), e);
       }
     }

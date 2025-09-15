@@ -1172,7 +1172,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       try {
         TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
         return new TimerInternalsTimer(
-          window, getNamespace(), timerId, spec, timestamp, stepContext.timerInternals());
+            window, getNamespace(), timerId, spec, timestamp, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -1182,14 +1182,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public TimerMap timerFamily(String timerFamilyId) {
       try {
         TimerSpec spec =
-          (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
+            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
         return new TimerInternalsTimerMap(
-          timerFamilyId,
-          window(),
-          getNamespace(),
-          spec,
-          timestamp,
-          stepContext.timerInternals());
+            timerFamilyId, window(), getNamespace(), spec, timestamp, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
