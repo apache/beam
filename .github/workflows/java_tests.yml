@@ -48,7 +48,7 @@ jobs:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
           submodules: recursive
@@ -105,7 +105,7 @@ jobs:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
           submodules: recursive

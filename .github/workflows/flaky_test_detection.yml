@@ -38,7 +38,7 @@ jobs:
   flaky-test-detection:
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with: 
           python-version: 3.11

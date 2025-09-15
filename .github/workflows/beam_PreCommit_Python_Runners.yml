@@ -72,7 +72,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python_Runners PreCommit')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

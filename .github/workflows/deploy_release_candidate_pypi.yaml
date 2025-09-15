@@ -30,7 +30,7 @@ jobs:
         PYPI_API_TOKEN=$(jq -r '.inputs.PYPI_API_TOKEN' $GITHUB_EVENT_PATH)
         echo "::add-mask::$PYPI_API_TOKEN"
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:

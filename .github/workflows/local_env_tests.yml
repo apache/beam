@@ -45,7 +45,7 @@ jobs:
     name: "Ubuntu run local environment shell script"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -62,7 +62,7 @@ jobs:
     name: "Mac run local environment shell script"
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

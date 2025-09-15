@@ -47,7 +47,7 @@ jobs:
       PYTHON_VERSION: '3.9'
       JAVA_VERSION: '11'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
