@@ -28,13 +28,15 @@
         * [Blueprints](#blueprints)
         * [Element-wise](#element-wise)
         * [IO](#io)
+        * [Jinja](#jinja)
         * [ML](#ml)
 
 <!-- TOC -->
 
 ## Prerequistes
 
-Build this jar for running with the run command in the next stage:
+Build the expansion service jar required for your YAML code.
+IO mapping is available in standard_io.yaml, so use this example run command:
 
 ```
 cd <PATH_TO_BEAM_REPO>/beam; ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
@@ -162,7 +164,9 @@ python -m apache_beam.yaml.main \
   --num_workers $NUM_WORKERS \
   --job_name $JOB_NAME \
   --jinja_variables '{ "BOOTSTRAP_SERVERS": "123.45.67.89:9092",
-    "TOPIC": "MY-TOPIC", "USERNAME": "USERNAME", "PASSWORD": "PASSWORD" }'
+    "TOPIC": "MY-TOPIC", "USERNAME": "USERNAME", "PASSWORD": "PASSWORD" }'\
+  --sdk_location container  \
+  --sdk_harness_container_image_overrides ".*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest"
 ```
 
 **_Optional_**: If Kafka cluster is set up with no SASL/PLAINTEXT authentication
@@ -244,6 +248,10 @@ by leveraging Jinja templating engine for dynamic pipeline generation based on
 inputs from the user through `% include`, `% import`, and inheritance
 directives.
 
+Jinja `% import` directive:
+- [wordCountImport.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/import/wordCountImport.yaml)
+- [Instructions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/import/README.md) on how to run the pipeline.
+
 Jinja `% include` directive:
 - [wordCountInclude.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml)
 - [Instructions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/README.md) on how to run the pipeline.
@@ -260,7 +268,8 @@ Examples that include ML-specific transforms such as `RunInference` and
 `MLTransform`:
 - Streaming Sentiment Analysis ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml))
 - Streaming Taxi Fare Prediction ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare/streaming_taxifare_prediction.yaml))
-- Batch Log Analysis ML Workflow ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis/batch_log_analysis.yaml))
+- Batch Log Analysis ML Workflow ([documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis/batch_log_analysis.sh))
+- Fraud Detection MLOps Workflow ([documentation](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/fraud_detection/README.md)) ([pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/fraud_detection/fraud_detection_mlops_beam_yaml_sdk.ipynb))
 
 More information can be found about aggregation transforms
 [here](https://beam.apache.org/documentation/sdks/yaml-combine/).

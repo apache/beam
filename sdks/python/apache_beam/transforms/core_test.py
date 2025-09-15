@@ -27,8 +27,13 @@ from typing import TypeVar
 import pytest
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.userstate import BagStateSpec
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
+from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import row_type
@@ -120,6 +125,42 @@ class TestDoFn12(beam.DoFn):
     return
 
 
+class TestDoFnStateful(beam.DoFn):
+  STATE_SPEC = ReadModifyWriteStateSpec('num_elements', coders.VarIntCoder())
+  """test process with a stateful dofn"""
+  def process(self, element, state=beam.DoFn.StateParam(STATE_SPEC)):
+    if len(element[1]) > 3:
+      raise ValueError('Not allowed to have long elements')
+    current_value = state.read() or 1
+    state.write(current_value + 1)
+    yield current_value
+
+
+class TestDoFnWithTimer(beam.DoFn):
+  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+  TIMER = TimerSpec('timer', beam.TimeDomain.WATERMARK)
+  """test process with a stateful dofn"""
+  def process(
+      self,
+      element,
+      t=beam.DoFn.TimestampParam,
+      state=beam.DoFn.StateParam(ALL_ELEMENTS),
+      timer=beam.DoFn.TimerParam(TIMER)):
+    if element[1] > 3:
+      raise ValueError('Not allowed to have large numbers')
+    state.add(element[1])
+    timer.set(t)
+
+    return []
+
+  @on_timer(TIMER)
+  def expiry_callback(self, state=beam.DoFn.StateParam(ALL_ELEMENTS)):
+    unique_elements = list(state.read())
+    state.clear()
+
+    return unique_elements
+
+
 class CreateTest(unittest.TestCase):
   @pytest.fixture(autouse=True)
   def inject_fixtures(self, caplog):
@@ -163,6 +204,75 @@ class CreateTest(unittest.TestCase):
 
 
 class PartitionTest(unittest.TestCase):
+  def test_partition_with_bools(self):
+    with pytest.raises(
+        (ValueError, RuntimeError),
+        match=
+        r"PartitionFn yielded a '([^']*)' when it should only yield integers"):
+      # Check for RuntimeError too since the portable runner casts
+      # all exceptions to RuntimeError
+      invalid_inputs = [True, 1.2, 'string', None]
+      for input_value in invalid_inputs:
+        with beam.testing.test_pipeline.TestPipeline() as p:
+          _ = (
+              p | beam.Create([input_value])
+              | beam.Partition(lambda x, _: x, 2))
+
+  def test_partition_with_numpy_integers(self):
+    # Test that numpy integer types are correctly accepted by the
+    # ApplyPartitionFnFn class
+    import numpy as np
+
+    # Create an instance of the ApplyPartitionFnFn class
+    apply_partition_fn = beam.Partition.ApplyPartitionFnFn()
+
+    # Define a simple partition function
+    class SimplePartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return element % num_partitions
+
+    partition_fn = SimplePartitionFn()
+
+    # Test with numpy.int32
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(np.int32(1), partition_fn, 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '1')  # 1 % 3 = 1
+
+    # Test with numpy.int64
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(np.int64(2), partition_fn, 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '2')  # 2 % 3 = 2
+
+  def test_partition_fn_returning_numpy_integers(self):
+    # Test that partition functions can return numpy integer types
+    import numpy as np
+
+    # Create an instance of the ApplyPartitionFnFn class
+    apply_partition_fn = beam.Partition.ApplyPartitionFnFn()
+
+    # Define partition functions that return numpy integer types
+    class Int32PartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return np.int32(element % num_partitions)
+
+    class Int64PartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return np.int64(element % num_partitions)
+
+    # Test with partition function returning numpy.int32
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(1, Int32PartitionFn(), 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '1')  # 1 % 3 = 1
+
+    # Test with partition function returning numpy.int64
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(2, Int64PartitionFn(), 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '2')  # 2 % 3 = 2
+
   def test_partition_boundedness(self):
     def partition_fn(val, num_partitions):
       return val % num_partitions
@@ -281,6 +391,30 @@ class ExceptionHandlingTest(unittest.TestCase):
         assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')
         assert_that(bad_elements, equal_to([]), 'bad')
       self.assertFalse(os.path.isfile(tmp_path))
+
+  def test_stateful_exception_handling(self):
+    with beam.Pipeline() as pipeline:
+      good, bad = (
+        pipeline | beam.Create([(1, 'abc'), (1, 'long_word'),
+                                (1, 'foo'), (1, 'bar'), (1, 'foobar')])
+        | beam.ParDo(TestDoFnStateful()).with_exception_handling(
+          allow_unsafe_userstate_in_process=True)
+      )
+      bad_elements = bad | beam.Keys()
+      assert_that(good, equal_to([1, 2, 3]), 'good')
+      assert_that(
+          bad_elements, equal_to([(1, 'long_word'), (1, 'foobar')]), 'bad')
+
+  def test_timer_exception_handling(self):
+    with beam.Pipeline() as pipeline:
+      good, bad = (
+        pipeline | beam.Create([(1, 0), (1, 1), (1, 2), (1, 5), (1, 10)])
+        | beam.ParDo(TestDoFnWithTimer()).with_exception_handling(
+          allow_unsafe_userstate_in_process=True)
+      )
+      bad_elements = bad | beam.Keys()
+      assert_that(good, equal_to([0, 1, 2]), 'good')
+      assert_that(bad_elements, equal_to([(1, 5), (1, 10)]), 'bad')
 
 
 def test_callablewrapper_typehint():

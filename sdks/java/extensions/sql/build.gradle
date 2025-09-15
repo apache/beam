@@ -41,6 +41,8 @@ applyJavaNature(
   ],
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann', 'rawtypes'],
+  // Disable SpotBugs due to ASM bytecode analysis issue with BeamCalcRel class
+  enableSpotbugs: false,
 )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
@@ -74,10 +76,6 @@ dependencies {
   fmppTask "org.freemarker:freemarker:2.3.31"
   fmppTemplates library.java.vendored_calcite_1_40_0
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":sdks:java:managed")
-  implementation project(":sdks:java:io:iceberg")
-  runtimeOnly project(":sdks:java:io:iceberg:bqms")
-  runtimeOnly project(":sdks:java:io:iceberg:hive")
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:join-library")
   permitUnusedDeclared project(":sdks:java:extensions:join-library") // BEAM-11761
@@ -118,8 +116,6 @@ dependencies {
   permitUnusedDeclared library.java.hadoop_client
   provided library.java.kafka_clients
 
-  testImplementation "org.apache.iceberg:iceberg-api:1.6.1"
-  testImplementation "org.apache.iceberg:iceberg-core:1.6.1"
   testImplementation library.java.vendored_calcite_1_40_0
   testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit

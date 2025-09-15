@@ -481,7 +481,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   """Tests for search functionality across all search strategies"""
 
   _db: MilvusDBContainerInfo
-  _version = "milvusdb/milvus:v2.3.9"
+  _version = "milvusdb/milvus:v2.5.10"
 
   @classmethod
   def setUpClass(cls):
@@ -574,7 +574,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
     expected_chunks = []
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -702,7 +702,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -807,7 +807,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding())
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -948,7 +948,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1088,7 +1088,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1153,7 +1153,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
                 sparse_embedding=([1, 2, 3, 4], [0.05, 0.41, 0.05, 0.41])))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1226,7 +1226,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,

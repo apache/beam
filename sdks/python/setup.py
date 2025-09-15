@@ -160,6 +160,8 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
 
+milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
+
 
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
@@ -358,12 +360,6 @@ if __name__ == '__main__':
       install_requires=[
           'crcmod>=1.7,<2.0',
           'orjson>=3.9.7,<4',
-          # Dill doesn't have forwards-compatibility guarantees within minor
-          # version. Pickles created with a new version of dill may not unpickle
-          # using older version of dill. It is best to use the same version of
-          # dill on client and server, therefore list of allowed versions is
-          # very narrow. See: https://github.com/uqfoundation/dill/issues/341.
-          'dill>=0.3.1.1,<0.3.2',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
@@ -390,7 +386,7 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<6.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
@@ -409,6 +405,15 @@ if __name__ == '__main__':
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
+          'dill': [
+            # Dill doesn't have forwards-compatibility guarantees within minor
+            # version. Pickles created with a new version of dill may not
+            # unpickle using older version of dill. It is best to use the same
+            # version of dill on client and server, therefore list of allowed
+            # versions is very narrow.
+            # See: https://github.com/uqfoundation/dill/issues/341.
+            'dill>=0.3.1.1,<0.3.2',
+          ],
           'docs': [
               'jinja2>=3.0,<3.2',
               'Sphinx>=7.0.0,<8.0',
@@ -446,13 +451,12 @@ if __name__ == '__main__':
               'sqlalchemy-pytds>=1.0.2',
               'pg8000>=1.31.1',
               "PyMySQL>=1.1.0",
-              'oracledb>=3.1.1',
-              'milvus'
-          ],
+              'oracledb>=3.1.1'
+          ] + milvus_dependency,
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
-              'google-apitools>=0.5.31,<0.5.32; python_version <= "3.12"',
+              'google-apitools>=0.5.31,<0.5.32; python_version < "3.13"',
               'google-apitools>=0.5.32,<0.5.33; python_version >= "3.13"',
               # NOTE: Maintainers, please do not require google-auth>=2.x.x
               # Until this issue is closed
@@ -595,7 +599,7 @@ if __name__ == '__main__':
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
-          'milvus': ['pymilvus>=2.5.10,<3.0.0']
+          'milvus': milvus_dependency
       },
       zip_safe=False,
       # PyPI package information.

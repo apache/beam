@@ -25,6 +25,7 @@ import threading
 import types
 import unittest
 
+import pytest
 from parameterized import param
 from parameterized import parameterized
 
@@ -38,6 +39,12 @@ def pickle_depickle(obj, enable_lambda_name):
   return loads(dumps(obj, enable_lambda_name=enable_lambda_name))
 
 
+def maybe_skip_if_no_dill(pickle_library):
+  if pickle_library == 'dill':
+    pytest.importorskip("dill")
+
+
+@pytest.mark.uses_dill
 class PicklerTest(unittest.TestCase):
 
   NO_MAPPINGPROXYTYPE = not hasattr(types, "MappingProxyType")
@@ -47,6 +54,7 @@ class PicklerTest(unittest.TestCase):
       param(pickle_lib='cloudpickle'),
   ])
   def test_basics(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
 
     self.assertEqual([1, 'a', ('z', )], loads(dumps([1, 'a', ('z', )])))
@@ -59,6 +67,7 @@ class PicklerTest(unittest.TestCase):
   ])
   def test_lambda_with_globals(self, pickle_lib):
     """Tests that the globals of a function are preserved."""
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
 
     # The point of the test is that the lambda being called after unpickling
@@ -72,6 +81,7 @@ class PicklerTest(unittest.TestCase):
       param(pickle_lib='cloudpickle'),
   ])
   def test_lambda_with_main_globals(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     self.assertEqual(unittest, loads(dumps(lambda: unittest))())
 
@@ -81,6 +91,7 @@ class PicklerTest(unittest.TestCase):
   ])
   def test_lambda_with_closure(self, pickle_lib):
     """Tests that the closure of a function is preserved."""
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     self.assertEqual(
         'closure: abc',
@@ -92,6 +103,7 @@ class PicklerTest(unittest.TestCase):
   ])
   def test_class(self, pickle_lib):
     """Tests that a class object is pickled correctly."""
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     self.assertEqual(['abc', 'def'],
                      loads(dumps(module_test.Xyz))().foo('abc def'))
@@ -102,6 +114,7 @@ class PicklerTest(unittest.TestCase):
   ])
   def test_object(self, pickle_lib):
     """Tests that a class instance is pickled correctly."""
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     self.assertEqual(['abc', 'def'],
                      loads(dumps(module_test.XYZ_OBJECT)).foo('abc def'))
@@ -112,6 +125,7 @@ class PicklerTest(unittest.TestCase):
   ])
   def test_nested_class(self, pickle_lib):
     """Tests that a nested class object is pickled correctly."""
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     self.assertEqual(
         'X:abc', loads(dumps(module_test.TopClass.NestedClass('abc'))).datum)
@@ -125,6 +139,7 @@ class PicklerTest(unittest.TestCase):
   ])
   def test_dynamic_class(self, pickle_lib):
     """Tests that a nested class object is pickled correctly."""
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     self.assertEqual(
         'Z:abc', loads(dumps(module_test.create_class('abc'))).get())
@@ -134,6 +149,7 @@ class PicklerTest(unittest.TestCase):
       param(pickle_lib='cloudpickle'),
   ])
   def test_generators(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     with self.assertRaises(TypeError):
       dumps((_ for _ in range(10)))
@@ -143,6 +159,7 @@ class PicklerTest(unittest.TestCase):
       param(pickle_lib='cloudpickle'),
   ])
   def test_recursive_class(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     self.assertEqual(
         'RecursiveClass:abc',
@@ -153,6 +170,7 @@ class PicklerTest(unittest.TestCase):
       param(pickle_lib='cloudpickle'),
   ])
   def test_pickle_rlock(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     rlock_instance = threading.RLock()
     rlock_type = type(rlock_instance)
@@ -164,6 +182,7 @@ class PicklerTest(unittest.TestCase):
       param(pickle_lib='cloudpickle'),
   ])
   def test_save_paths(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     f = loads(dumps(lambda x: x))
     co_filename = f.__code__.co_filename
@@ -175,6 +194,7 @@ class PicklerTest(unittest.TestCase):
       param(pickle_lib='cloudpickle'),
   ])
   def test_dump_and_load_mapping_proxy(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
     self.assertEqual(
         'def', loads(dumps(types.MappingProxyType({'abc': 'def'})))['abc'])
@@ -188,6 +208,7 @@ class PicklerTest(unittest.TestCase):
       param(pickle_lib='cloudpickle'),
   ])
   def test_dataclass(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     exec(
         '''
 from apache_beam.internal.module_test import DataClass
@@ -199,6 +220,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
       param(pickle_lib='cloudpickle'),
   ])
   def test_class_states_not_changed_at_subsequent_loading(self, pickle_lib):
+    maybe_skip_if_no_dill(pickle_lib)
     pickler.set_library(pickle_lib)
 
     class Local:
@@ -259,6 +281,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     return set1, set2
 
   def test_best_effort_determinism(self):
+    maybe_skip_if_no_dill('dill')
     pickler.set_library('dill')
     set1, set2 = self.maybe_get_sets_with_different_iteration_orders()
     self.assertEqual(
@@ -271,6 +294,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
       self.skipTest('Set iteration orders matched. Test results inconclusive.')
 
   def test_disable_best_effort_determinism(self):
+    maybe_skip_if_no_dill('dill')
     pickler.set_library('dill')
     set1, set2 = self.maybe_get_sets_with_different_iteration_orders()
     # The test relies on the sets having different iteration orders for the

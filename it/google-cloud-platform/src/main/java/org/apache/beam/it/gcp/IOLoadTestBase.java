@@ -121,7 +121,7 @@ public class IOLoadTestBase extends LoadTestBase {
     try {
       metrics = getMetrics(launchInfo, metricsConfig);
     } catch (Exception e) {
-      LOG.warn("Unable to get metrics due to error: {}", e.getMessage());
+      LOG.warn("Unable to get metrics due to error", e);
       return;
     }
     String testId = UUID.randomUUID().toString();

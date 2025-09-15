@@ -18,6 +18,7 @@
 # pytype: skip-file
 
 import atexit
+import logging
 import shutil
 import signal
 import tempfile
@@ -102,6 +103,7 @@ class SubprocessJobServer(JobServer):
   def __init__(self):
     self._local_temp_root = None
     self._server = None
+    self._log_filter = None
 
   def subprocess_cmd_and_endpoint(self):
     raise NotImplementedError(type(self))
@@ -111,8 +113,11 @@ class SubprocessJobServer(JobServer):
       self._local_temp_root = tempfile.mkdtemp(prefix='beam-temp')
       cmd, endpoint = self.subprocess_cmd_and_endpoint()
       port = int(endpoint.split(':')[-1])
+      logger = logging.getLogger(f"{self.__class__.__name__}")
+      if self._log_filter is not None:
+        logger.addFilter(self._log_filter)
       self._server = subprocess_server.SubprocessServer(
-          beam_job_api_pb2_grpc.JobServiceStub, cmd, port=port)
+          beam_job_api_pb2_grpc.JobServiceStub, cmd, port=port, logger=logger)
     return self._server.start()
 
   def stop(self):

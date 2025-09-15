@@ -242,7 +242,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
    */
   private static class ExplodeWindowsFn<InputT> extends DoFn<InputT, InputT> {
     @ProcessElement
-    public void process(ProcessContext c, BoundedWindow window) {
+    public void process(ProcessContext c, BoundedWindow unused) {
       c.output(c.element());
     }
   }

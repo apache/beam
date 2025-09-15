@@ -33,6 +33,7 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.infra.IterationParams;
 import org.openjdk.jmh.infra.ThreadParams;
 
+@SuppressWarnings("SameNameButDifferent") // for MovingArg
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Threads(Threads.MAX)
