@@ -229,7 +229,7 @@ func main() {
 	enableOpenTelemetryAgent := strings.Contains(options, enableOpenTelemetryAgentOption)
 	if enableOpenTelemetryAgent {
 		args = append(args, openTelemetryAgentArgs)
-		args = append(args, "-Dotel.javaagent.extensions=/opt/opentelemetry/extensions")
+		os.Setenv("OTEL_JAVAAGENT_EXTENSIONS", "/opt/opentelemetry/extensions")
 		logger.Printf(ctx, "Enabling OpenTelemetry agent.")
 	}
 
