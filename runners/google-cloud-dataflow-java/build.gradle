@@ -153,9 +153,11 @@ def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${gcpProject.replaceAll(':', '/')}/java-postcommit-it"
 def dockerJavaImageContainer = "${dockerImageRoot}/java"
+def dockerJavaDistrolessImageContainer = "${dockerImageRoot}/java_distroless"
 def dockerPythonImageContainer = "${dockerImageRoot}/python"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
 ext.dockerJavaImageName = "${dockerJavaImageContainer}:${dockerTag}"
+ext.dockerJavaDistrolessImageName = "${dockerJavaDistrolessImageContainer}:${dockerTag}"
 ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
 
 def legacyPipelineOptions = [
@@ -174,16 +176,24 @@ if (!project.hasProperty('testJavaVersion')) {
   legacyPipelineOptions += ["--workerHarnessContainerImage="]
 }
 
-def runnerV2PipelineOptions = [
+def runnerV2CommonPipelineOptions = [
   "--runner=TestDataflowRunner",
   "--project=${gcpProject}",
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
   "--experiments=enable_lineage"
 ]
+
+def runnerV2PipelineOptions = runnerV2CommonPipelineOptions + [
+  "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}"
+]
+
+def runnerV2DistrolessPipelineOptions = runnerV2CommonPipelineOptions + [
+  "--sdkContainerImage=${dockerJavaDistrolessImageContainer}:${dockerTag}"
+]
+
 
 def commonLegacyExcludeCategories = [
   // Should be run only in a properly configured SDK harness environment
@@ -282,73 +292,15 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   }
 }
 
-tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
-  group = "verification"
-  dependsOn 'buildAndPushDistrolessContainerImage'
-  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
-  def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
-  def tag = project.findProperty('dockerTag')
-  def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
-  def pipelineOptions = [
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowValidatesTempRoot}",
-          "--sdkContainerImage=${imageURL}",
-          "--experiments=use_unified_worker,use_runner_v2",
-          "--firestoreDb=${firestoreDb}",
-  ]
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
-
-  include '**/*IT.class'
-
-  maxParallelForks 4
-  classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
-}
-
-tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
-  // Only Java 17 and 21 are supported.
-  // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
-  def allowed = ["java17", "java21"]
-  doLast {
-    def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
-    if (!allowed.contains(javaVer)) {
-      throw new GradleException("testJavaVersion must be one of ${allowed}, got: ${javaVer}")
-    }
-    if (!project.hasProperty('dockerTag')) {
-      throw new GradleException("dockerTag is missing but required")
-    }
-    def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
-    def tag = project.findProperty('dockerTag')
-    def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
-    exec {
-      executable 'docker'
-      workingDir rootDir
-      args = [
-              'buildx',
-              'build',
-              '-t',
-              imageURL,
-              '-f',
-              'sdks/java/container/distroless/Dockerfile',
-              "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${javaVer}_sdk",
-              "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${javaVer}-debian12",
-              '.'
-      ]
-    }
-    exec {
-      executable 'docker'
-      args = ['push', imageURL]
-    }
-  }
-}
-
-// Push docker images to a container registry for use within tests.
-// NB: Tasks which consume docker images from the registry should depend on this
-// task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
+// ************************************************************************************************
+// Tasks for pushing containers for testing. These ensure that Dataflow integration tests run with
+// containers built from HEAD, for testing in-progress code changes.
+//
+// Tasks which consume docker images from the registry should depend on these
+// tasks directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
+// ************************************************************************************************
+
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
   def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
 
@@ -366,6 +318,25 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
     }
   }
 }
+
+def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
+
+  dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
+  def defaultDockerImageName = containerImageName(
+    name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",
+    root: "apache",
+    tag: project.sdk_version)
+  doLast {
+    exec {
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaDistrolessImageName}"
+    }
+    exec {
+      commandLine "gcloud", "docker", "--", "push", "${dockerJavaDistrolessImageName}"
+    }
+  }
+}
+
 
 // Clean up built Java images
 def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
@@ -713,20 +684,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   }
 }
 
-task examplesJavaRunnerV2PreCommit(type: Test) {
-  group = "Verification"
-  dependsOn buildAndPushDockerJavaContainer
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
-  include '**/WordCountIT.class'
-  include '**/WindowedWordCountIT.class'
-
-  maxParallelForks 4
-  classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
-}
-
-task examplesJavaRunnerV2IntegrationTest(type: Test) {
+tasks.register('examplesJavaRunnerV2IntegrationTest', Test.class) {
   group = "Verification"
   dependsOn buildAndPushDockerJavaContainer
   if (project.hasProperty("testJavaVersion")) {
@@ -744,6 +702,23 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   exclude '**/AutoCompleteIT.class'
   // TODO(https://github.com/apache/beam/issues/20593): test times out.
   exclude '**/FhirIOReadIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
+  group = "Verification"
+  dependsOn buildAndPushDistrolessDockerJavaContainer
+  if (project.hasProperty("testJavaVersion")) {
+    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
+  }
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2DistrolessPipelineOptions)
+
+  include '**/*IT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
@@ -788,6 +763,38 @@ task coreSDKJavaRunnerV2IntegrationTest(type: Test) {
   useJUnit { }
 }
 
+// ****************************************************************************************
+// Tasks for easy invocation from GitHub Actions and command line.
+// These tasks reference whether they are expected to be run "precommit" or "postcommit"
+// in CI/CD settings.
+// ****************************************************************************************
+
+tasks.register("examplesJavaRunnerV2PreCommit", Test.class) {
+  group = "Verification"
+  dependsOn buildAndPushDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+tasks.register("examplesJavaDistrolessRunnerV2PreCommit", Test.class) {
+  group = "Verification"
+  dependsOn buildAndPushDistrolessDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2DistrolessPipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
@@ -802,6 +809,10 @@ task postCommitRunnerV2 {
   dependsOn googleCloudPlatformRunnerV2IntegrationTest
   dependsOn coreSDKJavaRunnerV2IntegrationTest
 }
+
+//
+// Archetype validations
+//
 
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
@@ -838,34 +849,4 @@ task GCSUpload(type: JavaExec) {
   classpath = sourceSets.test.runtimeClasspath
   args "--stagingLocation=${dataflowUploadTemp}/staging",
        "--filesToStage=${testFilesToStage}"
-}
-
-def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
-  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
-  dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
-  def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",
-          root: "apache",
-          tag: project.sdk_version)
-  doLast {
-    exec {
-      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
-    }
-    exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
-    }
-  }
-}
-
-task examplesJavaDistrolessRunnerV2PreCommit(type: Test) {
-  group = "Verification"
-  dependsOn buildAndPushDistrolessDockerJavaContainer
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
-  include '**/WordCountIT.class'
-  include '**/WindowedWordCountIT.class'
-
-  maxParallelForks 4
-  classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
 }
