@@ -64,43 +64,52 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 	combineInput := comps.GetPcollections()[onlyInput]
 	ws := comps.GetWindowingStrategies()[combineInput.GetWindowingStrategyId()]
 
-	var hasElementCount func(tpb *pipepb.Trigger) bool
+	var hasTriggerType func(tpb *pipepb.Trigger, targetTriggerType reflect.Type) bool
 
-	hasElementCount = func(tpb *pipepb.Trigger) bool {
-		elCount := false
+	hasTriggerType = func(tpb *pipepb.Trigger, targetTriggerType reflect.Type) bool {
+		if tpb == nil {
+			return false
+		}
 		switch at := tpb.GetTrigger().(type) {
-		case *pipepb.Trigger_ElementCount_:
-			return true
 		case *pipepb.Trigger_AfterAll_:
 			for _, st := range at.AfterAll.GetSubtriggers() {
-				elCount = elCount || hasElementCount(st)
+				if hasTriggerType(st, targetTriggerType) {
+					return true
+				}
 			}
-			return elCount
+			return false
 		case *pipepb.Trigger_AfterAny_:
 			for _, st := range at.AfterAny.GetSubtriggers() {
-				elCount = elCount || hasElementCount(st)
+				if hasTriggerType(st, targetTriggerType) {
+					return true
+				}
 			}
-			return elCount
+			return false
 		case *pipepb.Trigger_AfterEach_:
 			for _, st := range at.AfterEach.GetSubtriggers() {
-				elCount = elCount || hasElementCount(st)
+				if hasTriggerType(st, targetTriggerType) {
+					return true
+				}
 			}
-			return elCount
-		case *pipepb.Trigger_AfterEndOfWindow_:
-			return hasElementCount(at.AfterEndOfWindow.GetEarlyFirings()) ||
-				hasElementCount(at.AfterEndOfWindow.GetLateFirings())
-		case *pipepb.Trigger_OrFinally_:
-			return hasElementCount(at.OrFinally.GetMain()) ||
-				hasElementCount(at.OrFinally.GetFinally())
-		case *pipepb.Trigger_Repeat_:
-			return hasElementCount(at.Repeat.GetSubtrigger())
-		default:
 			return false
+		case *pipepb.Trigger_AfterEndOfWindow_:
+			return hasTriggerType(at.AfterEndOfWindow.GetEarlyFirings(), targetTriggerType) ||
+				hasTriggerType(at.AfterEndOfWindow.GetLateFirings(), targetTriggerType)
+		case *pipepb.Trigger_OrFinally_:
+			return hasTriggerType(at.OrFinally.GetMain(), targetTriggerType) ||
+				hasTriggerType(at.OrFinally.GetFinally(), targetTriggerType)
+		case *pipepb.Trigger_Repeat_:
+			return hasTriggerType(at.Repeat.GetSubtrigger(), targetTriggerType)
+		default:
+			return reflect.TypeOf(at) == targetTriggerType
 		}
 	}
 
 	// If we aren't lifting, the "default impl" for combines should be sufficient.
-	if !h.config.EnableLifting || hasElementCount(ws.GetTrigger()) {
+	// Disable lifting if there is any TriggerElementCount or TriggerAlways.
+	if (!h.config.EnableLifting ||
+		hasTriggerType(ws.GetTrigger(), reflect.TypeOf(&pipepb.Trigger_ElementCount_{})) ||
+		hasTriggerType(ws.GetTrigger(), reflect.TypeOf(&pipepb.Trigger_Always_{}))) {
 		return prepareResult{} // Strip the composite layer when lifting is disabled.
 	}
 
