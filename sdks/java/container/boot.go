@@ -253,9 +253,10 @@ func main() {
 	// Apply meta options
 	const metaDir = "/opt/apache/beam/options"
 
-	// Note: Error is unchecked, so parsing errors won't abort container.
-	// TODO: verify if it's intentional or not.
-	metaOptions, _ := LoadMetaOptions(ctx, logger, metaDir)
+	metaOptions, err := LoadMetaOptions(ctx, logger, metaDir)
+	if err != nil {
+		logger.Errorf(ctx, "LoadMetaOptions failed: %v", err)
+	}
 
 	javaOptions := BuildOptions(ctx, logger, metaOptions)
 	// (1) Add custom jvm arguments: "-server -Xmx1324 -XXfoo .."

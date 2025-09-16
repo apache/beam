@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-project_id: testing-me-460223
+project_id: apache-beam-testing
 
 # Logging
 logging:
@@ -21,7 +21,7 @@ logging:
   format: "[%(asctime)s] %(levelname)s: %(message)s"
 
 # gcloud storage bucket
-bucket_name: "testing-me-460223-tfstate"
+bucket_name: "beam-sec-analytics-and-logging"
 
 # GCP Log sinks
 sinks:

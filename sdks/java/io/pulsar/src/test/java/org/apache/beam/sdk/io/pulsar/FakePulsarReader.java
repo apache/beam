@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.pulsar;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -30,17 +31,18 @@ import org.apache.pulsar.client.api.Reader;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-public class FakePulsarReader implements Reader<byte[]> {
+public class FakePulsarReader implements Reader<byte[]>, Serializable {
 
   private String topic;
   private List<FakeMessage> fakeMessages = new ArrayList<>();
   private int currentMsg;
-  private long startTimestamp;
+  private final long startTimestamp;
   private long endTimestamp;
   private boolean reachedEndOfTopic;
   private int numberOfMessages;
 
-  public FakePulsarReader(String topic, int numberOfMessages) {
+  public FakePulsarReader(String topic, int numberOfMessages, long startTimestamp) {
+    this.startTimestamp = startTimestamp;
     this.numberOfMessages = numberOfMessages;
     this.setMock(topic, numberOfMessages);
   }
@@ -52,10 +54,9 @@ public class FakePulsarReader implements Reader<byte[]> {
   public void setMock(String topic, int numberOfMessages) {
     this.topic = topic;
     for (int i = 0; i < numberOfMessages; i++) {
-      long timestamp = Instant.now().plus(Duration.standardSeconds(i)).getMillis();
-      if (i == 0) {
-        startTimestamp = timestamp;
-      } else if (i == 99) {
+      long timestamp =
+          Instant.ofEpochMilli(startTimestamp).plus(Duration.standardSeconds(i)).getMillis();
+      if (i == numberOfMessages - 1) {
         endTimestamp = timestamp;
       }
       fakeMessages.add(new FakeMessage(topic, timestamp, Long.valueOf(i), Long.valueOf(i), i));
@@ -89,20 +90,23 @@ public class FakePulsarReader implements Reader<byte[]> {
 
   @Override
   public Message<byte[]> readNext() throws PulsarClientException {
-    if (currentMsg == 0 && fakeMessages.isEmpty()) {
+    if (fakeMessages.isEmpty()) {
       return null;
     }
 
-    Message<byte[]> msg = fakeMessages.get(currentMsg);
-    if (currentMsg <= fakeMessages.size() - 1) {
+    if (currentMsg < fakeMessages.size()) {
+      Message<byte[]> msg = fakeMessages.get(currentMsg);
       currentMsg++;
+      return msg;
+    } else {
+      reachedEndOfTopic = true;
+      return null;
     }
-    return msg;
   }
 
   @Override
   public Message<byte[]> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
-    return null;
+    return readNext();
   }
 
   @Override
@@ -141,11 +145,12 @@ public class FakePulsarReader implements Reader<byte[]> {
   @Override
   public void seek(long timestamp) throws PulsarClientException {
     for (int i = 0; i < fakeMessages.size(); i++) {
-      if (timestamp == fakeMessages.get(i).getPublishTime()) {
+      if (timestamp <= fakeMessages.get(i).getPublishTime()) {
         currentMsg = i;
-        break;
+        return;
       }
     }
+    currentMsg = fakeMessages.size();
   }
 
   @Override

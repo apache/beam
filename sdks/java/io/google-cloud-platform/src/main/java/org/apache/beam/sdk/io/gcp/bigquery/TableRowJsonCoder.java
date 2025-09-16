@@ -75,10 +75,8 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   private static final TypeDescriptor<TableRow> TYPE_DESCRIPTOR;
 
   static {
-    RowJsonUtils.increaseDefaultStreamReadConstraints(100 * 1024 * 1024);
-
     MAPPER =
-        new ObjectMapper()
+        new ObjectMapper(RowJsonUtils.createJsonFactory(RowJsonUtils.MAX_STRING_LENGTH))
             .registerModule(new JavaTimeModule())
             .registerModule(new JodaModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
