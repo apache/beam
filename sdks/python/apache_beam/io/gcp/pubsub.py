@@ -570,7 +570,7 @@ class _PubSubWriteDoFn(DoFn):
     # id_label and timestamp_attribute.
     # Only raise errors for DirectRunner or batch pipelines
     pipeline_options = transform.pipeline_options
-    should_raise_error = False
+    output_labels_supported = True
 
     if pipeline_options:
       from apache_beam.options.pipeline_options import StandardOptions
@@ -585,18 +585,18 @@ class _PubSubWriteDoFn(DoFn):
         if (runner_name is None or
             (runner_name in StandardOptions.LOCAL_RUNNERS or 'DirectRunner'
              in str(runner_name) or 'TestDirectRunner' in str(runner_name))):
-          should_raise_error = True
+          output_labels_supported = False
       except Exception:
         # If we can't determine runner, assume DirectRunner for safety
-        should_raise_error = True
+        output_labels_supported = False
 
       # Check if in batch mode (not streaming)
       standard_options = pipeline_options.view_as(StandardOptions)
       if not standard_options.streaming:
-        should_raise_error = True
+        output_labels_supported = False
     else:
       # If no pipeline options available, fall back to original behavior
-      should_raise_error = True
+      output_labels_supported = False
 
     # Log debug information for troubleshooting
     import logging
@@ -616,7 +616,7 @@ class _PubSubWriteDoFn(DoFn):
         runner_info,
         streaming_info)
 
-    if should_raise_error:
+    if not output_labels_supported:
 
       if transform.id_label:
         raise NotImplementedError(
