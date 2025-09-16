@@ -1,4 +1,55 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 12 Aug 2025 15:00:00 -0500</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.67.0</title><link>/blog/beam-2.67.0/</link><pubDate>Tue, 12 Aug 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.67.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 15 Sep 2025 00:00:00 -0600</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Google Summer of Code 25 - Improving Apache Beam's Infrastructure</title><link>/blog/gsoc-25-infra/</link><pubDate>Mon, 15 Sep 2025 00:00:00 -0600</pubDate><guid>/blog/gsoc-25-infra/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>I loved contributing to Apache Beam during Google Summer of Code 2025. I worked on improving the infrastructure of Apache Beam, which included enhancing the CI/CD pipelines, automating various tasks, and improving the overall developer experience.&lt;/p>
+&lt;h2 id="motivation">Motivation&lt;/h2>
+&lt;p>Since I was in high school, I have been fascinated by computers, but when I discovered Open Source, I was amazed by the idea of people from all around the world collaborating to build software that anyone can use, just for the love of it. I started participating in open source communities, and I found it to be a great way to learn and grow as a developer.&lt;/p>
+&lt;p>When I heard about Google Summer of Code, I saw it as an opportunity to take my open source contributions to the next level. The idea of working on a real-world project while being mentored by experienced developers sounded like an amazing opportunity. I heard about Apache Beam from another contributor and ex-GSoC participant, and I was immediately drawn to the project, specifically on the infrastructure side of things, as I have a strong interest in DevOps and automation.&lt;/p>
+&lt;h2 id="the-challenge">The Challenge&lt;/h2>
+&lt;p>When searching for a project, I was told that Apache Beam&amp;rsquo;s infrastructure had several areas that could be improved. I was excited because the ideas were focused on improving the developer experience, and creating tools that could benefit not only Beam&amp;rsquo;s developers but also the wider open source community.&lt;/p>
+&lt;p>There were four main challenges:&lt;/p>
+&lt;ol>
+&lt;li>Automating the cleanup of unused cloud resources to reduce costs and improve resource management.&lt;/li>
+&lt;li>Implementing a system for managing permissions through Git, allowing for better tracking and auditing of changes.&lt;/li>
+&lt;li>Creating a tool for rotating service account keys to enhance security.&lt;/li>
+&lt;li>Developing a security monitoring system to detect and respond to potential threats.&lt;/li>
+&lt;/ol>
+&lt;h2 id="the-solution">The Solution&lt;/h2>
+&lt;p>I worked closely with my mentor to break down and define each challenge into manageable tasks, creating a plan for the summer. I started by taking a look at the current state of the infrastructure, after which I began working on each challenge one by one.&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Automating the cleanup of unused cloud resources:&lt;/strong> We noticed that some resources in the GCP project, especially Pub/Sub topics created for testing, were often forgotten, leading to unnecessary costs. Since the infrastructure is primarily for testing and development, there&amp;rsquo;s no need to keep unused resources. I developed a Python script that identifies and removes stale Pub/Sub topics that have existed for too long. This tool is now scheduled to run periodically via a GitHub Actions workflow to keep the project tidy and cost-effective.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Implementing a system for managing permissions through Git:&lt;/strong> This was more challenging, as it required a good understanding of both GCP IAM and the existing workflow. After some investigation, I learned that the current process was mostly manual and error-prone. The task involved creating a more automated and reliable system. This was achieved by using Terraform to define the desired state of IAM roles and permissions in code, which allows for better tracking and auditing of changes. This also included some custom roles, but that is still a work in progress.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Creating a tool for rotating service account keys:&lt;/strong> Key rotation is a security practice that we don&amp;rsquo;t always follow, but it is essential to ensure that service account keys are not compromised. I noticed that GCP had some APIs that could help with this, but the rotation process itself was not automated. So I wrote a Python script that automates the rotation of GCP service account keys, enhancing the security of service account credentials.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Developing a security monitoring system:&lt;/strong> To keep track of incorrect usage and potential threats, I built a log analysis tool that monitors GCP audit logs for suspicious activity, collecting and parsing logs to identify potential security threats, delivering email alerts when something unusual is detected.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;p>As an extra, and after noticing that some of these tools and policies could be ignored by developers, we also came up with the idea of an enforcement module to ensure the usage of these new tools and policies. This module would be integrated into the CI/CD pipeline, checking for compliance with the new infrastructure policies and notifying developers of any violations.&lt;/p>
+&lt;h2 id="the-impact">The Impact&lt;/h2>
+&lt;p>The tools developed during this project will have an impact on the Apache Beam community and the wider open source community. The automation of resource cleanup will help reduce costs and improve resource management, while the permission management system will provide better tracking and auditing of changes. The service account key rotation tool will enhance security, and the security monitoring system will help detect and respond to potential threats.&lt;/p>
+&lt;h2 id="wrap-up">Wrap Up&lt;/h2>
+&lt;p>This project has been an incredible learning experience for me. I have gained a better understanding of how GCP works, as well as how to use Terraform and GitHub Actions. I have also learned a lot about security best practices and how to implement them in a real-world project.&lt;/p>
+&lt;p>I also learned a lot about working in an open source community, having direct communication with such experienced developers, and the importance of collaboration and communication in a distributed team. I am grateful for the opportunity to work on such an important project and to contribute to the Apache Beam community.&lt;/p>
+&lt;p>Finally, a special thanks to my mentor, Pablo Estrada, for his guidance and support throughout the summer. I am grateful not only for his amazing technical skills but especially for his patience and encouragement on my journey contributing to open source.&lt;/p>
+&lt;p>You can find my final report &lt;a href="https://gist.github.com/ksobrenat32/b028b8303393afbe73a8fc5e17daff90">here&lt;/a> if you want to take a look at the details of my work.&lt;/p>
+&lt;h2 id="advice-for-future-participants">Advice for Future Participants&lt;/h2>
+&lt;p>If you are considering participating in Google Summer of Code, my advice would be to choose an area you are passionate about; this will make any coding challenge easier to overcome. Also, don&amp;rsquo;t be afraid to ask questions and seek help from your mentors and the community. At the start, I made that mistake, and I learned that asking for help is a sign of strength, not weakness.&lt;/p>
+&lt;p>Finally, make sure to manage your time effectively and stay organized (keeping a progress journal is a great idea). GSoC is a great opportunity to learn and grow as a developer, but it can also be time-consuming, so it&amp;rsquo;s important to stay focused and on track.&lt;/p></description></item><item><title>Blog: Apache Beam 2.67.0</title><link>/blog/beam-2.67.0/</link><pubDate>Tue, 12 Aug 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.67.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6210,174 +6261,4 @@ Yichi Zhang
 Yi Hu
 Yiru Tang
 yixiaoshen
-zwestrick&lt;/p></description></item><item><title>Blog: Apache Beam 2.39.0</title><link>/blog/beam-2.39.0/</link><pubDate>Wed, 25 May 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.39.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.39.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2390-2022-05-25">download page&lt;/a> for this
-release.&lt;/p>
-&lt;p>For more information on changes in 2.39.0 check out the &lt;a href="https://issues.apache.org/jira/secure/ConfigureReleaseNote.jspa?projectId=12319527&amp;amp;version=12351170">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>JmsIO gains the ability to map any kind of input to any subclass of &lt;code>javax.jms.Message&lt;/code> (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-16308">BEAM-16308&lt;/a>).&lt;/li>
-&lt;li>JmsIO introduces the ability to write to dynamic topics (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-16308">BEAM-16308&lt;/a>).
-&lt;ul>
-&lt;li>A &lt;code>topicNameMapper&lt;/code> must be set to extract the topic name from the input value.&lt;/li>
-&lt;li>A &lt;code>valueMapper&lt;/code> must be set to convert the input value to JMS message.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Reduce number of threads spawned by BigqueryIO StreamingInserts (
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-14283">BEAM-14283&lt;/a>).&lt;/li>
-&lt;li>Implemented Apache PulsarIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8218">BEAM-8218&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Support for flink scala 2.12, because most of the libraries support version 2.12 onwards. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14386">beam-14386&lt;/a>)&lt;/li>
-&lt;li>&amp;lsquo;Manage Clusters&amp;rsquo; JupyterLab extension added for users to configure usage of Dataproc clusters managed by Interactive Beam (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14130">BEAM-14130&lt;/a>).&lt;/li>
-&lt;li>Pipeline drain support added for Go SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11106">BEAM-11106&lt;/a>). &lt;strong>Note: this feature is not yet fully validated and should be treated as experimental in this release.&lt;/strong>&lt;/li>
-&lt;li>&lt;code>DataFrame.unstack()&lt;/code>, &lt;code>DataFrame.pivot() &lt;/code> and &lt;code>Series.unstack()&lt;/code>
-implemented for DataFrame API (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13948">BEAM-13948&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13966">BEAM-13966&lt;/a>).&lt;/li>
-&lt;li>Support for impersonation credentials added to dataflow runner in the Java and Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14014">BEAM-14014&lt;/a>).&lt;/li>
-&lt;li>Implemented Jupyterlab extension for managing Dataproc clusters (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14130">BEAM-14130&lt;/a>).&lt;/li>
-&lt;li>ExternalPythonTransform API added for easily invoking Python transforms from
-Java (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14143">BEAM-14143&lt;/a>).&lt;/li>
-&lt;li>Added Add support for Elasticsearch 8.x (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14003">BEAM-14003&lt;/a>).&lt;/li>
-&lt;li>Shard aware Kinesis record aggregation (AWS Sdk v2), (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14104">BEAM-14104&lt;/a>).&lt;/li>
-&lt;li>Upgrade to ZetaSQL 2022.04.1 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14348">BEAM-14348&lt;/a>).&lt;/li>
-&lt;li>Fixed ReadFromBigQuery cannot be used with the interactive runner (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14112">BEAM-14112&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>Unused functions &lt;code>ShallowCloneParDoPayload()&lt;/code>, &lt;code>ShallowCloneSideInput()&lt;/code>, and &lt;code>ShallowCloneFunctionSpec()&lt;/code> have been removed from the Go SDK&amp;rsquo;s pipelinex package (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13739">BEAM-13739&lt;/a>).&lt;/li>
-&lt;li>JmsIO requires an explicit &lt;code>valueMapper&lt;/code> to be set (&lt;a href="https://issues.apache.org/jira/browse/BEAM-16308">BEAM-16308&lt;/a>). You can use the &lt;code>TextMessageMapper&lt;/code> to convert &lt;code>String&lt;/code> inputs to JMS &lt;code>TestMessage&lt;/code>s:&lt;/li>
-&lt;/ul>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl"> &lt;span class="n">JmsIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withConnectionFactory&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">jmsConnectionFactory&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withValueMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">TextMessageMapper&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
-&lt;li>Coders in Python are expected to inherit from Coder. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14351">BEAM-14351&lt;/a>).&lt;/li>
-&lt;li>New abstract method &lt;code>metadata()&lt;/code> added to io.filesystem.FileSystem in the
-Python SDK. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14314">BEAM-14314&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="deprecations">Deprecations&lt;/h2>
-&lt;ul>
-&lt;li>Flink 1.11 is no longer supported (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14139">BEAM-14139&lt;/a>).&lt;/li>
-&lt;li>Python 3.6 is no longer supported (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13657">BEAM-13657&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed Java Spanner IO NPE when ProjectID not specified in template executions (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14405">BEAM-14405&lt;/a>).&lt;/li>
-&lt;li>Fixed potential NPE in BigQueryServicesImpl.getErrorInfo (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14133">BEAM-14133&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
-&lt;ul>
-&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/browse/BEAM-14412?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.39.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.39.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud,
-Ahmet Altay,
-Aizhamal Nurmamat kyzy,
-Alexander Zhuravlev,
-Alexey Romanenko,
-Anand Inguva,
-Andrei Gurau,
-Andrew Pilloud,
-Andy Ye,
-Arun Pandian,
-Arwin Tio,
-Aydar Farrakhov,
-Aydar Zainutdinov,
-AydarZaynutdinov,
-Balázs Németh,
-Benjamin Gonzalez,
-Brian Hulette,
-Buqian Zheng,
-Chamikara Jayalath,
-Chun Yang,
-Daniel Oliveira,
-Daniela Martín,
-Danny McCormick,
-David Huntsperger,
-Deepak Nagaraj,
-Denise Case,
-Esun Kim,
-Etienne Chauchot,
-Evan Galpin,
-Hector Miuler Malpica Gallegos,
-Heejong Lee,
-Hengfeng Li,
-Ilango Rajagopal,
-Ilion Beyst,
-Israel Herraiz,
-Jack McCluskey,
-Kamil Bregula,
-Kamil Breguła,
-Ke Wu,
-Kenneth Knowles,
-KevinGG,
-Kiley,
-Kiley Sok,
-Kyle Weaver,
-Liam Miller-Cushon,
-Luke Cwik,
-Marco Robles,
-Matt Casters,
-Michael Li,
-MiguelAnzoWizeline,
-Milan Patel,
-Minbo Bae,
-Moritz Mack,
-Nick Caballero,
-Niel Markwick,
-Ning Kang,
-Oskar Firlej,
-Pablo Estrada,
-Pavel Avilov,
-Reuven Lax,
-Reza Rokni,
-Ritesh Ghorse,
-Robert Bradshaw,
-Robert Burke,
-Ryan Thompson,
-Sam Whittle,
-Steven Niemitz,
-Thiago Nunes,
-Tomo Suzuki,
-Valentyn Tymofieiev,
-Victor,
-Yi Hu,
-Yichi Zhang,
-Yiru Tang,
-ahmedabu98,
-andoni-guzman,
-brachipa,
-bulat safiullin,
-bullet03,
-dannymartinm,
-daria.malkova,
-dpcollins-google,
-egalpin,
-emily,
-fbeevikm,
-johnjcasey,
-kileys,
-&lt;a href="mailto:msbukal@google.com">msbukal@google.com&lt;/a>,
-nguyennk92,
-pablo rodriguez defino,
-rszper,
-rvballada,
-sachinag,
-tvalentyn,
-vachan-shetty,
-yirutang&lt;/p></description></item></channel></rss>
+zwestrick&lt;/p></description></item></channel></rss>
