@@ -162,7 +162,7 @@ public class ResettableThrowingStreamObserverTest {
   }
 
   @Test
-  public void testOnNext_streamCancelledException_onErrorThrows() throws Exception {
+  public void testOnNext_streamCancelledException_closesStream() throws Exception {
     ResettableThrowingStreamObserver<Integer> observer = newStreamObserver();
     TerminatingStreamObserver<Integer> spiedDelegate = newDelegate();
     StreamObserverCancelledException streamObserverCancelledException =
@@ -175,19 +175,6 @@ public class ResettableThrowingStreamObserverTest {
     assertThrows(
         ResettableThrowingStreamObserver.StreamClosedException.class,
         () -> observer.onError(new Exception()));
-  }
-
-  @Test
-  public void testOnNext_streamCancelledException_onCompletedThrows() throws Exception {
-    ResettableThrowingStreamObserver<Integer> observer = newStreamObserver();
-    TerminatingStreamObserver<Integer> spiedDelegate = newDelegate();
-    StreamObserverCancelledException streamObserverCancelledException =
-        new StreamObserverCancelledException("Test error");
-    doThrow(streamObserverCancelledException).when(spiedDelegate).onNext(any());
-    observer.reset(spiedDelegate);
-    observer.onNext(1);
-
-    verify(spiedDelegate).onError(eq(streamObserverCancelledException));
     assertThrows(
         ResettableThrowingStreamObserver.StreamClosedException.class, observer::onCompleted);
   }
