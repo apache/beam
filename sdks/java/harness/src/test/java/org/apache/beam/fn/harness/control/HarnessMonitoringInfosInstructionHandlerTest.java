@@ -30,7 +30,10 @@ import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+@RunWith(JUnit4.class)
 public class HarnessMonitoringInfosInstructionHandlerTest {
 
   @Test
