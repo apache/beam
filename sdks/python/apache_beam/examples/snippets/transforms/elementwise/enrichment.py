@@ -118,6 +118,216 @@ def enrichment_with_vertex_ai_legacy():
   # [END enrichment_with_vertex_ai_legacy]
 
 
+def enrichment_with_google_cloudsql_pg():
+  # [START enrichment_with_google_cloudsql_pg]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler,
+      DatabaseTypeAdapter,
+      TableFieldsQueryConfig,
+      CloudSQLConnectionConfig)
+  import os
+
+  database_adapter = DatabaseTypeAdapter.POSTGRESQL
+  database_uri = os.environ.get("GOOGLE_CLOUD_SQL_DB_URI")
+  database_user = os.environ.get("GOOGLE_CLOUD_SQL_DB_USER")
+  database_password = os.environ.get("GOOGLE_CLOUD_SQL_DB_PASSWORD")
+  database_id = os.environ.get("GOOGLE_CLOUD_SQL_DB_ID")
+  table_id = os.environ.get("GOOGLE_CLOUD_SQL_DB_TABLE_ID")
+  where_clause_template = "product_id = :pid"
+  where_clause_fields = ["product_id"]
+
+  data = [
+      beam.Row(product_id=1, name='A'),
+      beam.Row(product_id=2, name='B'),
+      beam.Row(product_id=3, name='C'),
+  ]
+
+  connection_config = CloudSQLConnectionConfig(
+      db_adapter=database_adapter,
+      instance_connection_uri=database_uri,
+      user=database_user,
+      password=database_password,
+      db_id=database_id)
+
+  query_config = TableFieldsQueryConfig(
+      table_id=table_id,
+      where_clause_template=where_clause_template,
+      where_clause_fields=where_clause_fields)
+
+  cloudsql_handler = CloudSQLEnrichmentHandler(
+      connection_config=connection_config,
+      table_id=table_id,
+      query_config=query_config)
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ Google CloudSQL PostgreSQL" >> Enrichment(cloudsql_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_google_cloudsql_pg]
+
+
+def enrichment_with_external_pg():
+  # [START enrichment_with_external_pg]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler,
+      DatabaseTypeAdapter,
+      TableFieldsQueryConfig,
+      ExternalSQLDBConnectionConfig)
+  import os
+
+  database_adapter = DatabaseTypeAdapter.POSTGRESQL
+  database_host = os.environ.get("EXTERNAL_SQL_DB_HOST")
+  database_port = int(os.environ.get("EXTERNAL_SQL_DB_PORT"))
+  database_user = os.environ.get("EXTERNAL_SQL_DB_USER")
+  database_password = os.environ.get("EXTERNAL_SQL_DB_PASSWORD")
+  database_id = os.environ.get("EXTERNAL_SQL_DB_ID")
+  table_id = os.environ.get("EXTERNAL_SQL_DB_TABLE_ID")
+  where_clause_template = "product_id = :pid"
+  where_clause_fields = ["product_id"]
+
+  data = [
+      beam.Row(product_id=1, name='A'),
+      beam.Row(product_id=2, name='B'),
+      beam.Row(product_id=3, name='C'),
+  ]
+
+  connection_config = ExternalSQLDBConnectionConfig(
+      db_adapter=database_adapter,
+      host=database_host,
+      port=database_port,
+      user=database_user,
+      password=database_password,
+      db_id=database_id)
+
+  query_config = TableFieldsQueryConfig(
+      table_id=table_id,
+      where_clause_template=where_clause_template,
+      where_clause_fields=where_clause_fields)
+
+  cloudsql_handler = CloudSQLEnrichmentHandler(
+      connection_config=connection_config,
+      table_id=table_id,
+      query_config=query_config)
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ Unmanaged PostgreSQL" >> Enrichment(cloudsql_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_external_pg]
+
+
+def enrichment_with_external_mysql():
+  # [START enrichment_with_external_mysql]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler,
+      DatabaseTypeAdapter,
+      TableFieldsQueryConfig,
+      ExternalSQLDBConnectionConfig)
+  import os
+
+  database_adapter = DatabaseTypeAdapter.MYSQL
+  database_host = os.environ.get("EXTERNAL_SQL_DB_HOST")
+  database_port = int(os.environ.get("EXTERNAL_SQL_DB_PORT"))
+  database_user = os.environ.get("EXTERNAL_SQL_DB_USER")
+  database_password = os.environ.get("EXTERNAL_SQL_DB_PASSWORD")
+  database_id = os.environ.get("EXTERNAL_SQL_DB_ID")
+  table_id = os.environ.get("EXTERNAL_SQL_DB_TABLE_ID")
+  where_clause_template = "product_id = :pid"
+  where_clause_fields = ["product_id"]
+
+  data = [
+      beam.Row(product_id=1, name='A'),
+      beam.Row(product_id=2, name='B'),
+      beam.Row(product_id=3, name='C'),
+  ]
+
+  connection_config = ExternalSQLDBConnectionConfig(
+      db_adapter=database_adapter,
+      host=database_host,
+      port=database_port,
+      user=database_user,
+      password=database_password,
+      db_id=database_id)
+
+  query_config = TableFieldsQueryConfig(
+      table_id=table_id,
+      where_clause_template=where_clause_template,
+      where_clause_fields=where_clause_fields)
+
+  cloudsql_handler = CloudSQLEnrichmentHandler(
+      connection_config=connection_config,
+      table_id=table_id,
+      query_config=query_config)
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ Unmanaged MySQL" >> Enrichment(cloudsql_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_external_mysql]
+
+
+def enrichment_with_external_sqlserver():
+  # [START enrichment_with_external_sqlserver]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler,
+      DatabaseTypeAdapter,
+      TableFieldsQueryConfig,
+      ExternalSQLDBConnectionConfig)
+  import os
+
+  database_adapter = DatabaseTypeAdapter.SQLSERVER
+  database_host = os.environ.get("EXTERNAL_SQL_DB_HOST")
+  database_port = int(os.environ.get("EXTERNAL_SQL_DB_PORT"))
+  database_user = os.environ.get("EXTERNAL_SQL_DB_USER")
+  database_password = os.environ.get("EXTERNAL_SQL_DB_PASSWORD")
+  database_id = os.environ.get("EXTERNAL_SQL_DB_ID")
+  table_id = os.environ.get("EXTERNAL_SQL_DB_TABLE_ID")
+  where_clause_template = "product_id = :pid"
+  where_clause_fields = ["product_id"]
+
+  data = [
+      beam.Row(product_id=1, name='A'),
+      beam.Row(product_id=2, name='B'),
+      beam.Row(product_id=3, name='C'),
+  ]
+
+  connection_config = ExternalSQLDBConnectionConfig(
+      db_adapter=database_adapter,
+      host=database_host,
+      port=database_port,
+      user=database_user,
+      password=database_password,
+      db_id=database_id)
+
+  query_config = TableFieldsQueryConfig(
+      table_id=table_id,
+      where_clause_template=where_clause_template,
+      where_clause_fields=where_clause_fields)
+
+  cloudsql_handler = CloudSQLEnrichmentHandler(
+      connection_config=connection_config,
+      table_id=table_id,
+      query_config=query_config)
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ Unmanaged SQL Server" >> Enrichment(cloudsql_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_external_sqlserver]
+
+
 def enrichment_with_milvus():
   # [START enrichment_with_milvus]
   import os
@@ -170,9 +380,9 @@ def enrichment_with_milvus():
       output_fields=["id", "content", "domain", "cost", "metadata"],
       round_decimal=2)
 
-  # MilvusCollectionLoadParameters is optional and provides fine-grained control
-  # over how collections are loaded into memory. For simple use cases or when
-  # getting started, this parameter can be omitted to use default loading
+  # The collection load parameters are optional. They provide fine-graine
+  # control over how collections are loaded into memory. For simple use cases or
+  # when getting started, this parameter can be omitted to use default loading
   # behavior. Consider using it in resource-constrained environments to optimize
   # memory usage and query performance.
   collection_load_parameters = MilvusCollectionLoadParameters()

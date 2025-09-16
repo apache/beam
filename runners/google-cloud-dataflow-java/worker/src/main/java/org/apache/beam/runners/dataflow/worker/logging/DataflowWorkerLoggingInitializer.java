@@ -247,6 +247,10 @@ public class DataflowWorkerLoggingInitializer {
               Charset.defaultCharset()));
     }
 
+    if (harnessOptions.getLogMdc()) {
+      loggingHandler.setLogMdc(true);
+    }
+
     if (usedDeprecated) {
       LOG.warn(
           "Deprecated DataflowWorkerLoggingOptions are used for log level settings."

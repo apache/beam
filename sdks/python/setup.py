@@ -360,12 +360,6 @@ if __name__ == '__main__':
       install_requires=[
           'crcmod>=1.7,<2.0',
           'orjson>=3.9.7,<4',
-          # Dill doesn't have forwards-compatibility guarantees within minor
-          # version. Pickles created with a new version of dill may not unpickle
-          # using older version of dill. It is best to use the same version of
-          # dill on client and server, therefore list of allowed versions is
-          # very narrow. See: https://github.com/uqfoundation/dill/issues/341.
-          'dill>=0.3.1.1,<0.3.2',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
@@ -392,7 +386,7 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<6.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
@@ -403,6 +397,7 @@ if __name__ == '__main__':
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
+          'beartype>=0.21.0,<0.22.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -410,6 +405,15 @@ if __name__ == '__main__':
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
+          'dill': [
+            # Dill doesn't have forwards-compatibility guarantees within minor
+            # version. Pickles created with a new version of dill may not
+            # unpickle using older version of dill. It is best to use the same
+            # version of dill on client and server, therefore list of allowed
+            # versions is very narrow.
+            # See: https://github.com/uqfoundation/dill/issues/341.
+            'dill>=0.3.1.1,<0.3.2',
+          ],
           'docs': [
               'jinja2>=3.0,<3.2',
               'Sphinx>=7.0.0,<8.0',
@@ -443,15 +447,16 @@ if __name__ == '__main__':
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
-              'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
+              'pg8000>=1.31.1',
+              "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
           ] + milvus_dependency,
           'gcp': [
               'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
-              'google-apitools>=0.5.31,<0.5.32; python_version <= "3.12"',
+              'google-apitools>=0.5.31,<0.5.32; python_version < "3.13"',
               'google-apitools>=0.5.32,<0.5.33; python_version >= "3.13"',
               # NOTE: Maintainers, please do not require google-auth>=2.x.x
               # Until this issue is closed
@@ -475,6 +480,10 @@ if __name__ == '__main__':
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
               'google-cloud-aiplatform>=1.26.0, < 2.0',
+              'cloud-sql-python-connector>=1.18.2,<2.0.0',
+              'python-tds>=1.16.1',
+              'pg8000>=1.31.1',
+              "PyMySQL>=1.1.0",
               # Authentication for Google Artifact Registry when using
               # --extra-index-url or --index-url in requirements.txt in
               # Dataflow, which allows installing python packages from private

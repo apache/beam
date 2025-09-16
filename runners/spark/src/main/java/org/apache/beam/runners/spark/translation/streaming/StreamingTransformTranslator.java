@@ -325,7 +325,7 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
+  private static <T> TransformEvaluator<Window.Assign<T>> window() {
     return new TransformEvaluator<Window.Assign<T>>() {
       @Override
       public void evaluate(final Window.Assign<T> transform, EvaluationContext context) {

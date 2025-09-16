@@ -215,8 +215,7 @@ class BatchViewOverrides {
       return this.applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollectionView<Map<K, V>> applyInternal(
-        PCollection<KV<K, V>> input) {
+    private PCollectionView<Map<K, V>> applyInternal(PCollection<KV<K, V>> input) {
       try {
         return BatchViewAsMultimap.applyForMapLike(runner, input, view, true /* unique keys */);
       } catch (NonDeterministicException e) {
@@ -704,8 +703,7 @@ class BatchViewOverrides {
       return this.applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> applyInternal(
-        PCollection<KV<K, V>> input) {
+    private PCollectionView<Map<K, Iterable<V>>> applyInternal(PCollection<KV<K, V>> input) {
       try {
         return applyForMapLike(runner, input, view, false /* unique keys not expected */);
       } catch (NonDeterministicException e) {
@@ -1393,6 +1391,16 @@ class BatchViewOverrides {
     @Override
     public PaneInfo getPaneInfo() {
       return PaneInfo.NO_FIRING;
+    }
+
+    @Override
+    public @Nullable String getCurrentRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Long getCurrentRecordOffset() {
+      return null;
     }
 
     @Override

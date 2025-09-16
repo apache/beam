@@ -34,9 +34,13 @@ import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
+from apache_beam.typehints import schemas
+from apache_beam.typehints import typehints
+from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_combine import normalize_combine
+from apache_beam.yaml.yaml_mapping import Validate
 from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
 from apache_beam.yaml.yaml_utils import SafeLineLoader
@@ -481,6 +485,15 @@ def expand_transform(spec, scope):
 
 
 def expand_leaf_transform(spec, scope):
+  spec = spec.copy()
+
+  # Check for optional output_schema to verify on.
+  # The idea is to pass this output_schema config to the ValidateWithSchema
+  # transform.
+  output_schema_spec = {}
+  if 'output_schema' in spec.get('config', {}):
+    output_schema_spec = spec.get('config').pop('output_schema')
+
   spec = normalize_inputs_outputs(spec)
   inputs_dict = {
       key: scope.get_pcollection(value)
@@ -507,6 +520,20 @@ def expand_leaf_transform(spec, scope):
   except Exception as exn:
     raise ValueError(
         f"Error applying transform {identify_object(spec)}: {exn}") from exn
+
+  # Optional output_schema was found, so lets expand on that before returning.
+  if output_schema_spec:
+    error_handling_spec = {}
+    # Obtain original transform error_handling_spec, so that all validate
+    # schema errors use that.
+    if 'error_handling' in spec.get('config', None):
+      error_handling_spec = spec.get('config').get('error_handling', {})
+
+    outputs = expand_output_schema_transform(
+        spec=output_schema_spec,
+        outputs=outputs,
+        error_handling_spec=error_handling_spec)
+
   if isinstance(outputs, dict):
     # TODO: Handle (or at least reject) nested case.
     return outputs
@@ -520,6 +547,250 @@ def expand_leaf_transform(spec, scope):
     raise ValueError(
         f'Transform {identify_object(spec)} returned an unexpected type '
         f'{type(outputs)}')
+
+
+def expand_output_schema_transform(spec, outputs, error_handling_spec):
+  """Applies a `Validate` transform to the output of another transform.
+
+  This function is called when an `output_schema` is defined on a transform.
+  It wraps the original transform's output(s) with a `Validate` transform
+  to ensure the data conforms to the specified schema.
+
+  If the original transform has error handling configured, validation errors
+  will be routed to the specified error output. If not, validation failures
+  will cause the pipeline to fail.
+
+  Args:
+    spec (dict): The `output_schema` specification from the YAML config.
+    outputs (beam.PCollection or dict[str, beam.PCollection]): The output(s)
+      from the transform to be validated.
+    error_handling_spec (dict): The `error_handling` configuration from the
+      original transform.
+
+  Returns:
+    The validated PCollection(s). If error handling is enabled, this will be a
+    dictionary containing the 'good' output and any error outputs.
+
+  Raises:
+    ValueError: If `error_handling` is incorrectly specified within the
+      `output_schema` spec itself, or if the main output of a multi-output
+      transform cannot be determined.
+  """
+  if 'error_handling' in spec:
+    raise ValueError(
+        'error_handling config is not supported directly in '
+        'the output_schema. Please use error_handling config in '
+        'the transform, if possible, or use ValidateWithSchema transform '
+        'instead.')
+
+  # Strip metadata such as __line__ and __uuid__ as these will interfere with
+  # the validation downstream.
+  clean_schema = SafeLineLoader.strip_metadata(spec)
+
+  # If no error handling is specified for the main transform, warn the user
+  # that the pipeline may fail if any output data fails the output schema
+  # validation.
+  if not error_handling_spec:
+    _LOGGER.warning("Output_schema config is attached to a transform that has "\
+    "no error_handling config specified. Any failures validating on output" \
+    "schema will fail the pipeline unless the user specifies an" \
+    "error_handling config on a capable transform. Alternatively, you can " \
+    "remove the output_schema config on this transform and add a " \
+    "ValidateWithSchema transform with separate error handling downstream of " \
+    "the current transform.")
+
+  # The transform produced outputs with a single beam.PCollection
+  if isinstance(outputs, beam.PCollection):
+    outputs = _enforce_schema(
+        outputs, 'EnforceOutputSchema', error_handling_spec, clean_schema)
+    if isinstance(outputs, dict):
+      main_tag = error_handling_spec.get('main_tag', 'good')
+      main_output = outputs.pop(main_tag)
+      if error_handling_spec:
+        error_output_tag = error_handling_spec.get('output')
+        if error_output_tag in outputs:
+          return {
+              'output': main_output,
+              error_output_tag: outputs.pop(error_output_tag)
+          }
+      return main_output
+
+  # The transform produced outputs with many named PCollections and need to
+  # determine which PCollection should be validated on.
+  elif isinstance(outputs, dict):
+    main_output_key = get_main_output_key(spec, outputs, error_handling_spec)
+
+    validation_result = _enforce_schema(
+        outputs[main_output_key],
+        f'EnforceOutputSchema_{main_output_key}',
+        error_handling_spec,
+        clean_schema)
+    outputs = _integrate_validation_results(
+        outputs, validation_result, main_output_key, error_handling_spec)
+
+  return outputs
+
+
+def get_main_output_key(spec, outputs, error_handling_spec):
+  """Determines the main output key from a dictionary of PCollections.
+
+  This is used to identify which output of a multi-output transform should be
+  validated against an `output_schema`.
+
+  The main output is determined using the following precedence:
+  1. An output with the key 'output'.
+  2. An output with the key 'good'.
+  3. The single output if there is only one.
+
+  Args:
+    spec: The transform specification, used for creating informative error
+      messages.
+    outputs: A dictionary mapping output tags to their corresponding
+      PCollections.
+    error_handling_spec (dict): The `error_handling` configuration from the
+      original transform.
+
+  Returns:
+    The key of the main output PCollection.
+
+  Raises:
+    ValueError: If a main output cannot be determined because there are
+      multiple outputs and none are named 'output' or 'good'.
+  """
+  main_output_key = 'output'
+  if main_output_key not in outputs:
+    if 'good' in outputs:
+      main_output_key = 'good'
+    elif len(outputs) == 1:
+      main_output_key = next(iter(outputs.keys()))
+    else:
+      raise ValueError(
+          f"Transform {identify_object(spec)} has outputs "
+          f"{list(outputs.keys())}, but none are named 'output' or 'good'. To "
+          "apply an 'output_schema', please ensure the transform has exactly "
+          "one output, or that the main output is named 'output' or 'good'.")
+
+  if len(outputs) >= 3 or \
+    (len(outputs) == 2 and error_handling_spec.get('output') not in outputs):
+    _LOGGER.warning(
+        "There are currently %s outputs: %s. Only the main output will be "
+        "validated.",
+        len(outputs),
+        outputs)
+
+  return main_output_key
+
+
+def _integrate_validation_results(
+    outputs, validation_result, main_output_key, error_handling_spec):
+  """
+  Integrates the results of a validation transform back into the outputs of
+  the original transform.
+
+  This function handles merging the "good" and "bad" outputs from a
+  `Validate` transform with the existing outputs of the transform that was
+  validated.
+
+  Args:
+    outputs: The original dictionary of output PCollections from the transform.
+    validation_result: The output of the `Validate` transform. This can be a
+      single PCollection (if all elements passed) or a dictionary of
+      PCollections (if error handling was enabled for validation).
+    main_output_key: The key in the `outputs` dictionary corresponding to the
+      PCollection that was validated.
+    error_handling_spec: The error handling configuration of the original
+      transform.
+
+  Returns:
+    The updated dictionary of output PCollections, with validation results
+    integrated.
+
+  Raises:
+    ValueError: If the validation transform produces unexpected outputs.
+  """
+  if not isinstance(validation_result, dict):
+    outputs[main_output_key] = validation_result
+    return outputs
+
+  # The main output from validation is the good output.
+  main_tag = error_handling_spec.get('main_tag', 'good')
+  outputs[main_output_key] = validation_result.pop(main_tag)
+
+  if error_handling_spec:
+    error_output_tag = error_handling_spec['output']
+    if error_output_tag in validation_result:
+      schema_error_pcoll = validation_result.pop(error_output_tag)
+      # The original transform also had an error output. Merge them.
+      outputs[error_output_tag] = (
+          (outputs[error_output_tag], schema_error_pcoll)
+          | f'FlattenErrors_{main_output_key}' >> beam.Flatten())
+
+    # There should be no other outputs from validation.
+    if validation_result:
+      raise ValueError(
+          "Unexpected outputs from validation: "
+          f"{list(validation_result.keys())}")
+
+  return outputs
+
+
+def _enforce_schema(pcoll, label, error_handling_spec, clean_schema):
+  """Applies schema to PCollection elements if necessary, then validates.
+
+  This function ensures that the input PCollection conforms to a specified
+  schema. If the PCollection is schemaless (i.e., its element_type is Any),
+  it attempts to convert its elements into schema-aware `beam.Row` objects
+  based on the provided `clean_schema`. After ensuring the PCollection has
+  a defined schema, it applies a `Validate` transform to perform the actual
+  schema validation.
+
+  Args:
+    pcoll: The input PCollection to be schema-enforced and validated.
+    label: A string label to be used for the Beam transforms created within this
+    function.
+    error_handling_spec: A dictionary specifying how to handle validation
+    errors.
+    clean_schema: A dictionary representing the schema to enforce and validate
+    against.
+
+  Returns:
+    A PCollection (or PCollectionTuple if error handling is enabled) resulting
+    from the `Validate` transform.
+  """
+  if pcoll.element_type == typehints.Any:
+    _LOGGER.info(
+        "PCollection for %s has no schema (element_type=Any). "
+        "Converting elements to beam.Row based on provided output_schema.",
+        label)
+    try:
+      # Attempt to confer the schemaless elements into schema-aware beam.Row
+      # objects
+      beam_schema = json_utils.json_schema_to_beam_schema(clean_schema)
+      row_type_constraint = schemas.named_tuple_from_schema(beam_schema)
+
+      def to_row(element):
+        """
+        Convert a single element into the row type constraint type.
+        """
+        if isinstance(element, dict):
+          return row_type_constraint(**element)
+        elif hasattr(element, '_asdict'):  # Handle NamedTuple, beam.Row
+          return row_type_constraint(**element._asdict())
+        else:
+          raise TypeError(
+              f"Cannot convert element of type {type(element)} to beam.Row "
+              f"for validation in {label}. Element: {element}")
+
+      pcoll = pcoll | f'{label}_ConvertToRow' >> beam.Map(
+          to_row).with_output_types(row_type_constraint)
+    except Exception as e:
+      raise ValueError(
+          f"Failed to prepare schemaless PCollection for \
+            validation in {label}: {e}") from e
+
+  # Add Validation step downstream of current transform
+  return pcoll | label >> Validate(
+      schema=clean_schema, error_handling=error_handling_spec)
 
 
 def expand_composite_transform(spec, scope):

@@ -17,11 +17,11 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+applyPythonNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container :: Distroless"
-// Keep these values in sync with sdks/python/container/build.gradle.
-int min_python_version=9
-int max_python_version=12
+int min_python_version=project.ext.minPythonVersion
+int max_python_version=project.ext.maxPythonVersion
 
 
 tasks.register("buildAll") {

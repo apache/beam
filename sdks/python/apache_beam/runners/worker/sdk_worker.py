@@ -176,6 +176,7 @@ class SdkHarness(object):
       # that should be reported to the runner when proocessing the first bundle.
       deferred_exception=None,  # type: Optional[Exception]
       runner_capabilities=frozenset(),  # type: FrozenSet[str]
+      element_processing_timeout_minutes=None,  # type: Optional[int]
   ):
     # type: (...) -> None
     self._alive = True
@@ -207,6 +208,8 @@ class SdkHarness(object):
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
+    self._element_processing_timeout_minutes = (
+        element_processing_timeout_minutes)
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -223,21 +226,21 @@ class SdkHarness(object):
         fns=self._fns,
         data_sampler=self.data_sampler,
     )
-
+    self._status_handler = None  # type: Optional[FnApiWorkerStatusHandler]
     if status_address:
       try:
         self._status_handler = FnApiWorkerStatusHandler(
             status_address,
             self._bundle_processor_cache,
             self._state_cache,
-            enable_heap_dump)  # type: Optional[FnApiWorkerStatusHandler]
+            enable_heap_dump,
+            element_processing_timeout_minutes=self.
+            _element_processing_timeout_minutes)
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(
             'Error creating worker status request handler, '
             'skipping status report. Trace back: %s' % traceback_string)
-    else:
-      self._status_handler = None
 
     # TODO(BEAM-8998) use common
     # thread_pool_executor.shared_unbounded_instance() to process bundle

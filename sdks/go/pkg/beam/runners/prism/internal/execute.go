@@ -76,6 +76,7 @@ func RunPipeline(j *jobservices.Job) {
 	// any related job resources.
 	defer func() {
 		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
+		j.WaitForCleanUp()
 	}()
 
 	j.SendMsg("running " + j.String())
@@ -95,7 +96,7 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("pipeline completed " + j.String())
 
 	j.SendMsg("terminating " + j.String())
-	j.Done()
+	j.PendingDone()
 }
 
 type transformExecuter interface {
@@ -359,7 +360,11 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		case rb, ok := <-bundles:
 			if !ok {
 				err := eg.Wait()
-				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Any("topo", topo))
+				var topoAttrs []any
+				for _, s := range topo {
+					topoAttrs = append(topoAttrs, slog.Any(s.ID, s))
+				}
+				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Group("topo", topoAttrs...))
 				return err
 			}
 			eg.Go(func() error {

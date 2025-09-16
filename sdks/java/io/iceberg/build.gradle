@@ -23,6 +23,8 @@ import java.util.stream.Collectors
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.iceberg',
+        // iceberg ended support for Java 8 in 1.7.0
+        requireJavaVersion: JavaVersion.VERSION_11,
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg"
@@ -37,12 +39,9 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-// we cannot upgrade this since the newer iceberg requires Java 11
-// many other modules like examples/expansion use Java 8 and have the iceberg dependency
-// def iceberg_version = "1.9.0"
-def iceberg_version = "1.6.1"
+def iceberg_version = "1.9.2"
 def parquet_version = "1.15.2"
-def orc_version = "1.9.2"
+def orc_version = "1.9.6"
 def hive_version = "3.1.3"
 
 dependencies {
@@ -105,6 +104,11 @@ dependencies {
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
     }
+}
+
+configurations.all {
+  // iceberg-core needs avro:1.12.0
+  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
 }
 
 hadoopVersions.each {kv ->

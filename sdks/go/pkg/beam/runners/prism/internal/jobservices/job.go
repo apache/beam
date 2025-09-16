@@ -94,6 +94,8 @@ type Job struct {
 	// Logger for this job.
 	Logger *slog.Logger
 
+	pendingDone atomic.Bool // indicate the job is done but waiting for clean-up
+
 	metrics metricsStore
 	mw      *worker.MultiplexW
 }
@@ -194,6 +196,20 @@ func (j *Job) Canceled() {
 	j.sendState(jobpb.JobState_CANCELLED)
 }
 
+// PendingDone indicates that the job is completed and is waiting for clean-up.
+func (j *Job) PendingDone() {
+	j.pendingDone.Store(true)
+}
+
+// WaitForCleanUp waits until all environments relevant to the job are cleaned up.
+func (j *Job) WaitForCleanUp() {
+	j.mw.WaitForCleanUp(j.String())
+	if j.pendingDone.Load() {
+		// If there is a pending done, only mark it as done after clean-up
+		j.Done()
+	}
+}
+
 // Failed indicates that the job completed unsuccessfully.
 func (j *Job) Failed(err error) {
 	slog.Error("job failed", slog.Any("job", j), slog.Any("error", err))
@@ -204,11 +220,11 @@ func (j *Job) Failed(err error) {
 
 // MakeWorker instantiates a worker.W populating environment and pipeline data from the Job.
 func (j *Job) MakeWorker(env string) *worker.W {
-	wk := j.mw.MakeWorker(j.String()+"_"+env, env)
+	wk := j.mw.MakeWorker(j.String(), env)
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
 	wk.PipelineOptions = j.PipelineOptions()
 	wk.JobKey = j.JobKey()
-	wk.ArtifactEndpoint = j.ArtifactEndpoint()
 
+	wk.ResolveEndpoints(j.ArtifactEndpoint())
 	return wk
 }
