@@ -205,6 +205,11 @@ class EnrichmentTest(unittest.TestCase):
       except Exception as e:
         self.fail(f"Test failed with unexpected error: {e}")
 
+
+
+@mock.patch('sys.stdout', new_callable=StringIO)
+@pytest.mark.require_docker_in_docker
+class DockerInDockerEnrichmentTest(unittest.TestCase):
   def test_enrichment_with_milvus(self, mock_stdout):
     milvus_db = None
     try:
