@@ -16,3 +16,4 @@
 #
 
 google-genai>=1.16.1
+pillow>=11.3.0
