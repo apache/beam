@@ -228,6 +228,7 @@ class CloudSQLEnrichmentTestDataConstruct:
 
 
 class EnrichmentTestHelpers:
+  @staticmethod
   @contextmanager
   def sql_test_context(is_cloudsql: bool, db_adapter: DatabaseTypeAdapter):
     result: Optional[CloudSQLEnrichmentTestDataConstruct] = None
@@ -239,6 +240,7 @@ class EnrichmentTestHelpers:
       if result:
         EnrichmentTestHelpers.post_sql_enrichment_test(result)
 
+  @staticmethod
   @contextmanager
   def milvus_test_context():
     db: Optional[MilvusDBContainerInfo] = None
