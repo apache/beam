@@ -156,7 +156,7 @@ def enrichment_with_google_cloudsql_pg():
       where_clause_template=where_clause_template,
       where_clause_fields=where_clause_fields)
 
-  cloudsql_handler = CloudSQLEnrichmentHandler(
+  handler = CloudSQLEnrichmentHandler(
       connection_config=connection_config,
       table_id=table_id,
       query_config=query_config)
@@ -164,7 +164,7 @@ def enrichment_with_google_cloudsql_pg():
     _ = (
         p
         | "Create" >> beam.Create(data)
-        | "Enrich W/ Google CloudSQL PostgreSQL" >> Enrichment(cloudsql_handler)
+        | "Enrich W/ Google CloudSQL PostgreSQL" >> Enrichment(handler)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_google_cloudsql_pg]
 

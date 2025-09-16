@@ -205,7 +205,6 @@ class EnrichmentTest(unittest.TestCase):
       except Exception as e:
         self.fail(f"Test failed with unexpected error: {e}")
 
-
   def test_enrichment_with_milvus(self, mock_stdout):
     milvus_db = None
     try:
@@ -345,10 +344,8 @@ class EnrichmentTestHelpers:
 
   @staticmethod
   def pre_milvus_enrichment() -> MilvusDBContainerInfo:
-    # Create Milvus db container and make sure it is up and running.
     db = MilvusEnrichmentTestHelper.start_db_container()
 
-    # Construct connection parameters.
     connection_params = MilvusConnectionParameters(
         uri=db.uri,
         user=db.user,
@@ -356,7 +353,6 @@ class EnrichmentTestHelpers:
         db_id=db.id,
         token=db.token)
 
-    # Initialize db with data required for testing.
     collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
         connection_params)
 
