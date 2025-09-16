@@ -1664,7 +1664,7 @@ class ParDo(PTransformWithSideInputs):
           subject to change.
     """
     args, kwargs = self.raw_side_inputs
-    wrapper = self.label >> _ExceptionHandlingWrapper(
+    return self.label >> _ExceptionHandlingWrapper(
         self.fn,
         args,
         kwargs,
@@ -1678,13 +1678,8 @@ class ParDo(PTransformWithSideInputs):
         timeout,
         error_handler,
         on_failure_callback,
-        allow_unsafe_userstate_in_process)
-    # Propagate resource hints
-    if hasattr(wrapper, 'transform'):
-      wrapper.transform.get_resource_hints().update(self.get_resource_hints())
-    else:
-      wrapper.get_resource_hints().update(self.get_resource_hints())
-    return wrapper
+        allow_unsafe_userstate_in_process,
+        self.get_resource_hints())
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -2290,7 +2285,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       timeout,
       error_handler,
       on_failure_callback,
-      allow_unsafe_userstate_in_process):
+      allow_unsafe_userstate_in_process,
+      resource_hints):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2307,6 +2303,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._error_handler = error_handler
     self._on_failure_callback = on_failure_callback
     self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
+    self._resource_hints = resource_hints
 
   def expand(self, pcoll):
     if self._allow_unsafe_userstate_in_process:
@@ -2336,7 +2333,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
         **self._kwargs,
     )
     # This is the fix: propagate hints.
-    pardo.get_resource_hints().update(self.get_resource_hints())
+    pardo.get_resource_hints().update(self._resource_hints)
 
     result = pcoll | pardo.with_outputs(
         self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)

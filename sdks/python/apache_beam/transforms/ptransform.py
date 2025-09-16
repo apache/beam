@@ -453,8 +453,6 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       PTransform: A reference to the instance of this particular
       :class:`PTransform` object.
     """
-    if hasattr(self, 'transform'):
-      self.transform.with_resource_hints(**kwargs)
     self.get_resource_hints().update(resources.parse_resource_hints(kwargs))
     return self
 
@@ -1165,6 +1163,10 @@ class _NamedPTransform(PTransform):
 
   def __rrshift__(self, label):
     return _NamedPTransform(self.transform, label)
+
+  def with_resource_hints(self, **kwargs):
+    self.transform.with_resource_hints(**kwargs)
+    return self
 
   def __getattr__(self, attr):
     transform_attr = getattr(self.transform, attr)
