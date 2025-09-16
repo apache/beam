@@ -112,7 +112,11 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
           arguments: |
-            -Pposargs=apache_beam/examples/ \
+            -Pposargs="${{
+              contains(matrix.os, 'self-hosted') &&
+              'apache_beam/examples/ -m (not require_docker_in_docker)' ||
+                'apache_beam/examples/ -m require_docker_in_docker'
+            }}" \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
