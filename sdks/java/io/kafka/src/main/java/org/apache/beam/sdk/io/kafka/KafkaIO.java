@@ -1862,18 +1862,13 @@ public class KafkaIO {
           RedistributeArbitrarily<KafkaRecord<K, V>> redistribute =
               Redistribute.<KafkaRecord<K, V>>arbitrarily()
                   .withAllowDuplicates(kafkaRead.isAllowDuplicates());
-          StringBuilder redistributeName = new StringBuilder("Redistribute");
           if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
             redistribute = redistribute.withDeterministicSharding(true);
-            redistributeName.append(" deterministically");
-          } else {
-            redistributeName.append(" randomly");
           }
           if (kafkaRead.getRedistributeNumKeys() != 0) {
             redistribute = redistribute.withNumBuckets((int) kafkaRead.getRedistributeNumKeys());
-            redistributeName.append(" with bucketing");
           }
-          return output.apply(redistributeName.toString(), redistribute);
+          return output.apply("Insert Redistribute", redistribute);
         }
         return output;
       }
