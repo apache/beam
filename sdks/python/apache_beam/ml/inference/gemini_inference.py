@@ -67,7 +67,8 @@ def generate_text_from_string(
       a text generation model.
     batch: the string inputs to be send to Gemini for text generation.
     model: the genai Client
-    inference_args: any additional arguments passed to the generate_content call.
+    inference_args: any additional arguments passed to the generate_content
+      call.
   """
   return model.models.generate_content(
       model=model_name, contents=batch, **inference_args)
@@ -89,7 +90,8 @@ def generate_image_from_strings_and_images(
     batch: the inputs to be send to Gemini for image generation as prompts.
       Composed of text prompts and contextual pillow Images.
     model: the genai Client
-    inference_args: any additional arguments passed to the generate_content call.
+    inference_args: any additional arguments passed to the generate_content
+      call.
   """
   return model.models.generate_content(
       model=model_name, contents=batch, **inference_args)
