@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static junit.framework.TestCase.assertTrue;
 import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.REDISTRIBUTE_BY_KEY_URN;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Redistribute.AssignShardFn;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeArbitrarily;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -117,6 +119,27 @@ public class RedistributeTest implements Serializable {
     PCollection<KV<String, Integer>> output = input.apply(Redistribute.byKey());
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
+
+    assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testDeterministicRedistribute() {
+    List<Integer> inputValues = Lists.newArrayList();
+    for (int i = 0; i < 10; i++) {
+      inputValues.add(i);
+    }
+
+    PCollection<Integer> input = pipeline.apply(Create.of(inputValues).withCoder(VarIntCoder.of()));
+    RedistributeArbitrarily<Integer> redistribute =
+        Redistribute.<Integer>arbitrarily().withDeterministicSharding(true);
+    assertTrue(redistribute.getDeterministicSharding());
+
+    PCollection<Integer> output = input.apply(redistribute);
+    PAssert.that(output).containsInAnyOrder(inputValues);
 
     assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
 

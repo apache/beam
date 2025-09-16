@@ -154,6 +154,10 @@ public class Redistribute {
       return allowDuplicates;
     }
 
+    public boolean getDeterministicSharding() {
+      return deterministicSharding;
+    }
+
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return input
