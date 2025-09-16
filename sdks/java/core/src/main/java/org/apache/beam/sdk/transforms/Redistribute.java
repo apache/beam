@@ -166,6 +166,10 @@ public class Redistribute {
       return allowDuplicates;
     }
 
+    public boolean getDeterministicSharding() {
+      return deterministicSharding;
+    }
+
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       PCollection<KV<Integer, T>> sharded;
