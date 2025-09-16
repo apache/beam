@@ -18,12 +18,15 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.TerminatingStreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -49,6 +52,53 @@ public class ResettableThrowingStreamObserverTest {
           @Override
           public void terminate(Throwable terminationException) {}
         });
+  }
+
+  @Test
+  public void testOnNext_simple() throws Exception {
+    ResettableThrowingStreamObserver<Integer> observer = newStreamObserver();
+    TerminatingStreamObserver<Integer> spiedDelegate = newDelegate();
+    observer.reset(spiedDelegate);
+    observer.onNext(1);
+    verify(spiedDelegate).onNext(eq(1));
+    observer.onNext(2);
+    verify(spiedDelegate).onNext(eq(2));
+    observer.onCompleted();
+    verify(spiedDelegate).onCompleted();
+  }
+
+  @Test
+  public void testOnError_success() throws Exception {
+    ResettableThrowingStreamObserver<Integer> observer = newStreamObserver();
+    TerminatingStreamObserver<Integer> spiedDelegate = newDelegate();
+    observer.reset(spiedDelegate);
+    Throwable t = new RuntimeException("Test exception");
+    observer.onError(t);
+    verify(spiedDelegate).onError(eq(t));
+
+    assertThrows(
+        ResettableThrowingStreamObserver.StreamClosedException.class, () -> observer.onNext(1));
+    assertThrows(
+        ResettableThrowingStreamObserver.StreamClosedException.class, observer::onCompleted);
+    assertThrows(
+        ResettableThrowingStreamObserver.StreamClosedException.class,
+        () -> observer.onError(new RuntimeException("ignored")));
+  }
+
+  @Test
+  public void testOnCompleted_success() throws Exception {
+    ResettableThrowingStreamObserver<Integer> observer = newStreamObserver();
+    TerminatingStreamObserver<Integer> spiedDelegate = newDelegate();
+    observer.reset(spiedDelegate);
+    observer.onCompleted();
+    verify(spiedDelegate).onCompleted();
+    assertThrows(
+        ResettableThrowingStreamObserver.StreamClosedException.class, () -> observer.onNext(1));
+    assertThrows(
+        ResettableThrowingStreamObserver.StreamClosedException.class, observer::onCompleted);
+    assertThrows(
+        ResettableThrowingStreamObserver.StreamClosedException.class,
+        () -> observer.onError(new RuntimeException("ignored")));
   }
 
   @Test
@@ -97,9 +147,7 @@ public class ResettableThrowingStreamObserverTest {
   }
 
   @Test
-  public void testReset_usesNewDelegate()
-      throws WindmillStreamShutdownException,
-          ResettableThrowingStreamObserver.StreamClosedException {
+  public void testReset_usesNewDelegate() throws Exception {
     ResettableThrowingStreamObserver<Integer> observer = newStreamObserver();
     TerminatingStreamObserver<Integer> firstObserver = newDelegate();
     observer.reset(firstObserver);
@@ -111,6 +159,37 @@ public class ResettableThrowingStreamObserverTest {
 
     verify(firstObserver).onNext(eq(1));
     verify(secondObserver).onNext(eq(2));
+  }
+
+  @Test
+  public void testOnNext_streamCancelledException_onErrorThrows() throws Exception {
+    ResettableThrowingStreamObserver<Integer> observer = newStreamObserver();
+    TerminatingStreamObserver<Integer> spiedDelegate = newDelegate();
+    StreamObserverCancelledException streamObserverCancelledException =
+        new StreamObserverCancelledException("Test error");
+    doThrow(streamObserverCancelledException).when(spiedDelegate).onNext(any());
+    observer.reset(spiedDelegate);
+    observer.onNext(1);
+
+    verify(spiedDelegate).onError(eq(streamObserverCancelledException));
+    assertThrows(
+        ResettableThrowingStreamObserver.StreamClosedException.class,
+        () -> observer.onError(new Exception()));
+  }
+
+  @Test
+  public void testOnNext_streamCancelledException_onCompletedThrows() throws Exception {
+    ResettableThrowingStreamObserver<Integer> observer = newStreamObserver();
+    TerminatingStreamObserver<Integer> spiedDelegate = newDelegate();
+    StreamObserverCancelledException streamObserverCancelledException =
+        new StreamObserverCancelledException("Test error");
+    doThrow(streamObserverCancelledException).when(spiedDelegate).onNext(any());
+    observer.reset(spiedDelegate);
+    observer.onNext(1);
+
+    verify(spiedDelegate).onError(eq(streamObserverCancelledException));
+    assertThrows(
+        ResettableThrowingStreamObserver.StreamClosedException.class, observer::onCompleted);
   }
 
   private <T> ResettableThrowingStreamObserver<T> newStreamObserver() {

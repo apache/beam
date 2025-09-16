@@ -182,8 +182,8 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
       Preconditions.checkState(!isUserClosed);
       isUserClosed = true;
       if (!isOutboundObserverClosed) {
-        outboundObserver.onError(t);
         isOutboundObserverClosed = true;
+        outboundObserver.onError(t);
       }
     }
   }
