@@ -205,27 +205,18 @@ class EnrichmentTest(unittest.TestCase):
       except Exception as e:
         self.fail(f"Test failed with unexpected error: {e}")
 
-
-
-@mock.patch('sys.stdout', new_callable=StringIO)
-@pytest.mark.require_docker_in_docker
-class DockerInDockerEnrichmentTest(unittest.TestCase):
   def test_enrichment_with_milvus(self, mock_stdout):
-    milvus_db = None
-    try:
-      milvus_db = EnrichmentTestHelpers.pre_milvus_enrichment()
-      enrichment_with_milvus()
-      output = mock_stdout.getvalue().splitlines()
-      expected = validate_enrichment_with_milvus()
-      self.maxDiff = None
-      output = parse_chunk_strings(output)
-      expected = parse_chunk_strings(expected)
-      assert_chunks_equivalent(output, expected)
-    except Exception as e:
-      self.fail(f"Test failed with unexpected error: {e}")
-    finally:
-      if milvus_db:
-        EnrichmentTestHelpers.post_milvus_enrichment(milvus_db)
+    with EnrichmentTestHelpers.milvus_test_context():
+      try:
+        enrichment_with_milvus()
+        output = mock_stdout.getvalue().splitlines()
+        expected = validate_enrichment_with_milvus()
+        self.maxDiff = None
+        output = parse_chunk_strings(output)
+        expected = parse_chunk_strings(expected)
+        assert_chunks_equivalent(output, expected)
+      except Exception as e:
+        self.fail(f"Test failed with unexpected error: {e}")
 
 
 @dataclass
@@ -247,6 +238,16 @@ class EnrichmentTestHelpers:
     finally:
       if result:
         EnrichmentTestHelpers.post_sql_enrichment_test(result)
+
+  @contextmanager
+  def milvus_test_context():
+    db: Optional[MilvusDBContainerInfo] = None
+    try:
+      db = EnrichmentTestHelpers.pre_milvus_enrichment()
+      yield
+    finally:
+      if db:
+        EnrichmentTestHelpers.post_milvus_enrichment(db)
 
   @staticmethod
   def pre_sql_enrichment_test(
