@@ -122,21 +122,22 @@ final class ResettableThrowingStreamObserver<T> {
           }
           isCurrentStreamClosed = true;
         }
+      }
 
-        // Either the no longer active observer which we attempt a reset and handle errors
-        // or the current observer that still requires closing.
-        try {
-          delegate.onError(cancellationException);
-        } catch (IllegalStateException onErrorException) {
-          // The delegate above was already terminated via onError or onComplete.
-          // Fallthrough since this is possibly due to queued onNext() calls that are being made
-          // from previously blocked threads.
-        } catch (RuntimeException onErrorException) {
-          logger.warn(
-              "Encountered unexpected error {} when cancelling due to error.",
-              onErrorException,
-              cancellationException);
-        }
+      // Either this was the active observer the current observer that requires closing, or this was
+      // a previous
+      // observer which we attempt to close and ignore possible exceptions.
+      try {
+        delegate.onError(cancellationException);
+      } catch (IllegalStateException onErrorException) {
+        // The delegate above was already terminated via onError or onComplete.
+        // Fallthrough since this is possibly due to queued onNext() calls that are being made
+        // from previously blocked threads.
+      } catch (RuntimeException onErrorException) {
+        logger.warn(
+            "Encountered unexpected error {} when cancelling due to error.",
+            onErrorException,
+            cancellationException);
       }
     }
   }
