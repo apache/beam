@@ -655,6 +655,12 @@ public class KafkaIO {
 
   ///////////////////////// Read Support \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+  /**
+   * Default number of keys to redistribute Kafka inputs into.
+   *
+   * <p>This value is used when {@link Read#withRedistribute()} is used without {@link
+   * Read#withRedistributeNumKeys(int redistributeNumKeys)}.
+   */
   private static final int DEFAULT_REDISTRIBUTE_NUM_KEYS = 32768;
 
   /**
@@ -1127,10 +1133,11 @@ public class KafkaIO {
      * Redistributes Kafka messages into a distinct number of keys for processing in subsequent
      * steps.
      *
-     * <p>Specifying an explicit number of keys is generally recommended over redistributing into an
-     * unbounded key space.
+     * <p>If unset, defaults to {@link KafkaIO#DEFAULT_REDISTRIBUTE_NUM_KEYS}.
      *
-     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
+     * <p>Use zero to disable bucketing into a distinct number of keys.
+     *
+     * <p>Must be used with {@link Read#withRedistribute()}.
      *
      * @param redistributeNumKeys specifies the total number of keys for redistributing inputs.
      * @return an updated {@link Read} transform.
@@ -2684,6 +2691,19 @@ public class KafkaIO {
       return toBuilder().setAllowDuplicates(true).build();
     }
 
+    /**
+     * Redistributes Kafka messages into a distinct number of keys for processing in subsequent
+     * steps.
+     *
+     * <p>If unset, defaults to {@link KafkaIO#DEFAULT_REDISTRIBUTE_NUM_KEYS}.
+     *
+     * <p>Use zero to disable bucketing into a distinct number of keys.
+     *
+     * <p>Must be used with {@link ReadSourceDescriptors#withRedistribute()}.
+     *
+     * @param redistributeNumKeys specifies the total number of keys for redistributing inputs.
+     * @return an updated {@link Read} transform.
+     */
     public ReadSourceDescriptors<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
       return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
     }
