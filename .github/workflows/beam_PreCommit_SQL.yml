@@ -126,7 +126,7 @@ jobs:
           name: Jacoco Results
           path: '**/build/jacoco/report/**'
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: ${{ steps.jacoco_report_path.outputs.path }}
           flags: java

@@ -51,7 +51,7 @@ jobs:
         run: "cd sdks && rm -rf .coverage.txt || :"
       - name: Run coverage
         run: cd sdks && go test -timeout=25m -coverprofile=coverage.txt -covermode=atomic ./go/pkg/... ./go/container/... ./java/container/... ./python/container/... ./typescript/container/...
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
         with:
           flags: go 
           files: ./sdks/coverage.txt

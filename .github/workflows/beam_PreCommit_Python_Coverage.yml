@@ -125,7 +125,7 @@ jobs:
                 '-m (not require_docker_in_docker)' ||
                 '-m require_docker_in_docker'
             }}"
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
         with:
           flags: python
           directory: sdks/python
