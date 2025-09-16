@@ -29,6 +29,8 @@ from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RemoteModelHandler
 
+from PIL.Image import Image
+
 LOGGER = logging.getLogger("GeminiModelHandler")
 
 
@@ -51,11 +53,44 @@ def _retry_on_appropriate_service_error(exception: Exception) -> bool:
   return exception.code == 429 or exception.code >= 500
 
 
-def generate_from_string(
+def generate_text_from_string(
     model_name: str,
     batch: Sequence[str],
     model: genai.Client,
     inference_args: dict[str, Any]):
+  """ Request function that expects inputs to be composed of strings, then
+  sends requests to Gemini to generate text responses based on the text
+  prompts.
+
+  Args:
+    model_name: the Gemini model to use for the request. This model should be
+      a text generation model.
+    batch: the string inputs to be send to Gemini for text generation.
+    model: the genai Client
+    inference_args: any additional arguments passed to the generate_content call.
+  """
+  return model.models.generate_content(
+      model=model_name, contents=batch, **inference_args)
+
+
+def generate_image_from_strings_and_images(
+    model_name: str,
+    batch: Sequence[list[str | Image]],
+    model: genai.Client,
+    inference_args: dict[str, Any]):
+  """ Request function that expects inputs to be composed of lists of strings
+  and PIL Image instances, then sends requests to Gemini to generate images
+  based on the text prompts and contextual images. This is currently intended
+  to be used with the gemini-2.5-flash-preview model (AKA Nano Banana.)
+
+  Args:
+    model_name: the Gemini model to use for the request. This model should be
+      an image generation model suchas gemini-2.5-flash-preview
+    batch: the inputs to be send to Gemini for image generation as prompts.
+      Composed of text prompts and contextual pillow Images.
+    model: the genai Client
+    inference_args: any additional arguments passed to the generate_content call.
+  """
   return model.models.generate_content(
       model=model_name, contents=batch, **inference_args)
 
