@@ -4081,6 +4081,8 @@ class Create(PTransform):
     # transforms (e.g. Write).
 
     class MaybeReshuffle(PTransform):
+      side_inputs = ()
+
       def expand(self, pcoll):
         if len(serialized_values) > 1 and reshuffle:
           from apache_beam.transforms.util import Reshuffle
