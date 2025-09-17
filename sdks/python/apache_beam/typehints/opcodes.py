@@ -35,7 +35,8 @@ import sys
 import types
 from functools import reduce
 
-from apache_beam.typehints import row_type, trivial_inference
+from apache_beam.typehints import row_type
+from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
