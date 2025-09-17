@@ -459,7 +459,6 @@ def _getattr(o, name):
     func = getattr(o, name)  # Python 3 has no unbound methods
     return Const(BoundMethod(func, o))
   elif _isproperty(o, name):
-    # We can't infer the return type of a property, so we return Any.
     return _getprop_returnanno(o, name)
   elif isinstance(o, row_type.RowTypeConstraint):
     return o.get_type_for(name)
