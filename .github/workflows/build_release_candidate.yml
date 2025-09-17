@@ -331,7 +331,7 @@ jobs:
         with:
           python-version: '3.9'
       - name: Install node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '16'
       - name: Install Java 21
