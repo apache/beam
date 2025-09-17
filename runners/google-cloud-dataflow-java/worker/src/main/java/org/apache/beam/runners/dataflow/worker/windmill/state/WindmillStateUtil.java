@@ -46,11 +46,11 @@ class WindmillStateUtil {
       address.appendTo(stream);
       return stream.toByteStringAndReset();
     } catch (IOException e) {
-      stream.toByteStringAndReset();
       throw new RuntimeException(e);
-    } catch (RuntimeException e) {
-      stream.toByteStringAndReset();
-      throw e;
+    } finally {
+      if (stream.size() > 0) {
+        stream.toByteStringAndReset();
+      }
     }
   }
 
