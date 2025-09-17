@@ -323,6 +323,19 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(int, lambda: A().m(3))
     self.assertReturnType(float, lambda: A.m(A(), 3.0))
 
+  def testProperty(self):
+    class A(object):
+      @property
+      def p(self):
+        return 1
+
+      @property
+      def p_typehinted(self) -> int:
+        return 1
+
+    self.assertReturnType(int, lambda: A().p_typehinted)
+    self.assertReturnType(int, lambda: A().p)
+
   def testCallFunctionOnAny(self):
     # Tests inference when CALL_FUNCTION/CALL_METHOD's function argument is Any.
     # The function cannot be called but inference should continue. Also tests

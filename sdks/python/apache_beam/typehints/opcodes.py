@@ -425,6 +425,25 @@ def load_attr(state, arg):
   state.stack.append(_getattr(o, name))
 
 
+def _isproperty(o, name):
+  """Returns true if `name` is a property of `o`."""
+  for cls in inspect.getmro(o if inspect.isclass(o) else type(o)):
+    if name in cls.__dict__:
+      return isinstance(cls.__dict__[name], property)
+  return False
+
+
+def _getprop_returnanno(o, name):
+  """Returns the fget function of property `name` of `o`, or None."""
+  for cls in inspect.getmro(o if inspect.isclass(o) else type(o)):
+    if name not in cls.__dict__:
+      continue
+    prop = cls.__dict__[name]
+    if isinstance(prop, property):
+      return prop.fget.__annotations__.get('return', None)
+  return None
+
+
 def _getattr(o, name):
   if isinstance(o, Const) and hasattr(o.value, name):
     return Const(getattr(o.value, name))
@@ -434,6 +453,9 @@ def _getattr(o, name):
     # TODO(luke-zhu): Support other callable objects
     func = getattr(o, name)  # Python 3 has no unbound methods
     return Const(BoundMethod(func, o))
+  elif _isproperty(o, name):
+    # We can't infer the return type of a property, so we return Any.
+    return _getprop_returnanno(o, name)
   elif isinstance(o, row_type.RowTypeConstraint):
     return o.get_type_for(name)
   else:
