@@ -28,25 +28,23 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 class WindmillStateUtil {
 
-  private static final ThreadLocal<@Nullable SoftReference<@Nullable ByteStringOutputStream>>
-      threadLocalOutputStream = new ThreadLocal<>();
-  // True when threadLocalOutputStream is already in use by the current thread.
-  // Used to avoid reusing the same stream from nested calls if any.
-  private static final ThreadLocal<@Nullable Boolean> threadLocalOutputStreamInUse =
-      new ThreadLocal<>();
+  private static final ThreadLocal<@Nullable RefHolder> threadLocalRefHolder = new ThreadLocal<>();
 
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
   @VisibleForTesting
   static ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
+    RefHolder refHolder = getRefHolderFromThreadLocal();
     // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
     // a lot, and this leads to better performance results. See associated benchmarks.
     ByteStringOutputStream stream;
-    boolean releaseThreadLocal = false;
-    if (Boolean.TRUE.equals(threadLocalOutputStreamInUse.get())) {
+    boolean releaseThreadLocal;
+    if (refHolder.inUse) {
+      // If the thread local stream is already in use, create a new one
       stream = new ByteStringOutputStream();
+      releaseThreadLocal = false;
     } else {
-      stream = getByteStringOutputStreamFromThreadLocal();
-      threadLocalOutputStreamInUse.set(true);
+      stream = getByteStringOutputStream(refHolder);
+      refHolder.inUse = true;
       releaseThreadLocal = true;
     }
     try {
@@ -60,22 +58,37 @@ class WindmillStateUtil {
     } catch (IOException e) {
       throw new RuntimeException(e);
     } finally {
-      if (stream.size() > 0) {
-        stream.toByteStringAndReset();
-      }
+      stream.reset();
       if (releaseThreadLocal) {
-        threadLocalOutputStreamInUse.set(false);
+        refHolder.inUse = false;
       }
     }
   }
 
-  private static ByteStringOutputStream getByteStringOutputStreamFromThreadLocal() {
+  private static class RefHolder {
+    public SoftReference<@Nullable ByteStringOutputStream> streamRef =
+        new SoftReference<>(new ByteStringOutputStream());
+
+    // Boolean is true when the thread local stream is already in use by the current thread.
+    // Used to avoid reusing the same stream from nested calls if any.
+    public boolean inUse = false;
+  }
+
+  private static RefHolder getRefHolderFromThreadLocal() {
+    @Nullable RefHolder refHolder = threadLocalRefHolder.get();
+    if (refHolder == null) {
+      refHolder = new RefHolder();
+      threadLocalRefHolder.set(refHolder);
+    }
+    return refHolder;
+  }
+
+  private static ByteStringOutputStream getByteStringOutputStream(RefHolder refHolder) {
     @Nullable
-    SoftReference<@Nullable ByteStringOutputStream> refStream = threadLocalOutputStream.get();
-    @Nullable ByteStringOutputStream stream = refStream == null ? null : refStream.get();
+    ByteStringOutputStream stream = refHolder.streamRef == null ? null : refHolder.streamRef.get();
     if (stream == null) {
       stream = new ByteStringOutputStream();
-      threadLocalOutputStream.set(new SoftReference<>(stream));
+      refHolder.streamRef = new SoftReference<>(stream);
     }
     return stream;
   }
