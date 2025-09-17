@@ -82,7 +82,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       windowsCoder.encode(windows, stream, Coder.Context.OUTER);
       return stream.toByteStringAndReset();
     } catch (Exception e) {
-      stream.toByteStringAndReset();
+      stream.reset();
       throw e;
     }
   }
@@ -168,7 +168,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         coder.encode(object, stream, Coder.Context.OUTER);
         return stream.toByteStringAndReset();
       } catch (Exception e) {
-        stream.toByteStringAndReset();
+        stream.reset();
         throw e;
       }
     }
