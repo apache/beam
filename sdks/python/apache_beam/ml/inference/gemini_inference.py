@@ -21,6 +21,7 @@ from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
+from typing import Union
 
 from google import genai
 from google.genai import errors
@@ -75,7 +76,7 @@ def generate_text_from_string(
 
 def generate_image_from_strings_and_images(
     model_name: str,
-    batch: Sequence[list[str | Image]],
+    batch: Sequence[list[Union[str, Image]]],
     model: genai.Client,
     inference_args: dict[str, Any]):
   """ Request function that expects inputs to be composed of lists of strings
