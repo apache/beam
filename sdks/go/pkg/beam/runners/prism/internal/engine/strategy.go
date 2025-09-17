@@ -89,6 +89,7 @@ func (ws WinStrat) String() string {
 type triggerInput struct {
 	newElementCount    int  // The number of new elements since the last check.
 	endOfWindowReached bool // Whether or not the end of the window has been reached.
+	completionReached  bool // Whether or not the completion of a window (end + allowedLateness) has been reached.
 }
 
 // Trigger represents a trigger for a windowing strategy.  A trigger determines when
@@ -135,7 +136,7 @@ func (t *TriggerNever) onElement(input triggerInput, state *StateData) {
 	if ts.extra == nil {
 		ts.extra = false
 	}
-	ts.extra = input.endOfWindowReached
+	ts.extra = input.completionReached
 	state.setTriggerState(t, ts)
 }
 
