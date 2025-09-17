@@ -30,13 +30,25 @@ class WindmillStateUtil {
 
   private static final ThreadLocal<@Nullable SoftReference<@Nullable ByteStringOutputStream>>
       threadLocalOutputStream = new ThreadLocal<>();
+  // True when threadLocalOutputStream is already in use by the current thread.
+  // Used to avoid reusing the same stream from nested calls if any.
+  private static final ThreadLocal<Boolean> threadLocalOutputStreamInUse =
+      ThreadLocal.withInitial(() -> false);
 
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
   @VisibleForTesting
   static ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
     // a lot, and this leads to better performance results. See associated benchmarks.
-    ByteStringOutputStream stream = getByteStringOutputStream();
+    ByteStringOutputStream stream;
+    boolean releaseThreadLocal = false;
+    if (threadLocalOutputStreamInUse.get()) {
+      stream = new ByteStringOutputStream();
+    } else {
+      stream = getByteStringOutputStreamFromThreadLocal();
+      threadLocalOutputStreamInUse.set(true);
+      releaseThreadLocal = true;
+    }
     try {
       // stringKey starts and ends with a slash.  We separate it from the
       // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
@@ -51,10 +63,13 @@ class WindmillStateUtil {
       if (stream.size() > 0) {
         stream.toByteStringAndReset();
       }
+      if (releaseThreadLocal) {
+        threadLocalOutputStreamInUse.set(false);
+      }
     }
   }
 
-  private static ByteStringOutputStream getByteStringOutputStream() {
+  private static ByteStringOutputStream getByteStringOutputStreamFromThreadLocal() {
     @Nullable
     SoftReference<@Nullable ByteStringOutputStream> refStream = threadLocalOutputStream.get();
     @Nullable ByteStringOutputStream stream = refStream == null ? null : refStream.get();
