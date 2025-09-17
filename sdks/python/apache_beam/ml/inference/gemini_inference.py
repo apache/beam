@@ -28,7 +28,6 @@ from google.genai import errors
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RemoteModelHandler
-
 from PIL.Image import Image
 
 LOGGER = logging.getLogger("GeminiModelHandler")
