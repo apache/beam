@@ -32,8 +32,8 @@ class WindmillStateUtil {
       threadLocalOutputStream = new ThreadLocal<>();
   // True when threadLocalOutputStream is already in use by the current thread.
   // Used to avoid reusing the same stream from nested calls if any.
-  private static final ThreadLocal<Boolean> threadLocalOutputStreamInUse =
-      ThreadLocal.withInitial(() -> false);
+  private static final ThreadLocal<@Nullable Boolean> threadLocalOutputStreamInUse =
+      new ThreadLocal<>();
 
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
   @VisibleForTesting
@@ -42,7 +42,7 @@ class WindmillStateUtil {
     // a lot, and this leads to better performance results. See associated benchmarks.
     ByteStringOutputStream stream;
     boolean releaseThreadLocal = false;
-    if (threadLocalOutputStreamInUse.get()) {
+    if (Boolean.TRUE.equals(threadLocalOutputStreamInUse.get())) {
       stream = new ByteStringOutputStream();
     } else {
       stream = getByteStringOutputStreamFromThreadLocal();
