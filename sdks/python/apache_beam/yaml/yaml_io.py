@@ -48,6 +48,8 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_utils
+from apache_beam.coders.row_coder import RowCoder
+from apache_beam.typehints import schemas as schema_utils
 
 
 def read_from_text(path: str):
@@ -247,6 +249,10 @@ def _create_parser(
         beam_schema,
         lambda record: covert_to_row(
             fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
+  elif format == 'PROTO':
+    _validate_schema()
+    beam_schema = json_utils.json_schema_to_beam_schema(schema)
+    return beam_schema, RowCoder(beam_schema).decode
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -291,6 +297,8 @@ def _create_formatter(
       return buffer.read()
 
     return formatter
+  elif format == 'PROTO':
+    return RowCoder(beam_schema).encode
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -416,7 +424,7 @@ def write_to_pubsub(
 
   Args:
     topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-    format: How to format the message payload.  Currently suported
+    format: How to format the message payload.  Currently supported
       formats are
 
         - RAW: Expects a message with a single field (excluding
@@ -426,6 +434,8 @@ def write_to_pubsub(
             from the input PCollection schema.
         - JSON: Formats records with a given JSON schema, which may be inferred
             from the input PCollection schema.
+        - PROTO: Encodes records with a given Protobuf schema, which may be
+            inferred from the input PCollection schema.
 
     schema: Schema specification for the given format.
     attributes: List of attribute keys whose values will be pulled out as
@@ -633,7 +643,7 @@ def read_from_tfrecord(
     compression_type (CompressionTypes): Used to handle compressed input files.
       Default value is CompressionTypes.AUTO, in which case the file_path's
       extension will be used to detect the compression.
-    validate (bool): Boolean flag to verify that the files exist during the 
+    validate (bool): Boolean flag to verify that the files exist during the
       pipeline creation time.
   """
   return ReadFromTFRecord(
