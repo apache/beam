@@ -33,8 +33,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -49,6 +49,8 @@ import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
@@ -277,32 +279,62 @@ class RecordWriterManager implements AutoCloseable {
    * implementation. Although it is expected, some implementations may not support creating a table
    * using the Iceberg API.
    */
-  private Table getOrCreateTable(TableIdentifier identifier, Schema dataSchema) {
+  private Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    TableIdentifier identifier = destination.getTableIdentifier();
     @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
-    if (table == null) {
-      synchronized (TABLE_CACHE) {
-        try {
-          table = catalog.loadTable(identifier);
-        } catch (NoSuchTableException e) {
-          try {
-            org.apache.iceberg.Schema tableSchema =
-                IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
-            // TODO(ahmedabu98): support creating a table with a specified partition spec
-            table = catalog.createTable(identifier, tableSchema);
-            LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
-          } catch (AlreadyExistsException alreadyExistsException) {
-            // handle race condition where workers are concurrently creating the same table.
-            // if running into already exists exception, we perform one last load
-            table = catalog.loadTable(identifier);
-          }
-        }
-        TABLE_CACHE.put(identifier, table);
-      }
-    } else {
+    if (table != null) {
       // If fetching from cache, refresh the table to avoid working with stale metadata
       // (e.g. partition spec)
       table.refresh();
+      return table;
     }
+
+    Namespace namespace = identifier.namespace();
+    @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
+    PartitionSpec partitionSpec =
+        createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+    Map<String, String> tableProperties =
+        createConfig != null && createConfig.getTableProperties() != null
+            ? createConfig.getTableProperties()
+            : Maps.newHashMap();
+
+    synchronized (TABLE_CACHE) {
+      // Create namespace if it does not exist yet
+      if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
+        SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
+        if (!supportsNamespaces.namespaceExists(namespace)) {
+          try {
+            supportsNamespaces.createNamespace(namespace);
+            LOG.info("Created new namespace '{}'.", namespace);
+          } catch (AlreadyExistsException ignored) {
+            // race condition: another worker already created this namespace
+          }
+        }
+      }
+
+      // If table exists, just load it
+      // Note: the implementation of catalog.tableExists() will load the table to check its
+      // existence. We don't use it here to avoid double loadTable() calls.
+      try {
+        table = catalog.loadTable(identifier);
+      } catch (NoSuchTableException e) { // Otherwise, create the table
+        org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+        try {
+          table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+          LOG.info(
+              "Created Iceberg table '{}' with schema: {}\n, partition spec: {}, table properties: {}",
+              identifier,
+              tableSchema,
+              partitionSpec,
+              tableProperties);
+        } catch (AlreadyExistsException ignored) {
+          // race condition: another worker already created this table
+          table = catalog.loadTable(identifier);
+        }
+      }
+    }
+
+    TABLE_CACHE.put(identifier, table);
     return table;
   }
 
@@ -318,9 +350,9 @@ class RecordWriterManager implements AutoCloseable {
         destinations.computeIfAbsent(
             icebergDestination,
             destination -> {
-              TableIdentifier identifier = destination.getValue().getTableIdentifier();
-              Table table = getOrCreateTable(identifier, row.getSchema());
-              return new DestinationState(destination.getValue(), table);
+              IcebergDestination dest = destination.getValue();
+              Table table = getOrCreateTable(dest, row.getSchema());
+              return new DestinationState(dest, table);
             });
 
     Record icebergRecord = IcebergUtils.beamRowToIcebergRecord(destinationState.schema, row);

@@ -23,6 +23,10 @@ import collections
 import enum
 import logging
 import math
+import pickle
+import subprocess
+import sys
+import textwrap
 import unittest
 from decimal import Decimal
 from typing import Any
@@ -30,6 +34,8 @@ from typing import List
 from typing import NamedTuple
 
 import pytest
+from parameterized import param
+from parameterized import parameterized
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
@@ -53,7 +59,13 @@ try:
 except ImportError:
   dataclasses = None  # type: ignore
 
+try:
+  import dill
+except ImportError:
+  dill = None
+
 MyNamedTuple = collections.namedtuple('A', ['x', 'y'])  # type: ignore[name-match]
+AnotherNamedTuple = collections.namedtuple('AnotherNamedTuple', ['x', 'y'])
 MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
 
 
@@ -109,6 +121,7 @@ if dataclasses is not None:
 # These tests need to all be run in the same process due to the asserts
 # in tearDownClass.
 @pytest.mark.no_xdist
+@pytest.mark.uses_dill
 class CodersTest(unittest.TestCase):
 
   # These class methods ensure that we test each defined coder in both
@@ -166,10 +179,16 @@ class CodersTest(unittest.TestCase):
         coders.BigIntegerCoder,  # tested in DecimalCoder
         coders.TimestampPrefixingOpaqueWindowCoder,
     ])
+    if not dill:
+      standard -= set(
+          [coders.DillCoder, coders.DeterministicFastPrimitivesCoder])
     cls.seen_nested -= set(
         [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])
     assert not standard - cls.seen, str(standard - cls.seen)
     assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
+
+  def tearDown(self):
+    typecoders.registry.update_compatibility_version = None
 
   @classmethod
   def _observe(cls, coder):
@@ -215,13 +234,31 @@ class CodersTest(unittest.TestCase):
     coder = coders.PickleCoder()
     self.check_coder(coder, *self.test_values)
 
+  def test_cloudpickle_pickle_coder(self):
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
+    self.check_coder(coders.CloudpickleCoder(), 'a', 1, cell_value)
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), coders.CloudpickleCoder())),
+        (1, cell_value))
+
   def test_memoizing_pickle_coder(self):
     coder = coders._MemoizingPickleCoder()
     self.check_coder(coder, *self.test_values)
 
-  def test_deterministic_coder(self):
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.67.0"),
+  ])
+  def test_deterministic_coder(self, compat_version):
+
+    typecoders.registry.update_compatibility_version = compat_version
     coder = coders.FastPrimitivesCoder()
-    deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
+    if not dill and compat_version:
+      with self.assertRaises(RuntimeError):
+        coder.as_deterministic_coder(step_label="step")
+      self.skipTest('Dill not installed')
+    deterministic_coder = coder.as_deterministic_coder(step_label="step")
+
     self.check_coder(deterministic_coder, *self.test_values_deterministic)
     for v in self.test_values_deterministic:
       self.check_coder(coders.TupleCoder((deterministic_coder, )), (v, ))
@@ -243,8 +280,16 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(deterministic_coder, test_message.MessageA(field1='value'))
 
+    # Skip this test during cloudpickle. Dill monkey patches the __reduce__
+    # method for anonymous named tuples (MyNamedTuple) which is not pickleable.
+    # Since the test is parameterized the type gets colbbered.
+    if compat_version:
+      self.check_coder(
+          deterministic_coder, [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
+
     self.check_coder(
-        deterministic_coder, [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
+        deterministic_coder,
+        [AnotherNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
 
     if dataclasses is not None:
       self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
@@ -254,9 +299,10 @@ class CodersTest(unittest.TestCase):
       with self.assertRaises(TypeError):
         self.check_coder(
             deterministic_coder, FrozenDataClass(UnFrozenDataClass(1, 2), 3))
-      with self.assertRaises(TypeError):
-        self.check_coder(
-            deterministic_coder, MyNamedTuple(UnFrozenDataClass(1, 2), 3))
+        with self.assertRaises(TypeError):
+          self.check_coder(
+              deterministic_coder,
+              AnotherNamedTuple(UnFrozenDataClass(1, 2), 3))
 
     self.check_coder(deterministic_coder, list(MyEnum))
     self.check_coder(deterministic_coder, list(MyIntEnum))
@@ -275,7 +321,40 @@ class CodersTest(unittest.TestCase):
               1: 'x', 'y': 2
           }))
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.67.0"),
+  ])
+  def test_deterministic_map_coder_is_update_compatible(self, compat_version):
+    typecoders.registry.update_compatibility_version = compat_version
+    values = [{
+        MyTypedNamedTuple(i, 'a'): MyTypedNamedTuple('a', i)
+        for i in range(10)
+    }]
+
+    coder = coders.MapCoder(
+        coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder())
+
+    if not dill and compat_version:
+      with self.assertRaises(RuntimeError):
+        coder.as_deterministic_coder(step_label="step")
+      self.skipTest('Dill not installed')
+
+    deterministic_coder = coder.as_deterministic_coder(step_label="step")
+
+    assert isinstance(
+        deterministic_coder._key_coder,
+        coders.DeterministicFastPrimitivesCoderV2
+        if not compat_version else coders.DeterministicFastPrimitivesCoder)
+
+    self.check_coder(deterministic_coder, *values)
+
   def test_dill_coder(self):
+    if not dill:
+      with self.assertRaises(RuntimeError):
+        coders.DillCoder()
+      self.skipTest('Dill not installed')
+
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
     self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
     self.check_coder(
@@ -599,6 +678,134 @@ class CodersTest(unittest.TestCase):
                 1, (window.IntervalWindow(11, 21), ),
                 PaneInfo(True, False, 1, 2, 3))))
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.67.0"),
+  ])
+  def test_cross_process_encoding_of_special_types_is_deterministic(
+      self, compat_version):
+    """Test cross-process determinism for all special deterministic types"""
+    if compat_version:
+      pytest.importorskip("dill")
+
+    if sys.executable is None:
+      self.skipTest('No Python interpreter found')
+    typecoders.registry.update_compatibility_version = compat_version
+
+    # pylint: disable=line-too-long
+    script = textwrap.dedent(
+        f'''\
+        import pickle
+        import sys
+        import collections
+        import enum
+        import logging
+
+        from apache_beam.coders import coders
+        from apache_beam.coders import typecoders
+        from apache_beam.coders.coders_test_common import MyNamedTuple
+        from apache_beam.coders.coders_test_common import MyTypedNamedTuple
+        from apache_beam.coders.coders_test_common import MyEnum
+        from apache_beam.coders.coders_test_common import MyIntEnum
+        from apache_beam.coders.coders_test_common import MyIntFlag
+        from apache_beam.coders.coders_test_common import MyFlag
+        from apache_beam.coders.coders_test_common import DefinesGetState
+        from apache_beam.coders.coders_test_common import DefinesGetAndSetState
+        from apache_beam.coders.coders_test_common import FrozenDataClass
+
+
+        from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            stream=sys.stderr,
+            force=True
+        )
+        
+        # Test cases for all special deterministic types
+        # NOTE: When this script run in a subprocess the module is considered
+        #  __main__. Dill cannot pickle enums in __main__ because it
+        # needs to define a way to create the type if it does not exist
+        # in the session, and reaches recursion depth limits.
+        test_cases = [
+            ("proto_message", test_message.MessageA(field1='value')),
+            ("named_tuple_simple", MyNamedTuple(1, 2)),
+            ("typed_named_tuple", MyTypedNamedTuple(1, 'a')),
+            ("named_tuple_list", [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')]),
+            ("enum_single", MyEnum.E1),
+            ("enum_list", list(MyEnum)),
+            ("int_enum_list", list(MyIntEnum)),
+            ("int_flag_list", list(MyIntFlag)),
+            ("flag_list", list(MyFlag)),
+            ("getstate_setstate_simple", DefinesGetAndSetState(1)),
+            ("getstate_setstate_complex", DefinesGetAndSetState((1, 2, 3))),
+            ("getstate_setstate_list", [DefinesGetAndSetState(1), DefinesGetAndSetState((1, 2, 3))]),
+        ]
+
+        
+        test_cases.extend([
+            ("frozen_dataclass", FrozenDataClass(1, 2)),
+            ("frozen_dataclass_list", [FrozenDataClass(1, 2), FrozenDataClass(3, 4)]),
+        ])
+
+        compat_version = {'"'+ compat_version +'"' if compat_version else None}
+        typecoders.registry.update_compatibility_version = compat_version
+        coder = coders.FastPrimitivesCoder()
+        deterministic_coder = coder.as_deterministic_coder("step")
+        
+        results = dict()
+        for test_name, value in test_cases:
+            try:
+                encoded = deterministic_coder.encode(value)
+                results[test_name] = encoded
+            except Exception as e:
+              logging.warning("Encoding failed with %s", e)
+              sys.exit(1)
+        
+        sys.stdout.buffer.write(pickle.dumps(results))
+                
+        
+    ''')
+
+    def run_subprocess():
+      result = subprocess.run([sys.executable, '-c', script],
+                              capture_output=True,
+                              timeout=30,
+                              check=False)
+
+      self.assertEqual(
+          0, result.returncode, f"Subprocess failed: {result.stderr}")
+      return pickle.loads(result.stdout)
+
+    results1 = run_subprocess()
+    results2 = run_subprocess()
+
+    coder = coders.FastPrimitivesCoder()
+    deterministic_coder = coder.as_deterministic_coder("step")
+
+    for test_name in results1:
+      data1 = results1[test_name]
+      data2 = results2[test_name]
+
+      self.assertEqual(
+          data1, data2, f"Cross-process encoding differs for {test_name}")
+      self.assertGreater(len(data1), 1)
+
+      try:
+        decoded1 = deterministic_coder.decode(data1)
+        decoded2 = deterministic_coder.decode(data2)
+      except Exception as e:
+        logging.warning("Could not decode %s data due to %s", test_name, e)
+        continue
+
+      self.assertEqual(
+          decoded1, decoded2, f"Cross-process decoding differs for {test_name}")
+      self.assertIsInstance(
+          decoded1,
+          type(decoded2),
+          f"Cross-process decoding differs for {test_name}")
+
   def test_proto_coder(self):
     # For instructions on how these test proto message were generated,
     # see coders_test.py
@@ -706,7 +913,7 @@ class CodersTest(unittest.TestCase):
         {
             i: str(i)
             for i in range(5000)
-        }
+        },
     ]
     map_coder = coders.MapCoder(coders.VarIntCoder(), coders.StrUtf8Coder())
     self.check_coder(map_coder, *values)

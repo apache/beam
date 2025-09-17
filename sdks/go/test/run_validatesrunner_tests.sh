@@ -259,6 +259,12 @@ s.close()
 
 TMPDIR=$(mktemp -d)
 
+if [[ -n "$JAVA_HOME_JOB_SERVER" ]]; then
+  JAVA_CMD="$JAVA_HOME_JOB_SERVER/bin/java"
+else
+  JAVA_CMD="java"
+fi
+
 # Set up environment based on runner.
 if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" || "$RUNNER" == "prism" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
@@ -266,7 +272,7 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
     ENDPOINT="localhost:$JOB_PORT"
     echo "No endpoint specified; starting a new $RUNNER job server on $ENDPOINT"
     if [[ "$RUNNER" == "flink" ]]; then
-      java \
+      "$JAVA_CMD" \
           -jar $FLINK_JOB_SERVER_JAR \
           --flink-master [local] \
           --flink-conf-dir $CURRENT_DIRECTORY/../../../runners/flink/src/test/resources \
@@ -274,13 +280,13 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
           --expansion-port 0 \
           --artifact-port 0 &
     elif [[ "$RUNNER" == "samza" ]]; then
-      java \
+      "$JAVA_CMD" \
           -jar $SAMZA_JOB_SERVER_JAR \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
     elif [[ "$RUNNER" == "spark" ]]; then
-      java \
+      "$JAVA_CMD" \
           -jar $SPARK_JOB_SERVER_JAR \
           --spark-master-url local \
           --job-port $JOB_PORT \
@@ -311,28 +317,28 @@ if [[ "$RUNNER" != "direct" ]]; then
     EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     TEST_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No test expansion address specified; starting a new test expansion server on $TEST_EXPANSION_ADDR"
-    java -jar $TEST_EXPANSION_JAR $EXPANSION_PORT &
+    "$JAVA_CMD" -jar $TEST_EXPANSION_JAR $EXPANSION_PORT &
     TEST_EXPANSION_PID=$!
   fi
   if [[ -z "$IO_EXPANSION_ADDR" && -n "$IO_EXPANSION_JAR" ]]; then
     EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     IO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No IO expansion address specified; starting a new IO expansion server on $IO_EXPANSION_ADDR"
-    java -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
+    "$JAVA_CMD" -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
     IO_EXPANSION_PID=$!
   fi
   if [[ -z "$SCHEMAIO_EXPANSION_ADDR" && -n "$SCHEMAIO_EXPANSION_JAR" ]]; then
       EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
       SCHEMAIO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
       echo "No SchemaIO expansion address specified; starting a new SchemaIO expansion server on $SCHEMAIO_EXPANSION_ADDR"
-      java -jar $SCHEMAIO_EXPANSION_JAR $EXPANSION_PORT &
+      "$JAVA_CMD" -jar $SCHEMAIO_EXPANSION_JAR $EXPANSION_PORT &
       SCHEMAIO_EXPANSION_PID=$!
   fi
   if [[ -z "$DEBEZIUMIO_EXPANSION_ADDR" && -n "$DEBEZIUMIO_EXPANSION_JAR" ]]; then
       EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
       DEBEZIUMIO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
       echo "No DebeziumIO expansion address specified; starting a new DebeziumIO expansion server on $DEBEZIUMIO_EXPANSION_ADDR"
-      java -jar $DEBEZIUMIO_EXPANSION_JAR $EXPANSION_PORT &
+      "$JAVA_CMD" -jar $DEBEZIUMIO_EXPANSION_JAR $EXPANSION_PORT &
       DEBEZIUMIO_EXPANSION_PID=$!
   fi
 fi
@@ -345,6 +351,33 @@ fi
 if [[ "$RUNNER" == "dataflow" ]]; then
   # Verify docker and gcloud commands exist
   command -v docker
+  # Check if Docker daemon is running
+  if ! docker info >/dev/null 2>&1; then
+    echo "Warning: Docker daemon is not running. Starting Docker..."
+    # Try to start Docker daemon (this may require sudo on some systems)
+    if command -v systemctl >/dev/null 2>&1; then
+      sudo systemctl start docker || echo "Failed to start Docker daemon via systemctl"
+    elif command -v service >/dev/null 2>&1; then
+      sudo service docker start || echo "Failed to start Docker daemon via service"
+    else
+      echo "Please start Docker daemon manually"
+      exit 1
+    fi
+    # Wait for Docker daemon to be ready
+    for i in {1..30}; do
+      if docker info >/dev/null 2>&1; then
+        echo "Docker daemon is now running"
+        break
+      fi
+      echo "Waiting for Docker daemon to start... ($i/30)"
+      sleep 2
+    done
+    # Final check
+    if ! docker info >/dev/null 2>&1; then
+      echo "Error: Docker daemon failed to start. Please start it manually."
+      exit 1
+    fi
+  fi
   docker -v
   command -v gcloud
   gcloud --version
@@ -368,18 +401,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   CONTAINER=us.gcr.io/$PROJECT/$USER/beam_go_sdk
   echo "Using container $CONTAINER"
 
-  # TODO(https://github.com/apache/beam/issues/27674): remove this branch once the jenkins VM can build multiarch, or jenkins is deprecated.
-  if [[ "$USER" == "jenkins" ]]; then
-    ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
-
-    # Verify it exists
-    docker images | grep $TAG
-
-    # Push the container
-    gcloud docker -- push $CONTAINER:$TAG
-  else 
-    ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
-  fi
+  ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
 
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     ARGS="$ARGS --experiments=use_portable_job_submission"
@@ -389,7 +411,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       JAVA_TAG=$(date +%Y%m%d-%H%M%S)
       JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
       echo "Using container $JAVA_CONTAINER for cross-language java transforms"
-      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG -Pjava11Home=$JAVA11_HOME
+      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG
 
       # Verify it exists
       docker images | grep $JAVA_TAG
@@ -451,9 +473,6 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
   # the associated container images can't be deleted because they are not tagged. However, multi-arch containers that are
   # older than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs daily.
-  if [[ "$USER" == "jenkins" ]]; then
-    gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
-  fi
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     # Delete the java cross-language container locally and remotely
     docker rmi $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to remove container"

@@ -46,12 +46,13 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -344,7 +345,7 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
       // Don't need to check timestamp since we can always output using the input timestamp.
       outputTo(
           mainOutputConsumer,
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   KV.of(
                       getCurrentElement().getValue(),
@@ -352,13 +353,13 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
                   size),
               getCurrentElement().getTimestamp(),
               getCurrentWindow(),
-              getCurrentElement().getPane()));
+              getCurrentElement().getPaneInfo()));
     }
   }
 
   /** This context outputs KV<KV<Element, KV<Restriction, WatermarkEstimatorState>>, Size>. */
   private class SizedRestrictionNonWindowObservingArgumentProvider
-      extends SplitRestrictionArgumentProvider implements OutputReceiver<RestrictionT> {
+      extends SplitRestrictionArgumentProvider {
     @Override
     public void output(RestrictionT subrestriction) {
       double size = getSize(subrestriction);
@@ -411,7 +412,7 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
 
     @Override
     public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-      return getCurrentElement().getPane();
+      return getCurrentElement().getPaneInfo();
     }
 
     @Override

@@ -97,10 +97,10 @@ public class Reify {
                         @Element T element,
                         @DoFn.Timestamp Instant timestamp,
                         BoundedWindow window,
-                        PaneInfo pane,
+                        PaneInfo paneInfo,
                         OutputReceiver<ValueInSingleWindow<T>> r) {
                       r.outputWithTimestamp(
-                          ValueInSingleWindow.of(element, timestamp, window, pane), timestamp);
+                          ValueInSingleWindow.of(element, timestamp, window, paneInfo), timestamp);
                     }
                   }))
           .setCoder(
@@ -143,12 +143,13 @@ public class Reify {
                         @Element KV<K, V> element,
                         @DoFn.Timestamp Instant timestamp,
                         BoundedWindow window,
-                        PaneInfo pane,
+                        PaneInfo paneInfo,
                         OutputReceiver<KV<K, ValueInSingleWindow<V>>> r) {
                       r.output(
                           KV.of(
                               element.getKey(),
-                              ValueInSingleWindow.of(element.getValue(), timestamp, window, pane)));
+                              ValueInSingleWindow.of(
+                                  element.getValue(), timestamp, window, paneInfo)));
                     }
                   }))
           .setCoder(
@@ -271,7 +272,7 @@ public class Reify {
    * Returns a {@link PCollection} consisting of a single element, containing the value of the given
    * view in the global window.
    */
-  public static <K, V> PTransform<PBegin, PCollection<V>> viewInGlobalWindow(
+  public static <V> PTransform<PBegin, PCollection<V>> viewInGlobalWindow(
       PCollectionView<V> view, Coder<V> coder) {
     return new ReifyViewInGlobalWindow<>(view, coder);
   }

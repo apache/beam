@@ -18,3 +18,6 @@
 @import './inspector/Inspectables.css';
 @import './inspector/InspectableView.css';
 @import './inspector/InteractiveInspector.css';
+@import './yaml/Yaml.css';
+@import './yaml/YamlEditor.css';
+@import './yaml/YamlFlow.css';

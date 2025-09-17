@@ -62,6 +62,10 @@ dependencies {
     permitUnusedDeclared 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11' // BEAM-11761
     implementation 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
     permitUnusedDeclared 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
+    implementation 'com.google.cloud.sql:postgres-socket-factory:1.25.0'
+    permitUnusedDeclared 'com.google.cloud.sql:postgres-socket-factory:1.25.0'
+    implementation 'com.google.cloud.sql:mysql-socket-factory-connector-j-8:1.25.0'
+    permitUnusedDeclared 'com.google.cloud.sql:mysql-socket-factory-connector-j-8:1.25.0'
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
     runtimeOnly ("org.xerial:sqlite-jdbc:3.49.1.0")

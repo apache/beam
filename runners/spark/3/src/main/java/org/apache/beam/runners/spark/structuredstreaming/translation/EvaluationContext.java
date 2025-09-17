@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 import java.util.Collection;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
  * pipeline. For example, this is necessary to materialize side-inputs. The {@link
  * EvaluationContext} won't re-evaluate such datasets.
  */
+@SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
 @Internal
 public final class EvaluationContext {
   private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);

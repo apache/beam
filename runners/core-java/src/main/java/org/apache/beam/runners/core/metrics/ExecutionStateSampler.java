@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -51,6 +52,7 @@ public class ExecutionStateSampler {
     this.clock = clock;
   }
 
+  @SuppressFBWarnings("MS_EXPOSE_REP") // singleton
   public static ExecutionStateSampler instance() {
     return INSTANCE;
   }

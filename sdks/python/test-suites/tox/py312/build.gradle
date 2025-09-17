@@ -23,8 +23,20 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
+def posargs = project.findProperty("posargs") ?: ""
+
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.12'
+
+project.tasks.register("postCommitPyDep") {}
+
+toxTask "testPy312pytorch-271", "py312-pytorch-271", "${posargs}"
+test.dependsOn "testPy312pytorch-271"
+postCommitPyDep.dependsOn "testPy312pytorch-271"
+
+toxTask "testPy312tensorflow-216", "py312-tensorflow-216", "${posargs}"
+test.dependsOn "testPy312tensorflow-216"
+postCommitPyDep.dependsOn "testPy312tensorflow-216"
 
 apply from: "../common.gradle"
 

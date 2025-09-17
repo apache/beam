@@ -45,11 +45,12 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IdentitySideInputWindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -102,11 +103,11 @@ public class ParDoEvaluatorTest {
     ParDoEvaluator<Integer> evaluator = createEvaluator(singletonView, fn, inputPc, output);
 
     IntervalWindow nonGlobalWindow = new IntervalWindow(new Instant(0), new Instant(10_000L));
-    WindowedValue<Integer> first = WindowedValue.valueInGlobalWindow(3);
+    WindowedValue<Integer> first = WindowedValues.valueInGlobalWindow(3);
     WindowedValue<Integer> second =
-        WindowedValue.of(2, new Instant(1234L), nonGlobalWindow, PaneInfo.NO_FIRING);
+        WindowedValues.of(2, new Instant(1234L), nonGlobalWindow, PaneInfo.NO_FIRING);
     WindowedValue<Integer> third =
-        WindowedValue.of(
+        WindowedValues.of(
             1,
             new Instant(2468L),
             ImmutableList.of(nonGlobalWindow, GlobalWindow.INSTANCE),
@@ -120,14 +121,14 @@ public class ParDoEvaluatorTest {
     assertThat(
         result.getUnprocessedElements(),
         Matchers.<WindowedValue<?>>containsInAnyOrder(
-            second, WindowedValue.of(1, new Instant(2468L), nonGlobalWindow, PaneInfo.NO_FIRING)));
+            second, WindowedValues.of(1, new Instant(2468L), nonGlobalWindow, PaneInfo.NO_FIRING)));
     assertThat(result.getOutputBundles(), Matchers.contains(outputBundle));
     assertThat(fn.processed, containsInAnyOrder(1, 3));
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()).commit(Instant.now()).getElements(),
         containsInAnyOrder(
             first.withValue(8),
-            WindowedValue.timestampedValueInGlobalWindow(6, new Instant(2468L))));
+            WindowedValues.timestampedValueInGlobalWindow(6, new Instant(2468L))));
   }
 
   private ParDoEvaluator<Integer> createEvaluator(

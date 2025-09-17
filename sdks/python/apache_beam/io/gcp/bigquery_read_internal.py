@@ -239,6 +239,17 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     else:
       raise ValueError("temp_dataset has to be either str or DatasetReference")
 
+  def _get_temp_dataset_project(self):
+    """Returns the project ID for temporary dataset operations.
+    
+    If temp_dataset is a DatasetReference, returns its projectId.
+    Otherwise, returns the pipeline project for billing.
+    """
+    if isinstance(self.temp_dataset, DatasetReference):
+      return self.temp_dataset.projectId
+    else:
+      return self._get_project()
+
   def start_bundle(self):
     self.bq = bigquery_tools.BigQueryWrapper(
         temp_dataset_id=self._get_temp_dataset_id(),
@@ -278,7 +289,9 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def finish_bundle(self):
     if self.bq.created_temp_dataset:
-      self.bq.clean_up_temporary_dataset(self._get_project())
+      # Use the same project that was used to create the temp dataset
+      temp_dataset_project = self._get_temp_dataset_project()
+      self.bq.clean_up_temporary_dataset(temp_dataset_project)
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -303,7 +316,11 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       element: 'ReadFromBigQueryRequest'):
     location = bq.get_query_location(
         self._get_project(), element.query, not element.use_standard_sql)
-    bq.create_temporary_dataset(self._get_project(), location)
+    # Use the project from temp_dataset if it's a DatasetReference,
+    # otherwise use the pipeline project
+    temp_dataset_project = self._get_temp_dataset_project()
+    bq.create_temporary_dataset(
+        temp_dataset_project, location, kms_key=self.kms_key)
 
   def _execute_query(
       self,

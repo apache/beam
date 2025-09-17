@@ -52,8 +52,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20250602'
-ext.dataflowFnapiContainerVersion = 'beam-master-20250602'
+ext.dataflowLegacyContainerVersion = 'beam-master-20250811'
+ext.dataflowFnapiContainerVersion = 'beam-master-20250811'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -164,9 +164,15 @@ def legacyPipelineOptions = [
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-  "--workerHarnessContainerImage=",
   "--experiments=enable_lineage"
 ]
+
+// For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
+// make Dataflow pick up the non-versioned container image, which handles a staged worker jar,
+// unless testJavaVersion is specified, then the client picks up the current beam-master container.
+if (!project.hasProperty('testJavaVersion')) {
+  legacyPipelineOptions += ["--workerHarnessContainerImage="]
+}
 
 def runnerV2PipelineOptions = [
   "--runner=TestDataflowRunner",
@@ -209,8 +215,6 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
-// For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
-// make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
   def name = args.name
   def pipelineOptions = args.pipelineOptions ?: legacyPipelineOptions
@@ -281,7 +285,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
   group = "verification"
   dependsOn 'buildAndPushDistrolessContainerImage'
-  def javaVer = project.findProperty('testJavaVersion')
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
   def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
   def tag = project.findProperty('dockerTag')
   def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
@@ -309,7 +313,7 @@ tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
   // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
   def allowed = ["java17", "java21"]
   doLast {
-    def javaVer = project.findProperty('testJavaVersion')
+    def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
     if (!allowed.contains(javaVer)) {
       throw new GradleException("testJavaVersion must be one of ${allowed}, got: ${javaVer}")
     }
@@ -837,10 +841,7 @@ task GCSUpload(type: JavaExec) {
 }
 
 def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
-  def javaVer = getSupportedJavaVersion()
-  if(project.hasProperty('testJavaVersion')) {
-    javaVer = "java${project.getProperty('testJavaVersion')}"
-  }
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
   dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",

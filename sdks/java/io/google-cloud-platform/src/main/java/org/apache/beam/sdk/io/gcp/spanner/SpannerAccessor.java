@@ -43,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +60,9 @@ public class SpannerAccessor implements AutoCloseable {
    * workload is coming from Dataflow and to potentially apply performance optimizations
    */
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
+
+  /** Instance ID to use when connecting to an experimental host. */
+  public static final String EXPERIMENTAL_HOST_INSTANCE_ID = "default";
 
   // Only create one SpannerAccessor for each different SpannerConfig.
   private static final ConcurrentHashMap<SpannerConfig, SpannerAccessor> spannerAccessors =
@@ -219,6 +223,24 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setServiceFactory(serviceFactory);
     }
     builder.setHost(spannerConfig.getHostValue());
+
+    ValueProvider<String> experimentalHost = spannerConfig.getExperimentalHost();
+    if (experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get())) {
+      builder.setExperimentalHost(experimentalHost.get());
+      ValueProvider<Boolean> plainText = spannerConfig.getPlainText();
+      ValueProvider<String> instanceId = spannerConfig.getInstanceId();
+      if (Strings.isNullOrEmpty(instanceId.get())
+          || !instanceId.get().equals(EXPERIMENTAL_HOST_INSTANCE_ID)) {
+        throw new IllegalArgumentException(
+            "Experimental host can only be used with instance id: "
+                + EXPERIMENTAL_HOST_INSTANCE_ID);
+      }
+      if (plainText != null && Boolean.TRUE.equals(plainText.get())) {
+        builder.setChannelConfigurator(b -> b.usePlaintext());
+        builder.setCredentials(NoCredentials.getInstance());
+      }
+    }
+
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();
     if (emulatorHost != null) {
       builder.setEmulatorHost(emulatorHost.get());
@@ -229,6 +251,10 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setCredentials(NoCredentials.getInstance());
     }
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
+    SpannerIOMetadata spannerIOMetadata = SpannerIOMetadata.create();
+    if (!Strings.isNullOrEmpty(spannerIOMetadata.getBeamJobId())) {
+      userAgentString = userAgentString + "/" + spannerIOMetadata.getBeamJobId();
+    }
     builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
     ValueProvider<String> databaseRole = spannerConfig.getDatabaseRole();
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
@@ -264,7 +290,7 @@ public class SpannerAccessor implements AutoCloseable {
       // fetch instanceConfigId is fail-free.
       // Do not emit warning when serviceFactory is overridden (e.g. in tests).
       if (spannerConfig.getServiceFactory() == null) {
-        LOG.warn("unable to get Spanner instanceConfigId for {}: {}", instanceId, e.getMessage());
+        LOG.warn("unable to get Spanner instanceConfigId for {}", instanceId, e);
       }
     }
 

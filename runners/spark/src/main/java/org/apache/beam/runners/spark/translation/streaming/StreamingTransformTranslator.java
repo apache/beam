@@ -76,7 +76,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
@@ -87,6 +86,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -140,7 +141,7 @@ public final class StreamingTransformTranslator {
             context
                 .getSparkContext()
                 .parallelize(
-                    Collections.singletonList(WindowedValue.valueInGlobalWindow(new byte[0])));
+                    Collections.singletonList(WindowedValues.valueInGlobalWindow(new byte[0])));
         ConstantInputDStream<WindowedValue<byte[]>> inputStream =
             new ConstantInputDStream<>(context.getStreamingContext().ssc(), rdd.rdd(), classTag);
         JavaDStream<WindowedValue<byte[]>> stream = new JavaDStream<>(inputStream, classTag);
@@ -227,8 +228,8 @@ public final class StreamingTransformTranslator {
       private Queue<JavaRDD<WindowedValue<T>>> buildRdds(
           Queue<Iterable<TimestampedValue<T>>> batches, JavaStreamingContext jssc, Coder<T> coder) {
 
-        final WindowedValue.FullWindowedValueCoder<T> windowCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
+        final WindowedValues.FullWindowedValueCoder<T> windowCoder =
+            WindowedValues.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
 
         final Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
 
@@ -237,7 +238,7 @@ public final class StreamingTransformTranslator {
               StreamSupport.stream(timestampedValues.spliterator(), false)
                   .map(
                       timestampedValue ->
-                          WindowedValue.of(
+                          WindowedValues.of(
                               timestampedValue.getValue(),
                               timestampedValue.getTimestamp(),
                               GlobalWindow.INSTANCE,
@@ -324,7 +325,7 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
+  private static <T> TransformEvaluator<Window.Assign<T>> window() {
     return new TransformEvaluator<Window.Assign<T>>() {
       @Override
       public void evaluate(final Window.Assign<T> transform, EvaluationContext context) {
@@ -368,8 +369,8 @@ public final class StreamingTransformTranslator {
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
 
         // --- coders.
-        final WindowedValue.WindowedValueCoder<V> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+        final WindowedValues.WindowedValueCoder<V> wvCoder =
+            WindowedValues.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
             SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
@@ -410,7 +411,7 @@ public final class StreamingTransformTranslator {
 
         Coder<WindowedValue<?>> coderInternal =
             (Coder)
-                WindowedValue.getFullCoder(
+                WindowedValues.getFullCoder(
                     ListCoder.of(output.getCoderInternal()),
                     output.getWindowingStrategyInternal().getWindowFn().windowCoder());
 
@@ -634,8 +635,8 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
 
-        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+        final WindowedValues.WindowedValueCoder<KV<K, V>> wvCoder =
+            WindowedValues.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
 
         JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
             dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));

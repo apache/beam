@@ -34,17 +34,16 @@ import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -57,13 +56,18 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
+import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.ReadableDateTime;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -110,18 +114,37 @@ public class RecordWriterManagerTest {
       String tableName, org.apache.iceberg.Schema schema, @Nullable PartitionSpec partitionSpec) {
     TableIdentifier tableIdentifier = TableIdentifier.of("default", tableName);
 
-    warehouse.createTable(tableIdentifier, schema, partitionSpec);
+    // TODO: remove when we enable dynamic table creation with partition specs
+    if (partitionSpec != null) {
+      warehouse.createTable(tableIdentifier, schema, partitionSpec);
+    }
 
     IcebergDestination icebergDestination =
         IcebergDestination.builder()
             .setFileFormat(FileFormat.PARQUET)
             .setTableIdentifier(tableIdentifier)
             .build();
-    return WindowedValue.of(
-        icebergDestination,
-        GlobalWindow.TIMESTAMP_MAX_VALUE,
-        GlobalWindow.INSTANCE,
-        PaneInfo.NO_FIRING);
+    return WindowedValues.valueInGlobalWindow(icebergDestination);
+  }
+
+  @Test
+  public void testCreateNamespaceAndTable() {
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    Namespace newNamespace = Namespace.of("new_namespace");
+    TableIdentifier identifier = TableIdentifier.of(newNamespace, testName.getMethodName());
+    WindowedValue<IcebergDestination> dest =
+        WindowedValues.valueInGlobalWindow(
+            IcebergDestination.builder()
+                .setFileFormat(FileFormat.PARQUET)
+                .setTableIdentifier(identifier)
+                .build());
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+
+    assertFalse(catalog.namespaceExists(newNamespace));
+    boolean writeSuccess = writerManager.write(dest, row);
+    assertTrue(writeSuccess);
+    assertTrue(catalog.namespaceExists(newNamespace));
   }
 
   @Test
@@ -513,13 +536,35 @@ public class RecordWriterManagerTest {
     assertEquals(1, dataFile.getRecordCount());
     // build this string: bool=true/int=1/long=1/float=1.0/double=1.0/str=str
     List<String> expectedPartitions = new ArrayList<>();
-    List<String> dateTypes = Arrays.asList("date", "time", "datetime", "datetime_tz");
-    for (Schema.Field field : primitiveTypeSchema.getFields()) {
-      Object val = checkStateNotNull(row.getValue(field.getName()));
-      if (dateTypes.contains(field.getName())) {
-        val = URLEncoder.encode(val.toString(), UTF_8.toString());
+
+    for (PartitionField field : spec.fields()) {
+      String name = field.name();
+      Type type = spec.schema().findType(name);
+      Transform<Object, Object> transform = (Transform<Object, Object>) field.transform();
+      String val;
+      switch (name) {
+        case "date":
+          LocalDate localDate = checkStateNotNull(row.getValue(name));
+          Integer day = Integer.parseInt(String.valueOf(localDate.toEpochDay()));
+          val = transform.toHumanString(type, day);
+          break;
+        case "time":
+          LocalTime localTime = checkStateNotNull(row.getValue(name));
+          val = transform.toHumanString(type, localTime.toNanoOfDay() / 1000);
+          break;
+        case "datetime":
+          LocalDateTime ldt = checkStateNotNull(row.getValue(name));
+          val = transform.toHumanString(type, DateTimeUtil.microsFromTimestamp(ldt));
+          break;
+        case "datetime_tz":
+          ReadableDateTime dt = checkStateNotNull(row.getDateTime(name));
+          val = transform.toHumanString(type, dt.getMillis() * 1000);
+          break;
+        default:
+          val = transform.toHumanString(type, checkStateNotNull(row.getValue(name)));
+          break;
       }
-      expectedPartitions.add(field.getName() + "=" + val);
+      expectedPartitions.add(name + "=" + URLEncoder.encode(val, UTF_8.toString()));
     }
     String expectedPartitionPath = String.join("/", expectedPartitions);
     assertEquals(expectedPartitionPath, dataFile.getPartitionPath());
@@ -745,7 +790,7 @@ public class RecordWriterManagerTest {
             .setFileFormat(FileFormat.PARQUET)
             .build();
     WindowedValue<IcebergDestination> singleDestination =
-        WindowedValue.valueInGlobalWindow(destination);
+        WindowedValues.valueInGlobalWindow(destination);
 
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
@@ -807,7 +852,7 @@ public class RecordWriterManagerTest {
             .setFileFormat(FileFormat.PARQUET)
             .build();
     WindowedValue<IcebergDestination> singleDestination =
-        WindowedValue.valueInGlobalWindow(destination);
+        WindowedValues.valueInGlobalWindow(destination);
 
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();

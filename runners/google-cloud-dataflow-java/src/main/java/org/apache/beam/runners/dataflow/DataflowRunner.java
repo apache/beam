@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -135,7 +134,6 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.DeduplicatedFlattenFactory;
@@ -168,6 +166,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
@@ -1222,6 +1221,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         > 0);
   }
 
+  private static final Random RANDOM = new Random();
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
@@ -1364,7 +1365,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // job previously created with the same job name, and that the job creation
     // has been effectively rejected. The SDK should return
     // Error::Already_Exists to user in that case.
-    int randomNum = new Random().nextInt(9000) + 1000;
+    int randomNum = RANDOM.nextInt(9000) + 1000;
     String requestId =
         DateTimeFormat.forPattern("YYYYMMddHHmmssmmm")
                 .withZone(DateTimeZone.UTC)
@@ -2177,7 +2178,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       // Using a GlobalWindowCoder as a place holder because GlobalWindowCoder is known coder.
       stepContext.addEncodingInput(
-          WindowedValue.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE));
+          WindowedValues.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE));
       stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
     }
   }
@@ -2234,12 +2235,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       } else {
         StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
         stepContext.addInput(PropertyNames.FORMAT, "impulse");
-        WindowedValue.FullWindowedValueCoder<byte[]> coder =
-            WindowedValue.getFullCoder(
+        WindowedValues.FullWindowedValueCoder<byte[]> coder =
+            WindowedValues.getFullCoder(
                 context.getOutput(transform).getCoder(), GlobalWindow.Coder.INSTANCE);
         byte[] encodedImpulse;
         try {
-          encodedImpulse = encodeToByteArray(coder, WindowedValue.valueInGlobalWindow(new byte[0]));
+          encodedImpulse =
+              encodeToByteArray(coder, WindowedValues.valueInGlobalWindow(new byte[0]));
         } catch (Exception e) {
           throw new RuntimeException(e);
         }

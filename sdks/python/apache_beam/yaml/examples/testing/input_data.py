@@ -16,10 +16,89 @@
 # limitations under the License.
 #
 
-"""
-This file contains the input data to be requested by the example tests, if
-needed.
-"""
+import json
+import typing
+
+from apache_beam.io.gcp.pubsub import PubsubMessage
+
+# This file contains the input data to be requested by the example tests, if
+# needed.
+
+
+def text_data():
+  return '\n'.join([
+      "Fool\tThou shouldst not have been old till thou hadst",
+      "\tbeen wise.",
+      "KING LEAR\tNothing will come of nothing: speak again.",
+      "\tNever, never, never, never, never!"
+  ])
+
+
+def word_count_jinja_parameter_data():
+  params = {
+      "readFromTextTransform": {
+          "path": "gs://dataflow-samples/shakespeare/kinglear.txt"
+      },
+      "mapToFieldsSplitConfig": {
+          "language": "python", "fields": {
+              "value": "1"
+          }
+      },
+      "explodeTransform": {
+          "fields": "word"
+      },
+      "combineTransform": {
+          "group_by": "word", "combine": {
+              "value": "sum"
+          }
+      },
+      "mapToFieldsCountConfig": {
+          "language": "python",
+          "fields": {
+              "output": "word + \" - \" + str(value)"
+          }
+      },
+      "writeToTextTransform": {
+          "path": "gs://apache-beam-testing-derrickaw/wordCounts/"
+      }
+  }
+  return json.dumps(params)
+
+
+def word_count_jinja_template_data(test_name: str) -> list[str]:
+  if test_name == 'test_wordCountInclude_yaml':
+    return [
+        'apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/readFromTextTransform.yaml',
+        'apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/mapToFieldsSplitConfig.yaml',
+        'apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/explodeTransform.yaml',
+        'apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/combineTransform.yaml',
+        'apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/mapToFieldsCountConfig.yaml',
+        'apache_beam/yaml/examples/transforms/jinja/'
+        'include/submodules/writeToTextTransform.yaml'
+    ]
+  elif test_name == 'test_wordCountImport_yaml':
+    return [
+        'apache_beam/yaml/examples/transforms/jinja/'
+        'import/macros/wordCountMacros.yaml'
+    ]
+  return []
+
+
+def iceberg_dynamic_destinations_users_data():
+  return [{
+      'id': 3, 'name': 'Smith', 'email': 'smith@example.com', 'zip': 'NY'
+  },
+          {
+              'id': 4,
+              'name': 'Beamberg',
+              'email': 'beamberg@example.com',
+              'zip': 'NY'
+          }]
 
 
 def products_csv():
@@ -30,6 +109,15 @@ def products_csv():
       'T0024,Aluminum Mug,Kitchen,29.99',
       'T0104,Headphones,Electronics,59.99',
       'T0302,Monitor,Electronics,249.99'
+  ])
+
+
+def youtube_comments_csv():
+  return '\n'.join([
+      'video_id,comment_text,likes,replies',
+      'XpVt6Z1Gjjo,I AM HAPPY,1,1',
+      'XpVt6Z1Gjjo,I AM SAD,1,1',
+      'XpVt6Z1Gjjo,§ÁĐ,1,1'
   ])
 
 
@@ -57,7 +145,7 @@ def spanner_orders_data():
           }]
 
 
-def spanner_shipments_data():
+def shipments_data():
   return [{
       'shipment_id': 'S1',
       'customer_id': 'C1',
@@ -144,3 +232,123 @@ def bigquery_data():
               'customer_name': 'Claire',
               'customer_email': 'claire@gmail.com'
           }]
+
+
+def pubsub_messages_data():
+  """
+  Provides a list of PubsubMessage objects for testing.
+  """
+  return [
+      PubsubMessage(data=b"{\"label\": \"37a\", \"rank\": 1}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37b\", \"rank\": 4}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37c\", \"rank\": 3}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37d\", \"rank\": 2}", attributes={}),
+  ]
+
+
+def pubsub_taxi_ride_events_data():
+  """
+  Provides a list of PubsubMessage objects for testing taxi ride events.
+  """
+  return [
+      PubsubMessage(
+          data=b"{\"ride_id\": \"1\", \"longitude\": 11.0, \"latitude\": -11.0,"
+          b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:29:00.00000-04:00\", \"ride_status\": \"pickup\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"2\", \"longitude\": 22.0, \"latitude\": -22.0,"
+          b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:30:00.00000-04:00\", \"ride_status\": \"pickup\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"1\", \"longitude\": 13.0, \"latitude\": -13.0,"
+          b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:31:00.00000-04:00\", \"ride_status\": \"enroute\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"2\", \"longitude\": 24.0, \"latitude\": -24.0,"
+          b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:32:00.00000-04:00\", \"ride_status\": \"enroute\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"3\", \"longitude\": 33.0, \"latitude\": -33.0,"
+          b"\"passenger_count\": 3, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:35:00.00000-04:00\", \"ride_status\": \"enroute\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"4\", \"longitude\": 44.0, \"latitude\": -44.0,"
+          b"\"passenger_count\": 4, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:35:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"1\", \"longitude\": 15.0, \"latitude\": -15.0,"
+          b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:33:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"2\", \"longitude\": 26.0, \"latitude\": -26.0,"
+          b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:34:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
+          attributes={}),
+  ]
+
+
+def kafka_messages_data():
+  """
+  Provides a list of Kafka messages for testing.
+  """
+  return [data.encode('utf-8') for data in text_data().split('\n')]
+
+
+class TaxiRideEventSchema(typing.NamedTuple):
+  ride_id: str
+  longitude: float
+  latitude: float
+  passenger_count: int
+  meter_reading: float
+  timestamp: str
+  ride_status: str
+
+
+def system_logs_csv():
+  return '\n'.join([
+      'LineId,Date,Time,Level,Process,Component,Content',
+      '1,2024-10-01,12:00:00,INFO,Main,ComponentA,System started successfully',
+      '2,2024-10-01,12:00:05,WARN,Main,ComponentA,Memory usage is high',
+      '3,2024-10-01,12:00:10,ERROR,Main,ComponentA,Task failed due to timeout',
+  ])
+
+
+def system_logs_data():
+  csv_data = system_logs_csv()
+  lines = csv_data.strip().split('\n')
+  headers = lines[0].split(',')
+  logs = []
+  for row in lines[1:]:
+    values = row.split(',')
+    log = dict(zip(headers, values))
+    log['LineId'] = int(log['LineId'])
+    logs.append(log)
+
+  return logs
+
+
+def embedding_data():
+  return [0.1, 0.2, 0.3, 0.4, 0.5]
+
+
+def system_logs_embedding_data():
+  csv_data = system_logs_csv()
+  lines = csv_data.strip().split('\n')
+  headers = lines[0].split(',')
+  headers.append('embedding')
+  logs = []
+  for row in lines[1:]:
+    values = row.split(',')
+    values.append(embedding_data())
+    log = dict(zip(headers, values))
+    log['LineId'] = int(log['LineId'])
+    logs.append(log)
+
+  return logs

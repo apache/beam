@@ -372,7 +372,11 @@ class FusionTest(unittest.TestCase):
                            reshuffle=False)
 
   def test_loc_filter(self):
-    with beam.Pipeline() as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # monitoring_metrics property of the FnApiRunner which does not exist on
+    # other runners like Prism.
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    with beam.Pipeline('FnApiRunner') as p:
       _ = (
           self.create_animal_speed_input(p)
           | transforms.DataframeTransform(lambda df: df[df.Speed > 10]))
@@ -383,7 +387,11 @@ class FusionTest(unittest.TestCase):
       df[name] = s
       return df
 
-    with beam.Pipeline() as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # monitoring_metrics property of the FnApiRunner which does not exist on
+    # other runners like Prism.
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    with beam.Pipeline('FnApiRunner') as p:
       _ = (
           self.create_animal_speed_input(p)
           | transforms.DataframeTransform(

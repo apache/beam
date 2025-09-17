@@ -1426,6 +1426,8 @@ public class AvroIO {
 
     abstract boolean getNoSpilling();
 
+    abstract @Nullable Integer getMaxNumWritersPerBundle();
+
     abstract @Nullable FilenamePolicy getFilenamePolicy();
 
     abstract @Nullable DynamicAvroDestinations<UserT, DestinationT, OutputT>
@@ -1482,6 +1484,9 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT, OutputT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
+          @Nullable Integer maxNumWritersPerBundle);
 
       abstract Builder<UserT, DestinationT, OutputT> setFilenamePolicy(
           FilenamePolicy filenamePolicy);
@@ -1690,6 +1695,12 @@ public class AvroIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** See {@link WriteFiles#withMaxNumWritersPerBundle()}. */
+    public TypedWrite<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
+        @Nullable Integer maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
     /** Writes to Avro file(s) compressed using specified codec. */
     public TypedWrite<UserT, DestinationT, OutputT> withCodec(CodecFactory codec) {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
@@ -1798,6 +1809,9 @@ public class AvroIO {
       }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
+      }
+      if (getMaxNumWritersPerBundle() != null) {
+        write = write.withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       }
       if (getBadRecordErrorHandler() != null) {
         write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());

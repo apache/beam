@@ -29,7 +29,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -64,6 +63,7 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.util.UnboundedScheduledExecutorService;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
@@ -276,10 +276,17 @@ public class FnHarness {
 
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
-    ExecutorService executorService =
-        options.as(ExecutorOptions.class).getScheduledExecutorService();
+    UnboundedScheduledExecutorService executorService = new UnboundedScheduledExecutorService();
+    options.as(ExecutorOptions.class).setScheduledExecutorService(executorService);
+    CompletableFuture<Void> samplerTerminationFuture = new CompletableFuture<>();
     ExecutionStateSampler executionStateSampler =
-        new ExecutionStateSampler(options, System::currentTimeMillis);
+        new ExecutionStateSampler(
+            options,
+            System::currentTimeMillis,
+            message -> {
+              String errMsg = "FATAL ERROR: Timeout occurred! Exiting JVM. Details:" + message;
+              samplerTerminationFuture.completeExceptionally(new RuntimeException(errMsg));
+            });
 
     final @Nullable DataSampler dataSampler = DataSampler.create(options);
 
@@ -413,9 +420,11 @@ public class FnHarness {
               executorService,
               handlers);
       if (options.as(SdkHarnessOptions.class).getEnableLogViaFnApi()) {
-        CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
+        CompletableFuture.anyOf(
+                control.terminationFuture(), logging.terminationFuture(), samplerTerminationFuture)
+            .get();
       } else {
-        control.terminationFuture().get();
+        CompletableFuture.anyOf(control.terminationFuture(), samplerTerminationFuture).get();
       }
       if (beamFnStatusClient != null) {
         beamFnStatusClient.close();

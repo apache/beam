@@ -20,24 +20,24 @@ package org.apache.beam.runners.dataflow.worker.util;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.PeekingReiterator;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
@@ -90,7 +90,7 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       PipelineOptions options,
       StepContext stepContext,
       SideInputReader sideInputReader,
-      OutputWindowedValue<KV<K, Iterable<V>>> output)
+      WindowedValueReceiver<KV<K, Iterable<V>>> output)
       throws Exception {
     K key = element.getKey();
     // This iterable is required to be in order of increasing timestamps
@@ -125,11 +125,12 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
           // Iterating through the WindowReiterable may advance iterator as an optimization
           // for as long as it detects that there are no new windows.
           windows.put(window.maxTimestamp(), window);
-          output.outputWindowedValue(
-              KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
-              strategy.getTimestampCombiner().assign(typedWindow, e.getTimestamp()),
-              Arrays.asList(window),
-              PaneInfo.ON_TIME_AND_ONLY_FIRING);
+          output.output(
+              WindowedValues.of(
+                  KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
+                  strategy.getTimestampCombiner().assign(typedWindow, e.getTimestamp()),
+                  window,
+                  PaneInfo.ON_TIME_AND_ONLY_FIRING));
         }
       }
       // Copy the iterator in case the next DoFn cached its version of the iterator instead

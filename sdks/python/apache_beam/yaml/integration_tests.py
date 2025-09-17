@@ -24,18 +24,22 @@ import itertools
 import logging
 import os
 import random
+import secrets
 import sqlite3
 import string
 import unittest
 import uuid
+from datetime import datetime
+from datetime import timezone
 
 import mock
-import mysql.connector
 import psycopg2
 import pytds
 import sqlalchemy
 import yaml
 from google.cloud import pubsub_v1
+from google.cloud.bigtable import client
+from google.cloud.bigtable_admin_v2.types import instance
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
@@ -53,6 +57,10 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
+from apache_beam.yaml.conftest import yaml_test_files_dir
+from apitools.base.py.exceptions import HttpError
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
@@ -77,7 +85,7 @@ def gcs_temp_dir(bucket):
 
 @contextlib.contextmanager
 def temp_spanner_table(project, prefix='temp_spanner_db_'):
-  """Context manager to create and clean up a temporary Spanner database and 
+  """Context manager to create and clean up a temporary Spanner database and
   table.
 
   Creates a unique temporary Spanner database within the specified project
@@ -93,7 +101,7 @@ def temp_spanner_table(project, prefix='temp_spanner_db_'):
   Yields:
     list[str]: A list containing connection details:
       [project_id, instance_id, database_id, table_name, list_of_columns].
-      Example: ['my-project', 'beam-test', 'temp_spanner_db_...', 'tmp_table', 
+      Example: ['my-project', 'beam-test', 'temp_spanner_db_...', 'tmp_table',
         ['UserId', 'Key']]
   """
   spanner_client = SpannerWrapper(project)
@@ -143,6 +151,55 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
   bigquery_client.client.datasets.Delete(request)
 
 
+def instance_prefix(instance):
+  datestr = "".join(filter(str.isdigit, str(datetime.now(timezone.utc).date())))
+  instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
+  assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
+  return instance_id
+
+
+@contextlib.contextmanager
+def temp_bigtable_table(project, prefix='yaml_bt_it_'):
+  INSTANCE = "bt-write-tests"
+  TABLE_ID = "test-table"
+
+  instance_id = instance_prefix(INSTANCE)
+
+  clientT = client.Client(admin=True, project=project)
+  # create cluster and instance
+  instanceT = clientT.instance(
+      instance_id,
+      display_name=INSTANCE,
+      instance_type=instance.Instance.Type.DEVELOPMENT)
+  cluster = instanceT.cluster("test-cluster", "us-central1-a")
+  operation = instanceT.create(clusters=[cluster])
+  operation.result(timeout=500)
+  _LOGGER.info("Created instance [%s] in project [%s]", instance_id, project)
+
+  # create table inside instance
+  table = instanceT.table(TABLE_ID)
+  table.create()
+  _LOGGER.info("Created table [%s]", table.table_id)
+  # in the table that is created, make a new family called cf1
+  col_fam = table.column_family('cf1')
+  col_fam.create()
+
+  # another family called cf2
+  col_fam = table.column_family('cf2')
+  col_fam.create()
+
+  #yielding the tmp table for all the bigTable tests
+  yield instance_id
+
+  #try catch for deleting table and instance after all tests are ran
+  try:
+    _LOGGER.info("Deleting table [%s]", table.table_id)
+    table.delete()
+    instanceT.delete()
+  except HttpError:
+    _LOGGER.warning("Failed to clean up instance")
+
+
 @contextlib.contextmanager
 def temp_sqlite_database(prefix='yaml_jdbc_it_'):
   """Context manager to provide a temporary SQLite database via JDBC for
@@ -151,7 +208,7 @@ def temp_sqlite_database(prefix='yaml_jdbc_it_'):
   This function creates a temporary SQLite database file on the local
   filesystem. It establishes a connection using 'sqlite3', creates a predefined
   'tmp_table', and then yields a JDBC connection string suitable for use in
-  tests that require a generic JDBC connection (specifically configured for 
+  tests that require a generic JDBC connection (specifically configured for
   SQLite in this case).
 
   The SQLite database file is automatically cleaned up (closed and deleted)
@@ -227,27 +284,23 @@ def temp_mysql_database():
                              with the MySQL database during setup.
       Exception: Any other exception encountered during the setup process.
   """
-  with MySqlContainer() as mysql_container:
-    try:
-      # Make connection to temp database and create tmp table
-      engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
-      with engine.begin() as connection:
-        connection.execute(
-            sqlalchemy.text(
-                "CREATE TABLE tmp_table (value INTEGER, `rank` INTEGER);"))
+  with MySqlContainer(init=True, dialect='pymysql') as mysql_container:
+    # Make connection to temp database and create tmp table
+    engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
+    with engine.begin() as connection:
+      connection.execute(
+          sqlalchemy.text(
+              "CREATE TABLE tmp_table (value INTEGER, `rank` INTEGER);"))
 
-      # Construct the JDBC url for connections later on by tests
-      jdbc_url = (
-          f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
-          f"{mysql_container.get_exposed_port(mysql_container.port_to_expose)}/"
-          f"{mysql_container.MYSQL_DATABASE}?"
-          f"user={mysql_container.MYSQL_USER}&"
-          f"password={mysql_container.MYSQL_PASSWORD}")
+    # Construct the JDBC url for connections later on by tests
+    jdbc_url = (
+        f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
+        f"{mysql_container.get_exposed_port(mysql_container.port)}/"
+        f"{mysql_container.dbname}?"
+        f"user={mysql_container.username}&"
+        f"password={mysql_container.password}")
 
-      yield jdbc_url
-    except mysql.connector.Error as err:
-      logging.error("Error interacting with temporary MySQL DB: %s", err)
-      raise err
+    yield jdbc_url
 
 
 @contextlib.contextmanager
@@ -289,9 +342,9 @@ def temp_postgres_database():
       jdbc_url = (
           f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
           f"{postgres_container.get_exposed_port(default_port)}/"
-          f"{postgres_container.POSTGRES_DB}?"
-          f"user={postgres_container.POSTGRES_USER}&"
-          f"password={postgres_container.POSTGRES_PASSWORD}")
+          f"{postgres_container.dbname}?"
+          f"user={postgres_container.username}&"
+          f"password={postgres_container.password}")
 
       yield jdbc_url
     except (psycopg2.Error, Exception) as err:
@@ -346,9 +399,9 @@ def temp_sqlserver_database():
       jdbc_url = (
           f"jdbc:sqlserver://{sqlserver_container.get_container_host_ip()}:"
           f"{int(sqlserver_container.get_exposed_port(default_port))};"
-          f"databaseName={sqlserver_container.SQLSERVER_DBNAME};"
-          f"user={sqlserver_container.SQLSERVER_USER};"
-          f"password={sqlserver_container.SQLSERVER_PASSWORD};"
+          f"databaseName={sqlserver_container.dbname};"
+          f"user={sqlserver_container.username};"
+          f"password={sqlserver_container.password};"
           f"encrypt=true;"
           f"trustServerCertificate=true")
 
@@ -360,11 +413,11 @@ def temp_sqlserver_database():
 
 class OracleTestContainer(DockerContainer):
   """
-    OracleTestContainer is an updated version of OracleDBContainer that goes
-    ahead and sets the oracle password, waits for logs to establish that the 
-    container is ready before calling get_exposed_port, and uses a more modern
-    oracle driver.  
-    """
+  OracleTestContainer is an updated version of OracleDBContainer that goes
+  ahead and sets the oracle password, waits for logs to establish that the
+  container is ready before calling get_exposed_port, and uses a more modern
+  oracle driver.
+  """
   def __init__(self):
     super().__init__("gvenzl/oracle-xe:21-slim")
     self.with_env("ORACLE_PASSWORD", "oracle")
@@ -439,12 +492,12 @@ def temp_kafka_server():
       Exception: If there's an error starting the Kafka container or
                  interacting with the temporary Kafka server.
   """
-  try:
-    with KafkaContainer() as kafka_container:
+  with KafkaContainer() as kafka_container:
+    try:
       yield kafka_container.get_bootstrap_server()
-  except Exception as err:
-    logging.error("Error interacting with temporary Kakfa Server: %s", err)
-    raise err
+    except Exception as err:
+      logging.error("Error interacting with temporary Kakfa Server: %s", err)
+      raise err
 
 
 @contextlib.contextmanager
@@ -482,6 +535,22 @@ def temp_pubsub_emulator(project_id="apache-beam-testing"):
 
 
 def replace_recursive(spec, vars):
+  """Recursively replaces string placeholders in a spec with values from vars.
+
+  Traverses a nested structure (dicts, lists, or other types). If a string
+  is encountered and contains placeholders in the format '{key}', it attempts
+  to replace them using the `vars` dictionary.
+
+  Args:
+    spec: The (potentially nested) structure to process.
+    vars: A dictionary of variable names to their replacement values.
+
+  Returns:
+    The spec with placeholders replaced.
+
+  Raises:
+    ValueError: If a string formatting error occurs.
+  """
   if isinstance(spec, dict):
     return {
         key: replace_recursive(value, vars)
@@ -502,6 +571,20 @@ def replace_recursive(spec, vars):
 
 
 def transform_types(spec):
+  """Recursively extracts all transform types from a pipeline specification.
+
+  This generator function traverses a nested pipeline specification (likely
+  parsed from YAML). It identifies and yields the 'type' string for each
+  transform defined within the specification, including those within
+  'composite' or 'chain' structures.
+
+  Args:
+    spec (dict): A dictionary representing a pipeline or transform
+      specification.
+
+  Yields:
+    str: The 'type' of each transform found in the specification.
+  """
   if spec.get('type', None) in (None, 'composite', 'chain'):
     if 'source' in spec:
       yield from transform_types(spec['source'])
@@ -514,8 +597,30 @@ def transform_types(spec):
 
 
 def provider_sets(spec, require_available=False):
-  """For transforms that are vended by multiple providers, yields all possible
-  combinations of providers to use.
+  """
+  Generates all relevant combinations of providers for a given pipeline spec.
+
+  This function analyzes a pipeline specification to identify transforms that
+  can be implemented by multiple underlying providers (e.g., a generic
+  transform vs. a SQL-backed one). It then yields different "provider sets,"
+  each representing a unique combination of choices for these multi-provider
+  transforms.
+
+  If no transforms have multiple available providers, it yields a single
+  provider set using the standard defaults.
+
+  Args:
+    spec (dict): The pipeline specification, typically loaded from YAML.
+    require_available (bool): If True, raises an error if a provider
+      needed for a transform is not available. If False (default),
+      unavailable providers are skipped, potentially reducing the number
+      of yielded combinations.
+
+  Yields:
+    tuple: A tuple where the first element is a string suffix uniquely
+      identifying the provider combination (e.g., "MyTransform_SqlProvider_0"),
+      and the second element is a dictionary mapping transform types to a list
+      containing the selected provider(s) for that combination.
   """
   try:
     for p in spec['pipelines']:
@@ -565,6 +670,39 @@ def provider_sets(spec, require_available=False):
 
 
 def create_test_methods(spec):
+  """Dynamically creates test methods based on a YAML specification.
+
+  This function takes a YAML specification (`spec`) which defines pipelines,
+  fixtures, and potentially options. It iterates through different
+  combinations of "providers" (which determine how YAML transforms are
+  implemented, e.g., using Python or SQL).
+
+  For each combination of providers:
+    1. It constructs a unique test method name (e.g., `test_only`).
+    2. It defines a test method that:
+        a. Sets up any specified fixtures, making their values available as
+           variables.
+        b. Mocks the standard YAML providers to use the current combination
+           of providers for this test run.
+        c. For each pipeline defined in the `spec`:
+            i. Creates a `beam.Pipeline` instance with specified options.
+            ii. Expands the YAML pipeline definition using
+               `yaml_transform.expand_pipeline`, substituting any fixture
+               variables.
+            iii. Runs the Beam pipeline.
+
+  The function yields tuples of (test_method_name, test_method_function),
+  which can then be used to populate a `unittest.TestCase` class.
+
+  Args:
+    spec (dict): A dictionary parsed from a YAML test specification file.
+      It's expected to have keys like 'fixtures' (optional) and 'pipelines'.
+
+  Yields:
+    tuple: A tuple containing:
+      - str: The generated name for the test method (e.g., "test_only").
+      - function: The dynamically generated test method.
+  """
   for suffix, providers in provider_sets(spec):
 
     def test(self, providers=providers):  # default arg to capture loop value
@@ -592,6 +730,23 @@ def create_test_methods(spec):
 
 
 def parse_test_files(filepattern):
+  """Parses YAML test files and dynamically creates test cases.
+
+  This function iterates through all files matching the given glob pattern.
+  For each YAML file found, it:
+    1. Reads the file content.
+    2. Determines a test suite name based on the file name.
+    3. Calls `create_test_methods` to generate test methods from the
+       YAML specification.
+    4. Dynamically creates a new TestCase class (inheriting from
+       `unittest.TestCase`) and populates it with the generated test methods.
+    5. Adds this newly created TestCase class to the global scope, making it
+       discoverable by the unittest framework.
+
+  Args:
+    filepattern (str): A glob pattern specifying the YAML test files to parse.
+      For example, 'path/to/tests/*.yaml'.
+  """
   for path in glob.glob(filepattern):
     with open(path) as fin:
       suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
@@ -603,8 +758,15 @@ def parse_test_files(filepattern):
       globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 
 
+# Logging setups
 logging.getLogger().setLevel(logging.INFO)
-parse_test_files(os.path.join(os.path.dirname(__file__), 'tests', '*.yaml'))
+
+# Dynamically create test methods from the tests directory.
+# yaml_test_files_dir comes from conftest.py and set by pytest_configure.
+_test_files_dir = yaml_test_files_dir
+_file_pattern = os.path.join(
+    os.path.dirname(__file__), _test_files_dir, '*.yaml')
+parse_test_files(_file_pattern)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

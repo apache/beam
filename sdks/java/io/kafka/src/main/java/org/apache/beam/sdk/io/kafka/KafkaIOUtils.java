@@ -39,6 +39,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * KafkaIO.ReadSourceDescriptors}.
  */
 public final class KafkaIOUtils {
+
+  private static final Random RANDOM = new Random();
+
   // A set of config defaults.
   static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
       ImmutableMap.of(
@@ -108,7 +111,7 @@ public final class KafkaIOUtils {
     String offsetGroupId =
         String.format(
             "%s_offset_consumer_%d_%s",
-            name, new Random().nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
+            name, RANDOM.nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
     offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
 
     if (offsetConfig != null) {
@@ -165,18 +168,23 @@ public final class KafkaIOUtils {
       AVG.lazySet(this, Double.doubleToRawLongBits(value));
     }
 
-    private long incrementAndGetNumUpdates() {
-      final long nextNumUpdates = Math.min(MOVING_AVG_WINDOW, numUpdates + 1);
-      numUpdates = nextNumUpdates;
-      return nextNumUpdates;
-    }
-
     public void update(final double quantity) {
       final double prevAvg = getAvg(); // volatile load (acquire)
 
-      final long nextNumUpdates = incrementAndGetNumUpdates(); // normal load/store
-      final double nextAvg = prevAvg + (quantity - prevAvg) / nextNumUpdates; // normal load/store
+      final long nextNumUpdates = numUpdates + 1; // normal load
+      final double nextAvg = prevAvg + (quantity - prevAvg) / nextNumUpdates;
 
+      numUpdates = Math.min(MOVING_AVG_WINDOW, nextNumUpdates); // normal store
+      setAvg(nextAvg); // ordered store (release)
+    }
+
+    public void update(final double sum, final long count) {
+      final double prevAvg = getAvg(); // volatile load (acquire)
+
+      final long nextNumUpdates = numUpdates + count; // normal load
+      final double nextAvg = prevAvg + (sum / count - prevAvg) * ((double) count / nextNumUpdates);
+
+      numUpdates = Math.min(MOVING_AVG_WINDOW, nextNumUpdates); // normal store
       setAvg(nextAvg); // ordered store (release)
     }
 

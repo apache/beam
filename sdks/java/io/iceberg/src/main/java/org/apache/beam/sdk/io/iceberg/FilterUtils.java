@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -24,20 +26,31 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlBasicCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNodeList;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParser;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlBasicCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNodeList;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParser;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.DateString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimeString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimestampString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Schema;
@@ -45,6 +58,7 @@ import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expression.Operation;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.types.Type.TypeID;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.NaNUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -55,8 +69,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Note: Only supports top-level fields (i.e. cannot reference nested fields).
  */
-class FilterUtils {
-  private static final Map<SqlKind, Operation> FILTERS =
+@Internal
+public class FilterUtils {
+  static final Map<SqlKind, Operation> FILTERS =
       ImmutableMap.<SqlKind, Operation>builder()
           .put(SqlKind.IS_NULL, Operation.IS_NULL)
           .put(SqlKind.IS_NOT_NULL, Operation.NOT_NULL)
@@ -72,6 +87,56 @@ class FilterUtils {
           .put(SqlKind.OR, Operation.OR)
           .build();
 
+  public static final Set<SqlKind> SUPPORTED_OPS = FILTERS.keySet();
+
+  /**
+   * Parses a SQL filter expression string and returns a set of all field names referenced within
+   * it.
+   */
+  static Set<String> getReferencedFieldNames(@Nullable String filter) {
+    if (filter == null || filter.trim().isEmpty()) {
+      return new HashSet<>();
+    }
+
+    SqlParser parser = SqlParser.create(filter);
+    try {
+      SqlNode expression = parser.parseExpression();
+      Set<String> fieldNames = new HashSet<>();
+      extractFieldNames(expression, fieldNames);
+      return fieldNames;
+    } catch (Exception exception) {
+      throw new RuntimeException(
+          String.format("Encountered an error when parsing filter: '%s'", filter), exception);
+    }
+  }
+
+  private static void extractFieldNames(SqlNode node, Set<String> fieldNames) {
+    if (node instanceof SqlIdentifier) {
+      fieldNames.add(((SqlIdentifier) node).getSimple());
+    } else if (node instanceof SqlBasicCall) {
+      // recursively check operands
+      SqlBasicCall call = (SqlBasicCall) node;
+      for (SqlNode operand : call.getOperandList()) {
+        extractFieldNames(operand, fieldNames);
+      }
+    } else if (node instanceof SqlNodeList) {
+      // For IN clauses, the right-hand side is a SqlNodeList, so iterate through its elements
+      SqlNodeList nodeList = (SqlNodeList) node;
+      for (SqlNode element : nodeList.getList()) {
+        if (element != null) {
+          extractFieldNames(element, fieldNames);
+        }
+      }
+    }
+    // SqlLiteral nodes do not contain field names, so we can ignore them.
+  }
+  /**
+   * parses a SQL filter expression string into an Iceberg {@link Expression} that can be used for
+   * data pruning.
+   *
+   * <p>Note: This utility currently supports only top-level fields within the filter expression.
+   * Nested field references are not supported.
+   */
   static Expression convert(@Nullable String filter, Schema schema) {
     if (filter == null) {
       return Expressions.alwaysTrue();
@@ -88,7 +153,17 @@ class FilterUtils {
   }
 
   private static Expression convert(SqlNode expression, Schema schema) throws SqlParseException {
-    checkArgument(expression instanceof SqlBasicCall);
+    if (expression instanceof SqlIdentifier) {
+      String fieldName = ((SqlIdentifier) expression).getSimple();
+      Types.NestedField field = schema.caseInsensitiveFindField(fieldName);
+      if (field.type().equals(Types.BooleanType.get())) {
+        return Expressions.equal(field.name(), true);
+      }
+    }
+    checkArgument(
+        expression instanceof SqlBasicCall,
+        String.format(
+            "Expected SqlBasicCall, got %s: %s", expression.getClass().getName(), expression));
     SqlBasicCall call = (SqlBasicCall) expression;
 
     SqlOperator op = call.getOperator();
@@ -210,8 +285,10 @@ class FilterUtils {
     checkArgument(
         value instanceof SqlNodeList,
         "Expected right hand side to be a list but got " + value.getClass());
-    String name = ((SqlIdentifier) term).getSimple();
-    TypeID type = schema.findType(name).typeId();
+    String caseInsensitiveName = ((SqlIdentifier) term).getSimple();
+    Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
+    String name = field.name();
+    TypeID type = field.type().typeId();
     List<SqlNode> list =
         ((SqlNodeList) value)
             .getList().stream().filter(Objects::nonNull).collect(Collectors.toList());
@@ -236,13 +313,17 @@ class FilterUtils {
     SqlNode left = getLeftChild(call);
     SqlNode right = getRightChild(call);
     if (left instanceof SqlIdentifier && right instanceof SqlLiteral) {
-      String name = ((SqlIdentifier) left).getSimple();
-      TypeID type = schema.findType(name).typeId();
+      String caseInsensitiveName = ((SqlIdentifier) left).getSimple();
+      Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
+      String name = field.name();
+      TypeID type = field.type().typeId();
       Object value = convertLiteral((SqlLiteral) right, name, type);
       return convertLR.apply(name, value);
     } else if (left instanceof SqlLiteral && right instanceof SqlIdentifier) {
-      String name = ((SqlIdentifier) right).getSimple();
-      TypeID type = schema.findType(name).typeId();
+      String caseInsensitiveName = ((SqlIdentifier) right).getSimple();
+      Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
+      String name = field.name();
+      TypeID type = field.type().typeId();
       Object value = convertLiteral((SqlLiteral) left, name, type);
       return convertRL.apply(name, value);
     } else {
@@ -251,6 +332,7 @@ class FilterUtils {
   }
 
   private static Object convertLiteral(SqlLiteral literal, String field, TypeID type) {
+    SqlTypeName typeName = literal.getTypeName();
     switch (type) {
       case BOOLEAN:
         return literal.getValueAs(Boolean.class);
@@ -267,17 +349,69 @@ class FilterUtils {
       case STRING:
         return literal.getValueAs(String.class);
       case DATE:
-        LocalDate date = LocalDate.parse(literal.getValueAs(String.class));
+        LocalDate date;
+        if (SqlTypeName.STRING_TYPES.contains(typeName) || SqlTypeName.UNKNOWN.equals(typeName)) {
+          date = LocalDate.parse(literal.getValueAs(String.class));
+        } else if (SqlTypeName.DATE.equals(typeName)) {
+          DateString dateValue = literal.getValueAs(DateString.class);
+          date = LocalDate.parse(dateValue.toString());
+        } else {
+          throw new IllegalArgumentException("Unexpected date type: " + literal.getTypeName());
+        }
         return DateTimeUtil.daysFromDate(date);
       case TIME:
-        LocalTime time = LocalTime.parse(literal.getValueAs(String.class));
+        LocalTime time;
+        if (SqlTypeName.STRING_TYPES.contains(typeName) || SqlTypeName.UNKNOWN.equals(typeName)) {
+          time = LocalTime.parse(literal.getValueAs(String.class));
+        } else if (SqlTypeName.TIME.equals(typeName)) {
+          TimeString timeString = literal.getValueAs(TimeString.class);
+          time = LocalTime.parse(timeString.toString());
+        } else {
+          throw new IllegalArgumentException("Unexpected date type: " + literal.getTypeName());
+        }
         return DateTimeUtil.microsFromTime(time);
       case TIMESTAMP:
-        LocalDateTime dateTime = LocalDateTime.parse(literal.getValueAs(String.class));
-        return DateTimeUtil.microsFromTimestamp(dateTime);
+        LocalDateTime datetime;
+        if (SqlTypeName.STRING_TYPES.contains(typeName) || SqlTypeName.UNKNOWN.equals(typeName)) {
+          String value = literal.getValueAs(String.class);
+          datetime = getLocalDateTime(value);
+        } else if (SqlTypeName.DATE.equals(typeName)) {
+          DateString dateString = literal.getValueAs(DateString.class);
+          datetime = LocalDateTime.of(LocalDate.parse(dateString.toString()), LocalTime.MIN);
+        } else if (SqlTypeName.TIMESTAMP.equals(typeName)) {
+          TimestampString timestampString = literal.getValueAs(TimestampString.class);
+          datetime = getLocalDateTime(timestampString.toString());
+        } else {
+          throw new IllegalArgumentException("Unexpected timestamp type: " + literal.getTypeName());
+        }
+        return DateTimeUtil.microsFromTimestamp(datetime);
       default:
         throw new IllegalArgumentException(
             String.format("Unsupported filter type in field '%s': %s", field, type));
     }
   }
+
+  private static LocalDateTime getLocalDateTime(String value) {
+    LocalDateTime datetime;
+    for (DateTimeFormatter formatter : DATE_TIME_FORMATTERS) {
+      try {
+        datetime = LocalDateTime.parse(value, formatter);
+        return datetime;
+      } catch (DateTimeParseException ignored) {
+      }
+    }
+    return LocalDateTime.of(LocalDate.parse(value), LocalTime.MIN);
+  }
+
+  private static final List<DateTimeFormatter> DATE_TIME_FORMATTERS =
+      Arrays.asList(
+          DateTimeFormatter.ISO_LOCAL_DATE_TIME, // e.g., 2023-10-26T10:30:00[.SSSSSSSSS]
+          new DateTimeFormatterBuilder()
+              .parseCaseInsensitive()
+              .append(ISO_LOCAL_DATE)
+              .appendLiteral(' ')
+              .append(ISO_LOCAL_TIME)
+              .toFormatter(), // e.g. 2023-10-26 10:30:00[.SSSSSSSSS]
+          ISO_LOCAL_DATE // For cases where you only have a date, then combine with a default time
+          );
 }

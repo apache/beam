@@ -26,11 +26,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -64,11 +67,13 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.RowFilter;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
@@ -77,6 +82,8 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
@@ -126,7 +133,7 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>{@link #catalogSetup()}
- *   <li>{@link #catalogCleanup()}
+ *   <li>{@link #catalogCleanup(List)}
  * </ul>
  *
  * <p>1,000 records are used for each test by default. You can change this by overriding {@link
@@ -134,21 +141,39 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class IcebergCatalogBaseIT implements Serializable {
   private static final long SETUP_TEARDOWN_SLEEP_MS = 5000;
+  private static final long AFTER_UPDATE_SLEEP_MS = 2000;
 
   public abstract Catalog createCatalog();
 
   public abstract Map<String, Object> managedIcebergConfig(String tableId);
 
-  public void catalogSetup() throws Exception {}
+  public abstract String type();
 
-  public void catalogCleanup() throws Exception {}
+  public void catalogSetup() {
+    ((SupportsNamespaces) catalog).createNamespace(Namespace.of(namespace()));
+  }
+
+  public void catalogCleanup(List<Namespace> namespaces) throws IOException {
+    for (Namespace namespace : namespaces) {
+      for (TableIdentifier identifier : catalog.listTables(namespace)) {
+        catalog.dropTable(identifier);
+      }
+      if (catalog instanceof SupportsNamespaces) {
+        ((SupportsNamespaces) catalog).dropNamespace(namespace);
+      }
+    }
+  }
 
   public Integer numRecords() {
     return OPTIONS.getRunner().equals(DirectRunner.class) ? 10 : 1000;
   }
 
+  public String namespace() {
+    return catalogName + "_" + testName.getMethodName();
+  }
+
   public String tableId() {
-    return testName.getMethodName() + ".test_table";
+    return namespace() + ".test_table";
   }
 
   public static String warehouse(Class<? extends IcebergCatalogBaseIT> testClass) {
@@ -157,32 +182,23 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         TestPipeline.testingPipelineOptions().getTempLocation(), testClass.getSimpleName(), RANDOM);
   }
 
-  public String catalogName = "test_catalog_" + System.nanoTime();
+  public String catalogName = type() + "_test_catalog_" + System.currentTimeMillis();
 
   @Before
   public void setUp() throws Exception {
-    catalogName += System.nanoTime();
     OPTIONS.as(DirectOptions.class).setTargetParallelism(1);
-    warehouse =
-        String.format(
-            "%s/%s/%s",
-            TestPipeline.testingPipelineOptions().getTempLocation(),
-            getClass().getSimpleName(),
-            RANDOM);
     warehouse = warehouse(getClass());
-    catalogSetup();
+    namespacesToCleanup.add(namespace());
     catalog = createCatalog();
+    catalogSetup();
     Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
   }
 
   @After
   public void cleanUp() throws Exception {
-    try {
-      catalogCleanup();
-      Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
-    } catch (Exception e) {
-      LOG.warn("Catalog cleanup failed.", e);
-    }
+    catalogCleanup(namespacesToCleanup.stream().map(Namespace::of).collect(Collectors.toList()));
+    LOG.info("Successfully cleaned up namespaces: {}", namespacesToCleanup);
+    Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
 
     try {
       GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
@@ -213,6 +229,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   protected static String warehouse;
+  protected List<String> namespacesToCleanup = new ArrayList<>();
   public Catalog catalog;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);
@@ -276,7 +293,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                   .addValue(Float.valueOf(strNum + "." + strNum))
                   .build();
 
-          long timestampMillis = offset2025Millis + TimeUnit.MICROSECONDS.toHours(num);
+          long timestampMillis = offset2025Millis + TimeUnit.HOURS.toMillis(num);
           return Row.withSchema(BEAM_SCHEMA)
               .addValue("value_" + strNum)
               .addValue(String.valueOf((char) (97 + num % 5)))
@@ -287,8 +304,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
-              .addValue(
-                  new DateTime(timestampMillis).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25)))
+              .addValue(new DateTime(timestampMillis).withZone(DateTimeZone.forOffsetHours(4)))
               .addValue(DateTimeUtil.timestampFromMicros(timestampMillis * 1000))
               .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
               .addValue(DateTimeUtil.timeFromMicros(num))
@@ -424,7 +440,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testReadAndKeepSomeFields() throws Exception {
+  public void testReadWithColumnPruning_keep() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
@@ -442,22 +458,31 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testReadWithFilter() throws Exception {
+  public void testReadWithFilterAndColumnPruning_keep() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<String> keepFields = Arrays.asList("datetime_tz", "modulo_5", "str");
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(keepFields);
 
     List<Row> expectedRows =
         populateTable(table).stream()
             .filter(
                 row ->
-                    row.getBoolean("bool_field")
+                    row.getLogicalTypeValue("datetime", LocalDateTime.class)
+                            .isAfter(LocalDateTime.parse("2025-01-01T09:00:00"))
                         && (row.getInt32("int_field") < 500 || row.getInt32("modulo_5") == 3))
+            .map(rowFilter::filter)
             .collect(Collectors.toList());
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
-    config.put("filter", "\"bool_field\" = TRUE AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
+    config.put(
+        "filter",
+        "\"datetime\" > '2025-01-01 09:00' AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
+    config.put("keep", keepFields);
 
     PCollection<Row> rows =
         pipeline.apply(Managed.read(ICEBERG).withConfig(config)).getSinglePCollection();
+    assertEquals(rowFilter.outputSchema(), rows.getSchema());
 
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     pipeline.run().waitUntilFinish();
@@ -489,7 +514,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingReadAndDropSomeFields() throws Exception {
+  public void testStreamingReadWithColumnPruning_drop() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
@@ -618,24 +643,17 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Test
   public void testWriteToPartitionedTable() throws IOException {
-    // For an example row where bool=true, modulo_5=3, str=value_303,
-    // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
-    PartitionSpec partitionSpec =
-        PartitionSpec.builderFor(ICEBERG_SCHEMA)
-            .identity("bool_field")
-            .hour("datetime")
-            .truncate("str", "value_x".length())
-            .build();
-    Table table =
-        catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
-
-    // Write with Beam
-    Map<String, Object> config = managedIcebergConfig(tableId());
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    int truncLength = "value_x".length();
+    config.put(
+        "partition_fields",
+        Arrays.asList("bool_field", "hour(datetime)", "truncate(str, " + truncLength + ")"));
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     // Read back and check records are correct
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
     List<Record> returnedRecords = readRecords(table);
     assertThat(
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
@@ -650,16 +668,15 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   @Test
   public void testStreamingWrite() throws IOException {
     int numRecords = numRecords();
-    PartitionSpec partitionSpec =
-        PartitionSpec.builderFor(ICEBERG_SCHEMA)
-            .identity("bool_field")
-            .identity("modulo_5")
-            .build();
-    Table table =
-        catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put("triggering_frequency_seconds", 4);
+    config.put("partition_fields", Arrays.asList("bool_field", "modulo_5"));
+    // Add table properties for testing
+    Map<String, String> tableProperties = new HashMap<>();
+    tableProperties.put("write.format.default", "parquet");
+    tableProperties.put("commit.retry.num-retries", "3");
+    config.put("table_properties", tableProperties);
 
     // create elements from longs in range [0, 1000)
     PCollection<Row> input =
@@ -675,24 +692,21 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     input.apply(Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
     List<Record> returnedRecords = readRecords(table);
     assertThat(
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+    assertEquals("parquet", table.properties().get("write.format.default"));
+    assertEquals("3", table.properties().get("commit.retry.num-retries"));
   }
 
   @Test
   public void testStreamingWriteWithPriorWindowing() throws IOException {
     int numRecords = numRecords();
-    PartitionSpec partitionSpec =
-        PartitionSpec.builderFor(ICEBERG_SCHEMA)
-            .identity("bool_field")
-            .identity("modulo_5")
-            .build();
-    Table table =
-        catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put("triggering_frequency_seconds", 4);
+    config.put("partition_fields", Arrays.asList("bool_field", "modulo_5"));
 
     // over a span of 10 seconds, create elements from longs in range [0, 1000)
     PCollection<Row> input =
@@ -711,6 +725,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     input.apply(Managed.write(ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
     List<Record> returnedRecords = readRecords(table);
     assertThat(
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
@@ -753,25 +768,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       }
     }
 
-    org.apache.iceberg.Schema tableSchema =
-        IcebergUtils.beamSchemaToIcebergSchema(rowFilter.outputSchema());
-
-    TableIdentifier tableIdentifier0 = TableIdentifier.parse(tableId() + "_0_a");
-    TableIdentifier tableIdentifier1 = TableIdentifier.parse(tableId() + "_1_b");
-    TableIdentifier tableIdentifier2 = TableIdentifier.parse(tableId() + "_2_c");
-    TableIdentifier tableIdentifier3 = TableIdentifier.parse(tableId() + "_3_d");
-    TableIdentifier tableIdentifier4 = TableIdentifier.parse(tableId() + "_4_e");
-    // the sink doesn't support creating partitioned tables yet,
-    // so we need to create it manually for this test case
     if (partitioning) {
       Preconditions.checkState(filterOp == null || !filterOp.equals("only"));
-      PartitionSpec partitionSpec =
-          PartitionSpec.builderFor(tableSchema).identity("bool_field").identity("modulo_5").build();
-      catalog.createTable(tableIdentifier0, tableSchema, partitionSpec);
-      catalog.createTable(tableIdentifier1, tableSchema, partitionSpec);
-      catalog.createTable(tableIdentifier2, tableSchema, partitionSpec);
-      catalog.createTable(tableIdentifier3, tableSchema, partitionSpec);
-      catalog.createTable(tableIdentifier4, tableSchema, partitionSpec);
+      writeConfig.put("partition_fields", Arrays.asList("bool_field", "modulo_5"));
     }
 
     // Write with Beam
@@ -791,12 +790,14 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     input.setRowSchema(BEAM_SCHEMA).apply(Managed.write(ICEBERG).withConfig(writeConfig));
     pipeline.run().waitUntilFinish();
 
-    Table table0 = catalog.loadTable(tableIdentifier0);
-    Table table1 = catalog.loadTable(tableIdentifier1);
-    Table table2 = catalog.loadTable(tableIdentifier2);
-    Table table3 = catalog.loadTable(tableIdentifier3);
-    Table table4 = catalog.loadTable(tableIdentifier4);
+    Table table0 = catalog.loadTable(TableIdentifier.parse(tableId() + "_0_a"));
+    Table table1 = catalog.loadTable(TableIdentifier.parse(tableId() + "_1_b"));
+    Table table2 = catalog.loadTable(TableIdentifier.parse(tableId() + "_2_c"));
+    Table table3 = catalog.loadTable(TableIdentifier.parse(tableId() + "_3_d"));
+    Table table4 = catalog.loadTable(TableIdentifier.parse(tableId() + "_4_e"));
 
+    org.apache.iceberg.Schema tableSchema =
+        IcebergUtils.beamSchemaToIcebergSchema(rowFilter.outputSchema());
     for (Table t : Arrays.asList(table0, table1, table2, table3, table4)) {
       assertTrue(t.schema().sameSchema(tableSchema));
     }
@@ -851,15 +852,120 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     writeToDynamicDestinations(null, true, true);
   }
 
+  @Test
+  public void testWriteToDynamicNamespaces() throws IOException {
+    // run this test only on catalogs that support namespace management
+    assumeTrue(catalog instanceof SupportsNamespaces);
+
+    String tableIdentifierTemplate = namespace() + "_{modulo_5}.table_{bool_field}";
+    Map<String, Object> writeConfig = new HashMap<>(managedIcebergConfig(tableIdentifierTemplate));
+    // override with table template
+    writeConfig.put("table", tableIdentifierTemplate);
+
+    Namespace namespace0 = Namespace.of(namespace() + "_0");
+    Namespace namespace1 = Namespace.of(namespace() + "_1");
+    Namespace namespace2 = Namespace.of(namespace() + "_2");
+    Namespace namespace3 = Namespace.of(namespace() + "_3");
+    Namespace namespace4 = Namespace.of(namespace() + "_4");
+
+    TableIdentifier tableId0true = TableIdentifier.of(namespace0, "table_true");
+    TableIdentifier tableId0false = TableIdentifier.of(namespace0, "table_false");
+    TableIdentifier tableId1true = TableIdentifier.of(namespace1, "table_true");
+    TableIdentifier tableId1false = TableIdentifier.of(namespace1, "table_false");
+    TableIdentifier tableId2true = TableIdentifier.of(namespace2, "table_true");
+    TableIdentifier tableId2false = TableIdentifier.of(namespace2, "table_false");
+    TableIdentifier tableId3true = TableIdentifier.of(namespace3, "table_true");
+    TableIdentifier tableId3false = TableIdentifier.of(namespace3, "table_false");
+    TableIdentifier tableId4true = TableIdentifier.of(namespace4, "table_true");
+    TableIdentifier tableId4false = TableIdentifier.of(namespace4, "table_false");
+
+    List<Namespace> namespaces =
+        Arrays.asList(namespace0, namespace1, namespace2, namespace3, namespace4);
+    SupportsNamespaces sN = (SupportsNamespaces) catalog;
+    // assert namespace don't exist beforehand
+    namespaces.forEach(n -> assertFalse(sN.namespaceExists(n)));
+
+    pipeline
+        .apply(Create.of(inputRows))
+        .setRowSchema(BEAM_SCHEMA)
+        .apply(Managed.write(ICEBERG).withConfig(writeConfig));
+    pipeline.run().waitUntilFinish();
+
+    // assert namespace were created
+    namespaces.forEach(n -> assertTrue(sN.namespaceExists(n)));
+
+    Table table0true = catalog.loadTable(tableId0true);
+    Table table0false = catalog.loadTable(tableId0false);
+    Table table1true = catalog.loadTable(tableId1true);
+    Table table1false = catalog.loadTable(tableId1false);
+    Table table2true = catalog.loadTable(tableId2true);
+    Table table2false = catalog.loadTable(tableId2false);
+    Table table3true = catalog.loadTable(tableId3true);
+    Table table3false = catalog.loadTable(tableId3false);
+    Table table4true = catalog.loadTable(tableId4true);
+    Table table4false = catalog.loadTable(tableId4false);
+
+    for (Table t :
+        Arrays.asList(
+            table0true,
+            table0false,
+            table1true,
+            table1false,
+            table2true,
+            table2false,
+            table3true,
+            table3false,
+            table4true,
+            table4false)) {
+      assertTrue(t.schema().sameSchema(ICEBERG_SCHEMA));
+    }
+
+    // Read back and check records are correct
+    Map<KV<Long, Boolean>, List<Record>> results =
+        ImmutableMap.<KV<Long, Boolean>, List<Record>>builder()
+            .put(KV.of(0L, true), readRecords(table0true))
+            .put(KV.of(0L, false), readRecords(table0false))
+            .put(KV.of(1L, true), readRecords(table1true))
+            .put(KV.of(1L, false), readRecords(table1false))
+            .put(KV.of(2L, true), readRecords(table2true))
+            .put(KV.of(2L, false), readRecords(table2false))
+            .put(KV.of(3L, true), readRecords(table3true))
+            .put(KV.of(3L, false), readRecords(table3false))
+            .put(KV.of(4L, true), readRecords(table4true))
+            .put(KV.of(4L, false), readRecords(table4false))
+            .build();
+
+    for (Map.Entry<KV<Long, Boolean>, List<Record>> entry : results.entrySet()) {
+      long modulo = entry.getKey().getKey();
+      boolean bool = entry.getKey().getValue();
+      List<Record> records = entry.getValue();
+      Stream<Record> expectedRecords =
+          inputRows.stream()
+              .filter(
+                  rec ->
+                      checkStateNotNull(rec.getInt64("modulo_5")) == modulo
+                          && checkStateNotNull(rec.getBoolean("bool_field")) == bool)
+              .map(RECORD_FUNC::apply);
+
+      assertThat(records, containsInAnyOrder(expectedRecords.toArray()));
+    }
+
+    namespaces.stream().map(Namespace::toString).forEach(namespacesToCleanup::add);
+  }
+
   public void runReadBetween(boolean useSnapshotBoundary, boolean streaming) throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
     populateTable(table, "a"); // first snapshot
+    Thread.sleep(AFTER_UPDATE_SLEEP_MS);
     List<Row> expectedRows = populateTable(table, "b"); // second snapshot
     Snapshot from = table.currentSnapshot();
+    Thread.sleep(AFTER_UPDATE_SLEEP_MS);
     expectedRows.addAll(populateTable(table, "c")); // third snapshot
     Snapshot to = table.currentSnapshot();
+    Thread.sleep(AFTER_UPDATE_SLEEP_MS);
     populateTable(table, "d"); // fourth snapshot
+    Thread.sleep(AFTER_UPDATE_SLEEP_MS);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     if (useSnapshotBoundary) {
@@ -879,5 +985,26 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteWithTableProperties() throws IOException {
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    Map<String, String> tableProperties = new HashMap<>();
+    tableProperties.put("write.format.default", "parquet");
+    tableProperties.put("commit.retry.num-retries", "3");
+    config.put("table_properties", tableProperties);
+    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
+    input.apply(Managed.write(ICEBERG).withConfig(config));
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
+    // Read back and check records are correct
+    List<Record> returnedRecords = readRecords(table);
+    assertThat(
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+    // Assert that the table properties are set on the Iceberg table
+    assertEquals("parquet", table.properties().get("write.format.default"));
+    assertEquals("3", table.properties().get("commit.retry.num-retries"));
   }
 }

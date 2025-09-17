@@ -21,12 +21,13 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -70,7 +71,8 @@ public class JdbcConnection extends CalciteConnectionWrapper {
       JdbcConnection jdbcConnection = new JdbcConnection(connection);
       jdbcConnection.setPipelineOptionsMap(extractPipelineOptions(connection));
       jdbcConnection.setSchema(
-          connection.getSchema(), BeamCalciteSchemaFactory.fromInitialEmptySchema(jdbcConnection));
+          connection.getSchema(),
+          BeamCalciteSchemaFactory.catalogFromInitialEmptySchema(jdbcConnection));
       return jdbcConnection;
     } catch (SQLException e) {
       throw new RuntimeException(e);
@@ -135,6 +137,12 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    */
   void setSchema(String name, TableProvider tableProvider) {
     BeamCalciteSchema beamCalciteSchema = new BeamCalciteSchema(this, tableProvider);
+    getRootSchema().add(name, beamCalciteSchema);
+  }
+
+  /** Like {@link #setSchema(String, TableProvider)} but using a {@link CatalogManager}. */
+  void setSchema(String name, CatalogManager catalogManager) {
+    BeamCalciteSchema beamCalciteSchema = new BeamCalciteSchema(this, catalogManager);
     getRootSchema().add(name, beamCalciteSchema);
   }
 }

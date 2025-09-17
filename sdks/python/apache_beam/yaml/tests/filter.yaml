@@ -1,0 +1,170 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
+
+pipelines:
+  # Simple Filter using Python
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {transaction_id: "T0012", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T5034", product_name: "Leather Jacket", category: "Apparel", price: 109.99}
+              - {transaction_id: "T0024", product_name: "Aluminum Mug", category: "Kitchen", price: 29.9}
+              - {transaction_id: "T0104", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+        - type: Filter
+          config:
+            language: python
+            keep: category == "Electronics" and price > 100
+        - type: AssertEqual
+          config:
+            elements:
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+
+  # Simple Filter using Python callable
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {transaction_id: "T0012", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T5034", product_name: "Leather Jacket", category: "Apparel", price: 109.99}
+              - {transaction_id: "T0024", product_name: "Aluminum Mug", category: "Kitchen", price: 29.9}
+              - {transaction_id: "T0104", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+        - type: Filter
+          config:
+            language: python
+            keep:
+              callable: |
+                def my_filter(row):
+                  return row.category == "Electronics" and row.price > 100
+        - type: AssertEqual
+          config:
+            elements:
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+
+  # Simple Filter using Java
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {transaction_id: "T0012", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T5034", product_name: "Leather Jacket", category: "Apparel", price: 109.99}
+              - {transaction_id: "T0024", product_name: "Aluminum Mug", category: "Kitchen", price: 29.9}
+              - {transaction_id: "T0104", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+        - type: Filter
+          config:
+            language: java
+            keep: category.equals("Electronics") && price > 100
+        - type: AssertEqual
+          config:
+            elements:
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+
+  # Simple Filter using Java callable
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {transaction_id: "T0012", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T5034", product_name: "Leather Jacket", category: "Apparel", price: 109.99}
+              - {transaction_id: "T0024", product_name: "Aluminum Mug", category: "Kitchen", price: 29.9}
+              - {transaction_id: "T0104", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+        - type: Filter
+          config:
+            language: java
+            keep:
+              callable: |
+                import org.apache.beam.sdk.values.Row;
+                import java.util.function.Function;
+                public class MyFunction implements Function<Row, Boolean> {
+                  public Boolean apply(Row row) {
+                    return row.getString("category").equals("Electronics") && row.getDouble("price") > 100;
+                  }
+                }
+        - type: AssertEqual
+          config:
+            elements:
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+
+
+  # Simple Filter using SQL
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {transaction_id: "T0012", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T5034", product_name: "Leather Jacket", category: "Apparel", price: 109.99}
+              - {transaction_id: "T0024", product_name: "Aluminum Mug", category: "Kitchen", price: 29.9}
+              - {transaction_id: "T0104", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T0302", product_name: "Monitor", category: "Electronics", price: 249.99}
+        - type: Filter
+          config:
+            language: sql
+            keep: category = 'Electronics' and price < 100
+        - type: AssertEqual
+          config:
+            elements:
+              - {transaction_id: "T0012", product_name: "Headphones", category: "Electronics", price: 59.99}
+              - {transaction_id: "T0104", product_name: "Headphones", category: "Electronics", price: 59.99}
+
+
+  # Simple Filter with error handling
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {category: "Electronics", price: 59.99, product_name: "Headphones", transaction_id: "T0012"}
+        - type: Filter
+          name: FilterWithCategory
+          input: Create
+          config:
+            language: python
+            keep: category == Electronics
+            error_handling:
+              output: error_output
+        - type: WriteToJson
+          name: WriteErrorsToJson
+          input: FilterWithCategory.error_output
+          config:
+            path: "{TEMP_DIR}/error.json"
+
+  # Read errors from previous pipeline
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromJson
+          config:
+            path: "{TEMP_DIR}/error.json*"

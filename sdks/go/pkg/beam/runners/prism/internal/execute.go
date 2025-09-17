@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"runtime/debug"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -76,6 +77,14 @@ func RunPipeline(j *jobservices.Job) {
 	// any related job resources.
 	defer func() {
 		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
+		j.WaitForCleanUp()
+	}()
+
+	// Add this defer function to capture and log panics.
+	defer func() {
+		if e := recover(); e != nil {
+			j.Failed(fmt.Errorf("pipeline panicked: %v\nStacktrace: %s", e, string(debug.Stack())))
+		}
 	}()
 
 	j.SendMsg("running " + j.String())
@@ -95,7 +104,7 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("pipeline completed " + j.String())
 
 	j.SendMsg("terminating " + j.String())
-	j.Done()
+	j.PendingDone()
 }
 
 type transformExecuter interface {
@@ -145,7 +154,20 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
 
-	em := engine.NewElementManager(engine.Config{})
+	config := engine.Config{}
+	m := j.PipelineOptions().AsMap()
+	if experimentsSlice, ok := m["beam:option:experiments:v1"].([]interface{}); ok {
+		for _, exp := range experimentsSlice {
+			if expStr, ok := exp.(string); ok {
+				if expStr == "prism_enable_rtc" {
+					config.EnableRTC = true
+					break // Found it, no need to check the rest of the slice
+				}
+			}
+		}
+	}
+
+	em := engine.NewElementManager(config)
 
 	// TODO move this loop and code into the preprocessor instead.
 	stages := map[string]*stage{}
@@ -346,7 +368,11 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		case rb, ok := <-bundles:
 			if !ok {
 				err := eg.Wait()
-				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Any("topo", topo))
+				var topoAttrs []any
+				for _, s := range topo {
+					topoAttrs = append(topoAttrs, slog.Any(s.ID, s))
+				}
+				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Group("topo", topoAttrs...))
 				return err
 			}
 			eg.Go(func() error {

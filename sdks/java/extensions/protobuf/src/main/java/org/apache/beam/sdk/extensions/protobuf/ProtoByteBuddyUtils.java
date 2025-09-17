@@ -500,7 +500,7 @@ class ProtoByteBuddyUtils {
 
   static <ProtoT> FieldValueGetter<@NonNull ProtoT, OneOfType.Value> createOneOfGetter(
       FieldValueTypeInformation typeInformation,
-      TreeMap<Integer, FieldValueGetter<@NonNull ProtoT, OneOfType.Value>> getterMethodMap,
+      Map<Integer, FieldValueGetter<@NonNull ProtoT, OneOfType.Value>> getterMethodMap,
       Class<ProtoT> protoClass,
       OneOfType oneOfType,
       Method getCaseMethod) {
@@ -562,7 +562,7 @@ class ProtoByteBuddyUtils {
   static <ProtoBuilderT extends MessageLite.Builder>
       FieldValueSetter<ProtoBuilderT, Object> createOneOfSetter(
           String name,
-          TreeMap<Integer, FieldValueSetter<ProtoBuilderT, Object>> setterMethodMap,
+          Map<Integer, FieldValueSetter<ProtoBuilderT, Object>> setterMethodMap,
           Class<ProtoBuilderT> protoBuilderClass) {
     Set<Integer> indices = setterMethodMap.keySet();
     boolean contiguous = isContiguous(indices);

@@ -113,6 +113,16 @@ class _SharedCache:
       return self._cache[key].obj
 
 
+class JavaHelper:
+  @classmethod
+  def get_java(cls):
+    java_path = 'java'
+    java_home = os.environ.get('JAVA_HOME')
+    if java_home:
+      java_path = os.path.join(java_home, 'bin', 'java')
+    return java_path
+
+
 class SubprocessServer(object):
   """An abstract base class for running GRPC Servers as an external process.
 
@@ -122,7 +132,7 @@ class SubprocessServer(object):
       with SubprocessServer(GrpcStubClass, [executable, arg, ...]) as stub:
           stub.CallService(...)
   """
-  def __init__(self, stub_class, cmd, port=None):
+  def __init__(self, stub_class, cmd, port=None, logger=None):
     """Creates the server object.
 
     :param stub_class: the auto-generated GRPC client stub class used for
@@ -133,12 +143,21 @@ class SubprocessServer(object):
         service.  If not given, one will be randomly chosen and the special
         string "{{PORT}}" will be substituted in the command line arguments
         with the chosen port.
+    :param logger: (optional) The logger or logger name to use for the
+        subprocess's stderr and stdout. If not given, the current module logger
+        would be used.
     """
     self._owner_id = None
     self._stub_class = stub_class
     self._cmd = [str(arg) for arg in cmd]
     self._port = port
     self._grpc_channel = None
+    if isinstance(logger, str):
+      self._logger = logging.getLogger(logger)
+    elif isinstance(logger, logging.Logger):
+      self._logger = logger
+    else:
+      self._logger = _LOGGER
 
   @classmethod
   @contextlib.contextmanager
@@ -193,9 +212,9 @@ class SubprocessServer(object):
     if self._owner_id is not None:
       self._cache.purge(self._owner_id)
     self._owner_id = self._cache.register()
-    return self._cache.get(tuple(self._cmd), self._port)
+    return self._cache.get(tuple(self._cmd), self._port, self._logger)
 
-  def _really_start_process(cmd, port):
+  def _really_start_process(cmd, port, logger):
     if not port:
       port, = pick_port(None)
       cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
@@ -210,7 +229,7 @@ class SubprocessServer(object):
       while line:
         # The log obtained from stdout is bytes, decode it into string.
         # Remove newline via rstrip() to not print an empty line.
-        _LOGGER.info(line.decode(errors='backslashreplace').rstrip())
+        logger.info(line.decode(errors='backslashreplace').rstrip())
         line = process.stdout.readline()
 
     t = threading.Thread(target=log_stdout)
@@ -273,19 +292,17 @@ class JavaJarServer(SubprocessServer):
       path_to_jar,
       java_arguments,
       classpath=None,
-      cache_dir=None):
-    java_path = 'java'
-    java_home = os.environ.get('JAVA_HOME')
-    if java_home:
-      java_path = os.path.join(java_home, 'bin', 'java')
-    self._java_path = java_path
+      cache_dir=None,
+      logger=None):
+    self._java_path = JavaHelper.get_java()
     if classpath:
       # java -jar ignores the classpath, so we make a new jar that embeds
       # the requested classpath.
       path_to_jar = self.make_classpath_jar(path_to_jar, classpath, cache_dir)
     super().__init__(
         stub_class,
-        [self._java_path, '-jar', path_to_jar] + list(java_arguments))
+        [self._java_path, '-jar', path_to_jar] + list(java_arguments),
+        logger=logger)
     self._existing_service = path_to_jar if is_service_endpoint(
         path_to_jar) else None
 

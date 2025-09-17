@@ -53,15 +53,16 @@ env:
 
 jobs:
   beam_PostCommit_Python:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, highmem22]
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) (${{ join(matrix.os, ', ') }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
-        job_name: [beam_PostCommit_Python]
-        job_phrase: [Run Python PostCommit]
+        job_name: ['beam_PostCommit_Python']
+        job_phrase: ['Run Python PostCommit']
         python_version: ['3.9', '3.10', '3.11', '3.12']
+        os: [[self-hosted, ubuntu-20.04, highmem22]]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
@@ -74,10 +75,13 @@ jobs:
         with:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) (${{ join(matrix.os, ', ') }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          java-version: |
+            21
+            11
           python-version: ${{ matrix.python_version }}
       - name: Install docker compose
         run: |
@@ -94,7 +98,9 @@ jobs:
         with:
           gradle-command: :python${{steps.set_py_ver_clean.outputs.py_ver_clean}}PostCommit
           arguments: |
+            -Pjava21Home=$JAVA_HOME_21_X64 \
             -PuseWheelDistribution \
+            -Pposargs="-m (not require_docker_in_docker)" \
             -PpythonVersion=${{ matrix.python_version }} \
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
@@ -102,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: Python ${{ matrix.python_version }} Test Results
+          name: Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -112,3 +118,4 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
           large_files: true
+          check_name: "Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})"

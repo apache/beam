@@ -33,7 +33,8 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -56,8 +57,8 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
     TransformEvaluator<Object> evaluator =
         DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
-    WindowedValue<Object> first = WindowedValue.valueInGlobalWindow(new Object());
-    WindowedValue<Object> second = WindowedValue.valueInGlobalWindow(new Object());
+    WindowedValue<Object> first = WindowedValues.valueInGlobalWindow(new Object());
+    WindowedValue<Object> second = WindowedValues.valueInGlobalWindow(new Object());
 
     evaluator.processElement(first);
     verify(underlying).processElement(first);
@@ -82,7 +83,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
         DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
 
     try {
-      evaluator.processElement(WindowedValue.valueInGlobalWindow(new Object()));
+      evaluator.processElement(WindowedValues.valueInGlobalWindow(new Object()));
     } catch (Exception e) {
       assertThat(lifecycleManager.get(), not(Matchers.theInstance(original)));
       return;

@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import org.apache.beam.runners.dataflow.worker.GroupAlsoByWindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /** {@link GroupAlsoByWindowFn} whose input is a {@link KV}, for use in batch. */
 public abstract class BatchGroupAlsoByWindowFn<K, InputT, OutputT>

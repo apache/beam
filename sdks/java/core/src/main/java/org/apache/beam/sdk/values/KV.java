@@ -40,6 +40,7 @@ import org.checkerframework.dataflow.qual.Pure;
  */
 public class KV<K, V> implements Serializable {
   /** Returns a {@link KV} with the given key and value. */
+  @Pure
   public static <K, V> KV<K, V> of(K key, V value) {
     return new KV<>(key, value);
   }

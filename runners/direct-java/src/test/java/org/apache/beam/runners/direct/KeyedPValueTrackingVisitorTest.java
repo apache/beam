@@ -40,11 +40,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -117,7 +118,7 @@ public class KeyedPValueTrackingVisitorTest {
                     KvCoder.of(
                         StringUtf8Coder.of(),
                         IterableCoder.of(
-                            WindowedValue.getValueOnlyCoder(
+                            WindowedValues.getValueOnlyCoder(
                                 KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))))));
 
     PCollection<KeyedWorkItem<String, KV<String, Integer>>> unkeyed =
@@ -141,7 +142,7 @@ public class KeyedPValueTrackingVisitorTest {
             Create.of(
                     KV.of(
                         "hello",
-                        WindowedValue.of(
+                        WindowedValues.of(
                             KV.of("hello", 3),
                             new Instant(0),
                             new IntervalWindow(new Instant(0), new Instant(9)),
@@ -149,7 +150,7 @@ public class KeyedPValueTrackingVisitorTest {
                 .withCoder(
                     KvCoder.of(
                         StringUtf8Coder.of(),
-                        WindowedValue.getValueOnlyCoder(
+                        WindowedValues.getValueOnlyCoder(
                             KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))));
 
     TupleTag<KeyedWorkItem<String, KV<String, Integer>>> keyedTag = new TupleTag<>();

@@ -384,21 +384,13 @@ class ExternalJavaProvider(ExternalProvider):
     self._classpath = classpath
 
   def available(self):
-    # pylint: disable=subprocess-run-check
-    trial = subprocess.run(['which', 'java'], capture_output=True)
-    if trial.returncode == 0:
+    # Directly use shutil.which to find the Java executable cross-platform
+    java_path = shutil.which(subprocess_server.JavaHelper.get_java())
+    if java_path:
       return True
-    else:
-
-      def try_decode(bs):
-        try:
-          return bs.decode()
-        except UnicodeError:
-          return bs
-
-      return NotAvailableWithReason(
-          f'Unable to locate java executable: '
-          f'{try_decode(trial.stdout)}{try_decode(trial.stderr)}')
+    # Return error message when not found
+    return NotAvailableWithReason(
+        'Unable to locate java executable: java not found in PATH or JAVA_HOME')
 
   def cache_artifacts(self):
     return [self._jar_provider()]
@@ -755,6 +747,46 @@ def dicts_to_rows(o):
     return o
 
 
+def _unify_element_with_schema(element, target_schema):
+  """Convert an element to match the target schema, preserving existing
+    fields only."""
+  if target_schema is None:
+    return element
+
+  # If element is already a named tuple, convert to dict first
+  if hasattr(element, '_asdict'):
+    element_dict = element._asdict()
+  elif isinstance(element, dict):
+    element_dict = element
+  else:
+    # This element is not a row-like object. If the target schema has a single
+    # field, assume this element is the value for that field.
+    if len(target_schema._fields) == 1:
+      return target_schema(**{target_schema._fields[0]: element})
+    else:
+      return element
+
+  # Create new element with only the fields that exist in the original
+  # element plus None for fields that are expected but missing
+  unified_dict = {}
+  for field_name in target_schema._fields:
+    if field_name in element_dict:
+      value = element_dict[field_name]
+      # Ensure the value matches the expected type
+      # This is particularly important for list fields
+      if value is not None and not isinstance(value, list) and hasattr(
+          value, '__iter__') and not isinstance(
+              value, (str, bytes)) and not hasattr(value, '_asdict'):
+        # Convert iterables to lists if needed
+        unified_dict[field_name] = list(value)
+      else:
+        unified_dict[field_name] = value
+    else:
+      unified_dict[field_name] = None
+
+  return target_schema(**unified_dict)
+
+
 class YamlProviders:
   class AssertEqual(beam.PTransform):
     """Asserts that the input contains exactly the elements provided.
@@ -784,9 +816,14 @@ class YamlProviders:
       self._elements = elements
 
     def expand(self, pcoll):
+      def to_dict(row):
+        # filter None when comparing
+        temp_dict = {k: v for k, v in row._asdict().items() if v is not None}
+        return dict(temp_dict.items())
+
       return assert_that(
-          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
-          equal_to(dicts_to_rows(self._elements)))
+          pcoll | beam.Map(to_dict),
+          equal_to([to_dict(e) for e in dicts_to_rows(self._elements)]))
 
   @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
@@ -837,7 +874,32 @@ class YamlProviders:
     # not the intent.
     if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
-    return beam.Create([element_to_rows(e) for e in elements],
+
+    # Check if elements have different keys
+    updated_elements = elements
+    if elements and all(isinstance(e, dict) for e in elements):
+      keys = [set(e.keys()) for e in elements]
+      if len(set.union(*keys)) > min(len(k) for k in keys):
+        # Merge all dictionaries to get all possible keys
+        all_keys = set()
+        for element in elements:
+          if isinstance(element, dict):
+            all_keys.update(element.keys())
+
+        # Create a merged dictionary with all keys
+        merged_dict = {}
+        for key in all_keys:
+          merged_dict[key] = None  # Use None as a default value
+
+        # Update each element with the merged dictionary
+        updated_elements = []
+        for e in elements:
+          if isinstance(e, dict):
+            updated_elements.append({**merged_dict, **e})
+          else:
+            updated_elements.append(e)
+
+    return beam.Create([element_to_rows(e) for e in updated_elements],
                        reshuffle=reshuffle is not False)
 
   # Or should this be posargs, args?
@@ -901,6 +963,48 @@ class YamlProviders:
       # pylint: disable=useless-parent-delegation
       super().__init__()
 
+    def _merge_schemas(self, pcolls):
+      """Merge schemas from multiple PCollections to create a unified schema.
+
+      This function creates a unified schema that contains all fields from all
+      input PCollections. Fields are made optional to handle missing values.
+      If fields have different types, they are unified to Optional[Any].
+      """
+      from apache_beam.typehints.schemas import named_fields_from_element_type
+
+      # Collect all schemas
+      schemas = []
+      for pcoll in pcolls:
+        if hasattr(pcoll, 'element_type') and pcoll.element_type:
+          try:
+            fields = named_fields_from_element_type(pcoll.element_type)
+            schemas.append(dict(fields))
+          except (ValueError, TypeError):
+            # If we can't extract schema, skip this PCollection
+            continue
+
+      if not schemas:
+        return None
+
+      # Merge all field names and types.
+      all_field_names = set().union(*(s.keys() for s in schemas))
+      unified_fields = {}
+      for name in all_field_names:
+        present_types = {s[name] for s in schemas if name in s}
+        if len(present_types) > 1:
+          unified_fields[name] = Optional[Any]
+        else:
+          unified_fields[name] = Optional[present_types.pop()]
+
+      # Create unified schema
+      if unified_fields:
+        from apache_beam.typehints.schemas import named_fields_to_schema
+        from apache_beam.typehints.schemas import named_tuple_from_schema
+        unified_schema = named_fields_to_schema(list(unified_fields.items()))
+        return named_tuple_from_schema(unified_schema)
+
+      return None
+
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
         pipeline_arg = {}
@@ -911,7 +1015,27 @@ class YamlProviders:
       else:
         pipeline_arg = {'pipeline': pcolls.pipeline}
         pcolls = ()
-      return pcolls | beam.Flatten(**pipeline_arg)
+
+      if not pcolls:
+        return pcolls | beam.Flatten(**pipeline_arg)
+
+      # Try to unify schemas
+      unified_schema = self._merge_schemas(pcolls)
+
+      if unified_schema is None:
+        # No schema unification needed, use standard flatten
+        return pcolls | beam.Flatten(**pipeline_arg)
+
+      # Apply schema unification to each PCollection before flattening.
+      unified_pcolls = []
+      for i, pcoll in enumerate(pcolls):
+        unified_pcoll = pcoll | f'UnifySchema{i}' >> beam.Map(
+            _unify_element_with_schema,
+            target_schema=unified_schema).with_output_types(unified_schema)
+        unified_pcolls.append(unified_pcoll)
+
+      # Flatten the unified PCollections
+      return unified_pcolls | beam.Flatten(**pipeline_arg)
 
   class WindowInto(beam.PTransform):
     # pylint: disable=line-too-long
@@ -1399,13 +1523,20 @@ def _as_list(func):
 def _join_url_or_filepath(base, path):
   if not base:
     return path
-  base_scheme = urllib.parse.urlparse(base, '').scheme
-  path_scheme = urllib.parse.urlparse(path, base_scheme).scheme
-  if path_scheme != base_scheme:
+
+  if urllib.parse.urlparse(path).scheme:
+    # path is an absolute path with scheme (whether it is the same as base or
+    # not).
     return path
-  elif base_scheme and base_scheme in urllib.parse.uses_relative:
+
+  # path is a relative path or an absolute path without scheme (e.g. /a/b/c)
+  base_scheme = urllib.parse.urlparse(base, '').scheme
+  if base_scheme and base_scheme in urllib.parse.uses_relative:
     return urllib.parse.urljoin(base, path)
   else:
+    if FileSystems.join(base, "") == base:
+      # base ends with a filesystem separator
+      return FileSystems.join(base, path)
     return FileSystems.join(FileSystems.split(base)[0], path)
 
 
@@ -1475,6 +1606,7 @@ def standard_providers():
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
+  from apache_beam.yaml.yaml_specifiable import create_spec_providers
 
   return merge_providers(
       YamlProviders.create_builtin_provider(),
@@ -1483,6 +1615,7 @@ def standard_providers():
       create_combine_providers(),
       create_join_providers(),
       io_providers(),
+      create_spec_providers(),
       load_providers(yaml_utils.locate_data_file('standard_providers.yaml')))
 
 

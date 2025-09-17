@@ -25,7 +25,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "3.19"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.2.1"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.4.0"
 }
 
 
@@ -180,6 +180,7 @@ include(":sdks:java:expansion-service:container")
 include(":sdks:java:expansion-service:app")
 include(":sdks:java:extensions:arrow")
 include(":sdks:java:extensions:avro")
+include("sdks:java:extensions:avro:vendored-test")
 include(":sdks:java:extensions:euphoria")
 include(":sdks:java:extensions:kryo")
 include(":sdks:java:extensions:google-cloud-platform-core")
@@ -275,6 +276,7 @@ include(":sdks:java:testing:load-tests")
 include(":sdks:java:testing:test-utils")
 include(":sdks:java:testing:tpcds")
 include(":sdks:java:testing:watermarks")
+include(":sdks:java:testing:junit")
 include(":sdks:java:transform-service")
 include(":sdks:java:transform-service:app")
 include(":sdks:java:transform-service:launcher")
@@ -294,6 +296,12 @@ include(":sdks:python:container:distroless:py310")
 include(":sdks:python:container:distroless:py311")
 include(":sdks:python:container:distroless:py312")
 include(":sdks:python:container:distroless:py313")
+include(":sdks:python:container:ml")
+include(":sdks:python:container:ml:py39")
+include(":sdks:python:container:ml:py310")
+include(":sdks:python:container:ml:py311")
+include(":sdks:python:container:ml:py312")
+include(":sdks:python:container:ml:py313")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
 include(":sdks:python:test-suites:dataflow:py39")
@@ -323,7 +331,7 @@ include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
 include(":vendor:grpc-1_69_0")
-include(":vendor:calcite-1_28_0")
+include(":vendor:calcite-1_40_0")
 include(":vendor:guava-32_1_2-jre")
 include(":website")
 include(":runners:google-cloud-dataflow-java:worker")
@@ -370,3 +378,7 @@ include("sdks:java:io:iceberg:bqms")
 findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"
 include("it:clickhouse")
 findProject(":it:clickhouse")?.name = "clickhouse"
+include("sdks:java:extensions:sql:iceberg")
+findProject(":sdks:java:extensions:sql:iceberg")?.name = "iceberg"
+include("examples:java:iceberg")
+findProject(":examples:java:iceberg")?.name = "iceberg"

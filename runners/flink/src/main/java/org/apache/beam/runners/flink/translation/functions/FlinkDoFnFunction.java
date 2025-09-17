@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,9 +38,11 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
@@ -46,6 +50,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -138,12 +143,12 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
 
     // setup DoFnRunner
     final RuntimeContext runtimeContext = getRuntimeContext();
-    final DoFnRunners.OutputManager outputManager;
+    final WindowedValueMultiReceiver outputManager;
     if (outputMap.size() == 1) {
       outputManager = new DoFnOutputManager();
     } else {
       // it has some additional outputs
-      outputManager = new MultiDoFnOutputManager(outputMap);
+      outputManager = new MultiDoFnOutputManagerWindowed(outputMap);
     }
 
     final List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
@@ -198,9 +203,9 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
     void setCollector(Collector<WindowedValue<RawUnionValue>> collector);
   }
 
-  static class DoFnOutputManager implements DoFnRunners.OutputManager, CollectorAware {
+  static class DoFnOutputManager implements WindowedValueMultiReceiver, CollectorAware {
 
-    private @Nullable Collector<WindowedValue<RawUnionValue>> collector;
+    private @MonotonicNonNull Collector<WindowedValue<RawUnionValue>> collector;
 
     DoFnOutputManager() {
       this(null);
@@ -217,26 +222,27 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
 
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      Objects.requireNonNull(collector)
-          .collect(
-              WindowedValue.of(
-                  new RawUnionValue(0 /* single output */, output.getValue()),
-                  output.getTimestamp(),
-                  output.getWindows(),
-                  output.getPane()));
+      checkStateNotNull(collector);
+      collector.collect(
+          WindowedValues.of(
+              new RawUnionValue(0 /* single output */, output.getValue()),
+              output.getTimestamp(),
+              output.getWindows(),
+              output.getPaneInfo()));
     }
   }
 
-  static class MultiDoFnOutputManager implements DoFnRunners.OutputManager, CollectorAware {
+  static class MultiDoFnOutputManagerWindowed
+      implements WindowedValueMultiReceiver, CollectorAware {
 
-    private @Nullable Collector<WindowedValue<RawUnionValue>> collector;
+    private @MonotonicNonNull Collector<WindowedValue<RawUnionValue>> collector;
     private final Map<TupleTag<?>, Integer> outputMap;
 
-    MultiDoFnOutputManager(Map<TupleTag<?>, Integer> outputMap) {
+    MultiDoFnOutputManagerWindowed(Map<TupleTag<?>, Integer> outputMap) {
       this.outputMap = outputMap;
     }
 
-    MultiDoFnOutputManager(
+    MultiDoFnOutputManagerWindowed(
         @Nullable Collector<WindowedValue<RawUnionValue>> collector,
         Map<TupleTag<?>, Integer> outputMap) {
       this.collector = collector;
@@ -250,13 +256,14 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
 
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      Objects.requireNonNull(collector)
-          .collect(
-              WindowedValue.of(
-                  new RawUnionValue(outputMap.get(tag), output.getValue()),
-                  output.getTimestamp(),
-                  output.getWindows(),
-                  output.getPane()));
+      checkStateNotNull(collector);
+
+      collector.collect(
+          WindowedValues.of(
+              new RawUnionValue(outputMap.get(tag), output.getValue()),
+              output.getTimestamp(),
+              output.getWindows(),
+              output.getPaneInfo()));
     }
   }
 }

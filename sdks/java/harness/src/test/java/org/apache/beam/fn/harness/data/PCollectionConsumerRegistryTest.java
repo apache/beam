@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -71,10 +71,10 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
@@ -130,7 +130,8 @@ public class PCollectionConsumerRegistryTest {
 
   @Before
   public void setUp() throws Exception {
-    sampler = new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+    sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
   }
 
   @After
@@ -632,7 +633,7 @@ public class PCollectionConsumerRegistryTest {
 
     // This section is to set up the StateSampler with the expected metadata.
     ExecutionStateSampler sampler =
-        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
     ExecutionStateSampler.ExecutionStateTracker stateTracker = sampler.create();
     stateTracker.start("process-bundle");
     ExecutionStateSampler.ExecutionState state =

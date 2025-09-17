@@ -169,6 +169,7 @@
         path: 'path'
         delimiter: 'sep'
         comment: 'comment'
+        filename_column: 'filename_column'
       'WriteToCsv':
         path: 'path'
         delimiter: 'sep'
@@ -332,6 +333,7 @@
         columns: 'columns'
         index: 'index'
         batching: 'batching'
+        error_handling: 'error_handling'
       'WriteToSpanner':
         project: 'project_id'
         instance: 'instance_id'
@@ -370,3 +372,28 @@
         'WriteToTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_write:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
+#BigTable
+- type: renaming
+  transforms:
+    'ReadFromBigTable': 'ReadFromBigTable'
+    'WriteToBigTable': 'WriteToBigTable'
+  config:
+    mappings:
+      #Temp removing read from bigTable IO
+      'ReadFromBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+        flatten: "flatten"
+      'WriteToBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
+        'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'

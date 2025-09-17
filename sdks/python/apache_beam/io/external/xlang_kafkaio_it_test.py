@@ -40,6 +40,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.utils import subprocess_server
 
 NUM_RECORDS = 1000
 
@@ -220,8 +221,13 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
     zookeeper_port = str(self.get_open_port())
     kafka_server = None
     try:
-      kafka_server = subprocess.Popen(
-          ['java', '-jar', local_kafka_jar_file, kafka_port, zookeeper_port])
+      kafka_server = subprocess.Popen([
+          subprocess_server.JavaHelper.get_java(),
+          '-jar',
+          local_kafka_jar_file,
+          kafka_port,
+          zookeeper_port
+      ])
       time.sleep(3)
       yield kafka_port
     finally:

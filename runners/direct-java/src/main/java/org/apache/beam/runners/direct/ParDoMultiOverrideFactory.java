@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformReplacements;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
@@ -56,6 +55,8 @@ import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
@@ -190,7 +191,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
       return input
           // Stash the original timestamps, etc, for when it is fed to the user's DoFn
           .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<>()))
-          .setCoder(KvCoder.of(keyCoder, WindowedValue.getFullCoder(kvCoder, windowCoder)))
+          .setCoder(KvCoder.of(keyCoder, WindowedValues.getFullCoder(kvCoder, windowCoder)))
 
           // We are going to GBK to gather keys and windows but otherwise do not want
           // to alter the flow of data. This entails:
@@ -317,7 +318,7 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
       c.output(
           KV.of(
               c.element().getKey(),
-              WindowedValue.of(c.element(), c.timestamp(), window, c.pane())));
+              WindowedValues.of(c.element(), c.timestamp(), window, c.pane())));
     }
   }
 

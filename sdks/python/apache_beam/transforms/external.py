@@ -80,7 +80,9 @@ MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING = {
     ManagedTransforms.Urns.KAFKA_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
     ManagedTransforms.Urns.KAFKA_WRITE.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
     ManagedTransforms.Urns.BIGQUERY_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
-    ManagedTransforms.Urns.BIGQUERY_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET
+    ManagedTransforms.Urns.BIGQUERY_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.POSTGRES_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.POSTGRES_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
 }
 
 
@@ -1097,7 +1099,8 @@ class JavaJarExpansionService(object):
           ExpansionAndArtifactRetrievalStub,
           self.path_to_jar,
           self._extra_args,
-          classpath=classpath_urls)
+          classpath=classpath_urls,
+          logger="ExpansionService")
       self._service = self._service_provider.__enter__()
     self._service_count += 1
     return self._service
@@ -1154,7 +1157,8 @@ def _maybe_use_transform_service(provided_service=None, options=None):
     return provided_service
 
   def is_java_available():
-    cmd = ['java', '--version']
+    java = subprocess_server.JavaHelper.get_java()
+    cmd = [java, '--version']
 
     try:
       subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

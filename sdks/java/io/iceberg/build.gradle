@@ -23,6 +23,8 @@ import java.util.stream.Collectors
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.iceberg',
+        // iceberg ended support for Java 8 in 1.7.0
+        requireJavaVersion: JavaVersion.VERSION_11,
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg"
@@ -37,9 +39,9 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def iceberg_version = "1.6.1"
-def parquet_version = "1.15.1"
-def orc_version = "1.9.2"
+def iceberg_version = "1.9.2"
+def parquet_version = "1.15.2"
+def orc_version = "1.9.6"
 def hive_version = "3.1.3"
 
 dependencies {
@@ -61,13 +63,13 @@ dependencies {
     // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
     provided "org.immutables:value:2.8.8"
     permitUnusedDeclared "org.immutables:value:2.8.8"
-    implementation library.java.vendored_calcite_1_28_0
+    implementation library.java.vendored_calcite_1_40_0
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
+    runtimeOnly library.java.bigdataoss_gcs_connector
+    runtimeOnly library.java.hadoop_client
 
     testImplementation project(":sdks:java:managed")
-    testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
-    testImplementation library.java.bigdataoss_gcs_connector
     testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
     testImplementation "org.apache.parquet:parquet-common:$parquet_version"
@@ -95,12 +97,18 @@ dependencies {
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    testRuntimeOnly project(path: ":sdks:java:harness")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
     }
+}
+
+configurations.all {
+  // iceberg-core needs avro:1.12.0
+  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
 }
 
 hadoopVersions.each {kv ->
@@ -159,13 +167,19 @@ task integrationTest(type: Test) {
 
 task dataflowIntegrationTest(type: Test) {
     group = "Verification"
+    evaluationDependsOn(":runners:google-cloud-dataflow-java")
+    dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+    finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
+    def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
+
     def args = [
             "--runner=DataflowRunner",
             "--region=us-central1",
             "--project=${gcpProject}",
             "--tempLocation=${gcpTempLocation}",
             "--tempRoot=${gcpTempLocation}",
-            "--experiments=use_runner_v2"
+            "--sdkContainerImage=${dockerJavaImageName}",
+            "--experiments=use_runner_v2,use_staged_dataflow_worker_jar"
     ]
     if (project.hasProperty('enableManagedTransforms')) {
         args.add("--experiments=enable_managed_transforms")

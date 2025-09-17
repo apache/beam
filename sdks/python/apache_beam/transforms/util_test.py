@@ -83,8 +83,45 @@ from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
 
+try:
+  import dill
+except ImportError:
+  dill = None
+
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
+
+
+class _Unpicklable(object):
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    raise NotImplementedError()
+
+  def __setstate__(self, state):
+    raise NotImplementedError()
+
+
+class _UnpicklableCoder(beam.coders.Coder):
+  def encode(self, value):
+    return str(value.value).encode()
+
+  def decode(self, encoded):
+    return _Unpicklable(int(encoded.decode()))
+
+  def to_type_hint(self):
+    return _Unpicklable
+
+  def is_deterministic(self):
+    return True
+
+
+def maybe_skip(compat_version):
+  if compat_version and not dill:
+    raise unittest.SkipTest(
+        'Dill dependency not installed which is required for compat_version'
+        ' <= 2.67.0')
 
 
 class CoGroupByKeyTest(unittest.TestCase):
@@ -186,6 +223,20 @@ class CoGroupByKeyTest(unittest.TestCase):
                   equal_to(expected),
                   label='AssertOneDict')
 
+  def test_co_group_by_key_on_unpickled(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+    values = [_Unpicklable(i) for i in range(5)]
+    with TestPipeline() as pipeline:
+      xs = pipeline | beam.Create(values) | beam.WithKeys(lambda x: x)
+      pcoll = ({
+          'x': xs
+      }
+               | beam.CoGroupByKey()
+               | beam.FlatMapTuple(
+                   lambda k, tagged: (k.value, tagged['x'][0].value * 2)))
+      expected = [0, 0, 1, 2, 2, 4, 3, 6, 4, 8]
+      assert_that(pcoll, equal_to(expected))
+
 
 class FakeClock(object):
   def __init__(self, now=time.time()):
@@ -254,8 +305,8 @@ class BatchElementsTest(unittest.TestCase):
     self.assertEqual(len(results["distributions"]), 0)
 
   def test_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -265,8 +316,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
   def test_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle in order, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(47), reshuffle=False)
@@ -287,8 +338,8 @@ class BatchElementsTest(unittest.TestCase):
           ]))
 
   def test_global_batch_timestamps(self):
-    # Assumes a single bundle
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(3), reshuffle=False)
@@ -327,8 +378,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([2, 10, 10, 10]))
 
   def test_sized_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle, in order so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(1, 8), reshuffle=False)
@@ -527,8 +578,8 @@ class BatchElementsTest(unittest.TestCase):
         util._BatchSizeEstimator.linear_regression_numpy, True)
 
   def test_stateful_constant_batch(self):
-    # Assumes a single bundle...
-    p = TestPipeline()
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    p = TestPipeline('FnApiRunner')
     output = (
         p
         | beam.Create(range(35))
@@ -649,8 +700,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(num_elements_per_batch, equal_to([9, 1]))
 
   def test_stateful_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -707,7 +758,7 @@ class IdentityWindowTest(unittest.TestCase):
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
-    with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(Exception, r'.*window.*None.*add_timestamps2'):
       with TestPipeline() as pipeline:
         data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
         expected_windows = [
@@ -723,7 +774,7 @@ class IdentityWindowTest(unittest.TestCase):
             equal_to(expected_windows),
             label='before_identity',
             reify_windows=True)
-        after_identity = (
+        _ = (
             before_identity
             | 'window' >> beam.WindowInto(
                 beam.transforms.util._IdentityWindowFn(
@@ -733,11 +784,6 @@ class IdentityWindowTest(unittest.TestCase):
             # contain a window of None. IdentityWindowFn should
             # raise an exception.
             | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
-        assert_that(
-            after_identity,
-            equal_to(expected_windows),
-            label='after_identity',
-            reify_windows=True)
 
 
 class ReshuffleTest(unittest.TestCase):
@@ -963,8 +1009,10 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
+  @pytest.mark.uses_dill
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves pane info."""
+    maybe_skip(compat_version)
     element_count = 12
     timestamp_value = timestamp.Timestamp(0)
     l = [
@@ -1064,10 +1112,11 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
+  @pytest.mark.uses_dill
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
-
+    maybe_skip(compat_version)
     no_firing = PaneInfo(
         is_first=True,
         is_last=True,
@@ -1089,14 +1138,19 @@ class ReshuffleTest(unittest.TestCase):
         index=1,
         nonspeculative_index=1)
 
+    # Portable runners may not have the same level of precision on timestamps -
+    # this gets the largest supported timestamp with the extra non-supported
+    # bits truncated
+    gt = GlobalWindow().max_timestamp()
+    truncated_gt = gt - (gt % 0.001)
+
     expected_preserved = [
         TestWindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
         TestWindowedValue(
             'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-        TestWindowedValue(
-            'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+        TestWindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
     ]
 
     expected_not_preserved = [
@@ -1107,9 +1161,7 @@ class ReshuffleTest(unittest.TestCase):
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], PANE_INFO_UNKNOWN),
         TestWindowedValue(
-            'd',
-            GlobalWindow().max_timestamp(), [GlobalWindow()],
-            PANE_INFO_UNKNOWN)
+            'd', truncated_gt, [GlobalWindow()], PANE_INFO_UNKNOWN)
     ]
 
     expected = (
@@ -1125,8 +1177,7 @@ class ReshuffleTest(unittest.TestCase):
               'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
           WindowedValue(
               'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-          WindowedValue(
-              'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+          WindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
       ]
 
       after_reshuffle = (
@@ -1207,32 +1258,6 @@ class ReshuffleTest(unittest.TestCase):
           formatted_after_reshuffle,
           equal_to(expected_data),
           label="formatted_after_reshuffle")
-
-  global _Unpicklable
-  global _UnpicklableCoder
-
-  class _Unpicklable(object):
-    def __init__(self, value):
-      self.value = value
-
-    def __getstate__(self):
-      raise NotImplementedError()
-
-    def __setstate__(self, state):
-      raise NotImplementedError()
-
-  class _UnpicklableCoder(beam.coders.Coder):
-    def encode(self, value):
-      return str(value.value).encode()
-
-    def decode(self, encoded):
-      return _Unpicklable(int(encoded.decode()))
-
-    def to_type_hint(self):
-      return _Unpicklable
-
-    def is_deterministic(self):
-      return True
 
   def reshuffle_unpicklable_in_global_window_helper(
       self, update_compatibility_version=None):
@@ -1613,7 +1638,10 @@ class LogElementsTest(unittest.TestCase):
           ])
           | beam.WindowInto(FixedWindows(60))
           | util.LogElements(
-              prefix='prefix_', with_window=True, with_timestamp=True))
+              prefix='prefix_',
+              with_window=True,
+              with_timestamp=True,
+              with_pane_info=True))
 
     request.captured_stdout = capsys.readouterr().out
     return result
@@ -1622,9 +1650,46 @@ class LogElementsTest(unittest.TestCase):
   def test_stdout_logs(self):
     assert self.captured_stdout == \
       ("prefix_event, timestamp='2022-10-01T00:00:00Z', "
-       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z)\n"
+       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z), "
+       "pane_info=PaneInfo(first: True, last: True, timing: UNKNOWN, "
+       "index: 0, nonspeculative_index: 0)\n"
        "prefix_event, timestamp='2022-10-02T00:00:00Z', "
-       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z)\n"), \
+       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z), "
+       "pane_info=PaneInfo(first: True, last: True, timing: UNKNOWN, "
+       "index: 0, nonspeculative_index: 0)\n"), \
+      f'Received from stdout: {self.captured_stdout}'
+
+  @pytest.fixture(scope="function")
+  def _capture_stdout_log_without_rfc3339(request, capsys):
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create([
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 1, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 2, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+          ])
+          | beam.WindowInto(FixedWindows(60))
+          | util.LogElements(
+              prefix='prefix_',
+              with_window=True,
+              with_timestamp=True,
+              use_epoch_time=True))
+
+    request.captured_stdout = capsys.readouterr().out
+    return result
+
+  @pytest.mark.usefixtures("_capture_stdout_log_without_rfc3339")
+  def test_stdout_logs_without_rfc3339(self):
+    assert self.captured_stdout == \
+      ("prefix_event, timestamp=1664582400, "
+       "window(start=1664582400, end=1664582460)\n"
+       "prefix_event, timestamp=1664668800, "
+       "window(start=1664668800, end=1664668860)\n"), \
       f'Received from stdout: {self.captured_stdout}'
 
   def test_ptransform_output(self):
@@ -2141,6 +2206,68 @@ class WaitOnTest(unittest.TestCase):
           result,
           equal_to([(None, 'result', 6), (None, 'result', 7)]),
           label='result')
+
+
+class CompatCheckTest(unittest.TestCase):
+  def test_is_v1_prior_to_v2(self):
+    test_cases = [
+        # Basic comparison cases
+        ("1.0.0", "2.0.0", True),  # v1 < v2 in major
+        ("2.0.0", "1.0.0", False),  # v1 > v2 in major
+        ("1.1.0", "1.2.0", True),  # v1 < v2 in minor
+        ("1.2.0", "1.1.0", False),  # v1 > v2 in minor
+        ("1.0.1", "1.0.2", True),  # v1 < v2 in patch
+        ("1.0.2", "1.0.1", False),  # v1 > v2 in patch
+
+        # Equal versions
+        ("1.0.0", "1.0.0", False),  # Identical
+        ("0.0.0", "0.0.0", False),  # Both zero
+
+        # Different lengths - shorter vs longer
+        ("1.0", "1.0.0", False),  # Should be equal (1.0 = 1.0.0)
+        ("1.0", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.2", "1.2.0", False),  # Should be equal (1.2 = 1.2.0)
+        ("1.2", "1.2.3", True),  # 1.2.0 < 1.2.3
+        ("2", "2.0.0", False),  # Should be equal (2 = 2.0.0)
+        ("2", "2.0.1", True),  # 2.0.0 < 2.0.1
+        ("1", "2.0", True),  # 1.0.0 < 2.0.0
+
+        # Different lengths - longer vs shorter
+        ("1.0.0", "1.0", False),  # Should be equal
+        ("1.0.1", "1.0", False),  # 1.0.1 > 1.0.0
+        ("1.2.0", "1.2", False),  # Should be equal
+        ("1.2.3", "1.2", False),  # 1.2.3 > 1.2.0
+        ("2.0.0", "2", False),  # Should be equal
+        ("2.0.1", "2", False),  # 2.0.1 > 2.0.0
+        ("2.0", "1", False),  # 2.0.0 > 1.0.0
+
+        # Mixed length comparisons
+        ("1.0", "2.0.0", True),  # 1.0.0 < 2.0.0
+        ("2.0", "1.0.0", False),  # 2.0.0 > 1.0.0
+        ("1", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.1", "1.0.9", False),  # 1.1.0 > 1.0.9
+
+        # Large numbers
+        ("1.9.9", "2.0.0", True),  # 1.9.9 < 2.0.0
+        ("10.0.0", "9.9.9", False),  # 10.0.0 > 9.9.9
+        ("1.10.0", "1.9.0", False),  # 1.10.0 > 1.9.0
+        ("1.2.10", "1.2.9", False),  # 1.2.10 > 1.2.9
+
+        # Sequential versions
+        ("1.0.0", "1.0.1", True),
+        ("1.0.1", "1.0.2", True),
+        ("1.0.9", "1.1.0", True),
+        ("1.9.9", "2.0.0", True),
+
+        # Null/None cases
+        (None, "1.0.0", False),  # v1 is None
+    ]
+
+    for v1, v2, expected in test_cases:
+      self.assertEqual(
+          util.is_v1_prior_to_v2(v1=v1, v2=v2),
+          expected,
+          msg=f"Failed {v1} < {v2} == {expected}")
 
 
 if __name__ == '__main__':

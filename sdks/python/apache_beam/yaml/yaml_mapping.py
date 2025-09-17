@@ -133,6 +133,7 @@ def validate_generic_expression(
   raise ValueError(
       "Missing language specification, unknown input fields, "
       f"or invalid generic expression: {expr}. "
+      f"The given input fields are {input_fields}. "
       "See https://beam.apache.org/documentation/sdks/yaml-udf/#generic")
 
 
@@ -486,7 +487,7 @@ class _StripErrorMetadata(beam.PTransform):
           typing_from_runner_api(existing_fields[fld]))
 
 
-class _Validate(beam.PTransform):
+class Validate(beam.PTransform):
   """Validates each element of a PCollection against a json schema.
 
   Args:
@@ -724,7 +725,7 @@ def _PyJsMapToFields(
 @beam.ptransform.ptransform_fn
 def _SqlFilterTransform(pcoll, sql_transform_constructor, keep, language):
   return pcoll | sql_transform_constructor(
-      f'SELECT * FROM PCOLLECTION WHERE {keep}')
+      f"SELECT * FROM PCOLLECTION WHERE {keep.get('expression')}")
 
 
 @beam.ptransform.ptransform_fn
@@ -981,7 +982,7 @@ def create_mapping_providers():
           'Partition-javascript': _Partition,
           'Partition-generic': _Partition,
           'StripErrorMetadata': _StripErrorMetadata,
-          'ValidateWithSchema': _Validate,
+          'ValidateWithSchema': Validate,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,

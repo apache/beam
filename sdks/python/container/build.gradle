@@ -18,11 +18,11 @@
 
 plugins { id 'org.apache.beam.module' }
 applyGoNature()
+applyPythonNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
-// Keep these values in sync with sdks/python/container/distroless/build.gradle.
-int min_python_version=9
-int max_python_version=12
+int min_python_version=project.ext.minPythonVersion
+int max_python_version=project.ext.maxPythonVersion
 
 configurations {
   sdkSourceTarball
@@ -70,6 +70,8 @@ for(int i=min_python_version; i<=max_python_version; ++i) {
 }
 
 tasks.register("pushAll") {
+  dependsOn ':sdks:python:container:distroless:pushAll'
+  dependsOn ':sdks:python:container:ml:pushAll'
   for(int ver=min_python_version; ver<=max_python_version; ++ver) {
       if (!project.hasProperty("skip-python-3" + ver + "-images")) {
         dependsOn ':sdks:python:container:push3' + ver

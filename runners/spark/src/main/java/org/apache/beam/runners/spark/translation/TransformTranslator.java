@@ -61,7 +61,6 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
@@ -72,6 +71,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
@@ -144,8 +145,8 @@ public final class TransformTranslator {
 
         // --- coders.
         final Coder<K> keyCoder = coder.getKeyCoder();
-        final WindowedValue.WindowedValueCoder<V> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+        final WindowedValues.WindowedValueCoder<V> wvCoder =
+            WindowedValues.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
         JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
         Partitioner partitioner = getPartitioner(context);
@@ -224,14 +225,14 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRDD =
             inRDD.map(
                 in ->
-                    WindowedValue.of(
+                    WindowedValues.of(
                         KV.of(
                             in.getValue().getKey(),
                             combineFn.apply(
                                 in.getValue().getValue(), sparkCombineFn.ctxtForValue(in))),
                         in.getTimestamp(),
                         in.getWindows(),
-                        in.getPane()));
+                        in.getPaneInfo()));
         context.putDataset(transform, new BoundedDataset<>(outRDD));
       }
 
@@ -256,8 +257,8 @@ public final class TransformTranslator {
         final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn =
             (CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT>)
                 CombineFnUtil.toFnWithContext(transform.getFn());
-        final WindowedValue.FullWindowedValueCoder<OutputT> wvoCoder =
-            WindowedValue.FullWindowedValueCoder.of(
+        final WindowedValues.FullWindowedValueCoder<OutputT> wvoCoder =
+            WindowedValues.FullWindowedValueCoder.of(
                 oCoder, windowingStrategy.getWindowFn().windowCoder());
         final boolean hasDefault = transform.isInsertDefault();
 
@@ -299,7 +300,7 @@ public final class TransformTranslator {
             outRdd =
                 jsc.parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
                     .map(CoderHelpers.fromByteFunction(oCoder))
-                    .map(WindowedValue::valueInGlobalWindow);
+                    .map(WindowedValues::valueInGlobalWindow);
           } else {
             outRdd = jsc.emptyRDD();
           }
@@ -557,8 +558,8 @@ public final class TransformTranslator {
       boolean requiresSortedInput) {
     Coder<K> keyCoder = kvCoder.getKeyCoder();
 
-    final WindowedValue.WindowedValueCoder<V> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
+    final WindowedValues.WindowedValueCoder<V> wvCoder =
+        WindowedValues.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
     if (!requiresSortedInput) {
       return GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, partitioner)
@@ -697,8 +698,11 @@ public final class TransformTranslator {
               if (Arrays.equals(prefix, keyPart)) {
                 WindowedValue<V> wv = CoderHelpers.fromByteArray(read._2(), wvCoder);
                 consumed();
-                return WindowedValue.of(
-                    KV.of(key, wv.getValue()), wv.getTimestamp(), wv.getWindows(), wv.getPane());
+                return WindowedValues.of(
+                    KV.of(key, wv.getValue()),
+                    wv.getTimestamp(),
+                    wv.getWindows(),
+                    wv.getPaneInfo());
               }
             }
             return endOfData();
@@ -750,7 +754,7 @@ public final class TransformTranslator {
     };
   }
 
-  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
+  private static <T> TransformEvaluator<Window.Assign<T>> window() {
     return new TransformEvaluator<Window.Assign<T>>() {
       @Override
       public void evaluate(Window.Assign<T> transform, EvaluationContext context) {
@@ -786,7 +790,7 @@ public final class TransformTranslator {
         Coder<Iterable<WindowedValue<?>>> coderInternal =
             (Coder)
                 IterableCoder.of(
-                    WindowedValue.getFullCoder(
+                    WindowedValues.getFullCoder(
                         output.getCoderInternal(),
                         output.getWindowingStrategyInternal().getWindowFn().windowCoder()));
 
@@ -817,8 +821,8 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
 
-        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+        final WindowedValues.WindowedValueCoder<KV<K, V>> wvCoder =
+            WindowedValues.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
 
         JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
             GroupCombineFunctions.reshuffle(inRDD, wvCoder);

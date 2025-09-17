@@ -64,8 +64,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -74,6 +72,9 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -214,8 +215,7 @@ class BatchViewOverrides {
       return this.applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollectionView<Map<K, V>> applyInternal(
-        PCollection<KV<K, V>> input) {
+    private PCollectionView<Map<K, V>> applyInternal(PCollection<KV<K, V>> input) {
       try {
         return BatchViewAsMultimap.applyForMapLike(runner, input, view, true /* unique keys */);
       } catch (NonDeterministicException e) {
@@ -327,7 +327,7 @@ class BatchViewOverrides {
                   coder.hash(ImmutableList.of(c.element().getKey())),
                   KV.of(
                       KV.of(c.element().getKey(), window),
-                      WindowedValue.of(
+                      WindowedValues.of(
                           c.element().getValue(), c.timestamp(), untypedWindow, c.pane()))));
         }
       }
@@ -703,8 +703,7 @@ class BatchViewOverrides {
       return this.applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> applyInternal(
-        PCollection<KV<K, V>> input) {
+    private PCollectionView<Map<K, Iterable<V>>> applyInternal(PCollection<KV<K, V>> input) {
       try {
         return applyForMapLike(runner, input, view, false /* unique keys not expected */);
       } catch (NonDeterministicException e) {
@@ -1024,7 +1023,7 @@ class BatchViewOverrides {
         c.output(
             IsmRecord.of(
                 ImmutableList.of(GlobalWindow.INSTANCE, indexInBundle),
-                WindowedValue.of(c.element(), c.timestamp(), GlobalWindow.INSTANCE, c.pane())));
+                WindowedValues.of(c.element(), c.timestamp(), GlobalWindow.INSTANCE, c.pane())));
         indexInBundle += 1;
       }
     }
@@ -1237,7 +1236,7 @@ class BatchViewOverrides {
         c.output(
             KV.of(
                 ismCoderForHash.hash(ImmutableList.of(window)),
-                KV.of(window, WindowedValue.of(c.element(), c.timestamp(), window, c.pane()))));
+                KV.of(window, WindowedValues.of(c.element(), c.timestamp(), window, c.pane()))));
       }
     }
 
@@ -1361,7 +1360,7 @@ class BatchViewOverrides {
     return new ValueInEmptyWindows<>(value);
   }
 
-  private static class ValueInEmptyWindows<T> extends WindowedValue<T> {
+  private static class ValueInEmptyWindows<T> implements WindowedValue<T> {
 
     private final T value;
 
@@ -1390,8 +1389,23 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PaneInfo getPane() {
+    public PaneInfo getPaneInfo() {
       return PaneInfo.NO_FIRING;
+    }
+
+    @Override
+    public @Nullable String getCurrentRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Long getCurrentRecordOffset() {
+      return null;
+    }
+
+    @Override
+    public Iterable<WindowedValue<T>> explodeWindows() {
+      return Collections.emptyList();
     }
 
     @Override

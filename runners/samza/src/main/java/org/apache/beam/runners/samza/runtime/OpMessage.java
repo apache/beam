@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -59,7 +59,7 @@ public class OpMessage<T> {
     return new OpMessage<>(Type.SIDE_INPUT, null, viewId, elements, null);
   }
 
-  public static <T, ElemT> OpMessage<T> ofSideInputWatermark(Instant watermark) {
+  public static <T> OpMessage<T> ofSideInputWatermark(Instant watermark) {
     return new OpMessage<>(Type.SIDE_INPUT_WATERMARK, null, null, null, watermark);
   }
 
