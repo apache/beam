@@ -70,7 +70,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Upgraded Iceberg dependency to 1.10.0 ([#36123](https://github.com/apache/beam/pull/36123))
+* Upgraded Iceberg dependency to 1.10.0 ([#36123](https://github.com/apache/beam/pull/36123)).
 
 ## New Features / Improvements
 
