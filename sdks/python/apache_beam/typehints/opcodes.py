@@ -35,7 +35,7 @@ import sys
 import types
 from functools import reduce
 
-from apache_beam.typehints import row_type
+from apache_beam.typehints import row_type, trivial_inference
 from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
@@ -440,7 +440,11 @@ def _getprop_returnanno(o, name):
       continue
     prop = cls.__dict__[name]
     if isinstance(prop, property):
-      return prop.fget.__annotations__.get('return', None)
+      anno = prop.fget.__annotations__.get('return', None)
+      if anno is None:
+        return trivial_inference.infer_return_type_func(prop.fget, [o])
+      else:
+        return anno
   return None
 
 
