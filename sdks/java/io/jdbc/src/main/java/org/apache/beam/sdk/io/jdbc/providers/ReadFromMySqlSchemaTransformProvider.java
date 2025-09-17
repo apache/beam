@@ -57,8 +57,12 @@ public class ReadFromMySqlSchemaTransformProvider extends JdbcReadSchemaTransfor
       JdbcReadSchemaTransformConfiguration configuration) {
     String jdbcType = configuration.getJdbcType();
     if (jdbcType != null && !jdbcType.isEmpty() && !jdbcType.equals(jdbcType())) {
-      throw new IllegalArgumentException(
-          String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
+      LOG.warn(
+          "Wrong JDBC type. Expected '{}' but got '{}'. Overriding with '{}'.",
+          jdbcType(),
+          jdbcType,
+          jdbcType());
+      configuration = configuration.toBuilder().setJdbcType(jdbcType()).build();
     }
 
     Integer fetchSize = configuration.getFetchSize();
@@ -66,8 +70,8 @@ public class ReadFromMySqlSchemaTransformProvider extends JdbcReadSchemaTransfor
         && fetchSize > 0
         && configuration.getJdbcUrl() != null
         && !configuration.getJdbcUrl().contains("useCursorFetch=true")) {
-      LOG.warn(
-          "The fetchSize option is ignored. It is required to set useCursorFetch=true"
+      throw new IllegalArgumentException(
+          "It is required to set useCursorFetch=true"
               + " in the JDBC URL when using fetchSize for MySQL");
     }
     return new MySqlReadSchemaTransform(configuration);

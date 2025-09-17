@@ -28,9 +28,14 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransformProvider {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(WriteToMySqlSchemaTransformProvider.class);
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
@@ -52,8 +57,12 @@ public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransfor
       JdbcWriteSchemaTransformConfiguration configuration) {
     String jdbcType = configuration.getJdbcType();
     if (jdbcType != null && !jdbcType.isEmpty() && !jdbcType.equals(jdbcType())) {
-      throw new IllegalArgumentException(
-          String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
+      LOG.warn(
+          "Wrong JDBC type. Expected '{}' but got '{}'. Overriding with '{}'.",
+          jdbcType(),
+          jdbcType,
+          jdbcType());
+      configuration = configuration.toBuilder().setJdbcType(jdbcType()).build();
     }
     return new MySqlWriteSchemaTransform(configuration);
   }

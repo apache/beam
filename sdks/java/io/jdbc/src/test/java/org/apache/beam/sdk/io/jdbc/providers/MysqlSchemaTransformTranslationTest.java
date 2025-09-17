@@ -71,7 +71,7 @@ public class MysqlSchemaTransformTranslationTest {
           .withFieldValue("driver_class_name", null)
           .withFieldValue("driver_jars", null)
           .withFieldValue("disable_auto_commit", true)
-          .withFieldValue("fetch_size", 10)
+          .withFieldValue("fetch_size", null)
           .withFieldValue("num_partitions", 5)
           .withFieldValue("output_parallelization", true)
           .withFieldValue("partition_column", "col")
