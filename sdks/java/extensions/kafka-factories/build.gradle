@@ -18,11 +18,11 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.kafka.file.aware.factories',
+        automaticModuleName: 'org.apache.beam.sdk.extensions.kafka.factories',
         publish: 'False'
 )
 
-description = "Apache Beam :: SDKs :: Java :: IO :: Kafka :: File :: Aware :: Factories"
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Kafka :: Factories"
 ext.summary = "Library to instantiate kafka clients with files from GCS or SecretManager."
 
 dependencies {

@@ -17,4 +17,4 @@
  */
 
 /** ConsumerFactoryFns for file paths that exist in GCS or Google SecretManager. */
-package org.apache.beam.sdk.io.kafka.file.aware.factories;
+package org.apache.beam.sdk.extensions.kafka.factories;
