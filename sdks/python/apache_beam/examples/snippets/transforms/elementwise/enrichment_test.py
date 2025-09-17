@@ -141,7 +141,7 @@ class EnrichmentTest(unittest.TestCase):
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_vertex_ai_legacy()
     self.maxDiff = None
-    self.assertEqual(output, expected)
+    self.assertEqual(sorted(output), sorted(expected))
 
   @unittest.skipUnless(
       os.environ.get('ALLOYDB_PASSWORD'),

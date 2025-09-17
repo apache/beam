@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.pulsar;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -25,16 +27,17 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 
 /**
- * Class for reading and writing from Apache Pulsar. Support is currently incomplete, and there may
- * be bugs; see https://github.com/apache/beam/issues/31078 for more info, and comment in that issue
- * if you run into issues with this IO.
+ * IO connector for reading and writing from Apache Pulsar. Support is currently experimental, and
+ * there may be bugs or performance issues; see https://github.com/apache/beam/issues/31078 for more
+ * info, and comment in that issue if you run into issues with this IO.
  */
 @SuppressWarnings({"rawtypes", "nullness"})
 public class PulsarIO {
@@ -43,19 +46,41 @@ public class PulsarIO {
   private PulsarIO() {}
 
   /**
-   * Read from Apache Pulsar. Support is currently incomplete, and there may be bugs; see
+   * Read from Apache Pulsar.
+   *
+   * <p>Support is currently experimental, and there may be bugs or performance issues; see
    * https://github.com/apache/beam/issues/31078 for more info, and comment in that issue if you run
    * into issues with this IO.
+   *
+   * @param fn a mapping function converting {@link Message} that returned by Pulsar client to a
+   *     custom type understood by Beam.
    */
-  public static Read read() {
+  public static <T> Read<T> read(SerializableFunction<Message, T> fn) {
     return new AutoValue_PulsarIO_Read.Builder()
-        .setPulsarClient(PulsarIOUtils.PULSAR_CLIENT_SERIALIZABLE_FUNCTION)
+        .setOutputFn(fn)
+        .setConsumerPollingTimeout(PulsarIOUtils.DEFAULT_CONSUMER_POLLING_TIMEOUT)
+        .setTimestampType(ReadTimestampType.PUBLISH_TIME)
         .build();
   }
 
+  /**
+   * The same as {@link PulsarIO#read(SerializableFunction)}, but returns {@link
+   * PCollection<PulsarMessage>}.
+   */
+  public static Read<PulsarMessage> read() {
+    return new AutoValue_PulsarIO_Read.Builder()
+        .setOutputFn(PULSAR_MESSAGE_SERIALIZABLE_FUNCTION)
+        .setConsumerPollingTimeout(PulsarIOUtils.DEFAULT_CONSUMER_POLLING_TIMEOUT)
+        .setTimestampType(ReadTimestampType.PUBLISH_TIME)
+        .build();
+  }
+
+  private static final SerializableFunction<Message<byte[]>, PulsarMessage>
+      PULSAR_MESSAGE_SERIALIZABLE_FUNCTION = PulsarMessage::create;
+
   @AutoValue
   @SuppressWarnings({"rawtypes"})
-  public abstract static class Read extends PTransform<PBegin, PCollection<PulsarMessage>> {
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
     abstract @Nullable String getClientUrl();
 
@@ -69,107 +94,152 @@ public class PulsarIO {
 
     abstract @Nullable MessageId getEndMessageId();
 
-    abstract @Nullable SerializableFunction<Message<byte[]>, Instant> getExtractOutputTimestampFn();
+    abstract ReadTimestampType getTimestampType();
 
-    abstract SerializableFunction<String, PulsarClient> getPulsarClient();
+    abstract long getConsumerPollingTimeout();
 
-    abstract Builder builder();
+    abstract @Nullable SerializableFunction<String, PulsarClient> getPulsarClient();
+
+    abstract @Nullable SerializableFunction<String, PulsarAdmin> getPulsarAdmin();
+
+    abstract SerializableFunction<Message<?>, T> getOutputFn();
+
+    abstract Builder<T> builder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setClientUrl(String url);
+    abstract static class Builder<T> {
+      abstract Builder<T> setClientUrl(String url);
 
-      abstract Builder setAdminUrl(String url);
+      abstract Builder<T> setAdminUrl(String url);
 
-      abstract Builder setTopic(String topic);
+      abstract Builder<T> setTopic(String topic);
 
-      abstract Builder setStartTimestamp(Long timestamp);
+      abstract Builder<T> setStartTimestamp(Long timestamp);
 
-      abstract Builder setEndTimestamp(Long timestamp);
+      abstract Builder<T> setEndTimestamp(Long timestamp);
 
-      abstract Builder setEndMessageId(MessageId msgId);
+      abstract Builder<T> setEndMessageId(MessageId msgId);
 
-      abstract Builder setExtractOutputTimestampFn(
-          SerializableFunction<Message<byte[]>, Instant> fn);
+      abstract Builder<T> setTimestampType(ReadTimestampType timestampType);
 
-      abstract Builder setPulsarClient(SerializableFunction<String, PulsarClient> fn);
+      abstract Builder<T> setConsumerPollingTimeout(long timeOutMs);
 
-      abstract Read build();
+      abstract Builder<T> setPulsarClient(SerializableFunction<String, PulsarClient> fn);
+
+      abstract Builder<T> setPulsarAdmin(SerializableFunction<String, PulsarAdmin> fn);
+
+      @SuppressWarnings("getvsset") // outputFn determines generic type
+      abstract Builder<T> setOutputFn(SerializableFunction<Message<?>, T> fn);
+
+      abstract Read<T> build();
     }
 
-    public Read withAdminUrl(String url) {
+    /**
+     * Configure Pulsar admin url.
+     *
+     * <p>Admin client is used to approximate backlogs. This setting is optional.
+     *
+     * @param url admin url. For example, {@code "http://localhost:8080"}.
+     */
+    public Read<T> withAdminUrl(String url) {
       return builder().setAdminUrl(url).build();
     }
 
-    public Read withClientUrl(String url) {
+    /**
+     * Configure Pulsar client url. {@code "pulsar://localhost:6650"}.
+     *
+     * @param url client url. For example,
+     */
+    public Read<T> withClientUrl(String url) {
       return builder().setClientUrl(url).build();
     }
 
-    public Read withTopic(String topic) {
+    public Read<T> withTopic(String topic) {
       return builder().setTopic(topic).build();
     }
 
-    public Read withStartTimestamp(Long timestamp) {
+    public Read<T> withStartTimestamp(Long timestamp) {
       return builder().setStartTimestamp(timestamp).build();
     }
 
-    public Read withEndTimestamp(Long timestamp) {
+    public Read<T> withEndTimestamp(Long timestamp) {
       return builder().setEndTimestamp(timestamp).build();
     }
 
-    public Read withEndMessageId(MessageId msgId) {
+    public Read<T> withEndMessageId(MessageId msgId) {
       return builder().setEndMessageId(msgId).build();
     }
 
-    public Read withExtractOutputTimestampFn(SerializableFunction<Message<byte[]>, Instant> fn) {
-      return builder().setExtractOutputTimestampFn(fn).build();
+    /** Set elements timestamped by {@link Message#getPublishTime()}. It is the default. */
+    public Read<T> withPublishTime() {
+      return builder().setTimestampType(ReadTimestampType.PUBLISH_TIME).build();
     }
 
-    public Read withPublishTime() {
-      return withExtractOutputTimestampFn(ExtractOutputTimestampFn.usePublishTime());
+    /** Set elements timestamped to the moment it get processed. */
+    public Read<T> withProcessingTime() {
+      return builder().setTimestampType(ReadTimestampType.PROCESSING_TIME).build();
     }
 
-    public Read withProcessingTime() {
-      return withExtractOutputTimestampFn(ExtractOutputTimestampFn.useProcessingTime());
+    /**
+     * Sets the timeout time in seconds for Pulsar consumer polling request. A lower timeout
+     * optimizes for latency. Increase the timeout if the consumer is not fetching any records. The
+     * default is 2 seconds.
+     */
+    public Read<T> withConsumerPollingTimeout(long duration) {
+      checkState(duration > 0, "Consumer polling timeout must be greater than 0.");
+      return builder().setConsumerPollingTimeout(duration).build();
     }
 
-    public Read withPulsarClient(SerializableFunction<String, PulsarClient> pulsarClientFn) {
+    public Read<T> withPulsarClient(SerializableFunction<String, PulsarClient> pulsarClientFn) {
       return builder().setPulsarClient(pulsarClientFn).build();
     }
 
+    public Read<T> withPulsarAdmin(SerializableFunction<String, PulsarAdmin> pulsarAdminFn) {
+      return builder().setPulsarAdmin(pulsarAdminFn).build();
+    }
+
+    @SuppressWarnings("unchecked") // for PulsarMessage
     @Override
-    public PCollection<PulsarMessage> expand(PBegin input) {
-      return input
-          .apply(
-              Create.of(
-                  PulsarSourceDescriptor.of(
-                      getTopic(),
-                      getStartTimestamp(),
-                      getEndTimestamp(),
-                      getEndMessageId(),
-                      getClientUrl(),
-                      getAdminUrl())))
-          .apply(ParDo.of(new ReadFromPulsarDoFn(this)))
-          .setCoder(PulsarMessageCoder.of());
+    public PCollection<T> expand(PBegin input) {
+      PCollection<T> pcoll =
+          input
+              .apply(
+                  Create.of(
+                      PulsarSourceDescriptor.of(
+                          getTopic(), getStartTimestamp(), getEndTimestamp(), getEndMessageId())))
+              .apply(ParDo.of(new NaiveReadFromPulsarDoFn<>(this)));
+      if (getOutputFn().equals(PULSAR_MESSAGE_SERIALIZABLE_FUNCTION)) {
+        // register coder for default implementation of read
+        return pcoll.setTypeDescriptor((TypeDescriptor<T>) TypeDescriptor.of(PulsarMessage.class));
+      }
+      return pcoll;
     }
   }
 
+  enum ReadTimestampType {
+    PROCESSING_TIME,
+    PUBLISH_TIME,
+  }
+
   /**
-   * Write to Apache Pulsar. Support is currently incomplete, and there may be bugs; see
-   * https://github.com/apache/beam/issues/31078 for more info, and comment in that issue if you run
-   * into issues with this IO.
+   * Write to Apache Pulsar. Support is currently experimental, and there may be bugs or performance
+   * issues; see https://github.com/apache/beam/issues/31078 for more info, and comment in that
+   * issue if you run into issues with this IO.
    */
   public static Write write() {
-    return new AutoValue_PulsarIO_Write.Builder().build();
+    return new AutoValue_PulsarIO_Write.Builder()
+        .setPulsarClient(PulsarIOUtils.PULSAR_CLIENT_SERIALIZABLE_FUNCTION)
+        .build();
   }
 
   @AutoValue
-  @SuppressWarnings({"rawtypes"})
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
 
     abstract @Nullable String getTopic();
 
-    abstract String getClientUrl();
+    abstract @Nullable String getClientUrl();
+
+    abstract SerializableFunction<String, PulsarClient> getPulsarClient();
 
     abstract Builder builder();
 
@@ -178,6 +248,8 @@ public class PulsarIO {
       abstract Builder setTopic(String topic);
 
       abstract Builder setClientUrl(String clientUrl);
+
+      abstract Builder setPulsarClient(SerializableFunction<String, PulsarClient> fn);
 
       abstract Write build();
     }
@@ -190,20 +262,14 @@ public class PulsarIO {
       return builder().setClientUrl(clientUrl).build();
     }
 
+    public Write withPulsarClient(SerializableFunction<String, PulsarClient> pulsarClientFn) {
+      return builder().setPulsarClient(pulsarClientFn).build();
+    }
+
     @Override
     public PDone expand(PCollection<byte[]> input) {
       input.apply(ParDo.of(new WriteToPulsarDoFn(this)));
       return PDone.in(input.getPipeline());
-    }
-  }
-
-  static class ExtractOutputTimestampFn {
-    public static SerializableFunction<Message<byte[]>, Instant> useProcessingTime() {
-      return record -> Instant.now();
-    }
-
-    public static SerializableFunction<Message<byte[]>, Instant> usePublishTime() {
-      return record -> new Instant(record.getPublishTime());
     }
   }
 }

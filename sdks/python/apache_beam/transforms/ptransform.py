@@ -1164,6 +1164,10 @@ class _NamedPTransform(PTransform):
   def __rrshift__(self, label):
     return _NamedPTransform(self.transform, label)
 
+  def with_resource_hints(self, **kwargs):
+    self.transform.with_resource_hints(**kwargs)
+    return self
+
   def __getattr__(self, attr):
     transform_attr = getattr(self.transform, attr)
     if callable(transform_attr):

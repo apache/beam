@@ -49,7 +49,6 @@ func TestUnimplemented(t *testing.T) {
 		// See https://github.com/apache/beam/issues/31153.
 		{pipeline: primitives.TriggerElementCount},
 		{pipeline: primitives.TriggerOrFinally},
-		{pipeline: primitives.TriggerAlways},
 
 		// Currently unimplemented triggers.
 		// https://github.com/apache/beam/issues/31438
@@ -87,6 +86,7 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.ParDoProcessElementBundleFinalizer},
 
 		{pipeline: primitives.TriggerNever},
+		{pipeline: primitives.TriggerAlways},
 		{pipeline: primitives.Panes},
 		{pipeline: primitives.TriggerAfterAll},
 		{pipeline: primitives.TriggerAfterAny},
