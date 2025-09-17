@@ -161,7 +161,8 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
         oneOfValue = value;
       }
     }
-    checkNotNull(oneOfValue, "No value set in union %s", this);
+    checkArgumentNotNull(caseType, "No value set in union %s", this);
+    checkArgumentNotNull(oneOfValue, "No value set in union %s", this);
     return createValue(caseType, oneOfValue);
   }
 
