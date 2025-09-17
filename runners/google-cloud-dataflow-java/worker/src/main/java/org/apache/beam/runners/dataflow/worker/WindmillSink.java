@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
+
   private WindmillStreamWriter writer;
   private final Coder<T> valueCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -109,6 +110,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   }
 
   public static class Factory implements SinkFactory {
+
     @Override
     public WindmillSink<?> create(
         CloudObject spec,
@@ -133,9 +135,12 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   }
 
   class WindmillStreamWriter implements SinkWriter<WindowedValue<T>> {
+
     private Map<ByteString, Windmill.KeyedMessageBundle.Builder> productionMap;
     private final String destinationName;
     private final ByteStringOutputStream stream; // Kept across encodes for buffer reuse.
+
+    // Builders are reused to reduce GC overhead.
     private final Windmill.Message.Builder messageBuilder;
     private final Windmill.OutputMessageBundle.Builder outputBuilder;
 
@@ -219,13 +224,15 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         productionMap.put(key, keyedOutput);
       }
 
-      messageBuilder.clear();
-      messageBuilder
-          .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
-          .setData(value)
-          .setMetadata(metadata);
-      keyedOutput.addMessages(messageBuilder.build());
-
+      try {
+        messageBuilder
+            .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
+            .setData(value)
+            .setMetadata(metadata);
+        keyedOutput.addMessages(messageBuilder.build());
+      } finally {
+        messageBuilder.clear();
+      }
       long offsetSize = 0;
       if (context.offsetBasedDeduplicationSupported()) {
         if (id.size() > 0) {
@@ -267,14 +274,17 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public void close() throws IOException {
-      outputBuilder.clear();
-      outputBuilder.setDestinationStreamId(destinationName);
+      try {
+        outputBuilder.setDestinationStreamId(destinationName);
 
-      for (Windmill.KeyedMessageBundle.Builder keyedOutput : productionMap.values()) {
-        outputBuilder.addBundles(keyedOutput.build());
-      }
-      if (outputBuilder.getBundlesCount() > 0) {
-        context.getOutputBuilder().addOutputMessages(outputBuilder.build());
+        for (Windmill.KeyedMessageBundle.Builder keyedOutput : productionMap.values()) {
+          outputBuilder.addBundles(keyedOutput.build());
+        }
+        if (outputBuilder.getBundlesCount() > 0) {
+          context.getOutputBuilder().addOutputMessages(outputBuilder.build());
+        }
+      } finally {
+        outputBuilder.clear();
       }
       productionMap.clear();
     }

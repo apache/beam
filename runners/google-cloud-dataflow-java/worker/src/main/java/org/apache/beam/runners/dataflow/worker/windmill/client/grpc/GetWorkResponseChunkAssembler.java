@@ -51,7 +51,7 @@ final class GetWorkResponseChunkAssembler {
 
   private final GetWorkTimingInfosTracker workTimingInfosTracker;
   private @Nullable ComputationMetadata metadata;
-  private final WorkItem.Builder workItemBuilder;
+  private final WorkItem.Builder workItemBuilder; // Reused to reduce GC overhead.
   private ByteString data;
   private long bufferedSize;
 
