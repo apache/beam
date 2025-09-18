@@ -114,7 +114,7 @@ class CloudPickleConfig:
   """Configuration for cloudpickle behavior."""
   id_generator: typing.Optional[callable] = uuid_generator
   skip_reset_dynamic_type_state: bool = False
-  enable_stable code_identifier_pickling: bool = False
+  enable_stable_code_identifier_pickling: bool = False
 
 
 DEFAULT_CONFIG = CloudPickleConfig()
@@ -1297,7 +1297,7 @@ class Pickler(pickle.Pickler):
 
   def _function_getnewargs(self, func):
     code_path = get_code_object_identifier(
-        func) if self.config.enable_stable code_identifier_pickling else None
+        func) if self.config.enable_stable_code_identifier_pickling else None
     code = func.__code__
 
     # base_globals represents the future global namespace of func at
