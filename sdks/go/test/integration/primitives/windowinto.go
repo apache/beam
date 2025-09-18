@@ -214,7 +214,7 @@ func TriggerElementCount(s beam.Scope) {
 	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
 			beam.Trigger(trigger.AfterCount(2)),
-		}, 2)
+		}, 1)
 }
 
 // TriggerAfterProcessingTime tests the AfterProcessingTime Trigger, it fires output panes once 't' processing time has passed
@@ -254,11 +254,13 @@ func TriggerRepeat(s beam.Scope) {
 }
 
 // TriggerAfterEndOfWindow tests the AfterEndOfWindow Trigger. With AfterCount(2) as the early firing trigger and AfterCount(1) as late firing trigger.
-// It fires two times, one with early firing when there are two elements while the third elements waits in. This third element is fired in the late firing.
+// It fires four times, one with early firing when there are two elements while the third elements waits in. This third element is fired on-time.
+// The fourth element fires late, and so does the fifth element.
 func TriggerAfterEndOfWindow(s beam.Scope) {
 	con := teststream.NewConfig()
 	con.AddElements(1000, 1.0, 2.0, 3.0)
 	con.AdvanceWatermark(11000)
+	con.AddElements(1000, 4.0, 5.0) // late data
 
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
@@ -269,7 +271,8 @@ func TriggerAfterEndOfWindow(s beam.Scope) {
 	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
 			beam.Trigger(trigger),
-		}, 2)
+			beam.AllowedLateness(20 * time.Second),
+		}, 4)
 }
 
 // TriggerAfterAll tests AfterAll trigger. The output pane is fired when all triggers in the subtriggers
