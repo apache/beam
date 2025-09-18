@@ -35,6 +35,7 @@ import fastavro
 import apache_beam as beam
 import apache_beam.io as beam_io
 from apache_beam import coders
+from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
@@ -48,7 +49,6 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_utils
-from apache_beam.coders.row_coder import RowCoder
 
 
 def read_from_text(path: str):

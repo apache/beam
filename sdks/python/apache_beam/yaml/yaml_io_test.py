@@ -24,13 +24,13 @@ import fastavro
 import mock
 
 import apache_beam as beam
+from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.testing.util import AssertThat
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml.yaml_transform import YamlTransform
-from apache_beam.coders.row_coder import RowCoder
 from apache_beam.typehints import schemas as schema_utils
+from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class FakeReadFromPubSub:
