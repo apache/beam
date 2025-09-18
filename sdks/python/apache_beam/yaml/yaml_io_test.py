@@ -498,7 +498,7 @@ class YamlPubSubTest(unittest.TestCase):
         pickle_library='cloudpickle')) as p:
       data = [beam.Row(label='37a', rank=1), beam.Row(label='389a', rank=2)]
       coder = RowCoder(
-          schema_utils.schema_from_element_type(beam.Row(label=str, rank=int)))
+          schema_utils.named_fields_to_schema([('label', str), ('rank', int)]))
       expected_messages = [PubsubMessage(coder.encode(r), {}) for r in data]
       with mock.patch('apache_beam.io.WriteToPubSub',
                       FakeWriteToPubSub(topic='my_topic',

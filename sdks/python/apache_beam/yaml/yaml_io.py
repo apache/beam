@@ -49,7 +49,6 @@ from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_utils
 from apache_beam.coders.row_coder import RowCoder
-from apache_beam.typehints import schemas as schema_utils
 
 
 def read_from_text(path: str):
