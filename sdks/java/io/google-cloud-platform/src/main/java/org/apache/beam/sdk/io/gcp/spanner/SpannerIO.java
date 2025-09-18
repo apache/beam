@@ -2330,7 +2330,7 @@ public class SpannerIO {
    * Filters MutationGroups larger than the batch size to the output tagged with {@code
    * UNBATCHABLE_MUTATIONS_TAG}.
    *
-   * <p>Testing notes: As batching does not occur during full pipline testing, this DoFn must be
+   * <p>Testing notes: As batching does not occur during full pipeline testing, this DoFn must be
    * tested in isolation.
    */
   @VisibleForTesting
