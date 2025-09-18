@@ -75,7 +75,7 @@ func (e *emit2[T1, T2]) Value() any {
 }
 
 func (e *emit2[T1, T2]) invoke(key T1, val T2) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
@@ -94,7 +94,7 @@ func (e *emit1WithTimestamp[T]) Value() any {
 }
 
 func (e *emit1WithTimestamp[T]) invoke(et typex.EventTime, val T) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: et, Elm: val}
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: et, Elm: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(et.ToTime())
 	}
@@ -113,7 +113,7 @@ func (e *emit2WithTimestamp[T1, T2]) Value() any {
 }
 
 func (e *emit2WithTimestamp[T1, T2]) invoke(et typex.EventTime, key T1, val T2) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: et, Elm: key, Elm2: val}
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: et, Elm: key, Elm2: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(et.ToTime())
 	}
