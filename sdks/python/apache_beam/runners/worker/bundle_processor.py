@@ -24,6 +24,7 @@ from __future__ import annotations
 import base64
 import bisect
 import collections
+import concurrent.futures
 import copy
 import heapq
 import itertools
@@ -76,6 +77,7 @@ from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
@@ -1130,7 +1132,25 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
 
-    self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix='ExecutionTreeCreator') as executor:
+      future = executor.submit(
+          self.create_execution_tree, self.process_bundle_descriptor)
+      try:
+        self.ops = future.result(timeout=3600)
+      except concurrent.futures.TimeoutError:
+        # In rare cases, unpickling a DoFn might get permanently stuck,
+        # for example when unpickling involves importing a module and
+        # a subprocess is launched during the import operation.
+        _LOGGER.error(
+            'Timed out when creating execution tree for %s.\n%s',
+            self.process_bundle_descriptor.id,
+            thread_dump('ExecutionTreeCreator'))
+        # Raising an exception here doesn't interrupt the left-over thread.
+        # Out of caution, terminate the SDK harness process.
+        from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
+        terminate_sdk_harness()
+
     for op in reversed(self.ops.values()):
       op.setup(self.data_sampler)
     self.splitting_lock = threading.Lock()

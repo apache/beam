@@ -66,13 +66,23 @@ def _current_frames():
     return sys._current_frames()  # pylint: disable=protected-access
 
 
-def thread_dump():
-  """Get a thread dump for the current SDK worker harness. """
+def thread_dump(thread_prefix=None):
+  """Get a thread dump for the current SDK harness.
+
+  Args:
+    thread_prefix: (str) An optional prefix to filter threads by.
+  """
   # deduplicate threads with same stack trace
   stack_traces = defaultdict(list)
   frames = _current_frames()
 
-  for t in threading.enumerate():
+  threads_to_dump = threading.enumerate()
+  if thread_prefix:
+    threads_to_dump = [
+        t for t in threads_to_dump if t.name.startswith(thread_prefix)
+    ]
+
+  for t in threads_to_dump:
     try:
       stack_trace = ''.join(traceback.format_stack(frames[t.ident]))
     except KeyError:
