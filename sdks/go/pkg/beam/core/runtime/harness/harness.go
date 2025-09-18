@@ -100,7 +100,7 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 	}
 
 	if _, err := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout")); err != nil {
-		log.Warnf(ctx, "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
+		log.Infof(ctx, "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
 	}
 
 	// Connect to FnAPI control server. Receive and execute work.
