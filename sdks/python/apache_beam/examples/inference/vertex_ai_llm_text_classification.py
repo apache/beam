@@ -23,13 +23,14 @@ model (see
 https://cloud.google.com/vertex-ai/docs/generative-ai/models/tune-models#supervised-fine-tuning)
 
 **NOTE**
-Google has deprecated non-Gemini LLMs and no longer supports querying them on
+Google has deprecated PaLM LLMs and no longer supports querying them on
 Vertex AI endpoints. Separately, the use of the Vertex AI Predict API is not
 supported for Gemini models in favor of use of the google-genai API. As a
-result, this example no longer works. To perform inference with remote LLMs
-deployed on Google infrastructure, please see the `GeminiModelHandler`
-(in `apache_beam.ml.inference.gemini_inference`) and the
-`gemini_text_classification.py` example.
+result, this example no longer works as-written. To perform inference with
+Gemini models deployed on Google infrastructure, please see the
+`GeminiModelHandler` (in `apache_beam.ml.inference.gemini_inference`) and the
+`gemini_text_classification.py` example. For custom LLMs, you may still follow
+this design pattern.
 """
 
 import argparse
