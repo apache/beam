@@ -20,7 +20,7 @@
 // directory.
 module github.com/apache/beam/sdks/v2
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.4
 
@@ -70,7 +70,7 @@ require (
 
 require (
 	github.com/avast/retry-go/v4 v4.6.1
-	github.com/fsouza/fake-gcs-server v1.52.2
+	github.com/fsouza/fake-gcs-server v1.52.3
 	github.com/golang-cz/devslog v0.0.15
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 )
@@ -180,7 +180,7 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
