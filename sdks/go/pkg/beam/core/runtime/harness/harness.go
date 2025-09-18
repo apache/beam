@@ -99,6 +99,10 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 		go diagnostics.SampleForHeapProfile(ctx, samplingFrequencySeconds, maxTimeBetweenDumpsSeconds)
 	}
 
+	if _, err := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout")); err != nil {
+		log.Warnf(ctx, "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
+	}
+
 	// Connect to FnAPI control server. Receive and execute work.
 	conn, err := dial(ctx, controlEndpoint, "control", 60*time.Second)
 	if err != nil {
@@ -410,7 +414,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
-		timeoutDuration := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout"))
+		timeoutDuration, _ := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout"))
 
 		sampler := newSampler(store, timeoutDuration)
 		go func() {
@@ -701,13 +705,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 // Parses the element_processing_timeout flag and returns the corresponding time.Duration.
 // The element_processing_timeout flag is expected to be a duration string (e.g., "5m", "1h", etc.)or -1.
 // Otherwise, it defaults to no timeout (0 minutes).
-func parseTimeoutDurationFlag(ctx context.Context, elementProcessingTimeout string) time.Duration {
+func parseTimeoutDurationFlag(ctx context.Context, elementProcessingTimeout string) (time.Duration, error) {
 	userSpecifiedTimeout, err := time.ParseDuration(elementProcessingTimeout)
 	if err != nil {
-		log.Warnf(ctx, "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
-		return 0 * time.Minute
+		return 0 * time.Minute, err
 	}
-	return userSpecifiedTimeout
+	return userSpecifiedTimeout, nil
 }
 
 // getPlanOrResponse returns the plan for the given instruction id.
