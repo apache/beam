@@ -37,7 +37,6 @@ except ImportError as e:
 _INPUT = "gs://apache-beam-ml/testing/inputs/vertex_images/*/*.jpg"
 _OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/vertex_images"
 _FLOWER_ENDPOINT_ID = "5384055553544683520"
-_LLM_ENDPOINT_ID = "1273985431406379008"
 _ENDPOINT_PROJECT = "apache-beam-testing"
 _ENDPOINT_REGION = "us-central1"
 _ENDPOINT_NETWORK = "projects/844138762903/global/networks/beam-test-vpc"
