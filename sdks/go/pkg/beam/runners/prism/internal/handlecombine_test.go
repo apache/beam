@@ -25,10 +25,14 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func TestHandleCombine(t *testing.T) {
-	undertest := "UnderTest"
+func makeWindowingStrategy(trigger *pipepb.Trigger) *pipepb.WindowingStrategy {
+	return &pipepb.WindowingStrategy{
+		Trigger: trigger,
+	}
+}
 
-	combineTransform := &pipepb.PTransform{
+func makeCombineTransform(inputPCollectionID string) *pipepb.PTransform {
+	return &pipepb.PTransform{
 		UniqueName: "COMBINE",
 		Spec: &pipepb.FunctionSpec{
 			Urn: urns.TransformCombinePerKey,
@@ -41,7 +45,7 @@ func TestHandleCombine(t *testing.T) {
 			}),
 		},
 		Inputs: map[string]string{
-			"input": "combineIn",
+			"input": inputPCollectionID,
 		},
 		Outputs: map[string]string{
 			"input": "combineOut",
@@ -51,6 +55,15 @@ func TestHandleCombine(t *testing.T) {
 			"combine_values",
 		},
 	}
+}
+
+func TestHandleCombine(t *testing.T) {
+	undertest := "UnderTest"
+
+	combineTransform := makeCombineTransform("combineIn")
+	combineTransformWithTriggerElementCount := makeCombineTransform("combineInWithTriggerElementCount")
+	combineTransformWithTriggerAlways := makeCombineTransform("combineInWithTriggerAlways")
+
 	combineValuesTransform := &pipepb.PTransform{
 		UniqueName: "combine_values",
 		Subtransforms: []string{
@@ -63,6 +76,14 @@ func TestHandleCombine(t *testing.T) {
 		},
 		"combineOut": {
 			CoderId: "outputCoder",
+		},
+		"combineInWithTriggerElementCount": {
+			CoderId:             "inputCoder",
+			WindowingStrategyId: "wsElementCount",
+		},
+		"combineInWithTriggerAlways": {
+			CoderId:             "inputCoder",
+			WindowingStrategyId: "wsAlways",
 		},
 	}
 	baseCoderMap := map[string]*pipepb.Coder{
@@ -84,7 +105,20 @@ func TestHandleCombine(t *testing.T) {
 			ComponentCoderIds: []string{"int", "string"},
 		},
 	}
-
+	baseWindowingStrategyMap := map[string]*pipepb.WindowingStrategy{
+		"wsElementCount": makeWindowingStrategy(&pipepb.Trigger{
+			Trigger: &pipepb.Trigger_ElementCount_{
+				ElementCount: &pipepb.Trigger_ElementCount{
+					ElementCount: 10,
+				},
+			},
+		}),
+		"wsAlways": makeWindowingStrategy(&pipepb.Trigger{
+			Trigger: &pipepb.Trigger_Always_{
+				Always: &pipepb.Trigger_Always{},
+			},
+		}),
+	}
 	tests := []struct {
 		name   string
 		lifted bool
@@ -188,6 +222,32 @@ func TestHandleCombine(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name:   "noLift_triggerElementCount",
+			lifted: true, // Lifting is enabled, but should be disabled in the present of the trigger
+			comps: &pipepb.Components{
+				Transforms: map[string]*pipepb.PTransform{
+					undertest:        combineTransformWithTriggerElementCount,
+					"combine_values": combineValuesTransform,
+				},
+				Pcollections:        basePCollectionMap,
+				Coders:              baseCoderMap,
+				WindowingStrategies: baseWindowingStrategyMap,
+			},
+			want: prepareResult{},
+		}, {
+			name:   "noLift_triggerAlways",
+			lifted: true, // Lifting is enabled, but should be disabled in the present of the trigger
+			comps: &pipepb.Components{
+				Transforms: map[string]*pipepb.PTransform{
+					undertest:        combineTransformWithTriggerAlways,
+					"combine_values": combineValuesTransform,
+				},
+				Pcollections:        basePCollectionMap,
+				Coders:              baseCoderMap,
+				WindowingStrategies: baseWindowingStrategyMap,
+			},
+			want: prepareResult{},
 		},
 	}
 	for _, test := range tests {

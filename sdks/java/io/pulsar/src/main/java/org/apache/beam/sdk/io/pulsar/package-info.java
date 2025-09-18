@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 /**
- * Transforms for reading and writing from Apache Pulsar. Support is currently incomplete, and there
- * may be bugs; see https://github.com/apache/beam/issues/31078 for more info, and comment in that
- * issue if you run into issues with this IO.
+ * Transforms for reading and writing from Apache Pulsar. Support is currently experimental, and
+ * there may be bugs and performance issues; see https://github.com/apache/beam/issues/31078 for
+ * more info, and comment in that issue if you run into issues with this IO.
  */
 package org.apache.beam.sdk.io.pulsar;

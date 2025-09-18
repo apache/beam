@@ -1,1 +1,4 @@
-{"revision":  1}
+{
+  "https://github.com/apache/beam/pull/36138": "Cleanly separating v1 worker and v2 sdk harness container image handling",
+  "revision":  1
+}

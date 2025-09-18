@@ -728,6 +728,7 @@ class PTransformTest(unittest.TestCase):
       param(compat_version="2.66.0"),
   ])
   @pytest.mark.it_validatesrunner
+  @pytest.mark.uses_dill
   def test_group_by_key_importable_special_types(self, compat_version):
     def generate(_):
       for _ in range(100):
@@ -735,6 +736,7 @@ class PTransformTest(unittest.TestCase):
 
     pipeline = TestPipeline(is_integration_test=True)
     if compat_version:
+      pytest.importorskip("dill")
       pipeline.get_pipeline_options().view_as(
           StreamingOptions).update_compatibility_version = compat_version
     with pipeline as p:
