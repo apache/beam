@@ -29,7 +29,7 @@ import logging
 import pyarrow
 
 import apache_beam as beam
-from apache_beam.examples.iobase_sinks.generate_event import GenerateEvent
+from apache_beam.examples.sinks.generate_event import GenerateEvent
 from apache_beam.io.fileio import WriteToFiles
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
