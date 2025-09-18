@@ -851,7 +851,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 						element{
 							window:    w,
 							timestamp: et,
-							pane:      stage.kind.updatePane(stage, pn, w, keyBytes, rb.BundleID),
+							pane:      stage.kind.getPane(stage, pn, w, keyBytes, rb.BundleID),
 							elmBytes:  elmBytes,
 							keyBytes:  keyBytes,
 							sequence:  seq,
@@ -1177,7 +1177,7 @@ type stageState struct {
 	state                  map[LinkID]map[typex.Window]map[string]StateData      // state data for this stage, from {tid, stateID} -> window -> userKey
 	stateTypeLen           map[LinkID]func([]byte) int                           // map from state to a function that will produce the total length of a single value in bytes.
 	bundlesToInject        []RunBundle                                           // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
-	bundlePanes            map[string]map[typex.Window]map[string]typex.PaneInfo // PanInfo snapshot for bundles, from BundleID -> window -> userKey
+	bundlePanes            map[string]map[typex.Window]map[string]typex.PaneInfo // PaneInfo snapshot for bundles, from BundleID -> window -> userKey
 
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
@@ -1199,8 +1199,8 @@ type stageKind interface {
 	// buildEventTimeBundle handles building bundles for the stage per it's kind.
 	buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, schedulable bool, pendingAdjustment int)
 
-	// updatePane based on the stage state.
-	updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo
+	// getPane based on the stage state, element metadata, and bundle id.
+	getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo
 }
 
 // ordinaryStageKind represents stages that have no special behavior associated with them.
@@ -1209,7 +1209,7 @@ type ordinaryStageKind struct{}
 
 func (*ordinaryStageKind) String() string { return "OrdinaryStage" }
 
-func (*ordinaryStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
+func (*ordinaryStageKind) getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
 	return pane
 }
 
@@ -1218,7 +1218,7 @@ type statefulStageKind struct{}
 
 func (*statefulStageKind) String() string { return "StatefulStage" }
 
-func (*statefulStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
+func (*statefulStageKind) getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
 	return pane
 }
 
@@ -1228,7 +1228,7 @@ type aggregateStageKind struct{}
 
 func (*aggregateStageKind) String() string { return "AggregateStage" }
 
-func (*aggregateStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
+func (*aggregateStageKind) getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	if pane, ok := ss.bundlePanes[bundID][w][string(keyBytes)]; ok {
