@@ -60,11 +60,11 @@ class GenerateEvent(beam.PTransform):
                                         tzinfo=pytz.UTC).timestamp()).
         advance_watermark_to(
             datetime(2021, 3, 1, 0, 0, 5, 0,
-                    tzinfo=pytz.UTC).timestamp()).add_elements(
-                        elements=elem,
-                        event_timestamp=datetime(
-                            2021, 3, 1, 0, 0, 5, 0,
-                            tzinfo=pytz.UTC).timestamp()).
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 5, 0,
+                             tzinfo=pytz.UTC).timestamp()).
         add_elements(
             elements=elem,
             event_timestamp=datetime(
@@ -84,15 +84,15 @@ class GenerateEvent(beam.PTransform):
                                         tzinfo=pytz.UTC).timestamp()).
         advance_watermark_to(
             datetime(2021, 3, 1, 0, 0, 10, 0,
-                    tzinfo=pytz.UTC).timestamp()).add_elements(
-                        elements=elem,
-                        event_timestamp=datetime(
-                            2021, 3, 1, 0, 0, 10, 0,
-                            tzinfo=pytz.UTC).timestamp()).add_elements(
-                                elements=elem,
-                                event_timestamp=datetime(
-                                    2021, 3, 1, 0, 0, 11, 0,
-                                    tzinfo=pytz.UTC).timestamp()).
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 10, 0,
+                             tzinfo=pytz.UTC).timestamp()).add_elements(
+                                 elements=elem,
+                                 event_timestamp=datetime(
+                                     2021, 3, 1, 0, 0, 11, 0,
+                                     tzinfo=pytz.UTC).timestamp()).
         add_elements(
             elements=elem,
             event_timestamp=datetime(
@@ -108,15 +108,15 @@ class GenerateEvent(beam.PTransform):
                                 tzinfo=pytz.UTC).timestamp()).
         advance_watermark_to(
             datetime(2021, 3, 1, 0, 0, 15, 0,
-                    tzinfo=pytz.UTC).timestamp()).add_elements(
-                        elements=elem,
-                        event_timestamp=datetime(
-                            2021, 3, 1, 0, 0, 15, 0,
-                            tzinfo=pytz.UTC).timestamp()).add_elements(
-                                elements=elem,
-                                event_timestamp=datetime(
-                                    2021, 3, 1, 0, 0, 16, 0,
-                                    tzinfo=pytz.UTC).timestamp()).
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 15, 0,
+                             tzinfo=pytz.UTC).timestamp()).add_elements(
+                                 elements=elem,
+                                 event_timestamp=datetime(
+                                     2021, 3, 1, 0, 0, 16, 0,
+                                     tzinfo=pytz.UTC).timestamp()).
         add_elements(
             elements=elem,
             event_timestamp=datetime(
@@ -132,11 +132,11 @@ class GenerateEvent(beam.PTransform):
                                 tzinfo=pytz.UTC).timestamp()).
         advance_watermark_to(
             datetime(2021, 3, 1, 0, 0, 20, 0,
-                    tzinfo=pytz.UTC).timestamp()).add_elements(
-                        elements=elem,
-                        event_timestamp=datetime(
-                            2021, 3, 1, 0, 0, 20, 0,
-                            tzinfo=pytz.UTC).timestamp()).advance_watermark_to(
-                                datetime(
-                                    2021, 3, 1, 0, 0, 25, 0, tzinfo=pytz.UTC).
-                                timestamp()).advance_watermark_to_infinity())
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 20, 0,
+                             tzinfo=pytz.UTC).timestamp()).advance_watermark_to(
+                                 datetime(
+                                     2021, 3, 1, 0, 0, 25, 0, tzinfo=pytz.UTC).
+                                 timestamp()).advance_watermark_to_infinity())
