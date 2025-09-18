@@ -17,7 +17,9 @@
 # under the License.
 #
 
-# python -m apache_beam.examples.iobase_sinks.test_periodicimpulse
+# To run the pipelines locally:
+# python -m apache_beam.examples.sinks.test_periodicimpulse
+
 # This file contains examples of writing unbounded PCollection using
 # PeriodicImpulse to files
 

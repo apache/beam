@@ -17,7 +17,10 @@
 # under the License.
 #
 
-# python -m apache_beam.examples.iobase_sinks.test_write_bounded
+# To run the pipelines locally:
+# python -m apache_beam.examples.sinks.test_write_bounded
+
+# This file contains multiple examples of writing bounded PCollection to files
 
 import argparse
 import json

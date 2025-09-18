@@ -17,7 +17,9 @@
 # under the License.
 #
 
-# python -m apache_beam.examples.iobase_sinks.test_write_unbounded
+# To run the pipelines locally:
+# python -m apache_beam.examples.sinks.test_write_unbounded
+
 # This file contains multiple examples of writing unbounded PCollection to files
 
 import argparse
