@@ -851,7 +851,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 						element{
 							window:    w,
 							timestamp: et,
-							pane:      stage.kind.updatePane(stage, pn, w, keyBytes),
+							pane:      stage.kind.updatePane(stage, pn, w, keyBytes, rb.BundleID),
 							elmBytes:  elmBytes,
 							keyBytes:  keyBytes,
 							sequence:  seq,
@@ -905,6 +905,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			delete(stage.inprogressKeys, k)
 		}
 		delete(stage.inprogressKeysByBundle, rb.BundleID)
+		delete(stage.bundlePanes, rb.BundleID)
 
 		// Adjust holds as needed.
 		for h, c := range newHolds {
@@ -1170,12 +1171,13 @@ type stageState struct {
 	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 
 	// Fields for stateful stages which need to be per key.
-	pendingByKeys          map[string]*dataAndTimers                        // pending input elements by Key, if stateful.
-	inprogressKeys         set[string]                                      // all keys that are assigned to bundles.
-	inprogressKeysByBundle map[string]set[string]                           // bundle to key assignments.
-	state                  map[LinkID]map[typex.Window]map[string]StateData // state data for this stage, from {tid, stateID} -> window -> userKey
-	stateTypeLen           map[LinkID]func([]byte) int                      // map from state to a function that will produce the total length of a single value in bytes.
-	bundlesToInject        []RunBundle                                      // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
+	pendingByKeys          map[string]*dataAndTimers                             // pending input elements by Key, if stateful.
+	inprogressKeys         set[string]                                           // all keys that are assigned to bundles.
+	inprogressKeysByBundle map[string]set[string]                                // bundle to key assignments.
+	state                  map[LinkID]map[typex.Window]map[string]StateData      // state data for this stage, from {tid, stateID} -> window -> userKey
+	stateTypeLen           map[LinkID]func([]byte) int                           // map from state to a function that will produce the total length of a single value in bytes.
+	bundlesToInject        []RunBundle                                           // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
+	bundlePanes            map[string]map[typex.Window]map[string]typex.PaneInfo // PanInfo snapshot for bundles, from BundleID -> window -> userKey
 
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
@@ -1198,7 +1200,7 @@ type stageKind interface {
 	buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, schedulable bool, pendingAdjustment int)
 
 	// updatePane based on the stage state.
-	updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo
+	updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo
 }
 
 // ordinaryStageKind represents stages that have no special behavior associated with them.
@@ -1207,7 +1209,7 @@ type ordinaryStageKind struct{}
 
 func (*ordinaryStageKind) String() string { return "OrdinaryStage" }
 
-func (*ordinaryStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo {
+func (*ordinaryStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
 	return pane
 }
 
@@ -1216,7 +1218,7 @@ type statefulStageKind struct{}
 
 func (*statefulStageKind) String() string { return "StatefulStage" }
 
-func (*statefulStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo {
+func (*statefulStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
 	return pane
 }
 
@@ -1226,9 +1228,12 @@ type aggregateStageKind struct{}
 
 func (*aggregateStageKind) String() string { return "AggregateStage" }
 
-func (*aggregateStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo {
+func (*aggregateStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+	if pane, ok := ss.bundlePanes[bundID][w][string(keyBytes)]; ok {
+		return pane
+	}
 	return ss.state[LinkID{}][w][string(keyBytes)].Pane
 }
 
@@ -1459,6 +1464,19 @@ func computeNextWatermarkPane(pane typex.PaneInfo) typex.PaneInfo {
 	return pane
 }
 
+func (ss *stageState) savePane(bundID string, window typex.Window, key string) {
+	if ss.bundlePanes == nil {
+		ss.bundlePanes = make(map[string]map[typex.Window]map[string]typex.PaneInfo)
+	}
+	if ss.bundlePanes[bundID] == nil {
+		ss.bundlePanes[bundID] = make(map[typex.Window]map[string]typex.PaneInfo)
+	}
+	if ss.bundlePanes[bundID][window] == nil {
+		ss.bundlePanes[bundID][window] = make(map[string]typex.PaneInfo)
+	}
+	ss.bundlePanes[bundID][window][key] = ss.state[LinkID{}][window][key].Pane
+}
+
 // buildTriggeredBundle must be called with the stage.mu lock held.
 // When in discarding mode, returns 0.
 // When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
@@ -1509,6 +1527,9 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 		singleSet(string(key)),
 		nil,
 	)
+	// Save latest PaneInfo for PersistBundle
+	ss.savePane(rb.BundleID, win, string(key))
+
 	ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
 	em.refreshCond.L.Lock()
@@ -1620,6 +1641,13 @@ func (ss *stageState) startEventTimeBundle(watermark mtime.Time, genBundID func(
 	}
 
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
+	if _, ok := ss.kind.(*aggregateStageKind); ok {
+		// For aggregate stage, buildEventTimeBundle may have saved bundle panes with empty string as key.
+		// Move it under the correct BundleID now.
+		ss.bundlePanes[bundID] = ss.bundlePanes[""]
+		delete(ss.bundlePanes, "")
+	}
+
 	return bundID, true, stillSchedulable, accumulatingPendingAdjustment
 }
 
@@ -1813,6 +1841,10 @@ keysPerBundle:
 				state.Pane.IsLast = true
 			}
 			ss.state[LinkID{}][elm.window][string(elm.keyBytes)] = state
+
+			// Save latest PaneInfo for PersistBundle
+			// Use "" as bundle ID for now, but will change it once we know the bundle ID.
+			ss.savePane("", elm.window, string(elm.keyBytes))
 
 			// The pane is already correct for this key + window + firing.
 			if ss.strat.Accumulating && !state.Pane.IsLast {
