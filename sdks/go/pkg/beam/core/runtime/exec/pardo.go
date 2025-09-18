@@ -474,7 +474,7 @@ func (n *ParDo) processTimer(timerFamilyID string, singleWindow []typex.Window, 
 			err = postErr
 		}
 	}()
-	if err := n.preInvoke(n.ctx, typex.PaneInfo{}, singleWindow, tmap.HoldTimestamp); err != nil {
+	if err := n.preInvoke(n.ctx, typex.NoFiringPane(), singleWindow, tmap.HoldTimestamp); err != nil {
 		return err
 	}
 
