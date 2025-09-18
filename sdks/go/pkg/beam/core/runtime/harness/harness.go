@@ -99,7 +99,8 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 		go diagnostics.SampleForHeapProfile(ctx, samplingFrequencySeconds, maxTimeBetweenDumpsSeconds)
 	}
 
-	if _, err := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout")); err != nil {
+	elmTimeout, err := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout"))
+	if err != nil {
 		log.Infof(ctx, "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
 	}
 
@@ -161,6 +162,7 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
 		runnerCapabilities:   rcMap,
+		elmTimeout:           elmTimeout,
 	}
 
 	if enabled, ok := rcMap[graphx.URNDataSampling]; ok && enabled {
@@ -316,6 +318,7 @@ type control struct {
 	cache              *statecache.SideInputCache
 	runnerCapabilities map[string]bool
 	dataSampler        *exec.DataSampler
+	elmTimeout         time.Duration
 }
 
 func (c *control) metStoreToString(statusInfo *strings.Builder) {
@@ -414,9 +417,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
-		timeoutDuration, _ := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout"))
 
-		sampler := newSampler(store, timeoutDuration)
+		sampler := newSampler(store, c.elmTimeout)
 		go func() {
 			samplerErr := sampler.start(ctx, samplePeriod)
 			if samplerErr != nil {
