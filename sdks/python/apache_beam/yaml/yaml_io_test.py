@@ -493,7 +493,7 @@ class YamlPubSubTest(unittest.TestCase):
               attributes_map: other
             '''))
 
-  def test_rw_proto(self):
+  def test_write_proto(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       data = [beam.Row(label='37a', rank=1), beam.Row(label='389a', rank=2)]
@@ -512,6 +512,13 @@ class YamlPubSubTest(unittest.TestCase):
               format: PROTO
             '''))
 
+  def test_read_proto(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      data = [beam.Row(label='37a', rank=1), beam.Row(label='389a', rank=2)]
+      coder = RowCoder(
+          schema_utils.named_fields_to_schema([('label', str), ('rank', int)]))
+      expected_messages = [PubsubMessage(coder.encode(r), {}) for r in data]
       with mock.patch('apache_beam.io.ReadFromPubSub',
                       FakeReadFromPubSub(topic='my_topic',
                                          messages=expected_messages)):
