@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -72,15 +71,29 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     this.context = context;
   }
 
+  private static ByteString encodeMetadata(
+      ByteStringOutputStream stream,
+      Coder<Collection<? extends BoundedWindow>> windowsCoder,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo)
+      throws IOException {
+    try {
+      PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
+      windowsCoder.encode(windows, stream, Coder.Context.OUTER);
+      return stream.toByteStringAndReset();
+    } catch (Exception e) {
+      stream.reset();
+      throw e;
+    }
+  }
+
   public static ByteString encodeMetadata(
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Collection<? extends BoundedWindow> windows,
       PaneInfo paneInfo)
       throws IOException {
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
-    windowsCoder.encode(windows, stream, Coder.Context.OUTER);
-    return stream.toByteString();
+    return encodeMetadata(stream, windowsCoder, windows, paneInfo);
   }
 
   public static PaneInfo decodeMetadataPane(ByteString metadata) throws IOException {
@@ -153,15 +166,15 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      checkState(
-          stream.size() == 0,
-          "Expected output stream to be empty but had %s",
-          stream.toByteString());
+      if (stream.size() != 0) {
+        throw new IllegalStateException(
+            "Expected output stream to be empty but had " + stream.toByteString());
+      }
       try {
         coder.encode(object, stream, Coder.Context.OUTER);
         return stream.toByteStringAndReset();
       } catch (Exception e) {
-        stream.toByteStringAndReset();
+        stream.reset();
         throw e;
       }
     }
@@ -171,7 +184,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
-      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPaneInfo());
+      ByteString metadata =
+          encodeMetadata(stream, windowsCoder, data.getWindows(), data.getPaneInfo());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();

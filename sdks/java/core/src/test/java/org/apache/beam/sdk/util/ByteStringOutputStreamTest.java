@@ -223,6 +223,19 @@ public class ByteStringOutputStreamTest {
     }
   }
 
+  @Test
+  public void testReset() throws IOException {
+    try (ByteStringOutputStream stream = new ByteStringOutputStream()) {
+      stream.reset();
+      assertEquals(ByteString.EMPTY, stream.toByteString());
+      stream.append("test");
+      stream.reset();
+      assertEquals(ByteString.EMPTY, stream.toByteString());
+      stream.reset();
+      assertEquals(ByteString.EMPTY, stream.toByteString());
+    }
+  }
+
   // Grow the elements based upon an approximation of the fibonacci sequence.
   private static int next(int current) {
     double a = Math.max(1, current * (1 + Math.sqrt(5)) / 2.0);
