@@ -1197,7 +1197,8 @@ type stageKind interface {
 	// addPending handles adding new pending elements to the stage appropriate for the kind.
 	addPending(ss *stageState, em *ElementManager, newPending []element) int
 	// buildEventTimeBundle handles building bundles for the stage per it's kind.
-	buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, schedulable bool, pendingAdjustment int)
+	buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string],
+		holdsInBundle map[mtime.Time]int, panesInBundle map[typex.Window]map[string]typex.PaneInfo, schedulable bool, pendingAdjustment int)
 
 	// getPane based on the stage state, element metadata, and bundle id.
 	getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo
@@ -1464,17 +1465,22 @@ func computeNextWatermarkPane(pane typex.PaneInfo) typex.PaneInfo {
 	return pane
 }
 
-func (ss *stageState) savePane(bundID string, window typex.Window, key string) {
+func (ss *stageState) savePanes(bundID string, panesInBundle map[typex.Window]map[string]typex.PaneInfo) {
 	if ss.bundlePanes == nil {
 		ss.bundlePanes = make(map[string]map[typex.Window]map[string]typex.PaneInfo)
 	}
 	if ss.bundlePanes[bundID] == nil {
 		ss.bundlePanes[bundID] = make(map[typex.Window]map[string]typex.PaneInfo)
 	}
-	if ss.bundlePanes[bundID][window] == nil {
-		ss.bundlePanes[bundID][window] = make(map[string]typex.PaneInfo)
+	for window, panesByKey := range panesInBundle {
+		if ss.bundlePanes[bundID][window] == nil {
+			ss.bundlePanes[bundID][window] = make(map[string]typex.PaneInfo)
+		}
+
+		for key, pane := range panesByKey {
+			ss.bundlePanes[bundID][window][key] = pane
+		}
 	}
-	ss.bundlePanes[bundID][window][key] = ss.state[LinkID{}][window][key].Pane
 }
 
 // buildTriggeredBundle must be called with the stage.mu lock held.
@@ -1520,15 +1526,20 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 	if ss.inprogressKeys == nil {
 		ss.inprogressKeys = set[string]{}
 	}
+	panesInBundle := map[typex.Window]map[string]typex.PaneInfo{
+		win: {
+			string(key): ss.state[LinkID{}][win][string(key)].Pane,
+		},
+	}
+
 	ss.makeInProgressBundle(
 		func() string { return rb.BundleID },
 		toProcess,
 		ss.input,
 		singleSet(string(key)),
 		nil,
+		panesInBundle,
 	)
-	// Save latest PaneInfo for PersistBundle
-	ss.savePane(rb.BundleID, win, string(key))
 
 	ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
@@ -1633,33 +1644,27 @@ func (ss *stageState) startEventTimeBundle(watermark mtime.Time, genBundID func(
 	}()
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	toProcess, minTs, newKeys, holdsInBundle, stillSchedulable, accumulatingPendingAdjustment := ss.kind.buildEventTimeBundle(ss, watermark)
+	toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment := ss.kind.buildEventTimeBundle(ss, watermark)
 
 	if len(toProcess) == 0 {
 		// If we have nothing, there's nothing to progress.
 		return "", false, stillSchedulable, accumulatingPendingAdjustment
 	}
 
-	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
-	if _, ok := ss.kind.(*aggregateStageKind); ok {
-		// For aggregate stage, buildEventTimeBundle may have saved bundle panes with empty string as key.
-		// Move it under the correct BundleID now.
-		ss.bundlePanes[bundID] = ss.bundlePanes[""]
-		delete(ss.bundlePanes, "")
-	}
+	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, panesInBundle)
 
 	return bundID, true, stillSchedulable, accumulatingPendingAdjustment
 }
 
 // buildEventTimeBundle for ordinary stages processes all pending elements.
-func (*ordinaryStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, schedulable bool, pendingAdjustment int) {
+func (*ordinaryStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, _ map[typex.Window]map[string]typex.PaneInfo, schedulable bool, pendingAdjustment int) {
 	toProcess = ss.pending
 	ss.pending = nil
-	return toProcess, mtime.MaxTimestamp, nil, nil, true, 0
+	return toProcess, mtime.MaxTimestamp, nil, nil, nil, true, 0
 }
 
 // buildEventTimeBundle for stateful stages, processes all elements that are before the input watermark time.
-func (*statefulStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, schedulable bool, pendingAdjustment int) {
+func (*statefulStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, _ map[typex.Window]map[string]typex.PaneInfo, schedulable bool, pendingAdjustment int) {
 	minTs := mtime.MaxTimestamp
 	// TODO: Allow configurable limit of keys per bundle, and elements per key to improve parallelism.
 	// TODO: when we do, we need to ensure that the stage remains schedualable for bundle execution, for remaining pending elements and keys.
@@ -1743,11 +1748,11 @@ keysPerBundle:
 	// If we're out of data, and timers were not cleared then the watermark is accurate.
 	stillSchedulable := !(len(ss.pendingByKeys) == 0 && !timerCleared)
 
-	return toProcess, minTs, newKeys, holdsInBundle, stillSchedulable, 0
+	return toProcess, minTs, newKeys, holdsInBundle, nil, stillSchedulable, 0
 }
 
 // buildEventTimeBundle for aggregation stages, processes all elements that are within the watermark for completed windows.
-func (*aggregateStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, schedulable bool, pendingAdjustment int) {
+func (*aggregateStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, panesInBundle map[typex.Window]map[string]typex.PaneInfo, schedulable bool, pendingAdjustment int) {
 	minTs := mtime.MaxTimestamp
 	// TODO: Allow configurable limit of keys per bundle, and elements per key to improve parallelism.
 	// TODO: when we do, we need to ensure that the stage remains schedualable for bundle execution, for remaining pending elements and keys.
@@ -1842,9 +1847,14 @@ keysPerBundle:
 			}
 			ss.state[LinkID{}][elm.window][string(elm.keyBytes)] = state
 
-			// Save latest PaneInfo for PersistBundle
-			// Use "" as bundle ID for now, but will change it once we know the bundle ID.
-			ss.savePane("", elm.window, string(elm.keyBytes))
+			// Save latest PaneInfo for this window + key pair. It will be used in PersistBundle.
+			if panesInBundle == nil {
+				panesInBundle = make(map[typex.Window]map[string]typex.PaneInfo)
+			}
+			if panesInBundle[elm.window] == nil {
+				panesInBundle[elm.window] = make(map[string]typex.PaneInfo)
+			}
+			panesInBundle[elm.window][string(elm.keyBytes)] = ss.state[LinkID{}][elm.window][string(elm.keyBytes)].Pane
 
 			// The pane is already correct for this key + window + firing.
 			if ss.strat.Accumulating && !state.Pane.IsLast {
@@ -1867,7 +1877,7 @@ keysPerBundle:
 	// If this is an aggregate, we need a watermark change in order to reschedule
 	stillSchedulable := false
 
-	return toProcess, minTs, newKeys, holdsInBundle, stillSchedulable, accumulatingPendingAdjustment
+	return toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment
 }
 
 func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.Time, genBundID func() string) (string, bool, bool) {
@@ -1942,14 +1952,14 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 		// If we have nothing
 		return "", false, stillSchedulable
 	}
-	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
+	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, nil)
 	return bundID, true, stillSchedulable
 }
 
 // makeInProgressBundle is common code to store a set of elements as a bundle in progress.
 //
 // Callers must hold the stage lock.
-func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []element, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int) string {
+func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []element, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, panesInBundle map[typex.Window]map[string]typex.PaneInfo) string {
 	// Catch the ordinary case for the minimum timestamp.
 	if toProcess[0].timestamp < minTs {
 		minTs = toProcess[0].timestamp
@@ -1973,6 +1983,9 @@ func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []
 	ss.inprogressKeysByBundle[bundID] = newKeys
 	ss.inprogressKeys.merge(newKeys)
 	ss.inprogressHoldsByBundle[bundID] = holdsInBundle
+
+	// Save latest PaneInfo for PersistBundle
+	ss.savePanes(bundID, panesInBundle)
 	return bundID
 }
 
@@ -2188,6 +2201,7 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 			wm,
 			usedKeys,
 			map[mtime.Time]int{wm: 1},
+			nil,
 		)
 		ss.expiryWindowsByBundles[rb.BundleID] = win
 
