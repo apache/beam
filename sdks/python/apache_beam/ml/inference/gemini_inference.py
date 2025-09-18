@@ -25,6 +25,7 @@ from typing import Union
 
 from google import genai
 from google.genai import errors
+from google.genai.types import Part
 
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
@@ -76,7 +77,7 @@ def generate_text_from_string(
 
 def generate_image_from_strings_and_images(
     model_name: str,
-    batch: Sequence[list[Union[str, Image]]],
+    batch: Sequence[list[Union[str, Image, Part]]],
     model: genai.Client,
     inference_args: dict[str, Any]):
   """ Request function that expects inputs to be composed of lists of strings
