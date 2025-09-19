@@ -22,6 +22,7 @@ import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.ArrayMatching.arrayContainingInAnyOrder;
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -34,11 +35,15 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
@@ -177,6 +182,66 @@ public class MultimapUserStateTest {
     assertArrayEquals(new byte[][] {}, Iterables.toArray(userState.keys(), byte[].class));
     userState.asyncClose();
     assertThrows(IllegalStateException.class, () -> userState.keys());
+  }
+
+  @Test
+  public void testEntries() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapEntriesStateKey(),
+                KV.of(
+                    KvCoder.of(ByteArrayCoder.of(), IterableCoder.of(StringUtf8Coder.of())),
+                    asList(KV.of(A1, asList("V1", "V2")), KV.of(A2, asList("V3"))))));
+    MultimapUserState<byte[], String> userState =
+        new MultimapUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createMultimapKeyStateKey(),
+            ByteArrayCoder.of(),
+            StringUtf8Coder.of());
+
+    assertArrayEquals(A1, userState.entries().iterator().next().getKey());
+    assertThat(
+        StreamSupport.stream(userState.entries().spliterator(), false)
+            .map(entry -> KV.of(ByteString.copyFrom(entry.getKey()), entry.getValue()))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(
+            KV.of(ByteString.copyFrom(A1), "V1"),
+            KV.of(ByteString.copyFrom(A1), "V2"),
+            KV.of(ByteString.copyFrom(A2), "V3")));
+
+    userState.put(A1, "V4");
+    assertThat(
+        StreamSupport.stream(userState.entries().spliterator(), false)
+            .map(entry -> KV.of(ByteString.copyFrom(entry.getKey()), entry.getValue()))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(
+            KV.of(ByteString.copyFrom(A1), "V1"),
+            KV.of(ByteString.copyFrom(A1), "V2"),
+            KV.of(ByteString.copyFrom(A2), "V3"),
+            KV.of(ByteString.copyFrom(A1), "V4")));
+
+    userState.remove(A1);
+    assertThat(
+        StreamSupport.stream(userState.entries().spliterator(), false)
+            .map(entry -> KV.of(ByteString.copyFrom(entry.getKey()), entry.getValue()))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(KV.of(ByteString.copyFrom(A2), "V3")));
+
+    userState.put(A1, "V5");
+    assertThat(
+        StreamSupport.stream(userState.entries().spliterator(), false)
+            .map(entry -> KV.of(ByteString.copyFrom(entry.getKey()), entry.getValue()))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(
+            KV.of(ByteString.copyFrom(A2), "V3"), KV.of(ByteString.copyFrom(A1), "V5")));
+
+    userState.clear();
+    assertThat(userState.entries(), emptyIterable());
+    userState.asyncClose();
+    assertThrows(IllegalStateException.class, () -> userState.entries());
   }
 
   @Test
@@ -1046,6 +1111,17 @@ public class MultimapUserStateTest {
     return StateKey.newBuilder()
         .setMultimapKeysUserState(
             StateKey.MultimapKeysUserState.newBuilder()
+                .setWindow(encode(encodedWindow))
+                .setKey(encode(encodedKey))
+                .setTransformId(pTransformId)
+                .setUserStateId(stateId))
+        .build();
+  }
+
+  private StateKey createMultimapEntriesStateKey() throws IOException {
+    return StateKey.newBuilder()
+        .setMultimapEntriesUserState(
+            StateKey.MultimapEntriesUserState.newBuilder()
                 .setWindow(encode(encodedWindow))
                 .setKey(encode(encodedKey))
                 .setTransformId(pTransformId)
