@@ -88,7 +88,6 @@ final class FirestoreV1WriteFn {
     @Override
     void handleWriteFailures(
         ContextAdapter<WriteSuccessSummary> context,
-        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage) {
       throw new FailedWritesException(
@@ -126,12 +125,11 @@ final class FirestoreV1WriteFn {
     @Override
     void handleWriteFailures(
         ContextAdapter<WriteFailure> context,
-        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage) {
       logMessage.run();
       for (KV<WriteFailure, BoundedWindow> kv : writeFailures) {
-        context.output(kv.getKey(), timestamp, kv.getValue());
+        context.output(kv.getKey(), kv.getValue().maxTimestamp(), kv.getValue());
       }
     }
 
@@ -275,7 +273,6 @@ final class FirestoreV1WriteFn {
                 getWriteType(write), getName(write));
         handleWriteFailures(
             contextAdapter,
-            clock.instant(),
             ImmutableList.of(
                 KV.of(
                     new WriteFailure(
@@ -482,7 +479,6 @@ final class FirestoreV1WriteFn {
             int finalOkCount = okCount;
             handleWriteFailures(
                 context,
-                Preconditions.checkArgumentNotNull(okWindow).maxTimestamp(),
                 ImmutableList.copyOf(nonRetryableWrites),
                 () ->
                     LOG.warn(
@@ -543,7 +539,6 @@ final class FirestoreV1WriteFn {
 
     abstract void handleWriteFailures(
         ContextAdapter<OutT> context,
-        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage);
 
