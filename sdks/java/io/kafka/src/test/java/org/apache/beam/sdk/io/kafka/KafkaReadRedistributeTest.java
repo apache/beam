@@ -65,7 +65,7 @@ public class KafkaReadRedistributeTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testJustRedistribute() {
+  public void testRedistributeByOffsetShard() {
 
     PCollection<KafkaRecord<String, Integer>> input =
         pipeline.apply(
@@ -73,7 +73,26 @@ public class KafkaReadRedistributeTest implements Serializable {
                 .withCoder(KafkaRecordCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PCollection<KafkaRecord<String, Integer>> output =
-        input.apply(KafkaReadRedistribute.redistribute());
+        input.apply(KafkaReadRedistribute.byOffsetShard(/*numBuckets*/ 10));
+
+    PAssert.that(output).containsInAnyOrder(INPUTS);
+
+    assertEquals(input.getWindowingStrategy(), output.getWindowingStrategy());
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testRedistributeByKey() {
+
+    PCollection<KafkaRecord<String, Integer>> input =
+        pipeline.apply(
+            Create.of(INPUTS)
+                .withCoder(KafkaRecordCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<KafkaRecord<String, Integer>> output =
+        input.apply(KafkaReadRedistribute.byRecordKey());
 
     PAssert.that(output).containsInAnyOrder(INPUTS);
 
