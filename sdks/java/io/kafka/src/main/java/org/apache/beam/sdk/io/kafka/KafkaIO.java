@@ -27,6 +27,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,6 +93,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
@@ -656,14 +658,6 @@ public class KafkaIO {
   ///////////////////////// Read Support \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
   /**
-   * Default number of keys to redistribute Kafka inputs into.
-   *
-   * <p>This value is used when {@link Read#withRedistribute()} is used without {@link
-   * Read#withRedistributeNumKeys(int redistributeNumKeys)}.
-   */
-  private static final int DEFAULT_REDISTRIBUTE_NUM_KEYS = 32768;
-
-  /**
    * A {@link PTransform} to read from Kafka topics. See {@link KafkaIO} for more information on
    * usage and configuration.
    */
@@ -921,6 +915,25 @@ public class KafkaIO {
           builder.setAllowDuplicates(false);
           builder.setOffsetDeduplication(false);
         }
+
+        if (config.consumerFactoryFnClass != null) {
+            if (config.consumerFactoryFnClass.contains("KerberosConsumerFactoryFn")) {
+                try {
+                    if (!config.consumerFactoryFnClass.contains("krb5Location")) {
+                        throw new IllegalArgumentException("The KerberosConsumerFactoryFn requires a location for the krb5.conf file. " +
+                            "Please provide either a GCS location or Google Secret Manager location for this file.");
+                    }
+                    builder.setConsumerFactoryFn(InstanceBuilder.ofType(new TypeDescriptor<SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>>() {})
+                            .fromClassName(config.consumerFactoryFnClass)
+                            .withArg(
+                                    String.class,
+                                    config.consumerFactoryFnParams.get("krb5Location"))
+                            .build());
+                } catch (Exception e) {
+                    throw new RuntimeException("Unable to construct FactoryFn " + config.consumerFactoryFnClass + ": " + e.getMessage(), e);
+                }
+            }
+        }
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -990,6 +1003,8 @@ public class KafkaIO {
         private Boolean allowDuplicates;
         private Boolean offsetDeduplication;
         private Long dynamicReadPollIntervalSeconds;
+        private String consumerFactoryFnClass;
+        private Map<String, String> consumerFactoryFnParams;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -1054,6 +1069,14 @@ public class KafkaIO {
         public void setDynamicReadPollIntervalSeconds(Long dynamicReadPollIntervalSeconds) {
           this.dynamicReadPollIntervalSeconds = dynamicReadPollIntervalSeconds;
         }
+
+        public void setConsumerFactoryFnClass(String consumerFactoryFnClass) {
+            this.consumerFactoryFnClass = consumerFactoryFnClass;
+        }
+
+        public void setConsumerFactoryFnParams(Map<String, String> consumerFactoryFnParams) {
+            this.consumerFactoryFnParams = consumerFactoryFnParams;
+          }
       }
     }
 
@@ -1103,60 +1126,19 @@ public class KafkaIO {
 
     /**
      * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
-     *
-     * @return an updated {@link Read} transform.
      */
     public Read<K, V> withRedistribute() {
-      Builder<K, V> builder = toBuilder().setRedistributed(true);
-      if (getRedistributeNumKeys() == 0) {
-        builder = builder.setRedistributeNumKeys(DEFAULT_REDISTRIBUTE_NUM_KEYS);
-      }
-      return builder.build();
+      return toBuilder().setRedistributed(true).build();
     }
 
-    /**
-     * Hints to the runner that it can relax exactly-once processing guarantees, allowing duplicates
-     * in at-least-once processing mode of Kafka inputs.
-     *
-     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
-     *
-     * <p>Not compatible with {@link KafkaIO#withOffsetDeduplication()}.
-     *
-     * @param allowDuplicates specifies whether to allow duplicates.
-     * @return an updated {@link Read} transform.
-     */
     public Read<K, V> withAllowDuplicates(Boolean allowDuplicates) {
       return toBuilder().setAllowDuplicates(allowDuplicates).build();
     }
 
-    /**
-     * Redistributes Kafka messages into a distinct number of keys for processing in subsequent
-     * steps.
-     *
-     * <p>If unset, defaults to {@link KafkaIO#DEFAULT_REDISTRIBUTE_NUM_KEYS}.
-     *
-     * <p>Use zero to disable bucketing into a distinct number of keys.
-     *
-     * <p>Must be used with {@link Read#withRedistribute()}.
-     *
-     * @param redistributeNumKeys specifies the total number of keys for redistributing inputs.
-     * @return an updated {@link Read} transform.
-     */
     public Read<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
       return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
     }
 
-    /**
-     * Hints to the runner to optimize the redistribute by minimizing the amount of data required
-     * for persistence as part of the redistribute operation.
-     *
-     * <p>Must be used with {@link KafkaIO#withRedistribute()}.
-     *
-     * <p>Not compatible with {@link KafkaIO#withAllowDuplicates()}.
-     *
-     * @param offsetDeduplication specifies whether to enable offset-based deduplication.
-     * @return an updated {@link Read} transform.
-     */
     public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
       return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
     }
@@ -1634,8 +1616,6 @@ public class KafkaIO {
       final KafkaIOReadImplementationCompatibilityResult compatibility =
           KafkaIOReadImplementationCompatibility.getCompatibility(this);
 
-      Read<K, V> kafkaRead = deduplicateTopics(this);
-
       // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
       // Kafka source, for example,
       // * Experiments 'beam_fn_api_use_deprecated_read' and use_deprecated_read will result in
@@ -1652,9 +1632,9 @@ public class KafkaIO {
           || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
           || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
-        return input.apply(new ReadFromKafkaViaUnbounded<>(kafkaRead, keyCoder, valueCoder));
+        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
-      return input.apply(new ReadFromKafkaViaSDF<>(kafkaRead, keyCoder, valueCoder));
+      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
     }
 
     private void checkRedistributeConfiguration() {
@@ -1670,14 +1650,10 @@ public class KafkaIO {
             isRedistributed(),
             "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
       }
-      if (getOffsetDeduplication() != null && getOffsetDeduplication() && isRedistributed()) {
+      if (getOffsetDeduplication() != null && getOffsetDeduplication()) {
         checkState(
-            !isAllowDuplicates(),
-            "withOffsetDeduplication and withRedistribute can only be used when withAllowDuplicates is set to false.");
-      }
-      if (getOffsetDeduplication() != null && getOffsetDeduplication() && !isRedistributed()) {
-        LOG.warn(
-            "Offsets used for deduplication are available in WindowedValue's metadata. Combining, aggregating, mutating them may risk with data loss.");
+            isRedistributed() && !isAllowDuplicates(),
+            "withOffsetDeduplication should only be used with withRedistribute and withAllowDuplicates(false).");
       }
     }
 
@@ -1703,29 +1679,6 @@ public class KafkaIO {
                 + " We recommend setting commitOffsetInFinalize to true in ReadFromKafka,"
                 + " enable.auto.commit to false, and auto.offset.reset to none");
       }
-    }
-
-    private Read<K, V> deduplicateTopics(Read<K, V> kafkaRead) {
-      final List<String> topics = getTopics();
-      if (topics != null && !topics.isEmpty()) {
-        final List<String> distinctTopics = topics.stream().distinct().collect(Collectors.toList());
-        if (topics.size() == distinctTopics.size()) {
-          return kafkaRead;
-        }
-        return kafkaRead.toBuilder().setTopics(distinctTopics).build();
-      }
-
-      final List<TopicPartition> topicPartitions = getTopicPartitions();
-      if (topicPartitions != null && !topicPartitions.isEmpty()) {
-        final List<TopicPartition> distinctTopicPartitions =
-            topicPartitions.stream().distinct().collect(Collectors.toList());
-        if (topicPartitions.size() == distinctTopicPartitions.size()) {
-          return kafkaRead;
-        }
-        return kafkaRead.toBuilder().setTopicPartitions(distinctTopicPartitions).build();
-      }
-
-      return kafkaRead;
     }
 
     // This class is designed to mimic the Flink pipeline options, so we can check for the
@@ -1845,18 +1798,13 @@ public class KafkaIO {
                   .withMaxReadTime(kafkaRead.getMaxReadTime())
                   .withMaxNumRecords(kafkaRead.getMaxNumRecords());
         }
-        PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
-        if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
-          output =
-              output.apply(
-                  "Insert Offset for offset deduplication",
-                  ParDo.of(new OffsetDeduplicationIdExtractor<>()));
-        }
+
         if (kafkaRead.isRedistributed()) {
           if (kafkaRead.isCommitOffsetsInFinalizeEnabled() && kafkaRead.isAllowDuplicates()) {
             LOG.warn(
                 "Offsets committed due to usage of commitOffsetsInFinalize() and may not capture all work processed due to use of withRedistribute() with duplicates enabled");
           }
+          PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
 
           if (kafkaRead.getRedistributeNumKeys() == 0) {
             return output.apply(
@@ -1871,7 +1819,7 @@ public class KafkaIO {
                     .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
           }
         }
-        return output;
+        return input.getPipeline().apply(transform);
       }
     }
 
@@ -1944,7 +1892,6 @@ public class KafkaIO {
                   .as(StreamingOptions.class)
                   .getUpdateCompatibilityVersion();
           if (requestedVersionString != null
-              && !requestedVersionString.isEmpty()
               && TransformUpgrader.compareVersions(requestedVersionString, "2.66.0") < 0) {
             // Use discouraged Impulse for backwards compatibility with previous released versions.
             output =
@@ -1977,29 +1924,6 @@ public class KafkaIO {
           }
         }
         return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
-      }
-    }
-
-    static class OffsetDeduplicationIdExtractor<K, V>
-        extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
-
-      @ProcessElement
-      public void processElement(ProcessContext pc) {
-        KafkaRecord<K, V> element = pc.element();
-        Long offset = null;
-        String uniqueId = null;
-        if (element != null) {
-          offset = element.getOffset();
-          uniqueId =
-              (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
-        }
-        pc.outputWindowedValue(
-            element,
-            pc.timestamp(),
-            Lists.newArrayList(GlobalWindow.INSTANCE),
-            pc.pane(),
-            uniqueId,
-            offset);
       }
     }
 
@@ -2680,30 +2604,13 @@ public class KafkaIO {
 
     /** Enable Redistribute. */
     public ReadSourceDescriptors<K, V> withRedistribute() {
-      Builder<K, V> builder = toBuilder().setRedistribute(true);
-      if (getRedistributeNumKeys() == 0) {
-        builder = builder.setRedistributeNumKeys(DEFAULT_REDISTRIBUTE_NUM_KEYS);
-      }
-      return builder.build();
+      return toBuilder().setRedistribute(true).build();
     }
 
     public ReadSourceDescriptors<K, V> withAllowDuplicates() {
       return toBuilder().setAllowDuplicates(true).build();
     }
 
-    /**
-     * Redistributes Kafka messages into a distinct number of keys for processing in subsequent
-     * steps.
-     *
-     * <p>If unset, defaults to {@link KafkaIO#DEFAULT_REDISTRIBUTE_NUM_KEYS}.
-     *
-     * <p>Use zero to disable bucketing into a distinct number of keys.
-     *
-     * <p>Must be used with {@link ReadSourceDescriptors#withRedistribute()}.
-     *
-     * @param redistributeNumKeys specifies the total number of keys for redistributing inputs.
-     * @return an updated {@link Read} transform.
-     */
     public ReadSourceDescriptors<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
       return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
     }
@@ -2957,7 +2864,6 @@ public class KafkaIO {
                 .as(StreamingOptions.class)
                 .getUpdateCompatibilityVersion();
         if (requestedVersionString != null
-            && !requestedVersionString.isEmpty()
             && TransformUpgrader.compareVersions(requestedVersionString, "2.60.0") < 0) {
           // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
           // prior to the redistribute. The reshuffle will occur before commits are offsetted and

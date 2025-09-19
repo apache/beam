@@ -124,7 +124,9 @@ ReadFromKafkaSchema = typing.NamedTuple(
         ('redistribute', typing.Optional[bool]),
         ('redistribute_num_keys', typing.Optional[np.int32]),
         ('allow_duplicates', typing.Optional[bool]),
-        ('dynamic_read_poll_interval_seconds', typing.Optional[int]),
+        ('dynamic_read_poll_interval_seconds', typing.Optional[int])
+        ('consumer_factory_fn', typing.Optional[str]),
+        ('consumer_factory_fn_params', typing.Optional[typing.Mapping[str, str]])
     ])
 
 
@@ -173,6 +175,8 @@ class ReadFromKafka(ExternalTransform):
       redistribute_num_keys=np.int32(0),
       allow_duplicates=False,
       dynamic_read_poll_interval_seconds: typing.Optional[int] = None,
+      consumer_factory_fn_class=None,
+      consumer_factory_fn_params=None
   ):
     """
     Initializes a read operation from Kafka.
@@ -216,6 +220,13 @@ class ReadFromKafka(ExternalTransform):
     :param dynamic_read_poll_interval_seconds: The interval in seconds at which
         to check for new partitions. If not None, dynamic partition discovery
         is enabled.
+    :param consumer_factory_fn_class: A fully qualified classpath to an existing provided
+        consumerFactoryFn. If not None, this will construct Kafka consumers with a custom
+        configuration.
+    :param consumer_factory_fn_params: A map which specifies the parameters for the provided
+        consumer_factory_fn_class. IF not None, the values in this map will be used when
+        constructing the consumer_factory_fn_class object. This cannot be null
+        if the consumer_factory_fn_class is not null.
     """
     if timestamp_policy not in [ReadFromKafka.processing_time_policy,
                                 ReadFromKafka.create_time_policy,
@@ -242,7 +253,9 @@ class ReadFromKafka(ExternalTransform):
                 redistribute_num_keys=redistribute_num_keys,
                 allow_duplicates=allow_duplicates,
                 dynamic_read_poll_interval_seconds=
-                dynamic_read_poll_interval_seconds)),
+                dynamic_read_poll_interval_seconds,
+                consumer_factory_fn_class=consumer_factory_fn_class,
+                consumer_factory_fn_params=consumer_factory_fn_params)),
         expansion_service or default_io_expansion_service())
 
 
