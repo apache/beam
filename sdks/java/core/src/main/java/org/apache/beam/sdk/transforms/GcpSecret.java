@@ -22,9 +22,7 @@ import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
 import java.io.IOException;
 
-/**
- * A secret manager implementation that retrieves secrets from Google Cloud Secret Manager.
- */
+/** A secret manager implementation that retrieves secrets from Google Cloud Secret Manager. */
 public class GcpSecret implements Secret {
   private final String version_name;
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.Arrays;
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -26,11 +27,13 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * A {@link PTransform} that provides a secure alternative to {@link GroupByKey}.
+ * A {@link PTransform} that provides a secure alternative to {@link
+ * org.apache.beam.sdk.transforms.GroupByKey}.
  *
  * <p>This transform encrypts the keys of the input {@link PCollection}, performs a {@link
- * GroupByKey} on the encrypted keys, and then decrypts the keys in the output. This is useful when
- * the keys contain sensitive data that should not be stored at rest by the runner.
+ * org.apache.beam.sdk.transforms.GroupByKey} on the encrypted keys, and then decrypts the keys in
+ * the output. This is useful when the keys contain sensitive data that should not be stored at rest
+ * by the runner.
  */
 public class GroupByEncryptedKey<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
@@ -47,36 +50,48 @@ public class GroupByEncryptedKey<K, V>
 
   @Override
   public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+    Coder<KV<K, V>> inputCoder = input.getCoder();
+    if (!(inputCoder instanceof KvCoder)) {
+      throw new IllegalStateException("GroupByEncryptedKey requires its input to use KvCoder");
+    }
+    KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) inputCoder;
+    Coder<K> keyCoder = inputKvCoder.getKeyCoder();
+    Coder<V> valueCoder = inputKvCoder.getValueCoder();
+
     return input
-        .apply("EncryptMessage", ParDo.of(new _EncryptMessage<>()))
+        .apply("EncryptMessage", ParDo.of(new EncryptMessage<>(this.hmacKey, keyCoder, valueCoder)))
         .apply(GroupByKey.create())
-        .apply("DecryptMessage", ParDo.of(new _DecryptMessage<>()));
+        .apply(
+            "DecryptMessage", ParDo.of(new DecryptMessage<>(this.hmacKey, keyCoder, valueCoder)));
   }
 
-  private static class _EncryptMessage<K, V> extends DoFn<KV<K, V>, KV<byte[], KV<byte[], byte[]>>> {
+  private static class EncryptMessage<K, V> extends DoFn<KV<K, V>, KV<byte[], KV<byte[], byte[]>>> {
     private final Secret hmacKey;
-    private transient Mac mac;
-    private transient Cipher cipher;
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+    private final Mac mac;
+    private final Cipher cipher;
 
-    _EncryptMessage(Secret hmacKey) {
+    EncryptMessage(Secret hmacKey, Coder<K> keyCoder, Coder<V> valueCoder) {
       this.hmacKey = hmacKey;
-    }
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
 
-    @Setup
-    public void setup() throws Exception {
-      mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(hmacKey.getSecretBytes(), "HmacSHA256"));
-      cipher = Cipher.getInstance("AES");
-      cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(hmacKey.getSecretBytes(), "AES"));
+      try {
+        this.mac = Mac.getInstance("HmacSHA256");
+        this.mac.init(new SecretKeySpec(hmacKey.getSecretBytes(), "HmacSHA256"));
+        this.cipher = Cipher.getInstance("AES");
+        this.cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(hmacKey.getSecretBytes(), "AES"));
+      } catch (Exception ex) {
+        throw new RuntimeException(
+            "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);
+      }
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Coder<K> keyCoder = ((KvCoder<K, V>) c.getPipeline().getCoderRegistry().getCoder(c.element().getClass())).getKeyCoder();
-      Coder<V> valueCoder = ((KvCoder<K, V>) c.getPipeline().getCoderRegistry().getCoder(c.element().getClass())).getValueCoder();
-
-      byte[] encodedKey = encode(keyCoder, c.element().getKey());
-      byte[] encodedValue = encode(valueCoder, c.element().getValue());
+      byte[] encodedKey = encode(this.keyCoder, c.element().getKey());
+      byte[] encodedValue = encode(this.valueCoder, c.element().getValue());
 
       byte[] hmac = mac.doFinal(encodedKey);
       byte[] encryptedKey = cipher.doFinal(encodedKey);
@@ -92,37 +107,45 @@ public class GroupByEncryptedKey<K, V>
     }
   }
 
-  private static class _DecryptMessage<K, V>
+  private static class DecryptMessage<K, V>
       extends DoFn<KV<byte[], Iterable<KV<byte[], byte[]>>>, KV<K, Iterable<V>>> {
     private final Secret hmacKey;
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
     private transient Cipher cipher;
 
-    _DecryptMessage(Secret hmacKey) {
+    DecryptMessage(Secret hmacKey, Coder<K> keyCoder, Coder<V> valueCoder) {
       this.hmacKey = hmacKey;
-    }
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
 
-    @Setup
-    public void setup() throws Exception {
-      cipher = Cipher.getInstance("AES");
-      cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(hmacKey.getSecretBytes(), "AES"));
+      try {
+        this.cipher = Cipher.getInstance("AES");
+        this.cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(hmacKey.getSecretBytes(), "AES"));
+      } catch (Exception ex) {
+        throw new RuntimeException(
+            "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);
+      }
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Coder<K> keyCoder = ((KvCoder<K, V>) c.getPipeline().getCoderRegistry().getCoder(c.element().getClass())).getKeyCoder();
-      Coder<V> valueCoder = ((KvCoder<K, V>) c.getPipeline().getCoderRegistry().getCoder(c.element().getClass())).getValueCoder();
-
       java.util.Map<K, java.util.List<V>> decryptedKvs = new java.util.HashMap<>();
       for (KV<byte[], byte[]> encryptedKv : c.element().getValue()) {
         byte[] decryptedKeyBytes = cipher.doFinal(encryptedKv.getKey());
-        K key = decode(keyCoder, decryptedKeyBytes);
+        K key = decode(this.keyCoder, decryptedKeyBytes);
 
-        if (!decryptedKvs.containsKey(key)) {
-          decryptedKvs.put(key, new java.util.ArrayList<>());
+        if (key != null) {
+          if (!decryptedKvs.containsKey(key)) {
+            decryptedKvs.put(key, new java.util.ArrayList<>());
+          }
+          byte[] decryptedValueBytes = cipher.doFinal(encryptedKv.getValue());
+          V value = decode(this.valueCoder, decryptedValueBytes);
+          decryptedKvs.get(key).add(value);
+        } else {
+          throw new RuntimeException(
+              "Found null key when decoding " + Arrays.toString(decryptedKeyBytes));
         }
-        byte[] decryptedValueBytes = cipher.doFinal(encryptedKv.getValue());
-        V value = decode(valueCoder, decryptedValueBytes);
-        decryptedKvs.get(key).add(value);
       }
 
       for (java.util.Map.Entry<K, java.util.List<V>> entry : decryptedKvs.entrySet()) {

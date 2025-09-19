@@ -17,7 +17,14 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.cloud.secretmanager.v1.ProjectName;
+import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
+import com.google.cloud.secretmanager.v1.SecretName;
+import com.google.cloud.secretmanager.v1.SecretPayload;
+import com.google.protobuf.ByteString;
+import java.io.IOException;
 import java.io.Serializable;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -28,18 +35,11 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import com.google.cloud.secretmanager.v1.ProjectName;
-import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
-import com.google.cloud.secretmanager.v1.SecretName;
-import com.google.cloud.secretmanager.v1.SecretPayload;
-import com.google.protobuf.ByteString;
-import java.io.IOException;
-import java.security.SecureRandom;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -162,8 +162,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testGroupByKeyGcpSecretThrows() {
     Secret gcpSecret = new GcpSecret("bad_path/versions/latest");
-    p.apply(Create.of(KV.of("k1", 1)))
-        .apply(GroupByEncryptedKey.create(gcpSecret));
+    p.apply(Create.of(KV.of("k1", 1))).apply(GroupByEncryptedKey.create(gcpSecret));
     assertThrows(RuntimeException.class, () -> p.run());
   }
 }
