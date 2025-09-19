@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -87,6 +88,7 @@ final class FirestoreV1WriteFn {
     @Override
     void handleWriteFailures(
         ContextAdapter<WriteSuccessSummary> context,
+        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage) {
       throw new FailedWritesException(
@@ -96,10 +98,11 @@ final class FirestoreV1WriteFn {
     @Override
     void handleWriteSummary(
         ContextAdapter<WriteSuccessSummary> context,
+        Instant timestamp,
         KV<WriteSuccessSummary, BoundedWindow> tuple,
         Runnable logMessage) {
       logMessage.run();
-      context.output(tuple.getKey(), tuple.getValue().maxTimestamp(), tuple.getValue());
+      context.output(tuple.getKey(), timestamp, tuple.getValue());
     }
   }
 
@@ -123,17 +126,19 @@ final class FirestoreV1WriteFn {
     @Override
     void handleWriteFailures(
         ContextAdapter<WriteFailure> context,
+        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage) {
       logMessage.run();
       for (KV<WriteFailure, BoundedWindow> kv : writeFailures) {
-        context.output(kv.getKey(), kv.getValue().maxTimestamp(), kv.getValue());
+        context.output(kv.getKey(), timestamp, kv.getValue());
       }
     }
 
     @Override
     void handleWriteSummary(
         ContextAdapter<WriteFailure> context,
+        Instant timestamp,
         KV<WriteSuccessSummary, BoundedWindow> tuple,
         Runnable logMessage) {
       logMessage.run();
@@ -270,6 +275,7 @@ final class FirestoreV1WriteFn {
                 getWriteType(write), getName(write));
         handleWriteFailures(
             contextAdapter,
+            clock.instant(),
             ImmutableList.of(
                 KV.of(
                     new WriteFailure(
@@ -461,6 +467,7 @@ final class FirestoreV1WriteFn {
         if (okCount == writesCount) {
           handleWriteSummary(
               context,
+              Preconditions.checkArgumentNotNull(okWindow).maxTimestamp(),
               KV.of(new WriteSuccessSummary(okCount, okBytes), coerceNonNull(okWindow)),
               () ->
                   LOG.debug(
@@ -475,6 +482,8 @@ final class FirestoreV1WriteFn {
             int finalOkCount = okCount;
             handleWriteFailures(
                 context,
+                Preconditions.checkArgumentNotNull(okWindow).maxTimestamp()
+                ,
                 ImmutableList.copyOf(nonRetryableWrites),
                 () ->
                     LOG.warn(
@@ -499,6 +508,7 @@ final class FirestoreV1WriteFn {
             if (okCount > 0) {
               handleWriteSummary(
                   context,
+                  Preconditions.checkArgumentNotNull(okWindow).maxTimestamp(),
                   KV.of(new WriteSuccessSummary(okCount, okBytes), coerceNonNull(okWindow)),
                   logMessage);
             } else {
@@ -534,11 +544,13 @@ final class FirestoreV1WriteFn {
 
     abstract void handleWriteFailures(
         ContextAdapter<OutT> context,
+        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage);
 
     abstract void handleWriteSummary(
         ContextAdapter<OutT> context,
+        Instant timestamp,
         KV<WriteSuccessSummary, BoundedWindow> tuple,
         Runnable logMessage);
 
