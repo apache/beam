@@ -856,6 +856,12 @@ Each line represents a prediction of the flower type along with the confidence i
 
 ## Text classifcation with a Vertex AI LLM
 
+**NOTE**
+Google has deprecated PaLM LLMs like text-bison and no longer supports querying them on Vertex AI endpoints. Separately, the use of the Vertex AI Predict API is
+not supported for Gemini models in favor of use of the google-genai API. As a result, this example no longer works as-written. To perform inference with
+Gemini models deployed on Google infrastructure, please see the `GeminiModelHandler` (in `apache_beam.ml.inference.gemini_inference`) and the
+[`gemini_text_classification.py` example](./gemini_text_classification.py). For custom LLMs, you may still follow this design pattern.
+
 [`vertex_ai_llm_text_classification.py`](./vertex_ai_llm_text_classification.py) contains an implementation for a RunInference pipeline that performs image classification using a model hosted on Vertex AI (based on https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom).
 
 The pipeline reads image urls, performs basic preprocessing to convert them into a List of floats, passes the masked sentence to the Vertex AI implementation of RunInference, and then writes the predictions to a text file.
