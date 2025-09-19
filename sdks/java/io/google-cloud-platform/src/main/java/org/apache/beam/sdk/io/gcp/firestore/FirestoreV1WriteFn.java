@@ -482,8 +482,7 @@ final class FirestoreV1WriteFn {
             int finalOkCount = okCount;
             handleWriteFailures(
                 context,
-                Preconditions.checkArgumentNotNull(okWindow).maxTimestamp()
-                ,
+                Preconditions.checkArgumentNotNull(okWindow).maxTimestamp(),
                 ImmutableList.copyOf(nonRetryableWrites),
                 () ->
                     LOG.warn(
