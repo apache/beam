@@ -124,11 +124,12 @@ class SwitchingDirectRunner(PipelineRunner):
         # double fires on AfterCount trigger, once appropriately, and once
         # incorrectly at the end of the window. This if condition could be
         # more targeted, but for now we'll just ignore all unsafe triggers.
-        if pipeline.allow_unsafe_triggers:
-          self.supported_by_prism_runner = False
+        # if pipeline.allow_unsafe_triggers:
+        #   self.supported_by_prism_runner = False
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently
         # does not support interactive mode
-        elif is_in_ipython() or is_interactive:
+        if is_in_ipython() or is_interactive:
+        #elif is_in_ipython() or is_interactive:
           self.supported_by_prism_runner = False
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently
         # does not support the update compat flag
