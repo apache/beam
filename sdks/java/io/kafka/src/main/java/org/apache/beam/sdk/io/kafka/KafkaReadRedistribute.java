@@ -37,8 +37,13 @@ public class KafkaReadRedistribute<K, V>
     return new KafkaReadRedistribute<>(numBuckets, false);
   }
 
+<<<<<<< HEAD
   public static <K, V> KafkaReadRedistribute<K, V> byRecordKey(@Nullable Integer numBuckets) {
     return new KafkaReadRedistribute<>(numBuckets, true);
+=======
+  public static <K, V> KafkaReadRedistribute<K, V> byRecordKey() {
+    return new KafkaReadRedistribute<>(null, true);
+>>>>>>> b36e2ec8b0c (Add redistribute by key variant.)
   }
 
   // The number of buckets to shard into.
@@ -56,19 +61,29 @@ public class KafkaReadRedistribute<K, V>
 
     if (byRecordKey) {
       return input
+<<<<<<< HEAD
           .apply("Pair with shard from key", ParDo.of(new AssignRecordKeyFn<K, V>(numBuckets)))
           .apply(Redistribute.<Integer, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
+=======
+          .apply("Pair with record key", ParDo.of(new AssignKeyFn<K, V>()))
+          .apply(Redistribute.<K, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
+>>>>>>> b36e2ec8b0c (Add redistribute by key variant.)
           .apply(Values.create());
     }
 
     return input
+<<<<<<< HEAD
         .apply("Pair with shard from offset", ParDo.of(new AssignOffsetShardFn<K, V>(numBuckets)))
+=======
+        .apply("Pair with offset shard", ParDo.of(new AssignOffsetShardFn<K, V>(numBuckets)))
+>>>>>>> b36e2ec8b0c (Add redistribute by key variant.)
         .apply(Redistribute.<Integer, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
         .apply(Values.create());
   }
 
   static class AssignOffsetShardFn<K, V>
       extends DoFn<KafkaRecord<K, V>, KV<Integer, KafkaRecord<K, V>>> {
+<<<<<<< HEAD
     private @NonNull UnsignedInteger numBuckets;
 
     public AssignOffsetShardFn(@Nullable Integer numBuckets) {
@@ -77,6 +92,12 @@ public class KafkaReadRedistribute<K, V>
       } else {
         this.numBuckets = UnsignedInteger.valueOf(0);
       }
+=======
+    private @Nullable Integer numBuckets;
+
+    public AssignOffsetShardFn(@Nullable Integer numBuckets) {
+      this.numBuckets = numBuckets;
+>>>>>>> b36e2ec8b0c (Add redistribute by key variant.)
     }
 
     @ProcessElement
@@ -119,6 +140,17 @@ public class KafkaReadRedistribute<K, V>
       }
 
       receiver.output(KV.of(hash, element));
+    }
+  }
+
+  static class AssignKeyFn<K, V> extends DoFn<KafkaRecord<K, V>, KV<K, KafkaRecord<K, V>>> {
+
+    public AssignKeyFn() {}
+
+    @ProcessElement
+    public void processElement(
+        @Element KafkaRecord<K, V> element, OutputReceiver<KV<K, KafkaRecord<K, V>>> receiver) {
+      receiver.output(KV.of(element.getKV().getKey(), element));
     }
   }
 }
