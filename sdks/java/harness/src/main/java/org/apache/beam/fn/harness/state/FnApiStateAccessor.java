@@ -622,8 +622,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @NonNull
-  public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+  public <KeyT, ValueT> @NonNull MapState<KeyT, ValueT> bindMap(
       @NonNull String id,
       @NonNull StateSpec<@NonNull MapState<KeyT, ValueT>> spec,
       @NonNull Coder<KeyT> mapKeyCoder,
@@ -665,14 +664,12 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<ValueT> get(KeyT key) {
+                  public @NonNull ReadableState<ValueT> get(KeyT key) {
                     return getOrDefault(key, null);
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<ValueT> getOrDefault(
+                  public @NonNull ReadableState<ValueT> getOrDefault(
                       KeyT key, @Nullable ValueT defaultValue) {
                     return new ReadableState<ValueT>() {
                       @Override
@@ -682,8 +679,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<ValueT> readLater() {
+                      public @NonNull ReadableState<ValueT> readLater() {
                         impl.get(key).prefetch();
                         return this;
                       }
@@ -691,8 +687,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Iterable<KeyT>> keys() {
+                  public @NonNull ReadableState<Iterable<KeyT>> keys() {
                     return new ReadableState<Iterable<KeyT>>() {
                       @Override
                       public Iterable<KeyT> read() {
@@ -700,8 +695,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<Iterable<KeyT>> readLater() {
+                      public @NonNull ReadableState<Iterable<KeyT>> readLater() {
                         impl.keys().prefetch();
                         return this;
                       }
@@ -709,8 +703,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Iterable<ValueT>> values() {
+                  public @NonNull ReadableState<Iterable<ValueT>> values() {
                     return new ReadableState<Iterable<ValueT>>() {
                       @Override
                       public Iterable<ValueT> read() {
@@ -718,8 +711,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<Iterable<ValueT>> readLater() {
+                      public @NonNull ReadableState<Iterable<ValueT>> readLater() {
                         entries().readLater();
                         return this;
                       }
@@ -727,8 +719,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> entries() {
+                  public @NonNull ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> entries() {
                     return new ReadableState<Iterable<Map.Entry<KeyT, ValueT>>>() {
                       @Override
                       public Iterable<Map.Entry<KeyT, ValueT>> read() {
@@ -738,8 +729,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> readLater() {
+                      public @NonNull ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> readLater() {
                         // Start prefetching the keys. We would need to block to start prefetching
                         // the values.
                         keys().readLater();
@@ -749,8 +739,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Boolean> isEmpty() {
+                  public @NonNull ReadableState<Boolean> isEmpty() {
                     return new ReadableState<Boolean>() {
                       @Override
                       public Boolean read() {
@@ -758,8 +747,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<Boolean> readLater() {
+                      public @NonNull ReadableState<Boolean> readLater() {
                         keys().readLater();
                         return this;
                       }
@@ -792,8 +780,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Iterable<ValueT>> get(KeyT key) {
+                  public @NonNull ReadableState<Iterable<ValueT>> get(KeyT key) {
                     return new ReadableState<Iterable<ValueT>>() {
                       @Override
                       public Iterable<ValueT> read() {
@@ -801,8 +788,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<Iterable<ValueT>> readLater() {
+                      public @NonNull ReadableState<Iterable<ValueT>> readLater() {
                         impl.get(key).prefetch();
                         return this;
                       }
@@ -815,8 +801,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Iterable<KeyT>> keys() {
+                  public @NonNull ReadableState<Iterable<KeyT>> keys() {
                     return new ReadableState<Iterable<KeyT>>() {
                       @Override
                       public Iterable<KeyT> read() {
@@ -824,8 +809,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<Iterable<KeyT>> readLater() {
+                      public @NonNull ReadableState<Iterable<KeyT>> readLater() {
                         impl.keys().prefetch();
                         return this;
                       }
@@ -833,16 +817,23 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> entries() {
-                    // TODO(https://github.com/apache/beam/issues/23616)
-                    throw new UnsupportedOperationException(
-                        "Multimap entries() is not currently supported with Fn API.");
+                  public @NonNull ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> entries() {
+                    return new ReadableState<Iterable<Map.Entry<KeyT, ValueT>>>() {
+                      @Override
+                      public Iterable<Map.Entry<KeyT, ValueT>> read() {
+                        return impl.entries();
+                      }
+
+                      @Override
+                      public @NonNull ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> readLater() {
+                        impl.entries().prefetch();
+                        return this;
+                      }
+                    };
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Boolean> containsKey(KeyT key) {
+                  public @NonNull ReadableState<Boolean> containsKey(KeyT key) {
                     return new ReadableState<Boolean>() {
                       @Override
                       public Boolean read() {
@@ -850,8 +841,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<Boolean> readLater() {
+                      public @NonNull ReadableState<Boolean> readLater() {
                         impl.get(key).prefetch();
                         return this;
                       }
@@ -859,8 +849,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  @NonNull
-                  public ReadableState<Boolean> isEmpty() {
+                  public @NonNull ReadableState<Boolean> isEmpty() {
                     return new ReadableState<Boolean>() {
                       @Override
                       public Boolean read() {
@@ -868,8 +857,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                       }
 
                       @Override
-                      @NonNull
-                      public ReadableState<Boolean> readLater() {
+                      public @NonNull ReadableState<Boolean> readLater() {
                         impl.keys().prefetch();
                         return this;
                       }
