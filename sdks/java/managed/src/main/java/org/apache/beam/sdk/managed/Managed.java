@@ -97,6 +97,7 @@ public class Managed {
   public static final String KAFKA = "kafka";
   public static final String BIGQUERY = "bigquery";
   public static final String POSTGRES = "postgres";
+  public static final String MYSQL = "mysql";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
@@ -106,6 +107,7 @@ public class Managed {
           .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ))
           .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ))
           .put(POSTGRES, getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_READ))
+          .put(MYSQL, getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_READ))
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
@@ -113,6 +115,7 @@ public class Managed {
           .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE))
           .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE))
           .put(POSTGRES, getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_WRITE))
+          .put(MYSQL, getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_WRITE))
           .build();
 
   /**

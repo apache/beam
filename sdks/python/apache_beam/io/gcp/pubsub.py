@@ -414,6 +414,7 @@ class WriteToPubSub(PTransform):
     self.project, self.topic_name = parse_topic(topic)
     self.full_topic = topic
     self._sink = _PubSubSink(topic, id_label, timestamp_attribute)
+    self.pipeline_options = None  # Will be set during expand()
 
   @staticmethod
   def message_to_proto_str(element: PubsubMessage) -> bytes:
@@ -429,6 +430,9 @@ class WriteToPubSub(PTransform):
     return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
+    # Store pipeline options for use in DoFn
+    self.pipeline_options = pcoll.pipeline.options if pcoll.pipeline else None
+
     if self.with_attributes:
       pcoll = pcoll | 'ToProtobufX' >> ParDo(
           _AddMetricsAndMap(
@@ -564,11 +568,65 @@ class _PubSubWriteDoFn(DoFn):
 
     # TODO(https://github.com/apache/beam/issues/18939): Add support for
     # id_label and timestamp_attribute.
-    if transform.id_label:
-      raise NotImplementedError('id_label is not supported for PubSub writes')
-    if transform.timestamp_attribute:
-      raise NotImplementedError(
-          'timestamp_attribute is not supported for PubSub writes')
+    # Only raise errors for DirectRunner or batch pipelines
+    pipeline_options = transform.pipeline_options
+    output_labels_supported = True
+
+    if pipeline_options:
+      from apache_beam.options.pipeline_options import StandardOptions
+
+      # Check if using DirectRunner
+      try:
+        # Get runner from pipeline options
+        all_options = pipeline_options.get_all_options()
+        runner_name = all_options.get('runner', StandardOptions.DEFAULT_RUNNER)
+
+        # Check if it's a DirectRunner variant
+        if (runner_name is None or
+            (runner_name in StandardOptions.LOCAL_RUNNERS or 'DirectRunner'
+             in str(runner_name) or 'TestDirectRunner' in str(runner_name))):
+          output_labels_supported = False
+      except Exception:
+        # If we can't determine runner, assume DirectRunner for safety
+        output_labels_supported = False
+
+      # Check if in batch mode (not streaming)
+      standard_options = pipeline_options.view_as(StandardOptions)
+      if not standard_options.streaming:
+        output_labels_supported = False
+    else:
+      # If no pipeline options available, fall back to original behavior
+      output_labels_supported = False
+
+    # Log debug information for troubleshooting
+    import logging
+    runner_info = getattr(
+        pipeline_options, 'runner',
+        'None') if pipeline_options else 'No options'
+    streaming_info = 'Unknown'
+    if pipeline_options:
+      try:
+        standard_options = pipeline_options.view_as(StandardOptions)
+        streaming_info = 'streaming=%s' % standard_options.streaming
+      except Exception:
+        streaming_info = 'streaming=unknown'
+
+    logging.debug(
+        'PubSub unsupported feature check: runner=%s, %s',
+        runner_info,
+        streaming_info)
+
+    if not output_labels_supported:
+
+      if transform.id_label:
+        raise NotImplementedError(
+            f'id_label is not supported for PubSub writes with DirectRunner '
+            f'or in batch mode (runner={runner_info}, {streaming_info})')
+      if transform.timestamp_attribute:
+        raise NotImplementedError(
+            f'timestamp_attribute is not supported for PubSub writes with '
+            f'DirectRunner or in batch mode '
+            f'(runner={runner_info}, {streaming_info})')
 
   def setup(self):
     from google.cloud import pubsub
@@ -593,11 +651,21 @@ class _PubSubWriteDoFn(DoFn):
 
     import time
 
-    # The elements in buffer are already serialized bytes from the previous
-    # transforms
-    futures = [
-        self._pub_client.publish(self._topic, elem) for elem in self._buffer
-    ]
+    # The elements in buffer are serialized protobuf bytes from the previous
+    # transforms. We need to deserialize them to extract data and attributes.
+    futures = []
+    for elem in self._buffer:
+      # Deserialize the protobuf to get the original PubsubMessage
+      pubsub_msg = PubsubMessage._from_proto_str(elem)
+
+      # Publish with the correct data and attributes
+      if self.with_attributes and pubsub_msg.attributes:
+        future = self._pub_client.publish(
+            self._topic, pubsub_msg.data, **pubsub_msg.attributes)
+      else:
+        future = self._pub_client.publish(self._topic, pubsub_msg.data)
+
+      futures.append(future)
 
     timer_start = time.time()
     for future in futures:

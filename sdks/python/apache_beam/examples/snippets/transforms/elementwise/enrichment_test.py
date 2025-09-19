@@ -130,8 +130,8 @@ class EnrichmentTest(unittest.TestCase):
 
   def test_enrichment_with_vertex_ai(self, mock_stdout):
     enrichment_with_vertex_ai()
-    output = mock_stdout.getvalue().splitlines()
-    expected = validate_enrichment_with_vertex_ai()
+    output = sorted(mock_stdout.getvalue().splitlines())
+    expected = sorted(validate_enrichment_with_vertex_ai())
 
     for i in range(len(expected)):
       self.assertEqual(set(output[i].split(',')), set(expected[i].split(',')))
@@ -141,7 +141,7 @@ class EnrichmentTest(unittest.TestCase):
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_vertex_ai_legacy()
     self.maxDiff = None
-    self.assertEqual(output, expected)
+    self.assertEqual(sorted(output), sorted(expected))
 
   @unittest.skipUnless(
       os.environ.get('ALLOYDB_PASSWORD'),

@@ -360,7 +360,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 			err = postErr
 		}
 	}()
-	if err := n.preInvoke(ctx, ws, ts); err != nil {
+	if err := n.preInvoke(ctx, pn, ws, ts); err != nil {
 		return nil, err
 	}
 	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.bf, n.we, n.UState, n.reader, n.cache.extra...)
@@ -474,7 +474,7 @@ func (n *ParDo) processTimer(timerFamilyID string, singleWindow []typex.Window, 
 			err = postErr
 		}
 	}()
-	if err := n.preInvoke(n.ctx, singleWindow, tmap.HoldTimestamp); err != nil {
+	if err := n.preInvoke(n.ctx, typex.NoFiringPane(), singleWindow, tmap.HoldTimestamp); err != nil {
 		return err
 	}
 
@@ -502,7 +502,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 			err = postErr
 		}
 	}()
-	if err := n.preInvoke(ctx, ws, ts); err != nil {
+	if err := n.preInvoke(ctx, pn, ws, ts); err != nil {
 		return nil, err
 	}
 	val, err = n.inv.invokeWithOpts(ctx, pn, ws, ts, InvokeOpts{opt: opt, bf: n.bf, we: n.we, sa: n.UState, sr: n.reader, ta: n.TimerTracker, tm: n.timerManager, extra: n.cache.extra})
@@ -512,9 +512,9 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	return val, nil
 }
 
-func (n *ParDo) preInvoke(ctx context.Context, ws []typex.Window, ts typex.EventTime) error {
+func (n *ParDo) preInvoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) error {
 	for _, e := range n.emitters {
-		if err := e.Init(ctx, ws, ts); err != nil {
+		if err := e.Init(ctx, pn, ws, ts); err != nil {
 			return err
 		}
 	}

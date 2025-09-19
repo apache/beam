@@ -118,7 +118,7 @@ def sickbayTests = [
 
 task needsRunnerTests(type: Test) {
   group = "Verification"
-  description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
+  description = "Runs tests that require a runner to validate that pipelines/transforms work correctly"
 
   testLogging.showStandardStreams = true
 
