@@ -26,7 +26,6 @@ import hmac
 import importlib
 import logging
 import math
-import mock
 import random
 import re
 import time
@@ -35,9 +34,11 @@ import warnings
 from collections.abc import Mapping
 from datetime import datetime
 
+import mock
 import pytest
 import pytz
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet
+from cryptography.fernet import InvalidToken
 from parameterized import param
 from parameterized import parameterized
 
@@ -65,12 +66,12 @@ from apache_beam.testing.util import contains_in_any_order
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms import util
-from apache_beam.transforms.util import GcpSecret
-from apache_beam.transforms.util import Secret
 from apache_beam.transforms import window
 from apache_beam.transforms.core import FlatMapTuple
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.util import GcpSecret
+from apache_beam.transforms.util import Secret
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows

@@ -32,7 +32,6 @@ import time
 import uuid
 from collections.abc import Callable
 from collections.abc import Iterable
-from cryptography.fernet import Fernet
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import List
@@ -40,6 +39,8 @@ from typing import Optional
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
+
+from cryptography.fernet import Fernet
 
 import apache_beam as beam
 from apache_beam import coders
