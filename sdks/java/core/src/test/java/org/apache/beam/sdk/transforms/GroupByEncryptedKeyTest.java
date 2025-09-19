@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.junit.Assert.assertThrows;
+
 import com.google.cloud.secretmanager.v1.ProjectName;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretName;
@@ -24,6 +26,7 @@ import com.google.cloud.secretmanager.v1.SecretPayload;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.Charset;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
@@ -50,7 +53,8 @@ public class GroupByEncryptedKeyTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   private static class FakeSecret implements Secret {
-    private final byte[] secret = "aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE=".getBytes();
+    private final byte[] secret =
+        "aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE=".getBytes(Charset.defaultCharset());
 
     @Override
     public byte[] getSecretBytes() {
