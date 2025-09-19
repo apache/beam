@@ -1,0 +1,169 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.transforms;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import com.google.cloud.secretmanager.v1.ProjectName;
+import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
+import com.google.cloud.secretmanager.v1.SecretName;
+import com.google.cloud.secretmanager.v1.SecretPayload;
+import com.google.protobuf.ByteString;
+import java.io.IOException;
+import java.security.SecureRandom;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
+/** Tests for {@link GroupByEncryptedKey}. */
+@RunWith(JUnit4.class)
+public class GroupByEncryptedKeyTest implements Serializable {
+
+  @Rule public transient TestPipeline p = TestPipeline.create();
+
+  private static class FakeSecret implements Secret {
+    private final byte[] secret = "aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE=".getBytes();
+
+    @Override
+    public byte[] getSecretBytes() {
+      return secret;
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testGroupByKeyFakeSecret() {
+    List<KV<String, Integer>> ungroupedPairs =
+        Arrays.asList(
+            KV.of("k1", 3),
+            KV.of("k5", Integer.MAX_VALUE),
+            KV.of("k5", Integer.MIN_VALUE),
+            KV.of("k2", 66),
+            KV.of("k1", 4),
+            KV.of("k2", -33),
+            KV.of("k3", 0));
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+            Create.of(ungroupedPairs)
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<KV<String, Iterable<Integer>>> output =
+        input.apply(GroupByEncryptedKey.create(new FakeSecret()));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            KV.of("k1", Arrays.asList(3, 4)),
+            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
+            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k3", Arrays.asList(0)));
+
+    p.run();
+  }
+
+  private static final String PROJECT_ID = "apache-beam-testing";
+  private static final String SECRET_ID = "gbek-test";
+  private Secret gcpSecret;
+
+  @Before
+  public void setup() throws IOException {
+    SecretManagerServiceClient client = SecretManagerServiceClient.create();
+    ProjectName projectName = ProjectName.of(PROJECT_ID);
+    SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
+
+    try {
+      client.getSecret(secretName);
+    } catch (Exception e) {
+      com.google.cloud.secretmanager.v1.Secret secret =
+          com.google.cloud.secretmanager.v1.Secret.newBuilder()
+              .setReplication(
+                  com.google.cloud.secretmanager.v1.Replication.newBuilder()
+                      .setAutomatic(
+                          com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
+                              .build())
+                      .build())
+              .build();
+      client.createSecret(projectName, SECRET_ID, secret);
+      byte[] secretBytes = new byte[32];
+      new SecureRandom().nextBytes(secretBytes);
+      client.addSecretVersion(
+          secretName, SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
+    }
+    gcpSecret = new GcpSecret(secretName.toString() + "/versions/latest");
+  }
+
+  @After
+  public void tearDown() throws IOException {
+    SecretManagerServiceClient client = SecretManagerServiceClient.create();
+    SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
+    client.deleteSecret(secretName);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testGroupByKeyGcpSecret() {
+    List<KV<String, Integer>> ungroupedPairs =
+        Arrays.asList(
+            KV.of("k1", 3),
+            KV.of("k5", Integer.MAX_VALUE),
+            KV.of("k5", Integer.MIN_VALUE),
+            KV.of("k2", 66),
+            KV.of("k1", 4),
+            KV.of("k2", -33),
+            KV.of("k3", 0));
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+            Create.of(ungroupedPairs)
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<KV<String, Iterable<Integer>>> output =
+        input.apply(GroupByEncryptedKey.create(gcpSecret));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            KV.of("k1", Arrays.asList(3, 4)),
+            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
+            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k3", Arrays.asList(0)));
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testGroupByKeyGcpSecretThrows() {
+    Secret gcpSecret = new GcpSecret("bad_path/versions/latest");
+    p.apply(Create.of(KV.of("k1", 1)))
+        .apply(GroupByEncryptedKey.create(gcpSecret));
+    assertThrows(RuntimeException.class, () -> p.run());
+  }
+}
