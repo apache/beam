@@ -851,7 +851,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 						element{
 							window:    w,
 							timestamp: et,
-							pane:      stage.kind.getPane(stage, pn, w, keyBytes, rb.BundleID),
+							pane:      stage.kind.getPaneOrDefault(stage, pn, w, keyBytes, rb.BundleID),
 							elmBytes:  elmBytes,
 							keyBytes:  keyBytes,
 							sequence:  seq,
@@ -1207,8 +1207,8 @@ type stageKind interface {
 	buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string],
 		holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane, schedulable bool, pendingAdjustment int)
 
-	// getPane based on the stage state, element metadata, and bundle id.
-	getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo
+	// getPaneOrDefault based on the stage state, element metadata, and bundle id.
+	getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo
 }
 
 // ordinaryStageKind represents stages that have no special behavior associated with them.
@@ -1217,8 +1217,8 @@ type ordinaryStageKind struct{}
 
 func (*ordinaryStageKind) String() string { return "OrdinaryStage" }
 
-func (*ordinaryStageKind) getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
-	return pane
+func (*ordinaryStageKind) getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
+	return defaultPane
 }
 
 // statefulStageKind require keyed elements, and handles stages with stateful transforms, with state and timers.
@@ -1226,8 +1226,8 @@ type statefulStageKind struct{}
 
 func (*statefulStageKind) String() string { return "StatefulStage" }
 
-func (*statefulStageKind) getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
-	return pane
+func (*statefulStageKind) getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
+	return defaultPane
 }
 
 // aggregateStageKind handles stages that perform aggregations over their primary inputs.
@@ -1236,7 +1236,7 @@ type aggregateStageKind struct{}
 
 func (*aggregateStageKind) String() string { return "AggregateStage" }
 
-func (*aggregateStageKind) getPane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
+func (*aggregateStageKind) getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	if pane, ok := ss.bundlePanes[bundID][w][string(keyBytes)]; ok {
