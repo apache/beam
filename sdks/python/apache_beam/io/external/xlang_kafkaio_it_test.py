@@ -41,6 +41,10 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.utils import subprocess_server
+from apache_beam.options.pipeline_options import (
+    PipelineOptions,
+    GoogleCloudOptions
+)
 
 NUM_RECORDS = 1000
 
@@ -68,7 +72,7 @@ class CollectingFn(beam.DoFn):
 
 class CrossLanguageKafkaIO(object):
   def __init__(
-      self, bootstrap_servers, topic, null_key, expansion_service=None):
+      self, bootstrap_servers=None, topic=None, null_key=None, expansion_service=None):
     self.bootstrap_servers = bootstrap_servers
     self.topic = topic
     self.null_key = null_key
@@ -106,6 +110,34 @@ class CrossLanguageKafkaIO(object):
         kafka_records
         | 'CalculateSum' >> beam.ParDo(CollectingFn())
         | 'SetSumCounter' >> beam.Map(self.sum_counter.inc))
+
+  def build_read_pipeline_with_kerberos(self, p, max_num_records=None):
+
+      jaas_config = (
+          f'com.sun.security.auth.module.Krb5LoginModule required '
+          f'useKeyTab=true storeKey=true '
+          f'keyTab="secretValue:projects/dataflow-testing-311516/secrets/kafka-client-keytab/versions/latest" '
+          f'principal="kafka-client@US-CENTRAL1-B.C.DATAFLOW-TESTING-311516.INTERNAL";'
+      )
+
+      kafka_records = (
+          p
+          | 'ReadFromKafka' >> ReadFromKafka(
+              consumer_config={
+                  'bootstrap.servers': 'fozzie-test-kafka-broker.us-central1-c.c.dataflow-testing-311516.internal:9092',
+                  'auto.offset.reset': 'earliest',
+                  'max_num_records': max_num_records,
+                  'security.protocol': 'SASL_PLAINTEXT',
+                  'sasl.mechanism': 'GSSAPI',
+                  'sasl.kerberos.service.name': 'kafka',
+                  'sasl.jaas.config': jaas_config
+              },
+              topics=['fozzie_test_kerberos_topic'],
+              key_deserializer='org.apache.kafka.common.serialization.StringDeserializer',
+              value_deserializer='org.apache.kafka.common.serialization.StringDeserializer',
+              consumer_factory_fn_class='org.apache.beam.sdk.extensions.kafka.factories.KerberosConsumerFactoryFn',
+              consumer_factory_fn_params={'krb5Location': 'gs://fozzie_testing_bucket/kerberos/krb5.conf'}))
+      return kafka_records
 
   def run_xlang_kafkaio(self, pipeline):
     self.build_write_pipeline(pipeline)
@@ -182,6 +214,17 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
     self.run_kafka_write(pipeline_creator)
     self.run_kafka_read(pipeline_creator, None)
 
+  def test_hosted_kafkaio_null_key_kerberos(self):
+      kafka_topic = 'xlang_kafkaio_test_null_key_{}'.format(uuid.uuid4())
+      bootstrap_servers = 'fozzie-test-kafka-broker.us-central1-c.c.dataflow-testing-311516.internal:9092'
+      pipeline_creator = CrossLanguageKafkaIO(
+          bootstrap_servers,
+          kafka_topic,
+          True,
+          'localhost:%s' % os.environ.get('EXPANSION_PORT'))
+
+      self.run_kafka_read_with_kerberos(pipeline_creator)
+
   def run_kafka_write(self, pipeline_creator):
     with TestPipeline() as pipeline:
       pipeline.not_use_test_runner_api = True
@@ -195,6 +238,23 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
           result,
           equal_to([(expected_key, str(i).encode())
                     for i in range(NUM_RECORDS)]))
+
+  def run_kafka_read_with_kerberos(self, pipeline_creator):
+      options_dict = {
+          'runner': 'DataflowRunner',
+          'project': 'dataflow-testing-311516',
+          'region': 'us-central1',
+          'streaming': False
+      }
+      options = PipelineOptions.from_dictionary(options_dict)
+      expected_records = [f'test{i}' for i in range(1, 12)]
+      with beam.Pipeline(options=options) as p:
+          pipeline.not_use_test_runner_api = True
+          result = pipeline_creator.build_read_pipeline_with_kerberos(p, max_num_records=11)
+          assert_that(
+              result,
+              equal_to(expected_records)
+          )
 
   def get_platform_localhost(self):
     if sys.platform == 'darwin':
