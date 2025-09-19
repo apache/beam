@@ -30,35 +30,45 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class KafkaReadRedistribute<K, V>
     extends PTransform<PCollection<KafkaRecord<K, V>>, PCollection<KafkaRecord<K, V>>> {
-  public static <K, V> KafkaReadRedistribute<K, V> redistribute() {
-    return new KafkaReadRedistribute<>(null);
+  public static <K, V> KafkaReadRedistribute<K, V> byOffsetShard(@Nullable Integer numBuckets) {
+    return new KafkaReadRedistribute<>(numBuckets, false);
+  }
+
+  public static <K, V> KafkaReadRedistribute<K, V> byRecordKey() {
+    return new KafkaReadRedistribute<>(null, true);
   }
 
   // The number of buckets to shard into.
   private @Nullable Integer numBuckets = null;
+  // When redistributing, group records by the Kafka record's key instead of by offset hash.
+  private boolean byRecordKey = false;
 
-  private KafkaReadRedistribute(@Nullable Integer numBuckets) {
+  private KafkaReadRedistribute(@Nullable Integer numBuckets, boolean byRecordKey) {
     this.numBuckets = numBuckets;
-  }
-
-  public KafkaReadRedistribute<K, V> withNumBuckets(@Nullable Integer numBuckets) {
-    return new KafkaReadRedistribute<>(numBuckets);
+    this.byRecordKey = byRecordKey;
   }
 
   @Override
   public PCollection<KafkaRecord<K, V>> expand(PCollection<KafkaRecord<K, V>> input) {
-    PCollection<KV<Integer, KafkaRecord<K, V>>> sharded =
-        input.apply("Pair with deterministic key", ParDo.of(new AssignShardFn<K, V>(numBuckets)));
 
-    return sharded
+    if (byRecordKey) {
+      return input
+          .apply("Pair with record key", ParDo.of(new AssignKeyFn<K, V>()))
+          .apply(Redistribute.<K, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
+          .apply(Values.create());
+    }
+
+    return input
+        .apply("Pair with offset shard", ParDo.of(new AssignOffsetShardFn<K, V>(numBuckets)))
         .apply(Redistribute.<Integer, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
         .apply(Values.create());
   }
 
-  static class AssignShardFn<K, V> extends DoFn<KafkaRecord<K, V>, KV<Integer, KafkaRecord<K, V>>> {
+  static class AssignOffsetShardFn<K, V>
+      extends DoFn<KafkaRecord<K, V>, KV<Integer, KafkaRecord<K, V>>> {
     private @Nullable Integer numBuckets;
 
-    public AssignShardFn(@Nullable Integer numBuckets) {
+    public AssignOffsetShardFn(@Nullable Integer numBuckets) {
       this.numBuckets = numBuckets;
     }
 
@@ -74,6 +84,17 @@ public class KafkaReadRedistribute<K, V>
       }
 
       receiver.output(KV.of(hash, element));
+    }
+  }
+
+  static class AssignKeyFn<K, V> extends DoFn<KafkaRecord<K, V>, KV<K, KafkaRecord<K, V>>> {
+
+    public AssignKeyFn() {}
+
+    @ProcessElement
+    public void processElement(
+        @Element KafkaRecord<K, V> element, OutputReceiver<KV<K, KafkaRecord<K, V>>> receiver) {
+      receiver.output(KV.of(element.getKV().getKey(), element));
     }
   }
 }

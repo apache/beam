@@ -1860,9 +1860,9 @@ public class KafkaIO {
           }
 
           if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
+            // TODO: Expose Kafka read options to control byOffsetShard vs byRecordKey.
             return output.apply(
-                KafkaReadRedistribute.<K, V>redistribute()
-                    .withNumBuckets(kafkaRead.getRedistributeNumKeys()));
+                KafkaReadRedistribute.<K, V>byOffsetShard(kafkaRead.getRedistributeNumKeys()));
           }
 
           RedistributeArbitrarily<KafkaRecord<K, V>> redistribute =
