@@ -21,15 +21,15 @@ import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
 public final class StreamObserverCancelledException extends RuntimeException {
-  StreamObserverCancelledException(Throwable cause) {
+  public StreamObserverCancelledException(Throwable cause) {
     super(cause);
   }
 
-  StreamObserverCancelledException(String message, Throwable cause) {
+  public StreamObserverCancelledException(String message, Throwable cause) {
     super(message, cause);
   }
 
-  StreamObserverCancelledException(String message) {
+  public StreamObserverCancelledException(String message) {
     super(message);
   }
 }
