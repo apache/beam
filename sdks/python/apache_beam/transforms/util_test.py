@@ -94,7 +94,7 @@ try:
   from google.cloud import secretmanager
 except ImportError:
   dill = None
-  secretmanager = None
+  secretmanager = None  # type: ignore[assignment]
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
@@ -362,7 +362,7 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
 
   @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
   def test_gbek_gcp_secret_manager_throws(self):
-    gcp_secret = GcpSecret(f'bad_path/versions/latest')
+    gcp_secret = GcpSecret('bad_path/versions/latest')
 
     with self.assertRaisesRegex(RuntimeError,
                                 r'Failed to retrieve secret bytes'):

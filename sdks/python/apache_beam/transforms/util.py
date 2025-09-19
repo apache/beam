@@ -33,7 +33,6 @@ import uuid
 from collections.abc import Callable
 from collections.abc import Iterable
 from cryptography.fernet import Fernet
-from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import List
@@ -478,6 +477,7 @@ class GroupByEncryptedKey(PTransform):
   GroupByKey on the encrypted keys, and then decrypts the keys in the output.
   This is useful when the keys contain sensitive data that should not be
   stored at rest by the runner.
+
   """
   def __init__(self, hmac_key: Secret):
     """Initializes a GroupByEncryptedKey transform.
@@ -489,7 +489,6 @@ class GroupByEncryptedKey(PTransform):
     """
     self._hmac_key = hmac_key
 
-  # Note: Relies on users setting good type hints on output of previous transform for choosing an appropriate coder
   def expand(self, pcoll):
     kv_type_hint = pcoll.element_type
     if kv_type_hint and kv_type_hint != typehints.Any:
