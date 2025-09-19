@@ -89,7 +89,6 @@ import org.joda.time.Instant;
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "unchecked"
 })
 public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
