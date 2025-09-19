@@ -53,7 +53,7 @@ public class KafkaReadRedistribute<K, V>
 
     if (byRecordKey) {
       return input
-          .apply("Pair with record key", ParDo.of(new AssignKeyFn<K, V>()))
+          .apply("Pair with record key", ParDo.of(new AssignRecordKeyFn<K, V>()))
           .apply(Redistribute.<K, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
           .apply(Values.create());
     }
@@ -87,9 +87,9 @@ public class KafkaReadRedistribute<K, V>
     }
   }
 
-  static class AssignKeyFn<K, V> extends DoFn<KafkaRecord<K, V>, KV<K, KafkaRecord<K, V>>> {
+  static class AssignRecordKeyFn<K, V> extends DoFn<KafkaRecord<K, V>, KV<K, KafkaRecord<K, V>>> {
 
-    public AssignKeyFn() {}
+    public AssignRecordKeyFn() {}
 
     @ProcessElement
     public void processElement(
