@@ -359,6 +359,7 @@ if __name__ == '__main__':
       ext_modules=extensions,
       install_requires=[
           'crcmod>=1.7,<2.0',
+          'cryptography>=39.0.0,<48.0.0',
           'orjson>=3.9.7,<4',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
