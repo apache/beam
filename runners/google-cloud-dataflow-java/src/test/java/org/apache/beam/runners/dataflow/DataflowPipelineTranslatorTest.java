@@ -156,8 +156,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     SdkComponents sdkComponents = SdkComponents.create();
 
     String containerImageURL =
-        DataflowRunner.getV2SdkHarnessContainerImageForJob(
-            options.as(DataflowPipelineOptions.class));
+        DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(containerImageURL);
 
@@ -1128,8 +1127,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     file2.deleteOnExit();
     SdkComponents sdkComponents = SdkComponents.create();
     sdkComponents.registerEnvironment(
-        Environments.createDockerEnvironment(
-                DataflowRunner.getV2SdkHarnessContainerImageForJob(options))
+        Environments.createDockerEnvironment(DataflowRunner.getContainerImageForJob(options))
             .toBuilder()
             .addAllDependencies(
                 Environments.getArtifacts(
@@ -1591,8 +1589,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         Iterables.getOnlyElement(pipelineProto.getComponents().getEnvironmentsMap().values());
 
     DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
-    assertEquals(
-        DataflowRunner.getV2SdkHarnessContainerImageForJob(options), payload.getContainerImage());
+    assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
   }
 
   /**
@@ -1624,8 +1621,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         Iterables.getOnlyElement(pipelineProto.getComponents().getEnvironmentsMap().values());
 
     DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
-    assertEquals(
-        DataflowRunner.getV2SdkHarnessContainerImageForJob(options), payload.getContainerImage());
+    assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
   }
 
   @Test
