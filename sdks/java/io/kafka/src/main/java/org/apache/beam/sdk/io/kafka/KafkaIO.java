@@ -1859,16 +1859,21 @@ public class KafkaIO {
                 "Offsets committed due to usage of commitOffsetsInFinalize() and may not capture all work processed due to use of withRedistribute() with duplicates enabled");
           }
 
+          if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
+            return output.apply(
+                KafkaReadRedistribute.<K, V>redistribute()
+                    .withNumBuckets(kafkaRead.getRedistributeNumKeys()));
+          }
+
           RedistributeArbitrarily<KafkaRecord<K, V>> redistribute =
               Redistribute.<KafkaRecord<K, V>>arbitrarily()
                   .withAllowDuplicates(kafkaRead.isAllowDuplicates());
-          if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
-            redistribute = redistribute.withDeterministicSharding(true);
-          }
+          String redistributeName = "Insert Redistribute";
           if (kafkaRead.getRedistributeNumKeys() != 0) {
             redistribute = redistribute.withNumBuckets((int) kafkaRead.getRedistributeNumKeys());
+            redistributeName = "Insert Redistribute with Shards";
           }
-          return output.apply("Insert Redistribute", redistribute);
+          return output.apply(redistributeName, redistribute);
         }
         return output;
       }

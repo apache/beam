@@ -36,7 +36,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedInteger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -49,7 +48,7 @@ import org.joda.time.Duration;
 public class Redistribute {
   /** @return a {@link RedistributeArbitrarily} transform with default configuration. */
   public static <T> RedistributeArbitrarily<T> arbitrarily() {
-    return new RedistributeArbitrarily<>(null, false, false);
+    return new RedistributeArbitrarily<>(null, false);
   }
 
   /** @return a {@link RedistributeByKey} transform with default configuration. */
@@ -137,50 +136,28 @@ public class Redistribute {
     // unit sized bundles on the output. If unset, uses a random integer key.
     private @Nullable Integer numBuckets = null;
     private boolean allowDuplicates = false;
-    private boolean deterministicSharding = false;
 
-    private RedistributeArbitrarily(
-        @Nullable Integer numBuckets, boolean allowDuplicates, boolean deterministicSharding) {
+    private RedistributeArbitrarily(@Nullable Integer numBuckets, boolean allowDuplicates) {
       this.numBuckets = numBuckets;
       this.allowDuplicates = allowDuplicates;
-      this.deterministicSharding = deterministicSharding;
     }
 
     public RedistributeArbitrarily<T> withNumBuckets(@Nullable Integer numBuckets) {
-      return new RedistributeArbitrarily<>(
-          numBuckets, this.allowDuplicates, this.deterministicSharding);
+      return new RedistributeArbitrarily<>(numBuckets, this.allowDuplicates);
     }
 
     public RedistributeArbitrarily<T> withAllowDuplicates(boolean allowDuplicates) {
-      return new RedistributeArbitrarily<>(
-          this.numBuckets, allowDuplicates, this.deterministicSharding);
-    }
-
-    public RedistributeArbitrarily<T> withDeterministicSharding(boolean deterministicSharding) {
-      return new RedistributeArbitrarily<>(
-          this.numBuckets, this.allowDuplicates, deterministicSharding);
+      return new RedistributeArbitrarily<>(this.numBuckets, allowDuplicates);
     }
 
     public boolean getAllowDuplicates() {
       return allowDuplicates;
     }
 
-    public boolean getDeterministicSharding() {
-      return deterministicSharding;
-    }
-
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      PCollection<KV<Integer, T>> sharded;
-      if (deterministicSharding) {
-        sharded =
-            input.apply(
-                "Pair with deterministic key",
-                ParDo.of(new AssignDeterministicShardFn<T>(numBuckets)));
-      } else {
-        sharded = input.apply("Pair with random key", ParDo.of(new AssignShardFn<T>(numBuckets)));
-      }
-      return sharded
+      return input
+          .apply("Pair with random key", ParDo.of(new AssignShardFn<>(numBuckets)))
           .apply(Redistribute.<Integer, T>byKey().withAllowDuplicates(this.allowDuplicates))
           .apply(Values.create());
     }
@@ -213,28 +190,6 @@ public class Redistribute {
     }
   }
 
-  static class Sharding {
-    static int smear(int shard) {
-      // Smear the shard into something more random-looking, to avoid issues
-      // with runners that don't properly hash the key being shuffled, but rely
-      // on it being random-looking. E.g. Spark takes the Java hashCode() of keys,
-      // which for Integer is a no-op, and it is an issue:
-      // http://hydronitrogen.com/poor-hash-partitioning-of-timestamps-integers-and-longs-in-
-      // spark.html
-      // This hashing strategy is copied from
-      // org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Hashing.smear().
-      return 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
-    }
-
-    static int bucket(int hash, @Nullable Integer numBuckets) {
-      if (numBuckets == null) {
-        return hash;
-      }
-      UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
-      return UnsignedInteger.fromIntBits(hash).mod(unsignedNumBuckets).intValue();
-    }
-  }
-
   static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {
     private int shard;
     private @Nullable Integer numBuckets;
@@ -250,24 +205,21 @@ public class Redistribute {
 
     @ProcessElement
     public void processElement(@Element T element, OutputReceiver<KV<Integer, T>> r) {
-      int hash = Sharding.smear(++shard);
-      hash = Sharding.bucket(hash, numBuckets);
-      r.output(KV.of(hash, element));
-    }
-  }
-
-  static class AssignDeterministicShardFn<T> extends DoFn<T, KV<Integer, T>> {
-    private @Nullable Integer numBuckets;
-
-    public AssignDeterministicShardFn(@Nullable Integer numBuckets) {
-      this.numBuckets = numBuckets;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      int hash = Hashing.farmHashFingerprint64().hashLong(context.currentRecordOffset()).asInt();
-      hash = Sharding.bucket(hash, numBuckets);
-      context.output(KV.of(hash, context.element()));
+      ++shard;
+      // Smear the shard into something more random-looking, to avoid issues
+      // with runners that don't properly hash the key being shuffled, but rely
+      // on it being random-looking. E.g. Spark takes the Java hashCode() of keys,
+      // which for Integer is a no-op and it is an issue:
+      // http://hydronitrogen.com/poor-hash-partitioning-of-timestamps-integers-and-longs-in-
+      // spark.html
+      // This hashing strategy is copied from
+      // org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Hashing.smear().
+      int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
+      if (numBuckets != null) {
+        UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
+        hashOfShard = UnsignedInteger.fromIntBits(hashOfShard).mod(unsignedNumBuckets).intValue();
+      }
+      r.output(KV.of(hashOfShard, element));
     }
   }
 
