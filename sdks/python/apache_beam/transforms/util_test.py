@@ -21,9 +21,12 @@
 # pylint: disable=too-many-function-args
 
 import collections
+import hashlib
+import hmac
 import importlib
 import logging
 import math
+import mock
 import random
 import re
 import time
@@ -34,6 +37,7 @@ from datetime import datetime
 
 import pytest
 import pytz
+from cryptography.fernet import Fernet, InvalidToken
 from parameterized import param
 from parameterized import parameterized
 
@@ -61,6 +65,8 @@ from apache_beam.testing.util import contains_in_any_order
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms import util
+from apache_beam.transforms.util import GcpSecret
+from apache_beam.transforms.util import Secret
 from apache_beam.transforms import window
 from apache_beam.transforms.core import FlatMapTuple
 from apache_beam.transforms.trigger import AfterCount
@@ -85,8 +91,10 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 try:
   import dill
+  from google.cloud import secretmanager
 except ImportError:
   dill = None
+  secretmanager = None
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
@@ -236,6 +244,134 @@ class CoGroupByKeyTest(unittest.TestCase):
                    lambda k, tagged: (k.value, tagged['x'][0].value * 2)))
       expected = [0, 0, 1, 2, 2, 4, 3, 6, 4, 8]
       assert_that(pcoll, equal_to(expected))
+
+
+class FakeSecret(beam.Secret):
+  def __init__(self, should_throw=False):
+    self._secret = b'aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE='
+    self._should_throw = should_throw
+
+  def get_secret_bytes(self) -> bytes:
+    if self._should_throw:
+      raise RuntimeError('Exception retrieving secret')
+    return self._secret
+
+
+class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
+  def __init__(self, hmac_key_secret, key_coder, value_coder):
+    hmac_key = hmac_key_secret.get_secret_bytes()
+    self.fernet_tester = Fernet(hmac_key)
+    self.known_hmacs = []
+    for key in ['a', 'b', 'c']:
+      self.known_hmacs.append(
+          hmac.new(hmac_key, key_coder.encode(key), hashlib.sha256).digest())
+    super().__init__(hmac_key_secret, key_coder, value_coder)
+
+  def process(self, element):
+    hmac_key, actual_elements = element
+    if hmac_key not in self.known_hmacs:
+      raise ValueError(f'GBK produced unencrypted value {hmac_key}')
+    for e in actual_elements:
+      try:
+        self.fernet_tester.decrypt(e[0], None)
+      except InvalidToken:
+        raise ValueError(f'GBK produced unencrypted value {e[0]}')
+      try:
+        self.fernet_tester.decrypt(e[1], None)
+      except InvalidToken:
+        raise ValueError(f'GBK produced unencrypted value {e[1]}')
+
+    return super().process(element)
+
+
+class GroupByEncryptedKeyTest(unittest.TestCase):
+  def setUp(self):
+    if secretmanager is not None:
+      self.project_id = 'apache-beam-testing'
+      self.secret_id = 'gbek_secret_tests'
+      self.client = secretmanager.SecretManagerServiceClient()
+      self.project_path = f'projects/{self.project_id}'
+      self.secret_path = f'{self.project_path}/secrets/{self.secret_id}'
+      try:
+        self.client.get_secret(request={'name': self.secret_path})
+      except Exception:
+        self.client.create_secret(
+            request={
+                'parent': self.project_path,
+                'secret_id': self.secret_id,
+                'secret': {
+                    'replication': {
+                        'automatic': {}
+                    }
+                }
+            })
+        self.client.add_secret_version(
+            request={
+                'parent': self.secret_path,
+                'payload': {
+                    'data': Secret.generate_secret_bytes()
+                }
+            })
+      self.gcp_secret = GcpSecret(f'{self.secret_path}/versions/latest')
+
+  def tearDown(self):
+    if secretmanager is not None:
+      self.client.delete_secret(request={'name': self.secret_path})
+
+  def test_gbek_fake_secret_manager_roundtrips(self):
+    fakeSecret = FakeSecret()
+
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
+  def test_gbek_fake_secret_manager_actually_does_encryption(self):
+    fakeSecret = FakeSecret()
+    beam.typehints.disable_type_annotations()
+
+    with TestPipeline('FnApiRunner') as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  def test_gbek_fake_secret_manager_throws(self):
+    fakeSecret = FakeSecret(True)
+
+    with self.assertRaisesRegex(RuntimeError, r'Exception retrieving secret'):
+      with TestPipeline() as pipeline:
+        pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                       ('b', 3), ('c', 4)])
+        result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+        assert_that(
+            result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbek_gcp_secret_manager_roundtrips(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(self.gcp_secret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbek_gcp_secret_manager_throws(self):
+    gcp_secret = GcpSecret(f'bad_path/versions/latest')
+
+    with self.assertRaisesRegex(RuntimeError,
+                                r'Failed to retrieve secret bytes'):
+      with TestPipeline() as pipeline:
+        pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                       ('b', 3), ('c', 4)])
+        result = (pcoll_1) | beam.GroupByEncryptedKey(gcp_secret)
+        assert_that(
+            result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
 
 class FakeClock(object):
