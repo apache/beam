@@ -1895,17 +1895,21 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       // For the initial timestamps we pass in the current elements timestamp for the hold timestamp
       // and the current element's timestamp which will be used for the fire timestamp if this
       // timer is in the EVENT time domain.
-      TimeDomain timeDomain =
-          translateTimeDomain(parDoPayload.getTimerFamilySpecsMap().get(timerId).getTimeDomain());
-      return new FnApiTimer(
-          timerId,
-          ((KV) currentElement.getValue()).getKey(),
-          "",
-          currentWindow,
-          currentElement.getTimestamp(),
-          currentElement.getTimestamp(),
-          currentElement.getPaneInfo(),
-          timeDomain);
+      try {
+        TimeDomain timeDomain =
+            translateTimeDomain(parDoPayload.getTimerFamilySpecsMap().get(timerId).getTimeDomain());
+        return new FnApiTimer(
+            timerId,
+            ((KV) currentElement.getValue()).getKey(),
+            "",
+            currentWindow,
+            currentElement.getTimestamp(),
+            currentElement.getTimestamp(),
+            currentElement.getPaneInfo(),
+            timeDomain);
+      } catch (Exception e) {
+        throw new RuntimeException("Unable to create timer for timer:" + e.getMessage(), e);
+      }
     }
 
     @Override

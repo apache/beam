@@ -212,7 +212,10 @@ public class DoFnSignatures {
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.StateParameter.class,
               Parameter.TimestampParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.KeyParameter.class,
+              Parameter.TimerParameter.class,
+              Parameter.TimerFamilyParameter.class,
+              Parameter.TimerIdParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =
