@@ -78,7 +78,7 @@ jobs:
         run: echo "GCS_BUCKET_NAME=$(echo ${{ github.event.inputs.GCS_BUCKET }} | sed 's/^gs:\/\///')" >> $GITHUB_ENV
       
       - name: Checkout code at RC tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: v${{ github.event.inputs.RELEASE_VER }}-RC${{ github.event.inputs.RC_NUM }}
 

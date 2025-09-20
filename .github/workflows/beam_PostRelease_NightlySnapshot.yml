@@ -54,7 +54,7 @@ jobs:
     name: beam_PostRelease_NightlySnapshot
     runs-on: [self-hosted, ubuntu-20.04, highmem]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

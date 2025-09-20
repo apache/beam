@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_PerformanceTests_BigQueryIO_Batch_Java_Avro"]
         job_phrase: ["Run BigQueryIO Batch Performance Test Java Avro"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

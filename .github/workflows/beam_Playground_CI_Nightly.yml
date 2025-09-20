@@ -61,7 +61,7 @@ jobs:
         sdk: ["python", "java", "go"]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

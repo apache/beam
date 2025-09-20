@@ -95,7 +95,7 @@ jobs:
       (contains(github.event.comment.body, 'Run Dataflow Runner V2 Java') &&
          contains(github.event.comment.body, 'Nexmark Tests'))
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

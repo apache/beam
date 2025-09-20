@@ -62,7 +62,7 @@ jobs:
     timeout-minutes: 900
     name: "beam_Java_JMH"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
       - name: run the Java JMH micro-benchmark harness suite

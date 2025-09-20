@@ -86,7 +86,7 @@ jobs:
         job_phrase: ["Run Spark Runner Tpcds Tests"]
         runner: [SparkRunner, SparkStructuredStreamingRunner]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

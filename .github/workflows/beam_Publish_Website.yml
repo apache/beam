@@ -53,7 +53,7 @@ jobs:
     timeout-minutes: 30
     name: beam_Publish_Website
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -63,4 +63,4 @@ jobs:
         with:
           gradle-command: :website:clean :website:publishWebsite
           arguments: -PgitPublishRemote="https://github.com/apache/beam.git"
-      - uses: actions/checkout@v4 # Extra checkout to make sure we're on master for post steps.
+      - uses: actions/checkout@v5 # Extra checkout to make sure we're on master for post steps.

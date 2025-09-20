@@ -82,7 +82,7 @@ jobs:
       github.event.comment.body == 'Run IcebergIO Unit Tests'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

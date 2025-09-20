@@ -55,7 +55,7 @@ jobs:
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
       py-versions-test: ${{ steps.set-py-versions.outputs.py-versions-test }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -88,7 +88,7 @@ jobs:
       rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Install python
         uses: actions/setup-python@v5
         with:
@@ -367,7 +367,7 @@ jobs:
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
           submodules: recursive

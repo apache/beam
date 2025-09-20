@@ -64,7 +64,7 @@ jobs:
     env:
       KAFKA_SERVICE_PORT: 32400
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

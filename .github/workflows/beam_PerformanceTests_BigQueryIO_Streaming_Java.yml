@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_PerformanceTests_BigQueryIO_Streaming_Java"]
         job_phrase: ["Run BigQueryIO Streaming Performance Test Java"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
