@@ -1298,7 +1298,7 @@ func (ss *stageState) AddPending(em *ElementManager, newPending []element) int {
 	return ss.kind.addPending(ss, em, newPending)
 }
 
-func (ss *stageState) injectTriggeredBundles(em *ElementManager, window typex.Window, key []byte) int {
+func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
 	// Check on triggers for this key.
 	// We use an empty linkID as the key into state for aggregations.
 	count := 0
@@ -1315,7 +1315,7 @@ func (ss *stageState) injectTriggeredBundles(em *ElementManager, window typex.Wi
 		wv = make(map[string]StateData)
 		lv[window] = wv
 	}
-	state := wv[string(key)]
+	state := wv[key]
 	endOfWindowReached := window.MaxTimestamp() < ss.input
 	ready := ss.strat.IsTriggerReady(triggerInput{
 		newElementCount:    1,
@@ -1326,7 +1326,7 @@ func (ss *stageState) injectTriggeredBundles(em *ElementManager, window typex.Wi
 		state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
 	}
 	// Store the state as triggers may have changed it.
-	ss.state[LinkID{}][window][string(key)] = state
+	ss.state[LinkID{}][window][key] = state
 
 	// If we're ready, it's time to fire!
 	if ready {
@@ -1355,7 +1355,11 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 		ss.pendingByKeys = map[string]*dataAndTimers{}
 	}
 
-	pendingKeysByWindows := map[typex.Window][]byte{}
+	type windowKey struct {
+		window typex.Window
+		key    string
+	}
+	pendingWindowKeys := set[windowKey]{}
 
 	count := 0
 	for _, e := range newPending {
@@ -1371,14 +1375,16 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 		heap.Push(&dnt.elements, e)
 
 		if em.config.StreamingMode {
-			count += ss.injectTriggeredBundles(em, e.window, e.keyBytes)
+			// In streaming mode, we check trigger readiness on each element
+			count += ss.injectTriggeredBundlesIfReady(em, e.window, string(e.keyBytes))
 		} else {
-			pendingKeysByWindows[e.window] = e.keyBytes
+			// In batch mode, we store key + window pairs here and check trigger readiness for each of them later.
+			pendingWindowKeys.insert(windowKey{window: e.window, key: string(e.keyBytes)})
 		}
 	}
 	if !em.config.StreamingMode {
-		for window, key := range pendingKeysByWindows {
-			count += ss.injectTriggeredBundles(em, window, key)
+		for wk := range pendingWindowKeys {
+			count += ss.injectTriggeredBundlesIfReady(em, wk.window, wk.key)
 		}
 	}
 	return count
@@ -1514,9 +1520,9 @@ func (ss *stageState) savePanes(bundID string, panesInBundle []bundlePane) {
 // buildTriggeredBundle must be called with the stage.mu lock held.
 // When in discarding mode, returns 0.
 // When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
-func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win typex.Window) int {
+func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win typex.Window) int {
 	var toProcess []element
-	dnt := ss.pendingByKeys[string(key)]
+	dnt := ss.pendingByKeys[key]
 	var notYet []element
 
 	rb := RunBundle{StageID: ss.ID, BundleID: "agg-" + em.nextBundID(), Watermark: ss.input}
@@ -1545,7 +1551,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 	}
 	dnt.elements = append(dnt.elements, notYet...)
 	if dnt.elements.Len() == 0 {
-		delete(ss.pendingByKeys, string(key))
+		delete(ss.pendingByKeys, key)
 	} else {
 		// Ensure the heap invariants are maintained.
 		heap.Init(&dnt.elements)
@@ -1558,7 +1564,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 		{
 			win:  win,
 			key:  string(key),
-			pane: ss.state[LinkID{}][win][string(key)].Pane,
+			pane: ss.state[LinkID{}][win][key].Pane,
 		},
 	}
 
@@ -1566,7 +1572,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 		func() string { return rb.BundleID },
 		toProcess,
 		ss.input,
-		singleSet(string(key)),
+		singleSet(key),
 		nil,
 		panesInBundle,
 	)
