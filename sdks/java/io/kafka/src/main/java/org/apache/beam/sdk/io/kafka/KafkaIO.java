@@ -79,6 +79,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeArbitrarily;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -1858,18 +1859,21 @@ public class KafkaIO {
                 "Offsets committed due to usage of commitOffsetsInFinalize() and may not capture all work processed due to use of withRedistribute() with duplicates enabled");
           }
 
-          if (kafkaRead.getRedistributeNumKeys() == 0) {
+          if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
+            // TODO: Expose Kafka read options to control byOffsetShard vs byRecordKey.
             return output.apply(
-                "Insert Redistribute",
-                Redistribute.<KafkaRecord<K, V>>arbitrarily()
-                    .withAllowDuplicates(kafkaRead.isAllowDuplicates()));
-          } else {
-            return output.apply(
-                "Insert Redistribute with Shards",
-                Redistribute.<KafkaRecord<K, V>>arbitrarily()
-                    .withAllowDuplicates(kafkaRead.isAllowDuplicates())
-                    .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
+                KafkaReadRedistribute.<K, V>byOffsetShard(kafkaRead.getRedistributeNumKeys()));
           }
+
+          RedistributeArbitrarily<KafkaRecord<K, V>> redistribute =
+              Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                  .withAllowDuplicates(kafkaRead.isAllowDuplicates());
+          String redistributeName = "Insert Redistribute";
+          if (kafkaRead.getRedistributeNumKeys() != 0) {
+            redistribute = redistribute.withNumBuckets((int) kafkaRead.getRedistributeNumKeys());
+            redistributeName = "Insert Redistribute with Shards";
+          }
+          return output.apply(redistributeName, redistribute);
         }
         return output;
       }
