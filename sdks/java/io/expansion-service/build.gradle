@@ -71,6 +71,8 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
   implementation project(":sdks:java:io:kafka:upgrade")
   permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
+  implementation project(":sdks:java:extensions:kafka-factories")
+  permitUnusedDeclared project(":sdks:java:extensions:kafka-factories")
 
   if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0 && project.findProperty('testJavaVersion') != '8') {
     // iceberg ended support for Java 8 in 1.7.0
