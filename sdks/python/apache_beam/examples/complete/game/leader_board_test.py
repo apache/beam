@@ -65,7 +65,10 @@ class LeaderBoardTest(unittest.TestCase):
       result = (
           self.create_data(p)
           | leader_board.CalculateUserScores(allowed_lateness=120))
-      assert_that(result, equal_to([]))
+      assert_that(
+          result,
+          equal_to([('user2_team2', 2), ('user3_team3', 8), ('user4_team3', 5),
+                    ('user1_team1', 50)]))
 
 
 if __name__ == '__main__':

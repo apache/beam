@@ -663,7 +663,8 @@ class TriggerPipelineTest(unittest.TestCase):
           equal_to(
               list({
                   'A-5': {1, 2, 3, 4, 5},
-                  # A-10, A-11 never emitted due to AfterCount(3) never firing.
+                  # A-10, A-11 emit on the closing of window [10, 19]
+                  'A-2': {10, 11},
                   'B-4': {6, 7, 8, 9},
                   'B-3': {10, 15, 16},
               }.items())))
