@@ -29,9 +29,6 @@ import org.apache.beam.sdk.schemas.Schema;
  * <p>Its input type is a {@link LocalDate}, and base type is a {@link Long} that represents a
  * incrementing count of days where day 0 is 1970-01-01 (ISO).
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Date implements Schema.LogicalType<LocalDate, Long> {
   public static final String IDENTIFIER = "beam:logical_type:date:v1";
 
@@ -59,11 +56,11 @@ public class Date implements Schema.LogicalType<LocalDate, Long> {
 
   @Override
   public Long toBaseType(LocalDate input) {
-    return input == null ? null : input.toEpochDay();
+    return input.toEpochDay();
   }
 
   @Override
   public LocalDate toInputType(Long base) {
-    return base == null ? null : LocalDate.ofEpochDay(base);
+    return LocalDate.ofEpochDay(base);
   }
 }

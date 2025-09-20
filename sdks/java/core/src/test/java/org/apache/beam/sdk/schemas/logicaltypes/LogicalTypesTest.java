@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType.Value;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 /** Unit tests for logical types. */
@@ -86,6 +88,21 @@ public class LogicalTypesTest {
     Row stringOneOf2 =
         Row.withSchema(schema2).addValue(oneOf.createValue("string", "stringValue")).build();
     assertEquals(stringOneOf, stringOneOf2);
+  }
+
+  @Test
+  public void testOneOfNullable() {
+    Exception exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> {
+              OneOfType.create(
+                  Field.nullable("string", FieldType.STRING), Field.of("int32", FieldType.INT32));
+            });
+
+    assertThat(
+        exception.getMessage(),
+        Matchers.containsString("OneOf fields do not support nullable subfields."));
   }
 
   @Test

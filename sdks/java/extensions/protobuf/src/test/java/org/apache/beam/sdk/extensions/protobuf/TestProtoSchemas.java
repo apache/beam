@@ -113,10 +113,10 @@ class TestProtoSchemas {
 
   static final Schema OPTIONAL_PRIMITIVE_SCHEMA =
       Schema.builder()
-          .addField(withFieldNumber("primitive_int32", FieldType.INT32, 1))
-          .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN, 2))
-          .addField(withFieldNumber("primitive_string", FieldType.STRING, 3))
-          .addField(withFieldNumber("primitive_bytes", FieldType.BYTES, 4))
+          .addField(withFieldNumber("primitive_int32", FieldType.INT32.withNullable(true), 1))
+          .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN.withNullable(true), 2))
+          .addField(withFieldNumber("primitive_string", FieldType.STRING.withNullable(true), 3))
+          .addField(withFieldNumber("primitive_bytes", FieldType.BYTES.withNullable(true), 4))
           .setOptions(
               Schema.Options.builder()
                   .setOption(
@@ -127,10 +127,10 @@ class TestProtoSchemas {
 
   static final Schema PROTO3_OPTIONAL_PRIMITIVE_SCHEMA =
       Schema.builder()
-          .addField(withFieldNumber("primitive_int32", FieldType.INT32, 1))
-          .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN, 2))
-          .addField(withFieldNumber("primitive_string", FieldType.STRING, 3))
-          .addField(withFieldNumber("primitive_bytes", FieldType.BYTES, 4))
+          .addField(withFieldNumber("primitive_int32", FieldType.INT32.withNullable(true), 1))
+          .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN.withNullable(true), 2))
+          .addField(withFieldNumber("primitive_string", FieldType.STRING.withNullable(true), 3))
+          .addField(withFieldNumber("primitive_bytes", FieldType.BYTES.withNullable(true), 4))
           .setOptions(
               Schema.Options.builder()
                   .setOption(
@@ -401,7 +401,7 @@ class TestProtoSchemas {
   static final Schema ONEOF_SCHEMA =
       Schema.builder()
           .addField(withFieldNumber("place1", FieldType.STRING, 1))
-          .addField("special_oneof", FieldType.logicalType(ONE_OF_TYPE))
+          .addField("special_oneof", FieldType.logicalType(ONE_OF_TYPE).withNullable(true))
           .addField(withFieldNumber("place2", FieldType.INT32, 6))
           .setOptions(withTypeName("proto3_schema_messages.OneOf"))
           .build();
@@ -445,7 +445,7 @@ class TestProtoSchemas {
       OneOfType.create(OUTER_ONEOF_FIELDS, OUTER_ONE_OF_ENUM_MAP);
   static final Schema OUTER_ONEOF_SCHEMA =
       Schema.builder()
-          .addField("outer_oneof", FieldType.logicalType(OUTER_ONEOF_TYPE))
+          .addField("outer_oneof", FieldType.logicalType(OUTER_ONEOF_TYPE).withNullable(true))
           .setOptions(withTypeName("proto3_schema_messages.OuterOneOf"))
           .build();
 
@@ -476,7 +476,8 @@ class TestProtoSchemas {
   static final Schema REVERSED_ONEOF_SCHEMA =
       Schema.builder()
           .addField(withFieldNumber("place1", FieldType.STRING, 6))
-          .addField("oneof_reversed", FieldType.logicalType(REVERSED_ONE_OF_TYPE))
+          .addField(
+              "oneof_reversed", FieldType.logicalType(REVERSED_ONE_OF_TYPE).withNullable(true))
           .addField(withFieldNumber("place2", FieldType.INT32, 1))
           .setOptions(withTypeName("proto3_schema_messages.ReversedOneOf"))
           .build();
@@ -545,10 +546,12 @@ class TestProtoSchemas {
       Schema.builder()
           .addField(withFieldNumber("place1", FieldType.STRING, 76))
           .addField(
-              "oneof_non_contiguous_one", FieldType.logicalType(NONCONTIGUOUS_ONE_ONE_OF_TYPE))
+              "oneof_non_contiguous_one",
+              FieldType.logicalType(NONCONTIGUOUS_ONE_ONE_OF_TYPE).withNullable(true))
           .addField(withFieldNumber("place2", FieldType.INT32, 33))
           .addField(
-              "oneof_non_contiguous_two", FieldType.logicalType(NONCONTIGUOUS_TWO_ONE_OF_TYPE))
+              "oneof_non_contiguous_two",
+              FieldType.logicalType(NONCONTIGUOUS_TWO_ONE_OF_TYPE).withNullable(true))
           .addField(withFieldNumber("place3", FieldType.INT32, 63))
           .setOptions(withTypeName("proto3_schema_messages.NonContiguousOneOf"))
           .build();
