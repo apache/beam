@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,9 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Exported IAM policy for project apache-beam-testing
-# Generated on 2025-07-30 22:43:34 UTC
+    
+# IAM policy for project apache-beam-testing
+# Generated on 2025-09-19 18:17:58 UTC
 
 - username: WhatWouldAustinDo
   email: WhatWouldAustinDo@gmail.com
@@ -24,6 +23,7 @@
 - username: a.khorbaladze
   email: a.khorbaladze@akvelon.us
   permissions:
+  - role: roles/bigquery.admin
   - role: roles/container.admin
   - role: roles/editor
   - role: roles/iam.serviceAccountUser
@@ -36,6 +36,14 @@
   email: abbymotley@google.com
   permissions:
   - role: roles/viewer
+- username: adudko-runner-gke-sa
+  email: adudko-runner-gke-sa@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/container.admin
+  - role: roles/container.clusterAdmin
+  - role: roles/dataflow.admin
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
 - username: ahmedabualsaud
   email: ahmedabualsaud@google.com
   permissions:
@@ -49,6 +57,11 @@
   - role: roles/container.admin
   - role: roles/editor
   - role: roles/secretmanager.secretAccessor
+- username: aleks-vm-sa
+  email: aleks-vm-sa@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/artifactregistry.writer
+  - role: roles/bigquery.admin
 - username: aleksandr.dudko
   email: aleksandr.dudko@akvelon.com
   permissions:
@@ -61,11 +74,33 @@
   email: alexey.inkin@akvelon.com
   permissions:
   - role: roles/viewer
+- username: allows-impersonation
+  email: allows-impersonation@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: organizations/433637338589/roles/GceStorageAdmin
+  - role: organizations/433637338589/roles/GcsBucketOwner
+  - role: roles/editor
+  - role: roles/file.editor
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/iam.workloadIdentityUser
+  - role: roles/viewer
+- username: allows-impersonation-new
+  email: allows-impersonation-new@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: organizations/433637338589/roles/GcsBucketOwner
+  - role: roles/dataflow.admin
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
 - username: altay
   email: altay@google.com
   permissions:
   - role: roles/owner
   - role: roles/viewer
+- username: anandinguva
+  email: anandinguva@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.admin
 - username: anandinguva
   email: anandinguva@google.com
   permissions:
@@ -82,8 +117,35 @@
   - role: roles/iam.serviceAccountAdmin
   - role: roles/owner
   - role: roles/storage.admin
+- username: andreydevyatkin-runner-gke-sa
+  email: andreydevyatkin-runner-gke-sa@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/container.admin
+  - role: roles/dataflow.admin
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
 - username: anikin
   email: anikin@google.com
+  permissions:
+  - role: roles/editor
+- username: apache-beam-testing
+  email: apache-beam-testing@appspot.gserviceaccount.com
+  permissions:
+  - role: roles/editor
+- username: apache-beam-testing-klk
+  email: apache-beam-testing-klk@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/editor
+- username: apache-beam-testing-looker-admins
+  email: apache-beam-testing-looker-admins@google.com
+  permissions:
+  - role: roles/looker.admin
+- username: apache-beam-testing-looker-users
+  email: apache-beam-testing-looker-users@google.com
+  permissions:
+  - role: roles/looker.instanceUser
+- username: apanich
+  email: apanich@google.com
   permissions:
   - role: roles/editor
 - username: archbtw
@@ -106,6 +168,89 @@
   email: ashokrd2@gmail.com
   permissions:
   - role: roles/editor
+- username: auth-example
+  email: auth-example@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/artifactregistry.reader
+- username: beam-github-actions
+  email: beam-github-actions@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/artifactregistry.createOnPushWriter
+  - role: roles/artifactregistry.reader
+  - role: roles/autoscaling.metricsWriter
+  - role: roles/bigquery.dataEditor
+  - role: roles/bigtable.admin
+  - role: roles/cloudfunctions.invoker
+  - role: roles/compute.viewer
+  - role: roles/container.serviceAgent
+  - role: roles/dataflow.admin
+  - role: roles/dataflow.developer
+  - role: roles/dataproc.editor
+  - role: roles/editor
+  - role: roles/healthcare.fhirResourceEditor
+  - role: roles/healthcare.fhirStoreAdmin
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/logging.logWriter
+  - role: roles/managedkafka.admin
+  - role: roles/managedkafka.client
+  - role: roles/managedkafka.schemaRegistryEditor
+  - role: roles/monitoring.metricWriter
+  - role: roles/monitoring.viewer
+  - role: roles/spanner.databaseAdmin
+  - role: roles/stackdriver.resourceMetadata.writer
+  - role: roles/storage.admin
+- username: beam-github-actions-k8-nodes
+  email: beam-github-actions-k8-nodes@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/artifactregistry.reader
+  - role: roles/container.nodeServiceAccount
+  - role: roles/storage.objectViewer
+- username: beam-interns
+  email: beam-interns@google.com
+  permissions:
+  - role: roles/bigquery.jobUser
+  - role: roles/dataflow.developer
+  - role: roles/iam.serviceAccountUser
+  - role: roles/serviceusage.serviceUsageConsumer
+- username: beam-metrics-posgresql-kube
+  email: beam-metrics-posgresql-kube@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudsql.client
+- username: beam-testing-dmartin-api-token
+  email: beam-testing-dmartin-api-token@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudfunctions.invoker
+- username: beam-wheels-github
+  email: beam-wheels-github@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/aiplatform.user
+  - role: roles/artifactregistry.admin
+  - role: roles/artifactregistry.createOnPushWriter
+  - role: roles/bigquery.admin
+  - role: roles/bigquery.dataEditor
+  - role: roles/bigtable.admin
+  - role: roles/bigtable.user
+  - role: roles/container.admin
+  - role: roles/dataflow.admin
+  - role: roles/healthcare.fhirResourceEditor
+  - role: roles/healthcare.fhirStoreAdmin
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/pubsub.admin
+  - role: roles/spanner.admin
+  - role: roles/storage.admin
+  - role: roles/storage.folderAdmin
+  - role: roles/viewer
+- username: bigquery-admin
+  email: bigquery-admin@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/bigquery.admin
+- username: bigquery-reader
+  email: bigquery-reader@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/bigquery.dataViewer
+  - role: roles/bigquery.jobUser
 - username: bjornpedersen
   email: bjornpedersen@google.com
   permissions:
@@ -126,6 +271,10 @@
   email: chamikara@google.com
   permissions:
   - role: roles/owner
+- username: chamikara-sa
+  email: chamikara-sa@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/editor
 - username: cloud-data-workflow-dev
   email: cloud-data-workflow-dev@prod.google.com
   permissions:
@@ -134,6 +283,11 @@
   - role: roles/meshconfig.admin
   - role: roles/storage.objectAdmin
   - role: roles/trafficdirector.client
+- username: cloud-dataflow-templates-team
+  email: cloud-dataflow-templates-team@twosync.google.com
+  permissions:
+  - role: roles/managedkafka.admin
+  - role: roles/viewer
 - username: cvandermerwe
   email: cvandermerwe@google.com
   permissions:
@@ -152,6 +306,24 @@
   - role: roles/iam.serviceAccountUser
   - role: roles/owner
   - role: roles/resourcemanager.projectIamAdmin
+- username: dataflow-ml-starter
+  email: dataflow-ml-starter@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/editor
+  - role: roles/iam.serviceAccountTokenCreator
+- username: datapls-plat-team
+  email: datapls-plat-team@google.com
+  permissions:
+  - role: roles/looker.instanceUser
+  - role: roles/viewer
+- username: datapls-team
+  email: datapls-team@google.com
+  permissions:
+  - role: roles/looker.instanceUser
+- username: datapls-unified-worker
+  email: datapls-unified-worker@google.com
+  permissions:
+  - role: roles/looker.instanceUser
 - username: dcrhodes
   email: dcrhodes@google.com
   permissions:
@@ -201,6 +373,18 @@
   email: enriquecaol04@gmail.com
   permissions:
   - role: roles/viewer
+- username: eventarc-workflow-sa
+  email: eventarc-workflow-sa@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/eventarc.eventReceiver
+  - role: roles/pubsub.publisher
+  - role: roles/workflows.invoker
+- username: firebase-adminsdk-dpfsw
+  email: firebase-adminsdk-dpfsw@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/firebase.sdkAdminServiceAgent
+  - role: roles/firebaseauth.admin
+  - role: roles/iam.serviceAccountTokenCreator
 - username: fozzie
   email: fozzie@google.com
   permissions:
@@ -216,6 +400,13 @@
   email: giomar.osorio@wizeline.com
   permissions:
   - role: roles/editor
+- username: github-self-hosted-runners
+  email: github-self-hosted-runners@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/artifactregistry.reader
+  - role: roles/cloudfunctions.invoker
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/storage.objectViewer
 - username: harrisonlim
   email: harrisonlim@google.com
   permissions:
@@ -225,6 +416,24 @@
   permissions:
   - role: roles/iam.securityReviewer
   - role: roles/viewer
+- username: impersonation-dataflow-worker
+  email: impersonation-dataflow-worker@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: organizations/433637338589/roles/GcsBucketOwner
+  - role: roles/dataflow.admin
+  - role: roles/dataflow.worker
+- username: infra-pipelines-worker
+  email: infra-pipelines-worker@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/artifactregistry.reader
+  - role: roles/bigquery.readSessionUser
+  - role: roles/bigquery.user
+  - role: roles/dataflow.viewer
+  - role: roles/dataflow.worker
+  - role: roles/managedkafka.client
+  - role: roles/pubsub.subscriber
+  - role: roles/pubsub.viewer
+  - role: roles/storage.admin
 - username: jasper.van.den.bossche
   email: jasper.van.den.bossche@ml6.eu
   permissions:
@@ -299,6 +508,10 @@
   email: meetsea@google.com
   permissions:
   - role: roles/editor
+- username: mock-apis-64xjw9
+  email: mock-apis-64xjw9@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/logging.logWriter
 - username: naireenhussain
   email: naireenhussain@google.com
   permissions:
@@ -350,6 +563,51 @@
   - role: roles/logging.logWriter
   - role: roles/logging.viewer
   - role: roles/storage.admin
+- username: playground-cd-cb
+  email: playground-cd-cb@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/datastore.user
+  - role: roles/storage.insightsCollectorService
+- username: playground-ci-cb
+  email: playground-ci-cb@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/storage.insightsCollectorService
+- username: playground-deploy-cb
+  email: playground-deploy-cb@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/appengine.appAdmin
+  - role: roles/appengine.appCreator
+  - role: roles/artifactregistry.admin
+  - role: roles/cloudfunctions.developer
+  - role: roles/compute.admin
+  - role: roles/container.admin
+  - role: roles/datastore.indexAdmin
+  - role: roles/dns.admin
+  - role: roles/iam.roleAdmin
+  - role: roles/iam.securityAdmin
+  - role: roles/iam.serviceAccountAdmin
+  - role: roles/iam.serviceAccountCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/logging.logWriter
+  - role: roles/redis.admin
+  - role: roles/servicemanagement.quotaAdmin
+  - role: roles/storage.admin
+- username: playground-update-cb
+  email: playground-update-cb@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/appengine.appAdmin
+  - role: roles/artifactregistry.admin
+  - role: roles/cloudfunctions.admin
+  - role: roles/compute.admin
+  - role: roles/container.admin
+  - role: roles/datastore.indexAdmin
+  - role: roles/datastore.user
+  - role: roles/dns.admin
+  - role: roles/iam.roleAdmin
+  - role: roles/iam.serviceAccountUser
+  - role: roles/logging.logWriter
+  - role: roles/redis.admin
+  - role: roles/storage.admin
 - username: polecito.em
   email: polecito.em@gmail.com
   permissions:
@@ -359,6 +617,24 @@
   permissions:
   - role: roles/bigquery.admin
   - role: roles/editor
+- username: prod-playground-sa
+  email: prod-playground-sa@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/artifactregistry.reader
+  - role: roles/bigquery.dataViewer
+  - role: roles/bigquery.jobUser
+  - role: roles/bigquery.readSessionUser
+  - role: roles/container.nodeServiceAccount
+  - role: roles/datastore.viewer
+  - role: roles/logging.logWriter
+  - role: roles/monitoring.metricWriter
+  - role: roles/stackdriver.resourceMetadata.writer
+- username: prod-playground-sa-cf
+  email: prod-playground-sa-cf@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudfunctions.invoker
+  - role: roles/datastore.user
+  - role: roles/storage.objectViewer
 - username: rajkumargupta
   email: rajkumargupta@google.com
   permissions:
@@ -405,6 +681,19 @@
   email: rosinha@google.com
   permissions:
   - role: roles/editor
+- username: rrio-2hag2q
+  email: rrio-2hag2q@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/autoscaling.metricsWriter
+  - role: roles/logging.logWriter
+  - role: roles/monitoring.metricWriter
+  - role: roles/monitoring.viewer
+  - role: roles/stackdriver.resourceMetadata.writer
+- username: rrio-tests-63de9ae8
+  email: rrio-tests-63de9ae8@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
 - username: ruilongjiang
   email: ruilongjiang@google.com
   permissions:
@@ -438,6 +727,11 @@
   email: samuelw@google.com
   permissions:
   - role: roles/editor
+- username: secrets-manager-40
+  email: secrets-manager-40@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/compute.instanceAdmin.v1
+  - role: roles/secretmanager.secretAccessor
 - username: sergey.makarkin
   email: sergey.makarkin@akvelon.com
   permissions:
@@ -464,10 +758,63 @@
   email: sniemitz@google.com
   permissions:
   - role: roles/editor
+- username: stg-playground-sa
+  email: stg-playground-sa@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/artifactregistry.reader
+  - role: roles/bigquery.dataViewer
+  - role: roles/bigquery.jobUser
+  - role: roles/bigquery.readSessionUser
+  - role: roles/container.nodeServiceAccount
+  - role: roles/datastore.viewer
+  - role: roles/logging.logWriter
+  - role: roles/monitoring.metricWriter
+  - role: roles/stackdriver.resourceMetadata.writer
+- username: stg-playground-sa-cf
+  email: stg-playground-sa-cf@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudfunctions.invoker
+  - role: roles/datastore.user
+  - role: roles/storage.objectViewer
+- username: stg-tourofbeam-cb-cd
+  email: stg-tourofbeam-cb-cd@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: organizations/433637338589/roles/GcsBucketLister
+  - role: roles/datastore.user
+  - role: roles/secretmanager.secretAccessor
+  - role: roles/storage.admin
+  - role: roles/storage.insightsCollectorService
+  - role: roles/storage.objectAdmin
+- username: stg-tourofbeam-cb-ci
+  email: stg-tourofbeam-cb-ci@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/secretmanager.secretAccessor
+  - role: roles/storage.insightsCollectorService
+  - role: roles/storage.objectAdmin
+- username: stg-tourofbeam-cb-deploy
+  email: stg-tourofbeam-cb-deploy@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudfunctions.admin
+  - role: roles/container.clusterViewer
+  - role: roles/datastore.indexAdmin
+  - role: roles/datastore.user
+  - role: roles/firebase.admin
+  - role: roles/iam.serviceAccountCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/logging.logWriter
+  - role: roles/serviceusage.serviceUsageAdmin
+  - role: roles/storage.admin
 - username: svetaksundhar
   email: svetaksundhar@google.com
   permissions:
   - role: roles/editor
+- username: svetaksundhar-233
+  email: svetaksundhar-233@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/bigquery.admin
+  - role: roles/bigquery.dataEditor
+  - role: roles/bigquery.dataOwner
+  - role: roles/bigquery.jobUser
 - username: talatu
   email: talatu@google.com
   permissions:
@@ -476,6 +823,8 @@
   email: tannapareddy@google.com
   permissions:
   - role: organizations/433637338589/roles/GcsBucketOwner
+  - role: roles/alloydb.admin
+  - role: roles/artifactregistry.admin
   - role: roles/biglake.admin
   - role: roles/bigquery.admin
   - role: roles/dataproc.admin
@@ -487,18 +836,169 @@
   email: tanusharmaa@google.com
   permissions:
   - role: roles/editor
+- username: tarun-926
+  email: tarun-926@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/alloydb.admin
+  - role: roles/artifactregistry.admin
+  - role: roles/biglake.admin
+  - role: roles/bigquery.admin
+  - role: roles/dataflow.worker
+  - role: roles/iam.serviceAccountAdmin
+  - role: roles/logging.logWriter
+  - role: roles/monitoring.metricWriter
+  - role: roles/pubsub.admin
+  - role: roles/pubsub.subscriber
+  - role: roles/resourcemanager.projectIamAdmin
+  - role: roles/storage.admin
+  - role: roles/tpu.admin
 - username: tarunannapareddy1997
   email: tarunannapareddy1997@gmail.com
   permissions:
   - role: roles/bigquery.admin
+  - role: roles/iam.serviceAccountAdmin
+  - role: roles/resourcemanager.projectIamAdmin
+  - role: roles/tpu.admin
+- username: tf-test-dataflow-egyosq0h66-0
+  email: tf-test-dataflow-egyosq0h66-0@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
+- username: tf-test-dataflow-egyosq0h66-1
+  email: tf-test-dataflow-egyosq0h66-1@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
+- username: tf-test-dataflow-ntgfw3y4q6-0
+  email: tf-test-dataflow-ntgfw3y4q6-0@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
+- username: tf-test-dataflow-ntgfw3y4q6-1
+  email: tf-test-dataflow-ntgfw3y4q6-1@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
+- username: tf-test-dataflow-odmv2iiu6v-0
+  email: tf-test-dataflow-odmv2iiu6v-0@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
+- username: tf-test-dataflow-odmv2iiu6v-1
+  email: tf-test-dataflow-odmv2iiu6v-1@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
+- username: tf-test-dataflow-uzgihx18zf-0
+  email: tf-test-dataflow-uzgihx18zf-0@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
+- username: tf-test-dataflow-uzgihx18zf-1
+  email: tf-test-dataflow-uzgihx18zf-1@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.worker
+  - role: roles/storage.admin
 - username: timur.sultanov.akvelon
   email: timur.sultanov.akvelon@gmail.com
   permissions:
   - role: roles/editor
+- username: tourofbeam-cb-cd-prod
+  email: tourofbeam-cb-cd-prod@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/datastore.user
+  - role: roles/secretmanager.secretAccessor
+  - role: roles/storage.insightsCollectorService
+  - role: roles/storage.objectAdmin
+- username: tourofbeam-cb-ci-prod
+  email: tourofbeam-cb-ci-prod@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/secretmanager.secretAccessor
+  - role: roles/storage.insightsCollectorService
+  - role: roles/storage.objectAdmin
+- username: tourofbeam-cb-deploy-prod
+  email: tourofbeam-cb-deploy-prod@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudfunctions.admin
+  - role: roles/container.clusterViewer
+  - role: roles/datastore.indexAdmin
+  - role: roles/datastore.user
+  - role: roles/firebase.admin
+  - role: roles/iam.serviceAccountCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/logging.logWriter
+  - role: roles/serviceusage.serviceUsageAdmin
+  - role: roles/storage.admin
+- username: tourofbeam-cf-sa-prod
+  email: tourofbeam-cf-sa-prod@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudfunctions.admin
+  - role: roles/datastore.user
+  - role: roles/firebaseauth.viewer
+  - role: roles/iam.serviceAccountUser
+  - role: roles/storage.objectViewer
+- username: tourofbeam-cf-sa-stg
+  email: tourofbeam-cf-sa-stg@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudfunctions.admin
+  - role: roles/datastore.user
+  - role: roles/firebaseauth.viewer
+  - role: roles/iam.serviceAccountUser
+  - role: roles/storage.objectViewer
+- username: tourofbeam-stg3-cloudfunc-sa
+  email: tourofbeam-stg3-cloudfunc-sa@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/cloudfunctions.admin
+  - role: roles/datastore.user
+  - role: roles/firebaseauth.viewer
+  - role: roles/iam.serviceAccountUser
+  - role: roles/storage.objectViewer
 - username: valentyn
   email: valentyn@google.com
   permissions:
   - role: roles/owner
+- username: valentyn-dataflow-deployer
+  email: valentyn-dataflow-deployer@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/dataflow.admin
+  - role: roles/iam.serviceAccountUser
+- username: valentyn-test
+  email: valentyn-test@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/compute.admin
+  - role: roles/dataflow.admin
+  - role: roles/editor
+  - role: roles/storage.admin
+- username: vdjerek-test
+  email: vdjerek-test@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: organizations/433637338589/roles/GceStorageAdmin
+  - role: roles/automlrecommendations.editor
+  - role: roles/bigquery.dataEditor
+  - role: roles/bigquery.jobUser
+  - role: roles/bigtable.admin
+  - role: roles/cloudsql.admin
+  - role: roles/cloudsql.client
+  - role: roles/cloudsql.editor
+  - role: roles/container.admin
+  - role: roles/dataflow.admin
+  - role: roles/dataproc.admin
+  - role: roles/healthcare.dicomEditor
+  - role: roles/healthcare.dicomStoreAdmin
+  - role: roles/healthcare.fhirResourceEditor
+  - role: roles/healthcare.fhirStoreAdmin
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/pubsub.editor
+- username: vitaly-terentyev
+  email: vitaly-terentyev@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/container.clusterViewer
+  - role: roles/container.viewer
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/storage.objectAdmin
+  - role: roles/storage.objectCreator
 - username: vitaly.terentyev.akv
   email: vitaly.terentyev.akv@gmail.com
   permissions:
@@ -520,6 +1020,18 @@
   - role: roles/dataproc.admin
   - role: roles/owner
   - role: roles/secretmanager.secretAccessor
+- username: wasmx-jbdthx
+  email: wasmx-jbdthx@apache-beam-testing.iam.gserviceaccount.com
+  permissions:
+  - role: roles/autoscaling.metricsWriter
+  - role: roles/logging.logWriter
+  - role: roles/monitoring.metricWriter
+  - role: roles/monitoring.viewer
+  - role: roles/stackdriver.resourceMetadata.writer
+- username: wdg-team
+  email: wdg-team@google.com
+  permissions:
+  - role: roles/looker.instanceUser
 - username: xqhu
   email: xqhu@google.com
   permissions:
