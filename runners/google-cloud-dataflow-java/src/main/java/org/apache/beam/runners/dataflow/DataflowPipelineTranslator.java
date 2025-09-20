@@ -139,11 +139,10 @@ public class DataflowPipelineTranslator {
     try {
       SdkComponents sdkComponents = SdkComponents.create();
 
-      String v2SdkHarnessContainerImageURL =
-          DataflowRunner.getV2SdkHarnessContainerImageForJob(
-              options.as(DataflowPipelineOptions.class));
+      String workerHarnessContainerImageURL =
+          DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
       RunnerApi.Environment defaultEnvironmentForDataflow =
-          Environments.createDockerEnvironment(v2SdkHarnessContainerImageURL);
+          Environments.createDockerEnvironment(workerHarnessContainerImageURL);
       sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
 
       return WindowingStrategyTranslation.toMessageProto(windowingStrategy, sdkComponents)
