@@ -124,11 +124,11 @@ class SwitchingDirectRunner(PipelineRunner):
         # double fires on AfterCount trigger, once appropriately, and once
         # incorrectly at the end of the window. This if condition could be
         # more targeted, but for now we'll just ignore all unsafe triggers.
-        if pipeline.allow_unsafe_triggers:
-          self.supported_by_prism_runner = False
+        #if pipeline.allow_unsafe_triggers:
+        #  self.supported_by_prism_runner = False
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently
         # does not support interactive mode
-        elif is_in_ipython() or is_interactive:
+        if is_in_ipython() or is_interactive:
           self.supported_by_prism_runner = False
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently
         # does not support the update compat flag
@@ -144,6 +144,10 @@ class SwitchingDirectRunner(PipelineRunner):
           # It does sometimes, but at volume suites start to fail. We will try
           # to enable this in a future release.
           self.supported_by_prism_runner = False
+
+        _LOGGER.error(
+            'PrismRunnerSupportVisotr returns' +
+            str(self.supported_by_prism_runner))
         return self.supported_by_prism_runner
 
       def visit_transform(self, applied_ptransform):
@@ -200,13 +204,18 @@ class SwitchingDirectRunner(PipelineRunner):
             transform.get_windowing('').windowfn, beam.window.Sessions):
           self.supported_by_prism_runner = False
 
+        if not self.supported_by_prism_runner:
+          _LOGGER.error(
+              'Visit ' + str(applied_ptransform) + ' returns ' +
+              str(self.supported_by_prism_runner))
+
     # Use BundleBasedDirectRunner if other runners are missing needed features.
     runner = BundleBasedDirectRunner()
 
     # Check whether all transforms used in the pipeline are supported by the
     # PrismRunner
     if _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
-      _LOGGER.info('Running pipeline with PrismRunner.')
+      _LOGGER.error('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
       runner = prism_runner.PrismRunner()
 
@@ -216,7 +225,7 @@ class SwitchingDirectRunner(PipelineRunner):
         # probably failed on job submission.
         if (PipelineState.is_terminal(pr.state) and
             pr.state != PipelineState.DONE):
-          _LOGGER.info(
+          _LOGGER.error(
               'Pipeline failed on PrismRunner, falling back to DirectRunner.')
           runner = BundleBasedDirectRunner()
         else:
@@ -225,13 +234,14 @@ class SwitchingDirectRunner(PipelineRunner):
         # If prism fails in Preparing the portable job, then the PortableRunner
         # code raises an exception. Catch it, log it, and use the Direct runner
         # instead.
-        _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
-        _LOGGER.info('Falling back to DirectRunner')
+        _LOGGER.error('Exception with PrismRunner:\n %s\n' % (e))
+        _LOGGER.error('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
 
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
+      _LOGGER.error('Running pipeline with FnApiRunner.')
       from apache_beam.portability.api import beam_provision_api_pb2
       from apache_beam.runners.portability.fn_api_runner import fn_runner
       from apache_beam.runners.portability.portable_runner import JobServiceHandle
