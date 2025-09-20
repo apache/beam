@@ -78,6 +78,9 @@ import uuid
 import warnings
 import weakref
 
+from apache_beam.internal.code_object_pickler import get_code_from_identifier
+from apache_beam.internal.code_object_pickler import get_code_object_identifier
+
 # The following import is required to be imported in the cloudpickle
 # namespace to be able to load pickle files generated with older versions of
 # cloudpickle. See: tests/test_backward_compat.py
@@ -111,6 +114,7 @@ class CloudPickleConfig:
   """Configuration for cloudpickle behavior."""
   id_generator: typing.Optional[callable] = uuid_generator
   skip_reset_dynamic_type_state: bool = False
+  enable_stable_code_identifier_pickling: bool = False
 
 
 DEFAULT_CONFIG = CloudPickleConfig()
@@ -524,6 +528,11 @@ def _make_function(code, globals, name, argdefs, closure):
   # Setting __builtins__ in globals is needed for nogil CPython.
   globals["__builtins__"] = __builtins__
   return types.FunctionType(code, globals, name, argdefs, closure)
+
+
+def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
+  fcode = get_code_from_identifier(code_path)
+  return _make_function(fcode, globals, name, argdefs, closure)
 
 
 def _make_empty_cell():
@@ -1266,7 +1275,11 @@ class Pickler(pickle.Pickler):
     """Reduce a function that is not pickleable via attribute lookup."""
     newargs = self._function_getnewargs(func)
     state = _function_getstate(func)
-    return (_make_function, newargs, state, None, None, _function_setstate)
+    if type(newargs[0]) == str:
+      make_function = _make_function_from_identifier
+    else:
+      make_function = _make_function
+    return (make_function, newargs, state, None, None, _function_setstate)
 
   def _function_reduce(self, obj):
     """Reducer for function objects.
@@ -1283,6 +1296,8 @@ class Pickler(pickle.Pickler):
       return self._dynamic_function_reduce(obj)
 
   def _function_getnewargs(self, func):
+    code_path = get_code_object_identifier(
+        func) if self.config.enable_stable_code_identifier_pickling else None
     code = func.__code__
 
     # base_globals represents the future global namespace of func at
@@ -1313,7 +1328,10 @@ class Pickler(pickle.Pickler):
     else:
       closure = tuple(_make_empty_cell() for _ in range(len(code.co_freevars)))
 
-    return code, base_globals, None, None, closure
+    if code_path:
+      return code_path, base_globals, None, None, closure
+    else:
+      return code, base_globals, None, None, closure
 
   def dump(self, obj):
     try:
@@ -1326,7 +1344,11 @@ class Pickler(pickle.Pickler):
         raise
 
   def __init__(
-      self, file, protocol=None, buffer_callback=None, config=DEFAULT_CONFIG):
+      self,
+      file,
+      protocol=None,
+      buffer_callback=None,
+      config=DEFAULT_CONFIG):
     if protocol is None:
       protocol = DEFAULT_PROTOCOL
     super().__init__(file, protocol=protocol, buffer_callback=buffer_callback)
