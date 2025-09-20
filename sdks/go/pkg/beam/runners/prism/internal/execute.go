@@ -153,6 +153,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
+	pcols := comps.GetPcollections()
 
 	config := engine.Config{}
 	m := j.PipelineOptions().AsMap()
@@ -169,6 +170,14 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 	if streaming, ok := m["beam:option:streaming:v1"].(bool); ok {
 		config.StreamingMode = streaming
+	}
+
+	// Set StreamingMode to true if there is any unbounded PCollection.
+	for _, pcoll := range pcols {
+		if pcoll.GetIsBounded() == pipepb.IsBounded_UNBOUNDED {
+			config.StreamingMode = true
+			break
+		}
 	}
 
 	em := engine.NewElementManager(config)
