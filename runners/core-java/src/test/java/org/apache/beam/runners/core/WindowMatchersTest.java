@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -74,5 +75,30 @@ public class WindowMatchersTest {
                 new IntervalWindow(new Instant(windowStart), new Instant(windowEnd)),
                 new IntervalWindow(new Instant(windowStart2), new Instant(windowEnd2))),
             PaneInfo.NO_FIRING));
+  }
+
+  @Test
+  public void test_IsValueInGlobalWindow_TimestampedValueInGlobalWindow() {
+    assertThat(
+        WindowedValues.timestampedValueInGlobalWindow("foo", new Instant(7)),
+        WindowMatchers.isValueInGlobalWindow("foo", new Instant(7)));
+
+    assertThat(
+        WindowedValues.timestampedValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
+        WindowMatchers.isValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE));
+
+    assertThat(
+        WindowedValues.timestampedValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
+        WindowMatchers.isValueInGlobalWindow("foo"));
+  }
+
+  @Test
+  public void test_IsValueInGlobalWindow_ValueInGlobalWindow() {
+    assertThat(
+        WindowedValues.valueInGlobalWindow("foo"), WindowMatchers.isValueInGlobalWindow("foo"));
+
+    assertThat(
+        WindowedValues.valueInGlobalWindow("foo"),
+        WindowMatchers.isValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE));
   }
 }

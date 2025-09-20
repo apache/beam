@@ -101,11 +101,11 @@ public class FlinkNonMergingReduceFunction<K, InputT>
                   (WindowedValue<KV<K, InputT>> wv) ->
                       Objects.requireNonNull(wv).getValue().getValue()));
     }
-    coll.collect(
-        WindowedValues.of(
-            KV.of(first.getValue().getKey(), values),
-            combinedTimestamp,
-            first.getWindows(),
-            PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    WindowedValues.builder(first)
+        .withValue(KV.of(first.getValue().getKey(), values))
+        .setReceiver(coll::collect)
+        .setPaneInfo(PaneInfo.ON_TIME_AND_ONLY_FIRING)
+        .setTimestamp(combinedTimestamp)
+        .output();
   }
 }

@@ -246,8 +246,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public void output(WindowedValue<KV<K, Iterable<V>>> valueWithMetadata) {
-      bundle.add(valueWithMetadata);
+    public void output(WindowedValue<KV<K, Iterable<V>>> windowedValue) {
+      bundle.add(windowedValue);
     }
   }
 }

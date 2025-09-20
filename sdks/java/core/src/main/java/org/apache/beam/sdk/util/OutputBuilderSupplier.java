@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
-/** An encapsulated method of output that can output a value with all of its metadata. */
 @Internal
 @FunctionalInterface
-public interface WindowedValueReceiver<OutputT> {
-  /** Outputs a value with windowing information. */
-  void output(WindowedValue<OutputT> output) throws Exception;
+public interface OutputBuilderSupplier {
+  // Returns WindowedValues.Builder so that downstream can setReceiver (when tag is specified)
+  // but we need the value at a minimum in order to fix the type variable
+  <OutputT> WindowedValues.Builder<OutputT> builder(OutputT value);
 }

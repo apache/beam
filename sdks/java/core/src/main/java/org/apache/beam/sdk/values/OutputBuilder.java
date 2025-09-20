@@ -21,48 +21,32 @@ import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Instant;
 
 /**
- * A value along with Beam's windowing information and all other metadata.
+ * A builder for an output, to set all the fields and extended metadata of a Beam value.
  *
- * @param <T> the type of the primary data for the value.
+ * <p>Which fields are required or allowed to be set depends on the context of the builder.
+ *
+ * <p>It is allowed to modify an instance and then call {@link #output()} again.
+ *
+ * <p>Not intended to be implemented by Beam users. This interface will be expanded in ways that are
+ * backwards-incompatible, by requiring implementors to add methods.
  */
-public interface WindowedValue<T> {
-  /** The primary data for this value. */
-  @Pure
-  T getValue();
+public interface OutputBuilder<T> extends WindowedValue<T> {
+  OutputBuilder<T> setValue(T value);
 
-  /** The timestamp of this value in event time. */
-  @Pure
-  Instant getTimestamp();
+  OutputBuilder<T> setTimestamp(Instant timestamp);
 
-  /** Returns the windows of this {@code WindowedValue}. */
-  @Pure
-  Collection<? extends BoundedWindow> getWindows();
+  OutputBuilder<T> setWindow(BoundedWindow window);
 
-  /** The {@link PaneInfo} associated with this WindowedValue. */
-  @Pure
-  PaneInfo getPaneInfo();
+  OutputBuilder<T> setWindows(Collection<? extends BoundedWindow> windows);
 
-  @Nullable
-  String getRecordId();
+  OutputBuilder<T> setPaneInfo(PaneInfo paneInfo);
 
-  @Nullable
-  Long getRecordOffset();
+  OutputBuilder<T> setRecordId(@Nullable String recordId);
 
-  /**
-   * A representation of each of the actual values represented by this compressed {@link
-   * WindowedValue}, one per window.
-   */
-  @Pure
-  Iterable<? extends WindowedValue<T>> explodeWindows();
+  OutputBuilder<T> setRecordOffset(@Nullable Long recordOffset);
 
-  /**
-   * A {@link WindowedValue} with identical metadata to the current one, but with the provided
-   * value.
-   */
-  @Pure
-  <OtherT> WindowedValue<OtherT> withValue(OtherT value);
+  void output();
 }
