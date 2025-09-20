@@ -184,6 +184,8 @@ type Config struct {
 	MaxBundleSize int
 	// Whether to use real-time clock as processing time
 	EnableRTC bool
+	// Whether to process the data in a streaming mode
+	StreamingMode bool
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
@@ -1296,6 +1298,43 @@ func (ss *stageState) AddPending(em *ElementManager, newPending []element) int {
 	return ss.kind.addPending(ss, em, newPending)
 }
 
+func (ss *stageState) injectTriggeredBundles(em *ElementManager, window typex.Window, key []byte) int {
+	// Check on triggers for this key.
+	// We use an empty linkID as the key into state for aggregations.
+	count := 0
+	if ss.state == nil {
+		ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
+	}
+	lv, ok := ss.state[LinkID{}]
+	if !ok {
+		lv = make(map[typex.Window]map[string]StateData)
+		ss.state[LinkID{}] = lv
+	}
+	wv, ok := lv[window]
+	if !ok {
+		wv = make(map[string]StateData)
+		lv[window] = wv
+	}
+	state := wv[string(key)]
+	endOfWindowReached := window.MaxTimestamp() < ss.input
+	ready := ss.strat.IsTriggerReady(triggerInput{
+		newElementCount:    1,
+		endOfWindowReached: endOfWindowReached,
+	}, &state)
+
+	if ready {
+		state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+	}
+	// Store the state as triggers may have changed it.
+	ss.state[LinkID{}][window][string(key)] = state
+
+	// If we're ready, it's time to fire!
+	if ready {
+		count += ss.buildTriggeredBundle(em, key, window)
+	}
+	return count
+}
+
 // addPending for aggregate stages behaves likes stateful stages, but don't need to handle timers or a separate window
 // expiration condition.
 func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1315,6 +1354,9 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 	if ss.pendingByKeys == nil {
 		ss.pendingByKeys = map[string]*dataAndTimers{}
 	}
+
+	pendingKeysByWindows := map[typex.Window][]byte{}
+
 	count := 0
 	for _, e := range newPending {
 		count++
@@ -1327,37 +1369,16 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 			ss.pendingByKeys[string(e.keyBytes)] = dnt
 		}
 		heap.Push(&dnt.elements, e)
-		// Check on triggers for this key.
-		// We use an empty linkID as the key into state for aggregations.
-		if ss.state == nil {
-			ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
-		}
-		lv, ok := ss.state[LinkID{}]
-		if !ok {
-			lv = make(map[typex.Window]map[string]StateData)
-			ss.state[LinkID{}] = lv
-		}
-		wv, ok := lv[e.window]
-		if !ok {
-			wv = make(map[string]StateData)
-			lv[e.window] = wv
-		}
-		state := wv[string(e.keyBytes)]
-		endOfWindowReached := e.window.MaxTimestamp() < ss.input
-		ready := ss.strat.IsTriggerReady(triggerInput{
-			newElementCount:    1,
-			endOfWindowReached: endOfWindowReached,
-		}, &state)
 
-		if ready {
-			state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+		if em.config.StreamingMode {
+			count += ss.injectTriggeredBundles(em, e.window, e.keyBytes)
+		} else {
+			pendingKeysByWindows[e.window] = e.keyBytes
 		}
-		// Store the state as triggers may have changed it.
-		ss.state[LinkID{}][e.window][string(e.keyBytes)] = state
-
-		// If we're ready, it's time to fire!
-		if ready {
-			count += ss.buildTriggeredBundle(em, e.keyBytes, e.window)
+	}
+	if !em.config.StreamingMode {
+		for window, key := range pendingKeysByWindows {
+			count += ss.injectTriggeredBundles(em, window, key)
 		}
 	}
 	return count

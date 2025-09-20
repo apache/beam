@@ -167,6 +167,10 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		}
 	}
 
+	if streaming, ok := m["beam:option:streaming:v1"].(bool); ok {
+		config.StreamingMode = streaming
+	}
+
 	em := engine.NewElementManager(config)
 
 	// TODO move this loop and code into the preprocessor instead.
