@@ -421,6 +421,135 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1, endOfWindowReached: true}, true}, // Late
 			},
 		}, {
+			name: "afterProcessingTime_Delay_Exact",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{Delay: 3 * time.Second},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 0}, false}, // the trigger is set to fire at 3s after 0
+				{triggerInput{emNow: 1000}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 3000}, true}, // fire
+				{triggerInput{emNow: 4000}, false},
+				{triggerInput{emNow: 5000}, false},
+				{triggerInput{emNow: 6000}, false},
+				{triggerInput{emNow: 7000}, false},
+			},
+		}, {
+			name: "afterProcessingTime_Delay_Late",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{Delay: 3 * time.Second},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 0}, false}, // the trigger is set to fire at 3s after 0
+				{triggerInput{emNow: 1000}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 3001}, true}, // fire a little after the preset time
+				{triggerInput{emNow: 4000}, false},
+			},
+		}, {
+			name: "afterProcessingTime_AlignToPeriodOnly",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{AlignToPeriod: 5 * time.Second},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 1500}, false}, // align 1.5s to 5s
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 4999}, false},
+				{triggerInput{emNow: 5000}, true}, // fire at 5
+				{triggerInput{emNow: 5001}, false},
+			},
+		}, {
+			name: "afterProcessingTime_AlignToPeriodAndOffset",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{AlignToPeriod: 5 * time.Second, AlignToOffset: 200 * time.Millisecond},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 1500}, false}, // align 1.5s to 5s plus an 0.2 offset
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 5119}, false},
+				{triggerInput{emNow: 5200}, true}, // fire at 5.2s
+				{triggerInput{emNow: 5201}, false},
+			},
+		}, {
+			name: "afterProcessingTime_TwoTransforms",
+			trig: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{
+					{AlignToPeriod: 5 * time.Second, AlignToOffset: 200 * time.Millisecond},
+					{Delay: 1 * time.Second},
+				},
+			},
+			inputs: []io{
+				{triggerInput{emNow: 1500}, false}, // align 1.5s to 5s plus an 0.2 offset and a 1s delay
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 5119}, false},
+				{triggerInput{emNow: 5200}, false},
+				{triggerInput{emNow: 5201}, false},
+				{triggerInput{emNow: 6119}, false},
+				{triggerInput{emNow: 6200}, true}, // fire
+				{triggerInput{emNow: 6201}, false},
+			},
+		}, {
+			name: "afterProcessingTime_Repeated", trig: &TriggerRepeatedly{
+				&TriggerAfterProcessingTime{
+					Transforms: []TimestampTransform{
+						{Delay: 3 * time.Second},
+					}}},
+			inputs: []io{
+				{triggerInput{emNow: 0}, false},
+				{triggerInput{emNow: 1000}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 3000}, true}, // firing the first time, trigger set again
+				{triggerInput{emNow: 4000}, false},
+				{triggerInput{emNow: 5000}, false},
+				{triggerInput{emNow: 6000}, true}, // firing the second time
+			},
+		}, {
+			name: "afterProcessingTime_Repeated_AcrossWindows", trig: &TriggerRepeatedly{
+				&TriggerAfterProcessingTime{
+					Transforms: []TimestampTransform{
+						{Delay: 3 * time.Second},
+					}}},
+			inputs: []io{
+				{triggerInput{emNow: 0}, false},
+				{triggerInput{emNow: 1000}, false},
+				{triggerInput{emNow: 2000}, false},
+				{triggerInput{emNow: 3000}, true}, // fire the first time, trigger is set again
+				{triggerInput{emNow: 4000}, false},
+				{triggerInput{emNow: 5000}, false},
+				{triggerInput{emNow: 6000,
+					endOfWindowReached: true}, true}, // fire the second time, reach end of window and start over
+				{triggerInput{emNow: 7000}, false}, // trigger firing time is set to 7s + 3s = 10s
+				{triggerInput{emNow: 8000}, false},
+				{triggerInput{emNow: 9000}, false},
+				{triggerInput{emNow: 10000}, true}, // fire in the new window
+			},
+		}, {
+			name: "afterProcessingTime_Repeated_Composite", trig: &TriggerRepeatedly{
+				&TriggerAfterAny{SubTriggers: []Trigger{
+					&TriggerAfterProcessingTime{
+						Transforms: []TimestampTransform{
+							{Delay: 3 * time.Second},
+						},
+					},
+					&TriggerElementCount{ElementCount: 2},
+				}}},
+			inputs: []io{
+				{triggerInput{emNow: 0, newElementCount: 1}, false},    // ElmCount = 1, set AfterProcessingTime trigger firing time to 3s
+				{triggerInput{emNow: 1000, newElementCount: 1}, true},  // ElmCount = 2, fire ElmCount trigger and reset ElmCount and AfterProcessingTime firing time (4s)
+				{triggerInput{emNow: 4000, newElementCount: 1}, true},  // ElmCount = 1, fire AfterProcessingTime trigger and reset ElmCount and AfterProcessingTime firing time (7s)
+				{triggerInput{emNow: 5000, newElementCount: 1}, false}, // ElmCount = 1
+				{triggerInput{emNow: 5500, newElementCount: 1}, true},  // ElmCount = 2, fire ElmCount trigger
+			},
+		}, {
 			name: "default",
 			trig: &TriggerDefault{},
 			inputs: []io{
