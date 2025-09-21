@@ -81,7 +81,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls ([#30445][https://github.com/apache/beam/issues/30445]). This may break update compatibility if you don't provide a `--transform_name_mapping`.
+* (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls. This may break update compatibility if you don't provide a `--transform_name_mapping` ([#30445][https://github.com/apache/beam/issues/30445]).
 
 ## Deprecations
 
