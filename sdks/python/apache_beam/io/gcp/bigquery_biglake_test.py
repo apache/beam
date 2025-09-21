@@ -31,7 +31,8 @@ class BigQueryBigLakeTest(unittest.TestCase):
   def test_storage_write_to_bigquery_with_biglake_config(self):
     """Test that StorageWriteToBigQuery accepts bigLakeConfiguration parameter."""
     big_lake_config = {
-        'connectionId': 'projects/test-project/locations/us/connections/test-connection',
+        'connectionId': (
+            'projects/test-project/locations/us/connections/test-connection'),
         'storageUri': 'gs://test-bucket/test-path',
         'fileFormat': 'parquet',
         'tableFormat': 'iceberg'
@@ -40,44 +41,51 @@ class BigQueryBigLakeTest(unittest.TestCase):
     # Test that the constructor accepts the bigLakeConfiguration parameter
     transform = bigquery.StorageWriteToBigQuery(
         table='test-project:test_dataset.test_table',
-        big_lake_configuration=big_lake_config
-    )
-    
+        big_lake_configuration=big_lake_config)
+
     # Verify the configuration is stored
     self.assertEqual(transform._big_lake_configuration, big_lake_config)
 
   def test_storage_write_to_bigquery_without_biglake_config(self):
-    """Test that StorageWriteToBigQuery works without bigLakeConfiguration parameter."""
+    """Test that StorageWriteToBigQuery works without bigLakeConfiguration."""
     transform = bigquery.StorageWriteToBigQuery(
-        table='test-project:test_dataset.test_table'
-    )
-    
+        table='test-project:test_dataset.test_table')
+
     # Verify the configuration is None by default
     self.assertIsNone(transform._big_lake_configuration)
 
   @mock.patch('apache_beam.io.gcp.bigquery.SchemaAwareExternalTransform')
-  def test_biglake_config_passed_to_external_transform(self, mock_external_transform):
+  def test_biglake_config_passed_to_external_transform(self,
+                                                      mock_external_transform):
     """Test that bigLakeConfiguration is passed to the external transform."""
     big_lake_config = {
-        'connectionId': 'projects/test-project/locations/us/connections/test-connection',
+        'connectionId': (
+            'projects/test-project/locations/us/connections/test-connection'),
         'storageUri': 'gs://test-bucket/test-path'
     }
-    
+
+    # Mock the external transform to return a dummy PCollection
+    mock_transform_instance = mock.MagicMock()
+    mock_external_transform.return_value = mock_transform_instance
+    mock_transform_instance.__ror__ = mock.MagicMock()
+    mock_transform_instance.__ror__.return_value = {
+        bigquery.StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS: []
+    }
+
     with TestPipeline() as p:
       input_data = p | 'Create' >> beam.Create([
           beam.Row(name='Alice', age=30),
           beam.Row(name='Bob', age=25)
       ])
-      
+
       transform = bigquery.StorageWriteToBigQuery(
           table='test-project:test_dataset.test_table',
-          big_lake_configuration=big_lake_config
-      )
-      
+          big_lake_configuration=big_lake_config)
+
       # Apply the transform
       _ = input_data | transform
-    
-    # Verify that SchemaAwareExternalTransform was called with bigLakeConfiguration
+
+    # Verify that SchemaAwareExternalTransform was called with config
     mock_external_transform.assert_called_once()
     call_kwargs = mock_external_transform.call_args[1]
     self.assertEqual(call_kwargs['big_lake_configuration'], big_lake_config)
@@ -86,30 +94,30 @@ class BigQueryBigLakeTest(unittest.TestCase):
     """Test validation of bigLakeConfiguration parameters."""
     # Test with minimal required configuration
     minimal_config = {
-        'connectionId': 'projects/test-project/locations/us/connections/test-connection',
+        'connectionId': (
+            'projects/test-project/locations/us/connections/test-connection'),
         'storageUri': 'gs://test-bucket/test-path'
     }
-    
+
     transform = bigquery.StorageWriteToBigQuery(
         table='test-project:test_dataset.test_table',
-        big_lake_configuration=minimal_config
-    )
-    
+        big_lake_configuration=minimal_config)
+
     self.assertEqual(transform._big_lake_configuration, minimal_config)
-    
+
     # Test with full configuration
     full_config = {
-        'connectionId': 'projects/test-project/locations/us/connections/test-connection',
+        'connectionId': (
+            'projects/test-project/locations/us/connections/test-connection'),
         'storageUri': 'gs://test-bucket/test-path',
         'fileFormat': 'parquet',
         'tableFormat': 'iceberg'
     }
-    
+
     transform = bigquery.StorageWriteToBigQuery(
         table='test-project:test_dataset.test_table',
-        big_lake_configuration=full_config
-    )
-    
+        big_lake_configuration=full_config)
+
     self.assertEqual(transform._big_lake_configuration, full_config)
 
 
