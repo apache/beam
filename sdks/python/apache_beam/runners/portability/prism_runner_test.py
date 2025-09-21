@@ -36,6 +36,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.runners.portability import prism_runner
 from apache_beam.testing.util import assert_that
@@ -68,6 +69,7 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     self.environment_config = None
     self.enable_commit = False
     self.streaming = False
+    self.allow_unsafe_triggers = False
 
   def setUp(self):
     self.enable_commit = False
@@ -180,6 +182,8 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
         PortableOptions).environment_options = self.environment_options
 
     options.view_as(StandardOptions).streaming = self.streaming
+    options.view_as(
+        TypeOptions).allow_unsafe_triggers = self.allow_unsafe_triggers
     return options
 
   # Can't read host files from within docker, read a "local" file there.
@@ -233,7 +237,11 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
   def construct_timestamped(k, t):
     return window.TimestampedValue((k, t), t)
 
+  def format_result(k, vs):
+    return ('%s-%s' % (k, len(list(vs))), set(vs))
+
   def test_after_count_trigger_batch(self):
+    self.allow_unsafe_triggers = True
     with self.create_pipeline() as p:
       result = (
           p
@@ -246,17 +254,20 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
               trigger=trigger.AfterCount(3),
               accumulation_mode=trigger.AccumulationMode.DISCARDING,
           )
-          | beam.GroupByKey())
-      # yapf: disable
+          | beam.GroupByKey()
+          | beam.MapTuple(PrismRunnerTest.format_result))
       assert_that(
           result,
-          equal_to([('A', [1, 2, 3, 4, 5],
-                    ('A', [10, 11]),
-                    ('B', [6, 7, 8, 9]),
-                    ('B', [10, 15, 16]))]))
-      # yapf: enable
+          equal_to(
+              list([
+                  ('A-5', {1, 2, 3, 4, 5}),
+                  ('A-2', {10, 11}),
+                  ('B-4', {6, 7, 8, 9}),
+                  ('B-3', {10, 15, 16}),
+              ])))
 
   def test_after_count_trigger_streaming(self):
+    self.allow_unsafe_triggers = True
     self.streaming = True
     with self.create_pipeline() as p:
       result = (
@@ -270,17 +281,19 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
               trigger=trigger.AfterCount(3),
               accumulation_mode=trigger.AccumulationMode.DISCARDING,
           )
-          | beam.GroupByKey())
-      # yapf: disable
+          | beam.GroupByKey()
+          | beam.MapTuple(PrismRunnerTest.format_result))
       assert_that(
           result,
-          equal_to([('A', [1, 2, 3],
-                    ('A', [4, 5]),
-                    ('A', [10, 11]),
-                    ('B', [6, 7, 8]),
-                    ('B', [9,]),
-                    ('B', [10, 15, 16]))]))
-      # yapf: enable
+          equal_to(
+              list([
+                  ('A-3', {1, 2, 3}),
+                  ('A-2', {4, 5}),
+                  ('A-2', {10, 11}),
+                  ('B-3', {6, 7, 8}),
+                  ('B-1', {9}),
+                  ('B-3', {10, 15, 16}),
+              ])))
 
 
 class PrismJobServerTest(unittest.TestCase):
