@@ -2056,7 +2056,7 @@ func (ss *stageState) String() string {
 	return fmt.Sprintf("[%v] IN: %v OUT: %v UP: %q %v, kind: %v", ss.ID, ss.input, ss.output, pcol, up, ss.kind)
 }
 
-// updateWatermarks performs the following operations:
+// updateWatermarks performs the following operations and returns a possible set of stages to refresh next or nil.
 //
 // Watermark_In'  = MAX(Watermark_In, MIN(U(TS_Pending), U(Watermark_InputPCollection)))
 // Watermark_Out' = MAX(Watermark_Out, MIN(Watermark_In', U(minWatermarkHold)))
