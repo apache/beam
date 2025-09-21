@@ -35,10 +35,13 @@ from parameterized import parameterized
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.runners.portability import prism_runner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import trigger
+from apache_beam.transforms import window
 from apache_beam.utils import shared
 
 # Run as
@@ -64,6 +67,7 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     self.environment_type = None
     self.environment_config = None
     self.enable_commit = False
+    self.streaming = False
 
   def setUp(self):
     self.enable_commit = False
@@ -175,6 +179,7 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     options.view_as(
         PortableOptions).environment_options = self.environment_options
 
+    options.view_as(StandardOptions).streaming = self.streaming
     return options
 
   # Can't read host files from within docker, read a "local" file there.
@@ -225,7 +230,57 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_metrics(self):
     super().test_metrics(check_bounded_trie=False)
 
-  # Inherits all other tests.
+  def construct_timestamped(k, t):
+    return window.TimestampedValue((k, t), t)
+
+  def test_after_count_trigger_batch(self):
+    with self.create_pipeline() as p:
+      result = (
+          p
+          | beam.Create([1, 2, 3, 4, 5, 10, 11])
+          | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
+          #A1, A2, A3, A4, A5, A10, A11, B6, B7, B8, B9, B10, B15, B16
+          | beam.MapTuple(PrismRunnerTest.construct_timestamped)
+          | beam.WindowInto(
+              window.FixedWindows(10),
+              trigger=trigger.AfterCount(3),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING,
+          )
+          | beam.GroupByKey())
+      # yapf: disable
+      assert_that(
+          result,
+          equal_to([('A', [1, 2, 3, 4, 5],
+                    ('A', [10, 11]),
+                    ('B', [6, 7, 8, 9]),
+                    ('B', [10, 15, 16]))]))
+      # yapf: enable
+
+  def test_after_count_trigger_streaming(self):
+    self.streaming = True
+    with self.create_pipeline() as p:
+      result = (
+          p
+          | beam.Create([1, 2, 3, 4, 5, 10, 11])
+          | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
+          #A1, A2, A3, A4, A5, A10, A11, B6, B7, B8, B9, B10, B15, B16
+          | beam.MapTuple(PrismRunnerTest.construct_timestamped)
+          | beam.WindowInto(
+              window.FixedWindows(10),
+              trigger=trigger.AfterCount(3),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING,
+          )
+          | beam.GroupByKey())
+      # yapf: disable
+      assert_that(
+          result,
+          equal_to([('A', [1, 2, 3],
+                    ('A', [4, 5]),
+                    ('A', [10, 11]),
+                    ('B', [6, 7, 8]),
+                    ('B', [9,]),
+                    ('B', [10, 15, 16]))]))
+      # yapf: enable
 
 
 class PrismJobServerTest(unittest.TestCase):
