@@ -253,6 +253,9 @@ func (ev tsFinalEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.UpdateHold(em, mtime.MaxTimestamp)
 	ss := em.stages[ev.stageID]
 	kickSet := ss.updateWatermarks(em)
+	if kickSet == nil {
+		kickSet = make(set[string])
+	}
 	kickSet.insert(ev.stageID)
 	em.changedStages.merge(kickSet)
 }
