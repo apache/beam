@@ -36,7 +36,7 @@ class BigQueryBigLakeTest(unittest.TestCase):
         'fileFormat': 'parquet',
         'tableFormat': 'iceberg'
     }
-    
+
     # Test that the constructor accepts the bigLakeConfiguration parameter
     transform = bigquery.StorageWriteToBigQuery(
         table='test-project:test_dataset.test_table',

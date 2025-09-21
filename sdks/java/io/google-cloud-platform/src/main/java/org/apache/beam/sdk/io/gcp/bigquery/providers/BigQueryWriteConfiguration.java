@@ -203,7 +203,7 @@ public abstract class BigQueryWriteConfiguration {
           + "storageUri (REQUIRED): the path to your GCS folder where data will be written to, "
           + "fileFormat (OPTIONAL): defaults to 'parquet', "
           + "tableFormat (OPTIONAL): defaults to 'iceberg'.")
-  public abstract @Nullable java.util.Map<String, String> getBigLakeConfiguration();
+  public abstract java.util.@Nullable Map<String, String> getBigLakeConfiguration();
 
   /** Builder for {@link BigQueryWriteConfiguration}. */
   @AutoValue.Builder
