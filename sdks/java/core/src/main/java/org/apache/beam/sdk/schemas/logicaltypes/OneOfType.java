@@ -155,12 +155,12 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
     for (int i = 0; i < base.getFieldCount(); ++i) {
       Object value = base.getValue(i);
       if (value != null) {
-        checkArgument(caseType == null, "More than one field set in union " + this);
+        checkArgument(caseType == null, "More than one field set in union %s", this);
         caseType = enumerationType.valueOf(oneOfSchema.getField(i).getName());
         oneOfValue = value;
       }
     }
-    checkNotNull(oneOfValue, "No value set in union" + this);
+    checkNotNull(oneOfValue, "No value set in union %s", this);
     return createValue(caseType, oneOfValue);
   }
 

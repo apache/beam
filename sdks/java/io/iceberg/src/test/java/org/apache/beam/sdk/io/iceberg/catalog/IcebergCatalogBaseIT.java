@@ -347,7 +347,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       DataWriter<Record> writer =
           Parquet.writeData(file)
               .schema(ICEBERG_SCHEMA)
-              .createWriterFunc(GenericParquetWriter::buildWriter)
+              .createWriterFunc(GenericParquetWriter::create)
               .overwrite()
               .withSpec(table.spec())
               .build();

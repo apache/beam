@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files.getFileExtension;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -642,28 +641,6 @@ public class DataflowRunnerTest implements Serializable {
     DataflowRunner.validateWorkerSettings(options);
     assertNull(options.getZone());
     assertEquals("us-east1-b", options.getWorkerZone());
-  }
-
-  @Test
-  public void testAliasForLegacyWorkerHarnessContainerImage() {
-    DataflowPipelineWorkerPoolOptions options =
-        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
-    String testImage = "image.url:worker";
-    options.setWorkerHarnessContainerImage(testImage);
-    DataflowRunner.validateWorkerSettings(options);
-    assertEquals(testImage, options.getWorkerHarnessContainerImage());
-    assertEquals(testImage, options.getSdkContainerImage());
-  }
-
-  @Test
-  public void testAliasForSdkContainerImage() {
-    DataflowPipelineWorkerPoolOptions options =
-        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
-    String testImage = "image.url:sdk";
-    options.setSdkContainerImage("image.url:sdk");
-    DataflowRunner.validateWorkerSettings(options);
-    assertEquals(testImage, options.getWorkerHarnessContainerImage());
-    assertEquals(testImage, options.getSdkContainerImage());
   }
 
   @Test
@@ -1736,7 +1713,7 @@ public class DataflowRunnerTest implements Serializable {
 
     p.apply(Create.of(Arrays.asList(1, 2, 3)));
 
-    String defaultSdkContainerImage = DataflowRunner.getContainerImageForJob(options);
+    String defaultSdkContainerImage = DataflowRunner.getV2SdkHarnessContainerImageForJob(options);
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(defaultSdkContainerImage);
@@ -2027,7 +2004,7 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testGetContainerImageForJobFromOption() {
+  public void testGetV2SdkHarnessContainerImageForJobFromOption() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
     String[] testCases = {
@@ -2042,14 +2019,14 @@ public class DataflowRunnerTest implements Serializable {
     for (String testCase : testCases) {
       // When image option is set, should use that exact image.
       options.setSdkContainerImage(testCase);
-      assertThat(getContainerImageForJob(options), equalTo(testCase));
+      assertThat(DataflowRunner.getV2SdkHarnessContainerImageForJob(options), equalTo(testCase));
     }
   }
 
   @Test
-  public void testGetContainerImageForJobFromOptionWithPlaceholder() {
+  public void testGetV1WorkerContainerImageForJobFromOptionWithPlaceholder() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setSdkContainerImage("gcr.io/IMAGE/foo");
+    options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
 
     for (Environments.JavaVersion javaVersion : Environments.JavaVersion.values()) {
       System.setProperty("java.specification.version", javaVersion.specification());
@@ -2057,28 +2034,37 @@ public class DataflowRunnerTest implements Serializable {
       options.setExperiments(null);
       options.setStreaming(false);
       assertThat(
-          getContainerImageForJob(options),
+          DataflowRunner.getV1WorkerContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam-%s-batch/foo", javaVersion.legacyName())));
 
       // streaming, legacy
       options.setExperiments(null);
       options.setStreaming(true);
       assertThat(
-          getContainerImageForJob(options),
+          DataflowRunner.getV1WorkerContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam-%s-streaming/foo", javaVersion.legacyName())));
+    }
+  }
 
+  @Test
+  public void testGetV2SdkHarnessContainerImageForJobFromOptionWithPlaceholder() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setSdkContainerImage("gcr.io/IMAGE/foo");
+
+    for (Environments.JavaVersion javaVersion : Environments.JavaVersion.values()) {
+      System.setProperty("java.specification.version", javaVersion.specification());
       // batch, FnAPI
       options.setExperiments(ImmutableList.of("beam_fn_api"));
       options.setStreaming(false);
       assertThat(
-          getContainerImageForJob(options),
+          DataflowRunner.getV2SdkHarnessContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
 
       // streaming, FnAPI
       options.setExperiments(ImmutableList.of("beam_fn_api"));
       options.setStreaming(true);
       assertThat(
-          getContainerImageForJob(options),
+          DataflowRunner.getV2SdkHarnessContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
     }
   }

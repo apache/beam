@@ -177,7 +177,9 @@ class PipelineTest(unittest.TestCase):
         _ = pipeline | ParentTransform() | beam.Map(lambda x: x + 1)
 
   @mock.patch('logging.info')
+  @pytest.mark.uses_dill
   def test_runner_overrides_default_pickler(self, mock_info):
+    pytest.importorskip("dill")
     with mock.patch.object(PipelineRunner,
                            'default_pickle_library_override') as mock_fn:
       mock_fn.return_value = 'dill'

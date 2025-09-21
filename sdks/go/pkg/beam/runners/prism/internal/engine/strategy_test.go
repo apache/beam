@@ -123,6 +123,25 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{newElementCount: 1}, false},
 			},
 		}, {
+			name: "afterEach_2_Always_1",
+			trig: &TriggerAfterEach{
+				SubTriggers: []Trigger{
+					&TriggerElementCount{2},
+					&TriggerAfterAny{SubTriggers: []Trigger{&TriggerAlways{}}},
+					&TriggerElementCount{1},
+				},
+			},
+			inputs: []io{
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, true},  // first is ready
+				{triggerInput{newElementCount: 1}, true},  // second is ready
+				{triggerInput{newElementCount: 1}, true},  // third is ready
+				{triggerInput{newElementCount: 1}, false}, // never resets after this.
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+				{triggerInput{newElementCount: 1}, false},
+			},
+		}, {
 			name: "afterAny_2_3_4",
 			trig: &TriggerAfterAny{
 				SubTriggers: []Trigger{
