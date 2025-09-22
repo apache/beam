@@ -20,6 +20,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -86,10 +87,20 @@ func TestServer_RunThenCancel(t *testing.T) {
 	undertest := NewServer(0, func(j *Job) {
 		defer called.Done()
 		j.state.Store(jobpb.JobState_RUNNING)
-		if errors.Is(context.Cause(j.RootCtx), ErrCancel) {
-			j.SendMsg("pipeline canceled " + j.String())
-			j.Canceled()
-			return
+		for {
+			select {
+			case <-j.RootCtx.Done():
+				// The context was canceled. The goroutine "woke up."
+				// We check the reason for the cancellation.
+				if errors.Is(context.Cause(j.RootCtx), ErrCancel) {
+					j.SendMsg("pipeline canceled " + j.String())
+					j.Canceled()
+				}
+				return
+
+			case <-time.After(1 * time.Second):
+				// Just wait a little bit to receive the cancel signal
+			}
 		}
 	})
 	ctx := context.Background()
@@ -119,6 +130,30 @@ func TestServer_RunThenCancel(t *testing.T) {
 	}
 	if got := runResp.GetJobId(); got == "" {
 		t.Fatalf("server.Run() = returned empty preparation ID, want non-empty")
+	}
+
+	// Wait for the job to be in the RUNNING state before we cancel it.
+	const (
+		maxRetries = 10
+		retrySleep = 100 * time.Millisecond
+	)
+	var jobIsRunning bool
+	for range maxRetries {
+		stateResp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: runResp.GetJobId()})
+		if err != nil {
+			t.Fatalf("server.GetState() during poll = %v, want nil", err)
+		}
+
+		if stateResp.State == jobpb.JobState_RUNNING {
+			jobIsRunning = true
+			break // Success! Job is running.
+		}
+		// Wait a bit before polling again
+		time.Sleep(retrySleep)
+	}
+
+	if !jobIsRunning {
+		t.Fatalf("Job did not enter RUNNING state after %v", maxRetries*retrySleep)
 	}
 
 	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
