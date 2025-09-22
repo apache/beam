@@ -477,7 +477,9 @@ class GroupByEncryptedKey(PTransform):
   This transform encrypts the keys of the input PCollection, performs a
   GroupByKey on the encrypted keys, and then decrypts the keys in the output.
   This is useful when the keys contain sensitive data that should not be
-  stored at rest by the runner.
+  stored at rest by the runner. Note that runners can implement arbitrary
+  materialization steps, so this does not guarantee that the whole pipeline
+  will not have unencrypted data at rest by itself.
 
   """
   def __init__(self, hmac_key: Secret):
