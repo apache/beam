@@ -1563,6 +1563,10 @@ class RunnerApiTest(unittest.TestCase):
     self.assertEqual(len(proto.components.environments), 6)
 
   def test_multiple_outputs_composite_ptransform(self):
+    """
+    Test that a composite PTransform with multiple outputs is represented
+    correctly in the pipeline proto.
+    """
     class SalesSplitter(beam.DoFn):
       def process(self, element):
         price = element['price']
@@ -1607,6 +1611,8 @@ class RunnerApiTest(unittest.TestCase):
       all_applied_transforms[xform.full_label] = xform
       current_transforms.extend(xform.parts)
     xform = all_applied_transforms['Split Sales']
+    # Confirm that Split Sales correctly has two outputs as specified by
+    #  ParDo.with_outputs in ParentSalesSplitter.
     assert len(xform.outputs) == 2
 
 
