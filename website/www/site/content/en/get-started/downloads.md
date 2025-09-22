@@ -95,7 +95,7 @@ versions denoted `0.x.y`.
 
 ### Current release
 
-#### 2.68.0 (2025-09-23)
+#### 2.68.0 (2025-09-22)
 
 Official [source code download](https://www.apache.org/dyn/closer.lua/beam/2.68.0/apache-beam-2.68.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.68.0/apache-beam-2.68.0-source-release.zip.sha512).
@@ -107,9 +107,9 @@ Official [source code download](https://www.apache.org/dyn/closer.lua/beam/2.68.
 
 #### 2.67.0 (2025-08-12)
 
-Official [source code download](https://www.apache.org/dyn/closer.lua/beam/2.67.0/apache-beam-2.67.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.67.0/apache-beam-2.67.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.67.0/apache-beam-2.67.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.67.0/apache-beam-2.67.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.67.0/apache-beam-2.67.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.67.0/apache-beam-2.67.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.67.0)
 

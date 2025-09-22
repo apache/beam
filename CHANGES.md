@@ -99,7 +99,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.68.0] - 2025-09-23
+# [2.68.0] - 2025-09-22
 
 ## Highlights
 

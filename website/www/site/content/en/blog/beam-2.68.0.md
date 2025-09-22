@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.68.0"
-date:   2025-09-23 15:00:00 -0500
+date:   2025-09-22 15:00:00 -0500
 categories:
   - blog
   - release
