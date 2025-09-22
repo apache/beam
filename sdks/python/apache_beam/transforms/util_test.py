@@ -92,9 +92,12 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 try:
   import dill
-  from google.cloud import secretmanager
 except ImportError:
   dill = None
+
+try:
+  from google.cloud import secretmanager
+except ImportError:
   secretmanager = None  # type: ignore[assignment]
 
 warnings.filterwarnings(
