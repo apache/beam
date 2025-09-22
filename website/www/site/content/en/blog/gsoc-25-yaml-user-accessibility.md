@@ -78,11 +78,14 @@ to detect credit card transaction frauds. See [workflow](https://github.com/apac
 ## Challenges
 The main challenge of the project has been a lack of previous YAML pipeline examples and good documentation to rely on.
 Unlike the Python or Java SDKs where there are already many notebooks and end-to-end examples demonstrating various use cases,
-the examples for YAML SDKs only involved simple transformations such as filter, group by, etc…
+the examples for YAML SDKs only involved simple transformations such as filter, group by, etc… There were a lot of deep dives
+into the actual implementation of the PTransforms across YAML, Python and Java SDKs to understand the error messages and how to
+correctly use the transforms.
 
 Another challenge is writing unit tests for the pipeline to ensure that the pipeline’s logic is correct.
 It is a learning curve to understand how the existing test suite is set up and how it can be used to write unit tests for
-the data pipelines.
+the data pipelines. A lot of time were spent on properly writing mocks for the pipeline's sources and sinks, as well as for the
+transforms that require external services such as Vertex AI.
 
 ## Conclusion & Personal Thoughts
 These production-ready pipelines demonstrate the potential of Beam YAML SDK to author complex ML workflows
