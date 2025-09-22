@@ -3199,6 +3199,16 @@ class BeamModulePlugin implements Plugin<Project> {
             testJavaHome = project.findProperty("java${testJavaVersion}Home")
           }
 
+          // Detect macOS and append '-macos' to tox environment to avoid pip check issues
+          def actualToxEnv = tox_env
+          def osName = System.getProperty("os.name").toLowerCase()
+          if (osName.contains("mac")) {
+            // Only append -macos for standard python environments (py39, py310, etc.)
+            if (tox_env.matches("py\\d+")) {
+              actualToxEnv = "${tox_env}-macos"
+            }
+          }
+
           if (project.hasProperty('useWheelDistribution')) {
             def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
@@ -3214,7 +3224,7 @@ class BeamModulePlugin implements Plugin<Project> {
                   environment "JAVA_HOME", testJavaHome
                 }
                 executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $actualToxEnv ${packageFilename} '$posargs' "
               }
             }
           } else {
@@ -3227,12 +3237,12 @@ class BeamModulePlugin implements Plugin<Project> {
                   environment "JAVA_HOME", testJavaHome
                 }
                 executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $actualToxEnv '$posargs'"
               }
             }
           }
           inputs.files project.pythonSdkDeps
-          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${actualToxEnv}/log/")
         }
       }
       // Run single or a set of integration tests with provided test options and pipeline options.

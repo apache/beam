@@ -18,6 +18,7 @@
 """Unit tests for BigQuery BigLake configuration."""
 
 import unittest
+from unittest import mock
 
 from apache_beam.io.gcp import bigquery
 
@@ -50,12 +51,17 @@ class BigQueryBigLakeTest(unittest.TestCase):
     # Verify the configuration is None by default
     self.assertIsNone(transform._big_lake_configuration)
 
-  def test_biglake_config_passed_to_external_transform(self):
+  @mock.patch('apache_beam.io.gcp.bigquery.BeamJarExpansionService')
+  def test_biglake_config_passed_to_external_transform(
+      self, mock_expansion_service):
     """Test that StorageWriteToBigQuery accepts bigLakeConfiguration."""
     big_lake_config = {
         'connection_id': 'projects/my-project/locations/us/connections/my-conn',
         'table_format': 'ICEBERG'
     }
+
+    # Mock the expansion service to avoid JAR dependency
+    mock_expansion_service.return_value = mock.MagicMock()
 
     # Create the transform
     transform = bigquery.StorageWriteToBigQuery(
@@ -70,8 +76,9 @@ class BigQueryBigLakeTest(unittest.TestCase):
         transform.IDENTIFIER,
         "beam:schematransform:org.apache.beam:bigquery_storage_write:v2")
 
-    # Verify that the expansion service is set up correctly
-    self.assertIsNotNone(transform._expansion_service)
+    # Verify that the expansion service was created (mocked)
+    mock_expansion_service.assert_called_once_with(
+        'sdks:java:io:google-cloud-platform:expansion-service:build')
 
   def test_biglake_config_validation(self):
     """Test validation of bigLakeConfiguration parameters."""
