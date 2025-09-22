@@ -26,20 +26,22 @@ limitations under the License.
 -->
 
 The relatively new Beam YAML SDK was introduced in the spirit of making data processing easy,
-but it has gained little adoption for complex ML tasks and hasn’t been widely used with Managed IOs such as Kafka and Iceberg.
-As part of Google Summer of Code 2025, new illustrative, production-ready pipeline examples of ML use cases with Kafka and Iceberg
-data sources using the YAML SDK have been developed to address this adoption gap.
+but it has gained little adoption for complex ML tasks and hasn’t been widely used with
+[Managed I/O](beam.apache.org/documentation/io/managed-io/) such as Kafka and Iceberg.
+As part of Google Summer of Code 2025, new illustrative, production-ready pipeline examples
+of ML use cases with Kafka and Iceberg data sources using the YAML SDK have been developed
+to address this adoption gap.
 
 ## Context
 The YAML SDK was introduced in Spring 2024 as Beam’s first no-code SDK. It follows a declarative approach
 of defining a data processing pipeline using a YAML DSL, as opposed to other programming language specific SDKs.
-At the time, it had few meaningful examples and documentation to go along with. Key missing examples
-were ML workflows and integration with the Kafka and Iceberg Managed IOs. Foundational work had already been done
+At the time, it had few meaningful examples and documentation to go along with it. Key missing examples
+were ML workflows and integration with the Kafka and Iceberg Managed I/O. Foundational work had already been done
 to add support for ML capabilities as well as Kafka and Iceberg IO connectors in the YAML SDK, but there were no
 end-to-end examples demonstrating their usage.
 
-Beam, as well as Kafka and Iceberg, are mainstream big data technology but they also have a learning curve.
-The overall theme of the project is to help democratize data processing for scientists and analysts that traditionally
+Beam, as well as Kafka and Iceberg, are mainstream big data technologies but they also have a learning curve.
+The overall theme of the project is to help democratize data processing for scientists and analysts who traditionally
 don’t have a strong background in software engineering. They can now refer to these meaningful examples as the starting point,
 helping them onboard faster and be more productive when authoring ML/data pipelines to their use cases with Beam and its YAML DSL.
 
@@ -76,23 +78,24 @@ and several pipelines, showcasing an end-to-end Fraud Detection MLOps solution t
 to detect credit card transaction frauds. See [workflow](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/fraud_detection/fraud_detection_mlops_beam_yaml_sdk.ipynb) and [documentation](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/fraud_detection).
 
 ## Challenges
-The main challenge of the project has been a lack of previous YAML pipeline examples and good documentation to rely on.
+The main challenge of the project was a lack of previous YAML pipeline examples and good documentation to rely on.
 Unlike the Python or Java SDKs where there are already many notebooks and end-to-end examples demonstrating various use cases,
-the examples for YAML SDKs only involved simple transformations such as filter, group by, etc… There were a lot of deep dives
-into the actual implementation of the PTransforms across YAML, Python and Java SDKs to understand the error messages and how to
-correctly use the transforms.
+the examples for YAML SDK only involved simple transformations such as filter, group by, etc. More complex transforms like
+`MLTransform` and `ReadFromIceberg` had no examples and requires configurations that didn't have clear API reference at the time.
+As a result, there were a lot of deep dives into the actual implementation of the PTransforms across YAML, Python and Java SDKs to
+understand the error messages and how to correctly use the transforms.
 
-Another challenge is writing unit tests for the pipeline to ensure that the pipeline’s logic is correct.
-It is a learning curve to understand how the existing test suite is set up and how it can be used to write unit tests for
-the data pipelines. A lot of time were spent on properly writing mocks for the pipeline's sources and sinks, as well as for the
+Another challenge was writing unit tests for the pipeline to ensure that the pipeline’s logic is correct.
+It was a learning curve to understand how the existing test suite is set up and how it can be used to write unit tests for
+the data pipelines. A lot of time was spent on properly writing mocks for the pipeline's sources and sinks, as well as for the
 transforms that require external services such as Vertex AI.
 
 ## Conclusion & Personal Thoughts
 These production-ready pipelines demonstrate the potential of Beam YAML SDK to author complex ML workflows
 that interact with Iceberg and Kafka. The examples are a nice addition to Beam, especially with Beam 3.0.0 milestones
-coming up where low-code/no-code, ML capabilities and Managed IOs are focused on.
+coming up where low-code/no-code, ML capabilities and Managed I/O are focused on.
 
-I had an amazing time working with the big data technology Beam, Iceberg and Kafka as well as many Google Cloud services
+I had an amazing time working with the big data technologies Beam, Iceberg, and Kafka as well as many Google Cloud services
 (Dataflow, Vertex AI and Google Kubernetes Engine, to name a few). I’ve always wanted to work more in the ML space, and this
 experience has been a great growth opportunity for me. Google Summer of Code this year has been selective, and the project's success
 would not have been possible without the support of my mentor, Chamikara Jayalath. It's been a pleasure working closely
@@ -103,7 +106,7 @@ My advice for future Google Summer of Code participants is to first and foremost
 with your interest. Most importantly, spend a lot of time making yourself visible and writing a good proposal when the program
 is opened for applications. Being visible (e.g. by sharing your proposal, or generally any ideas and questions on the project's
 communication channel early on) makes it more likely for you to be selected; and a good proposal not only will make you even
-more likely to be in the program, but also give you a lot of confident when contributing and completing the project.
+more likely to be in the program, but also give you a lot of confidence when contributing to and completing the project.
 
 ## References
 - [Google Summer of Code Project Listing](https://summerofcode.withgoogle.com/programs/2025/projects/f4kiDdus)
