@@ -96,7 +96,7 @@ would not have been possible without the support of my mentor, Chamikara Jayalat
 with him and the broader Beam community to contribute to this open-source project that has a meaningful impact on the
 data engineering community.
 
-My advice for future Google Summer of Code participants is to first and foremost research and choose a project that align closely
+My advice for future Google Summer of Code participants is to first and foremost research and choose a project that aligns closely
 with your interest. Most importantly, spend a lot of time making yourself visible and writing a good proposal when the program
 is opened for applications. Being visible (e.g. by sharing your proposal, or generally any ideas and questions on the project's
 communication channel early on) makes it more likely for you to be selected; and a good proposal not only will make you even
