@@ -18,20 +18,30 @@
 package org.apache.beam.sdk.io.jdbc.providers;
 
 import static org.apache.beam.sdk.io.jdbc.JdbcUtil.MSSQL;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.jdbc.JdbcReadSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class ReadFromSqlServerSchemaTransformProvider extends JdbcReadSchemaTransformProvider {
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ReadFromSqlServerSchemaTransformProvider.class);
+
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:sql_server_read:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.SQL_SERVER_READ);
   }
 
   @Override
@@ -42,5 +52,36 @@ public class ReadFromSqlServerSchemaTransformProvider extends JdbcReadSchemaTran
   @Override
   protected String jdbcType() {
     return MSSQL;
+  }
+
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+      JdbcReadSchemaTransformConfiguration configuration) {
+    String jdbcType = configuration.getJdbcType();
+    if (jdbcType != null && !jdbcType.isEmpty() && !jdbcType.equals(jdbcType())) {
+      LOG.warn(
+          "Wrong JDBC type. Expected '{}' but got '{}'. Overriding with '{}'.",
+          jdbcType(),
+          jdbcType,
+          jdbcType());
+      configuration = configuration.toBuilder().setJdbcType(jdbcType()).build();
+    }
+
+    List<@org.checkerframework.checker.nullness.qual.Nullable String> connectionInitSql =
+        configuration.getConnectionInitSql();
+    if (connectionInitSql != null && !connectionInitSql.isEmpty()) {
+      LOG.warn("SQL Server does not support connectionInitSql, ignoring.");
+    }
+
+    // Override "connectionInitSql" for sqlserver
+    configuration = configuration.toBuilder().setConnectionInitSql(Collections.emptyList()).build();
+    return new SqlServerReadSchemaTransform(configuration);
+  }
+
+  public static class SqlServerReadSchemaTransform extends JdbcReadSchemaTransform {
+    public SqlServerReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
+      super(config, MSSQL);
+      config.validate(MSSQL);
+    }
   }
 }
