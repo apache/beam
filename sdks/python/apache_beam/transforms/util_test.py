@@ -332,7 +332,6 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
   @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
   def test_gbek_fake_secret_manager_actually_does_encryption(self):
     fakeSecret = FakeSecret()
-    beam.typehints.disable_type_annotations()
 
     with TestPipeline('FnApiRunner') as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
