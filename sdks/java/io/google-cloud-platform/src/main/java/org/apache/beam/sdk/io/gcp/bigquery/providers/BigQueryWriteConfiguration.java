@@ -239,7 +239,8 @@ public abstract class BigQueryWriteConfiguration {
 
     public abstract Builder setClusteringFields(List<String> clusteringFields);
 
-    public abstract Builder setBigLakeConfiguration(java.util.Map<String, String> bigLakeConfiguration);
+    public abstract Builder setBigLakeConfiguration(
+        java.util.Map<String, String> bigLakeConfiguration);
 
     /** Builds a {@link BigQueryWriteConfiguration} instance. */
     public abstract BigQueryWriteConfiguration build();
