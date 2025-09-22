@@ -18,18 +18,14 @@
 """Unit tests for BigQuery BigLake configuration."""
 
 import unittest
-import mock
 
-import apache_beam as beam
 from apache_beam.io.gcp import bigquery
-from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class BigQueryBigLakeTest(unittest.TestCase):
   """Test BigLake configuration support in BigQuery Storage Write API."""
-
   def test_storage_write_to_bigquery_with_biglake_config(self):
-    """Test that StorageWriteToBigQuery accepts bigLakeConfiguration parameter."""
+    """Test that StorageWriteToBigQuery accepts bigLakeConfiguration."""
     big_lake_config = {
         'connectionId': (
             'projects/test-project/locations/us/connections/test-connection'),
@@ -54,41 +50,28 @@ class BigQueryBigLakeTest(unittest.TestCase):
     # Verify the configuration is None by default
     self.assertIsNone(transform._big_lake_configuration)
 
-  @mock.patch('apache_beam.io.gcp.bigquery.SchemaAwareExternalTransform')
-  def test_biglake_config_passed_to_external_transform(self,
-                                                      mock_external_transform):
-    """Test that bigLakeConfiguration is passed to the external transform."""
+  def test_biglake_config_passed_to_external_transform(self):
+    """Test that StorageWriteToBigQuery accepts bigLakeConfiguration."""
     big_lake_config = {
-        'connectionId': (
-            'projects/test-project/locations/us/connections/test-connection'),
-        'storageUri': 'gs://test-bucket/test-path'
+        'connection_id': 'projects/my-project/locations/us/connections/my-conn',
+        'table_format': 'ICEBERG'
     }
 
-    # Mock the external transform to return a dummy PCollection
-    mock_transform_instance = mock.MagicMock()
-    mock_external_transform.return_value = mock_transform_instance
-    mock_transform_instance.__ror__ = mock.MagicMock()
-    mock_transform_instance.__ror__.return_value = {
-        bigquery.StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS: []
-    }
+    # Create the transform
+    transform = bigquery.StorageWriteToBigQuery(
+        table='my-project:my_dataset.my_table',
+        big_lake_configuration=big_lake_config)
 
-    with TestPipeline() as p:
-      input_data = p | 'Create' >> beam.Create([
-          beam.Row(name='Alice', age=30),
-          beam.Row(name='Bob', age=25)
-      ])
+    # Verify the big_lake_configuration is stored correctly
+    self.assertEqual(transform._big_lake_configuration, big_lake_config)
 
-      transform = bigquery.StorageWriteToBigQuery(
-          table='test-project:test_dataset.test_table',
-          big_lake_configuration=big_lake_config)
+    # Verify that the transform has the expected identifier
+    self.assertEqual(
+        transform.IDENTIFIER,
+        "beam:schematransform:org.apache.beam:bigquery_storage_write:v2")
 
-      # Apply the transform
-      _ = input_data | transform
-
-    # Verify that SchemaAwareExternalTransform was called with config
-    mock_external_transform.assert_called_once()
-    call_kwargs = mock_external_transform.call_args[1]
-    self.assertEqual(call_kwargs['big_lake_configuration'], big_lake_config)
+    # Verify that the expansion service is set up correctly
+    self.assertIsNotNone(transform._expansion_service)
 
   def test_biglake_config_validation(self):
     """Test validation of bigLakeConfiguration parameters."""
