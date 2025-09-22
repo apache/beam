@@ -80,7 +80,7 @@ public class InMemoryCatalog implements Catalog {
 
   @Override
   public boolean dropDatabase(String database, boolean cascade) {
-    checkState(!cascade, getClass().getSimpleName() + " does not support CASCADE.");
+    checkState(!cascade, "%s does not support CASCADE.", getClass().getSimpleName());
 
     boolean removed = databases.remove(database);
     if (database.equals(currentDatabase)) {

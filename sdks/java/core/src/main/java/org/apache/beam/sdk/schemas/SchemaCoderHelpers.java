@@ -163,7 +163,7 @@ class SchemaCoderHelpers {
       default:
         coder = (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
     }
-    Preconditions.checkNotNull(coder, "Unexpected field type " + fieldType.getTypeName());
+    Preconditions.checkNotNull(coder, "Unexpected field type %s", fieldType.getTypeName());
     if (fieldType.getNullable()) {
       coder = NullableCoder.of(coder);
     }

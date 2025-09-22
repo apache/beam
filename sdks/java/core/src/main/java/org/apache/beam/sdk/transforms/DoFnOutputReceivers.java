@@ -137,7 +137,7 @@ public class DoFnOutputReceivers {
     @Override
     public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
       Coder<T> outputCoder = (Coder<T>) checkNotNull(outputCoders).get(tag);
-      checkStateNotNull(outputCoder, "No output tag for " + tag);
+      checkStateNotNull(outputCoder, "No output tag for %s ", tag);
       checkState(
           outputCoder instanceof SchemaCoder,
           "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
