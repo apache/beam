@@ -837,8 +837,6 @@ class Pipeline(HasDisplayData):
         self._infer_result_type(transform, tuple(inputs.values()), result)
 
         assert isinstance(result.producer.inputs, tuple)
-        # The DoOutputsTuple adds the PCollection to the outputs when accessed
-        # except for the main tag. Add the main tag here.
         if isinstance(result, pvalue.DoOutputsTuple):
           for tag, pc in list(result._pcolls.items()):
             if tag not in current.outputs:

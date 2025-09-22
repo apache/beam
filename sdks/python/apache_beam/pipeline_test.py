@@ -1563,12 +1563,6 @@ class RunnerApiTest(unittest.TestCase):
     self.assertEqual(len(proto.components.environments), 6)
 
   def test_multiple_outputs_composite_ptransform(self):
-    from apache_beam.runners.render import RenderRunner
-
-    class NoOpTransform(beam.PTransform):
-      def expand(self, pcoll):
-        return pcoll | 'No-Op' >> beam.Map(lambda x: x)
-
     class SalesSplitter(beam.DoFn):
       def process(self, element):
         price = element['price']
@@ -1579,8 +1573,8 @@ class RunnerApiTest(unittest.TestCase):
 
     class ParentSalesSplitter(beam.PTransform):
       def expand(self, pcoll):
-        return pcoll | 'Split Sales' >> beam.ParDo(
-            SalesSplitter()).with_outputs('premium_sales', 'standard_sales')
+        return pcoll | beam.ParDo(SalesSplitter()).with_outputs(
+            'premium_sales', 'standard_sales')
 
     sales_data = [
         {
@@ -1600,24 +1594,9 @@ class RunnerApiTest(unittest.TestCase):
         },
     ]
 
-    optsions = beam.options.pipeline_options.PipelineOptions(
-        "--render_output=./twopt.dot".split())
-    with beam.Pipeline(runner=RenderRunner(), options=optsions) as pipeline:
+    with beam.Pipeline() as pipeline:
       sales_records = pipeline | 'Create Sales' >> beam.Create(sales_data)
-
-      # Split the PCollection into two tagged outputs
-      split_collections = sales_records | 'Split Sales' >> ParentSalesSplitter()
-
-      premium_sales = split_collections.premium_sales
-      standard_sales = split_collections.standard_sales
-
-      # Apply the same composite transform to both PCollections
-      premium_sales_noop = premium_sales | 'Premium No-Op' >> NoOpTransform()
-      standard_sales_noop = standard_sales | 'Standard No-Op' >> NoOpTransform()
-
-      # Print the results to verify they are still there
-      _ = premium_sales_noop | 'Print Premium After No-Op' >> beam.Map(print)
-      _ = standard_sales_noop | 'Print Standard After No-Op' >> beam.Map(print)
+      _ = sales_records | 'Split Sales' >> ParentSalesSplitter()
     current_transforms = list(pipeline.transforms_stack)
     all_applied_transforms = {
         xform.full_label: xform
