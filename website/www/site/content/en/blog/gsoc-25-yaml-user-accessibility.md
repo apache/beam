@@ -6,7 +6,7 @@ categories:
   - blog
   - gsoc
 aliases:
-  - /blog/2025/09/23/gsoc-25-yaml-ml-workflows.html
+  - /blog/2025/09/23/gsoc-25-yaml-user-accessibility.html
 authors:
   - charlespnh
 
