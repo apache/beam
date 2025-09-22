@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.kafka.KafkaTimestampType.LOG_APPEND_TIME;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
-import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
@@ -102,7 +101,7 @@ public class KafkaReadRedistributeTest implements Serializable {
                 .withCoder(KafkaRecordCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PCollection<KafkaRecord<String, Integer>> output =
-        input.apply(KafkaReadRedistribute.byRecordKey());
+        input.apply(KafkaReadRedistribute.byRecordKey(10));
 
     PAssert.that(output).containsInAnyOrder(INPUTS);
 
@@ -148,13 +147,13 @@ public class KafkaReadRedistributeTest implements Serializable {
             Create.of(inputs)
                 .withCoder(KafkaRecordCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
-    PCollection<String> output =
+    PCollection<Integer> output =
         input
-            .apply(ParDo.of(new AssignRecordKeyFn<String, Integer>()))
+            .apply(ParDo.of(new AssignRecordKeyFn<String, Integer>(2)))
             .apply(GroupByKey.create())
-            .apply(MapElements.into(strings()).via(KV::getKey));
+            .apply(MapElements.into(integers()).via(KV::getKey));
 
-    PAssert.that(output).containsInAnyOrder(ImmutableList.of("k1", "k2", "k3", "k5"));
+    PAssert.that(output).containsInAnyOrder(ImmutableList.of(0, 1));
 
     pipeline.run();
   }

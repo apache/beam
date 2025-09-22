@@ -117,7 +117,8 @@ public class KafkaIOReadImplementationCompatibilityTest {
                 false, /*allowDuplicates*/
                 0, /*numKeys*/
                 null, /*offsetDeduplication*/
-                null /*topics*/)));
+                null /*topics*/,
+                null /*redistributeByRecordKey*/)));
     return p.run();
   }
 

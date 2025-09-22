@@ -732,6 +732,9 @@ public class KafkaIO {
     public abstract @Nullable Boolean getOffsetDeduplication();
 
     @Pure
+    public abstract @Nullable Boolean getRedistributeByRecordKey();
+
+    @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
@@ -800,6 +803,8 @@ public class KafkaIO {
       abstract Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
 
       abstract Builder<K, V> setOffsetDeduplication(Boolean offsetDeduplication);
+
+      abstract Builder<K, V> setRedistributeByRecordKey(Boolean redistributeByRecordKey);
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
@@ -916,11 +921,15 @@ public class KafkaIO {
               && config.offsetDeduplication != null) {
             builder.setOffsetDeduplication(config.offsetDeduplication);
           }
+          if (config.redistribute && config.redistributeByRecordKey != null) {
+            builder.setRedistributeByRecordKey(config.redistributeByRecordKey);
+          }
         } else {
           builder.setRedistributed(false);
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
           builder.setOffsetDeduplication(false);
+          builder.setRedistributeByRecordKey(false);
         }
       }
 
@@ -990,6 +999,7 @@ public class KafkaIO {
         private Boolean redistribute;
         private Boolean allowDuplicates;
         private Boolean offsetDeduplication;
+        private Boolean redistributeByRecordKey;
         private Long dynamicReadPollIntervalSeconds;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
@@ -1050,6 +1060,10 @@ public class KafkaIO {
 
         public void setOffsetDeduplication(Boolean offsetDeduplication) {
           this.offsetDeduplication = offsetDeduplication;
+        }
+
+        public void setRedistributeByRecordKey(Boolean redistributeByRecordKey) {
+          this.redistributeByRecordKey = redistributeByRecordKey;
         }
 
         public void setDynamicReadPollIntervalSeconds(Long dynamicReadPollIntervalSeconds) {
@@ -1160,6 +1174,10 @@ public class KafkaIO {
      */
     public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
       return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
+    }
+
+    public Read<K, V> withRedistributeByRecordKey(Boolean redistributeByRecordKey) {
+      return toBuilder().setRedistributeByRecordKey(redistributeByRecordKey).build();
     }
 
     /**
@@ -1680,6 +1698,11 @@ public class KafkaIO {
         LOG.warn(
             "Offsets used for deduplication are available in WindowedValue's metadata. Combining, aggregating, mutating them may risk with data loss.");
       }
+      if (getRedistributeByRecordKey() != null && getRedistributeByRecordKey()) {
+        checkState(
+            isRedistributed(),
+            "withRedistributeByRecordKey can only be used when withRedistribute is set.");
+      }
     }
 
     private void warnAboutUnsafeConfigurations(PBegin input) {
@@ -1860,11 +1883,15 @@ public class KafkaIO {
           }
 
           if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
-            // TODO: Expose Kafka read options to control byOffsetShard vs byRecordKey.
-            return output.apply(
-                KafkaReadRedistribute.<K, V>byOffsetShard(kafkaRead.getRedistributeNumKeys()));
+            if (kafkaRead.getRedistributeByRecordKey() != null
+                && kafkaRead.getRedistributeByRecordKey()) {
+              return output.apply(
+                  KafkaReadRedistribute.<K, V>byRecordKey(kafkaRead.getRedistributeNumKeys()));
+            } else {
+              return output.apply(
+                  KafkaReadRedistribute.<K, V>byOffsetShard(kafkaRead.getRedistributeNumKeys()));
+            }
           }
-
           RedistributeArbitrarily<KafkaRecord<K, V>> redistribute =
               Redistribute.<KafkaRecord<K, V>>arbitrarily()
                   .withAllowDuplicates(kafkaRead.isAllowDuplicates());

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -34,8 +36,8 @@ public class KafkaReadRedistribute<K, V>
     return new KafkaReadRedistribute<>(numBuckets, false);
   }
 
-  public static <K, V> KafkaReadRedistribute<K, V> byRecordKey() {
-    return new KafkaReadRedistribute<>(null, true);
+  public static <K, V> KafkaReadRedistribute<K, V> byRecordKey(@Nullable Integer numBuckets) {
+    return new KafkaReadRedistribute<>(numBuckets, true);
   }
 
   // The number of buckets to shard into.
@@ -53,8 +55,8 @@ public class KafkaReadRedistribute<K, V>
 
     if (byRecordKey) {
       return input
-          .apply("Pair with record key", ParDo.of(new AssignRecordKeyFn<K, V>()))
-          .apply(Redistribute.<K, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
+          .apply("Pair with record key", ParDo.of(new AssignRecordKeyFn<K, V>(numBuckets)))
+          .apply(Redistribute.<Integer, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
           .apply(Values.create());
     }
 
@@ -87,14 +89,29 @@ public class KafkaReadRedistribute<K, V>
     }
   }
 
-  static class AssignRecordKeyFn<K, V> extends DoFn<KafkaRecord<K, V>, KV<K, KafkaRecord<K, V>>> {
+  static class AssignRecordKeyFn<K, V>
+      extends DoFn<KafkaRecord<K, V>, KV<Integer, KafkaRecord<K, V>>> {
 
-    public AssignRecordKeyFn() {}
+    private @Nullable Integer numBuckets;
+
+    public AssignRecordKeyFn(@Nullable Integer numBuckets) {
+      this.numBuckets = numBuckets;
+    }
 
     @ProcessElement
     public void processElement(
-        @Element KafkaRecord<K, V> element, OutputReceiver<KV<K, KafkaRecord<K, V>>> receiver) {
-      receiver.output(KV.of(element.getKV().getKey(), element));
+        @Element KafkaRecord<K, V> element,
+        OutputReceiver<KV<Integer, KafkaRecord<K, V>>> receiver) {
+      K key = element.getKV().getKey();
+      String keyString = key == null ? "" : key.toString();
+      int hash = Hashing.farmHashFingerprint64().hashBytes(keyString.getBytes(UTF_8)).asInt();
+
+      if (numBuckets != null && numBuckets > 0) {
+        UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
+        hash = UnsignedInteger.fromIntBits(hash).mod(unsignedNumBuckets).intValue();
+      }
+
+      receiver.output(KV.of(hash, element));
     }
   }
 }
