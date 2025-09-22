@@ -104,11 +104,17 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   void setDiskSizeGb(int value);
 
   /** Container image used as Dataflow worker harness image. */
+  /** @deprecated Use {@link #getSdkContainerImage} instead. */
   @Description(
-      "Container image to use for Dataflow V1 worker. Can only be used for official Dataflow container images. ")
+      "Container image used to configure a Dataflow worker. "
+          + "Can only be used for official Dataflow container images. "
+          + "Prefer using sdkContainerImage instead.")
+  @Deprecated
   @Hidden
   String getWorkerHarnessContainerImage();
 
+  /** @deprecated Use {@link #setSdkContainerImage} instead. */
+  @Deprecated
   @Hidden
   void setWorkerHarnessContainerImage(String value);
 
@@ -116,7 +122,10 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
    * Container image used to configure SDK execution environment on worker. Used for custom
    * containers on portable pipelines only.
    */
-  @Description("Container image to use for Beam Java SDK execution environment on Dataflow V2.")
+  @Description(
+      "Container image used to configure the SDK execution environment of "
+          + "pipeline code on a worker. For non-portable pipelines, can only be "
+          + "used for official Dataflow container images.")
   String getSdkContainerImage();
 
   void setSdkContainerImage(String value);
