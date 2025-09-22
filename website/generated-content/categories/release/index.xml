@@ -1,4 +1,83 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 12 Aug 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.67.0</title><link>/blog/beam-2.67.0/</link><pubDate>Tue, 12 Aug 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.67.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 22 Sep 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.68.0</title><link>/blog/beam-2.68.0/</link><pubDate>Mon, 22 Sep 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.68.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.68.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2680-2025-09-??">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.68.0, check out the &lt;a href="https://github.com/apache/beam/milestone/36?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>[Python] Prism runner now enabled by default for most Python pipelines using the direct runner (&lt;a href="https://github.com/apache/beam/pull/34612">#34612&lt;/a>). This may break some tests, see &lt;a href="https://github.com/apache/beam/pull/34612">https://github.com/apache/beam/pull/34612&lt;/a> for details on how to handle issues.&lt;/li>
+&lt;/ul>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Upgraded Iceberg dependency to 1.9.2 (&lt;a href="https://github.com/apache/beam/pull/35981">#35981&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>BigtableRead Connector for BeamYaml added with new Config Param (&lt;a href="https://github.com/apache/beam/pull/35696">#35696&lt;/a>)&lt;/li>
+&lt;li>MongoDB Java driver upgraded from 3.12.11 to 5.5.0 with API refactoring and GridFS implementation updates (Java) (&lt;a href="https://github.com/apache/beam/pull/35946">#35946&lt;/a>).&lt;/li>
+&lt;li>Introduced a dedicated module for JUnit-based testing support: &lt;code>sdks/java/testing/junit&lt;/code>, which provides &lt;code>TestPipelineExtension&lt;/code> for JUnit 5 while maintaining backward compatibility with existing JUnit 4 &lt;code>TestRule&lt;/code>-based tests (Java) (&lt;a href="https://github.com/apache/beam/issues/18733">#18733&lt;/a>, &lt;a href="https://github.com/apache/beam/pull/35688">#35688&lt;/a>).
+&lt;ul>
+&lt;li>To use JUnit 5 with Beam tests, add a test-scoped dependency on &lt;code>org.apache.beam:beam-sdks-java-testing-junit&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Google CloudSQL enrichment handler added (Python) (&lt;a href="https://github.com/apache/beam/pull/34398">#34398&lt;/a>).
+Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
+&lt;ul>
+&lt;li>Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL&lt;/li>
+&lt;li>Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>[Python] Added the &lt;code>ReactiveThrottler&lt;/code> and &lt;code>ThrottlingSignaler&lt;/code> classes to streamline throttling behavior in DoFns, expose throttling mechanisms for users (&lt;a href="https://github.com/apache/beam/pull/35984">#35984&lt;/a>)&lt;/li>
+&lt;li>Added a pipeline option to specify the processing timeout for a single element by any PTransform (Java/Python/Go) (&lt;a href="https://github.com/apache/beam/issues/35174">#35174&lt;/a>).
+&lt;ul>
+&lt;li>When specified, the SDK harness automatically restarts if an element takes too long to process. Beam runner may then retry processing of the same work item.&lt;/li>
+&lt;li>Use the &lt;code>--element_processing_timeout_minutes&lt;/code> option to reduce the chance of having stalled pipelines due to unexpected cases of slow processing, where slowness might not happen again if processing of the same element is retried.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>(Python) Adding GCP Spanner Change Stream support for Python (apache_beam.io.gcp.spanner) (&lt;a href="https://github.com/apache/beam/issues/24103">#24103&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>Previously deprecated Beam ZetaSQL component has been removed (&lt;a href="https://github.com/apache/beam/issues/34423">#34423&lt;/a>).
+ZetaSQL users could migrate to Calcite SQL with BigQuery dialect enabled.&lt;/li>
+&lt;li>Upgraded Beam vendored Calcite to 1.40.0 for Beam SQL (&lt;a href="https://github.com/apache/beam/issues/35483">#35483&lt;/a>), which
+improves support for BigQuery and other SQL dialects. Note: Minor behavior changes are observed such as output
+significant digits related to casting.&lt;/li>
+&lt;li>(Python) The deterministic fallback coder for complex types like NamedTuple, Enum, and dataclasses now uses cloudpickle instead of dill. If your pipeline is affected, you may see a warning like: &amp;ldquo;Using fallback deterministic coder for type X&amp;hellip;&amp;rdquo;. You can revert to the previous behavior by using the pipeline option &lt;code>--update_compatibility_version=2.67.0&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/35725">35725&lt;/a>). Report any pickling related issues to &lt;a href="https://github.com/apache/beam/issues/34903">#34903&lt;/a>&lt;/li>
+&lt;li>(Python) Prism runner now enabled by default for most Python pipelines using the direct runner (&lt;a href="https://github.com/apache/beam/pull/34612">#34612&lt;/a>). This may break some tests, see &lt;a href="https://github.com/apache/beam/pull/34612">https://github.com/apache/beam/pull/34612&lt;/a> for details on how to handle issues.&lt;/li>
+&lt;li>Dropped Java 8 support for &lt;a href="https://central.sonatype.com/artifact/org.apache.beam/beam-sdks-java-io-expansion-service">IO expansion-service&lt;/a>. Cross-language pipelines using this expansion service will need a Java11+ runtime (&lt;a href="https://github.com/apache/beam/pull/35981">#35981&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>Python SDK native SpannerIO (apache_beam/io/gcp/experimental/spannerio) is deprecated. Use cross-language wrapper
+(apache_beam/io/gcp/spanner) instead (Python) (&lt;a href="https://github.com/apache/beam/issues/35860">#35860&lt;/a>).&lt;/li>
+&lt;li>Samza runner is deprecated and scheduled for removal in Beam 3.0 (&lt;a href="https://github.com/apache/beam/issues/35448">#35448&lt;/a>).&lt;/li>
+&lt;li>Twister2 runner is deprecated and scheduled for removal in Beam 3.0 (&lt;a href="https://github.com/apache/beam/issues/35905">#35905&lt;/a>)).&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Fixed Java YAML provider fails on Windows (&lt;a href="https://github.com/apache/beam/issues/35617">#35617&lt;/a>).&lt;/li>
+&lt;li>Fixed BigQueryIO creating temporary datasets in wrong project when temp_dataset is specified with a different project than the pipeline project. For some jobs, temporary datasets will now be created in the correct project (Python) (&lt;a href="https://github.com/apache/beam/issues/35813">#35813&lt;/a>).&lt;/li>
+&lt;li>(Go) Fix duplicates due to reads after blind writes to Bag State (&lt;a href="https://github.com/apache/beam/issues/35869">#35869&lt;/a>).
+&lt;ul>
+&lt;li>Earlier Go SDK versions can avoid the issue by not reading in the same call after a blind write.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.68.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud, Andrew Crites, Ashok Devireddy, Chamikara Jayalath, Charles Nguyen, Danny McCormick, Davda James, Derrick Williams, Diego Hernandez, Dip Patel, Dustin Rhodes, Enrique Calderon, Hai Joey Tran, Jack McCluskey, Kenneth Knowles, Keshav, Khorbaladze A., LEEKYE, Lanny Boarts, Mattie Fu, Minbo Bae, Mohamed Awnallah, Naireen Hussain, Nathaniel Young, Radosław Stankiewicz, Razvan Culea, Robert Bradshaw, Robert Burke, Sam Whittle, Shehab, Shingo Furuyama, Shunping Huang, Steven van Rossum, Suvrat Acharya, Svetak Sundhar, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, apanich, arnavarora2004, claudevdm, flpablo, kristynsmith, shreyakhajanchi&lt;/p></description></item><item><title>Blog: Apache Beam 2.67.0</title><link>/blog/beam-2.67.0/</link><pubDate>Tue, 12 Aug 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.67.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5069,90 +5148,4 @@ See the &lt;a href="/get-started/downloads/#2190-2020-02-04">download page&lt;/a
 , Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak
 , Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Rehman Murad Ali, Reuven Lax, Rob, Robbe Sneyders
 , Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Shoaib Zafar, Thomas Weise, Tianyang Hu, Tyler Akidau
-, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy&lt;/p></description></item><item><title>Blog: Apache Beam 2.19.0</title><link>/blog/beam-2.19.0/</link><pubDate>Tue, 04 Feb 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.19.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.19.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2190-2020-02-04">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.19.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12346582">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Multiple improvements made into Python SDK harness:
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-8624">BEAM-8624&lt;/a>,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-8623">BEAM-8623&lt;/a>,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-7949">BEAM-7949&lt;/a>,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-8935">BEAM-8935&lt;/a>,
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-8816">BEAM-8816&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1440">BEAM-1440&lt;/a> Create a BigQuery source (that implements iobase.BoundedSource) for Python SDK&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-2572">BEAM-2572&lt;/a> Implement an S3 filesystem for Python SDK&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5192">BEAM-5192&lt;/a> Support Elasticsearch 7.x&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8745">BEAM-8745&lt;/a> More fine-grained controls for the size of a BigQuery Load job&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8801">BEAM-8801&lt;/a> PubsubMessageToRow should not check useFlatSchema() in processElement&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8953">BEAM-8953&lt;/a> Extend ParquetIO.Read/ReadFiles.Builder to support Avro GenericData model&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8946">BEAM-8946&lt;/a> Report collection size from MongoDBIOIT&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8978">BEAM-8978&lt;/a> Report saved data size from HadoopFormatIOIT&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-6008">BEAM-6008&lt;/a> Improve error reporting in Java/Python PortableRunner&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8296">BEAM-8296&lt;/a> Containerize the Spark job server&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8746">BEAM-8746&lt;/a> Allow the local job service to work from inside docker&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8837">BEAM-8837&lt;/a> PCollectionVisualizationTest: possible bug&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8139">BEAM-8139&lt;/a> Execute portable Spark application jar&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9019">BEAM-9019&lt;/a> Improve Spark Encoders (wrappers of beam coders)&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9053">BEAM-9053&lt;/a> Improve error message when unable to get the correct filesystem for specified path in Python SDK) Improve error message when unable to get the correct filesystem for specified path in Python SDK&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9055">BEAM-9055&lt;/a> Unify the config names of Fn Data API across languages&lt;/li>
-&lt;/ul>
-&lt;h3 id="sql">SQL&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5690">BEAM-5690&lt;/a> Issue with GroupByKey in BeamSql using SparkRunner&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8993">BEAM-8993&lt;/a> [SQL] MongoDb should use predicate push-down&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8844">BEAM-8844&lt;/a> [SQL] Create performance tests for BigQueryTable&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9023">BEAM-9023&lt;/a> Upgrade to ZetaSQL 2019.12.1&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8989">BEAM-8989&lt;/a> Backwards incompatible change in ParDo.getSideInputs (caught by failure when running Apache Nemo quickstart)&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8402">BEAM-8402&lt;/a> Backwards incompatible change related to how Environments are represented in Python &lt;code>DirectRunner&lt;/code>.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9218">BEAM-9218&lt;/a> Template staging broken on Beam 2.18.0&lt;/li>
-&lt;/ul>
-&lt;h3 id="dependency-changes">Dependency Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8696">BEAM-8696&lt;/a> Beam Dependency Update Request: com.google.protobuf:protobuf-java&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8701">BEAM-8701&lt;/a> Beam Dependency Update Request: commons-io:commons-io&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8716">BEAM-8716&lt;/a> Beam Dependency Update Request: org.apache.commons:commons-csv&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8717">BEAM-8717&lt;/a> Beam Dependency Update Request: org.apache.commons:commons-lang3&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8749">BEAM-8749&lt;/a> Beam Dependency Update Request: com.datastax.cassandra:cassandra-driver-mapping&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5546">BEAM-5546&lt;/a> Beam Dependency Update Request: commons-codec:commons-codec&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9123">BEAM-9123&lt;/a> HadoopResourceId returns wrong directory name&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8962">BEAM-8962&lt;/a> FlinkMetricContainer causes churn in the JobManager and lets the web frontend malfunction&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5495">BEAM-5495&lt;/a> PipelineResources algorithm is not working in most environments&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8025">BEAM-8025&lt;/a> Cassandra IO classMethod test is flaky&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8577">BEAM-8577&lt;/a> FileSystems may have not be initialized during ResourceId deserialization&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8582">BEAM-8582&lt;/a> Python SDK emits duplicate records for Default and AfterWatermark triggers&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8943">BEAM-8943&lt;/a> SDK harness servers don&amp;rsquo;t shut down properly when SDK harness environment cleanup fails&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8995">BEAM-8995&lt;/a> apache_beam.io.gcp.bigquery_read_it_test failing on Py3.5 PC with: TypeError: the JSON object must be str, not &amp;lsquo;bytes&amp;rsquo;&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8999">BEAM-8999&lt;/a> PGBKCVOperation does not respect timestamp combiners&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9050">BEAM-9050&lt;/a> Beam pickler doesn&amp;rsquo;t pickle classes that have &lt;strong>module&lt;/strong> set to None.&lt;/li>
-&lt;li>&lt;/li>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.19.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, J Ross Thomson, Juan Rael, Juta, Kasia Kucharczyk, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Łukasz Gajowy, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, ttanay, tvalentyn, Tyler Akidau, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin&lt;/p></description></item></channel></rss>
+, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy&lt;/p></description></item></channel></rss>
