@@ -528,6 +528,9 @@ if __name__ == '__main__':
               'pyod',
               'tensorflow',
               'tensorflow-hub',
+              # tensorflow-transform requires dill, but doesn't set dill as a
+              # hard requirement in setup.py.
+              'dill',
               'tensorflow-transform',
               'tf2onnx',
               'torch',
@@ -588,7 +591,11 @@ if __name__ == '__main__':
               'tensorflow>=2.12.0',
               'torch>=1.9.0'
           ],
-          'tft': ['tensorflow_transform>=1.14.0,<1.15.0'],
+          'tft': [
+            'tensorflow_transform>=1.14.0,<1.15.0'
+            # tensorflow-transform requires dill, but doesn't set dill as a
+            # hard requirement in setup.py.
+            , 'dill'],
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',

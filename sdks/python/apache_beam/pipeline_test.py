@@ -1564,6 +1564,59 @@ class RunnerApiTest(unittest.TestCase):
 
     self.assertEqual(len(proto.components.environments), 6)
 
+  def test_multiple_outputs_composite_ptransform(self):
+    """
+    Test that a composite PTransform with multiple outputs is represented
+    correctly in the pipeline proto.
+    """
+    class SalesSplitter(beam.DoFn):
+      def process(self, element):
+        price = element['price']
+        if price > 100:
+          yield beam.pvalue.TaggedOutput('premium_sales', element)
+        else:
+          yield beam.pvalue.TaggedOutput('standard_sales', element)
+
+    class ParentSalesSplitter(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.ParDo(SalesSplitter()).with_outputs(
+            'premium_sales', 'standard_sales')
+
+    sales_data = [
+        {
+            'item': 'Laptop', 'price': 1200
+        },
+        {
+            'item': 'Mouse', 'price': 25
+        },
+        {
+            'item': 'Keyboard', 'price': 75
+        },
+        {
+            'item': 'Monitor', 'price': 350
+        },
+        {
+            'item': 'Headphones', 'price': 90
+        },
+    ]
+
+    with beam.Pipeline() as pipeline:
+      sales_records = pipeline | 'Create Sales' >> beam.Create(sales_data)
+      _ = sales_records | 'Split Sales' >> ParentSalesSplitter()
+    current_transforms = list(pipeline.transforms_stack)
+    all_applied_transforms = {
+        xform.full_label: xform
+        for xform in current_transforms
+    }
+    while current_transforms:
+      xform = current_transforms.pop()
+      all_applied_transforms[xform.full_label] = xform
+      current_transforms.extend(xform.parts)
+    xform = all_applied_transforms['Split Sales']
+    # Confirm that Split Sales correctly has two outputs as specified by
+    #  ParDo.with_outputs in ParentSalesSplitter.
+    assert len(xform.outputs) == 2
+
 
 if __name__ == '__main__':
   unittest.main()

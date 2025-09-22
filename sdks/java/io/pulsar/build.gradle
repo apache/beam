@@ -18,11 +18,12 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.pulsar')
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Pulsar"
 ext.summary = "IO to read and write to Pulsar"
 
-def pulsar_version = '2.8.2'
+def pulsar_version = '2.11.4'
 
 
 dependencies {
@@ -30,19 +31,19 @@ dependencies {
     implementation library.java.slf4j_api
     implementation library.java.joda_time
 
-    implementation "org.apache.pulsar:pulsar-client:$pulsar_version"
-    implementation "org.apache.pulsar:pulsar-client-admin:$pulsar_version"
-    permitUnusedDeclared "org.apache.pulsar:pulsar-client:$pulsar_version"
-    permitUnusedDeclared "org.apache.pulsar:pulsar-client-admin:$pulsar_version"
-    permitUsedUndeclared "org.apache.pulsar:pulsar-client-api:$pulsar_version"
-    permitUsedUndeclared "org.apache.pulsar:pulsar-client-admin-api:$pulsar_version"
+    implementation "org.apache.pulsar:pulsar-client-api:$pulsar_version"
+    implementation "org.apache.pulsar:pulsar-client-admin-api:$pulsar_version"
+    runtimeOnly "org.apache.pulsar:pulsar-client:$pulsar_version"
+    runtimeOnly("org.apache.pulsar:pulsar-client-admin:$pulsar_version") {
+      // To prevent a StackOverflow within Pulsar admin client because JUL -> SLF4J -> JUL
+      exclude group: "org.slf4j", module: "jul-to-slf4j"
+    }
 
     implementation project(path: ":sdks:java:core", configuration: "shadow")
 
-    testImplementation library.java.jupiter_api
-    testRuntimeOnly library.java.jupiter_engine
+    testImplementation library.java.junit
+    testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation "org.testcontainers:pulsar:1.15.3"
     testImplementation "org.assertj:assertj-core:2.9.1"
-
 }

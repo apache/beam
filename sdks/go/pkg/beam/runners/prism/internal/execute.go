@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"runtime/debug"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -77,6 +78,13 @@ func RunPipeline(j *jobservices.Job) {
 	defer func() {
 		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
 		j.WaitForCleanUp()
+	}()
+
+	// Add this defer function to capture and log panics.
+	defer func() {
+		if e := recover(); e != nil {
+			j.Failed(fmt.Errorf("pipeline panicked: %v\nStacktrace: %s", e, string(debug.Stack())))
+		}
 	}()
 
 	j.SendMsg("running " + j.String())

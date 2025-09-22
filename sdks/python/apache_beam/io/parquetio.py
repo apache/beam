@@ -52,11 +52,13 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 try:
   import pyarrow as pa
+  paTable = pa.Table
   import pyarrow.parquet as pq
   # pylint: disable=ungrouped-imports
   from apache_beam.typehints import arrow_type_compatibility
 except ImportError:
   pa = None
+  paTable = None
   pq = None
   ARROW_MAJOR_VERSION = None
   arrow_type_compatibility = None
@@ -176,7 +178,7 @@ class _ArrowTableToBeamRows(DoFn):
     self._beam_type = beam_type
 
   @DoFn.yields_batches
-  def process(self, element) -> Iterator[pa.Table]:
+  def process(self, element) -> Iterator[paTable]:
     yield element
 
   def infer_output_type(self, input_type):
@@ -185,7 +187,7 @@ class _ArrowTableToBeamRows(DoFn):
 
 class _BeamRowsToArrowTable(DoFn):
   @DoFn.yields_elements
-  def process_batch(self, element: pa.Table) -> Iterator[pa.Table]:
+  def process_batch(self, element: paTable) -> Iterator[paTable]:
     yield element
 
 
@@ -845,7 +847,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
         use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps,
         use_compliant_nested_type=self._use_compliant_nested_type)
 
-  def write_record(self, writer, table: pa.Table):
+  def write_record(self, writer, table: paTable):
     writer.write_table(table)
 
   def close(self, writer):
