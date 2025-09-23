@@ -105,7 +105,7 @@ public class BigQueryHelpersTest {
   public void testTableParsingError0() {
     String expectedMessage =
         "Table specification [foo_bar_baz] is not in one of the expected formats ("
-            + " [project_id]:[dataset_id].[table_id],"
+            + " [project_id].[dataset_id].[table_id],"
             + " [project_id].[dataset_id].[table_id],"
             + " [dataset_id].[table_id])";
 

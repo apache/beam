@@ -597,7 +597,7 @@ public class BigQueryIO {
   private static final String TABLE_REGEXP = "[-_\\p{L}\\p{N}\\p{M}$@ ]{1,1024}";
 
   /**
-   * Matches table specifications in the form {@code "[project_id]:[dataset_id].[table_id]"} or
+   * Matches table specifications in the form {@code "[project_id].[dataset_id].[table_id]"} or
    * {@code "[dataset_id].[table_id]"}.
    */
   private static final String DATASET_TABLE_REGEXP =
@@ -853,7 +853,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Reads a BigQuery table specified as {@code "[project_id]:[dataset_id].[table_id]"} or {@code
+     * Reads a BigQuery table specified as {@code "[project_id].[dataset_id].[table_id]"} or {@code
      * "[dataset_id].[table_id]"} for tables within the current project.
      */
     public Read from(String tableSpec) {

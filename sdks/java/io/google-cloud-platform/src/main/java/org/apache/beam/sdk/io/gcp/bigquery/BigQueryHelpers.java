@@ -455,7 +455,7 @@ public class BigQueryHelpers {
   }
 
   /**
-   * Parse a table specification in the form {@code "[project_id]:[dataset_id].[table_id]"} or
+   * Parse a table specification in the form {@code "[project_id].[dataset_id].[table_id]"} or
    * {@code "[project_id].[dataset_id].[table_id]"} or {@code "[dataset_id].[table_id]"}.
    *
    * <p>If the project id is omitted, the default project id is used.
@@ -469,7 +469,7 @@ public class BigQueryHelpers {
       throw new IllegalArgumentException(
           String.format(
               "Table specification [%s] is not in one of the expected formats ("
-                  + " [project_id]:[dataset_id].[table_id],"
+                  + " [project_id].[dataset_id].[table_id],"
                   + " [project_id].[dataset_id].[table_id],"
                   + " [dataset_id].[table_id])",
               tableSpec));

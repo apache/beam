@@ -38,7 +38,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.Trunc
  * )
  * TYPE 'bigquery'
  * COMMENT 'this is the table orders'
- * LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
+ * LOCATION '[project_id].[DATASET].[TABLE]'
  * }</pre>
  */
 @AutoService(TableProvider.class)

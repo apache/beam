@@ -98,7 +98,7 @@ object.
 #### Using a string
 
 To specify a table with a string, use the format
-`[project_id]:[dataset_id].[table_id]` to specify the fully-qualified BigQuery
+`[project_id].[dataset_id].[table_id]` to specify the fully-qualified BigQuery
 table name.
 
 {{< highlight java >}}
