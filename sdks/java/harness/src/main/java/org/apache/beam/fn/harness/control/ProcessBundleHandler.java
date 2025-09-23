@@ -40,6 +40,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
@@ -84,8 +86,9 @@ import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.construction.BeamUrns;
-import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode;
+import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
@@ -124,11 +127,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ProcessBundleHandler {
-
-  // TODO: What should the initial set of URNs be?
-  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
-  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
-  public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   @VisibleForTesting static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;
@@ -222,7 +220,7 @@ public class ProcessBundleHandler {
     this.dataSampler = dataSampler;
   }
 
-  private void addRunnerAndConsumersForPTransformRecursively(
+  private void addRunnerAndConsumersForPTransform(
       BeamFnStateClient beamFnStateClient,
       BeamFnDataClient queueingClient,
       String pTransformId,
@@ -248,40 +246,6 @@ public class ProcessBundleHandler {
       Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap,
       Set<String> runnerCapabilities)
       throws IOException {
-
-    // Recursively ensure that all consumers of the output PCollection have been created.
-    // Since we are creating the consumers first, we know that the we are building the DAG
-    // in reverse topological order.
-    for (String pCollectionId : pTransform.getOutputsMap().values()) {
-
-      for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
-        addRunnerAndConsumersForPTransformRecursively(
-            beamFnStateClient,
-            queueingClient,
-            consumingPTransformId,
-            processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
-            processBundleInstructionId,
-            cacheTokens,
-            bundleCache,
-            processBundleDescriptor,
-            components,
-            pCollectionIdsToConsumingPTransforms,
-            pCollectionConsumerRegistry,
-            processedPTransformIds,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            addResetFunction,
-            addTearDownFunction,
-            addDataEndpoint,
-            addTimerEndpoint,
-            addBundleProgressReporter,
-            splitListener,
-            bundleFinalizer,
-            channelRoots,
-            outboundAggregatorMap,
-            runnerCapabilities);
-      }
-    }
 
     if (!pTransform.hasSpec()) {
       throw new IllegalArgumentException(
@@ -843,32 +807,31 @@ public class ProcessBundleHandler {
             bundleFinalizationCallbackRegistrations,
             runnerCapabilities);
 
-    // Create a BeamFnStateClient
-    for (Map.Entry<String, PTransform> entry : bundleDescriptor.getTransformsMap().entrySet()) {
+    RunnerApi.Components components =
+        RunnerApi.Components.newBuilder()
+            .putAllCoders(bundleDescriptor.getCodersMap())
+            .putAllPcollections(bundleDescriptor.getPcollectionsMap())
+            .putAllTransforms(bundleDescriptor.getTransformsMap())
+            .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
+            .build();
 
-      // Skip anything which isn't a root.
-      // Also force data output transforms to be unconditionally instantiated (see BEAM-10450).
-      // TODO: Remove source as a root and have it be triggered by the Runner.
-      if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
-          && !DATA_OUTPUT_URN.equals(entry.getValue().getSpec().getUrn())
-          && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
-          && !PTransformTranslation.READ_TRANSFORM_URN.equals(
-              entry.getValue().getSpec().getUrn())) {
-        continue;
-      }
+    QueryablePipeline queryablePipeline =
+        QueryablePipeline.forTransforms(bundleDescriptor.getTransformsMap().keySet(), components);
 
-      RunnerApi.Components components =
-          RunnerApi.Components.newBuilder()
-              .putAllCoders(bundleDescriptor.getCodersMap())
-              .putAllPcollections(bundleDescriptor.getPcollectionsMap())
-              .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
-              .build();
+    // Get the transforms in topological order, reverse and build the DAG.
+    List<PipelineNode.PTransformNode> reverseTopologicallyOrderedTransforms =
+        StreamSupport.stream(
+                queryablePipeline.getTopologicallyOrderedTransforms().spliterator(), false)
+            .collect(
+                Collectors.collectingAndThen(
+                    Collectors.toCollection(ArrayList::new), Lists::reverse));
 
-      addRunnerAndConsumersForPTransformRecursively(
+    for (PipelineNode.PTransformNode pTransformNode : reverseTopologicallyOrderedTransforms) {
+      addRunnerAndConsumersForPTransform(
           beamFnStateClient,
           beamFnDataClient,
-          entry.getKey(),
-          entry.getValue(),
+          pTransformNode.getId(),
+          pTransformNode.getTransform(),
           bundleProcessor::getInstructionId,
           bundleProcessor::getCacheTokens,
           bundleProcessor::getBundleCache,
