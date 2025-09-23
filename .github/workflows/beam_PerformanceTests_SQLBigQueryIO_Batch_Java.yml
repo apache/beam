@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_PerformanceTests_SQLBigQueryIO_Batch_Java"]
         job_phrase: ["Run SQLBigQueryIO Batch Performance Test Java"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

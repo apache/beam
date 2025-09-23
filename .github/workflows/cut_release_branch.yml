@@ -61,7 +61,7 @@ jobs:
             exit 1
           fi
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
@@ -110,7 +110,7 @@ jobs:
             exit 1
           fi
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

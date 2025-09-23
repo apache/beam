@@ -89,7 +89,7 @@ jobs:
 
     steps:
       - name: Checkout code at RC tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.RC_TAG }}
 
