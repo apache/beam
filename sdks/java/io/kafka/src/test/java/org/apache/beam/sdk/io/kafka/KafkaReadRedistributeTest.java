@@ -50,15 +50,15 @@ public class KafkaReadRedistributeTest implements Serializable {
 
   private static final ImmutableList<KafkaRecord<String, Integer>> INPUTS =
       ImmutableList.of(
-          MakeKafkaRecord("k1", 3, 1),
-          MakeKafkaRecord("k5", Integer.MAX_VALUE, 2),
-          MakeKafkaRecord("k5", Integer.MIN_VALUE, 3),
-          MakeKafkaRecord("k2", 66, 4),
-          MakeKafkaRecord("k1", 4, 5),
-          MakeKafkaRecord("k2", -33, 6),
-          MakeKafkaRecord("k3", 0, 7));
+          makeKafkaRecord("k1", 3, 1),
+          makeKafkaRecord("k5", Integer.MAX_VALUE, 2),
+          makeKafkaRecord("k5", Integer.MIN_VALUE, 3),
+          makeKafkaRecord("k2", 66, 4),
+          makeKafkaRecord("k1", 4, 5),
+          makeKafkaRecord("k2", -33, 6),
+          makeKafkaRecord("k3", 0, 7));
 
-  static KafkaRecord<String, Integer> MakeKafkaRecord(String key, Integer value, Integer offset) {
+  static KafkaRecord<String, Integer> makeKafkaRecord(String key, Integer value, Integer offset) {
     return new KafkaRecord<String, Integer>(
         /*topic*/ "kafka",
         /*partition*/ 1,
