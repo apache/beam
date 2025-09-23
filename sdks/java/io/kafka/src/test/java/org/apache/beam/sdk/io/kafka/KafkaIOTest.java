@@ -387,7 +387,7 @@ public class KafkaIOTest {
 
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
-    return mkKafkaReadTransform(
+    return mkKafkaReadTransformBase(
         numElements,
         numElements,
         timestampFn,
@@ -401,7 +401,7 @@ public class KafkaIOTest {
 
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithOffsetDedup(
       int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
-    return mkKafkaReadTransform(
+    return mkKafkaReadTransformBase(
         numElements,
         numElements,
         timestampFn,
@@ -417,7 +417,7 @@ public class KafkaIOTest {
       int numElements,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
       boolean byRecordKey) {
-    return mkKafkaReadTransform(
+    return mkKafkaReadTransformBase(
         numElements,
         numElements,
         timestampFn,
@@ -433,7 +433,7 @@ public class KafkaIOTest {
       int numElements,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
       List<String> topics) {
-    return mkKafkaReadTransform(
+    return mkKafkaReadTransformBase(
         numElements,
         numElements,
         timestampFn,
@@ -449,7 +449,7 @@ public class KafkaIOTest {
    * Creates a consumer with two topics, with 10 partitions each. numElements are (round-robin)
    * assigned all the 20 partitions.
    */
-  static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransformBase(
       int numElements,
       @Nullable Integer maxNumRecords,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
@@ -738,7 +738,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(
+                mkKafkaReadTransformBase(
                         numElements,
                         numElements,
                         new ValueAsTimestampFn(),
@@ -767,7 +767,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(
+                mkKafkaReadTransformBase(
                         numElements,
                         numElements,
                         new ValueAsTimestampFn(),
@@ -797,7 +797,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(
+                mkKafkaReadTransformBase(
                         numElements,
                         numElements,
                         new ValueAsTimestampFn(),
@@ -2218,7 +2218,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(
+                mkKafkaReadTransformBase(
                         numElements,
                         maxNumRecords,
                         new ValueAsTimestampFn(),
@@ -2295,7 +2295,7 @@ public class KafkaIOTest {
     int startTime = numElements / 20;
 
     p.apply(
-            mkKafkaReadTransform(
+            mkKafkaReadTransformBase(
                     numElements,
                     numElements,
                     new ValueAsTimestampFn(),
