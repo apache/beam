@@ -90,8 +90,8 @@
 
 ## Bugfixes
 
-* Fixed JUnit 5 compatibility issue with TestPipelineExtension where TestPipeline.run() would throw IllegalStateException about missing @Rule annotation (Java) ([#XXXXX](https://github.com/apache/beam/issues/XXXXX)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed JUnit 5 compatibility issue with TestPipelineExtension where TestPipeline.run() would throw IllegalStateException about missing @Rule annotation (Java) ([#18733](https://github.com/apache/beam/issues/18733)).
 * PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
   function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java)
   ([#36141](https://github.com/apache/beam/issues/36141)).
