@@ -340,7 +340,6 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
 			}
 			stages[stage.ID] = stage
-			j.Logger.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
 			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
@@ -381,11 +380,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		case rb, ok := <-bundles:
 			if !ok {
 				err := eg.Wait()
-				var topoAttrs []any
-				for _, s := range topo {
-					topoAttrs = append(topoAttrs, slog.Any(s.ID, s))
-				}
-				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Group("topo", topoAttrs...))
+				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.String("stages", em.DumpStages()))
 				return err
 			}
 			eg.Go(func() error {
