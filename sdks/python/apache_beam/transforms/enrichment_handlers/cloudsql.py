@@ -478,16 +478,14 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
       # For batched queries, use unique parameter names per batch item.
       if batch_size > 1:
-        # Extract parameter names from the template using regex.
-        # Batching is only used with table-based query configs
+        # Batching is only used with table-based query configs.
         table_query_configs = (TableFieldsQueryConfig, TableFunctionQueryConfig)
         assert isinstance(self._query_config, table_query_configs)
-        param_names = self._extract_parameter_names(
-            self._query_config.where_clause_template)
-        for param_name, val in zip(param_names, current_values):
+        batch_param_dict = self._build_single_param_dict(current_values)
+        # Prefix batch parameters to make them globally unique.
+        for param_name, val in batch_param_dict.items():
           param_dict[f'batch_{i}_{param_name}'] = val
       else:
-        # For single request, use the helper function.
         single_param_dict = self._build_single_param_dict(current_values)
         param_dict.update(single_param_dict)
 
@@ -502,17 +500,15 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     Returns:
       Dictionary mapping parameter names to values
     """
-    if isinstance(self._query_config, TableFieldsQueryConfig):
-      return {
-          field_name: val
-          for field_name, val in zip(
-              self._query_config.where_clause_fields, values)
-      }
-    else:  # TableFunctionQueryConfig.
-      assert isinstance(self._query_config, TableFunctionQueryConfig)
-      _, param_dict = self._get_unique_template_and_params(
-          self._query_config.where_clause_template, values)
-      return param_dict
+    table_query_configs = (TableFieldsQueryConfig, TableFunctionQueryConfig)
+    if not isinstance(self._query_config, table_query_configs):
+      raise ValueError(
+          f"Parameter binding not supported for "
+          f"{type(self._query_config).__name__}")
+
+    _, param_dict = self._get_unique_template_and_params(
+        self._query_config.where_clause_template, values)
+    return param_dict
 
   def _get_unique_template_and_params(
       self, template: str, values: list[Any]) -> tuple[str, dict[str, Any]]:

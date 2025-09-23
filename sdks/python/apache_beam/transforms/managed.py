@@ -85,6 +85,8 @@ ICEBERG = "iceberg"
 _ICEBERG_CDC = "iceberg_cdc"
 KAFKA = "kafka"
 BIGQUERY = "bigquery"
+POSTGRES = "postgres"
+MYSQL = "mysql"
 
 __all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
 
@@ -95,7 +97,9 @@ class Read(PTransform):
       ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
       _ICEBERG_CDC: ManagedTransforms.Urns.ICEBERG_CDC_READ.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
-      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn,
+      POSTGRES: ManagedTransforms.Urns.POSTGRES_READ.urn,
+      MYSQL: ManagedTransforms.Urns.MYSQL_READ.urn,
   }
 
   def __init__(
@@ -136,7 +140,9 @@ class Write(PTransform):
   _WRITE_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_WRITE.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_WRITE.urn,
-      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn,
+      POSTGRES: ManagedTransforms.Urns.POSTGRES_WRITE.urn,
+      MYSQL: ManagedTransforms.Urns.MYSQL_WRITE.urn,
   }
 
   def __init__(

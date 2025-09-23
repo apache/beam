@@ -1678,7 +1678,8 @@ class ParDo(PTransformWithSideInputs):
         timeout,
         error_handler,
         on_failure_callback,
-        allow_unsafe_userstate_in_process)
+        allow_unsafe_userstate_in_process,
+        self.get_resource_hints())
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -2284,7 +2285,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       timeout,
       error_handler,
       on_failure_callback,
-      allow_unsafe_userstate_in_process):
+      allow_unsafe_userstate_in_process,
+      resource_hints):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2301,6 +2303,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._error_handler = error_handler
     self._on_failure_callback = on_failure_callback
     self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
+    self._resource_hints = resource_hints
 
   def expand(self, pcoll):
     if self._allow_unsafe_userstate_in_process:
@@ -2317,17 +2320,23 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       wrapped_fn = _TimeoutDoFn(self._fn, timeout=self._timeout)
     else:
       wrapped_fn = self._fn
-    result = pcoll | ParDo(
+    pardo = ParDo(
         _ExceptionHandlingWrapperDoFn(
             wrapped_fn,
             self._dead_letter_tag,
             self._exc_class,
             self._partial,
             self._on_failure_callback,
-            self._allow_unsafe_userstate_in_process),
+            self._allow_unsafe_userstate_in_process,
+        ),
         *self._args,
-        **self._kwargs).with_outputs(
-            self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+        **self._kwargs,
+    )
+    # This is the fix: propagate hints.
+    pardo.get_resource_hints().update(self._resource_hints)
+
+    result = pcoll | pardo.with_outputs(
+        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
     #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
     result[self._main_tag].element_type = self._fn.infer_output_type(
         pcoll.element_type)

@@ -63,6 +63,11 @@ try:
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 
+try:
+  import dill
+except ImportError:
+  dill = None
+
 _LOGGER = logging.getLogger(__name__)
 
 _DESTINATION_ELEMENT_PAIRS = [
@@ -406,6 +411,13 @@ class TestPartitionFiles(unittest.TestCase):
           label='CheckSinglePartition')
 
 
+def maybe_skip(compat_version):
+  if compat_version and not dill:
+    raise unittest.SkipTest(
+        'Dill dependency not installed which is required for compat_version'
+        ' <= 2.67.0')
+
+
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_trigger_load_jobs_with_empty_files(self):
     destination = "project:dataset.table"
@@ -485,7 +497,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
+  @pytest.mark.uses_dill
   def test_reshuffle_before_load(self, compat_version):
+    maybe_skip(compat_version)
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -994,6 +1008,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   ])
   def test_triggering_frequency(
       self, is_streaming, with_auto_sharding, compat_version):
+    maybe_skip(compat_version)
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()

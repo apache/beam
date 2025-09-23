@@ -99,7 +99,7 @@ class BigQueryReadSplitTest(unittest.TestCase):
 
     # Verify that create_temporary_dataset was called with the custom project
     mock_bq.create_temporary_dataset.assert_called_once_with(
-        'custom-project', 'US')
+        'custom-project', 'US', kms_key=None)
     # Verify that get_query_location was called with the pipeline project
     mock_bq.get_query_location.assert_called_once_with(
         'test-project', 'SELECT * FROM table', False)
@@ -145,7 +145,7 @@ class BigQueryReadSplitTest(unittest.TestCase):
 
     # Verify that create_temporary_dataset was called with the pipeline project
     mock_bq.create_temporary_dataset.assert_called_once_with(
-        'test-project', 'US')
+        'test-project', 'US', kms_key=None)
 
   @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
   def test_finish_bundle_with_string_temp_dataset(self, mock_bq_wrapper):

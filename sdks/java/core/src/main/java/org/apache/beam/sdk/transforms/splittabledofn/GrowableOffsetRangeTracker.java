@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedLong;
 
 /**
  * An {@link OffsetRangeTracker} for tracking a growable offset range. {@code Long.MAX_VALUE} is
@@ -68,6 +69,7 @@ public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
     this.rangeEndEstimator = checkNotNull(rangeEndEstimator);
   }
 
+  // TODO(sjvanrossum): Use UnsignedLong instead of BigDecimal for splitting ranges
   @Override
   public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
     // If current tracking range is no longer growable, split it as a normal range.
@@ -115,30 +117,12 @@ public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
       return super.getProgress();
     }
 
-    // Convert to BigDecimal in computation to prevent overflow, which may result in lost of
-    // precision.
-    BigDecimal estimateRangeEnd = BigDecimal.valueOf(rangeEndEstimator.estimate());
+    final long completedEnd = lastAttemptedOffset == null ? range.getFrom() : lastAttemptedOffset;
+    final long remainingEnd = Math.max(completedEnd, rangeEndEstimator.estimate());
 
-    if (lastAttemptedOffset == null) {
-      return Progress.from(
-          0,
-          estimateRangeEnd
-              .subtract(BigDecimal.valueOf(range.getFrom()), MathContext.DECIMAL128)
-              .max(BigDecimal.ZERO)
-              .doubleValue());
-    }
-
-    BigDecimal workRemaining =
-        estimateRangeEnd
-            .subtract(BigDecimal.valueOf(lastAttemptedOffset), MathContext.DECIMAL128)
-            .max(BigDecimal.ZERO);
-    BigDecimal totalWork =
-        estimateRangeEnd
-            .max(BigDecimal.valueOf(lastAttemptedOffset))
-            .subtract(BigDecimal.valueOf(range.getFrom()), MathContext.DECIMAL128);
     return Progress.from(
-        totalWork.subtract(workRemaining, MathContext.DECIMAL128).doubleValue(),
-        workRemaining.doubleValue());
+        UnsignedLong.fromLongBits(completedEnd - range.getFrom()).doubleValue(),
+        UnsignedLong.fromLongBits(remainingEnd - completedEnd).doubleValue());
   }
 
   @Override

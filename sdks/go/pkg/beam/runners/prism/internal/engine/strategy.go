@@ -302,15 +302,23 @@ func (t *TriggerAfterEach) onFire(state *StateData) {
 	if !t.shouldFire(state) {
 		return
 	}
-	for _, sub := range t.SubTriggers {
+	for i, sub := range t.SubTriggers {
 		if state.getTriggerState(sub).finished {
 			continue
 		}
 		sub.onFire(state)
+		// If the sub-trigger didn't finish, we return, waiting for it to finish on a subsequent call.
 		if !state.getTriggerState(sub).finished {
 			return
 		}
+
+		// If the sub-trigger finished, we check if it's the last one.
+		// If it's not the last one, we return, waiting for the next onFire call to advance to the next sub-trigger.
+		if i < len(t.SubTriggers)-1 {
+			return
+		}
 	}
+	// clear and reset when all sub-triggers have fired.
 	triggerClearAndFinish(t, state)
 }
 
