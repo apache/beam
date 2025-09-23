@@ -539,13 +539,11 @@ public final class StreamingDataflowWorker {
             .setGlobalConfigHandle(this.configFetcher.getGlobalConfigHandle())
             .setChannelzServlet(newHarnessFactoryOutput.channelzServlet())
             .setGetDataStatusProvider(newHarnessFactoryOutput.getDataStatusProvider())
-            .setCurrentActiveCommitBytes(
-                newHarnessFactoryOutput.currentActiveCommitBytesProvider())
+            .setCurrentActiveCommitBytes(newHarnessFactoryOutput.currentActiveCommitBytesProvider())
             .setChannelCache(newHarnessFactoryOutput.channelCache())
             .build());
     this.statusPages.get().start(this.options);
     LOG.info("Started new StreamingWorkerStatusPages instance.");
-
   }
 
   private static StreamingWorkerStatusPages.Builder createStatusPageBuilder(
