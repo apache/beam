@@ -1052,7 +1052,7 @@ svn rm $OLD_RELEASE_VERSION   # Delete all artifacts from old releases.
 svn commit -m "Adding artifacts for the ${RELEASE_VERSION} release and removing old artifacts"
 ```
 
-Make sure the old release's artifacts have been copied from to [archive.apache.org](https://archive.apache.org/dist/beam/).
+Make sure the old release's artifacts have been copied to [archive.apache.org](https://archive.apache.org/dist/beam/).
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
 
 #### Recordkeeping with ASF
