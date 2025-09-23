@@ -260,7 +260,7 @@ func NewElementManager(config Config) *ElementManager {
 // AddStage adds a stage to this element manager, connecting it's PCollections and
 // nodes to the watermark propagation graph.
 func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, sides []LinkID) {
-	slog.Debug("AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
+	slog.Debug("em.AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
 	ss := makeStageState(ID, inputIDs, outputIDs, sides)
 
 	em.stages[ss.ID] = ss
@@ -504,6 +504,40 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 	return runStageCh
 }
 
+// DumpStages puts all the stage information into a string and returns it.
+func (em *ElementManager) DumpStages() string {
+	var stageState []string
+	ids := maps.Keys(em.stages)
+	if em.testStreamHandler != nil {
+		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
+			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
+	} else {
+		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.ProcessingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		ss := em.stages[id]
+		inW := ss.InputWatermark()
+		outW := ss.OutputWatermark()
+		upPCol, upW := ss.UpstreamWatermark()
+		upS := em.pcolParents[upPCol]
+		if upS == "" {
+			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
+		}
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject))
+
+		var outputConsumers, sideConsumers []string
+		for _, col := range ss.outputIDs {
+			outputConsumers = append(outputConsumers, em.consumers[col]...)
+			for _, l := range em.sideConsumers[col] {
+				sideConsumers = append(sideConsumers, l.Global)
+			}
+		}
+		stageState = append(stageState, fmt.Sprintf("\tsideInputs: %v outputCols: %v outputConsumers: %v sideConsumers: %v\n", ss.sides, ss.outputIDs, outputConsumers, sideConsumers))
+	}
+	return strings.Join(stageState, "")
+}
+
 // checkForQuiescence sees if this element manager is no longer able to do any pending work or make progress.
 //
 // Quiescense can happen if there are no inprogress bundles, and there are no further watermark refreshes, which
@@ -524,9 +558,9 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 		// If there are changed stages that need a watermarks refresh,
 		// we aren't yet stuck.
 		v := em.livePending.Load()
-		slog.Debug("Bundles: nothing in progress after advance",
-			slog.Any("advanced", advanced),
-			slog.Int("changeCount", len(em.changedStages)),
+		slog.Debug("Bundles: nothing in progress after advance, but some stages need a watermark refresh",
+			slog.Any("mayProgress", advanced),
+			slog.Any("needRefresh", em.changedStages),
 			slog.Int64("pendingElementCount", v),
 		)
 		return nil
@@ -569,36 +603,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 	// Jobs must never get stuck so this indicates a bug in prism to be investigated.
 
 	slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
-	var stageState []string
-	ids := maps.Keys(em.stages)
-	if em.testStreamHandler != nil {
-		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
-			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
-	} else {
-		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.ProcessingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
-		ss := em.stages[id]
-		inW := ss.InputWatermark()
-		outW := ss.OutputWatermark()
-		upPCol, upW := ss.UpstreamWatermark()
-		upS := em.pcolParents[upPCol]
-		if upS == "" {
-			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
-		}
-		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject))
-
-		var outputConsumers, sideConsumers []string
-		for _, col := range ss.outputIDs {
-			outputConsumers = append(outputConsumers, em.consumers[col]...)
-			for _, l := range em.sideConsumers[col] {
-				sideConsumers = append(sideConsumers, l.Global)
-			}
-		}
-		stageState = append(stageState, fmt.Sprintf("\tsideInputs: %v outputCols: %v outputConsumers: %v sideConsumers: %v\n", ss.sides, ss.outputIDs, outputConsumers, sideConsumers))
-	}
-	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, ""))
+	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, em.DumpStages())
 }
 
 // InputForBundle returns pre-allocated data for the given bundle, encoding the elements using
@@ -864,7 +869,9 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 		consumers := em.consumers[output]
 		sideConsumers := em.sideConsumers[output]
-		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb, slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers)
+		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb,
+			slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers,
+			"pendingDelta", len(newPending)*len(consumers))
 		for _, sID := range consumers {
 			consumer := em.stages[sID]
 			count := consumer.AddPending(em, newPending)
@@ -2274,8 +2281,7 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 		slog.Debug("bundleReady: unchanged upstream watermark",
 			slog.String("stage", ss.ID),
 			slog.Group("watermark",
-				slog.Any("upstream", upstreamW),
-				slog.Any("input", inputW)))
+				slog.Any("upstream == input == previousInput", inputW)))
 		return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
 	}
 	ready := true

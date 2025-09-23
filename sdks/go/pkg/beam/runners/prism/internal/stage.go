@@ -174,7 +174,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 		s.prepareSides(b, rb.Watermark)
 
-		slog.Debug("Execute: processing", "bundle", rb)
+		slog.Debug("Execute: sdk worker transform(s)", "bundle", rb)
 		defer b.Cleanup(wk)
 		dataReady = b.ProcessOn(ctx, wk)
 	default:
@@ -354,7 +354,7 @@ progress:
 			slog.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
 			panic(err)
 		}
-		slog.Info("finalized bundle", "bundle", rb)
+		slog.Debug("finalized bundle", "bundle", rb)
 	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil
