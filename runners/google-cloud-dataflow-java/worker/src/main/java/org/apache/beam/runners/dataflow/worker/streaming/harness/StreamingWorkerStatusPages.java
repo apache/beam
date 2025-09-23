@@ -80,7 +80,7 @@ public final class StreamingWorkerStatusPages {
   private final @Nullable GrpcWindmillStreamFactory windmillStreamFactory;
   private final DebugCapture.@Nullable Manager debugCapture;
   private final @Nullable ChannelzServlet channelzServlet;
-  private @Nullable ChannelCache channelCache;
+  private final @Nullable ChannelCache channelCache;
 
   private final AtomicReference<StreamingGlobalConfig> globalConfig = new AtomicReference<>();
 
