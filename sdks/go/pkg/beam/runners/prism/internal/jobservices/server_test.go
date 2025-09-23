@@ -82,11 +82,14 @@ func TestServer_JobLifecycle(t *testing.T) {
 
 // Validates that invoking Cancel cancels a running job.
 func TestServer_RunThenCancel(t *testing.T) {
-	var called sync.WaitGroup
-	called.Add(1)
+	var canceled sync.WaitGroup
+	var running sync.WaitGroup
+	canceled.Add(1)
+	running.Add(1)
 	undertest := NewServer(0, func(j *Job) {
-		defer called.Done()
-		j.state.Store(jobpb.JobState_RUNNING)
+		defer canceled.Done()
+		j.Running()
+		running.Done()
 		for {
 			select {
 			case <-j.RootCtx.Done():
@@ -132,29 +135,8 @@ func TestServer_RunThenCancel(t *testing.T) {
 		t.Fatalf("server.Run() = returned empty preparation ID, want non-empty")
 	}
 
-	// Wait for the job to be in the RUNNING state before we cancel it.
-	const (
-		maxRetries = 10
-		retrySleep = 100 * time.Millisecond
-	)
-	var jobIsRunning bool
-	for range maxRetries {
-		stateResp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: runResp.GetJobId()})
-		if err != nil {
-			t.Fatalf("server.GetState() during poll = %v, want nil", err)
-		}
-
-		if stateResp.State == jobpb.JobState_RUNNING {
-			jobIsRunning = true
-			break // Success! Job is running.
-		}
-		// Wait a bit before polling again
-		time.Sleep(retrySleep)
-	}
-
-	if !jobIsRunning {
-		t.Fatalf("Job did not enter RUNNING state after %v", maxRetries*retrySleep)
-	}
+	// wait until the job is running (i.e. j.Running() is called)
+	running.Wait()
 
 	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
 		JobId: runResp.GetJobId(),
@@ -167,7 +149,8 @@ func TestServer_RunThenCancel(t *testing.T) {
 		t.Fatalf("server.Canceling() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
 	}
 
-	called.Wait()
+	// wait until the job is canceled (i.e. j.Canceled() is called)
+	canceled.Wait()
 
 	stateResp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: runResp.GetJobId()})
 	if err != nil {
