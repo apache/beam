@@ -20,23 +20,21 @@ package org.apache.beam.sdk.extensions.kafka.factories;
 import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
-import java.io.File;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.StorageOptions;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
@@ -141,27 +139,33 @@ public abstract class FileAwareFactoryFn<T>
    */
   protected static synchronized String downloadGcsFile(String gcsFilePath, String outputFileString)
       throws IOException {
-    // create the file only if it doesn't exist
-    if (!new File(outputFileString).exists()) {
-      Path outputFilePath = Paths.get(outputFileString);
-      Path parentDir = outputFilePath.getParent();
-      if (parentDir != null) {
-        Files.createDirectories(parentDir);
-      }
-
-      LOG.info("Staging GCS file [{}] to [{}]", gcsFilePath, outputFileString);
-      Set<StandardOpenOption> options = new HashSet<>(2);
-      options.add(StandardOpenOption.CREATE);
-      options.add(StandardOpenOption.WRITE);
-
-      // Copy the GCS file into a local file and will throw an I/O exception in case file not found.
-      try (ReadableByteChannel readerChannel =
-          FileSystems.open(FileSystems.matchSingleFileSpec(gcsFilePath).resourceId())) {
-        try (FileChannel writeChannel = FileChannel.open(outputFilePath, options)) {
-          writeChannel.transferFrom(readerChannel, 0, Long.MAX_VALUE);
-        }
-      }
+    Path outputFilePath = Paths.get(outputFileString);
+    // 1. Check if the file already exists to avoid doing duplicate work
+    if (Files.exists(outputFilePath)) {
+      System.out.println("File " + outputFileString + " already exists, skipping download.");
+      return outputFileString;
     }
+    if (outputFilePath.getParent() != null) {
+      Files.createDirectories(outputFilePath.getParent());
+    }
+
+    try {
+      BlobId blobId = BlobId.fromGsUtilUri(gcsFilePath);
+      Storage storage = StorageOptions.getDefaultInstance().getService();
+      Blob blob = storage.get(blobId);
+      if (blob == null) {
+        throw new IOException("File not found at GCS path: " + gcsFilePath);
+      }
+
+      // 2. Download the blob's content to the specified local file
+      blob.downloadTo(outputFilePath);
+
+      System.out.println("Downloaded " + gcsFilePath + " to " + outputFileString);
+    } catch (StorageException e) {
+      // Catch the StorageException and re-throw as a RuntimeException
+      throw new RuntimeException("Failed to download file from GCS: " + e.getMessage(), e);
+    }
+
     return outputFileString;
   }
 

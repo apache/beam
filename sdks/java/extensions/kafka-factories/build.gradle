@@ -32,7 +32,7 @@ dependencies {
     implementation 'com.google.cloud:google-cloud-secretmanager:2.72.0'
     implementation library.java.slf4j_api
     implementation library.java.vendored_guava_32_1_2_jre
-
+    implementation 'com.google.cloud:google-cloud-storage:2.57.0'
     // ------------------------- TEST DEPENDENCIES -------------------------
     testImplementation 'org.apache.kafka:kafka-clients:3.9.0'
     testImplementation library.java.junit
