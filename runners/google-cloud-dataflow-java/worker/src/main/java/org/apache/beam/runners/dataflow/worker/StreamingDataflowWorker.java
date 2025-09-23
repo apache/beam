@@ -228,7 +228,7 @@ public final class StreamingDataflowWorker {
     this.workUnitExecutor = workUnitExecutor;
     this.harnessSwitchExecutor =
         Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder().setNameFormat("HarnessSwtichExecutor").build());
+            new ThreadFactoryBuilder().setNameFormat("HarnessSwitchExecutor").build());
     this.clock = clock;
     this.memoryMonitor = BackgroundMemoryMonitor.create(memoryMonitor);
     this.numCommitThreads =
@@ -527,26 +527,25 @@ public final class StreamingDataflowWorker {
       streamingWorkerHarness.get().start();
       LOG.debug("Started SingleSourceWorkerHarness");
     }
-    if (newHarnessFactoryOutput != null) {
-      this.statusPages.set(
-          createStatusPageBuilder(
-                  this.options, this.windmillStreamFactory, this.memoryMonitor.memoryMonitor())
-              .setClock(this.clock)
-              .setClientId(this.clientId)
-              .setIsRunning(this.running)
-              .setStateCache(this.stateCache)
-              .setComputationStateCache(this.computationStateCache)
-              .setWorkUnitExecutor(this.workUnitExecutor)
-              .setGlobalConfigHandle(this.configFetcher.getGlobalConfigHandle())
-              .setChannelzServlet(newHarnessFactoryOutput.channelzServlet())
-              .setGetDataStatusProvider(newHarnessFactoryOutput.getDataStatusProvider())
-              .setCurrentActiveCommitBytes(
-                  newHarnessFactoryOutput.currentActiveCommitBytesProvider())
-              .setChannelCache(newHarnessFactoryOutput.channelCache())
-              .build());
-      this.statusPages.get().start(this.options);
-      LOG.info("Started new StreamingWorkerStatusPages instance.");
-    }
+    this.statusPages.set(
+        createStatusPageBuilder(
+                this.options, this.windmillStreamFactory, this.memoryMonitor.memoryMonitor())
+            .setClock(this.clock)
+            .setClientId(this.clientId)
+            .setIsRunning(this.running)
+            .setStateCache(this.stateCache)
+            .setComputationStateCache(this.computationStateCache)
+            .setWorkUnitExecutor(this.workUnitExecutor)
+            .setGlobalConfigHandle(this.configFetcher.getGlobalConfigHandle())
+            .setChannelzServlet(newHarnessFactoryOutput.channelzServlet())
+            .setGetDataStatusProvider(newHarnessFactoryOutput.getDataStatusProvider())
+            .setCurrentActiveCommitBytes(
+                newHarnessFactoryOutput.currentActiveCommitBytesProvider())
+            .setChannelCache(newHarnessFactoryOutput.channelCache())
+            .build());
+    this.statusPages.get().start(this.options);
+    LOG.info("Started new StreamingWorkerStatusPages instance.");
+
   }
 
   private static StreamingWorkerStatusPages.Builder createStatusPageBuilder(
