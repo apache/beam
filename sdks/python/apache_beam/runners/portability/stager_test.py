@@ -98,8 +98,14 @@ class StagerTest(unittest.TestCase):
   def populate_requirements_cache(
       self, requirements_file, cache_dir, populate_cache_with_sdists=False):
     _ = requirements_file
-    self.create_temp_file(os.path.join(cache_dir, 'abc.txt'), 'nothing')
-    self.create_temp_file(os.path.join(cache_dir, 'def.txt'), 'nothing')
+    _ = populate_cache_with_sdists
+    pkgs = [
+      os.path.join(cache_dir, 'abc.txt'),
+      os.path.join(cache_dir, 'def.txt')
+    ]
+    for pkg in pkgs:
+      self.create_temp_file(pkg, 'nothing')
+    return pkgs
 
   @mock.patch('apache_beam.runners.portability.stager.open')
   @mock.patch('apache_beam.runners.portability.stager.get_new_http')
@@ -807,10 +813,15 @@ class StagerTest(unittest.TestCase):
 
   def _populate_requitements_cache_fake(
       self, requirements_file, temp_dir, populate_cache_with_sdists):
+    paths = []
     if not populate_cache_with_sdists:
-      self.create_temp_file(os.path.join(temp_dir, 'nothing.whl'), 'Fake whl')
-    self.create_temp_file(
-        os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
+      path = os.path.join(temp_dir, 'nothing.whl')
+      self.create_temp_file(path, 'nothing')
+      paths.append(path)
+    path = os.path.join(temp_dir, 'nothing.tar.gz')
+    self.create_temp_file(path, 'Fake tarball content')
+    paths.append(path)
+    return paths
 
   # requirements cache will popultated with bdist/whl if present
   # else source would be downloaded.

@@ -165,7 +165,7 @@ class Stager(object):
       build_setup_args: Optional[List[str]] = None,
       pypi_requirements: Optional[List[str]] = None,
       populate_requirements_cache: Optional[Callable[[str, str, bool],
-                                                     None]] = None,
+                                                     List[str]]] = None,
       skip_prestaged_dependencies: Optional[bool] = False,
       log_submission_env_dependencies: Optional[bool] = True,
   ):
@@ -220,6 +220,7 @@ class Stager(object):
           not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path)
 
+      downloaded_packages = []
       # Stage a requirements file if present.
       if setup_options.requirements_file is not None:
         if not os.path.isfile(setup_options.requirements_file):
@@ -245,12 +246,14 @@ class Stager(object):
               'such as --requirements_file. ')
 
         if setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE:
-          (
+          result = (
               populate_requirements_cache if populate_requirements_cache else
               Stager._populate_requirements_cache)(
                   setup_options.requirements_file,
                   requirements_cache_path,
                   setup_options.requirements_cache_only_sources)
+          if result is not None:
+            downloaded_packages.extend(result)
 
       if pypi_requirements:
         tf = tempfile.NamedTemporaryFile(mode='w', delete=False)
@@ -260,18 +263,18 @@ class Stager(object):
         # Populate cache with packages from PyPI requirements and stage
         # the files in the cache.
         if setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE:
-          (
+          result = (
               populate_requirements_cache if populate_requirements_cache else
               Stager._populate_requirements_cache)(
                   tf.name,
                   requirements_cache_path,
                   setup_options.requirements_cache_only_sources)
+          if result is not None:
+            downloaded_packages.extend(result)
 
-      if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE) and (
-          setup_options.requirements_file is not None or pypi_requirements):
-        for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
-          resources.append(
-              Stager._create_file_stage_to_artifact(pkg, os.path.basename(pkg)))
+      for pkg in downloaded_packages:
+        resources.append(
+            Stager._create_file_stage_to_artifact(pkg, os.path.basename(pkg)))
 
       # Handle a setup file if present.
       # We will build the setup package locally and then copy it to the staging
@@ -735,7 +738,7 @@ class Stager(object):
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
   def _populate_requirements_cache(
-      requirements_file, cache_dir, populate_cache_with_sdists=False):
+      requirements_file, cache_dir, populate_cache_with_sdists=False) -> List[str]:
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
     # It will get the packages downloaded in the order they are presented in
@@ -780,7 +783,12 @@ class Stager(object):
             platform_tag
         ])
       _LOGGER.info('Executing command: %s', cmd_args)
-      processes.check_output(cmd_args, stderr=processes.STDOUT)
+      output = processes.check_output(cmd_args, stderr=subprocess.STDOUT)
+      downloaded_packages = []
+      for line in output.decode('utf-8').split('\n'):
+        if line.startswith('Saved '):
+          downloaded_packages.append(line.split(' ')[1])
+      return downloaded_packages
 
   @staticmethod
   def _build_setup_package(
