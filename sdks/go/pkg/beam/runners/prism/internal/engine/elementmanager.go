@@ -1583,6 +1583,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win t
 		nil,
 		panesInBundle,
 	)
+	slog.Debug("started a triggered bundle", "stageID", ss.ID, "bundleID", rb.BundleID, "size", len(toProcess))
 
 	ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
@@ -1695,6 +1696,7 @@ func (ss *stageState) startEventTimeBundle(watermark mtime.Time, genBundID func(
 	}
 
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, panesInBundle)
+	slog.Debug("started an event time bundle", "stageID", ss.ID, "bundleID", bundID, "bundleSize", len(toProcess), "upstreamWatermark", watermark)
 
 	return bundID, true, stillSchedulable, accumulatingPendingAdjustment
 }
@@ -1994,6 +1996,8 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 		return "", false, stillSchedulable
 	}
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, nil)
+
+	slog.Debug("started a processing time bundle", "stageID", ss.ID, "bundleID", bundID, "size", len(toProcess), "emNow", emNow)
 	return bundID, true, stillSchedulable
 }
 
