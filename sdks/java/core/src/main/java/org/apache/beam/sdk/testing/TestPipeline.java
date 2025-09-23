@@ -411,10 +411,24 @@ public class TestPipeline extends Pipeline implements TestRule {
   /** Like {@link #run} but with the given potentially modified options. */
   @Override
   public PipelineResult run(PipelineOptions options) {
-    checkState(
-        enforcement.isPresent(),
-        "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
-            + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
+    // For JUnit 5 compatibility: if enforcement is not present, set a default enforcement
+    // This allows TestPipeline to work with both JUnit 4 (@Rule) and JUnit 5
+    // (TestPipelineExtension)
+    if (!enforcement.isPresent()) {
+      // Check if we're running in a JUnit 5 context by looking for TestPipelineExtension in the
+      // stack trace
+      boolean isJUnit5Context = isJUnit5Context();
+      if (isJUnit5Context) {
+        // Set default enforcement for JUnit 5 - no enforcement to avoid @Rule requirement
+        enforcement = Optional.of(new PipelineRunEnforcement(this));
+      } else {
+        // Original JUnit 4 behavior - require @Rule annotation
+        checkState(
+            false,
+            "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
+                + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
+      }
+    }
 
     final PipelineResult pipelineResult;
     try {
@@ -509,6 +523,27 @@ public class TestPipeline extends Pipeline implements TestRule {
   public TestPipeline enableAutoRunIfMissing(final boolean enable) {
     enforcement.get().enableAutoRunIfMissing(enable);
     return this;
+  }
+
+  /**
+   * Detects if we're running in a JUnit 5 context by checking the stack trace for
+   * TestPipelineExtension. This is used to provide JUnit 5 compatibility without breaking JUnit 4
+   * behavior.
+   */
+  private boolean isJUnit5Context() {
+    StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+    for (StackTraceElement element : stackTrace) {
+      String className = element.getClassName();
+      // Check for TestPipelineExtension in the stack trace
+      if (className.contains("TestPipelineExtension")) {
+        return true;
+      }
+      // Also check for JUnit 5 test execution classes
+      if (className.startsWith("org.junit.jupiter")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override

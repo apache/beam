@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Optional;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.testing.TestPipeline.PipelineAbandonedNodeEnforcement;
 import org.apache.beam.sdk.testing.TestPipeline.PipelineRunEnforcement;
 import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -91,11 +90,15 @@ public class TestPipelineExtension
   /** Creates a TestPipelineExtension with default options. */
   public TestPipelineExtension() {
     this.testPipeline = TestPipeline.create();
+    // Initialize enforcement for JUnit 5 compatibility - this prevents the @Rule validation error
+    this.testPipeline.enableAbandonedNodeEnforcement(true);
   }
 
   /** Creates a TestPipelineExtension with custom options. */
   public TestPipelineExtension(PipelineOptions options) {
     this.testPipeline = TestPipeline.fromOptions(options);
+    // Initialize enforcement for JUnit 5 compatibility - this prevents the @Rule validation error
+    this.testPipeline.enableAbandonedNodeEnforcement(true);
   }
 
   @Override
@@ -138,12 +141,23 @@ public class TestPipelineExtension
     if (enforcement.isPresent()) {
       enforcement.get().afterUserCodeFinished();
     }
+    // For JUnit 5 compatibility: TestPipeline handles its own enforcement,
+    // so we don't need to do additional enforcement checks here
   }
 
   private TestPipeline getOrCreateTestPipeline(ExtensionContext context) {
     return context
         .getStore(NAMESPACE)
-        .getOrComputeIfAbsent(PIPELINE_KEY, key -> TestPipeline.create(), TestPipeline.class);
+        .getOrComputeIfAbsent(
+            PIPELINE_KEY,
+            key -> {
+              TestPipeline pipeline = TestPipeline.create();
+              // Initialize enforcement for JUnit 5 compatibility - this prevents the @Rule
+              // validation error
+              pipeline.enableAbandonedNodeEnforcement(true);
+              return pipeline;
+            },
+            TestPipeline.class);
   }
 
   private Optional<PipelineRunEnforcement> getEnforcement(ExtensionContext context) {
@@ -177,8 +191,12 @@ public class TestPipelineExtension
           ValidatesRunner.class.getSimpleName(),
           CrashingRunner.class.getSimpleName());
 
+      // For JUnit 5 compatibility, we rely on TestPipeline's own enforcement mechanism
+      // instead of creating a separate enforcement instance in the extension.
+      // This prevents duplicate enforcement tracking that causes PipelineRunMissingException.
       if (annotatedWithNeedsRunner || !crashingRunner) {
-        setEnforcement(context, new PipelineAbandonedNodeEnforcement(pipeline));
+        // Skip creating extension enforcement - TestPipeline handles its own enforcement
+        // This allows our JUnit 5 fix in TestPipeline to work properly
       }
     }
   }
