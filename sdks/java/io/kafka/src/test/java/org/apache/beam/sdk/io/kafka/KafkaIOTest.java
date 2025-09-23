@@ -395,7 +395,7 @@ public class KafkaIOTest {
         false, /*allowDuplicates*/
         0, /*numKeys*/
         null, /*offsetDeduplication*/
-        null /*topics*/,
+        null, /*topics*/
         null /*redistributeByRecordKey*/);
   }
 
@@ -409,7 +409,7 @@ public class KafkaIOTest {
         false, /*allowDuplicates*/
         100, /*numKeys*/
         true, /*offsetDeduplication*/
-        null /*topics*/,
+        null, /*topics*/
         null /*redistributeByRecordKey*/);
   }
 
@@ -425,7 +425,7 @@ public class KafkaIOTest {
         false, /*allowDuplicates*/
         100, /*numKeys*/
         true, /*offsetDeduplication*/
-        null /*topics*/,
+        null, /*topics*/
         byRecordKey /*redistributeByRecordKey*/);
   }
 
@@ -441,7 +441,7 @@ public class KafkaIOTest {
         false, /*allowDuplicates*/
         0, /*numKeys*/
         null, /*offsetDeduplication*/
-        topics /*topics*/,
+        topics, /*topics*/
         null /*redistributeByRecordKey*/);
   }
 
@@ -746,7 +746,7 @@ public class KafkaIOTest {
                         true, /*allowDuplicates*/
                         0, /*numKeys*/
                         null, /*offsetDeduplication*/
-                        null /*topics*/,
+                        null, /*topics*/
                         null /*redistributeByRecordKey*/)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
@@ -775,7 +775,7 @@ public class KafkaIOTest {
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
                         null, /*offsetDeduplication*/
-                        null /*topics*/,
+                        null, /*topics*/
                         null /*redistributeByRecordKey*/)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
@@ -805,7 +805,7 @@ public class KafkaIOTest {
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
                         null, /*offsetDeduplication*/
-                        null /*topics*/,
+                        null, /*topics*/
                         null /*redistributeByRecordKey*/)
                     .withRedistributeNumKeys(100)
                     .commitOffsetsInFinalize()
@@ -2226,7 +2226,7 @@ public class KafkaIOTest {
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
                         null, /*offsetDeduplication*/
-                        null /*topics*/,
+                        null, /*topics*/
                         null /*redistributeByRecordKey*/)
                     .withStartReadTime(new Instant(startTime))
                     .withoutMetadata())
@@ -2303,7 +2303,7 @@ public class KafkaIOTest {
                     false, /*allowDuplicates*/
                     0, /*numKeys*/
                     null, /*offsetDeduplication*/
-                    null /*topics*/,
+                    null, /*topics*/
                     null /*redistributeByRecordKey*/)
                 .withStartReadTime(new Instant(startTime))
                 .withoutMetadata())
