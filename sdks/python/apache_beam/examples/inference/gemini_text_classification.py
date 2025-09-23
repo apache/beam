@@ -29,7 +29,7 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
-from apache_beam.ml.inference.gemini_inference import generate_from_string
+from apache_beam.ml.inference.gemini_inference import generate_text_from_string
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
@@ -87,7 +87,7 @@ def run(
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   model_handler = GeminiModelHandler(
       model_name='gemini-2.0-flash-001',
-      request_fn=generate_from_string,
+      request_fn=generate_text_from_string,
       api_key=known_args.api_key,
       project=known_args.project,
       location=known_args.location)
