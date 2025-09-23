@@ -493,10 +493,10 @@ public class KafkaIOTest {
         reader = reader.withRedistributeNumKeys(numKeys);
       }
       if (offsetDeduplication != null && offsetDeduplication) {
-        reader.withOffsetDeduplication(offsetDeduplication);
+        reader = reader.withOffsetDeduplication(offsetDeduplication);
       }
       if (redistributeByRecordKey != null && redistributeByRecordKey) {
-        reader.withRedistributeByRecordKey(redistributeByRecordKey);
+        reader = reader.withRedistributeByRecordKey(redistributeByRecordKey);
       }
     }
     return reader;
