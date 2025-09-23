@@ -891,6 +891,11 @@ public final class StreamingDataflowWorker {
         createGrpcwindmillStreamFactoryBuilder(options, 1)
             .setProcessHeartbeatResponses(
                 new WorkHeartbeatResponseProcessor(computationStateCache::get));
+    GrpcDispatcherClient grpcDispatcherClient = GrpcDispatcherClient.create(options, stubFactory);
+    grpcDispatcherClient.consumeWindmillDispatcherEndpoints(
+        ImmutableSet.<HostAndPort>builder()
+            .add(HostAndPort.fromHost("StreamingDataflowWorkerTest"))
+            .build());
 
     return new StreamingDataflowWorker(
         windmillServer,
@@ -916,7 +921,7 @@ public final class StreamingDataflowWorker {
             : windmillStreamFactory.build(),
         executorSupplier.apply("RefreshWork"),
         stageInfo,
-        GrpcDispatcherClient.create(options, stubFactory));
+        grpcDispatcherClient);
   }
 
   private static GrpcWindmillStreamFactory.Builder createGrpcwindmillStreamFactoryBuilder(
