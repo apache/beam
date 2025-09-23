@@ -1240,8 +1240,8 @@ class AppliedPTransform(object):
     # once environment is a first-class citizen in Beam graph and we have
     # access to actual environment, not just an id.
     self.resource_hints = dict(
-        transform.get_resource_hints()) if transform else {
-        }  # type: Dict[str, bytes]
+        transform.get_resource_hints()) if transform and hasattr(
+            transform, 'get_resource_hints') else {}  # type: Dict[str, bytes]
 
     if transform:
       annotations = {
