@@ -1243,7 +1243,7 @@ class AppliedPTransform(object):
         transform.get_resource_hints()) if transform and hasattr(
             transform, 'get_resource_hints') else {}  # type: Dict[str, bytes]
 
-    if transform:
+    if transform and hasattr(transform, 'annotations'):
       annotations = {
           **(annotations or {}), **encode_annotations(transform.annotations())
       }
