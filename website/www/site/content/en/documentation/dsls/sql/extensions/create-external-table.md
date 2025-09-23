@@ -88,7 +88,7 @@ tableElement: columnName fieldType [ NOT NULL ]
 ```
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
-LOCATION '[project_id].[DATASET].[TABLE]'
+LOCATION '[project_id]:[DATASET].[TABLE]'
 TBLPROPERTIES '{"method": "DIRECT_READ"}'
 ```
 
