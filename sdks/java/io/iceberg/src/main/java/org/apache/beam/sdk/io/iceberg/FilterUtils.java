@@ -137,7 +137,7 @@ public class FilterUtils {
    * <p>Note: This utility currently supports only top-level fields within the filter expression.
    * Nested field references are not supported.
    */
-  static Expression convert(@Nullable String filter, Schema schema) {
+  public static Expression convert(@Nullable String filter, Schema schema) {
     if (filter == null) {
       return Expressions.alwaysTrue();
     }

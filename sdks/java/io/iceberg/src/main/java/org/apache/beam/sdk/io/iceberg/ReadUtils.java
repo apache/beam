@@ -72,7 +72,11 @@ public class ReadUtils {
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
 
-  static ParquetReader<Record> createReader(FileScanTask task, Table table, Schema schema) {
+  public static ParquetReader<Record> createReader(FileScanTask task, Table table) {
+    return createReader(task, table, table.schema());
+  }
+
+  public static ParquetReader<Record> createReader(FileScanTask task, Table table, Schema schema) {
     String filePath = task.file().path().toString();
     InputFile inputFile;
     try (FileIO io = table.io()) {
