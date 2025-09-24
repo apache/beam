@@ -198,11 +198,11 @@ public abstract class BigQueryWriteConfiguration {
   public abstract @Nullable List<String> getClusteringFields();
 
   @SchemaFieldDescription(
-      "Configuration for creating BigLake tables. The following options are available: "
-          + "connectionId (REQUIRED): the name of your cloud resource connection, "
-          + "storageUri (REQUIRED): the path to your GCS folder where data will be written to, "
-          + "fileFormat (OPTIONAL): defaults to 'parquet', "
-          + "tableFormat (OPTIONAL): defaults to 'iceberg'.")
+      "Configuration for creating BigLake tables. The following options are available:"
+          + "\n - connectionId (REQUIRED): the name of your cloud resource connection,"
+          + "\n - storageUri (REQUIRED): the path to your GCS folder where data will be written to,"
+          + "\n - fileFormat (OPTIONAL): defaults to 'parquet',"
+          + "\n - tableFormat (OPTIONAL): defaults to 'iceberg'.")
   public abstract java.util.@Nullable Map<String, String> getBigLakeConfiguration();
 
   /** Builder for {@link BigQueryWriteConfiguration}. */

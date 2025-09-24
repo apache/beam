@@ -511,6 +511,39 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table = 'streaming_with_at_least_once'
     self.run_streaming(table_name=table, use_at_least_once=True)
 
+  def test_write_with_big_lake_configuration(self):
+    """Test BigQuery Storage Write API with BigLake configuration."""
+    table = 'write_with_big_lake_config'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    # BigLake configuration with required parameters
+    big_lake_config = {
+        'connectionId': 'projects/{}/locations/us/connections/test-connection'.
+        format(self.project),
+        'storageUri': 'gs://test-bucket-{}/biglake-data'.format(self.project),
+        'fileFormat': 'parquet',
+        'tableFormat': 'iceberg'
+    }
+
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(self.ELEMENTS))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | "Create test data" >> beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              create_disposition='CREATE_IF_NEEDED',
+              write_disposition='WRITE_TRUNCATE',
+              big_lake_configuration=big_lake_config))
+
+    hamcrest_assert(p, bq_matcher)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
