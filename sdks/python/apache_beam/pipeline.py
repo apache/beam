@@ -1401,8 +1401,11 @@ class AppliedPTransform(object):
       assert not self.main_inputs and not self.side_inputs
       return {}
     else:
-      named_inputs = self.transform._named_inputs(
-          self.main_inputs, self.side_inputs)
+      if hasattr(self.transform, '_named_inputs'):
+        named_inputs = self.transform._named_inputs(
+            self.main_inputs, self.side_inputs)
+      else:
+        named_inputs = {}
       if not self.parts:
         for name, pc_out in self.outputs.items():
           if pc_out.producer is not self and pc_out not in named_inputs.values(
@@ -1416,7 +1419,10 @@ class AppliedPTransform(object):
       assert not self.outputs
       return {}
     else:
-      return self.transform._named_outputs(self.outputs)
+      if hasattr(self.transform, '_named_outputs'):
+        return self.transform._named_outputs(self.outputs)
+      else:
+        return {}
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PTransform
