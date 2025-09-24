@@ -252,12 +252,35 @@ def _lock_reducer(obj):
 
 
 def dump_session(file_path):
-  # It is possible to dump session with cloudpickle. However, since references
-  # are saved it should not be necessary. See https://s.apache.org/beam-picklers
-  pass
+  # Since References are saved (https://s.apache.org/beam-picklers), we only
+  # dump supported Beam Registries (currently only logical type registry)
+  from apache_beam.typehints import schemas
+  from apache_beam.coders import typecoders
+
+  with _pickle_lock, open(file_path, 'wb') as file:
+    coder_reg = typecoders.registry.get_custom_type_coder_tuples()
+    logical_type_reg = schemas.LogicalType._known_logical_types.copy()
+
+    pickler = cloudpickle.CloudPickler(file)
+    # TODO(https://github.com/apache/beam/issues/18500) add file system registry
+    # once implemented
+    pickler.dump({"coder": coder_reg, "logical_type": logical_type_reg})
 
 
 def load_session(file_path):
-  # It is possible to load_session with cloudpickle. However, since references
-  # are saved it should not be necessary. See https://s.apache.org/beam-picklers
-  pass
+  from apache_beam.typehints import schemas
+  from apache_beam.coders import typecoders
+
+  with _pickle_lock, open(file_path, 'rb') as file:
+    registries = cloudpickle.load(file)
+    if type(registries) != dict:
+      raise ValueError(
+          "Faled loading session: expected dict, get {}", type(registries))
+    if "coder" in registries:
+      typecoders.registry.load_custom_type_coder_tuples(registries["coder"])
+    else:
+      _LOGGER.warning('No coder registry found in saved session')
+    if "logical_type" in registries:
+      schemas.LogicalType._known_logical_types.load(registries["logical_type"])
+    else:
+      _LOGGER.warning('No logical type registry found in saved session')
