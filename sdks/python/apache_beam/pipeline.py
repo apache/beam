@@ -354,7 +354,7 @@ class Pipeline(HasDisplayData):
           if replacement_transform is original_transform_node.transform:
             return
           replacement_transform.side_inputs = tuple(
-              original_transform_node.transform.side_inputs)
+              getattr(original_transform_node.transform, 'side_inputs', ()))
 
           replacement_transform_node = AppliedPTransform(
               original_transform_node.parent,
@@ -1046,7 +1046,7 @@ class Pipeline(HasDisplayData):
                 == output.element_type.tuple_types[0]):
               output.requires_deterministic_key_coder = (
                   deterministic_key_coders and transform_node.full_label)
-        for side_input in transform_node.transform.side_inputs:
+        for side_input in getattr(transform_node.transform, 'side_inputs', []):
           if side_input.requires_keyed_input():
             side_input.pvalue.element_type = typehints.coerce_to_kv_type(
                 side_input.pvalue.element_type,
@@ -1527,7 +1527,8 @@ class AppliedPTransform(object):
         environment_id=None,
         annotations=proto.annotations)
 
-    if result.transform and result.transform.side_inputs:
+    if result.transform and hasattr(
+        result.transform, 'side_inputs') and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
         si.pvalue = pcoll
       result.side_inputs = tuple(result.transform.side_inputs)
