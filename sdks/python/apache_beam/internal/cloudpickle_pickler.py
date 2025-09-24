@@ -68,7 +68,7 @@ def _patched_function_getnewargs(self, func):
 
       closure_values = func.__closure__
       if closure_values:
-        closure = tuple(self._make_cell(cv.cell_contents) fpr cv in closure_values)
+        closure = tuple(self._make_cell(cv.cell_contents) for cv in closure_values)
       else:
         closure = tuple()
 
