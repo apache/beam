@@ -30,6 +30,7 @@ import org.apache.beam.sdk.io.kafka.KafkaReadRedistribute.AssignRecordKeyFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -57,6 +58,26 @@ public class KafkaReadRedistributeTest implements Serializable {
           makeKafkaRecord("k1", 4, 5),
           makeKafkaRecord("k2", -33, 6),
           makeKafkaRecord("k3", 0, 7));
+
+  private static final ImmutableList<KafkaRecord<String, Integer>> SAME_OFFSET_INPUTS =
+      ImmutableList.of(
+          makeKafkaRecord("k1", 3, 1),
+          makeKafkaRecord("k5", Integer.MAX_VALUE, 1),
+          makeKafkaRecord("k5", Integer.MIN_VALUE, 1),
+          makeKafkaRecord("k2", 66, 1),
+          makeKafkaRecord("k1", 4, 1),
+          makeKafkaRecord("k2", -33, 1),
+          makeKafkaRecord("k3", 0, 1));
+
+  private static final ImmutableList<KafkaRecord<String, Integer>> SAME_KEY_INPUTS =
+      ImmutableList.of(
+          makeKafkaRecord("k1", 3, 1),
+          makeKafkaRecord("k1", Integer.MAX_VALUE, 2),
+          makeKafkaRecord("k1", Integer.MIN_VALUE, 3),
+          makeKafkaRecord("k1", 66, 4),
+          makeKafkaRecord("k1", 4, 5),
+          makeKafkaRecord("k1", -33, 6),
+          makeKafkaRecord("k1", 0, 7));
 
   static KafkaRecord<String, Integer> makeKafkaRecord(String key, Integer value, Integer offset) {
     return new KafkaRecord<String, Integer>(
@@ -112,7 +133,7 @@ public class KafkaReadRedistributeTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class})
-  public void testAssignOutputShardFn() {
+  public void testAssignOutputShardFnBucketing() {
     List<KafkaRecord<String, Integer>> inputs = Lists.newArrayList();
     for (int i = 0; i < 10; i++) {
       inputs.addAll(INPUTS);
@@ -136,7 +157,7 @@ public class KafkaReadRedistributeTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class})
-  public void testAssignRecordKeyFn() {
+  public void testAssignRecordKeyFnBucketing() {
     List<KafkaRecord<String, Integer>> inputs = Lists.newArrayList();
     for (int i = 0; i < 10; i++) {
       inputs.addAll(INPUTS);
@@ -154,6 +175,56 @@ public class KafkaReadRedistributeTest implements Serializable {
             .apply(MapElements.into(integers()).via(KV::getKey));
 
     PAssert.that(output).containsInAnyOrder(ImmutableList.of(0, 1));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testAssignOutputShardFnDeterministic() {
+    List<KafkaRecord<String, Integer>> inputs = Lists.newArrayList();
+    for (int i = 0; i < 10; i++) {
+      inputs.addAll(SAME_OFFSET_INPUTS);
+    }
+
+    PCollection<KafkaRecord<String, Integer>> input =
+        pipeline.apply(
+            Create.of(inputs)
+                .withCoder(KafkaRecordCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<Integer> output =
+        input
+            .apply(ParDo.of(new AssignOffsetShardFn<String, Integer>(1024)))
+            .apply(GroupByKey.create())
+            .apply(MapElements.into(integers()).via(KV::getKey));
+
+    PCollection<Long> count = output.apply("CountElements", Count.globally());
+    PAssert.that(count).containsInAnyOrder(1L);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testAssignRecordKeyFnDeterministic() {
+    List<KafkaRecord<String, Integer>> inputs = Lists.newArrayList();
+    for (int i = 0; i < 10; i++) {
+      inputs.addAll(SAME_KEY_INPUTS);
+    }
+
+    PCollection<KafkaRecord<String, Integer>> input =
+        pipeline.apply(
+            Create.of(inputs)
+                .withCoder(KafkaRecordCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<Integer> output =
+        input
+            .apply(ParDo.of(new AssignRecordKeyFn<String, Integer>(1024)))
+            .apply(GroupByKey.create())
+            .apply(MapElements.into(integers()).via(KV::getKey));
+
+    PCollection<Long> count = output.apply("CountElements", Count.globally());
+    PAssert.that(count).containsInAnyOrder(1L);
 
     pipeline.run();
   }
