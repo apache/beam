@@ -64,7 +64,7 @@ jobs:
         job_name: ["beam_PerformanceTests_TFRecordIOIT_HDFS"]
         job_phrase: ["Run Java TFRecordIO Performance Test HDFS"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

@@ -63,7 +63,7 @@ jobs:
         job_name: ["IO_Iceberg_Integration_Tests_Dataflow"]
         job_phrase: ["Run IcebergIO Integration Tests on Dataflow"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

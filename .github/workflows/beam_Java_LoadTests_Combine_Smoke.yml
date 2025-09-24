@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_Java_LoadTests_Combine_Smoke"]
         job_phrase: ["Run Java Load Tests Combine Smoke"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
