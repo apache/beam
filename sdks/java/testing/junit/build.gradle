@@ -19,7 +19,6 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-    exportJavadoc: false,
     automaticModuleName: 'org.apache.beam.sdk.testing.junit',
     archivesBaseName: 'beam-sdks-java-testing-junit'
 )
@@ -37,7 +36,6 @@ dependencies {
   // JUnit 5 API needed to compile the extension; not packaged for consumers of core.
   provided library.java.jupiter_api
 
-  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation library.java.jupiter_api
   testImplementation library.java.junit
   testRuntimeOnly library.java.jupiter_engine
