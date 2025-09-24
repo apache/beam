@@ -167,48 +167,54 @@ class EnrichmentTest(unittest.TestCase):
       os.environ.get('ALLOYDB_PASSWORD'),
       "ALLOYDB_PASSWORD environment var is not provided")
   def test_enrichment_with_google_cloudsql_pg(self, mock_stdout):
-    db_adapter = DatabaseTypeAdapter.POSTGRESQL
-    with EnrichmentTestHelpers.sql_test_context(True, db_adapter):
-      try:
+    try:
+      db_adapter = DatabaseTypeAdapter.POSTGRESQL
+      with EnrichmentTestHelpers.sql_test_context(True, db_adapter):
         enrichment_with_google_cloudsql_pg()
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_google_cloudsql_pg()
         self.assertEqual(output, expected)
-      except Exception as e:
-        self.fail(f"Test failed with unexpected error: {e}")
+    except Exception as e:
+      self.fail(f"Test failed with unexpected error: {e}")
 
   def test_enrichment_with_external_pg(self, mock_stdout):
-    db_adapter = DatabaseTypeAdapter.POSTGRESQL
-    with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
-      try:
+    try:
+      db_adapter = DatabaseTypeAdapter.POSTGRESQL
+      with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
         enrichment_with_external_pg()
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_external_pg()
         self.assertEqual(output, expected)
-      except Exception as e:
-        self.fail(f"Test failed with unexpected error: {e}")
+    except TestContainerStartupError as e:
+      raise unittest.SkipTest(str(e))
+    except Exception as e:
+      self.fail(f"Test failed with unexpected error: {e}")
 
   def test_enrichment_with_external_mysql(self, mock_stdout):
-    db_adapter = DatabaseTypeAdapter.MYSQL
-    with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
-      try:
-        enrichment_with_external_mysql()
-        output = mock_stdout.getvalue().splitlines()
-        expected = validate_enrichment_with_external_mysql()
-        self.assertEqual(output, expected)
-      except Exception as e:
-        self.fail(f"Test failed with unexpected error: {e}")
+    try:
+      db_adapter = DatabaseTypeAdapter.MYSQL
+      with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
+          enrichment_with_external_mysql()
+          output = mock_stdout.getvalue().splitlines()
+          expected = validate_enrichment_with_external_mysql()
+          self.assertEqual(output, expected)
+    except TestContainerStartupError as e:
+      raise unittest.SkipTest(str(e))
+    except Exception as e:
+      self.fail(f"Test failed with unexpected error: {e}")
 
   def test_enrichment_with_external_sqlserver(self, mock_stdout):
-    db_adapter = DatabaseTypeAdapter.SQLSERVER
-    with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
-      try:
+    try:
+      db_adapter = DatabaseTypeAdapter.SQLSERVER
+      with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
         enrichment_with_external_sqlserver()
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_external_sqlserver()
         self.assertEqual(output, expected)
-      except Exception as e:
-        self.fail(f"Test failed with unexpected error: {e}")
+    except TestContainerStartupError as e:
+      raise unittest.SkipTest(str(e))
+    except Exception as e:
+      self.fail(f"Test failed with unexpected error: {e}")
 
   def test_enrichment_with_milvus(self, mock_stdout):
     try:
@@ -243,8 +249,6 @@ class EnrichmentTestHelpers:
       result = EnrichmentTestHelpers.pre_sql_enrichment_test(
           is_cloudsql, db_adapter)
       yield
-    except Exception as e:
-      raise unittest.SkipTest(f"Milvus container setup failed: {str(e)}")
     finally:
       if result:
         EnrichmentTestHelpers.post_sql_enrichment_test(result)
@@ -307,20 +311,25 @@ class EnrichmentTestHelpers:
           password=password,
           db_id=db_id)
     else:
-      db = SQLEnrichmentTestHelper.start_sql_db_container(db_adapter)
-      os.environ['EXTERNAL_SQL_DB_HOST'] = db.host
-      os.environ['EXTERNAL_SQL_DB_PORT'] = str(db.port)
-      os.environ['EXTERNAL_SQL_DB_ID'] = db.id
-      os.environ['EXTERNAL_SQL_DB_USER'] = db.user
-      os.environ['EXTERNAL_SQL_DB_PASSWORD'] = db.password
-      os.environ['EXTERNAL_SQL_DB_TABLE_ID'] = table_id
-      connection_config = ExternalSQLDBConnectionConfig(
-          db_adapter=db_adapter,
-          host=db.host,
-          port=db.port,
-          user=db.user,
-          password=db.password,
-          db_id=db.id)
+      try:
+        db = SQLEnrichmentTestHelper.start_sql_db_container(db_adapter)
+        os.environ['EXTERNAL_SQL_DB_HOST'] = db.host
+        os.environ['EXTERNAL_SQL_DB_PORT'] = str(db.port)
+        os.environ['EXTERNAL_SQL_DB_ID'] = db.id
+        os.environ['EXTERNAL_SQL_DB_USER'] = db.user
+        os.environ['EXTERNAL_SQL_DB_PASSWORD'] = db.password
+        os.environ['EXTERNAL_SQL_DB_TABLE_ID'] = table_id
+        connection_config = ExternalSQLDBConnectionConfig(
+            db_adapter=db_adapter,
+            host=db.host,
+            port=db.port,
+            user=db.user,
+            password=db.password,
+            db_id=db.id)
+      except Exception as e:
+        db_name = db_adapter.value.lower()
+        raise TestContainerStartupError(
+          f"{db_name} container failed to start: {str(e)}")
 
     conenctor = connection_config.get_connector_handler()
     engine = create_engine(
