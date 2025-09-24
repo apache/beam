@@ -4181,6 +4181,11 @@ public class StreamingDataflowWorkerTest {
     assertTrue(
         "Worker should switch back to SingleSourceWorkerHarness",
         worker.getStreamingWorkerHarness() instanceof SingleSourceWorkerHarness);
+    // Process some work with CloudPath again.
+    server.whenGetWorkCalled().thenReturn(makeInput(2, 2000));
+    result = server.waitForAndGetCommits(1);
+    assertEquals(2, result.size());
+    assertTrue(result.containsKey(2L));
 
     worker.stop();
   }
