@@ -32,6 +32,7 @@ dependencies {
   // Needed to resolve TestPipeline's JUnit 4 TestRule type and @Category at compile time,
   // but should not leak to consumers at runtime.
   provided library.java.junit
+  permitUnusedDeclared(library.java.junit)
 
   // JUnit 5 API needed to compile the extension; not packaged for consumers of core.
   provided library.java.jupiter_api
