@@ -36,6 +36,8 @@ ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for processing virtually any size data. This
 artifact includes all Apache Beam Java SDK examples."""
 
+apply from: "$projectDir/common.gradle"
+
 /** Define the list of runners which execute a precommit test.
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
@@ -173,8 +175,6 @@ task preCommit() {
     dependsOn runner + "PreCommit"
   }
 }
-
-apply from: "$projectDir/common.gradle"
 
 // Run this task to validate the Java environment setup for contributors
 task wordCount(type:JavaExec) {
