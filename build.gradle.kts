@@ -352,6 +352,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:jms:build")
   dependsOn(":sdks:java:io:kafka:build")
   dependsOn(":sdks:java:io:kafka:upgrade:build")
+  dependsOn(":sdks:java:io:kafka:file-aware-factories:build")
   dependsOn(":sdks:java:io:kudu:build")
   dependsOn(":sdks:java:io:mongodb:build")
   dependsOn(":sdks:java:io:mqtt:build")
