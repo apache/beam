@@ -194,10 +194,10 @@ class EnrichmentTest(unittest.TestCase):
     try:
       db_adapter = DatabaseTypeAdapter.MYSQL
       with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
-          enrichment_with_external_mysql()
-          output = mock_stdout.getvalue().splitlines()
-          expected = validate_enrichment_with_external_mysql()
-          self.assertEqual(output, expected)
+        enrichment_with_external_mysql()
+        output = mock_stdout.getvalue().splitlines()
+        expected = validate_enrichment_with_external_mysql()
+        self.assertEqual(output, expected)
     except TestContainerStartupError as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
@@ -219,13 +219,13 @@ class EnrichmentTest(unittest.TestCase):
   def test_enrichment_with_milvus(self, mock_stdout):
     try:
       with EnrichmentTestHelpers.milvus_test_context():
-          enrichment_with_milvus()
-          output = mock_stdout.getvalue().splitlines()
-          expected = validate_enrichment_with_milvus()
-          self.maxDiff = None
-          output = parse_chunk_strings(output)
-          expected = parse_chunk_strings(expected)
-          assert_chunks_equivalent(output, expected)
+        enrichment_with_milvus()
+        output = mock_stdout.getvalue().splitlines()
+        expected = validate_enrichment_with_milvus()
+        self.maxDiff = None
+        output = parse_chunk_strings(output)
+        expected = parse_chunk_strings(expected)
+        assert_chunks_equivalent(output, expected)
     except TestContainerStartupError as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
@@ -329,7 +329,7 @@ class EnrichmentTestHelpers:
       except Exception as e:
         db_name = db_adapter.value.lower()
         raise TestContainerStartupError(
-          f"{db_name} container failed to start: {str(e)}")
+            f"{db_name} container failed to start: {str(e)}")
 
     conenctor = connection_config.get_connector_handler()
     engine = create_engine(
@@ -374,7 +374,7 @@ class EnrichmentTestHelpers:
       db = MilvusEnrichmentTestHelper.start_db_container()
     except Exception as e:
       raise TestContainerStartupError(
-        f"Milvus container failed to start: {str(e)}")
+          f"Milvus container failed to start: {str(e)}")
 
     connection_params = MilvusConnectionParameters(
         uri=db.uri,
