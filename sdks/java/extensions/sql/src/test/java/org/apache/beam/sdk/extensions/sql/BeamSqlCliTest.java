@@ -174,7 +174,7 @@ public class BeamSqlCliTest {
             + "  >, \n"
             + "isRobot BOOLEAN"
             + ") \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'teXt' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
@@ -215,7 +215,7 @@ public class BeamSqlCliTest {
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'TExt' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
@@ -236,7 +236,7 @@ public class BeamSqlCliTest {
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'TEXT' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'");
     cli.execute("drop table person");
     cli.explainQuery("select * from person");

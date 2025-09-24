@@ -43,7 +43,6 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifi
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,12 +172,7 @@ public class CatalogManagerSchema implements Schema {
 
   @Override
   public Set<String> getTableNames() {
-    ImmutableSet.Builder<String> names = ImmutableSet.builder();
-    // TODO: this might be a heavy operation
-    for (CatalogSchema catalogSchema : catalogSubSchemas.values()) {
-      names.addAll(catalogSchema.getTableNames());
-    }
-    return names.build();
+    return getCurrentCatalogSchema().getTableNames();
   }
 
   public CatalogSchema getCatalogSchema(TableName tablePath) {

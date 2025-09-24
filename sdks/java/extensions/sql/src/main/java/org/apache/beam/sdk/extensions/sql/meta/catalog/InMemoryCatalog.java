@@ -28,6 +28,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalog implements Catalog {
@@ -116,5 +117,14 @@ public class InMemoryCatalog implements Catalog {
   @Override
   public Map<String, TableProvider> tableProviders() {
     return tableProviders;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(InMemoryCatalog.class)
+        .add("name", name)
+        .add("currentDatabase", currentDatabase)
+        .add("databases", databases)
+        .toString();
   }
 }

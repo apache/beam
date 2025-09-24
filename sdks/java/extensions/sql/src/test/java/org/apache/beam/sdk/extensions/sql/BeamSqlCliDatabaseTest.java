@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
@@ -35,6 +36,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 
 /** UnitTest for {@link BeamSqlCli} using databases. */
 public class BeamSqlCliDatabaseTest {
@@ -87,6 +89,25 @@ public class BeamSqlCliDatabaseTest {
     thrown.expect(CalciteContextException.class);
     thrown.expectMessage("Cannot use database: 'non_existent' not found.");
     cli.execute("USE DATABASE non_existent");
+  }
+
+  @Test
+  public void testUseDatabaseWithDeletedCatalog_notFound() {
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
+    cli.execute("USE CATALOG my_catalog");
+    cli.execute("CREATE DATABASE my_database");
+    cli.execute("USE CATALOG 'default'");
+    assertEquals("default", catalogManager.currentCatalog().name());
+    assertEquals(
+        ImmutableSet.of("default", "my_catalog"),
+        catalogManager.catalogs().stream().map(Catalog::name).collect(Collectors.toSet()));
+    cli.execute("DROP CATALOG my_catalog");
+    assertEquals(
+        ImmutableSet.of("default"),
+        catalogManager.catalogs().stream().map(Catalog::name).collect(Collectors.toSet()));
+    thrown.expect(CalciteContextException.class);
+    thrown.expectMessage("Cannot use catalog: 'my_catalog' not found.");
+    cli.execute("USE DATABASE my_catalog.my_database");
   }
 
   @Test

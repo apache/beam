@@ -84,7 +84,7 @@ public class InMemoryMetaStore implements MetaStore {
   }
 
   protected void validateTableType(Table table) {
-    if (providers.containsKey(table.getType())) {
+    if (providers.containsKey(table.getType().toLowerCase())) {
       return;
     }
     // check if there is a nested metastore that supports this table
@@ -99,13 +99,13 @@ public class InMemoryMetaStore implements MetaStore {
 
   @Override
   public void registerProvider(TableProvider provider) {
-    if (providers.containsKey(provider.getTableType())) {
-      throw new IllegalArgumentException(
-          "Provider is already registered for table type: " + provider.getTableType());
+    String type = provider.getTableType().toLowerCase();
+    if (providers.containsKey(type)) {
+      throw new IllegalArgumentException("Provider is already registered for table type: " + type);
     }
 
     initTablesFromProvider(provider);
-    this.providers.put(provider.getTableType(), provider);
+    this.providers.put(type, provider);
   }
 
   private void initTablesFromProvider(TableProvider provider) {
@@ -137,7 +137,7 @@ public class InMemoryMetaStore implements MetaStore {
    * @return
    */
   public TableProvider getProvider(String type) {
-    @Nullable TableProvider provider = providers.get(type);
+    @Nullable TableProvider provider = providers.get(type.toLowerCase());
     if (provider != null) {
       return provider;
     }
