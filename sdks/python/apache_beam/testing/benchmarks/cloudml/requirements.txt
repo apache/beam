@@ -15,5 +15,6 @@
 #    limitations under the License.
 #
 
+dill
 tfx_bsl
 tensorflow-transform
