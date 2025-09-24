@@ -1027,7 +1027,9 @@ class Pipeline(HasDisplayData):
         # type: (AppliedPTransform) -> None
         if not transform_node.transform:
           return
-        if transform_node.transform.runner_api_requires_keyed_input():
+        if hasattr(
+            transform_node.transform, 'runner_api_requires_keyed_input'
+        ) and transform_node.transform.runner_api_requires_keyed_input():
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
