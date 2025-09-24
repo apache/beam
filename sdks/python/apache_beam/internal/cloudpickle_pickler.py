@@ -29,16 +29,20 @@ dump_session and load_session are no-ops.
 
 import base64
 import bz2
+import contextlib
 import io
 import logging
 import sys
 import threading
+from unittest import mock
 import zlib
 
 from apache_beam.internal.cloudpickle import cloudpickle
+from apache_beam.internal import code_object_pickler
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
-    skip_reset_dynamic_type_state=True)
+    skip_reset_dynamic_type_state=True,
+    enable_stable_code_identifier_pickling=False)
 NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
     id_generator=None, skip_reset_dynamic_type_state=True)
 
@@ -46,6 +50,58 @@ try:
   from absl import flags
 except (ImportError, ModuleNotFoundError):
   pass
+
+_original_function_getnewargs = cloudpickle.CloudPickler._function_getnewargs
+_original_dynamic_function_reduce = cloudpickle.CloudPickler._dynamic_function_reduce
+
+
+def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
+  fcode = code_object_pickler.get_code_object_identifier(code_path)
+  return cloudpickle._make_function(fcode, globals, name, argdefs, closure)
+
+
+def _patched_function_getnewargs(self, func):
+  if self.config.enable_stable_code_identifier_pickling:
+    code_path = code_object_pickler.get_code_object_identifier(func)
+    if code_path:
+      base_globals = self._build_base_globals(func)
+
+      closure_values = func.__closure__
+      if closure_values:
+        closure = tuple(self._make_cell(cv.cell_contents) fpr cv in closure_values)
+      else:
+        closure = tuple()
+
+      return code_path, base_globals, None, None, closure
+    return _original_function_getnewargs(self, func)
+
+
+def _patched_dynamic_function_reduce(self, func):
+  newargs = self._function_getnreargs(func)
+  state = cloudpickle._function_getnewstate(func)
+
+  if isinstance(newargs[0], str):
+    make_function = _make_function_from_identifier
+  else:
+    make_function = cloudpickle._make_function
+
+  return (make_function, newargs, state, None, None, cloudpickle._function_setstate)
+
+
+@contextlib.contextmanager 
+def _enable_stable_code_indentifier_pickling_patch():
+  with mock.patch.object(
+      cloudpickle.CloudPickler,
+      'function_getnewargs',
+      autospec=True,
+      side_effect=_patched_function_getnewargs,
+  ), mock.patch.object(
+      cloudpickle.CloudPickler,
+      '_dynamic_function_reduce',
+      autospec=True,
+      side_effect=_patched_dynamic_function_reduce,
+  ):
+    yield
 
 
 def _get_proto_enum_descriptor_class():
@@ -129,8 +185,19 @@ def dumps(
         'This has only been implemented for dill.')
   with _pickle_lock:
     with io.BytesIO() as file:
-      pickler = cloudpickle.CloudPickler(
-          file, config=config)
+      use_stable_patch = (
+          config and
+          hasattr(config, 'enable_stable_code_identifier_pickling') and
+          config.enable_stable_code_identifier_pickling
+      )
+
+      patch_context = (
+          _enable_stable_code_indentifier_pickling_patch()
+          if use_stable_patch
+          else contextlib.nullcontext()
+      )
+      with patch_context:
+        pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:

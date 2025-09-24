@@ -78,9 +78,6 @@ import uuid
 import warnings
 import weakref
 
-from apache_beam.internal.code_object_pickler import get_code_from_identifier
-from apache_beam.internal.code_object_pickler import get_code_object_identifier
-
 # The following import is required to be imported in the cloudpickle
 # namespace to be able to load pickle files generated with older versions of
 # cloudpickle. See: tests/test_backward_compat.py
@@ -1275,10 +1272,6 @@ class Pickler(pickle.Pickler):
     """Reduce a function that is not pickleable via attribute lookup."""
     newargs = self._function_getnewargs(func)
     state = _function_getstate(func)
-    if type(newargs[0]) == str:
-      make_function = _make_function_from_identifier
-    else:
-      make_function = _make_function
     return (make_function, newargs, state, None, None, _function_setstate)
 
   def _function_reduce(self, obj):
@@ -1296,8 +1289,6 @@ class Pickler(pickle.Pickler):
       return self._dynamic_function_reduce(obj)
 
   def _function_getnewargs(self, func):
-    code_path = get_code_object_identifier(
-        func) if self.config.enable_stable_code_identifier_pickling else None
     code = func.__code__
 
     # base_globals represents the future global namespace of func at
@@ -1328,9 +1319,6 @@ class Pickler(pickle.Pickler):
     else:
       closure = tuple(_make_empty_cell() for _ in range(len(code.co_freevars)))
 
-    if code_path:
-      return code_path, base_globals, None, None, closure
-    else:
       return code, base_globals, None, None, closure
 
   def dump(self, obj):
