@@ -70,7 +70,7 @@ public class WriteToSqlServerSchemaTransformProvider extends JdbcWriteSchemaTran
     List<@org.checkerframework.checker.nullness.qual.Nullable String> connectionInitSql =
         configuration.getConnectionInitSql();
     if (connectionInitSql != null && !connectionInitSql.isEmpty()) {
-      LOG.warn("SQL Server does not support connectionInitSql, ignoring.");
+      throw new IllegalArgumentException("SQL Server does not support connectionInitSql.");
     }
 
     // Override "connectionInitSql" for sqlserver
