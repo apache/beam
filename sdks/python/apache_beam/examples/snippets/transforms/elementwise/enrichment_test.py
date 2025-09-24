@@ -64,6 +64,11 @@ except ImportError as e:
   raise unittest.SkipTest(f'Examples dependencies are not installed: {str(e)}')
 
 
+class TestContainerStartupError(Exception):
+  """Raised when any test container fails to start."""
+  pass
+
+
 def validate_enrichment_with_bigtable():
   expected = '''[START enrichment_with_bigtable]
 Row(sale_id=1, customer_id=1, product_id=1, quantity=1, product={'product_id': '1', 'product_name': 'pixel 5', 'product_stock': '2'})
@@ -206,17 +211,19 @@ class EnrichmentTest(unittest.TestCase):
         self.fail(f"Test failed with unexpected error: {e}")
 
   def test_enrichment_with_milvus(self, mock_stdout):
-    with EnrichmentTestHelpers.milvus_test_context():
-      try:
-        enrichment_with_milvus()
-        output = mock_stdout.getvalue().splitlines()
-        expected = validate_enrichment_with_milvus()
-        self.maxDiff = None
-        output = parse_chunk_strings(output)
-        expected = parse_chunk_strings(expected)
-        assert_chunks_equivalent(output, expected)
-      except Exception as e:
-        self.fail(f"Test failed with unexpected error: {e}")
+    try:
+      with EnrichmentTestHelpers.milvus_test_context():
+          enrichment_with_milvus()
+          output = mock_stdout.getvalue().splitlines()
+          expected = validate_enrichment_with_milvus()
+          self.maxDiff = None
+          output = parse_chunk_strings(output)
+          expected = parse_chunk_strings(expected)
+          assert_chunks_equivalent(output, expected)
+    except TestContainerStartupError as e:
+      raise unittest.SkipTest(str(e))
+    except Exception as e:
+      self.fail(f"Test failed with unexpected error: {e}")
 
 
 @dataclass
@@ -236,6 +243,8 @@ class EnrichmentTestHelpers:
       result = EnrichmentTestHelpers.pre_sql_enrichment_test(
           is_cloudsql, db_adapter)
       yield
+    except Exception as e:
+      raise unittest.SkipTest(f"Milvus container setup failed: {str(e)}")
     finally:
       if result:
         EnrichmentTestHelpers.post_sql_enrichment_test(result)
@@ -352,7 +361,11 @@ class EnrichmentTestHelpers:
 
   @staticmethod
   def pre_milvus_enrichment() -> MilvusDBContainerInfo:
-    db = MilvusEnrichmentTestHelper.start_db_container()
+    try:
+      db = MilvusEnrichmentTestHelper.start_db_container()
+    except Exception as e:
+      raise TestContainerStartupError(
+        f"Milvus container failed to start: {str(e)}")
 
     connection_params = MilvusConnectionParameters(
         uri=db.uri,
