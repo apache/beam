@@ -24,6 +24,7 @@
 
 name: Code Completion Plugin Tests
 on:
+  workflow_dispatch:
   push:
     branches-ignore:
       - 'master'
