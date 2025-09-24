@@ -461,9 +461,9 @@ class PrismRunnerSingletonTest(unittest.TestCase):
   @parameterized.expand([True, False])
   def test_singleton(self, enable_singleton):
     if enable_singleton:
-      options = DebugOptions(["--experiment=enable_prism_server_singleton"])
+      options = DebugOptions()  # prism singleton is enabled by default
     else:
-      options = DebugOptions()
+      options = DebugOptions(["--experiment=disable_prism_server_singleton"])
 
     runner = prism_runner.PrismRunner()
     with mock.patch(
