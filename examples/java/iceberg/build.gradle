@@ -88,38 +88,7 @@ dependencies {
   }
 }
 
-/*
- * A convenient task to run individual example directly on Beam repo.
- *
- * Usage:
- * ./gradlew :examples:java:iceberg:execute -PmainClass=org.apache.beam.examples.iceberg.<ClassName>`\
- *  -Pexec.args="runner=[DataflowRunner|DirectRunner|FlinkRunner|SparkRunner|PrismRunner] \
- * <pipeline options>"
- */
-tasks.create(name:"execute", type:JavaExec) {
-  mainClass = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "NONE"
-  def execArgs =  project.findProperty("exec.args")
-  String runner
-  if (execArgs) {
-    // configure runner dependency from args
-    def runnerPattern = /runner[ =]([A-Za-z]+)/
-    def matcher = execArgs =~ runnerPattern
-    if (matcher) {
-      runner = matcher[0][1]
-      runner = runner.substring(0, 1).toLowerCase() + runner.substring(1);
-      if (!(runner in (preCommitRunners + nonPreCommitRunners))) {
-        throw new GradleException("Unsupported runner: " + runner)
-      }
-    }
-  }
-  if (runner) {
-    classpath = sourceSets.main.runtimeClasspath + configurations."${runner}PreCommit"
-  } else {
-    classpath = sourceSets.main.runtimeClasspath
-  }
-  systemProperties System.getProperties()
-  args execArgs ? execArgs.split() : []
-}
+apply from: "$project.rootDir/examples/java/common.gradle"
 
 configurations.all {
   // iceberg-core needs avro:1.12.0
