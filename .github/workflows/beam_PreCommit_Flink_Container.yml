@@ -98,7 +98,7 @@ jobs:
         job_name: ["beam_PreCommit_Flink_Container"]
         job_phrase: ["Run Flink Container PreCommit"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

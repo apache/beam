@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -183,12 +182,14 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
                 @ProcessElement
                 public void processElement(
-                    @Element KV<K, ValueInSingleWindow<V>> kv, OutputReceiver<KV<K, V>> r) {
-                  r.outputWindowedValue(
-                      KV.of(kv.getKey(), kv.getValue().getValue()),
-                      kv.getValue().getTimestamp(),
-                      Collections.singleton(kv.getValue().getWindow()),
-                      kv.getValue().getPaneInfo());
+                    @Element KV<K, ValueInSingleWindow<V>> kv,
+                    OutputReceiver<KV<K, V>> outputReceiver) {
+                  outputReceiver
+                      .builder(KV.of(kv.getKey(), kv.getValue().getValue()))
+                      .setTimestamp(kv.getValue().getTimestamp())
+                      .setWindow(kv.getValue().getWindow())
+                      .setPaneInfo(kv.getValue().getPaneInfo())
+                      .output();
                 }
               }));
     }

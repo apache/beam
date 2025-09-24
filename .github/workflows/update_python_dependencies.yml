@@ -41,7 +41,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -51,7 +51,7 @@ jobs:
     name: Update Python Dependencies
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
