@@ -1443,7 +1443,9 @@ class AppliedPTransform(object):
               context,
               has_parts=bool(self.parts),
               named_inputs=self.named_inputs())
-        return transform.to_runner_api(context, has_parts=bool(self.parts))
+        elif hasattr(transform, 'to_runner_api'):
+          return transform.to_runner_api(context, has_parts=bool(self.parts))
+        return None
 
     # Iterate over inputs and outputs by sorted key order, so that ids are
     # consistently generated for multiple runs of the same pipeline.
