@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +54,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
+
   private WindmillStreamWriter writer;
   private final Coder<T> valueCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -107,6 +110,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   }
 
   public static class Factory implements SinkFactory {
+
     @Override
     public WindmillSink<?> create(
         CloudObject spec,
@@ -131,14 +135,21 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   }
 
   class WindmillStreamWriter implements SinkWriter<WindowedValue<T>> {
+
     private Map<ByteString, Windmill.KeyedMessageBundle.Builder> productionMap;
     private final String destinationName;
     private final ByteStringOutputStream stream; // Kept across encodes for buffer reuse.
+
+    // Builders are reused to reduce GC overhead.
+    private final Windmill.Message.Builder messageBuilder;
+    private final Windmill.OutputMessageBundle.Builder outputBuilder;
 
     private WindmillStreamWriter(String destinationName) {
       this.destinationName = destinationName;
       productionMap = new HashMap<>();
       stream = new ByteStringOutputStream();
+      messageBuilder = Windmill.Message.newBuilder();
+      outputBuilder = Windmill.OutputMessageBundle.newBuilder();
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
@@ -146,8 +157,13 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           stream.size() == 0,
           "Expected output stream to be empty but had %s",
           stream.toByteString());
-      coder.encode(object, stream, Coder.Context.OUTER);
-      return stream.toByteStringAndReset();
+      try {
+        coder.encode(object, stream, Coder.Context.OUTER);
+        return stream.toByteStringAndReset();
+      } catch (Exception e) {
+        stream.toByteStringAndReset();
+        throw e;
+      }
     }
 
     @Override
@@ -208,28 +224,41 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         productionMap.put(key, keyedOutput);
       }
 
-      Windmill.Message.Builder builder =
-          Windmill.Message.newBuilder()
-              .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
-              .setData(value)
-              .setMetadata(metadata);
-      keyedOutput.addMessages(builder.build());
-
+      try {
+        messageBuilder
+            .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
+            .setData(value)
+            .setMetadata(metadata);
+        keyedOutput.addMessages(messageBuilder.build());
+      } finally {
+        messageBuilder.clear();
+      }
       long offsetSize = 0;
       if (context.offsetBasedDeduplicationSupported()) {
         if (id.size() > 0) {
           throw new RuntimeException(
               "Unexpected record ID via ValueWithRecordIdCoder while offset-based deduplication enabled.");
         }
-        byte[] rawId = context.getCurrentRecordId();
-        if (rawId.length == 0) {
+        byte[] rawId = null;
+
+        if (data.getCurrentRecordId() != null) {
+          rawId = data.getCurrentRecordId().getBytes(StandardCharsets.UTF_8);
+        } else {
+          rawId = context.getCurrentRecordId();
+        }
+        if (rawId == null || rawId.length == 0) {
           throw new RuntimeException(
               "Unexpected empty record ID while offset-based deduplication enabled.");
         }
         id = ByteString.copyFrom(rawId);
 
-        byte[] rawOffset = context.getCurrentRecordOffset();
-        if (rawOffset.length == 0) {
+        byte[] rawOffset = null;
+        if (data.getCurrentRecordOffset() != null) {
+          rawOffset = Longs.toByteArray(data.getCurrentRecordOffset());
+        } else {
+          rawOffset = context.getCurrentRecordOffset();
+        }
+        if (rawOffset == null || rawOffset.length == 0) {
           throw new RuntimeException(
               "Unexpected empty record offset while offset-based deduplication enabled.");
         }
@@ -245,14 +274,17 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public void close() throws IOException {
-      Windmill.OutputMessageBundle.Builder outputBuilder =
-          Windmill.OutputMessageBundle.newBuilder().setDestinationStreamId(destinationName);
+      try {
+        outputBuilder.setDestinationStreamId(destinationName);
 
-      for (Windmill.KeyedMessageBundle.Builder keyedOutput : productionMap.values()) {
-        outputBuilder.addBundles(keyedOutput.build());
-      }
-      if (outputBuilder.getBundlesCount() > 0) {
-        context.getOutputBuilder().addOutputMessages(outputBuilder.build());
+        for (Windmill.KeyedMessageBundle.Builder keyedOutput : productionMap.values()) {
+          outputBuilder.addBundles(keyedOutput.build());
+        }
+        if (outputBuilder.getBundlesCount() > 0) {
+          context.getOutputBuilder().addOutputMessages(outputBuilder.build());
+        }
+      } finally {
+        outputBuilder.clear();
       }
       productionMap.clear();
     }

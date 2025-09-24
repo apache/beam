@@ -98,6 +98,7 @@ var directFilters = []string{
 	"TestValueStateClear",
 	"TestBagState",
 	"TestBagStateClear",
+	"TestBagStateBlindWrite",
 	"TestCombiningState",
 	"TestMapState",
 	"TestMapStateClear",
@@ -240,6 +241,7 @@ var samzaFilters = []string{
 
 	// Samza does not support state.
 	"TestTimers.*",
+	"TestBagStateBlindWrite",
 
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",

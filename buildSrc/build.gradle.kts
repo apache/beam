@@ -53,7 +53,7 @@ dependencies {
   runtimeOnly("gradle.plugin.com.dorongold.plugins:task-tree:1.5")                                         // Adds a 'taskTree' task to print task dependency tree
   runtimeOnly("net.linguica.gradle:maven-settings-plugin:0.5")
   runtimeOnly("gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0") // Enable creating an offline repository
-  runtimeOnly("net.ltgt.gradle:gradle-errorprone-plugin:3.1.0")                                            // Enable errorprone Java static analysis
+  runtimeOnly("net.ltgt.gradle:gradle-errorprone-plugin:4.2.0")                                            // Enable errorprone Java static analysis
   runtimeOnly("org.ajoberstar.grgit:grgit-gradle:5.3.2")                                                   // Enable website git publish to asf-site branch
   runtimeOnly("com.avast.gradle:gradle-docker-compose-plugin:0.16.12")                                     // Enable docker compose tasks
   runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.8.3")                                     // Enable dep analysis

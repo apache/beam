@@ -47,27 +47,37 @@
     "@jupyterlab/launcher": "^4.3.6",
     "@jupyterlab/mainmenu": "^4.3.6",
     "@lumino/widgets": "^2.2.1",
+    "@monaco-editor/react": "^4.7.0",
     "@rmwc/base": "^14.0.0",
     "@rmwc/button": "^8.0.6",
+    "@rmwc/card": "^14.3.5",
     "@rmwc/data-table": "^8.0.6",
     "@rmwc/dialog": "^8.0.6",
     "@rmwc/drawer": "^8.0.6",
     "@rmwc/fab": "^8.0.6",
+    "@rmwc/grid": "^14.3.5",
     "@rmwc/list": "^8.0.6",
     "@rmwc/ripple": "^14.0.0",
     "@rmwc/textfield": "^8.0.6",
     "@rmwc/tooltip": "^8.0.6",
     "@rmwc/top-app-bar": "^8.0.6",
+    "@rmwc/touch-target": "^14.3.5",
+    "@xyflow/react": "^12.8.2",
+    "dagre": "^0.8.5",
+    "lodash": "^4.17.21",
     "material-design-icons": "^3.0.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-split": "^2.0.14"
   },
   "devDependencies": {
     "@jupyterlab/builder": "^4.3.6",
     "@testing-library/dom": "^9.3.0",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^14.0.0",
+    "@types/dagre": "^0.7.53",
     "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.17.20",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@typescript-eslint/eslint-plugin": "^7.3.1",
@@ -97,5 +107,6 @@
   "test": "jest",
   "resolutions": {
     "@types/react": "^18.2.0"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

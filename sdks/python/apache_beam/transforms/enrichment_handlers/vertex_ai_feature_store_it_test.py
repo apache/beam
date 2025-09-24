@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import logging
+import time
 import unittest
 from unittest.mock import MagicMock
 
@@ -71,11 +72,11 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     self.entity_type_name = "entity_id"
     self.api_endpoint = "us-central1-aiplatform.googleapis.com"
     self.feature_ids = ['title', 'genres']
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
-    for i in range(3):
+    for i in range(self.retries):
       try:
         self.container = RedisContainer(image='redis:7.2.4')
         self.container.start()
@@ -87,6 +88,8 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         if i == self.retries - 1:
           _LOGGER.error('Unable to start redis container for RRIO tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
   def tearDown(self) -> None:
     self.container.stop()

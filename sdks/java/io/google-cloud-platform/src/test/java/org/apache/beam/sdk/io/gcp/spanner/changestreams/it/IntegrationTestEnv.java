@@ -281,7 +281,6 @@ public class IntegrationTestEnv extends ExternalResource {
                     + DATABASE_ROLE),
             null)
         .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
-    return;
   }
 
   String getProjectId() {

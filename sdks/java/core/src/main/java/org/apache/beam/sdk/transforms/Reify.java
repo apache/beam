@@ -272,7 +272,7 @@ public class Reify {
    * Returns a {@link PCollection} consisting of a single element, containing the value of the given
    * view in the global window.
    */
-  public static <K, V> PTransform<PBegin, PCollection<V>> viewInGlobalWindow(
+  public static <V> PTransform<PBegin, PCollection<V>> viewInGlobalWindow(
       PCollectionView<V> view, Coder<V> coder) {
     return new ReifyViewInGlobalWindow<>(view, coder);
   }

@@ -227,9 +227,9 @@ func main() {
 	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
 		if heapDumpOption, ok := pipelineOptions.GetStructValue().GetFields()["enableHeapDumps"]; ok {
 			if heapDumpOption.GetBoolValue() {
-			  args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
-			                "-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
-			                "-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
+				args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
+					"-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
+					"-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
 			}
 		}
 	}
@@ -237,9 +237,10 @@ func main() {
 	// Apply meta options
 	const metaDir = "/opt/apache/beam/options"
 
-	// Note: Error is unchecked, so parsing errors won't abort container.
-	// TODO: verify if it's intentional or not.
-	metaOptions, _ := LoadMetaOptions(ctx, logger, metaDir)
+	metaOptions, err := LoadMetaOptions(ctx, logger, metaDir)
+	if err != nil {
+		logger.Errorf(ctx, "LoadMetaOptions failed: %v", err)
+	}
 
 	javaOptions := BuildOptions(ctx, logger, metaOptions)
 	// (1) Add custom jvm arguments: "-server -Xmx1324 -XXfoo .."

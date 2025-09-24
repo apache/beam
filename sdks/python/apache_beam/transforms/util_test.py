@@ -83,8 +83,45 @@ from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
 
+try:
+  import dill
+except ImportError:
+  dill = None
+
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
+
+
+class _Unpicklable(object):
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    raise NotImplementedError()
+
+  def __setstate__(self, state):
+    raise NotImplementedError()
+
+
+class _UnpicklableCoder(beam.coders.Coder):
+  def encode(self, value):
+    return str(value.value).encode()
+
+  def decode(self, encoded):
+    return _Unpicklable(int(encoded.decode()))
+
+  def to_type_hint(self):
+    return _Unpicklable
+
+  def is_deterministic(self):
+    return True
+
+
+def maybe_skip(compat_version):
+  if compat_version and not dill:
+    raise unittest.SkipTest(
+        'Dill dependency not installed which is required for compat_version'
+        ' <= 2.67.0')
 
 
 class CoGroupByKeyTest(unittest.TestCase):
@@ -185,6 +222,20 @@ class CoGroupByKeyTest(unittest.TestCase):
                   | beam.MapTuple(lambda k, v: (k, (v['tag'], ))),
                   equal_to(expected),
                   label='AssertOneDict')
+
+  def test_co_group_by_key_on_unpickled(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+    values = [_Unpicklable(i) for i in range(5)]
+    with TestPipeline() as pipeline:
+      xs = pipeline | beam.Create(values) | beam.WithKeys(lambda x: x)
+      pcoll = ({
+          'x': xs
+      }
+               | beam.CoGroupByKey()
+               | beam.FlatMapTuple(
+                   lambda k, tagged: (k.value, tagged['x'][0].value * 2)))
+      expected = [0, 0, 1, 2, 2, 4, 3, 6, 4, 8]
+      assert_that(pcoll, equal_to(expected))
 
 
 class FakeClock(object):
@@ -958,8 +1009,10 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
+  @pytest.mark.uses_dill
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves pane info."""
+    maybe_skip(compat_version)
     element_count = 12
     timestamp_value = timestamp.Timestamp(0)
     l = [
@@ -1059,10 +1112,11 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
+  @pytest.mark.uses_dill
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
-
+    maybe_skip(compat_version)
     no_firing = PaneInfo(
         is_first=True,
         is_last=True,
@@ -1204,32 +1258,6 @@ class ReshuffleTest(unittest.TestCase):
           formatted_after_reshuffle,
           equal_to(expected_data),
           label="formatted_after_reshuffle")
-
-  global _Unpicklable
-  global _UnpicklableCoder
-
-  class _Unpicklable(object):
-    def __init__(self, value):
-      self.value = value
-
-    def __getstate__(self):
-      raise NotImplementedError()
-
-    def __setstate__(self, state):
-      raise NotImplementedError()
-
-  class _UnpicklableCoder(beam.coders.Coder):
-    def encode(self, value):
-      return str(value.value).encode()
-
-    def decode(self, encoded):
-      return _Unpicklable(int(encoded.decode()))
-
-    def to_type_hint(self):
-      return _Unpicklable
-
-    def is_deterministic(self):
-      return True
 
   def reshuffle_unpicklable_in_global_window_helper(
       self, update_compatibility_version=None):
@@ -2178,6 +2206,68 @@ class WaitOnTest(unittest.TestCase):
           result,
           equal_to([(None, 'result', 6), (None, 'result', 7)]),
           label='result')
+
+
+class CompatCheckTest(unittest.TestCase):
+  def test_is_v1_prior_to_v2(self):
+    test_cases = [
+        # Basic comparison cases
+        ("1.0.0", "2.0.0", True),  # v1 < v2 in major
+        ("2.0.0", "1.0.0", False),  # v1 > v2 in major
+        ("1.1.0", "1.2.0", True),  # v1 < v2 in minor
+        ("1.2.0", "1.1.0", False),  # v1 > v2 in minor
+        ("1.0.1", "1.0.2", True),  # v1 < v2 in patch
+        ("1.0.2", "1.0.1", False),  # v1 > v2 in patch
+
+        # Equal versions
+        ("1.0.0", "1.0.0", False),  # Identical
+        ("0.0.0", "0.0.0", False),  # Both zero
+
+        # Different lengths - shorter vs longer
+        ("1.0", "1.0.0", False),  # Should be equal (1.0 = 1.0.0)
+        ("1.0", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.2", "1.2.0", False),  # Should be equal (1.2 = 1.2.0)
+        ("1.2", "1.2.3", True),  # 1.2.0 < 1.2.3
+        ("2", "2.0.0", False),  # Should be equal (2 = 2.0.0)
+        ("2", "2.0.1", True),  # 2.0.0 < 2.0.1
+        ("1", "2.0", True),  # 1.0.0 < 2.0.0
+
+        # Different lengths - longer vs shorter
+        ("1.0.0", "1.0", False),  # Should be equal
+        ("1.0.1", "1.0", False),  # 1.0.1 > 1.0.0
+        ("1.2.0", "1.2", False),  # Should be equal
+        ("1.2.3", "1.2", False),  # 1.2.3 > 1.2.0
+        ("2.0.0", "2", False),  # Should be equal
+        ("2.0.1", "2", False),  # 2.0.1 > 2.0.0
+        ("2.0", "1", False),  # 2.0.0 > 1.0.0
+
+        # Mixed length comparisons
+        ("1.0", "2.0.0", True),  # 1.0.0 < 2.0.0
+        ("2.0", "1.0.0", False),  # 2.0.0 > 1.0.0
+        ("1", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.1", "1.0.9", False),  # 1.1.0 > 1.0.9
+
+        # Large numbers
+        ("1.9.9", "2.0.0", True),  # 1.9.9 < 2.0.0
+        ("10.0.0", "9.9.9", False),  # 10.0.0 > 9.9.9
+        ("1.10.0", "1.9.0", False),  # 1.10.0 > 1.9.0
+        ("1.2.10", "1.2.9", False),  # 1.2.10 > 1.2.9
+
+        # Sequential versions
+        ("1.0.0", "1.0.1", True),
+        ("1.0.1", "1.0.2", True),
+        ("1.0.9", "1.1.0", True),
+        ("1.9.9", "2.0.0", True),
+
+        # Null/None cases
+        (None, "1.0.0", False),  # v1 is None
+    ]
+
+    for v1, v2, expected in test_cases:
+      self.assertEqual(
+          util.is_v1_prior_to_v2(v1=v1, v2=v2),
+          expected,
+          msg=f"Failed {v1} < {v2} == {expected}")
 
 
 if __name__ == '__main__':

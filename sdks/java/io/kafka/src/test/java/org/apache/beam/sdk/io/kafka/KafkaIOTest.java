@@ -30,6 +30,7 @@ import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -168,6 +169,7 @@ import org.slf4j.LoggerFactory;
  * Tests of {@link KafkaIO}. Run with 'mvn test -Dkafka.clients.version=0.10.1.1', to test with a
  * specific Kafka version.
  */
+@SuppressWarnings("UnnecessaryLongToIntConversion") // for assert
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
 
@@ -633,7 +635,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testDeserializationWithHeaders() throws Exception {
+  public void testDeserializationWithHeaders() {
     // To assert that we continue to prefer the Deserializer API with headers in Kafka API 2.1.0
     // onwards
     int numElements = 1000;
@@ -789,6 +791,53 @@ public class KafkaIOTest {
     addCountingAsserts(input, numElements);
 
     p.run();
+  }
+
+  @Test
+  public void testDefaultRedistributeNumKeys() {
+    int numElements = 1000;
+    // Redistribute is not used and does not modify the read transform further.
+    KafkaIO.Read<Integer, Long> read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            false, /*redistribute*/
+            false, /*allowDuplicates*/
+            null, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null /*topics*/);
+    assertFalse(read.isRedistributed());
+    assertEquals(0, read.getRedistributeNumKeys());
+
+    // Redistribute is used and defaulted the number of keys due to no user setting.
+    read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            true, /*redistribute*/
+            false, /*allowDuplicates*/
+            null, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null /*topics*/);
+    assertTrue(read.isRedistributed());
+    // Default is defined by DEFAULT_REDISTRIBUTE_NUM_KEYS in KafkaIO.
+    assertEquals(32768, read.getRedistributeNumKeys());
+
+    // Redistribute is set with user-specified the number of keys.
+    read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            true, /*redistribute*/
+            false, /*allowDuplicates*/
+            10, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null /*topics*/);
+    assertTrue(read.isRedistributed());
+    assertEquals(10, read.getRedistributeNumKeys());
   }
 
   @Test
@@ -1062,7 +1111,7 @@ public class KafkaIOTest {
 
   private static class ElementValueDiff extends DoFn<Long, Long> {
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
+    public void processElement(ProcessContext c) {
       c.output(c.element() - c.timestamp().getMillis());
     }
   }
@@ -1604,7 +1653,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSink() throws Exception {
+  public void testSink() {
     // Simply read from kafka source and write to kafka sink. Then verify the records
     // are correctly published to mock kafka producer.
 
@@ -1660,7 +1709,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkWithSerializationErrors() throws Exception {
+  public void testSinkWithSerializationErrors() {
     // Attempt to write 10 elements to Kafka, but they will all fail to serialize, and be sent to
     // the DLQ
 
@@ -1701,7 +1750,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testValuesSink() throws Exception {
+  public void testValuesSink() {
     // similar to testSink(), but use values()' interface.
 
     int numElements = 1000;
@@ -1732,7 +1781,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testRecordsSink() throws Exception {
+  public void testRecordsSink() {
     // Simply read from kafka source and write to kafka sink using ProducerRecord transform. Then
     // verify the records are correctly published to mock kafka producer.
 
@@ -1766,7 +1815,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkToMultipleTopics() throws Exception {
+  public void testSinkToMultipleTopics() {
     // Set different output topic names
     int numElements = 1000;
 
@@ -1811,7 +1860,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testKafkaWriteHeaders() throws Exception {
+  public void testKafkaWriteHeaders() {
     // Set different output topic names
     int numElements = 1;
     SimpleEntry<String, String> header = new SimpleEntry<>("header_key", "header_value");
@@ -1855,7 +1904,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkProducerRecordsWithCustomTS() throws Exception {
+  public void testSinkProducerRecordsWithCustomTS() {
     int numElements = 1000;
 
     try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
@@ -1894,7 +1943,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkProducerRecordsWithCustomPartition() throws Exception {
+  public void testSinkProducerRecordsWithCustomPartition() {
     int numElements = 1000;
 
     try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
@@ -2342,7 +2391,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkMetrics() throws Exception {
+  public void testSinkMetrics() {
     // Simply read from kafka source and write to kafka sink. Then verify the metrics are reported.
 
     int numElements = 1000;

@@ -20,9 +20,11 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.PrintWriter;
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
@@ -98,16 +100,19 @@ final class GrpcDirectGetWorkStream
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
-      WorkItemScheduler workItemScheduler) {
+      WorkItemScheduler workItemScheduler,
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executorService) {
     super(
         LOG,
-        "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        halfClosePhysicalStreamAfter,
+        executorService);
     this.requestHeader = requestHeader;
     this.workItemScheduler = workItemScheduler;
     this.heartbeatSender = heartbeatSender;
@@ -138,7 +143,9 @@ final class GrpcDirectGetWorkStream
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
-      WorkItemScheduler workItemScheduler) {
+      WorkItemScheduler workItemScheduler,
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     return new GrpcDirectGetWorkStream(
         backendWorkerToken,
         startGetWorkRpcFn,
@@ -151,7 +158,9 @@ final class GrpcDirectGetWorkStream
         heartbeatSender,
         getDataClient,
         workCommitter,
-        workItemScheduler);
+        workItemScheduler,
+        halfClosePhysicalStreamAfter,
+        executor);
   }
 
   private static Watermarks createWatermarks(
@@ -230,7 +239,11 @@ final class GrpcDirectGetWorkStream
   }
 
   @Override
-  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
+  protected synchronized void onFlushPending(boolean isNewStream)
+      throws WindmillStreamShutdownException {
+    if (!isNewStream) {
+      return;
+    }
     budgetTracker.reset();
     GetWorkBudget initialGetWorkBudget = budgetTracker.computeBudgetExtension();
     StreamingGetWorkRequest request =

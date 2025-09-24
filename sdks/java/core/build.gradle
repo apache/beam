@@ -130,3 +130,11 @@ project.tasks.compileTestJava {
   // TODO: fix other places with warnings in tests and delete this option
   options.compilerArgs += ['-Xlint:-rawtypes']
 }
+
+// Configure test task to use JUnit 4. JUnit 5 support is provided in module
+// sdks/java/testing/junit, which configures useJUnitPlatform(). Submodules that
+// need to run both JUnit 4 and 5 via the JUnit Platform must also add the
+// Vintage engine explicitly.
+test {
+  useJUnit()
+}

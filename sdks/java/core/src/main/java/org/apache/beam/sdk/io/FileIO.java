@@ -373,6 +373,7 @@ public class FileIO {
   public static MatchAll matchAll() {
     return new AutoValue_FileIO_MatchAll.Builder()
         .setConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+        .setOutputParallelization(true)
         .build();
   }
 
@@ -677,11 +678,17 @@ public class FileIO {
       abstract Builder setConfiguration(MatchConfiguration configuration);
 
       abstract MatchAll build();
+
+      abstract Builder setOutputParallelization(boolean b);
     }
 
     /** Like {@link Match#withConfiguration}. */
     public MatchAll withConfiguration(MatchConfiguration configuration) {
       return toBuilder().setConfiguration(configuration).build();
+    }
+    /** Like {@link Match#withOutputParallelization}. */
+    public MatchAll withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
     /** Like {@link Match#withEmptyMatchTreatment}. */
@@ -723,8 +730,15 @@ public class FileIO {
           res = input.apply(createWatchTransform(new ExtractFilenameFn())).apply(Values.create());
         }
       }
-      return res.apply(Reshuffle.viaRandomKey());
+      // Apply Reshuffle conditionally based on the flag
+      if (getOutputParallelization()) {
+        return res.apply(Reshuffle.viaRandomKey());
+      } else {
+        return res;
+      }
     }
+    /** Returns whether to avoid the reshuffle operation. */
+    public abstract boolean getOutputParallelization();
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {

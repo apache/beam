@@ -1765,6 +1765,31 @@ class CsvTest(unittest.TestCase):
 
         assert_that(pcoll, equal_to(records))
 
+  def test_csv_read_with_filename(self):
+    records = [beam.Row(a='str', b=ix) for ix in range(3)]
+    with tempfile.TemporaryDirectory() as dest:
+      file_path = os.path.join(dest, 'out.csv')
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(records) | beam.io.WriteToCsv(file_path)
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.io.ReadFromCsv(
+                file_path + '*', filename_column='source_filename')
+            | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
+
+        # Get the sharded file name
+        files = glob.glob(file_path + '*')
+        self.assertEqual(len(files), 1)
+        sharded_file_path = files[0]
+
+        expected = [
+            beam.Row(a=r.a, b=r.b, source_filename=sharded_file_path)
+            for r in records
+        ]
+        assert_that(pcoll, equal_to(expected))
+
   def test_non_utf8_csv_read_write(self):
     content = b"\xe0,\xe1,\xe2\n0,1,2\n1,2,3\n"
 

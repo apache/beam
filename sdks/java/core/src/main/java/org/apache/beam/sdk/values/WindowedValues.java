@@ -61,16 +61,27 @@ import org.joda.time.Instant;
 public class WindowedValues {
   private WindowedValues() {} // non-instantiable utility class
 
-  /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
+    return of(value, timestamp, windows, paneInfo, null, null);
+  }
+
+  /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
+  public static <T> WindowedValue<T> of(
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), paneInfo);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, paneInfo);
+      return new TimestampedValueInMultipleWindows<>(
+          value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset);
     }
   }
 
@@ -81,7 +92,8 @@ public class WindowedValues {
     if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), paneInfo);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, paneInfo);
+      return new TimestampedValueInMultipleWindows<>(
+          value, timestamp, windows, paneInfo, null, null);
     }
   }
 
@@ -94,9 +106,9 @@ public class WindowedValues {
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value, paneInfo);
     } else if (isGlobal) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null);
     } else {
-      return new TimestampedValueInSingleWindow<>(value, timestamp, window, paneInfo);
+      return new TimestampedValueInSingleWindow<>(value, timestamp, window, paneInfo, null, null);
     }
   }
 
@@ -105,7 +117,7 @@ public class WindowedValues {
    * default timestamp and pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value) {
-    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING);
+    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null);
   }
 
   /**
@@ -113,7 +125,7 @@ public class WindowedValues {
    * default timestamp and the specified pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo paneInfo) {
-    return new ValueInGlobalWindow<>(value, paneInfo);
+    return new ValueInGlobalWindow<>(value, paneInfo, null, null);
   }
 
   /**
@@ -124,7 +136,7 @@ public class WindowedValues {
     if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING, null, null);
     }
   }
 
@@ -137,7 +149,7 @@ public class WindowedValues {
     if (paneInfo.equals(PaneInfo.NO_FIRING)) {
       return timestampedValueInGlobalWindow(value, timestamp);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null);
     }
   }
 
@@ -151,7 +163,9 @@ public class WindowedValues {
         newValue,
         windowedValue.getTimestamp(),
         windowedValue.getWindows(),
-        windowedValue.getPaneInfo());
+        windowedValue.getPaneInfo(),
+        windowedValue.getCurrentRecordId(),
+        windowedValue.getCurrentRecordOffset());
   }
 
   public static <T> boolean equals(
@@ -200,10 +214,28 @@ public class WindowedValues {
 
     private final T value;
     private final PaneInfo paneInfo;
+    private final @Nullable String currentRecordId;
+    private final @Nullable Long currentRecordOffset;
 
-    protected SimpleWindowedValue(T value, PaneInfo paneInfo) {
+    @Override
+    public @Nullable String getCurrentRecordId() {
+      return currentRecordId;
+    }
+
+    @Override
+    public @Nullable Long getCurrentRecordOffset() {
+      return currentRecordOffset;
+    }
+
+    protected SimpleWindowedValue(
+        T value,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       this.value = value;
       this.paneInfo = checkNotNull(paneInfo);
+      this.currentRecordId = currentRecordId;
+      this.currentRecordOffset = currentRecordOffset;
     }
 
     @Override
@@ -232,8 +264,13 @@ public class WindowedValues {
 
   /** The abstract superclass of WindowedValue representations where timestamp == MIN. */
   private abstract static class MinTimestampWindowedValue<T> extends SimpleWindowedValue<T> {
-    public MinTimestampWindowedValue(T value, PaneInfo paneInfo) {
-      super(value, paneInfo);
+
+    public MinTimestampWindowedValue(
+        T value,
+        PaneInfo pane,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, pane, currentRecordId, currentRecordOffset);
     }
 
     @Override
@@ -246,8 +283,12 @@ public class WindowedValues {
   private static class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T>
       implements SingleWindowedValue {
 
-    public ValueInGlobalWindow(T value, PaneInfo paneInfo) {
-      super(value, paneInfo);
+    public ValueInGlobalWindow(
+        T value,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, paneInfo, currentRecordId, currentRecordOffset);
     }
 
     @Override
@@ -262,7 +303,8 @@ public class WindowedValues {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInGlobalWindow<>(newValue, getPaneInfo());
+      return new ValueInGlobalWindow<>(
+          newValue, getPaneInfo(), getCurrentRecordId(), getCurrentRecordOffset());
     }
 
     @Override
@@ -294,8 +336,13 @@ public class WindowedValues {
   private abstract static class TimestampedWindowedValue<T> extends SimpleWindowedValue<T> {
     private final Instant timestamp;
 
-    public TimestampedWindowedValue(T value, Instant timestamp, PaneInfo paneInfo) {
-      super(value, paneInfo);
+    public TimestampedWindowedValue(
+        T value,
+        Instant timestamp,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, paneInfo, currentRecordId, currentRecordOffset);
       this.timestamp = checkNotNull(timestamp);
     }
 
@@ -312,8 +359,13 @@ public class WindowedValues {
   private static class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T>
       implements SingleWindowedValue {
 
-    public TimestampedValueInGlobalWindow(T value, Instant timestamp, PaneInfo paneInfo) {
-      super(value, timestamp, paneInfo);
+    public TimestampedValueInGlobalWindow(
+        T value,
+        Instant timestamp,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
     }
 
     @Override
@@ -328,7 +380,8 @@ public class WindowedValues {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInGlobalWindow<>(newValue, getTimestamp(), getPaneInfo());
+      return new TimestampedValueInGlobalWindow<>(
+          newValue, getTimestamp(), getPaneInfo(), getCurrentRecordId(), getCurrentRecordOffset());
     }
 
     @Override
@@ -372,14 +425,25 @@ public class WindowedValues {
     private final BoundedWindow window;
 
     public TimestampedValueInSingleWindow(
-        T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-      super(value, timestamp, paneInfo);
+        T value,
+        Instant timestamp,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
       this.window = checkNotNull(window);
     }
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInSingleWindow<>(newValue, getTimestamp(), window, getPaneInfo());
+      return new TimestampedValueInSingleWindow<>(
+          newValue,
+          getTimestamp(),
+          window,
+          getPaneInfo(),
+          getCurrentRecordId(),
+          getCurrentRecordOffset());
     }
 
     @Override
@@ -433,8 +497,10 @@ public class WindowedValues {
         T value,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      super(value, timestamp, paneInfo);
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
       this.windows = checkNotNull(windows);
     }
 
@@ -446,7 +512,12 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInMultipleWindows<>(
-          newValue, getTimestamp(), getWindows(), getPaneInfo());
+          newValue,
+          getTimestamp(),
+          getWindows(),
+          getPaneInfo(),
+          getCurrentRecordId(),
+          getCurrentRecordOffset());
     }
 
     @Override

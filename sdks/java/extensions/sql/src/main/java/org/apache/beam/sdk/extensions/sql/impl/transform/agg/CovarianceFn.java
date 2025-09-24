@@ -58,7 +58,7 @@ public class CovarianceFn<T extends Number>
   private boolean isSample; // flag to determine return value should be Covariance Pop or Sample
   private SerializableFunction<BigDecimal, T> decimalConverter;
 
-  public static <V extends Number> CovarianceFn newPopulation(Schema.TypeName typeName) {
+  public static CovarianceFn newPopulation(Schema.TypeName typeName) {
     return newPopulation(BigDecimalConverter.forSqlType(typeName));
   }
 
@@ -68,7 +68,7 @@ public class CovarianceFn<T extends Number>
     return new CovarianceFn<>(POP, decimalConverter);
   }
 
-  public static <V extends Number> CovarianceFn newSample(Schema.TypeName typeName) {
+  public static CovarianceFn newSample(Schema.TypeName typeName) {
     return newSample(BigDecimalConverter.forSqlType(typeName));
   }
 

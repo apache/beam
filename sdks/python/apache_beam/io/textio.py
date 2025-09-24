@@ -479,12 +479,12 @@ class _TextSink(filebasedsink.FileBasedSink):
         shard number and shard count respectively.  This argument can be ``''``
         in which case it behaves as if num_shards was set to 1 and only one file
         will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
-        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded 
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded
         PCollections.
-        W is used for windowed shard naming and is replaced with 
+        W is used for windowed shard naming and is replaced with
         ``[window.start, window.end)``
-        V is used for windowed shard naming and is replaced with 
-        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"), 
+        V is used for windowed shard naming and is replaced with
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"),
         window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       coder: Coder used to encode each line.
       compression_type: Used to handle compressed output files. Typical value
@@ -505,7 +505,7 @@ class _TextSink(filebasedsink.FileBasedSink):
         to exceed this value.  This also tracks the uncompressed,
         not compressed, size of the shard.
       skip_if_empty: Don't write any shards if the PCollection is empty.
-      triggering_frequency: (int) Every triggering_frequency duration, a window 
+      triggering_frequency: (int) Every triggering_frequency duration, a window
         will be triggered and all bundles in the window will be written.
         If set it overrides user windowing. Mandatory for GlobalWindow.
 
@@ -877,12 +877,12 @@ class WriteToText(PTransform):
         shard number and shard count respectively.  This argument can be ``''``
         in which case it behaves as if num_shards was set to 1 and only one file
         will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
-        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded 
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded
         PCollections.
-        W is used for windowed shard naming and is replaced with 
+        W is used for windowed shard naming and is replaced with
         ``[window.start, window.end)``
-        V is used for windowed shard naming and is replaced with 
-        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"), 
+        V is used for windowed shard naming and is replaced with
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"),
         window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       coder (~apache_beam.coders.coders.Coder): Coder used to encode each line.
       compression_type (str): Used to handle compressed output files.
@@ -908,8 +908,8 @@ class WriteToText(PTransform):
       skip_if_empty: Don't write any shards if the PCollection is empty.
         In case of an empty PCollection, this will still delete existing
         files having same file path and not create new ones.
-      triggering_frequency: (int) Every triggering_frequency duration, a window 
-        will be triggered and all bundles in the window will be written. 
+      triggering_frequency: (int) Every triggering_frequency duration, a window
+        will be triggered and all bundles in the window will be written.
     """
 
     self._sink = _TextSink(
@@ -973,7 +973,12 @@ try:
 
   @append_pandas_args(
       pandas.read_csv, exclude=['filepath_or_buffer', 'iterator'])
-  def ReadFromCsv(path: str, *, splittable: bool = True, **kwargs):
+  def ReadFromCsv(
+      path: str,
+      *,
+      splittable: bool = True,
+      filename_column: Optional[str] = None,
+      **kwargs):
     """A PTransform for reading comma-separated values (csv) files into a
     PCollection.
 
@@ -985,11 +990,17 @@ try:
         This should be set to False if single records span multiple lines (e.g.
         a quoted field has a newline inside of it).  Setting this to false may
         disable liquid sharding.
+      filename_column (str): If not None, the name of the column to add
+        to each record, containing the filename of the source file.
       **kwargs: Extra arguments passed to `pandas.read_csv` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
     return 'ReadFromCsv' >> ReadViaPandas(
-        'csv', path, splittable=splittable, **kwargs)
+        'csv',
+        path,
+        splittable=splittable,
+        filename_column=filename_column,
+        **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_csv, exclude=['path_or_buf', 'index', 'index_label'])

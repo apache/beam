@@ -1244,7 +1244,7 @@ public final class KinesisIO {
         private void refresh(
             KinesisAsyncClient client,
             Supplier<Instant> nextRefreshFn,
-            TreeSet<BigInteger> bounds,
+            NavigableSet<BigInteger> bounds,
             @Nullable String nextToken) {
           ListShardsRequest.Builder reqBuilder =
               ListShardsRequest.builder().shardFilter(f -> f.type(AT_LATEST));

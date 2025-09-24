@@ -30,6 +30,7 @@ from hamcrest.core.core.allof import all_of
 
 from apache_beam.io.gcp import pubsub_it_pipeline
 from apache_beam.io.gcp.pubsub import PubsubMessage
+from apache_beam.io.gcp.pubsub import WriteToPubSub
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
@@ -219,6 +220,90 @@ class PubSubIntegrationTest(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_streaming_with_attributes(self):
     self._test_streaming(with_attributes=True)
+
+  def _test_batch_write(self, with_attributes):
+    """Tests batch mode WriteToPubSub functionality.
+
+    Args:
+      with_attributes: False - Writes message data only.
+        True - Writes message data and attributes.
+    """
+    from apache_beam.options.pipeline_options import PipelineOptions
+    from apache_beam.options.pipeline_options import StandardOptions
+    from apache_beam.transforms import Create
+
+    # Create test messages for batch mode
+    test_messages = [
+        PubsubMessage(b'batch_data001', {'batch_attr': 'value1'}),
+        PubsubMessage(b'batch_data002', {'batch_attr': 'value2'}),
+        PubsubMessage(b'batch_data003', {'batch_attr': 'value3'})
+    ]
+
+    pipeline_options = PipelineOptions()
+    # Explicitly set streaming to False for batch mode
+    pipeline_options.view_as(StandardOptions).streaming = False
+
+    with TestPipeline(options=pipeline_options) as p:
+      if with_attributes:
+        messages = p | 'CreateMessages' >> Create(test_messages)
+        _ = messages | 'WriteToPubSub' >> WriteToPubSub(
+            self.output_topic.name, with_attributes=True)
+      else:
+        # For data-only mode, extract just the data
+        message_data = [msg.data for msg in test_messages]
+        messages = p | 'CreateData' >> Create(message_data)
+        _ = messages | 'WriteToPubSub' >> WriteToPubSub(
+            self.output_topic.name, with_attributes=False)
+
+    # Verify messages were published by reading from the subscription
+    time.sleep(10)  # Allow time for messages to be published and received
+
+    # Pull messages from the output subscription to verify they were written
+    response = self.sub_client.pull(
+        request={
+            "subscription": self.output_sub.name,
+            "max_messages": 10,
+        })
+
+    received_messages = []
+    for received_message in response.received_messages:
+      if with_attributes:
+        # Parse attributes
+        attrs = dict(received_message.message.attributes)
+        received_messages.append(
+            PubsubMessage(received_message.message.data, attrs))
+      else:
+        received_messages.append(received_message.message.data)
+
+      # Acknowledge the message
+      self.sub_client.acknowledge(
+          request={
+              "subscription": self.output_sub.name,
+              "ack_ids": [received_message.ack_id],
+          })
+
+    # Verify we received the expected number of messages
+    self.assertEqual(len(received_messages), len(test_messages))
+
+    if with_attributes:
+      # Verify message content and attributes
+      received_data = [msg.data for msg in received_messages]
+      expected_data = [msg.data for msg in test_messages]
+      self.assertEqual(sorted(received_data), sorted(expected_data))
+    else:
+      # Verify message data only
+      expected_data = [msg.data for msg in test_messages]
+      self.assertEqual(sorted(received_messages), sorted(expected_data))
+
+  @pytest.mark.it_postcommit
+  def test_batch_write_data_only(self):
+    """Test WriteToPubSub in batch mode with data only."""
+    self._test_batch_write(with_attributes=False)
+
+  @pytest.mark.it_postcommit
+  def test_batch_write_with_attributes(self):
+    """Test WriteToPubSub in batch mode with attributes."""
+    self._test_batch_write(with_attributes=True)
 
 
 if __name__ == '__main__':

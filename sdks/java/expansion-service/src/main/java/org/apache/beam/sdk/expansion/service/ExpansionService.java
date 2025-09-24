@@ -396,7 +396,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     return configurationClass;
   }
 
-  static <ConfigT> Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
+  static Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
     Schema payloadSchema = SchemaTranslation.schemaFromProto(schema);
 
     if (payloadSchema.getFieldCount() == 0) {

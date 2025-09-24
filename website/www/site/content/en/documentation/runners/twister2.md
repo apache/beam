@@ -20,6 +20,8 @@ limitations under the License.
 
 ## Overview
 
+**Note** Twister2 runner is deprecated and the support is planned to be removed in Beam 3.0 ([Issue](https://github.com/apache/beam/issues/35905)).
+
 Twister2 Runner can be used to execute Apache Beam pipelines on top of a Twister2
 cluster. Twister2 Runner runs Beam pipelines as Twister2 jobs, which can be executed on
 a Twister2 cluster either as a local deployment or distributed deployment using, Nomad,
