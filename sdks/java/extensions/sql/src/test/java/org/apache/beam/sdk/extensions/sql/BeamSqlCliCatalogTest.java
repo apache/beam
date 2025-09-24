@@ -303,7 +303,6 @@ public class BeamSqlCliCatalogTest {
     catalogManager.registerTableProvider(testTableProvider);
     cli.execute(
         "CREATE EXTERNAL TABLE catalog_1.db_1.person(id int, name varchar, age int) TYPE 'test'");
-    System.out.println("xxx metastoreDb1 tables: " + metastoreDb1.getTables());
     Table table = metastoreDb1.getTable("person");
     assertNotNull(table);
     // confirm we are still using catalog_2

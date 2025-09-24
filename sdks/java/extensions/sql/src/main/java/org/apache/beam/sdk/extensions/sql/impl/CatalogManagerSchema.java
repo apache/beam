@@ -89,7 +89,6 @@ public class CatalogManagerSchema implements Schema {
       }
     }
 
-    // create the catalog
     catalogManager.createCatalog(name, type, properties);
     CatalogSchema catalogSchema =
         new CatalogSchema(connection, checkStateNotNull(catalogManager.getCatalog(name)));
