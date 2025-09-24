@@ -434,7 +434,7 @@ class Stager(object):
       temp_dir: Optional[str] = None,
       pypi_requirements: Optional[List[str]] = None,
       populate_requirements_cache: Optional[Callable[[str, str, bool],
-                                                     None]] = None,
+                                                     List[str]]] = None,
       staging_location: Optional[str] = None):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -738,7 +738,9 @@ class Stager(object):
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
   def _populate_requirements_cache(
-      requirements_file, cache_dir, populate_cache_with_sdists=False) -> List[str]:
+      requirements_file,
+      cache_dir,
+      populate_cache_with_sdists=False) -> List[str]:
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
     # It will get the packages downloaded in the order they are presented in

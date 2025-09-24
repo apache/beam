@@ -100,8 +100,7 @@ class StagerTest(unittest.TestCase):
     _ = requirements_file
     _ = populate_cache_with_sdists
     pkgs = [
-      os.path.join(cache_dir, 'abc.txt'),
-      os.path.join(cache_dir, 'def.txt')
+        os.path.join(cache_dir, 'abc.txt'), os.path.join(cache_dir, 'def.txt')
     ]
     for pkg in pkgs:
       self.create_temp_file(pkg, 'nothing')
