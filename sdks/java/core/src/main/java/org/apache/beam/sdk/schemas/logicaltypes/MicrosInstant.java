@@ -17,14 +17,11 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-
 import java.time.Instant;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A timestamp represented as microseconds since the epoch.
@@ -37,6 +34,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>For a more faithful logical type to use with {@code java.time.Instant}, see {@link
  * NanosInstant}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
   public static final String IDENTIFIER =
       SchemaApi.LogicalTypes.Enum.MICROS_INSTANT
@@ -62,12 +62,7 @@ public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
 
   @Override
   public Instant toInputType(Row row) {
-    return Instant.ofEpochSecond(
-        checkArgumentNotNull(
-            row.getInt64(0), "While trying to convert to Instant: Row missing seconds field"),
-        checkArgumentNotNull(
-                row.getInt32(1), "While trying to convert to Instant: Row missing micros field")
-            * 1000);
+    return Instant.ofEpochSecond(row.getInt64(0), row.getInt32(1) * 1000);
   }
 
   @Override
@@ -76,7 +71,7 @@ public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
   }
 
   @Override
-  public Schema.@Nullable FieldType getArgumentType() {
+  public Schema.FieldType getArgumentType() {
     return null;
   }
 

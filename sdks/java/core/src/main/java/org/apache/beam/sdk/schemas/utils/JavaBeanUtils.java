@@ -45,7 +45,6 @@ import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueHaver;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
@@ -277,38 +276,6 @@ public class JavaBeanUtils {
         .intercept(new InvokeSetterInstruction(fieldValueTypeInformation, typeConversionsFactory));
   }
 
-  public static <ObjectT> FieldValueHaver<ObjectT> createHaver(
-      Class<ObjectT> clazz, Method hasMethod) {
-    DynamicType.Builder<FieldValueHaver<ObjectT>> builder =
-        ByteBuddyUtils.subclassHaverInterface(BYTE_BUDDY, clazz);
-    builder = implementHaverMethods(builder, hasMethod);
-    try {
-      return builder
-          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
-          .make()
-          .load(
-              ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              getClassLoadingStrategy(clazz))
-          .getLoaded()
-          .getDeclaredConstructor()
-          .newInstance();
-    } catch (InstantiationException
-        | IllegalAccessException
-        | InvocationTargetException
-        | NoSuchMethodException e) {
-      throw new RuntimeException("Unable to generate a have for hasMethod '" + hasMethod + "'", e);
-    }
-  }
-
-  private static <ObjectT> DynamicType.Builder<FieldValueHaver<ObjectT>> implementHaverMethods(
-      DynamicType.Builder<FieldValueHaver<ObjectT>> builder, Method hasMethod) {
-    return builder
-        .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(hasMethod.getName()))
-        .method(ElementMatchers.named("has"))
-        .intercept(new InvokeHaverInstruction(hasMethod));
-  }
-
   // The list of constructors for a class is cached, so we only create the classes the first time
   // getConstructor is called.
   public static final Map<TypeDescriptorWithSchema<?>, SchemaUserTypeCreator> CACHED_CREATORS =
@@ -515,37 +482,6 @@ public class JavaBeanUtils {
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);
       };
-    }
-  }
-
-  // Implements a method to check a presence on an object.
-  private static class InvokeHaverInstruction implements Implementation {
-    private final Method hasMethod;
-
-    public InvokeHaverInstruction(Method hasMethod) {
-      this.hasMethod = hasMethod;
-    }
-
-    @Override
-    public ByteCodeAppender appender(Target implementationTarget) {
-      return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        // this + method parameters.
-        int numLocals = 1 + instrumentedMethod.getParameters().size();
-        StackManipulation.Size size =
-            new StackManipulation.Compound(
-                    // Read the first argument
-                    MethodVariableAccess.REFERENCE.loadFrom(1),
-                    // Call hasMethod
-                    MethodInvocation.invoke(new ForLoadedMethod(hasMethod)),
-                    MethodReturn.INTEGER)
-                .apply(methodVisitor, implementationContext);
-        return new Size(size.getMaximalSize(), numLocals);
-      };
-    }
-
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
     }
   }
 }

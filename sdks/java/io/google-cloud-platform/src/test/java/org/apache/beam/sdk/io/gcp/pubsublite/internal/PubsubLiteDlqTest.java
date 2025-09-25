@@ -282,8 +282,8 @@ public class PubsubLiteDlqTest {
               "address",
               Schema.FieldType.row(
                   Schema.builder()
-                      .addField("street", Schema.FieldType.STRING)
                       .addField("city", Schema.FieldType.STRING)
+                      .addField("street", Schema.FieldType.STRING)
                       .addField("state", Schema.FieldType.STRING)
                       .addField("zip_code", Schema.FieldType.STRING)
                       .build()))
@@ -554,8 +554,6 @@ public class PubsubLiteDlqTest {
             ParDo.of(new ErrorFn("Read-Error-Counter", protoValueMapper, errorSchema, Boolean.TRUE))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    // Unexpected behaviors occur if the PCollection schem differs from the schema generated in the
-    // conversion from Proto to Row.
     output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
     output.get(ERROR_TAG).setRowSchema(errorSchema);
 

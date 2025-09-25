@@ -78,7 +78,6 @@ import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueHaver;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
@@ -187,7 +186,6 @@ class ProtoByteBuddyUtils {
           TypeName.MAP, "putAll");
   private static final String DEFAULT_PROTO_GETTER_PREFIX = "get";
   private static final String DEFAULT_PROTO_SETTER_PREFIX = "set";
-  private static final String DEFAULT_PROTO_HAVER_PREFIX = "has";
 
   // https://github.com/apache/beam/issues/21626: there is a slight difference between 'protoc' and
   // Guava CaseFormat regarding the camel case conversion
@@ -247,11 +245,6 @@ class ProtoByteBuddyUtils {
 
   static String protoSetterPrefix(FieldType fieldType) {
     return PROTO_SETTER_PREFIX.getOrDefault(fieldType.getTypeName(), DEFAULT_PROTO_SETTER_PREFIX);
-  }
-
-  static String protoHaverName(String name) {
-    String camel = convertProtoPropertyNameToJavaPropertyName(name);
-    return DEFAULT_PROTO_HAVER_PREFIX + camel;
   }
 
   static class ProtoConvertType extends ConvertType {
@@ -993,29 +986,7 @@ class ProtoByteBuddyUtils {
       return createOneOfGetter(
           fieldValueTypeInformation, oneOfGetters, clazz, oneOfType, caseMethod);
     } else {
-      FieldValueGetter<@NonNull ProtoT, Object> getter =
-          JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
-
-      @Nullable Method hasMethod = getProtoHaver(methods, field.getName());
-      if (hasMethod != null) {
-        FieldValueHaver<ProtoT> haver = JavaBeanUtils.createHaver(clazz, hasMethod);
-        return new FieldValueGetter<@NonNull ProtoT, Object>() {
-          @Override
-          public @Nullable Object get(@NonNull ProtoT object) {
-            if (haver.has(object)) {
-              return getter.get(object);
-            }
-            return null;
-          }
-
-          @Override
-          public String name() {
-            return getter.name();
-          }
-        };
-      } else {
-        return getter;
-      }
+      return JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
     }
   }
 
@@ -1047,13 +1018,6 @@ class ProtoByteBuddyUtils {
         .filter(m -> m.getParameterCount() == 0)
         .findAny()
         .orElseThrow(IllegalArgumentException::new);
-  }
-
-  static @Nullable Method getProtoHaver(Multimap<String, Method> methods, String name) {
-    return methods.get(protoHaverName(name)).stream()
-        .filter(m -> m.getParameterCount() == 0)
-        .findAny()
-        .orElse(null);
   }
 
   public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
@@ -1143,13 +1107,10 @@ class ProtoByteBuddyUtils {
     }
 
     @Override
-    public Object create(@Nullable Object... params) {
+    public Object create(Object... params) {
       ProtoBuilderT builder = builderCreator.get();
       for (int i = 0; i < params.length; ++i) {
-        @Nullable Object param = params[i];
-        if (param != null) {
-          setters.get(i).set(builder, param);
-        }
+        setters.get(i).set(builder, params[i]);
       }
       return builder.build();
     }

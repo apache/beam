@@ -75,7 +75,6 @@ import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.utility.RandomString;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueHaver;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -233,16 +232,6 @@ public class ByteBuddyUtils {
             .build();
     return (DynamicType.Builder)
         byteBuddy.with(new InjectPackageStrategy((Class) objectType)).subclass(setterGenericType);
-  }
-
-  @SuppressWarnings("unchecked")
-  public static <ObjectT> DynamicType.Builder<FieldValueHaver<ObjectT>> subclassHaverInterface(
-      ByteBuddy byteBuddy, Class<?> objectType) {
-    TypeDescription.Generic haverGenericType =
-        TypeDescription.Generic.Builder.parameterizedType(FieldValueHaver.class, objectType)
-            .build();
-    return (DynamicType.Builder<FieldValueHaver<ObjectT>>)
-        byteBuddy.with(new InjectPackageStrategy(objectType)).subclass(haverGenericType);
   }
 
   public interface TypeConversionsFactory {

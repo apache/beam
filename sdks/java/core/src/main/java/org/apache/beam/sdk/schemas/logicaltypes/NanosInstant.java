@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-
 import java.time.Instant;
 import org.apache.beam.sdk.values.Row;
 
 /** A timestamp represented as nanoseconds since the epoch. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class NanosInstant extends NanosType<Instant> {
   public static final String IDENTIFIER = "beam:logical_type:nanos_instant:v1";
 
@@ -37,10 +38,6 @@ public class NanosInstant extends NanosType<Instant> {
 
   @Override
   public Instant toInputType(Row row) {
-    return Instant.ofEpochSecond(
-        checkArgumentNotNull(
-            row.getInt64(0), "While trying to convert to Instant: Row missing seconds field"),
-        checkArgumentNotNull(
-            row.getInt32(1), "While traying to convert to Instant: Row missing nanos field"));
+    return Instant.ofEpochSecond(row.getInt64(0), row.getInt32(1));
   }
 }

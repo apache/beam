@@ -69,7 +69,6 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withField
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withTypeName;
 import static org.junit.Assert.assertEquals;
 
-import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.OptionalPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage;
@@ -386,82 +385,6 @@ public class ProtoMessageSchemaTest {
   @Test
   public void testRowToBytesAndBytesToRowFnWithShuffledFields() {
     assertEquals(WKT_MESSAGE_ROW, convertRow(WKT_MESSAGE_SHUFFLED_ROW));
-  }
-
-  @Test
-  public void testOptionalPrimitive_RowToProto_Empty() {
-    SerializableFunction<Row, OptionalPrimitive> fromRow =
-        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(OptionalPrimitive.class));
-
-    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(OptionalPrimitive.class));
-    Row row = Row.nullRow(schema);
-
-    OptionalPrimitive message = OptionalPrimitive.getDefaultInstance();
-
-    assertEquals(message, fromRow.apply(row));
-  }
-
-  @Test
-  public void testOptionalPrimitive_ProtoToRow_Empty() {
-    SerializableFunction<OptionalPrimitive, Row> toRow =
-        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(OptionalPrimitive.class));
-
-    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(OptionalPrimitive.class));
-    Row row = Row.nullRow(schema);
-
-    OptionalPrimitive message = OptionalPrimitive.getDefaultInstance();
-
-    assertEquals(row, toRow.apply(message));
-  }
-
-  @Test
-  public void testOptionalPrimitive_RowToProto_DefaultValues() {
-    SerializableFunction<Row, OptionalPrimitive> fromRow =
-        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(OptionalPrimitive.class));
-
-    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(OptionalPrimitive.class));
-    Row row =
-        Row.withSchema(schema)
-            .addValue(0)
-            .addValue(false)
-            .addValue("")
-            .addValue(new byte[0])
-            .build();
-
-    OptionalPrimitive message =
-        OptionalPrimitive.newBuilder()
-            .setPrimitiveInt32(0)
-            .setPrimitiveBool(false)
-            .setPrimitiveString("")
-            .setPrimitiveBytes(ByteString.EMPTY)
-            .build();
-
-    assertEquals(message, fromRow.apply(row));
-  }
-
-  @Test
-  public void testOptionalPrimitive_ProtoToRow_DefaultValues() {
-    SerializableFunction<OptionalPrimitive, Row> toRow =
-        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(OptionalPrimitive.class));
-
-    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(OptionalPrimitive.class));
-    Row row =
-        Row.withSchema(schema)
-            .addValue(0)
-            .addValue(false)
-            .addValue("")
-            .addValue(new byte[0])
-            .build();
-
-    OptionalPrimitive message =
-        OptionalPrimitive.newBuilder()
-            .setPrimitiveInt32(0)
-            .setPrimitiveBool(false)
-            .setPrimitiveString("")
-            .setPrimitiveBytes(ByteString.EMPTY)
-            .build();
-
-    assertEquals(row, toRow.apply(message));
   }
 
   private Row convertRow(Row row) {

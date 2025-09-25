@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -407,17 +405,12 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
         @NonNull
         FieldValueGetter<@NonNull Object, Object> converter =
-            checkStateNotNull(
+            Verify.verifyNotNull(
                 converters.get(caseType.getValue()),
                 "Missing OneOf converter for case %s.",
                 caseType);
 
-        Object convertedValue =
-            checkStateNotNull(
-                converter.get(value.getValue()),
-                "Bug! converting a non-null value in a OneOf resulted in null result value");
-
-        return oneOfType.createValue(caseType, convertedValue);
+        return oneOfType.createValue(caseType, converter.get(value.getValue()));
       }
     }
 

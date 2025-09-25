@@ -19,9 +19,11 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
-import org.checkerframework.checker.nullness.qual.NonNull;
 
 /** A base class for LogicalTypes that use the same Java type as the underlying base type. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public abstract class PassThroughLogicalType<T> implements LogicalType<T, T> {
   private final String identifier;
   private final FieldType argumentType;
@@ -58,12 +60,12 @@ public abstract class PassThroughLogicalType<T> implements LogicalType<T, T> {
   }
 
   @Override
-  public @NonNull T toBaseType(@NonNull T input) {
+  public T toBaseType(T input) {
     return input;
   }
 
   @Override
-  public @NonNull T toInputType(@NonNull T base) {
+  public T toInputType(T base) {
     return base;
   }
 }

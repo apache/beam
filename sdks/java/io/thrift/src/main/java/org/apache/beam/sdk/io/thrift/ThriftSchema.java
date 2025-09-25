@@ -170,10 +170,7 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
     final Stream<Schema.Field> fields =
         thriftFieldDescriptors(targetClass).values().stream().map(this::beamField);
     if (TUnion.class.isAssignableFrom(targetClass)) {
-      // Beam OneOf is just a record of fields where exactly one must be non-null, so it doesn't
-      // allow the types of the cases to be nullable
-      return OneOfType.create(fields.map(f -> f.withNullable(false)).collect(Collectors.toList()))
-          .getOneOfSchema();
+      return OneOfType.create(fields.collect(Collectors.toList())).getOneOfSchema();
     } else {
       return fields
           .reduce(Schema.builder(), Schema.Builder::addField, ThriftSchema::throwingCombiner)

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -37,6 +35,9 @@ import org.apache.beam.sdk.values.Row;
  * same as the base type of {@link Time}, which is a Long that represents a count of time in
  * nanoseconds.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
   public static final String IDENTIFIER = "beam:logical_type:datetime:v1";
   public static final String DATE_FIELD_NAME = "Date";
@@ -68,21 +69,19 @@ public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
 
   @Override
   public Row toBaseType(LocalDateTime input) {
-    return Row.withSchema(DATETIME_SCHEMA)
-        .addValues(input.toLocalDate().toEpochDay(), input.toLocalTime().toNanoOfDay())
-        .build();
+    return input == null
+        ? null
+        : Row.withSchema(DATETIME_SCHEMA)
+            .addValues(input.toLocalDate().toEpochDay(), input.toLocalTime().toNanoOfDay())
+            .build();
   }
 
   @Override
   public LocalDateTime toInputType(Row base) {
-    return LocalDateTime.of(
-        LocalDate.ofEpochDay(
-            checkArgumentNotNull(
-                base.getInt64(DATE_FIELD_NAME),
-                "While trying to convert to LocalDateTime: Row missing date field")),
-        LocalTime.ofNanoOfDay(
-            checkArgumentNotNull(
-                base.getInt64(TIME_FIELD_NAME),
-                "While trying to convert to LocalDateTime: Row missing time field")));
+    return base == null
+        ? null
+        : LocalDateTime.of(
+            LocalDate.ofEpochDay(base.getInt64(DATE_FIELD_NAME)),
+            LocalTime.ofNanoOfDay(base.getInt64(TIME_FIELD_NAME)));
   }
 }
