@@ -766,7 +766,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         Instant processingTime,
         WindmillStateCache.ForKey cacheForKey,
         Watermarks watermarks) {
-      WindmillStateTagUtil windmillStateTagUtil = new WindmillStateTagUtil();
       this.stateInternals =
           new WindmillStateInternals<>(
               key,
@@ -774,7 +773,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               stateReader,
               getWorkItem().getIsNewKey(),
               cacheForKey.forFamily(stateFamily),
-              windmillStateTagUtil,
+              WindmillStateTagUtil.instance(),
               scopedReadStateSupplier);
 
       this.systemTimerInternals =

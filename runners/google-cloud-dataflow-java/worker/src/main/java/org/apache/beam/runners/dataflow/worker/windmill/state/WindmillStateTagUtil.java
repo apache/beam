@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import java.io.IOException;
 import java.lang.ref.SoftReference;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -30,10 +31,15 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
+@ThreadSafe
 public class WindmillStateTagUtil {
 
   private static final ThreadLocal<@Nullable RefHolder> threadLocalRefHolder = new ThreadLocal<>();
   private static final String TIMER_HOLD_PREFIX = "/h";
+  private static final WindmillStateTagUtil INSTANCE = new WindmillStateTagUtil();
+
+  // Private constructor to prevent instantiations from outside.
+  private WindmillStateTagUtil() {}
 
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
   @VisibleForTesting
@@ -107,6 +113,7 @@ public class WindmillStateTagUtil {
   }
 
   private static class RefHolder {
+
     public SoftReference<@Nullable ByteStringOutputStream> streamRef =
         new SoftReference<>(new ByteStringOutputStream());
 
@@ -132,5 +139,10 @@ public class WindmillStateTagUtil {
       refHolder.streamRef = new SoftReference<>(stream);
     }
     return stream;
+  }
+
+  /** @return the singleton WindmillStateTagUtil */
+  public static WindmillStateTagUtil instance() {
+    return INSTANCE;
   }
 }
