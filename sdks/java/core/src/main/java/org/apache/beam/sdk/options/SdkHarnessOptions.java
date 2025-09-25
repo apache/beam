@@ -20,6 +20,9 @@ package org.apache.beam.sdk.options;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -440,4 +443,29 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   int getElementProcessingTimeoutMinutes();
 
   void setElementProcessingTimeoutMinutes(int value);
+
+  /**
+   * The OpenTelemetry properties that will be appended to the set of system properties for SDK
+   * harness instances.
+   */
+  @Description(
+      "The OpenTelemetry properties that will be appended to the set of system properties for SDK "
+          + "harness instances.")
+  Map<String, String> getOpenTelemetryProperties();
+
+  void setOpenTelemetryProperties(Map<String, String> value);
+
+  @JsonIgnore
+  @Hidden
+  @Default.InstanceFactory(GlobalOpenTelemetryFactory.class)
+  OpenTelemetry getOpenTelemetry();
+
+  void setOpenTelemetry(OpenTelemetry value);
+
+  class GlobalOpenTelemetryFactory implements DefaultValueFactory<OpenTelemetry> {
+    @Override
+    public OpenTelemetry create(PipelineOptions options) {
+      return GlobalOpenTelemetry.get();
+    }
+  }
 }
