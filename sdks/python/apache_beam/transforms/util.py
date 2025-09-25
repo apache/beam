@@ -477,10 +477,16 @@ class GroupByEncryptedKey(PTransform):
   This transform encrypts the keys of the input PCollection, performs a
   GroupByKey on the encrypted keys, and then decrypts the keys in the output.
   This is useful when the keys contain sensitive data that should not be
-  stored at rest by the runner. Note that runners can implement arbitrary
-  materialization steps, so this does not guarantee that the whole pipeline
-  will not have unencrypted data at rest by itself.
-
+  stored at rest by the runner. Note the following caveats:
+  
+  1) Runners can implement arbitrary materialization steps, so this does not
+  guarantee that the whole pipeline will not have unencrypted data at rest by
+  itself.
+  2) If using this transform in streaming mode, this transform may not properly
+  handle update compatibility checks around coders. This means that an improper
+  update could lead to invalid coders, causing pipeline failure or data
+  corruption. If you need to update, make sure that the input type passed into
+  this transform does not change.
   """
   def __init__(self, hmac_key: Secret):
     """Initializes a GroupByEncryptedKey transform.
@@ -499,8 +505,8 @@ class GroupByEncryptedKey(PTransform):
           f'GroupByEncryptedKey {self.label}'
           'The key coder is not deterministic. This may result in incorrect '
           'pipeline output. This can be fixed by adding a type hint to the '
-          'operation preceding the GroupByKey step, and for custom key classes, '
-          'by writing a deterministic custom Coder. Please see the '
+          'operation preceding the GroupByKey step, and for custom key '
+          'classes, by writing a deterministic custom Coder. Please see the '
           'documentation for more details.')
       if not coder.is_kv_coder():
         raise ValueError(
