@@ -60,48 +60,18 @@ def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
   return cloudpickle._make_function(fcode, globals, name, argdefs, closure)
 
 
-def _patched_function_getnewargs(self, func):
-  if self.config.enable_stable_code_identifier_pickling:
-    code_path = code_object_pickler.get_code_object_identifier(func)
-    if code_path:
-      base_globals = self._build_base_globals(func)
-
-      closure_values = func.__closure__
-      if closure_values:
-        closure = tuple(self._make_cell(cv.cell_contents) for cv in closure_values)
-      else:
-        closure = tuple()
-
-      return code_path, base_globals, None, None, closure
-    return _original_function_getnewargs(self, func)
-
-
 def _patched_dynamic_function_reduce(self, func):
-  newargs = self._function_getnreargs(func)
-  state = cloudpickle._function_getnewstate(func)
+  newargs = self._function_getnewargs(func)
+  state = cloudpickle._function_getstate(func)
+  code_path = code_object_pickler.get_code_object_identifier(func)
 
-  if isinstance(newargs[0], str):
+  if code_path:
     make_function = _make_function_from_identifier
+    newargs = code_path
   else:
     make_function = cloudpickle._make_function
 
   return (make_function, newargs, state, None, None, cloudpickle._function_setstate)
-
-
-@contextlib.contextmanager 
-def _enable_stable_code_indentifier_pickling_patch():
-  with mock.patch.object(
-      cloudpickle.CloudPickler,
-      'function_getnewargs',
-      autospec=True,
-      side_effect=_patched_function_getnewargs,
-  ), mock.patch.object(
-      cloudpickle.CloudPickler,
-      '_dynamic_function_reduce',
-      autospec=True,
-      side_effect=_patched_dynamic_function_reduce,
-  ):
-    yield
 
 
 def _get_proto_enum_descriptor_class():
@@ -191,13 +161,9 @@ def dumps(
           config.enable_stable_code_identifier_pickling
       )
 
-      patch_context = (
-          _enable_stable_code_indentifier_pickling_patch()
-          if use_stable_patch
-          else contextlib.nullcontext()
-      )
-      with patch_context:
-        pickler = cloudpickle.CloudPickler(file, config=config)
+      if use_stable_patch:
+        cloudpickle._dynamic_function_reduce = _patched_dynamic_function_reduce
+      pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
