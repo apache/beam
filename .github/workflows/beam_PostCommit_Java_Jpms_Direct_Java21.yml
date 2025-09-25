@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_Jpms_Direct_Java21"]
         job_phrase: ["Run Jpms Direct Java 21 PostCommit"]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v4
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
@@ -71,7 +71,7 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     - name: Set up Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: |

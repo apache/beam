@@ -24,6 +24,7 @@
 
 name: Code Completion Plugin Tests
 on:
+  workflow_dispatch:
   push:
     branches-ignore:
       - 'master'
@@ -56,13 +57,13 @@ jobs:
 
       # Check out beam repository
       - name: Fetch beam Sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           path: main
 
       # Check out intellij community repository for tests
       - name: Fetch intellij-community Sources
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           repository: JetBrains/intellij-community
           path: intellij
@@ -73,7 +74,7 @@ jobs:
 
       # Setup Java environment for the next steps
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '11'

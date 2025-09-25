@@ -1224,6 +1224,23 @@ public class DataflowRunnerTest implements Serializable {
     DataflowRunner.fromOptions(options);
   }
 
+  private static RunnerApi.Pipeline containerUrlToPipeline(String url) {
+    return RunnerApi.Pipeline.newBuilder()
+        .setComponents(
+            RunnerApi.Components.newBuilder()
+                .putEnvironments(
+                    "env",
+                    RunnerApi.Environment.newBuilder()
+                        .setUrn(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                        .setPayload(
+                            RunnerApi.DockerPayload.newBuilder()
+                                .setContainerImage(url)
+                                .build()
+                                .toByteString())
+                        .build()))
+        .build();
+  }
+
   @Test
   public void testApplySdkEnvironmentOverrides() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1231,38 +1248,8 @@ public class DataflowRunnerTest implements Serializable {
     String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest";
     options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    RunnerApi.Pipeline pipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(dockerHubPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
-    RunnerApi.Pipeline expectedPipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(gcrPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
     assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
   }
 
@@ -1272,38 +1259,19 @@ public class DataflowRunnerTest implements Serializable {
     String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:latest";
     String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.9_sdk:latest";
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    RunnerApi.Pipeline pipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(dockerHubPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
-    RunnerApi.Pipeline expectedPipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(gcrPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
+    assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
+  }
+
+  @Test
+  public void testApplySdkEnvironmentOverridesRcByDefault() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:2.68.0rc2";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.9_sdk:2.68.0";
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
     assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
   }
 

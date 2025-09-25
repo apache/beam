@@ -33,6 +33,8 @@ applyJavaNature(
 description = "Apache Beam :: Examples :: Java :: Iceberg"
 ext.summary = """Apache Beam Java SDK examples using IcebergIO."""
 
+apply from: "$project.rootDir/examples/java/common.gradle"
+
 /** Define the list of runners which execute a precommit test.
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
@@ -86,4 +88,9 @@ dependencies {
   if (project.hasProperty("runnerDependency")) {
     runtimeOnly project(path: project.getProperty("runnerDependency"))
   }
+}
+
+configurations.all {
+  // iceberg-core needs avro:1.12.0
+  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
 }
