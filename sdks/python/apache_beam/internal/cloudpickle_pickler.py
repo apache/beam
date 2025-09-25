@@ -34,7 +34,6 @@ import io
 import logging
 import sys
 import threading
-from unittest import mock
 import zlib
 
 from apache_beam.internal.cloudpickle import cloudpickle
@@ -71,7 +70,8 @@ def _patched_dynamic_function_reduce(self, func):
   else:
     make_function = cloudpickle._make_function
 
-  return (make_function, newargs, state, None, None, cloudpickle._function_setstate)
+  return (
+      make_function, newargs, state, None, None, cloudpickle._function_setstate)
 
 
 def _get_proto_enum_descriptor_class():
@@ -156,8 +156,7 @@ def dumps(
   with _pickle_lock:
     with io.BytesIO() as file:
       use_stable_patch = (
-          config and
-          hasattr(config, 'enable_stable_function_identifiers') and
+          config and hasattr(config, 'enable_stable_function_identifiers') and
           config.enable_stable_function_identifiers
       )
 

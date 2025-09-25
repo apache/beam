@@ -111,7 +111,13 @@ class CloudPickleConfig:
   """Configuration for cloudpickle behavior."""
   id_generator: typing.Optional[callable] = uuid_generator
   skip_reset_dynamic_type_state: bool = False
-  enable_stable_code_identifier_pickling: bool = False
+  """Use identifiers derived from code location when pickling dynamic functions
+  (e.g. lambdas). Enabling this setting results in pickled payloads becoming
+  more stable to code changes: when a particular lambda function is slightly
+  modified  but the location of the function in the codebase has not changed,
+  the pickled representation might stay the same.
+  """
+  enable_stable_function_identifiers: bool = False
 
 
 DEFAULT_CONFIG = CloudPickleConfig()
@@ -1332,11 +1338,7 @@ class Pickler(pickle.Pickler):
         raise
 
   def __init__(
-      self,
-      file,
-      protocol=None,
-      buffer_callback=None,
-      config=DEFAULT_CONFIG):
+      self, file, protocol=None, buffer_callback=None, config=DEFAULT_CONFIG):
     if protocol is None:
       protocol = DEFAULT_PROTOCOL
     super().__init__(file, protocol=protocol, buffer_callback=buffer_callback)
