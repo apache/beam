@@ -1753,3 +1753,4 @@ class _AfterSynchronizedProcessingTime(TriggerFn):
 
   def get_continuation_trigger(self):
     return self
+  
