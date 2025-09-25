@@ -60,6 +60,8 @@ dependencies {
   runtimeOnly project(":sdks:java:io:iceberg")
   runtimeOnly project(":sdks:java:io:iceberg:bqms")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:sql")
+  implementation project(":sdks:java:extensions:sql:iceberg")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:managed")
