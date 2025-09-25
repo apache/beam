@@ -87,39 +87,46 @@ else:
 
 _LOGGER = logging.getLogger(__name__)
 
+
 @contextmanager
 def patch_portable_runner_for_test():
-    captured = {}
+  captured = {}
 
-    orig_excepthook = getattr(threading, "excepthook", None)
-    def _capture_excepthook(args):
-        captured.setdefault("exc", args.exc_value)
-      
+  orig_excepthook = getattr(threading, "excepthook", None)
+
+  def _capture_excepthook(args):
+    captured.setdefault("exc", args.exc_value)
+
+  if orig_excepthook is not None:
+    threading.excepthook = _capture_excepthook
+
+  orig_pipeline_run = beam.Pipeline.run
+
+  def wrapped_pipeline_run(pipeline_self, *a, **kw):
+    result = orig_pipeline_run(pipeline_self, *a, **kw)
+    if hasattr(result, "wait_until_finish"):
+      orig_wait = result.wait_until_finish
+
+      def wrapped_wait(*wa, **wk):
+        try:
+          return orig_wait(*wa, **wk)
+        finally:
+          exc = captured.get("exc")
+          if exc:
+            raise exc
+
+      result.wait_until_finish = wrapped_wait
+    return result
+
+  beam.Pipeline.run = wrapped_pipeline_run
+
+  try:
+    yield
+  finally:
+    beam.Pipeline.run = orig_pipeline_run
     if orig_excepthook is not None:
-        threading.excepthook = _capture_excepthook
+      threading.excepthook = orig_excepthook
 
-    orig_pipeline_run = beam.Pipeline.run
-    def wrapped_pipeline_run(pipeline_self, *a, **kw):
-        result = orig_pipeline_run(pipeline_self, *a, **kw)
-        if hasattr(result, "wait_until_finish"):
-            orig_wait = result.wait_until_finish
-            def wrapped_wait(*wa, **wk):
-                try:
-                    return orig_wait(*wa, **wk)
-                finally:
-                    exc = captured.get("exc")
-                    if exc:
-                        raise exc
-            result.wait_until_finish = wrapped_wait
-        return result
-    beam.Pipeline.run = wrapped_pipeline_run
-
-    try:
-        yield
-    finally:
-        beam.Pipeline.run = orig_pipeline_run
-        if orig_excepthook is not None:
-            threading.excepthook = orig_excepthook
 
 def _matcher_or_equal_to(value_or_matcher):
   """Pass-thru for matchers, and wraps value inputs in an equal_to matcher."""
@@ -142,6 +149,7 @@ def has_urn_and_labels(mi, urn, labels):
 class FnApiRunnerTest(unittest.TestCase):
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner(is_drain=is_drain))
+
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
