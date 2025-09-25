@@ -61,6 +61,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateInternals;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -765,6 +766,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         Instant processingTime,
         WindmillStateCache.ForKey cacheForKey,
         Watermarks watermarks) {
+      WindmillStateTagUtil windmillStateTagUtil = new WindmillStateTagUtil();
       this.stateInternals =
           new WindmillStateInternals<>(
               key,
@@ -772,6 +774,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               stateReader,
               getWorkItem().getIsNewKey(),
               cacheForKey.forFamily(stateFamily),
+              windmillStateTagUtil,
               scopedReadStateSupplier);
 
       this.systemTimerInternals =
@@ -780,6 +783,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
               processingTime,
               watermarks,
+              windmillStateTagUtil,
               td -> {});
 
       this.userTimerInternals =
@@ -788,6 +792,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
               processingTime,
               watermarks,
+              windmillStateTagUtil,
               this::onUserTimerModified);
 
       this.cachedFiredSystemTimers = null;

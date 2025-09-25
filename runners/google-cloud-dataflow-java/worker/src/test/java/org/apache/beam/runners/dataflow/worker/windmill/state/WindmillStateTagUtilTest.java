@@ -33,18 +33,20 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class WindmillStateUtilTest {
+public class WindmillStateTagUtilTest {
 
   @Test
   public void testEncodeKey() {
+    WindmillStateTagUtil windmillStateTagUtil = new WindmillStateTagUtil();
     StateNamespaceForTest namespace = new StateNamespaceForTest("key");
     StateTag<SetState<Integer>> foo = StateTags.set("foo", VarIntCoder.of());
-    ByteString bytes = WindmillStateUtil.encodeKey(namespace, foo);
+    ByteString bytes = windmillStateTagUtil.encodeKey(namespace, foo);
     assertEquals("key+ufoo", bytes.toStringUtf8());
   }
 
   @Test
   public void testEncodeKeyNested() {
+    WindmillStateTagUtil windmillStateTagUtil = new WindmillStateTagUtil();
     // Hypothetical case where a namespace/tag encoding depends on a call to encodeKey
     // This tests if thread locals in WindmillStateUtil are not reused with nesting
     StateNamespaceForTest namespace1 = new StateNamespaceForTest("key");
@@ -53,7 +55,7 @@ public class WindmillStateUtilTest {
         new StateTag<SetState<Integer>>() {
           @Override
           public void appendTo(Appendable sb) throws IOException {
-            WindmillStateUtil.encodeKey(namespace1, tag1);
+            windmillStateTagUtil.encodeKey(namespace1, tag1);
             sb.append("tag2");
           }
 
@@ -77,11 +79,11 @@ public class WindmillStateUtilTest {
         new StateNamespaceForTest("key") {
           @Override
           public void appendTo(Appendable sb) throws IOException {
-            WindmillStateUtil.encodeKey(namespace1, tag1);
+            windmillStateTagUtil.encodeKey(namespace1, tag1);
             sb.append("namespace2");
           }
         };
-    ByteString bytes = WindmillStateUtil.encodeKey(namespace2, tag2);
+    ByteString bytes = windmillStateTagUtil.encodeKey(namespace2, tag2);
     assertEquals("namespace2+tag2", bytes.toStringUtf8());
   }
 }

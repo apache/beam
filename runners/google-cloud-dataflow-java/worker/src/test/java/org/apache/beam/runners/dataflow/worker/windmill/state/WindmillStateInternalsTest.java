@@ -230,6 +230,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            new WindmillStateTagUtil(),
             readStateSupplier);
     underTestNewKey =
         new WindmillStateInternals<String>(
@@ -245,6 +246,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            new WindmillStateTagUtil(),
             readStateSupplier);
     underTestMapViaMultimap =
         new WindmillStateInternals<String>(
@@ -260,6 +262,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            new WindmillStateTagUtil(),
             readStateSupplier);
   }
 
