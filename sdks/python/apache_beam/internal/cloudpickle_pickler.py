@@ -42,7 +42,7 @@ from apache_beam.internal import code_object_pickler
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
     skip_reset_dynamic_type_state=True,
-    enable_stable_code_identifier_pickling=False)
+    enable_stable_function_identifiers=False)
 NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
     id_generator=None, skip_reset_dynamic_type_state=True)
 
@@ -157,8 +157,8 @@ def dumps(
     with io.BytesIO() as file:
       use_stable_patch = (
           config and
-          hasattr(config, 'enable_stable_code_identifier_pickling') and
-          config.enable_stable_code_identifier_pickling
+          hasattr(config, 'enable_stable_function_identifiers') and
+          config.enable_stable_function_identifiers
       )
 
       if use_stable_patch:
