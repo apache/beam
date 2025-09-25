@@ -328,6 +328,7 @@ class TriggerFn(metaclass=ABCMeta):
     """
     pass
 
+
 class DefaultTrigger(TriggerFn):
   """Semantically Repeatedly(AfterWatermark()), but more optimized."""
   def __init__(self):
@@ -375,9 +376,10 @@ class DefaultTrigger(TriggerFn):
 
   def has_ontime_pane(self):
     return True
-  
+
   def get_continuation_trigger(self):
     return self
+
 
 class AfterProcessingTime(TriggerFn):
   """Fire exactly once after a specified delay from processing time."""
@@ -432,12 +434,11 @@ class AfterProcessingTime(TriggerFn):
 
   def has_ontime_pane(self):
     return False
-  
+
   def get_continuation_trigger(self):
     # The continuation of an AfterProcessingTime trigger is an
     # _AfterSynchronizedProcessingTime trigger.
     return _AfterSynchronizedProcessingTime()
-
 
 
 class Always(TriggerFn):
@@ -483,7 +484,7 @@ class Always(TriggerFn):
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
         always=beam_runner_api_pb2.Trigger.Always())
-  
+
   def get_continuation_trigger(self):
     return self
 
@@ -538,7 +539,7 @@ class _Never(TriggerFn):
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
         never=beam_runner_api_pb2.Trigger.Never())
-  
+
   def get_continuation_trigger(self):
     return self
 
@@ -725,7 +726,7 @@ class AfterCount(TriggerFn):
 
   def has_ontime_pane(self):
     return False
-  
+
   def get_continuation_trigger(self):
     return AfterCount(1)
 
@@ -777,7 +778,7 @@ class Repeatedly(TriggerFn):
 
   def has_ontime_pane(self):
     return self.underlying.has_ontime_pane()
-  
+
   def get_continuation_trigger(self):
     return Repeatedly(self.underlying.get_continuation_trigger())
 
@@ -870,7 +871,7 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
 
   def has_ontime_pane(self):
     return any(t.has_ontime_pane() for t in self.triggers)
-  
+
   def get_continuation_trigger(self):
     return self.__class__(
         *(
@@ -978,7 +979,7 @@ class AfterEach(TriggerFn):
 
   def has_ontime_pane(self):
     return any(t.has_ontime_pane() for t in self.triggers)
-  
+
   def get_continuation_trigger(self):
     return Repeatedly(
         AfterAny(
