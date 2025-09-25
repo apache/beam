@@ -28,6 +28,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedInteger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class KafkaReadRedistribute<K, V>
@@ -55,23 +56,27 @@ public class KafkaReadRedistribute<K, V>
 
     if (byRecordKey) {
       return input
-          .apply("Pair with record key", ParDo.of(new AssignRecordKeyFn<K, V>(numBuckets)))
+          .apply("Pair with shard from key", ParDo.of(new AssignRecordKeyFn<K, V>(numBuckets)))
           .apply(Redistribute.<Integer, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
           .apply(Values.create());
     }
 
     return input
-        .apply("Pair with offset shard", ParDo.of(new AssignOffsetShardFn<K, V>(numBuckets)))
+        .apply("Pair with shard from offset", ParDo.of(new AssignOffsetShardFn<K, V>(numBuckets)))
         .apply(Redistribute.<Integer, KafkaRecord<K, V>>byKey().withAllowDuplicates(false))
         .apply(Values.create());
   }
 
   static class AssignOffsetShardFn<K, V>
       extends DoFn<KafkaRecord<K, V>, KV<Integer, KafkaRecord<K, V>>> {
-    private @Nullable Integer numBuckets;
+    private @NonNull UnsignedInteger numBuckets;
 
     public AssignOffsetShardFn(@Nullable Integer numBuckets) {
-      this.numBuckets = numBuckets;
+      if (numBuckets != null && numBuckets > 0) {
+        this.numBuckets = UnsignedInteger.fromIntBits(numBuckets);
+      } else {
+        this.numBuckets = UnsignedInteger.valueOf(0);
+      }
     }
 
     @ProcessElement
@@ -80,9 +85,8 @@ public class KafkaReadRedistribute<K, V>
         OutputReceiver<KV<Integer, KafkaRecord<K, V>>> receiver) {
       int hash = Hashing.farmHashFingerprint64().hashLong(element.getOffset()).asInt();
 
-      if (numBuckets != null && numBuckets > 0) {
-        UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
-        hash = UnsignedInteger.fromIntBits(hash).mod(unsignedNumBuckets).intValue();
+      if (numBuckets != null) {
+        hash = UnsignedInteger.fromIntBits(hash).mod(numBuckets).intValue();
       }
 
       receiver.output(KV.of(hash, element));
@@ -92,10 +96,14 @@ public class KafkaReadRedistribute<K, V>
   static class AssignRecordKeyFn<K, V>
       extends DoFn<KafkaRecord<K, V>, KV<Integer, KafkaRecord<K, V>>> {
 
-    private @Nullable Integer numBuckets;
+    private @NonNull UnsignedInteger numBuckets;
 
     public AssignRecordKeyFn(@Nullable Integer numBuckets) {
-      this.numBuckets = numBuckets;
+      if (numBuckets != null && numBuckets > 0) {
+        this.numBuckets = UnsignedInteger.fromIntBits(numBuckets);
+      } else {
+        this.numBuckets = UnsignedInteger.valueOf(0);
+      }
     }
 
     @ProcessElement
@@ -106,9 +114,8 @@ public class KafkaReadRedistribute<K, V>
       String keyString = key == null ? "" : key.toString();
       int hash = Hashing.farmHashFingerprint64().hashBytes(keyString.getBytes(UTF_8)).asInt();
 
-      if (numBuckets != null && numBuckets > 0) {
-        UnsignedInteger unsignedNumBuckets = UnsignedInteger.fromIntBits(numBuckets);
-        hash = UnsignedInteger.fromIntBits(hash).mod(unsignedNumBuckets).intValue();
+      if (numBuckets != null) {
+        hash = UnsignedInteger.fromIntBits(hash).mod(numBuckets).intValue();
       }
 
       receiver.output(KV.of(hash, element));
