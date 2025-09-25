@@ -782,7 +782,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
               processingTime,
               watermarks,
-              windmillStateTagUtil,
+              WindmillStateTagUtil.instance(),
               td -> {});
 
       this.userTimerInternals =
@@ -791,7 +791,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
               processingTime,
               watermarks,
-              windmillStateTagUtil,
+              WindmillStateTagUtil.instance(),
               this::onUserTimerModified);
 
       this.cachedFiredSystemTimers = null;
