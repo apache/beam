@@ -33,6 +33,7 @@ from hamcrest.core.core.allof import all_of
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.gcsio import GcsIO
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -144,6 +145,54 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       data.append(tuple(values))
 
     return data
+
+  def assert_iceberg_tables_created(
+      self, table_prefix, storage_uri, expected_count=1):
+    """Verify that Iceberg table directories are created in 
+    the warehouse location.
+    
+    Args:
+      table_prefix: The table name prefix to look for
+      storage_uri: The GCS storage URI (e.g., 'gs://bucket/path')
+      expected_count: Expected number of table directories
+    """
+    gcs_io = GcsIO()
+
+    # Parse the storage URI to get bucket and prefix
+    if not storage_uri.startswith('gs://'):
+      raise ValueError(f'Storage URI must start with gs://, got: {storage_uri}')
+
+    # Remove 'gs://' prefix and split bucket from path
+    path_parts = storage_uri[5:].split('/', 1)
+    bucket_name = path_parts[0]
+    base_prefix = path_parts[1] if len(path_parts) > 1 else ''
+
+    # Construct the full prefix to search for table directories
+    # Following the pattern:
+    # {base_prefix}/{class_name}/{project}/{dataset}/{table_prefix}
+    search_prefix = (
+        f"{base_prefix}/{self.__class__.__name__}/"
+        f"{self.project}/{self.dataset_id}/{table_prefix}")
+
+    # List objects in the bucket with the constructed prefix
+    try:
+      objects = gcs_io.list_prefix(f"gs://{bucket_name}/{search_prefix}")
+      object_count = len(list(objects))
+
+      if object_count < expected_count:
+        raise AssertionError(
+            f"Expected at least {expected_count} objects in warehouse "
+            f"location gs://{bucket_name}/{search_prefix}, but found "
+            f"{object_count}")
+
+      _LOGGER.info(
+          f"Successfully verified {object_count} objects created in "
+          f"warehouse location gs://{bucket_name}/{search_prefix}")
+
+    except Exception as e:
+      raise AssertionError(
+          f"Failed to verify table creation in warehouse location "
+          f"gs://{bucket_name}/{search_prefix}: {str(e)}")
 
   def run_storage_write_test(
       self, table_name, items, schema, use_at_least_once=False):
@@ -543,6 +592,9 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               big_lake_configuration=big_lake_config))
 
     hamcrest_assert(p, bq_matcher)
+
+    # Verify that the table directory was created in the warehouse location
+    self.assert_iceberg_tables_created(table, big_lake_config['storageUri'])
 
 
 if __name__ == '__main__':
