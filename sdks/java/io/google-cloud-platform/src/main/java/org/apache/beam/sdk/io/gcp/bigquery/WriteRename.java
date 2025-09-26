@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
@@ -318,6 +319,7 @@ class WriteRename
         CreateDisposition createDisposition,
         @Nullable String kmsKey,
         @Nullable ValueProvider<String> loadJobProjectId) {
+
       JobConfigurationTableCopy copyConfig =
           new JobConfigurationTableCopy()
               .setSourceTables(tempTables)
@@ -329,14 +331,41 @@ class WriteRename
             new EncryptionConfiguration().setKmsKeyName(kmsKey));
       }
 
-      String bqLocation =
-          BigQueryHelpers.getDatasetLocation(
-              datasetService, ref.getProjectId(), ref.getDatasetId());
+      // Move dataset location lookup OUTSIDE the retry loop and handle failures immediately
+      String bqLocation;
+      try {
+        bqLocation =
+            BigQueryHelpers.getDatasetLocation(
+                datasetService, ref.getProjectId(), ref.getDatasetId());
+      } catch (IOException e) {
+        ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+        if (errorExtractor.itemNotFound(e)) {
+          throw new RuntimeException(
+              String.format(
+                  "Dataset %s not found in project %s. Please ensure the dataset exists before running the pipeline.",
+                  ref.getDatasetId(), ref.getProjectId()),
+              e);
+        }
+        // For other IOExceptions, wrap and throw
+        throw new RuntimeException(
+            String.format(
+                "Unable to get dataset location for dataset %s in project %s",
+                ref.getDatasetId(), ref.getProjectId()),
+            e);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(
+            String.format(
+                "Interrupted while getting dataset location for dataset %s in project %s",
+                ref.getDatasetId(), ref.getProjectId()),
+            e);
+      }
 
       String projectId =
           loadJobProjectId == null || loadJobProjectId.get() == null
               ? ref.getProjectId()
               : loadJobProjectId.get();
+
       BigQueryHelpers.PendingJob retryJob =
           new BigQueryHelpers.PendingJob(
               jobId -> {
@@ -344,7 +373,7 @@ class WriteRename
                     new JobReference()
                         .setProjectId(projectId)
                         .setJobId(jobId.getJobId())
-                        .setLocation(bqLocation);
+                        .setLocation(bqLocation); // Use pre-resolved location
                 LOG.info(
                     "Starting copy job for table {} using  {}, job id iteration {}",
                     ref,
@@ -364,7 +393,7 @@ class WriteRename
                     new JobReference()
                         .setProjectId(projectId)
                         .setJobId(jobId.getJobId())
-                        .setLocation(bqLocation);
+                        .setLocation(bqLocation); // Use pre-resolved location
                 try {
                   return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
                 } catch (InterruptedException e) {
@@ -377,7 +406,7 @@ class WriteRename
                     new JobReference()
                         .setProjectId(projectId)
                         .setJobId(jobId.getJobId())
-                        .setLocation(bqLocation);
+                        .setLocation(bqLocation); // Use pre-resolved location
                 try {
                   return jobService.getJob(jobRef);
                 } catch (InterruptedException | IOException e) {

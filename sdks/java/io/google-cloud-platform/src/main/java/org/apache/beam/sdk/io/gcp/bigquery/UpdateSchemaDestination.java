@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -302,9 +303,34 @@ public class UpdateSchemaDestination<DestinationT>
         loadJobProjectId == null || loadJobProjectId.get() == null
             ? tableReference.getProjectId()
             : loadJobProjectId.get();
-    String bqLocation =
-        BigQueryHelpers.getDatasetLocation(
-            datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
+    String bqLocation;
+    try {
+      bqLocation =
+          BigQueryHelpers.getDatasetLocation(
+              datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
+    } catch (IOException e) {
+      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+      if (errorExtractor.itemNotFound(e)) {
+        throw new RuntimeException(
+            String.format(
+                "Dataset %s not found in project %s. Please ensure the dataset exists before running the pipeline.",
+                tableReference.getDatasetId(), tableReference.getProjectId()),
+            e);
+      }
+      // For other IOExceptions, wrap and throw
+      throw new RuntimeException(
+          String.format(
+              "Unable to get dataset location for dataset %s in project %s",
+              tableReference.getDatasetId(), tableReference.getProjectId()),
+          e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(
+          String.format(
+              "Interrupted while getting dataset location for dataset %s in project %s",
+              tableReference.getDatasetId(), tableReference.getProjectId()),
+          e);
+    }
 
     BigQueryHelpers.PendingJob retryJob =
         new BigQueryHelpers.PendingJob(

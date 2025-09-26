@@ -632,20 +632,17 @@ public class BigQueryHelpers {
   }
 
   static String getDatasetLocation(
-      DatasetService datasetService, String projectId, String datasetId) {
-    Dataset dataset;
+      DatasetService datasetService, String projectId, String datasetId)
+      throws IOException, InterruptedException {
     try {
-      dataset = datasetService.getDataset(projectId, datasetId);
-    } catch (Exception e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
-      throw new RuntimeException(
-          String.format(
-              "unable to obtain dataset for dataset %s in project %s", datasetId, projectId),
-          e);
+      Dataset dataset = datasetService.getDataset(projectId, datasetId);
+      return dataset.getLocation();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw e;
     }
-    return dataset.getLocation();
+    // Remove the catch (Exception e) block entirely
+    // Let IOException bubble up naturally without wrapping it in RuntimeException
   }
 
   static void verifyTablePresence(DatasetService datasetService, TableReference table) {
