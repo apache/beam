@@ -74,9 +74,6 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
 
   /** Create an {@link OneOfType} logical type. */
   public static OneOfType create(List<Field> fields) {
-    for (Field f : fields) {
-      checkArgument(!f.getType().getNullable(), "OneOf fields do not support nullable subfields.");
-    }
     return new OneOfType(fields);
   }
 
