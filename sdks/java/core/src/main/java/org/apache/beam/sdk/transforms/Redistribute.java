@@ -131,7 +131,7 @@ public class Redistribute {
   public static class RedistributeArbitrarily<T>
       extends PTransform<PCollection<T>, PCollection<T>> {
     // The number of buckets to shard into.
-    // A runner is free to ignore this (a runner may ignore the transorm
+    // A runner is free to ignore this (a runner may ignore the transform
     // entirely!) This is a performance optimization to prevent having
     // unit sized bundles on the output. If unset, uses a random integer key.
     private @Nullable Integer numBuckets = null;
