@@ -20,6 +20,7 @@ import math
 import threading
 from collections import Counter
 
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.portability.api.org.apache.beam.model.pipeline.v1.metrics_pb2 import HistogramValue
 
 _LOGGER = logging.getLogger(__name__)
@@ -109,13 +110,16 @@ class Histogram(object):
         return str(int(round(f)))  # pylint: disable=bad-option-value
 
     with self._lock:
-      return (
-          'Total count: %s, '
-          'P99: %s, P90: %s, P50: %s' % (
-              self.total_count(),
-              _format(self._get_linear_interpolation(0.99)),
-              _format(self._get_linear_interpolation(0.90)),
-              _format(self._get_linear_interpolation(0.50))))
+      if self.total_count():
+        return (
+            'Total count: %s, '
+            'P99: %s, P90: %s, P50: %s' % (
+                self.total_count(),
+                _format(self._get_linear_interpolation(0.99)),
+                _format(self._get_linear_interpolation(0.90)),
+                _format(self._get_linear_interpolation(0.50))))
+      else:
+        return ('Total count: %s' % (self.total_count(), ))
 
   def get_linear_interpolation(self, percentile):
     """Calculate percentile estimation based on linear interpolation.
@@ -176,6 +180,29 @@ class Histogram(object):
         self._num_bot_records,
         frozenset(self._buckets.items())))
 
+  def to_runner_api(self) -> metrics_pb2.HistogramValue:
+    return metrics_pb2.HistogramValue(
+        count=self.total_count(),
+        bucket_counts=[
+            self._buckets.get(idx, 0)
+            for idx in range(self._bucket_type.num_buckets())
+        ],
+        bucket_options=self._bucket_type.to_runner_api())
+
+  @classmethod
+  def from_runner_api(cls, proto: metrics_pb2.HistogramValue):
+    bucket_options_proto = proto.bucket_options
+    if bucket_options_proto.linear is not None:
+      bucket_options = LinearBucket.from_runner_api(bucket_options_proto)
+    else:
+      raise NotImplementedError
+    histogram = cls(bucket_options)
+    with histogram._lock:
+      for bucket_index, count in enumerate(proto.bucket_counts):
+        histogram._buckets[bucket_index] = count
+      histogram._num_records = sum(proto.bucket_counts)
+    return histogram
+
 
 class BucketType(object):
   def range_from(self):
@@ -205,6 +232,14 @@ class BucketType(object):
     `sigma(0 <= i < endIndex) getBucketSize(i)`. However, a child class could
     provide better optimized calculation.
     """
+    raise NotImplementedError
+
+  def to_runner_api(self):
+    """Convert to the runner API representation."""
+    raise NotImplementedError
+
+  @classmethod
+  def from_runner_api(cls, proto):
     raise NotImplementedError
 
 
@@ -257,3 +292,10 @@ class LinearBucket(BucketType):
             number_of_buckets=self._num_buckets,
             width=self._width,
             start=self._start))
+
+  @classmethod
+  def from_runner_api(cls, proto):
+    return LinearBucket(
+        start=proto.linear.start,
+        width=proto.linear.width,
+        num_buckets=proto.linear.number_of_buckets)

@@ -31,7 +31,7 @@ from typing import Optional
 from apache_beam.metrics.cells import MetricCell
 from apache_beam.metrics.cells import MetricCellFactory
 from apache_beam.portability.api import metrics_pb2
-from apache_beam.utils.histogram import Histogram, LinearBucket
+from apache_beam.utils.histogram import Histogram
 
 if TYPE_CHECKING:
   from apache_beam.utils.histogram import BucketType
@@ -152,15 +152,9 @@ class HistogramData(object):
   def identity_element(bucket_type) -> 'HistogramData':
     return HistogramData(Histogram(bucket_type))
 
+  def to_proto(self) -> metrics_pb2.HistogramValue:
+    return self.histogram.to_runner_api()
+
   @classmethod
   def from_proto(cls, proto: metrics_pb2.HistogramValue):
-    bucket_options_proto = proto.bucket_options
-    if bucket_options_proto.linear is not None:
-      bucket_options = LinearBucket(
-          start=bucket_options_proto.linear.start,
-          width=bucket_options_proto.linear.width,
-          num_buckets=bucket_options_proto.linear.number_of_buckets)
-    else:
-      raise NotImplementedError
-    histogram = Histogram(bucket_options)
-    return cls(histogram)
+    return cls(Histogram.from_runner_api(proto))

@@ -357,10 +357,7 @@ def user_histogram(namespace, name, metric: HistogramData, ptransform=None):
     ptransform: The ptransform id used as a label.
   """
   labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
-  metric_proto = metrics_pb2.HistogramValue(
-      count=metric.histogram.total_count(),
-      bucket_counts=sorted(metric.histogram._buckets.items()),
-      bucket_options=metric.histogram._bucket_type.to_runner_api())
+  metric_proto = metric.to_proto()
 
   return create_monitoring_info(
       USER_HISTOGRAM_URN,

@@ -144,19 +144,25 @@ class MonitoringInfosTest(unittest.TestCase):
     self.assertEqual(result.labels, expected_labels)
 
   def test_user_histogram(self):
+    datapoints = [5, 50, 90]
     expected_labels = {}
     expected_labels[monitoring_infos.NAMESPACE_LABEL] = "histogramnamespace"
     expected_labels[monitoring_infos.NAME_LABEL] = "histogramname"
 
     from apache_beam.internal.metrics.cells import HistogramCell
-    metric = HistogramCell(LinearBucket(0, 1, 100)).get_cumulative()
+    cell = HistogramCell(LinearBucket(0, 1, 100))
+    for point in datapoints:
+      cell.update(point)
+    metric = cell.get_cumulative()
     result = monitoring_infos.user_histogram(
         'histogramnamespace', 'histogramname', metric)
     histogramvalue = monitoring_infos.extract_histogram_value(result)
 
     self.assertEqual(result.labels, expected_labels)
-    self.assertEqual(
-        HistogramData(Histogram(LinearBucket(0, 1, 100))), histogramvalue)
+    exp_histogram = Histogram(LinearBucket(0, 1, 100))
+    for point in datapoints:
+      exp_histogram.record(point)
+    self.assertEqual(HistogramData(exp_histogram), histogramvalue)
 
 
 if __name__ == '__main__':
