@@ -721,8 +721,9 @@ def create_test_methods(spec):
         for pipeline_spec in spec['pipelines']:
           with beam.Pipeline(options=PipelineOptions(
               pickle_library='cloudpickle',
-              **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
-                  'options', {})))) as p:
+              **replace_recursive(
+                  yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
+                  'options', {})), vars))) as p:
             yaml_transform.expand_pipeline(
                 p, replace_recursive(pipeline_spec, vars))
 

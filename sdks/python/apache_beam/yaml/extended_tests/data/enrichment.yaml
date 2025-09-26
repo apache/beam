@@ -40,6 +40,9 @@ pipelines:
         - type: WriteToBigQuery
           config:
             table: "{BQ_TABLE}"
+    options:
+      project: "apache-beam-testing"
+      temp_location: "TEMP_DIR"
 
   - pipeline:
       type: chain
@@ -82,3 +85,4 @@ pipelines:
               - {label: '37a', rank: 1, name: 'S2'}
     options:
       yaml_experimental_features: [ 'Enrichment' ]
+      temp_location: "gs://temp-storage-for-end-to-end-tests/temp-it"
