@@ -46,6 +46,14 @@ public class GroupByEncryptedKey<K, V>
     this.hmacKey = hmacKey;
   }
 
+  /**
+   * Creates a {@link GroupByEncryptedKey} transform.
+   *
+   * @param hmacKey The secret key to use for HMAC.
+   * @param <K> The type of the keys in the input PCollection.
+   * @param <V> The type of the values in the input PCollection.
+   * @return A {@link GroupByEncryptedKey} transform.
+   */
   public static <K, V> GroupByEncryptedKey<K, V> create(Secret hmacKey) {
     return new GroupByEncryptedKey<>(hmacKey);
   }

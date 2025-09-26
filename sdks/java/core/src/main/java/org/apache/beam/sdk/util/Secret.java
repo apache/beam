@@ -26,6 +26,10 @@ import java.io.Serializable;
  * should handle fetching secrets from a secret management system.
  */
 public interface Secret extends Serializable {
-  /** Returns the secret as a byte array. */
+  /**
+   * Returns the secret as a byte array.
+   *
+   * @return The secret as a byte array.
+   */
   byte[] getSecretBytes();
 }
