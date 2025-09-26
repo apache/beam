@@ -111,6 +111,13 @@ class CloudPickleConfig:
   """Configuration for cloudpickle behavior."""
   id_generator: typing.Optional[callable] = uuid_generator
   skip_reset_dynamic_type_state: bool = False
+  """Use identifiers derived from code location when pickling dynamic functions
+  (e.g. lambdas). Enabling this setting results in pickled payloads becoming
+  more stable to code changes: when a particular lambda function is slightly
+  modified  but the location of the function in the codebase has not changed,
+  the pickled representation might stay the same.
+  """
+  enable_stable_function_identifiers: bool = False
 
 
 DEFAULT_CONFIG = CloudPickleConfig()
@@ -524,6 +531,11 @@ def _make_function(code, globals, name, argdefs, closure):
   # Setting __builtins__ in globals is needed for nogil CPython.
   globals["__builtins__"] = __builtins__
   return types.FunctionType(code, globals, name, argdefs, closure)
+
+
+def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
+  fcode = get_code_from_identifier(code_path)
+  return _make_function(fcode, globals, name, argdefs, closure)
 
 
 def _make_empty_cell():
@@ -1313,7 +1325,7 @@ class Pickler(pickle.Pickler):
     else:
       closure = tuple(_make_empty_cell() for _ in range(len(code.co_freevars)))
 
-    return code, base_globals, None, None, closure
+      return code, base_globals, None, None, closure
 
   def dump(self, obj):
     try:
