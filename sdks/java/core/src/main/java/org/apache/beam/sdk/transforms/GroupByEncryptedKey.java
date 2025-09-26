@@ -36,6 +36,17 @@ import org.apache.beam.sdk.values.PCollection;
  * org.apache.beam.sdk.transforms.GroupByKey} on the encrypted keys, and then decrypts the keys in
  * the output. This is useful when the keys contain sensitive data that should not be stored at rest
  * by the runner.
+ * 
+ * The transform requires a {@link Secret} which returns a 32 byte secret which can be used to
+ * generate a {@link SecretKeySpec} object using the HmacSHA256 algorithm.
+ * 
+ * Note the following caveats:
+ * 1) Runners can implement arbitrary materialization steps, so this does not guarantee that the
+ * whole pipeline will not have unencrypted data at rest by itself.
+ * 2) If using this transform in streaming mode, this transform may not properly handle update
+ * compatibility checks around coders. This means that an improper update could lead to invalid
+ * coders, causing pipeline failure or data corruption. If you need to update, make sure that the
+ * input type passed into this transform does not change.
  */
 public class GroupByEncryptedKey<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
@@ -49,7 +60,7 @@ public class GroupByEncryptedKey<K, V>
   /**
    * Creates a {@link GroupByEncryptedKey} transform.
    *
-   * @param hmacKey The secret key to use for HMAC.
+   * @param hmacKey The {@link Secret} key to use for encryption.
    * @param <K> The type of the keys in the input PCollection.
    * @param <V> The type of the values in the input PCollection.
    * @return A {@link GroupByEncryptedKey} transform.
@@ -80,6 +91,12 @@ public class GroupByEncryptedKey<K, V>
         .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
   }
 
+  /**
+   * A {@link PTransform} that encrypts the key and value of an element.
+   * 
+   * The resulting PCollection will be a KV pair with the key being the HMAC of the encoded key,
+   * and the value being a KV pair of the encrypted key and value.
+   */
   @SuppressWarnings("initialization.fields.uninitialized")
   private static class EncryptMessage<K, V> extends DoFn<KV<K, V>, KV<byte[], KV<byte[], byte[]>>> {
     private final Secret hmacKey;
@@ -127,6 +144,18 @@ public class GroupByEncryptedKey<K, V>
     }
   }
 
+  /**
+   * A {@link PTransform} that decrypts the key and values of an element.
+   * 
+   * The input PCollection will be a KV pair with the key being the HMAC of the encoded key,
+   * and the value being a list of KV pairs of the encrypted key and value.
+   * 
+   * This will return a tuple containing the decrypted key and a list of decrypted values.
+   * 
+   * Since there is some loss of precision in the HMAC encoding of the key (but not the key
+   * encryption), there is some extra work done here to ensure that all key/value pairs are
+   * mapped out appropriately.
+   */
   @SuppressWarnings("initialization.fields.uninitialized")
   private static class DecryptMessage<K, V>
       extends DoFn<KV<byte[], Iterable<KV<byte[], byte[]>>>, KV<K, Iterable<V>>> {

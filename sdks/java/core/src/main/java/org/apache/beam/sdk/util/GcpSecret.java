@@ -39,6 +39,12 @@ public class GcpSecret implements Secret {
     this.versionName = versionName;
   }
 
+  /**
+   * Returns the secret as a byte array. Assumes that the current active service account
+   * has permissions to read the secret.
+   *
+   * @return The secret as a byte array.
+   */
   @Override
   public byte[] getSecretBytes() {
     try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {

@@ -23,7 +23,8 @@ import java.io.Serializable;
  * A secret management interface used for handling sensitive data.
  *
  * <p>This interface provides a generic way to handle secrets. Implementations of this interface
- * should handle fetching secrets from a secret management system.
+ * should handle fetching secrets from a secret management system. The underlying secret
+ * management system should be able to return a valid byte array representing the secret.
  */
 public interface Secret extends Serializable {
   /**
