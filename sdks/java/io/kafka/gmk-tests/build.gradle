@@ -1,0 +1,114 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import org.apache.beam.gradle.kafka.KafkaTestUtilities
+import java.util.stream.Collectors
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.io.kafka.gmk-tests',
+        mavenRepositories: [
+                [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
+        ],
+        publish: 'False'
+)
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Kafka :: GMK Tests"
+ext {
+    summary = "Library to read Kafka topics."
+    // newer versions e.g. 7.6.* require dropping support for older kafka versions.
+    confluentVersion = "7.5.5"
+}
+
+provideIntegrationTestingDependencies()
+
+configurations.all {
+    resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.9.0'
+}
+
+dependencies {
+    testImplementation library.java.vendored_guava_32_1_2_jre
+    provided library.java.jackson_dataformat_csv
+    permitUnusedDeclared library.java.jackson_dataformat_csv
+    testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+    testImplementation project(path: ":model:pipeline", configuration: "shadow")
+    testImplementation project(":sdks:java:extensions:avro")
+    testImplementation project(":sdks:java:extensions:protobuf")
+    testImplementation project(":sdks:java:expansion-service")
+    permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+    implementation library.java.avro
+    // Get back to "provided" since 2.14
+    provided library.java.kafka_clients
+    if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
+        // this dependency is a provided dependency for kafka-avro-serializer. It is not needed to compile with Java<=17
+        // but needed for compile only under Java21, specifically, required for extending from AbstractKafkaAvroDeserializer
+        compileOnly library.java.kafka
+    }
+    testImplementation library.java.kafka_clients
+    testImplementation project(path: ":runners:core-java")
+    testImplementation library.java.slf4j_api
+    testImplementation library.java.joda_time
+    testImplementation library.java.jackson_annotations
+    testImplementation library.java.jackson_databind
+    testImplementation (group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.5') {
+        // "kafka-clients" has to be provided since user can use its own version.
+        exclude group: 'org.apache.kafka', module: 'kafka-clients'
+    }
+    testImplementation ("io.confluent:kafka-avro-serializer:${confluentVersion}") {
+        // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
+        // "spotbugs-annotations:3.1.12" used in Beam. Not required.
+        exclude group: "org.apache.zookeeper", module: "zookeeper"
+        // "kafka-clients" has to be provided since user can use its own version.
+        exclude group: "org.apache.kafka", module: "kafka-clients"
+    }
+    testImplementation ("io.confluent:kafka-schema-registry-client:${confluentVersion}") {
+        // It depends on "spotbugs-annotations:3.1.9" which clashes with current
+        // "spotbugs-annotations:3.1.12" used in Beam. Not required.
+        exclude group: "org.apache.zookeeper", module: "zookeeper"
+        // "kafka-clients" has to be provided since user can use its own version.
+        exclude group: "org.apache.kafka", module: "kafka-clients"
+    }
+    // everit_json is needed for Kafka Read SchemaTransform tests that rely on JSON-schema translation.
+    permitUnusedDeclared library.java.everit_json_schema
+    provided library.java.everit_json_schema
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(":sdks:java:io:synthetic")
+    testImplementation project(":sdks:java:managed")
+    testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
+    testImplementation project(path: ":sdks:java:io:kafka")
+    // For testing Cross-language transforms
+    testImplementation library.java.avro
+    testImplementation library.java.junit
+    testImplementation library.java.mockito_core
+    testRuntimeOnly library.java.mockito_inline
+    testImplementation library.java.testcontainers_kafka
+    testRuntimeOnly library.java.slf4j_jdk14
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":runners:google-cloud-dataflow-java")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+    testImplementation project(path: ":sdks:java:io:google-cloud-platform")
+    testImplementation "org.apache.kafka:kafka-clients:3.9.0"
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+
+}
+
+tasks.register("kafkaOnGmkIT", KafkaTestUtilities.KafkaBatchIT, "3.9.0", "390", true, configurations, project)
