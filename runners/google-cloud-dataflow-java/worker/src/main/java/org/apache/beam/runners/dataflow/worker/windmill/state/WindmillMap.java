@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateUtil.encodeKey;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
@@ -73,10 +71,11 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
       String stateFamily,
       Coder<K> keyCoder,
       Coder<V> valueCoder,
-      boolean isNewKey) {
+      boolean isNewKey,
+      WindmillStateTagUtil windmillStateTagUtil) {
     this.namespace = namespace;
     this.address = address;
-    this.stateKeyPrefix = encodeKey(namespace, address);
+    this.stateKeyPrefix = windmillStateTagUtil.encodeKey(namespace, address);
     this.stateFamily = stateFamily;
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
