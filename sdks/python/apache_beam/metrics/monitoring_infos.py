@@ -353,7 +353,7 @@ def user_bounded_trie(namespace, name, metric, ptransform=None):
 
 def create_monitoring_info(
     urn, type_urn, payload, labels=None) -> metrics_pb2.MonitoringInfo:
-  """Return the gauge monitoring info for the URN, type, metric and labels.
+  """Return the monitoring info for the URN, type, metric and labels.
 
   Args:
     urn: The URN of the monitoring info/metric.
@@ -542,3 +542,11 @@ def _encode_distribution(value_coder, count, sum, min, max):
   value_coder.encode_to_stream(min, stream, True)
   value_coder.encode_to_stream(max, stream, True)
   return stream.get()
+
+
+def _encode_histogram(coder, histogram):
+  pass  #TODO
+
+
+def _decode_histogram(coder, payload):
+  pass  # TODO
