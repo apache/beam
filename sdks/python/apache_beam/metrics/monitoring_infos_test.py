@@ -76,6 +76,17 @@ class MonitoringInfosTest(unittest.TestCase):
     self.assertEqual(namespace, "stringsetnamespace")
     self.assertEqual(name, "stringsetname")
 
+  def test_parse_namespace_and_name_for_user_histogram_metric(self):
+    urn = monitoring_infos.USER_HISTOGRAM_URN
+    labels = {}
+    labels[monitoring_infos.NAMESPACE_LABEL] = "histogramnamespace"
+    labels[monitoring_infos.NAME_LABEL] = "histogramname"
+    input = monitoring_infos.create_monitoring_info(
+        urn, "typeurn", None, labels)
+    namespace, name = monitoring_infos.parse_namespace_and_name(input)
+    self.assertEqual(name, "histogramname")
+    self.assertEqual(namespace, "histogramnamespace")
+
   def test_int64_user_gauge(self):
     metric = GaugeCell().get_cumulative()
     result = monitoring_infos.int64_user_gauge(

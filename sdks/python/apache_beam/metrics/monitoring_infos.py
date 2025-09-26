@@ -47,6 +47,7 @@ FINISH_BUNDLE_MSECS_URN = (
     common_urns.monitoring_info_specs.FINISH_BUNDLE_MSECS.spec.urn)
 TOTAL_MSECS_URN = common_urns.monitoring_info_specs.TOTAL_MSECS.spec.urn
 USER_COUNTER_URN = common_urns.monitoring_info_specs.USER_SUM_INT64.spec.urn
+USER_HISTOGRAM_URN = common_urns.monitoring_info_specs.USER_HISTOGRAM.spec.urn
 USER_DISTRIBUTION_URN = (
     common_urns.monitoring_info_specs.USER_DISTRIBUTION_INT64.spec.urn)
 USER_GAUGE_URN = common_urns.monitoring_info_specs.USER_LATEST_INT64.spec.urn
@@ -59,6 +60,7 @@ USER_METRIC_URNS = set([
     USER_GAUGE_URN,
     USER_STRING_SET_URN,
     USER_BOUNDED_TRIE_URN,
+    USER_HISTOGRAM_URN
 ])
 WORK_REMAINING_URN = common_urns.monitoring_info_specs.WORK_REMAINING.spec.urn
 WORK_COMPLETED_URN = common_urns.monitoring_info_specs.WORK_COMPLETED.spec.urn
