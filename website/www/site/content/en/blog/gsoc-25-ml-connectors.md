@@ -1,6 +1,5 @@
 ---
-title:  "Google Summer of Code 2025 - Beam ML Vector DB/Feature Store
-integrations"
+title:  "Google Summer of Code 2025 - Beam ML Vector DB/Feature Store integrations"
 date:   2025-09-26 00:00:00 -0400
 categories:
   - blog
@@ -59,14 +58,13 @@ community.
 
 ## Why Did I Choose Beam As Part of GSoC Among 180+ Orgs?
 
-I choose to apply to Beam from among 180+ GSoC organizations because it
-aligns well with my passion for data processing systems that serve information
+I chose to apply to Beam from among 180+ GSoC organizations because it aligns
+well with my passion for data processing systems that serve information
 retrieval systems and my core career values:
 
 - **Freedom:** Working on Beam supports open-source development, liberating
 developers from vendor lock-in through its unified programming model while
-enabling services like
-[Project Shield](https://projectshield.withgoogle.com/landing) to protect free
+enabling services like [Project Shield](https://projectshield.withgoogle.com/landing) to protect free
 speech globally
 
 - **Innovation:** Working on Beam allows engagement with cutting-edge data
@@ -101,7 +99,7 @@ Here are side-artifacts that are not directly linked to my project:
 | Sink I/O | CloudSQL | [PR #35473](https://github.com/apache/beam/pull/35473) |
 | Test Infrastructure | GitHub CI | [PR #35655](https://github.com/apache/beam/pull/35655) <br> [PR #35740](https://github.com/apache/beam/pull/35740) <br> [PR #35816](https://github.com/apache/beam/pull/35816) |
 
-For more granular contributors, checking out my
+For more granular contributions, checking out my
 [ongoing Beam contributions](https://github.com/apache/beam/pulls?q=is%3Apr+author%3Amohamedawnallah).
 
 ## How Did I Approach This Project?
@@ -169,12 +167,13 @@ there will be no divergence on the design. Now I can engage people I am working
 with through design docs, making sure my work aligns with their vision, which
 potentially leads to faster PR merges
 - **Skillset:** It was one year before contributing to Beam where I wrote
-professionally in Python, so it was really good to brush up on my Python skills
-and seeing how some design patterns are used in practice, like the query builder
-pattern seen in CloudSQL Vector Ingestion in the RAG package. I also learned
-about vector databases and feature stores, and also some AI integrations. I also
-think I got a bit better than before in root cause analysis and filtering signals
-from noise in long log files like PostCommit Python workflows
+professionally in Python, so it was a great opprtunity to brush up on my Python
+skills and seeing how some design patterns are used in practice, like the query
+builder pattern seen in CloudSQL Vector Ingestion in the RAG package. I also
+learned about vector databases and feature stores, and also some AI
+integrations. I also think I got a bit better than before in root cause analysis
+and filtering signals from noise in long log files like PostCommit Python
+workflows
 - **Toolset:** Learning about Beam Python SDK, Milvus, Tecton, Google CloudSQL,
 OpenAI and Anthropic text embedding generators, and lnav for effective log file
 navigation, including their capabilities and limitations
