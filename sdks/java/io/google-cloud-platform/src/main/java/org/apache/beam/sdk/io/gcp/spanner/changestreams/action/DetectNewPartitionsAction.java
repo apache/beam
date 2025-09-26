@@ -194,7 +194,7 @@ public class DetectNewPartitionsAction {
           updatedPartition.getPartitionToken(),
           updatedPartition.getScheduledAt(),
           updatedPartition.getStartTimestamp(),
-          updatedPartition.getEndTimestamp()
+          updatedPartition.getEndTimestamp(),
           createdAt,
           minWatermark);
 
