@@ -1144,9 +1144,9 @@ class BundleProcessor(object):
         # a subprocess is launched during the import operation.
         _LOGGER.error(
             'Timed out while reconstructing a pipeline fragment for: %s.\n'
-            'Likely, this a rare and transient error. The SDK harness '
+            'This is likely a transient error. The SDK harness '
             'will self-terminate, and the runner can retry the operation. '
-            'If the error persists, investigate whether the stuckness happens '
+            'If the error is frequent, check whether the stuckness happens '
             'while deserializing (unpickling) a dependency of your pipeline '
             'in the stacktrace below: \n%s\n',
             self.process_bundle_descriptor.id,
