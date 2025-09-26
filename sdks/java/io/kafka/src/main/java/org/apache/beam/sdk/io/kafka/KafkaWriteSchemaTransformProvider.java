@@ -44,6 +44,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -339,8 +340,10 @@ public class KafkaWriteSchemaTransformProvider
     @SchemaFieldDescription(
         "The encoding format for the data stored in Kafka. Valid options are: "
             + SUPPORTED_FORMATS_STR)
+    @SchemaFieldNumber("0")
     public abstract String getFormat();
 
+    @SchemaFieldNumber("1")
     public abstract String getTopic();
 
     @SchemaFieldDescription(
@@ -348,6 +351,7 @@ public class KafkaWriteSchemaTransformProvider
             + " Kafka cluster. The client will make use of all servers irrespective of which servers are specified"
             + " here for bootstrapping—this list only impacts the initial hosts used to discover the full set"
             + " of servers. | Format: host1:port1,host2:port2,...")
+    @SchemaFieldNumber("2")
     public abstract String getBootstrapServers();
 
     @SchemaFieldDescription(
@@ -355,25 +359,30 @@ public class KafkaWriteSchemaTransformProvider
             + " Most of these configurations will not be needed, but if you need to customize your Kafka producer,"
             + " you may use this. See a detailed list:"
             + " https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html")
+    @SchemaFieldNumber("3")
     @Nullable
     public abstract Map<String, String> getProducerConfigUpdates();
 
     @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+    @SchemaFieldNumber("4")
     @Nullable
     public abstract ErrorHandling getErrorHandling();
 
     @SchemaFieldDescription(
         "The path to the Protocol Buffer File Descriptor Set file. This file is used for schema"
             + " definition and message serialization.")
+    @SchemaFieldNumber("5")
     @Nullable
     public abstract String getFileDescriptorPath();
 
     @SchemaFieldDescription(
         "The name of the Protocol Buffer message to be used for schema"
             + " extraction and data conversion.")
+    @SchemaFieldNumber("6")
     @Nullable
     public abstract String getMessageName();
 
+    @SchemaFieldNumber("7")
     @Nullable
     public abstract String getSchema();
 
