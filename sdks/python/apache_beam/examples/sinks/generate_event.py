@@ -23,6 +23,7 @@ from apache_beam.testing.test_stream import TestStream
 
 
 class GenerateEvent(beam.PTransform):
+  # pylint: disable=line-too-long
   """This class simulates streaming data.
   It leverages [TestStream](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/testing/TestStream.html),
   a method where you can control when data arrives and how watermark advances.
