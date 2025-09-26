@@ -95,9 +95,8 @@ Here are side-artifacts that are not directly linked to my project:
 | Type | System | Artifact |
 |------|--------|----------|
 | AI Code Review | Gemini Code Assist | [PR #35532](https://github.com/apache/beam/pull/35532) |
-| Enrichment Handler | CloudSQL | [PR #34398](https://github.com/apache/beam/pull/34398) |
-| Sink I/O | CloudSQL | [PR #35473](https://github.com/apache/beam/pull/35473) |
-| Test Infrastructure | GitHub CI | [PR #35655](https://github.com/apache/beam/pull/35655) <br> [PR #35740](https://github.com/apache/beam/pull/35740) <br> [PR #35816](https://github.com/apache/beam/pull/35816) |
+| Enrichment Handler | CloudSQL | [PR #34398](https://github.com/apache/beam/pull/34398) <br> [PR #35473](https://github.com/apache/beam/pull/35473) |
+| Pytest Markers | GitHub CI | [PR #35655](https://github.com/apache/beam/pull/35655) <br> [PR #35740](https://github.com/apache/beam/pull/35740) <br> [PR #35816](https://github.com/apache/beam/pull/35816) |
 
 For more granular contributions, checking out my
 [ongoing Beam contributions](https://github.com/apache/beam/pulls?q=is%3Apr+author%3Amohamedawnallah).
@@ -150,7 +149,7 @@ not referenced in the `CONTRIBUTING.md` file at the time of writing this post
 ## How Did This Project Start To Attract Users in the ML Community?
 
 It is observed that after we had a Milvus Enrichment Handler PR before even
-merging, we started to observe community-driven contributions like
+merging, we started to see community-driven contributions like
 [this one that adds Qdrant](https://github.com/apache/beam/pull/35686). Qdrant
 is a competitor to Milvus in the vector space. This demonstrates how
 the project's momentum and visibility in the ML community space attracted
@@ -214,9 +213,10 @@ best mentor I have worked with so far, given that I have worked with several
 mentors. What makes me say that:
   - **Generosity:** Danny is very generous with his time, feedback, and
   genuinely committed to reviewing my work on a regular basis. We have weekly
-  30-minute sync calls over almost 22 weeks (5 months) since the official
+  30-minute sync calls over almost 21 weeks (5 months) since the official
   community bonding period, where he shares with me his contextual expertise and
-  addresses any questions I may have with openness to extend time if needed
+  addresses any questions I may have with openness to extend time if needed and
+  flexible about skipping calls when there was no agenda
   - **Flexibility:** When I got accepted to GSoC, after a few days I also got
   accepted to a part-time internship that I had applied to before GSoC, while
   also managing my last semester in my Bachelor of Computer Science, which was
