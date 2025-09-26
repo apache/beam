@@ -22,6 +22,7 @@ import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -58,30 +59,40 @@ public class GroupByEncryptedKey<K, V>
     Coder<K> keyCoder = inputKvCoder.getKeyCoder();
     Coder<V> valueCoder = inputKvCoder.getValueCoder();
 
-    return input
-        .apply("EncryptMessage", ParDo.of(new EncryptMessage<>(this.hmacKey, keyCoder, valueCoder)))
-        .apply(GroupByKey.create())
-        .apply(
-            "DecryptMessage", ParDo.of(new DecryptMessage<>(this.hmacKey, keyCoder, valueCoder)));
+    PCollection<KV<byte[], Iterable<KV<byte[], byte[]>>>> grouped =
+        input
+            .apply(
+                "EncryptMessage",
+                ParDo.of(new EncryptMessage<>(this.hmacKey, keyCoder, valueCoder)))
+            .apply(GroupByKey.create());
+
+    return grouped
+        .apply("DecryptMessage", ParDo.of(new DecryptMessage<>(this.hmacKey, keyCoder, valueCoder)))
+        .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
   }
 
+  @SuppressWarnings("initialization.fields.uninitialized")
   private static class EncryptMessage<K, V> extends DoFn<KV<K, V>, KV<byte[], KV<byte[], byte[]>>> {
     private final Secret hmacKey;
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
-    private final Mac mac;
-    private final Cipher cipher;
+    private transient Mac mac;
+    private transient Cipher cipher;
 
     EncryptMessage(Secret hmacKey, Coder<K> keyCoder, Coder<V> valueCoder) {
       this.hmacKey = hmacKey;
       this.keyCoder = keyCoder;
       this.valueCoder = valueCoder;
+    }
 
+    @Setup
+    public void setup() {
       try {
         this.mac = Mac.getInstance("HmacSHA256");
-        this.mac.init(new SecretKeySpec(hmacKey.getSecretBytes(), "HmacSHA256"));
+        this.mac.init(new SecretKeySpec(this.hmacKey.getSecretBytes(), "HmacSHA256"));
         this.cipher = Cipher.getInstance("AES");
-        this.cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(hmacKey.getSecretBytes(), "AES"));
+        this.cipher.init(
+            Cipher.ENCRYPT_MODE, new SecretKeySpec(this.hmacKey.getSecretBytes(), "AES"));
       } catch (Exception ex) {
         throw new RuntimeException(
             "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);
@@ -93,9 +104,9 @@ public class GroupByEncryptedKey<K, V>
       byte[] encodedKey = encode(this.keyCoder, c.element().getKey());
       byte[] encodedValue = encode(this.valueCoder, c.element().getValue());
 
-      byte[] hmac = mac.doFinal(encodedKey);
-      byte[] encryptedKey = cipher.doFinal(encodedKey);
-      byte[] encryptedValue = cipher.doFinal(encodedValue);
+      byte[] hmac = this.mac.doFinal(encodedKey);
+      byte[] encryptedKey = this.cipher.doFinal(encodedKey);
+      byte[] encryptedValue = this.cipher.doFinal(encodedValue);
 
       c.output(KV.of(hmac, KV.of(encryptedKey, encryptedValue)));
     }
@@ -107,6 +118,7 @@ public class GroupByEncryptedKey<K, V>
     }
   }
 
+  @SuppressWarnings("initialization.fields.uninitialized")
   private static class DecryptMessage<K, V>
       extends DoFn<KV<byte[], Iterable<KV<byte[], byte[]>>>, KV<K, Iterable<V>>> {
     private final Secret hmacKey;
@@ -118,10 +130,14 @@ public class GroupByEncryptedKey<K, V>
       this.hmacKey = hmacKey;
       this.keyCoder = keyCoder;
       this.valueCoder = valueCoder;
+    }
 
+    @Setup
+    public void setup() {
       try {
         this.cipher = Cipher.getInstance("AES");
-        this.cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(hmacKey.getSecretBytes(), "AES"));
+        this.cipher.init(
+            Cipher.DECRYPT_MODE, new SecretKeySpec(this.hmacKey.getSecretBytes(), "AES"));
       } catch (Exception ex) {
         throw new RuntimeException(
             "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);
@@ -132,14 +148,14 @@ public class GroupByEncryptedKey<K, V>
     public void processElement(ProcessContext c) throws Exception {
       java.util.Map<K, java.util.List<V>> decryptedKvs = new java.util.HashMap<>();
       for (KV<byte[], byte[]> encryptedKv : c.element().getValue()) {
-        byte[] decryptedKeyBytes = cipher.doFinal(encryptedKv.getKey());
+        byte[] decryptedKeyBytes = this.cipher.doFinal(encryptedKv.getKey());
         K key = decode(this.keyCoder, decryptedKeyBytes);
 
         if (key != null) {
           if (!decryptedKvs.containsKey(key)) {
             decryptedKvs.put(key, new java.util.ArrayList<>());
           }
-          byte[] decryptedValueBytes = cipher.doFinal(encryptedKv.getValue());
+          byte[] decryptedValueBytes = this.cipher.doFinal(encryptedKv.getValue());
           V value = decode(this.valueCoder, decryptedValueBytes);
           decryptedKvs.get(key).add(value);
         } else {

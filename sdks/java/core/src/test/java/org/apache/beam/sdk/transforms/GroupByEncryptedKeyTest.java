@@ -30,6 +30,8 @@ import java.nio.charset.Charset;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -38,8 +40,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -54,7 +56,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
 
   private static class FakeSecret implements Secret {
     private final byte[] secret =
-        "aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE=".getBytes(Charset.defaultCharset());
+        "aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZc".getBytes(Charset.defaultCharset());
 
     @Override
     public byte[] getSecretBytes() {
@@ -81,13 +83,13 @@ public class GroupByEncryptedKeyTest implements Serializable {
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PCollection<KV<String, Iterable<Integer>>> output =
-        input.apply(GroupByEncryptedKey.create(new FakeSecret()));
+        input.apply(GroupByEncryptedKey.<String, Integer>create(new FakeSecret()));
 
-    PAssert.that(output)
+    PAssert.that(output.apply("Sort", MapElements.via(new SortValues())))
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
-            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
-            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
+            KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
 
     p.run();
@@ -95,10 +97,10 @@ public class GroupByEncryptedKeyTest implements Serializable {
 
   private static final String PROJECT_ID = "apache-beam-testing";
   private static final String SECRET_ID = "gbek-test";
-  private Secret gcpSecret;
+  private static Secret gcpSecret;
 
-  @Before
-  public void setup() throws IOException {
+  @BeforeClass
+  public static void setup() throws IOException {
     SecretManagerServiceClient client = SecretManagerServiceClient.create();
     ProjectName projectName = ProjectName.of(PROJECT_ID);
     SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
@@ -124,8 +126,8 @@ public class GroupByEncryptedKeyTest implements Serializable {
     gcpSecret = new GcpSecret(secretName.toString() + "/versions/latest");
   }
 
-  @After
-  public void tearDown() throws IOException {
+  @AfterClass
+  public static void tearDown() throws IOException {
     SecretManagerServiceClient client = SecretManagerServiceClient.create();
     SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
     client.deleteSecret(secretName);
@@ -150,13 +152,13 @@ public class GroupByEncryptedKeyTest implements Serializable {
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PCollection<KV<String, Iterable<Integer>>> output =
-        input.apply(GroupByEncryptedKey.create(gcpSecret));
+        input.apply(GroupByEncryptedKey.<String, Integer>create(gcpSecret));
 
-    PAssert.that(output)
+    PAssert.that(output.apply("Sort", MapElements.via(new SortValues())))
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
-            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
-            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
+            KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
 
     p.run();
@@ -166,7 +168,20 @@ public class GroupByEncryptedKeyTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testGroupByKeyGcpSecretThrows() {
     Secret gcpSecret = new GcpSecret("bad_path/versions/latest");
-    p.apply(Create.of(KV.of("k1", 1))).apply(GroupByEncryptedKey.create(gcpSecret));
+    p.apply(Create.of(KV.of("k1", 1)))
+        .apply(GroupByEncryptedKey.<String, Integer>create(gcpSecret));
     assertThrows(RuntimeException.class, () -> p.run());
+  }
+
+  private static class SortValues
+      extends SimpleFunction<KV<String, Iterable<Integer>>, KV<String, List<Integer>>> {
+    @Override
+    public KV<String, List<Integer>> apply(KV<String, Iterable<Integer>> input) {
+      List<Integer> sorted =
+          StreamSupport.stream(input.getValue().spliterator(), false)
+              .sorted()
+              .collect(Collectors.toList());
+      return KV.of(input.getKey(), sorted);
+    }
   }
 }
