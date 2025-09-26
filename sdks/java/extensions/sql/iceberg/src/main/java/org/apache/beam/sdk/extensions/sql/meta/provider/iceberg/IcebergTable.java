@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -66,10 +65,10 @@ class IcebergTable extends SchemaBaseBeamTable {
   @VisibleForTesting @Nullable Integer triggeringFrequency;
   @VisibleForTesting final @Nullable List<String> partitionFields;
 
-  IcebergTable(Table table, IcebergCatalogConfig catalogConfig) {
+  IcebergTable(String tableIdentifier, Table table, IcebergCatalogConfig catalogConfig) {
     super(table.getSchema());
     this.schema = table.getSchema();
-    this.tableIdentifier = checkArgumentNotNull(table.getLocation());
+    this.tableIdentifier = tableIdentifier;
     this.catalogConfig = catalogConfig;
     ObjectNode properties = table.getProperties();
     if (properties.has(TRIGGERING_FREQUENCY_FIELD)) {

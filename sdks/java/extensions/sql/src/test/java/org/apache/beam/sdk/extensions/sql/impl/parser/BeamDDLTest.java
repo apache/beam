@@ -61,13 +61,13 @@ public class BeamDDLTest {
         "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'test' \n"
             + "COMMENT 'person table' \n"
             + "LOCATION '/home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'");
 
     assertEquals(
-        mockTable("person", "text", "person table", properties),
+        mockTable("person", "test", "person table", properties),
         tableProvider.getTables().get("person"));
   }
 
@@ -80,7 +80,7 @@ public class BeamDDLTest {
         "CREATE EXTERNAL TABLE PersonDetails"
             + " ( personInfo MAP<VARCHAR, ROW<field_1 INTEGER,field_2 VARCHAR>> , "
             + " additionalInfo ROW<field_0 TIMESTAMP,field_1 INTEGER,field_2 TINYINT> )"
-            + " TYPE 'text'"
+            + " TYPE 'test'"
             + " LOCATION '/home/admin/person'");
 
     assertNotNull(tableProvider.getTables().get("PersonDetails"));
@@ -105,7 +105,7 @@ public class BeamDDLTest {
         "CREATE TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'test' \n"
             + "COMMENT 'person table' \n"
             + "LOCATION '/home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'");
@@ -126,11 +126,11 @@ public class BeamDDLTest {
         "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'test' \n"
             + "LOCATION '/home/admin/person'\n"
             + "TBLPROPERTIES '{\"hello\": [\"james\", \"bond\"]}'");
     assertEquals(
-        mockTable("person", "text", null, properties), tableProvider.getTables().get("person"));
+        mockTable("person", "test", null, properties), tableProvider.getTables().get("person"));
   }
 
   @Test
@@ -142,11 +142,11 @@ public class BeamDDLTest {
         "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'test' \n"
             + "COMMENT 'person table' \n"
             + "LOCATION '/home/admin/person'\n");
     assertEquals(
-        mockTable("person", "text", "person table", TableUtils.emptyProperties()),
+        mockTable("person", "test", "person table", TableUtils.emptyProperties()),
         tableProvider.getTables().get("person"));
   }
 
@@ -159,11 +159,11 @@ public class BeamDDLTest {
         "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'test' \n"
             + "COMMENT 'person table' \n");
 
     assertEquals(
-        mockTable("person", "text", "person table", TableUtils.emptyProperties(), null),
+        mockTable("person", "test", "person table", TableUtils.emptyProperties(), null),
         tableProvider.getTables().get("person"));
   }
 
@@ -172,12 +172,12 @@ public class BeamDDLTest {
     TestTableProvider tableProvider = new TestTableProvider();
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
 
-    env.executeDdl("CREATE EXTERNAL TABLE person (id INT) TYPE text");
+    env.executeDdl("CREATE EXTERNAL TABLE person (id INT) TYPE test");
 
     assertEquals(
         Table.builder()
             .name("person")
-            .type("text")
+            .type("test")
             .schema(
                 Stream.of(Schema.Field.of("id", CalciteUtils.INTEGER).withNullable(true))
                     .collect(toSchema()))
@@ -197,7 +197,7 @@ public class BeamDDLTest {
             .setPipelineOptions(PipelineOptionsFactory.create())
             .build();
     assertNull(testProvider.getTables().get("person"));
-    env.executeDdl("CREATE EXTERNAL TABLE test.person (id INT) TYPE text");
+    env.executeDdl("CREATE EXTERNAL TABLE test.person (id INT) TYPE test");
 
     assertNotNull(testProvider.getTables().get("person"));
   }
@@ -212,7 +212,7 @@ public class BeamDDLTest {
         "CREATE EXTERNAL TABLE person (\n"
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'test' \n"
             + "COMMENT 'person table' \n");
 
     assertNotNull(tableProvider.getTables().get("person"));

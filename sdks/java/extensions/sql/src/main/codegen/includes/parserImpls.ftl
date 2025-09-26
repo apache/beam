@@ -265,12 +265,12 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 }
 
 /**
- * CREATE DATABASE ( IF NOT EXISTS )? database_name
+ * CREATE DATABASE ( IF NOT EXISTS )? ( catalog_name '.' )? database_name
  */
 SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 {
     final boolean ifNotExists;
-    final SqlNode databaseName;
+    final SqlIdentifier databaseName;
 }
 {
     <DATABASE> {
@@ -278,11 +278,7 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
     }
 
     ifNotExists = IfNotExistsOpt()
-    (
-        databaseName = StringLiteral()
-        |
-        databaseName = SimpleIdentifier()
-    )
+    databaseName = CompoundIdentifier()
 
     {
         return new SqlCreateDatabase(
@@ -294,22 +290,18 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 }
 
 /**
- * USE DATABASE database_name
+ * USE DATABASE ( catalog_name '.' )? database_name
  */
 SqlCall SqlUseDatabase(Span s, String scope) :
 {
-    final SqlNode databaseName;
+    final SqlIdentifier databaseName;
 }
 {
     <USE> {
         s.add(this);
     }
     <DATABASE>
-    (
-        databaseName = StringLiteral()
-        |
-        databaseName = SimpleIdentifier()
-    )
+    databaseName = CompoundIdentifier()
     {
         return new SqlUseDatabase(
             s.end(this),
@@ -324,17 +316,13 @@ SqlCall SqlUseDatabase(Span s, String scope) :
 SqlDrop SqlDropDatabase(Span s, boolean replace) :
 {
     final boolean ifExists;
-    final SqlNode databaseName;
+    final SqlIdentifier databaseName;
     final boolean cascade;
 }
 {
     <DATABASE>
     ifExists = IfExistsOpt()
-    (
-        databaseName = StringLiteral()
-        |
-        databaseName = SimpleIdentifier()
-    )
+    databaseName = CompoundIdentifier()
 
     cascade = CascadeOpt()
 
@@ -363,7 +351,7 @@ SqlNodeList PartitionFieldList() :
  * Note: This example is probably out of sync with the code.
  *
  * CREATE EXTERNAL TABLE ( IF NOT EXISTS )?
- *   ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
+ *   ( catalog_name '.' )? ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
  *   TYPE type_name
  *   ( PARTITIONED BY '(' partition_field ( ',' partition_field )* ')' )?
  *   ( COMMENT comment_string )?
