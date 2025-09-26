@@ -42,7 +42,7 @@ pipelines:
             table: "{BQ_TABLE}"
     options:
       project: "apache-beam-testing"
-      temp_location: "TEMP_DIR"
+      temp_location: "{TEMP_DIR}"
 
   - pipeline:
       type: chain
