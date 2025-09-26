@@ -27,6 +27,7 @@ from typing import Union
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
+from apache_beam.internal.metrics.cells import HistogramData
 from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
@@ -79,6 +80,7 @@ LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
 PROGRESS_TYPE = common_urns.monitoring_info_types.PROGRESS_TYPE.urn
 STRING_SET_TYPE = common_urns.monitoring_info_types.SET_STRING_TYPE.urn
 BOUNDED_TRIE_TYPE = common_urns.monitoring_info_types.BOUNDED_TRIE_TYPE.urn
+HISTOGRAM_TYPE = common_urns.monitoring_info_types.HISTOGRAM.urn
 
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
@@ -334,6 +336,28 @@ def user_set_string(namespace, name, metric, ptransform=None):
     metric = coders.IterableCoder(coders.StrUtf8Coder()).encode(metric)
   return create_monitoring_info(
       USER_STRING_SET_URN, STRING_SET_TYPE, metric, labels)
+
+
+def user_histogram(namespace, name, metric: HistogramData, ptransform=None):
+  """Return the string set monitoring info for the URN, metric and labels.
+
+  Args:
+    namespace: User-defined namespace of StringSet.
+    name: Name of StringSet.
+    metric: The Histogram representing the metrics.
+    ptransform: The ptransform id used as a label.
+  """
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
+  metric_proto = metrics_pb2.HistogramValue(
+      count=metric.histogram.total_count(),
+      bucket_counts=sorted(metric.histogram._buckets.items()),
+      bucket_options=metric.histogram._bucket_type.to_runner_api())
+
+  return create_monitoring_info(
+      USER_HISTOGRAM_URN,
+      HISTOGRAM_TYPE,
+      metric_proto.SerializeToString(),
+      labels)
 
 
 def user_bounded_trie(namespace, name, metric, ptransform=None):

@@ -22,6 +22,7 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import StringSetCell
+from apache_beam.utils.histogram import Histogram, LinearBucket
 
 
 class MonitoringInfosTest(unittest.TestCase):
@@ -140,6 +141,20 @@ class MonitoringInfosTest(unittest.TestCase):
 
     self.assertEqual(set(), string_set_value)
     self.assertEqual(result.labels, expected_labels)
+
+  def test_user_histogram(self):
+    expected_labels = {}
+    expected_labels[monitoring_infos.NAMESPACE_LABEL] = "histogramnamespace"
+    expected_labels[monitoring_infos.NAME_LABEL] = "histogramname"
+
+    from apache_beam.internal.metrics.cells import HistogramCell
+    metric = HistogramCell(LinearBucket(0, 1, 100)).get_cumulative()
+    result = monitoring_infos.user_histogram(
+        'histogramnamespace', 'histogramname', metric)
+    histogramvalue = monitoring_infos.extract_histogram_value(result)
+
+    self.assertEqual(result.labels, expected_labels)
+    self.assertEqual(Histogram(), histogramvalue)
 
 
 if __name__ == '__main__':

@@ -20,6 +20,8 @@ import math
 import threading
 from collections import Counter
 
+from apache_beam.portability.api.org.apache.beam.model.pipeline.v1.metrics_pb2 import HistogramValue
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -248,3 +250,10 @@ class LinearBucket(BucketType):
 
   def __hash__(self):
     return hash((self._start, self._width, self._num_buckets))
+
+  def to_runner_api(self):
+    return HistogramValue.BucketOptions(
+        linear=HistogramValue.BucketOptions.Linear(
+            number_of_buckets=self._num_buckets,
+            width=self._width,
+            start=self._start))
