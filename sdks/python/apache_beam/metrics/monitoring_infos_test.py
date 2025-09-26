@@ -18,6 +18,7 @@
 
 import unittest
 
+from apache_beam.internal.metrics.cells import HistogramData
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import GaugeCell
@@ -154,7 +155,8 @@ class MonitoringInfosTest(unittest.TestCase):
     histogramvalue = monitoring_infos.extract_histogram_value(result)
 
     self.assertEqual(result.labels, expected_labels)
-    self.assertEqual(Histogram(), histogramvalue)
+    self.assertEqual(
+        HistogramData(Histogram(LinearBucket(0, 1, 100))), histogramvalue)
 
 
 if __name__ == '__main__':

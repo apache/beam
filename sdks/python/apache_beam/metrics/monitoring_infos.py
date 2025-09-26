@@ -87,6 +87,7 @@ DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
 STRING_SET_TYPES = set([STRING_SET_TYPE])
 BOUNDED_TRIE_TYPES = set([BOUNDED_TRIE_TYPE])
+HISTOGRAM_TYPES = set([HISTOGRAM_TYPE])
 
 # TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
 PCOLLECTION_LABEL = (
@@ -179,6 +180,14 @@ def extract_bounded_trie_value(monitoring_info_proto):
 
   return BoundedTrieData.from_proto(
       metrics_pb2.BoundedTrie.FromString(monitoring_info_proto.payload))
+
+
+def extract_histogram_value(monitoring_info_proto):
+  if not is_histogram(monitoring_info_proto):
+    raise ValueError('Unsupported type %s' % monitoring_info_proto.type)
+
+  return HistogramData.from_proto(
+      metrics_pb2.HistogramValue.FromString(monitoring_info_proto.payload))
 
 
 def create_labels(ptransform=None, namespace=None, name=None, pcollection=None):
@@ -410,6 +419,11 @@ def is_gauge(monitoring_info_proto):
 def is_distribution(monitoring_info_proto):
   """Returns true if the monitoring info is a distrbution metric."""
   return monitoring_info_proto.type in DISTRIBUTION_TYPES
+
+
+def is_histogram(monitoring_info_proto):
+  """Returns true if the monitoring info is a distrbution metric."""
+  return monitoring_info_proto.type in HISTOGRAM_TYPES
 
 
 def is_string_set(monitoring_info_proto):
