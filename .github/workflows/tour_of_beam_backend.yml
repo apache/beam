@@ -58,7 +58,7 @@ jobs:
         run: go test -v ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v8
         with:
           version: v1.49.0
           working-directory: learning/tour-of-beam/backend
