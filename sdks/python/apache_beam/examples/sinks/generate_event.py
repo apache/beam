@@ -27,7 +27,7 @@ class GenerateEvent(beam.PTransform):
   """This class simulates streaming data.
   It leverages [TestStream](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/testing/TestStream.html),
   a method where you can control when data arrives and how watermark advances.
-  This is especially useful in unit tests."""
+  This is especially useful in unit tests.""" # noqa
   @staticmethod
   def sample_data():
     return GenerateEvent()
