@@ -17,7 +17,7 @@
 # Used for any vLLM integration test
 # Dockerfile — Beam dev harness + install dev SDK from LOCAL source package
 
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
 
 # 1) Non-interactive + timezone + Redirect all heavy temp/cache away from /tmp
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -29,8 +29,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HUB_CACHE=/var/beam_hf/hub \
     TRANSFORMERS_CACHE=/var/beam_hf/hub \
     VLLM_CACHE_ROOT=/var/beam_hf/vllm \
-    VLLM_RPC_BASE_PATH=/var/beam_tmp \
-    TOKENIZERS_PARALLELISM=false
+    VLLM_RPC_BASE_PATH=/var/beam_tmp
 
 # Make sure target dirs exist (mounted on worker PD at runtime)
 RUN mkdir -p /var/beam_tmp /var/beam_hf/hub /var/beam_hf/vllm && \
