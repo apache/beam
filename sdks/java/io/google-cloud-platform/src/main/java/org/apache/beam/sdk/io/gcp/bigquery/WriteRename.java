@@ -331,7 +331,6 @@ class WriteRename
             new EncryptionConfiguration().setKmsKeyName(kmsKey));
       }
 
-      // Move dataset location lookup OUTSIDE the retry loop and handle failures immediately
       String bqLocation;
       try {
         bqLocation =
@@ -346,7 +345,6 @@ class WriteRename
                   ref.getDatasetId(), ref.getProjectId()),
               e);
         }
-        // For other IOExceptions, wrap and throw
         throw new RuntimeException(
             String.format(
                 "Unable to get dataset location for dataset %s in project %s",
@@ -373,7 +371,7 @@ class WriteRename
                     new JobReference()
                         .setProjectId(projectId)
                         .setJobId(jobId.getJobId())
-                        .setLocation(bqLocation); // Use pre-resolved location
+                        .setLocation(bqLocation);
                 LOG.info(
                     "Starting copy job for table {} using  {}, job id iteration {}",
                     ref,
@@ -393,7 +391,7 @@ class WriteRename
                     new JobReference()
                         .setProjectId(projectId)
                         .setJobId(jobId.getJobId())
-                        .setLocation(bqLocation); // Use pre-resolved location
+                        .setLocation(bqLocation);
                 try {
                   return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
                 } catch (InterruptedException e) {
@@ -406,7 +404,7 @@ class WriteRename
                     new JobReference()
                         .setProjectId(projectId)
                         .setJobId(jobId.getJobId())
-                        .setLocation(bqLocation); // Use pre-resolved location
+                        .setLocation(bqLocation);
                 try {
                   return jobService.getJob(jobRef);
                 } catch (InterruptedException | IOException e) {

@@ -317,7 +317,7 @@ public class UpdateSchemaDestination<DestinationT>
                 tableReference.getDatasetId(), tableReference.getProjectId()),
             e);
       }
-      // For other IOExceptions, wrap and throw
+
       throw new RuntimeException(
           String.format(
               "Unable to get dataset location for dataset %s in project %s",

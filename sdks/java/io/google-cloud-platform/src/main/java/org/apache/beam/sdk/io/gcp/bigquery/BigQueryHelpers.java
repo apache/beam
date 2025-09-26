@@ -641,8 +641,6 @@ public class BigQueryHelpers {
       Thread.currentThread().interrupt();
       throw e;
     }
-    // Remove the catch (Exception e) block entirely
-    // Let IOException bubble up naturally without wrapping it in RuntimeException
   }
 
   static void verifyTablePresence(DatasetService datasetService, TableReference table) {
