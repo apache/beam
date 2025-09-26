@@ -70,6 +70,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -2202,8 +2203,10 @@ public class KafkaIO {
    * generating Rows.
    */
   static class KafkaHeader {
-
+    @SchemaFieldNumber("0")
     String key;
+
+    @SchemaFieldNumber("1")
     byte @Nullable [] value;
 
     @SchemaCreate
@@ -2222,15 +2225,32 @@ public class KafkaIO {
    * Schema inference supports generics.
    */
   static class ByteArrayKafkaRecord {
-
+    @SchemaFieldNumber("0")
     String topic;
+
+    @SchemaFieldNumber("1")
     int partition;
+
+    @SchemaFieldNumber("2")
     long offset;
+
+    @SchemaFieldNumber("3")
     long timestamp;
+
+    @SchemaFieldNumber("4")
     byte @Nullable [] key;
+
+    @SchemaFieldNumber("5")
     byte @Nullable [] value;
-    @Nullable List<KafkaHeader> headers;
+
+    @SchemaFieldNumber("6")
+    @Nullable
+    List<KafkaHeader> headers;
+
+    @SchemaFieldNumber("7")
     int timestampTypeId;
+
+    @SchemaFieldNumber("8")
     String timestampTypeName;
 
     @SchemaCreate
