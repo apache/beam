@@ -39,6 +39,7 @@ import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -65,6 +66,8 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -866,6 +869,157 @@ public class TableRowToStorageApiProto {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_REQUIRED);
     }
     descriptorBuilder.addField(fieldDescriptorBuilder.build());
+  }
+
+  /**
+   * mergeNewFields(original, newFields) unlike proto merge or concatenating proto bytes is merging
+   * the main differences is skipping primitive fields that are already set and merging structs and
+   * lists recursively. Method mutates input.
+   *
+   * @param original original table row
+   * @param newRow
+   * @return merged table row
+   */
+  private static TableRow mergeNewFields(TableRow original, TableRow newRow) {
+    if (original == null) {
+      return newRow;
+    }
+    if (newRow == null) {
+      return original;
+    }
+
+    for (Map.Entry<String, Object> entry : newRow.entrySet()) {
+      String key = entry.getKey();
+      Object value2 = entry.getValue();
+      Object value1 = original.get(key);
+
+      if (value1 == null) {
+        original.set(key, value2);
+      } else {
+        if (value1 instanceof List && value2 instanceof List) {
+          List<?> list1 = (List<?>) value1;
+          List<?> list2 = (List<?>) value2;
+          if (!list1.isEmpty()
+              && list1.get(0) instanceof TableRow
+              && !list2.isEmpty()
+              && list2.get(0) instanceof TableRow) {
+            original.set(key, mergeRepeatedStructs((List<TableRow>) list1, (List<TableRow>) list2));
+          } else {
+            // primitive lists
+            original.set(key, value2);
+          }
+        } else if (value1 instanceof TableRow && value2 instanceof TableRow) {
+          original.set(key, mergeNewFields((TableRow) value1, (TableRow) value2));
+        }
+      }
+    }
+
+    return original;
+  }
+
+  private static List<TableRow> mergeRepeatedStructs(List<TableRow> list1, List<TableRow> list2) {
+    List<TableRow> mergedList = new ArrayList<>();
+    int length = Math.min(list1.size(), list2.size());
+
+    for (int i = 0; i < length; i++) {
+      TableRow orig = (i < list1.size()) ? list1.get(i) : null;
+      TableRow delta = (i < list2.size()) ? list2.get(i) : null;
+      // fail if any is shorter
+      Preconditions.checkArgumentNotNull(orig);
+      Preconditions.checkArgumentNotNull(delta);
+
+      mergedList.add(mergeNewFields(orig, delta));
+    }
+    return mergedList;
+  }
+
+  public static ByteString mergeNewFields(
+      ByteString tableRowProto,
+      DescriptorProtos.DescriptorProto descriptorProto,
+      TableSchema tableSchema,
+      SchemaInformation schemaInformation,
+      TableRow unknownFields,
+      boolean ignoreUnknownValues)
+      throws TableRowToStorageApiProto.SchemaConversionException {
+    if (unknownFields == null || unknownFields.isEmpty()) {
+      // nothing to do here
+      return tableRowProto;
+    }
+    // check if unknownFields contains repeated struct, merge
+    boolean hasRepeatedStruct =
+        unknownFields.entrySet().stream()
+            .anyMatch(
+                entry ->
+                    entry.getValue() instanceof List
+                        && !((List<?>) entry.getValue()).isEmpty()
+                        && ((List<?>) entry.getValue()).get(0) instanceof TableRow);
+    if (!hasRepeatedStruct) {
+      Descriptor descriptorIgnoreRequired = null;
+      try {
+        descriptorIgnoreRequired =
+            TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, false, false);
+      } catch (DescriptorValidationException e) {
+        throw new RuntimeException(e);
+      }
+      ByteString unknownFieldsProto =
+          messageFromTableRow(
+                  schemaInformation,
+                  descriptorIgnoreRequired,
+                  unknownFields,
+                  ignoreUnknownValues,
+                  true,
+                  null,
+                  null,
+                  null)
+              .toByteString();
+      return tableRowProto.concat(unknownFieldsProto);
+    }
+
+    DynamicMessage message = null;
+    Descriptor descriptor = null;
+    try {
+      descriptor = wrapDescriptorProto(descriptorProto);
+    } catch (DescriptorValidationException e) {
+      throw new RuntimeException(e);
+    }
+    try {
+      message = DynamicMessage.parseFrom(descriptor, tableRowProto);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
+    TableRow original =
+        TableRowToStorageApiProto.tableRowFromMessage(message, true, Predicates.alwaysTrue());
+    Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
+    // recover cdc data
+    String cdcType = null;
+    String sequence = null;
+    if (fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN) != null
+        && fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN) != null) {
+      cdcType =
+          (String)
+              message.getField(
+                  Preconditions.checkStateNotNull(
+                      fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
+      sequence =
+          (String)
+              message.getField(
+                  Preconditions.checkStateNotNull(
+                      fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+    }
+    TableRow merged = TableRowToStorageApiProto.mergeNewFields(original, unknownFields);
+    DynamicMessage dynamicMessage =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            descriptor,
+            merged,
+            ignoreUnknownValues,
+            false,
+            null,
+            cdcType,
+            sequence);
+    return dynamicMessage.toByteString();
   }
 
   private static @Nullable Object messageValueFromFieldValue(
