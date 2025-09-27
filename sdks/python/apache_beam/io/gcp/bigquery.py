@@ -2626,6 +2626,7 @@ class StorageWriteToBigQuery(PTransform):
       num_storage_api_streams=0,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
+      big_lake_configuration=None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2639,6 +2640,7 @@ class StorageWriteToBigQuery(PTransform):
     self._num_storage_api_streams = num_storage_api_streams
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2733,6 +2735,7 @@ class StorageWriteToBigQuery(PTransform):
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
             clustering_fields=clustering_fields,
+            big_lake_configuration=self._big_lake_configuration,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
