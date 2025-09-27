@@ -33,7 +33,6 @@ from hamcrest.core.core.allof import all_of
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.gcsio import GcsIO
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -48,6 +47,11 @@ try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
   HttpError = None
+
+try:
+  from apache_beam.io.gcp.gcsio import GcsIO
+except ImportError:
+  GcsIO = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
@@ -148,7 +152,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
   def assert_iceberg_tables_created(
       self, table_prefix, storage_uri, expected_count=1):
-    """Verify that Iceberg table directories are created in 
+    """Verify that Iceberg table directories are created in
     the warehouse location.
     
     Args:
@@ -156,6 +160,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       storage_uri: The GCS storage URI (e.g., 'gs://bucket/path')
       expected_count: Expected number of table directories
     """
+    if GcsIO is None:
+      _LOGGER.warning(
+          "GcsIO not available, skipping warehouse location verification")
+      return
+
     gcs_io = GcsIO()
 
     # Parse the storage URI to get bucket and prefix
@@ -168,8 +177,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     base_prefix = path_parts[1] if len(path_parts) > 1 else ''
 
     # Construct the full prefix to search for table directories
-    # Following the pattern:
-    # {base_prefix}/{class_name}/{project}/{dataset}/{table_prefix}
+    # Following the pattern: {base_prefix}/{class_name}/{project}/{dataset}/{table_prefix}
     search_prefix = (
         f"{base_prefix}/{self.__class__.__name__}/"
         f"{self.project}/{self.dataset_id}/{table_prefix}")
@@ -186,8 +194,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
             f"{object_count}")
 
       _LOGGER.info(
-          f"Successfully verified {object_count} objects created in "
-          f"warehouse location gs://{bucket_name}/{search_prefix}")
+          "Successfully verified %s objects created in "
+          "warehouse location gs://%s/%s",
+          object_count,
+          bucket_name,
+          search_prefix)
 
     except Exception as e:
       raise AssertionError(

@@ -26,8 +26,7 @@ from apache_beam.io.gcp import bigquery
 @mock.patch('apache_beam.io.gcp.bigquery.BeamJarExpansionService')
 class BigQueryBigLakeTest(unittest.TestCase):
   """Test BigLake configuration support in BigQuery Storage Write API."""
-  def test_storage_write_to_bigquery_with_biglake_config(
-      self, mock_expansion_service):
+  def test_storage_write_to_bigquery_with_biglake_config(self, mock_expansion_service):
     """Test that StorageWriteToBigQuery accepts bigLakeConfiguration."""
     big_lake_config = {
         'connectionId': (
@@ -45,8 +44,7 @@ class BigQueryBigLakeTest(unittest.TestCase):
     # Verify the configuration is stored
     self.assertEqual(transform._big_lake_configuration, big_lake_config)
 
-  def test_storage_write_to_bigquery_without_biglake_config(
-      self, mock_expansion_service):
+  def test_storage_write_to_bigquery_without_biglake_config(self, mock_expansion_service):
     """Test that StorageWriteToBigQuery works without bigLakeConfiguration."""
     transform = bigquery.StorageWriteToBigQuery(
         table='test-project:test_dataset.test_table')
