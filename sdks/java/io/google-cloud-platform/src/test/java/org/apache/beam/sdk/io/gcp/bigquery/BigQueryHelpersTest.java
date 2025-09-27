@@ -18,15 +18,15 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.Data;
-import com.google.api.services.bigquery.model.Clustering;
-import com.google.api.services.bigquery.model.ErrorProto;
-import com.google.api.services.bigquery.model.Job;
-import com.google.api.services.bigquery.model.JobReference;
-import com.google.api.services.bigquery.model.JobStatus;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.*;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
@@ -270,5 +270,40 @@ public class BigQueryHelpersTest {
     String jsonClusteringFields = "[\"column1\", \"column2\", \"column3\"]";
 
     assertEquals(clustering, BigQueryHelpers.clusteringFromJsonFields(jsonClusteringFields));
+  }
+
+  @Test
+  public void testGetDatasetLocationWithNonExistentDataset()
+      throws IOException, InterruptedException {
+    BigQueryServices.DatasetService mockDatasetService =
+        mock(BigQueryServices.DatasetService.class);
+
+    IOException notFoundException = new IOException("Dataset not found");
+    when(mockDatasetService.getDataset("project", "nonexistent_dataset"))
+        .thenThrow(notFoundException);
+
+    try {
+      BigQueryHelpers.getDatasetLocation(mockDatasetService, "project", "nonexistent_dataset");
+      fail("Expected IOException to be thrown");
+    } catch (IOException e) {
+      assertEquals("Dataset not found", e.getMessage());
+      // Verify that getDataset was called only once (the IOException is not wrapped and re-thrown)
+      verify(mockDatasetService, times(1)).getDataset("project", "nonexistent_dataset");
+    }
+  }
+
+  @Test
+  public void testGetDatasetLocationWithValidDataset() throws IOException, InterruptedException {
+    BigQueryServices.DatasetService mockDatasetService =
+        mock(BigQueryServices.DatasetService.class);
+    Dataset mockDataset = new Dataset().setLocation("US");
+
+    when(mockDatasetService.getDataset("project", "existing_dataset")).thenReturn(mockDataset);
+
+    String location =
+        BigQueryHelpers.getDatasetLocation(mockDatasetService, "project", "existing_dataset");
+
+    assertEquals("US", location);
+    verify(mockDatasetService, times(1)).getDataset("project", "existing_dataset");
   }
 }
