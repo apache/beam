@@ -45,8 +45,37 @@ function usage() {
   echo "  --version   Specify the Apache Beam version (default: ${DEFAULT_BEAM_VERSION})."
   echo "  --runner    Specify the Beam runner to use (default: direct). Supported: direct, dataflow."
   echo "  --io        Specify an IO connector to include (e.g., iceberg, kafka). Can be used multiple times."
+  echo "  --list-versions      List all available Beam versions from Maven Central and exit."
   echo "  -h, --help  Show this help message."
   exit 1
+}
+
+# This function fetches all available Beam versions from Maven Central.
+function list_versions() {
+  echo "🔎 Fetching the 10 most recent Apache Beam versions from Maven Central..."
+  local metadata_url="https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/maven-metadata.xml"
+
+  if ! command -v curl &> /dev/null; then
+    echo "❌ Error: 'curl' is required to fetch the version list." >&2
+    return 1
+  fi
+
+  # Fetch, parse, filter, sort, and take the top 10.
+  local versions
+  versions=$(curl -sS "${metadata_url}" | \
+    grep '<version>' | \
+    sed 's/.*<version>\(.*\)<\/version>.*/\1/' | \
+    grep -v 'SNAPSHOT' | \
+    sort -rV | \
+    head -n 10) # Limit to the first 10 lines
+
+  if [ -z "${versions}" ]; then
+    echo "❌ Could not retrieve versions. Please check your internet connection or the Maven Central status." >&2
+    return 1
+  fi
+
+  echo "✅ 10 latest versions:"
+  echo "${versions}"
 }
 
 # This function ensures our temporary directory is cleaned up when the script exits.
@@ -65,6 +94,7 @@ while [[ "$#" -gt 0 ]]; do
     --version) BEAM_VERSION="$2"; shift ;;
     --runner) BEAM_RUNNER=$(echo "$2" | tr '[:upper:]' '[:lower:]'); shift ;;
     --io) IO_CONNECTORS+=("$2"); shift ;;
+    --list-versions) list_versions; exit 0 ;;
     -h|--help) usage ;;
     *) SQLLINE_ARGS+=("$1") ;;
   esac
