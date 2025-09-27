@@ -121,6 +121,7 @@ BIGQUERY_TYPE_TO_PYTHON_TYPE = {
     "FLOAT": np.float64,
     "NUMERIC": decimal.Decimal,
     "TIMESTAMP": apache_beam.utils.timestamp.Timestamp,
+    "GEOGRAPHY": str,
 }
 
 
