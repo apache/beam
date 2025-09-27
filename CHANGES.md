@@ -83,6 +83,7 @@
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls ([#30445](https://github.com/apache/beam/issues/30445)).
   This may break update compatibility if you don't provide a `--transform_name_mapping`.
+* Removed deprecated Hadoop versions (2.10.2 and 3.2.4) that are no longer supported for [Iceberg](https://github.com/apache/iceberg/issues/10940) from IcebergIO ([#36282](https://github.com/apache/beam/issues/36282)).
 
 ## Deprecations
 

@@ -1439,6 +1439,8 @@ class BeamModulePlugin implements Plugin<Project> {
             include 'src/*/java/**/*.java'
             exclude '**/DefaultPackageTest.java'
           }
+          // For spotless:off and spotless:on
+          toggleOffOn()
         }
       }
 
