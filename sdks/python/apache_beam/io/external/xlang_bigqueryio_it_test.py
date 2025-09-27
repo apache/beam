@@ -44,14 +44,14 @@ from apache_beam.utils.timestamp import Timestamp
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
-  from apitools.base.py.exceptions import HttpError
-except ImportError:
-  HttpError = None
-
-try:
   from apache_beam.io.gcp.gcsio import GcsIO
 except ImportError:
   GcsIO = None
+
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
@@ -177,7 +177,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     base_prefix = path_parts[1] if len(path_parts) > 1 else ''
 
     # Construct the full prefix to search for table directories
-    # Following the pattern: {base_prefix}/{class_name}/{project}/{dataset}/{table_prefix}
+    # Following the pattern: 
+    # {base_prefix}/{class_name}/{project}/{dataset}/{table_prefix}
     search_prefix = (
         f"{base_prefix}/{self.__class__.__name__}/"
         f"{self.project}/{self.dataset_id}/{table_prefix}")
