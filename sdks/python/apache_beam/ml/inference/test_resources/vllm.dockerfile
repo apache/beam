@@ -17,7 +17,7 @@
 # Used for any vLLM integration test
 # Dockerfile — Beam dev harness + install dev SDK from LOCAL source package
 
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
 
 # 1) Non-interactive + timezone
 ENV DEBIAN_FRONTEND=noninteractive \
