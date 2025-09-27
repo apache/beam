@@ -17,23 +17,11 @@
 # Used for any vLLM integration test
 # Dockerfile — Beam dev harness + install dev SDK from LOCAL source package
 
-FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
-# 1) Non-interactive + timezone + Redirect all heavy temp/cache away from /tmp
+# 1) Non-interactive + timezone
 ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=Etc/UTC \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    TMPDIR=/var/beam_tmp \
-    HF_HOME=/var/beam_hf \
-    HF_HUB_CACHE=/var/beam_hf/hub \
-    TRANSFORMERS_CACHE=/var/beam_hf/hub \
-    VLLM_CACHE_ROOT=/var/beam_hf/vllm \
-    VLLM_RPC_BASE_PATH=/var/beam_tmp
-
-# Make sure target dirs exist (mounted on worker PD at runtime)
-RUN mkdir -p /var/beam_tmp /var/beam_hf/hub /var/beam_hf/vllm && \
-    chmod -R 777 /var/beam_tmp /var/beam_hf
+    TZ=Etc/UTC
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -58,7 +46,7 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3 && \
     python3 -m pip install --upgrade pip setuptools wheel
 
 # 4) Copy the Beam SDK harness (for Dataflow workers)
-COPY --from=gcr.io/apache-beam-testing/beam-sdk/beam_python3.10_sdk:2.69.0.dev \
+COPY --from=gcr.io/apache-beam-testing/beam-sdk/beam_python3.10_sdk:2.68.0.dev \
      /opt/apache/beam /opt/apache/beam
 
 # 5) Make sure the harness is discovered first
