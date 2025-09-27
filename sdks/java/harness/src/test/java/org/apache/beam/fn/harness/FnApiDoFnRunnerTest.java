@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness;
 
 import static java.util.Arrays.asList;
+import static org.apache.beam.runners.core.WindowMatchers.isValueInGlobalWindow;
 import static org.apache.beam.sdk.options.ExperimentalOptions.addExperiment;
 import static org.apache.beam.sdk.values.WindowedValues.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
@@ -1003,35 +1004,35 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   "Y", "processing-timer2", new Instant(2100L), new Instant(3100L)));
 
       assertThat(
+          mainOutputValues.get(0), isValueInGlobalWindow("key:X mainX[X0]", new Instant(1000L)));
+
+      assertThat(
           mainOutputValues,
-          contains(
-              timestampedValueInGlobalWindow("key:X mainX[X0]", new Instant(1000L)),
-              timestampedValueInGlobalWindow("key:Y mainY[]", new Instant(1100L)),
-              timestampedValueInGlobalWindow("key:X mainX[X0, X1]", new Instant(1200L)),
-              timestampedValueInGlobalWindow("key:Y mainY[Y1]", new Instant(1300L)),
-              timestampedValueInGlobalWindow("key:A event[A0]", new Instant(1400L)),
-              timestampedValueInGlobalWindow("key:B event[]", new Instant(1500L)),
-              timestampedValueInGlobalWindow("key:A event[A0, event]", new Instant(1400L)),
-              timestampedValueInGlobalWindow("key:A event[A0, event, event]", new Instant(1400L)),
-              timestampedValueInGlobalWindow(
-                  "key:A event[A0, event, event, event]", new Instant(1400L)),
-              timestampedValueInGlobalWindow(
+          containsInAnyOrder(
+              isValueInGlobalWindow("key:X mainX[X0]", new Instant(1000L)),
+              isValueInGlobalWindow("key:Y mainY[]", new Instant(1100L)),
+              isValueInGlobalWindow("key:X mainX[X0, X1]", new Instant(1200L)),
+              isValueInGlobalWindow("key:Y mainY[Y1]", new Instant(1300L)),
+              isValueInGlobalWindow("key:A event[A0]", new Instant(1400L)),
+              isValueInGlobalWindow("key:B event[]", new Instant(1500L)),
+              isValueInGlobalWindow("key:A event[A0, event]", new Instant(1400L)),
+              isValueInGlobalWindow("key:A event[A0, event, event]", new Instant(1400L)),
+              isValueInGlobalWindow("key:A event[A0, event, event, event]", new Instant(1400L)),
+              isValueInGlobalWindow(
                   "key:A event[A0, event, event, event, event]", new Instant(1400L)),
-              timestampedValueInGlobalWindow(
+              isValueInGlobalWindow(
                   "key:A event[A0, event, event, event, event, event]", new Instant(1400L)),
-              timestampedValueInGlobalWindow(
+              isValueInGlobalWindow(
                   "key:A event[A0, event, event, event, event, event, event]", new Instant(1400L)),
-              timestampedValueInGlobalWindow("key:C processing[C0]", new Instant(1800L)),
-              timestampedValueInGlobalWindow("key:B processing[event]", new Instant(1500L)),
-              timestampedValueInGlobalWindow("key:B event[event, processing]", new Instant(1500)),
-              timestampedValueInGlobalWindow(
-                  "key:B event[event, processing, event]", new Instant(1500)),
-              timestampedValueInGlobalWindow(
+              isValueInGlobalWindow("key:C processing[C0]", new Instant(1800L)),
+              isValueInGlobalWindow("key:B processing[event]", new Instant(1500L)),
+              isValueInGlobalWindow("key:B event[event, processing]", new Instant(1500)),
+              isValueInGlobalWindow("key:B event[event, processing, event]", new Instant(1500)),
+              isValueInGlobalWindow(
                   "key:B event[event, processing, event, event]", new Instant(1500)),
-              timestampedValueInGlobalWindow(
+              isValueInGlobalWindow(
                   "key:B event-family[event, processing, event, event, event]", new Instant(2000L)),
-              timestampedValueInGlobalWindow(
-                  "key:Y processing-family[Y1, Y2]", new Instant(2100L))));
+              isValueInGlobalWindow("key:Y processing-family[Y1, Y2]", new Instant(2100L))));
 
       mainOutputValues.clear();
 

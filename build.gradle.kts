@@ -323,6 +323,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:managed:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
+  dependsOn(":sdks:java:testing:junit:build")
   dependsOn(":sdks:java:testing:load-tests:build")
   dependsOn(":sdks:java:testing:nexmark:build")
   dependsOn(":sdks:java:testing:test-utils:build")

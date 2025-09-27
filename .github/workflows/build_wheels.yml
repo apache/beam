@@ -202,7 +202,7 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v5
         with:
           name: source_zip
           path: source/
@@ -233,13 +233,13 @@ jobs:
         py_version: ["cp39-", "cp310-", "cp311-", "cp312-"]
     steps:
     - name: Download python source distribution from artifacts
-      uses: actions/download-artifact@v4.1.8
+      uses: actions/download-artifact@v5
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/download-artifact@v4.1.8
+      uses: actions/download-artifact@v5
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
@@ -316,7 +316,7 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Download wheels from artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         pattern: wheelhouse-*
         merge-multiple: true

@@ -184,6 +184,8 @@ type Config struct {
 	MaxBundleSize int
 	// Whether to use real-time clock as processing time
 	EnableRTC bool
+	// Whether to process the data in a streaming mode
+	StreamingMode bool
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
@@ -258,7 +260,7 @@ func NewElementManager(config Config) *ElementManager {
 // AddStage adds a stage to this element manager, connecting it's PCollections and
 // nodes to the watermark propagation graph.
 func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, sides []LinkID) {
-	slog.Debug("AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
+	slog.Debug("em.AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
 	ss := makeStageState(ID, inputIDs, outputIDs, sides)
 
 	em.stages[ss.ID] = ss
@@ -502,6 +504,40 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 	return runStageCh
 }
 
+// DumpStages puts all the stage information into a string and returns it.
+func (em *ElementManager) DumpStages() string {
+	var stageState []string
+	ids := maps.Keys(em.stages)
+	if em.testStreamHandler != nil {
+		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
+			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
+	} else {
+		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.ProcessingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		ss := em.stages[id]
+		inW := ss.InputWatermark()
+		outW := ss.OutputWatermark()
+		upPCol, upW := ss.UpstreamWatermark()
+		upS := em.pcolParents[upPCol]
+		if upS == "" {
+			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
+		}
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject))
+
+		var outputConsumers, sideConsumers []string
+		for _, col := range ss.outputIDs {
+			outputConsumers = append(outputConsumers, em.consumers[col]...)
+			for _, l := range em.sideConsumers[col] {
+				sideConsumers = append(sideConsumers, l.Global)
+			}
+		}
+		stageState = append(stageState, fmt.Sprintf("\tsideInputs: %v outputCols: %v outputConsumers: %v sideConsumers: %v\n", ss.sides, ss.outputIDs, outputConsumers, sideConsumers))
+	}
+	return strings.Join(stageState, "")
+}
+
 // checkForQuiescence sees if this element manager is no longer able to do any pending work or make progress.
 //
 // Quiescense can happen if there are no inprogress bundles, and there are no further watermark refreshes, which
@@ -522,9 +558,9 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 		// If there are changed stages that need a watermarks refresh,
 		// we aren't yet stuck.
 		v := em.livePending.Load()
-		slog.Debug("Bundles: nothing in progress after advance",
-			slog.Any("advanced", advanced),
-			slog.Int("changeCount", len(em.changedStages)),
+		slog.Debug("Bundles: nothing in progress after advance, but some stages need a watermark refresh",
+			slog.Any("mayProgress", advanced),
+			slog.Any("needRefresh", em.changedStages),
 			slog.Int64("pendingElementCount", v),
 		)
 		return nil
@@ -567,36 +603,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 	// Jobs must never get stuck so this indicates a bug in prism to be investigated.
 
 	slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
-	var stageState []string
-	ids := maps.Keys(em.stages)
-	if em.testStreamHandler != nil {
-		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
-			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
-	} else {
-		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.ProcessingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
-		ss := em.stages[id]
-		inW := ss.InputWatermark()
-		outW := ss.OutputWatermark()
-		upPCol, upW := ss.UpstreamWatermark()
-		upS := em.pcolParents[upPCol]
-		if upS == "" {
-			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
-		}
-		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject))
-
-		var outputConsumers, sideConsumers []string
-		for _, col := range ss.outputIDs {
-			outputConsumers = append(outputConsumers, em.consumers[col]...)
-			for _, l := range em.sideConsumers[col] {
-				sideConsumers = append(sideConsumers, l.Global)
-			}
-		}
-		stageState = append(stageState, fmt.Sprintf("\tsideInputs: %v outputCols: %v outputConsumers: %v sideConsumers: %v\n", ss.sides, ss.outputIDs, outputConsumers, sideConsumers))
-	}
-	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, ""))
+	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, em.DumpStages())
 }
 
 // InputForBundle returns pre-allocated data for the given bundle, encoding the elements using
@@ -862,7 +869,9 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 		consumers := em.consumers[output]
 		sideConsumers := em.sideConsumers[output]
-		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb, slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers)
+		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb,
+			slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers,
+			"pendingDelta", len(newPending)*len(consumers))
 		for _, sID := range consumers {
 			consumer := em.stages[sID]
 			count := consumer.AddPending(em, newPending)
@@ -1296,6 +1305,43 @@ func (ss *stageState) AddPending(em *ElementManager, newPending []element) int {
 	return ss.kind.addPending(ss, em, newPending)
 }
 
+func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
+	// Check on triggers for this key.
+	// We use an empty linkID as the key into state for aggregations.
+	count := 0
+	if ss.state == nil {
+		ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
+	}
+	lv, ok := ss.state[LinkID{}]
+	if !ok {
+		lv = make(map[typex.Window]map[string]StateData)
+		ss.state[LinkID{}] = lv
+	}
+	wv, ok := lv[window]
+	if !ok {
+		wv = make(map[string]StateData)
+		lv[window] = wv
+	}
+	state := wv[key]
+	endOfWindowReached := window.MaxTimestamp() < ss.input
+	ready := ss.strat.IsTriggerReady(triggerInput{
+		newElementCount:    1,
+		endOfWindowReached: endOfWindowReached,
+	}, &state)
+
+	if ready {
+		state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+	}
+	// Store the state as triggers may have changed it.
+	ss.state[LinkID{}][window][key] = state
+
+	// If we're ready, it's time to fire!
+	if ready {
+		count += ss.buildTriggeredBundle(em, key, window)
+	}
+	return count
+}
+
 // addPending for aggregate stages behaves likes stateful stages, but don't need to handle timers or a separate window
 // expiration condition.
 func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1315,6 +1361,13 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 	if ss.pendingByKeys == nil {
 		ss.pendingByKeys = map[string]*dataAndTimers{}
 	}
+
+	type windowKey struct {
+		window typex.Window
+		key    string
+	}
+	pendingWindowKeys := set[windowKey]{}
+
 	count := 0
 	for _, e := range newPending {
 		count++
@@ -1327,37 +1380,18 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 			ss.pendingByKeys[string(e.keyBytes)] = dnt
 		}
 		heap.Push(&dnt.elements, e)
-		// Check on triggers for this key.
-		// We use an empty linkID as the key into state for aggregations.
-		if ss.state == nil {
-			ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
-		}
-		lv, ok := ss.state[LinkID{}]
-		if !ok {
-			lv = make(map[typex.Window]map[string]StateData)
-			ss.state[LinkID{}] = lv
-		}
-		wv, ok := lv[e.window]
-		if !ok {
-			wv = make(map[string]StateData)
-			lv[e.window] = wv
-		}
-		state := wv[string(e.keyBytes)]
-		endOfWindowReached := e.window.MaxTimestamp() < ss.input
-		ready := ss.strat.IsTriggerReady(triggerInput{
-			newElementCount:    1,
-			endOfWindowReached: endOfWindowReached,
-		}, &state)
 
-		if ready {
-			state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+		if em.config.StreamingMode {
+			// In streaming mode, we check trigger readiness on each element
+			count += ss.injectTriggeredBundlesIfReady(em, e.window, string(e.keyBytes))
+		} else {
+			// In batch mode, we store key + window pairs here and check trigger readiness for each of them later.
+			pendingWindowKeys.insert(windowKey{window: e.window, key: string(e.keyBytes)})
 		}
-		// Store the state as triggers may have changed it.
-		ss.state[LinkID{}][e.window][string(e.keyBytes)] = state
-
-		// If we're ready, it's time to fire!
-		if ready {
-			count += ss.buildTriggeredBundle(em, e.keyBytes, e.window)
+	}
+	if !em.config.StreamingMode {
+		for wk := range pendingWindowKeys {
+			count += ss.injectTriggeredBundlesIfReady(em, wk.window, wk.key)
 		}
 	}
 	return count
@@ -1493,9 +1527,9 @@ func (ss *stageState) savePanes(bundID string, panesInBundle []bundlePane) {
 // buildTriggeredBundle must be called with the stage.mu lock held.
 // When in discarding mode, returns 0.
 // When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
-func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win typex.Window) int {
+func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win typex.Window) int {
 	var toProcess []element
-	dnt := ss.pendingByKeys[string(key)]
+	dnt := ss.pendingByKeys[key]
 	var notYet []element
 
 	rb := RunBundle{StageID: ss.ID, BundleID: "agg-" + em.nextBundID(), Watermark: ss.input}
@@ -1524,7 +1558,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 	}
 	dnt.elements = append(dnt.elements, notYet...)
 	if dnt.elements.Len() == 0 {
-		delete(ss.pendingByKeys, string(key))
+		delete(ss.pendingByKeys, key)
 	} else {
 		// Ensure the heap invariants are maintained.
 		heap.Init(&dnt.elements)
@@ -1537,7 +1571,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 		{
 			win:  win,
 			key:  string(key),
-			pane: ss.state[LinkID{}][win][string(key)].Pane,
+			pane: ss.state[LinkID{}][win][key].Pane,
 		},
 	}
 
@@ -1545,10 +1579,11 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 		func() string { return rb.BundleID },
 		toProcess,
 		ss.input,
-		singleSet(string(key)),
+		singleSet(key),
 		nil,
 		panesInBundle,
 	)
+	slog.Debug("started a triggered bundle", "stageID", ss.ID, "bundleID", rb.BundleID, "size", len(toProcess))
 
 	ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
@@ -1661,6 +1696,7 @@ func (ss *stageState) startEventTimeBundle(watermark mtime.Time, genBundID func(
 	}
 
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, panesInBundle)
+	slog.Debug("started an event time bundle", "stageID", ss.ID, "bundleID", bundID, "bundleSize", len(toProcess), "upstreamWatermark", watermark)
 
 	return bundID, true, stillSchedulable, accumulatingPendingAdjustment
 }
@@ -1960,6 +1996,8 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 		return "", false, stillSchedulable
 	}
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, nil)
+
+	slog.Debug("started a processing time bundle", "stageID", ss.ID, "bundleID", bundID, "size", len(toProcess), "emNow", emNow)
 	return bundID, true, stillSchedulable
 }
 
@@ -2056,7 +2094,7 @@ func (ss *stageState) String() string {
 	return fmt.Sprintf("[%v] IN: %v OUT: %v UP: %q %v, kind: %v", ss.ID, ss.input, ss.output, pcol, up, ss.kind)
 }
 
-// updateWatermarks performs the following operations:
+// updateWatermarks performs the following operations and returns a possible set of stages to refresh next or nil.
 //
 // Watermark_In'  = MAX(Watermark_In, MIN(U(TS_Pending), U(Watermark_InputPCollection)))
 // Watermark_Out' = MAX(Watermark_Out, MIN(Watermark_In', U(minWatermarkHold)))
@@ -2247,8 +2285,7 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 		slog.Debug("bundleReady: unchanged upstream watermark",
 			slog.String("stage", ss.ID),
 			slog.Group("watermark",
-				slog.Any("upstream", upstreamW),
-				slog.Any("input", inputW)))
+				slog.Any("upstream == input == previousInput", inputW)))
 		return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
 	}
 	ready := true

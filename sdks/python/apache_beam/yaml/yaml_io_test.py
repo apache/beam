@@ -24,10 +24,12 @@ import fastavro
 import mock
 
 import apache_beam as beam
+from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.testing.util import AssertThat
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints import schemas as schema_utils
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -490,6 +492,49 @@ class YamlPubSubTest(unittest.TestCase):
               attributes: [label]
               attributes_map: other
             '''))
+
+  def test_write_proto(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      data = [beam.Row(label='37a', rank=1), beam.Row(label='389a', rank=2)]
+      coder = RowCoder(
+          schema_utils.named_fields_to_schema([('label', str), ('rank', int)]))
+      expected_messages = [PubsubMessage(coder.encode(r), {}) for r in data]
+      with mock.patch('apache_beam.io.WriteToPubSub',
+                      FakeWriteToPubSub(topic='my_topic',
+                                        messages=expected_messages)):
+        _ = (
+            p | beam.Create(data) | YamlTransform(
+                '''
+            type: WriteToPubSub
+            config:
+              topic: my_topic
+              format: PROTO
+            '''))
+
+  def test_read_proto(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      data = [beam.Row(label='37a', rank=1), beam.Row(label='389a', rank=2)]
+      coder = RowCoder(
+          schema_utils.named_fields_to_schema([('label', str), ('rank', int)]))
+      expected_messages = [PubsubMessage(coder.encode(r), {}) for r in data]
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(topic='my_topic',
+                                         messages=expected_messages)):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: PROTO
+              schema:
+                type: object
+                properties:
+                  label: {type: string}
+                  rank: {type: integer}
+            ''')
+        assert_that(result, equal_to(data))
 
 
 if __name__ == '__main__':

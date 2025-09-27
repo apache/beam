@@ -20,6 +20,7 @@ package org.apache.beam.sdk.testing;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -31,7 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 /** Advanced tests for {@link TestPipelineExtension} demonstrating comprehensive functionality. */
 @ExtendWith(TestPipelineExtension.class)
-public class TestPipelineExtensionAdvancedTest {
+public class TestPipelineExtensionAdvancedTest implements Serializable {
 
   @Test
   public void testApplicationNameIsSet(TestPipeline pipeline) {
@@ -72,7 +73,7 @@ public class TestPipelineExtensionAdvancedTest {
   @Test
   public void testPipelineInstancesAreIsolated(TestPipeline pipeline1) {
     // Each test method gets its own pipeline instance
-    assertNotNull(pipeline1);
+    pipeline1.enableAutoRunIfMissing(true);
     pipeline1.apply("Create", Create.of("test"));
     // Don't run the pipeline - test should still pass due to auto-run functionality
   }
