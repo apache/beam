@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,7 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +90,10 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
 
     String filePattern = resolveFilePattern(table.getLocation());
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
-    read = read.withProjection(readSchema, readSchema);
+
+    // Create encoder schema with unwanted columns made nullable
+    Schema encoderSchema = createEncoderSchema(schema, requiredFieldsForRead);
+    read = read.withProjection(readSchema, encoderSchema);
 
     if (filter instanceof ParquetFilter) {
       ParquetFilter parquetFilter = (ParquetFilter) filter;
@@ -125,8 +129,9 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
       return schema;
     }
 
-    Set<String> fieldNameSet = new HashSet<>(fieldNames);
-    List<Field> selectedFields = new ArrayList<>();
+    // Use LinkedHashSet to maintain order and provide O(1) lookup
+    Set<String> fieldNameSet = new LinkedHashSet<>(fieldNames);
+    List<Field> selectedFields = new ArrayList<>(fieldNames.size());
 
     // Iterate through the original schema's fields to maintain their order.
     for (Schema.Field field : schema.getFields()) {
@@ -140,6 +145,38 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
         schema.getNamespace(),
         schema.isError(),
         selectedFields);
+  }
+
+  /**
+   * Creates an encoder schema where unwanted columns are made nullable. This follows the ParquetIO
+   * javadoc requirement for projection.
+   */
+  private static Schema createEncoderSchema(Schema originalSchema, Set<String> requiredFields) {
+    if (requiredFields.isEmpty()) {
+      return originalSchema;
+    }
+
+    // Pre-allocate list with expected size for better performance
+    List<Field> encoderFields = new ArrayList<>(originalSchema.getFields().size());
+    for (Schema.Field field : originalSchema.getFields()) {
+      if (requiredFields.contains(field.name())) {
+        // Keep the field as-is for required fields
+        encoderFields.add(deepCopyField(field));
+      } else {
+        // Make unwanted columns nullable
+        Schema nullableSchema = Schema.createUnion(Schema.create(Schema.Type.NULL), field.schema());
+        Field nullableField =
+            new Schema.Field(field.name(), nullableSchema, field.doc(), null, field.order());
+        encoderFields.add(nullableField);
+      }
+    }
+
+    return Schema.createRecord(
+        originalSchema.getName() + "_encoder",
+        originalSchema.getDoc(),
+        originalSchema.getNamespace(),
+        originalSchema.isError(),
+        encoderFields);
   }
 
   private static Field deepCopyField(Field field) {

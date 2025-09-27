@@ -23,24 +23,62 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.filter2.predicate.Operators.BinaryColumn;
-import org.apache.parquet.filter2.predicate.Operators.BooleanColumn;
-import org.apache.parquet.filter2.predicate.Operators.DoubleColumn;
-import org.apache.parquet.filter2.predicate.Operators.FloatColumn;
-import org.apache.parquet.filter2.predicate.Operators.IntColumn;
-import org.apache.parquet.filter2.predicate.Operators.LongColumn;
 import org.apache.parquet.io.api.Binary;
 
+/**
+ * Factory class for creating Parquet filter predicates from Calcite RexNode expressions.
+ *
+ * <p>This class converts SQL filter expressions (represented as Calcite RexNodes) into Parquet
+ * filter predicates that can be used for predicate pushdown during Parquet file reading. This
+ * enables significant performance improvements by filtering data at the storage level rather than
+ * after reading all data into memory.
+ *
+ * <p>Supported operations include:
+ *
+ * <ul>
+ *   <li>Comparison operators: =, !=, &lt;, &lt;=, &gt;, &gt;=
+ *   <li>Logical operators: AND, OR, NOT
+ *   <li>Set operations: IN, NOT IN
+ *   <li>Null checks: IS NULL, IS NOT NULL
+ * </ul>
+ *
+ * <p>Supported data types include:
+ *
+ * <ul>
+ *   <li>Integer types: TINYINT, SMALLINT, INTEGER, BIGINT
+ *   <li>Floating point: FLOAT, DOUBLE
+ *   <li>Boolean: BOOLEAN
+ *   <li>String types: CHAR, VARCHAR
+ *   <li>Binary types: BINARY, VARBINARY
+ *   <li>Decimal: DECIMAL
+ * </ul>
+ *
+ * <p>Example usage:
+ *
+ * <pre>{@code
+ * // Create a filter from SQL expressions
+ * List<RexNode> expressions = ...; // from SQL WHERE clause
+ * Schema beamSchema = ...; // Beam schema for the table
+ * ParquetFilter filter = ParquetFilterFactory.create(expressions, beamSchema);
+ *
+ * // Use with ParquetIO
+ * ParquetIO.read(schema)
+ *   .from(filePattern)
+ *   .withFilter(filter)
+ *   .withBeamSchemas(true);
+ * }</pre>
+ */
 public class ParquetFilterFactory {
   private static final ImmutableMap<SqlKind, FilterCombiner> COMBINERS =
       ImmutableMap.of(SqlKind.AND, FilterApi::and, SqlKind.OR, FilterApi::or);
@@ -54,11 +92,37 @@ public class ParquetFilterFactory {
           SqlKind.LESS_THAN,
           SqlKind.LESS_THAN_OR_EQUAL);
 
+  /**
+   * Creates a ParquetFilter from a list of Calcite RexNode expressions.
+   *
+   * <p>This method converts SQL filter expressions into Parquet filter predicates. Only supported
+   * expressions will be converted; unsupported expressions are silently ignored, allowing for
+   * partial filter pushdown.
+   *
+   * @param expressions List of RexNode expressions representing SQL filter conditions. Can be null
+   *     or empty, in which case no filtering is applied.
+   * @param beamSchema The Beam schema for the table being filtered. Used to map column indices to
+   *     field names and validate column references.
+   * @return A ParquetFilter that can be used with ParquetIO for predicate pushdown.
+   * @throws IllegalArgumentException if beamSchema is null
+   */
   public static ParquetFilter create(List<RexNode> expressions, Schema beamSchema) {
+    if (beamSchema == null) {
+      throw new IllegalArgumentException("Beam schema cannot be null");
+    }
     FilterPredicate internalPredicate = toFilterPredicate(expressions, beamSchema);
     return new ParquetFilterImpl(internalPredicate);
   }
 
+  /**
+   * Creates a ParquetFilter from an existing Parquet FilterPredicate.
+   *
+   * <p>This method is useful when you already have a Parquet FilterPredicate and want to wrap it in
+   * the Beam ParquetFilter interface.
+   *
+   * @param predicate The Parquet FilterPredicate to wrap. Can be null.
+   * @return A ParquetFilter wrapping the provided predicate.
+   */
   public static ParquetFilter fromPredicate(FilterPredicate predicate) {
     return new ParquetFilterImpl(predicate);
   }
@@ -84,17 +148,37 @@ public class ParquetFilterFactory {
       return null;
     }
 
-    List<FilterPredicate> predicates = new ArrayList<>();
+    // Pre-allocate list with expected size for better performance
+    List<FilterPredicate> predicates = new ArrayList<>(expressions.size());
     for (RexNode expr : expressions) {
-      FilterPredicate p = convert(expr, beamSchema);
-      if (p != null) {
-        predicates.add(p);
+      if (expr == null) {
+        continue; // Skip null expressions
+      }
+      try {
+        FilterPredicate p = convert(expr, beamSchema);
+        if (p != null) {
+          predicates.add(p);
+        }
+      } catch (Exception e) {
+        // Log the error but continue processing other expressions
+        // This allows partial filter pushdown when some expressions fail
+        System.err.println(
+            "Failed to convert expression to Parquet filter: "
+                + expr
+                + ", error: "
+                + e.getMessage());
       }
     }
 
     if (predicates.isEmpty()) {
       return null;
     }
+
+    // Optimize: if only one predicate, return it directly
+    if (predicates.size() == 1) {
+      return predicates.get(0);
+    }
+
     return predicates.stream().reduce(FilterApi::and).orElse(null);
   }
 
@@ -131,7 +215,8 @@ public class ParquetFilterFactory {
       return null;
     }
 
-    List<FilterPredicate> predicates = new ArrayList<>();
+    // Pre-allocate list with expected size for better performance
+    List<FilterPredicate> predicates = new ArrayList<>(call.getOperands().size());
     for (RexNode op : call.getOperands()) {
       FilterPredicate p = convert(op, beamSchema);
       if (p != null) {
@@ -142,6 +227,12 @@ public class ParquetFilterFactory {
     if (predicates.isEmpty()) {
       return null;
     }
+
+    // Optimize: if only one predicate, return it directly
+    if (predicates.size() == 1) {
+      return predicates.get(0);
+    }
+
     return predicates.stream().reduce(combiner::combine).orElse(null);
   }
 
@@ -211,19 +302,35 @@ public class ParquetFilterFactory {
 
   @Nullable
   private static FilterPredicate toBinaryPredicate(RexCall call, Schema beamSchema) {
+    if (call.getOperands().size() != 2) {
+      return null; // Binary predicates must have exactly 2 operands
+    }
+
     RexNode left = call.getOperands().get(0);
     RexNode right = call.getOperands().get(1);
+
+    // Handle CAST operations
     if (left.getKind() == SqlKind.CAST) {
       left = ((RexCall) left).getOperands().get(0);
     }
     if (right.getKind() == SqlKind.CAST) {
       right = ((RexCall) right).getOperands().get(0);
     }
+
+    // Only support column = literal comparisons
     if (!(left instanceof RexInputRef) || !(right instanceof RexLiteral)) {
       return null;
     }
-    return createSingleComparison(
-        call.getKind(), (RexInputRef) left, (RexLiteral) right, beamSchema);
+
+    RexInputRef columnRef = (RexInputRef) left;
+    RexLiteral literal = (RexLiteral) right;
+
+    // Validate column index is within schema bounds
+    if (columnRef.getIndex() < 0 || columnRef.getIndex() >= beamSchema.getFieldCount()) {
+      return null;
+    }
+
+    return createSingleComparison(call.getKind(), columnRef, literal, beamSchema);
   }
 
   @Nullable
@@ -256,8 +363,8 @@ public class ParquetFilterFactory {
         return createStringPredicate(kind, columnName, value.toString());
       case BINARY:
       case VARBINARY:
-        org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.BitString bitString =
-            (org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.BitString) value;
+        org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.BitString bitString =
+            (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.BitString) value;
         return createBinaryPredicate(
             kind, columnName, Binary.fromConstantByteArray(bitString.getAsByteArray()));
       case DECIMAL:
@@ -278,120 +385,174 @@ public class ParquetFilterFactory {
   }
 
   private static String getColumnName(RexInputRef columnRef, Schema beamSchema) {
-    return beamSchema.getField(columnRef.getIndex()).getName();
+    int fieldIndex = columnRef.getIndex();
+    if (fieldIndex < 0 || fieldIndex >= beamSchema.getFieldCount()) {
+      throw new IllegalArgumentException(
+          "Column index "
+              + fieldIndex
+              + " is out of bounds for schema with "
+              + beamSchema.getFieldCount()
+              + " fields");
+    }
+    return beamSchema.getField(fieldIndex).getName();
   }
 
+  /** Creates a filter predicate for integer values. */
   private static FilterPredicate createIntPredicate(SqlKind kind, String name, Integer value) {
-    IntColumn col = FilterApi.intColumn(name);
+    return createIntComparison(kind, FilterApi.intColumn(name), value);
+  }
+
+  /** Creates a filter predicate for long values. */
+  private static FilterPredicate createLongPredicate(SqlKind kind, String name, Long value) {
+    return createLongComparison(kind, FilterApi.longColumn(name), value);
+  }
+
+  /** Creates a filter predicate for float values. */
+  private static FilterPredicate createFloatPredicate(SqlKind kind, String name, Float value) {
+    return createFloatComparison(kind, FilterApi.floatColumn(name), value);
+  }
+
+  /** Creates a filter predicate for double values. */
+  private static FilterPredicate createDoublePredicate(SqlKind kind, String name, Double value) {
+    return createDoubleComparison(kind, FilterApi.doubleColumn(name), value);
+  }
+
+  /** Creates a filter predicate for boolean values. */
+  private static FilterPredicate createBooleanPredicate(SqlKind kind, String name, Boolean value) {
+    return createBooleanComparison(kind, FilterApi.booleanColumn(name), value);
+  }
+
+  /** Creates a filter predicate for string values. */
+  private static FilterPredicate createStringPredicate(SqlKind kind, String name, String value) {
+    return createBinaryPredicate(kind, name, Binary.fromString(value));
+  }
+
+  /** Creates a filter predicate for binary values. */
+  private static FilterPredicate createBinaryPredicate(SqlKind kind, String name, Binary value) {
+    return createBinaryComparison(kind, FilterApi.binaryColumn(name), value);
+  }
+
+  /** Helper method to create comparison predicates for integer columns. */
+  private static FilterPredicate createIntComparison(
+      SqlKind kind,
+      org.apache.parquet.filter2.predicate.Operators.IntColumn column,
+      Integer value) {
     switch (kind) {
       case EQUALS:
-        return FilterApi.eq(col, value);
+        return FilterApi.eq(column, value);
       case NOT_EQUALS:
-        return FilterApi.notEq(col, value);
+        return FilterApi.notEq(column, value);
       case GREATER_THAN:
-        return FilterApi.gt(col, value);
+        return FilterApi.gt(column, value);
       case GREATER_THAN_OR_EQUAL:
-        return FilterApi.gtEq(col, value);
+        return FilterApi.gtEq(column, value);
       case LESS_THAN:
-        return FilterApi.lt(col, value);
+        return FilterApi.lt(column, value);
       case LESS_THAN_OR_EQUAL:
-        return FilterApi.ltEq(col, value);
+        return FilterApi.ltEq(column, value);
       default:
         throw new UnsupportedOperationException("Unsupported operator for INT: " + kind);
     }
   }
 
-  private static FilterPredicate createLongPredicate(SqlKind kind, String name, Long value) {
-    LongColumn col = FilterApi.longColumn(name);
+  /** Helper method to create comparison predicates for long columns. */
+  private static FilterPredicate createLongComparison(
+      SqlKind kind, org.apache.parquet.filter2.predicate.Operators.LongColumn column, Long value) {
     switch (kind) {
       case EQUALS:
-        return FilterApi.eq(col, value);
+        return FilterApi.eq(column, value);
       case NOT_EQUALS:
-        return FilterApi.notEq(col, value);
+        return FilterApi.notEq(column, value);
       case GREATER_THAN:
-        return FilterApi.gt(col, value);
+        return FilterApi.gt(column, value);
       case GREATER_THAN_OR_EQUAL:
-        return FilterApi.gtEq(col, value);
+        return FilterApi.gtEq(column, value);
       case LESS_THAN:
-        return FilterApi.lt(col, value);
+        return FilterApi.lt(column, value);
       case LESS_THAN_OR_EQUAL:
-        return FilterApi.ltEq(col, value);
+        return FilterApi.ltEq(column, value);
       default:
         throw new UnsupportedOperationException("Unsupported operator for LONG: " + kind);
     }
   }
 
-  private static FilterPredicate createFloatPredicate(SqlKind kind, String name, Float value) {
-    FloatColumn col = FilterApi.floatColumn(name);
+  /** Helper method to create comparison predicates for float columns. */
+  private static FilterPredicate createFloatComparison(
+      SqlKind kind,
+      org.apache.parquet.filter2.predicate.Operators.FloatColumn column,
+      Float value) {
     switch (kind) {
       case EQUALS:
-        return FilterApi.eq(col, value);
+        return FilterApi.eq(column, value);
       case NOT_EQUALS:
-        return FilterApi.notEq(col, value);
+        return FilterApi.notEq(column, value);
       case GREATER_THAN:
-        return FilterApi.gt(col, value);
+        return FilterApi.gt(column, value);
       case GREATER_THAN_OR_EQUAL:
-        return FilterApi.gtEq(col, value);
+        return FilterApi.gtEq(column, value);
       case LESS_THAN:
-        return FilterApi.lt(col, value);
+        return FilterApi.lt(column, value);
       case LESS_THAN_OR_EQUAL:
-        return FilterApi.ltEq(col, value);
+        return FilterApi.ltEq(column, value);
       default:
         throw new UnsupportedOperationException("Unsupported operator for FLOAT: " + kind);
     }
   }
 
-  private static FilterPredicate createDoublePredicate(SqlKind kind, String name, Double value) {
-    DoubleColumn col = FilterApi.doubleColumn(name);
+  /** Helper method to create comparison predicates for double columns. */
+  private static FilterPredicate createDoubleComparison(
+      SqlKind kind,
+      org.apache.parquet.filter2.predicate.Operators.DoubleColumn column,
+      Double value) {
     switch (kind) {
       case EQUALS:
-        return FilterApi.eq(col, value);
+        return FilterApi.eq(column, value);
       case NOT_EQUALS:
-        return FilterApi.notEq(col, value);
+        return FilterApi.notEq(column, value);
       case GREATER_THAN:
-        return FilterApi.gt(col, value);
+        return FilterApi.gt(column, value);
       case GREATER_THAN_OR_EQUAL:
-        return FilterApi.gtEq(col, value);
+        return FilterApi.gtEq(column, value);
       case LESS_THAN:
-        return FilterApi.lt(col, value);
+        return FilterApi.lt(column, value);
       case LESS_THAN_OR_EQUAL:
-        return FilterApi.ltEq(col, value);
+        return FilterApi.ltEq(column, value);
       default:
         throw new UnsupportedOperationException("Unsupported operator for DOUBLE: " + kind);
     }
   }
 
-  private static FilterPredicate createBooleanPredicate(SqlKind kind, String name, Boolean value) {
-    BooleanColumn col = FilterApi.booleanColumn(name);
+  /** Helper method to create comparison predicates for boolean columns. */
+  private static FilterPredicate createBooleanComparison(
+      SqlKind kind,
+      org.apache.parquet.filter2.predicate.Operators.BooleanColumn column,
+      Boolean value) {
     switch (kind) {
       case EQUALS:
-        return FilterApi.eq(col, value);
+        return FilterApi.eq(column, value);
       case NOT_EQUALS:
-        return FilterApi.notEq(col, value);
+        return FilterApi.notEq(column, value);
       default:
         throw new UnsupportedOperationException("Unsupported operator for BOOLEAN: " + kind);
     }
   }
 
-  private static FilterPredicate createStringPredicate(SqlKind kind, String name, String value) {
-    return createBinaryPredicate(kind, name, Binary.fromString(value));
-  }
-
-  private static FilterPredicate createBinaryPredicate(SqlKind kind, String name, Binary value) {
-    BinaryColumn col = FilterApi.binaryColumn(name);
+  /** Helper method to create comparison predicates for binary columns. */
+  private static FilterPredicate createBinaryComparison(
+      SqlKind kind, BinaryColumn column, Binary value) {
     switch (kind) {
       case EQUALS:
-        return FilterApi.eq(col, value);
+        return FilterApi.eq(column, value);
       case NOT_EQUALS:
-        return FilterApi.notEq(col, value);
+        return FilterApi.notEq(column, value);
       case GREATER_THAN:
-        return FilterApi.gt(col, value);
+        return FilterApi.gt(column, value);
       case GREATER_THAN_OR_EQUAL:
-        return FilterApi.gtEq(col, value);
+        return FilterApi.gtEq(column, value);
       case LESS_THAN:
-        return FilterApi.lt(col, value);
+        return FilterApi.lt(column, value);
       case LESS_THAN_OR_EQUAL:
-        return FilterApi.ltEq(col, value);
+        return FilterApi.ltEq(column, value);
       default:
         throw new UnsupportedOperationException("Unsupported operator for BINARY: " + kind);
     }

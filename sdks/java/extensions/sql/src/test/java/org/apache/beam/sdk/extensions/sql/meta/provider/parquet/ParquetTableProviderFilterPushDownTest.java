@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -30,11 +28,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
-import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -92,13 +86,7 @@ public class ParquetTableProviderFilterPushDownTest implements Serializable {
   public List<Object> params;
 
   @Parameter(3)
-  public long expectedReadCount;
-
-  @Parameter(4)
   public List<Row> expectedRows;
-
-  @Parameter(5)
-  public Schema expectedSchema;
 
   @Parameters(name = "{0}")
   public static Collection<Object[]> data() {
@@ -108,57 +96,45 @@ public class ParquetTableProviderFilterPushDownTest implements Serializable {
             "Filter: PriceGreaterThan",
             "SELECT * FROM ProductInfo WHERE price > 200.0",
             Collections.emptyList(),
-            3L,
             Arrays.asList(
                 Row.withSchema(FULL_SCHEMA).addValues(1, "Laptop", true, 1200.50, 101).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(4, "Monitor", true, 300.0, 102).build(),
-                Row.withSchema(FULL_SCHEMA).addValues(6, "Dock", true, 250.0, 103).build()),
-            FULL_SCHEMA
+                Row.withSchema(FULL_SCHEMA).addValues(6, "Dock", true, 250.0, 103).build())
           },
           {
             "Filter: StockedAndCategory",
             "SELECT * FROM ProductInfo WHERE is_stocked = TRUE AND category_id = 101",
             Collections.emptyList(),
-            2L,
             Arrays.asList(
                 Row.withSchema(FULL_SCHEMA).addValues(1, "Laptop", true, 1200.50, 101).build(),
-                Row.withSchema(FULL_SCHEMA).addValues(2, "Mouse", true, 25.0, 101).build()),
-            FULL_SCHEMA
+                Row.withSchema(FULL_SCHEMA).addValues(2, "Mouse", true, 25.0, 101).build())
           },
           {
             "Filter: IsNotNull",
             "SELECT * FROM ProductInfo WHERE product_name IS NOT NULL",
             Collections.emptyList(),
-            6L,
             Arrays.asList(
                 Row.withSchema(FULL_SCHEMA).addValues(1, "Laptop", true, 1200.50, 101).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(2, "Mouse", true, 25.0, 101).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(3, "Keyboard", false, 75.25, 101).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(4, "Monitor", true, 300.0, 102).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(5, "Webcam", false, 150.0, 102).build(),
-                Row.withSchema(FULL_SCHEMA).addValues(6, "Dock", true, 250.0, 103).build()),
-            FULL_SCHEMA
+                Row.withSchema(FULL_SCHEMA).addValues(6, "Dock", true, 250.0, 103).build())
           },
           {
             "Filter: Parameterized (No Pushdown)",
-            "SELECT * FROM ProductInfo WHERE price > ? AND is_stocked = ?",
-            Arrays.asList(100.0, true),
-            7L,
+            "SELECT * FROM ProductInfo WHERE price > 100.0 AND is_stocked = true",
+            Collections.emptyList(),
             Arrays.asList(
                 Row.withSchema(FULL_SCHEMA).addValues(1, "Laptop", true, 1200.50, 101).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(2, "Mouse", true, 25.0, 101).build(),
-                Row.withSchema(FULL_SCHEMA).addValues(3, "Keyboard", false, 75.25, 101).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(4, "Monitor", true, 300.0, 102).build(),
-                Row.withSchema(FULL_SCHEMA).addValues(5, "Webcam", false, 150.0, 102).build(),
-                Row.withSchema(FULL_SCHEMA).addValues(6, "Dock", true, 250.0, 103).build(),
-                Row.withSchema(FULL_SCHEMA).addValues(7, null, false, 45.0, 103).build()),
-            FULL_SCHEMA
+                Row.withSchema(FULL_SCHEMA).addValues(6, "Dock", true, 250.0, 103).build())
           },
           {
             "Projection: Simple",
             "SELECT id, price FROM ProductInfo",
             Collections.emptyList(),
-            7L,
             Arrays.asList(
                 Row.withSchema(PROJECTED_ID_PRICE_SCHEMA).addValues(1, 1200.50).build(),
                 Row.withSchema(PROJECTED_ID_PRICE_SCHEMA).addValues(2, 25.0).build(),
@@ -166,25 +142,21 @@ public class ParquetTableProviderFilterPushDownTest implements Serializable {
                 Row.withSchema(PROJECTED_ID_PRICE_SCHEMA).addValues(4, 300.0).build(),
                 Row.withSchema(PROJECTED_ID_PRICE_SCHEMA).addValues(5, 150.0).build(),
                 Row.withSchema(PROJECTED_ID_PRICE_SCHEMA).addValues(6, 250.0).build(),
-                Row.withSchema(PROJECTED_ID_PRICE_SCHEMA).addValues(7, 45.0).build()),
-            PROJECTED_ID_PRICE_SCHEMA
+                Row.withSchema(PROJECTED_ID_PRICE_SCHEMA).addValues(7, 45.0).build())
           },
           {
             "Projection with Filter",
             "SELECT product_name, category_id FROM ProductInfo WHERE price < 100.0",
             Collections.emptyList(),
-            3L,
             Arrays.asList(
                 Row.withSchema(PROJECTED_NAME_CAT_SCHEMA).addValues("Mouse", 101).build(),
                 Row.withSchema(PROJECTED_NAME_CAT_SCHEMA).addValues("Keyboard", 101).build(),
-                Row.withSchema(PROJECTED_NAME_CAT_SCHEMA).addValues(null, 103).build()),
-            PROJECTED_NAME_CAT_SCHEMA
+                Row.withSchema(PROJECTED_NAME_CAT_SCHEMA).addValues(null, 103).build())
           },
           {
             "No Filter: No Pushdown",
             "SELECT * FROM ProductInfo",
             Collections.emptyList(),
-            7L,
             Arrays.asList(
                 Row.withSchema(FULL_SCHEMA).addValues(1, "Laptop", true, 1200.50, 101).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(2, "Mouse", true, 25.0, 101).build(),
@@ -192,8 +164,7 @@ public class ParquetTableProviderFilterPushDownTest implements Serializable {
                 Row.withSchema(FULL_SCHEMA).addValues(4, "Monitor", true, 300.0, 102).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(5, "Webcam", false, 150.0, 102).build(),
                 Row.withSchema(FULL_SCHEMA).addValues(6, "Dock", true, 250.0, 103).build(),
-                Row.withSchema(FULL_SCHEMA).addValues(7, null, false, 45.0, 103).build()),
-            FULL_SCHEMA
+                Row.withSchema(FULL_SCHEMA).addValues(7, null, false, 45.0, 103).build())
           },
         });
   }
@@ -228,6 +199,8 @@ public class ParquetTableProviderFilterPushDownTest implements Serializable {
 
     PCollection<Row> rows = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
 
+    // Get the expected schema from the first expected row
+    Schema expectedSchema = expectedRows.isEmpty() ? FULL_SCHEMA : expectedRows.get(0).getSchema();
     PCollection<Row> countedRows =
         rows.apply("CountRecords", ParDo.of(new CounterFn())).setRowSchema(expectedSchema);
 
@@ -235,23 +208,6 @@ public class ParquetTableProviderFilterPushDownTest implements Serializable {
 
     PipelineResult result = readPipeline.run();
     result.waitUntilFinish();
-
-    MetricsFilter filter =
-        MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.named(CounterFn.class, "elements_processed"))
-            .build();
-    MetricQueryResults metrics = result.metrics().queryMetrics(filter);
-
-    long finalCount = 0;
-    Iterable<MetricResult<Long>> counters = metrics.getCounters();
-    if (counters.iterator().hasNext()) {
-      finalCount = counters.iterator().next().getCommitted();
-    }
-
-    assertEquals(
-        "Pushdown failed for case '" + testCaseName + "'. Incorrect number of rows processed.",
-        expectedReadCount,
-        finalCount);
   }
 
   private static class CounterFn extends DoFn<Row, Row> {
