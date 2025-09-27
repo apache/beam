@@ -561,7 +561,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
     if t not in _pickled_types:
       _pickled_types[t] = cloudpickle_pickler.dumps(
-          t, config=cloudpickle_pickler.NO_DYNAMIC_CLASS_TRACKING_CONFIG)
+          t, config=cloudpickle_pickler.DETERMINISTIC_CODER_CONFIG)
     stream.write(_pickled_types[t], True)
 
   def decode_type(self, stream):
