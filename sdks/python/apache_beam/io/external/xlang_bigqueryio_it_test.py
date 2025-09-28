@@ -177,7 +177,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     base_prefix = path_parts[1] if len(path_parts) > 1 else ''
 
     # Construct the full prefix to search for table directories
-    # Following the pattern: 
+    # Following the pattern:
     # {base_prefix}/{class_name}/{project}/{dataset}/{table_prefix}
     search_prefix = (
         f"{base_prefix}/{self.__class__.__name__}/"
