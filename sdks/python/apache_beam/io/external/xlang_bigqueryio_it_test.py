@@ -577,11 +577,10 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table = 'write_with_big_lake_config'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
-    # BigLake configuration with required parameters
+    # BigLake configuration with required parameters (matching Java test)
     big_lake_config = {
-        'connectionId': 'projects/{}/locations/us/connections/test-connection'.
-        format(self.project),
-        'storageUri': 'gs://test-bucket-{}/biglake-data'.format(self.project),
+        'connectionId': 'projects/apache-beam-testing/locations/us/connections/apache-beam-testing-storageapi-biglake-nodelete',  # pylint: disable=line-too-long
+        'storageUri': 'gs://apache-beam-testing-bq-biglake/BigQueryXlangStorageWriteIT',
         'fileFormat': 'parquet',
         'tableFormat': 'iceberg'
     }
