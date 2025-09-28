@@ -580,7 +580,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     # BigLake configuration with required parameters (matching Java test)
     big_lake_config = {
         'connectionId': 'projects/apache-beam-testing/locations/us/connections/apache-beam-testing-storageapi-biglake-nodelete',  # pylint: disable=line-too-long
-        'storageUri': 'gs://apache-beam-testing-bq-biglake/BigQueryXlangStorageWriteIT',
+        'storageUri': 'gs://apache-beam-testing-bq-biglake/BigQueryXlangStorageWriteIT',  # pylint: disable=line-too-long
         'fileFormat': 'parquet',
         'tableFormat': 'iceberg'
     }
