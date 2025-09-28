@@ -1483,8 +1483,7 @@ class Pickler(pickle.Pickler):
 
     def save_typevar(self, obj, name=None):
       """Handle TypeVar objects with access to config."""
-      return self._save_reduce_pickle5(
-          *_typevar_reduce(obj, self.config), obj=obj)
+      return self.save_reduce(*_typevar_reduce(obj, self.config), obj=obj)
 
     dispatch[typing.TypeVar] = save_typevar
 

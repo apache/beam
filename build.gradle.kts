@@ -1,3 +1,5 @@
+import java.util.TreeMap
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -321,6 +323,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:managed:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
+  dependsOn(":sdks:java:testing:junit:build")
   dependsOn(":sdks:java:testing:load-tests:build")
   dependsOn(":sdks:java:testing:nexmark:build")
   dependsOn(":sdks:java:testing:test-utils:build")
@@ -355,6 +358,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:mqtt:build")
   dependsOn(":sdks:java:io:neo4j:build")
   dependsOn(":sdks:java:io:parquet:build")
+  dependsOn(":sdks:java:io:pulsar:build")
   dependsOn(":sdks:java:io:rabbitmq:build")
   dependsOn(":sdks:java:io:redis:build")
   dependsOn(":sdks:java:io:rrio:build")
@@ -691,12 +695,31 @@ tasks.register("validateChanges") {
 
     // Check entries in the unreleased section
     var i = unreleasedSectionStart + 1
-    println("Starting validation from line ${i+1}")
-
+    val items = TreeMap<Int, String>()
+    var lastline = 0
+    var item = ""
     while (i < lines.size && !lines[i].startsWith("# [")) {
       val line = lines[i].trim()
+      if (line.isEmpty()) {
+        // skip
+      } else if (line.startsWith("* ")) {
+        items.put(lastline, item)
+        lastline = i
+        item = line
+      } else if (line.startsWith("##")) {
+        items.put(lastline, item)
+        lastline = i
+        item = ""
+      } else {
+        item += line
+      }
+      i++
+    }
+    items.put(lastline, item)
+    println("Starting validation from line ${i+1}")
 
-      if (line.startsWith("* ") && line.isNotEmpty()) {
+    items.forEach { (i, line) ->
+      if (line.startsWith("* ")) {
         println("Checking line ${i+1}: $line")
 
         // Skip comment lines
@@ -747,8 +770,6 @@ tasks.register("validateChanges") {
           }
         }
       }
-
-      i++
     }
 
     println("Found ${errors.size} errors")

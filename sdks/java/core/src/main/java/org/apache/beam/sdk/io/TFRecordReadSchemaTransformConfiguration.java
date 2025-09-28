@@ -63,7 +63,8 @@ public abstract class TFRecordReadSchemaTransformConfiguration implements Serial
     if (errorHandling != null) {
       checkArgument(
           !Strings.isNullOrEmpty(errorHandling.getOutput()),
-          invalidConfigMessage + "Output must not be empty if error handling specified.");
+          "%sOutput must not be empty if error handling specified.",
+          invalidConfigMessage);
     }
   }
 

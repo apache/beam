@@ -670,9 +670,9 @@ This pull request is against the `apache/beam` repo, on the `master` branch
 - Update `CHANGES.md` to update release date and remove template.
 - Update release version in `website/www/site/config.toml`.
 - Add new release in `website/www/site/content/en/get-started/downloads.md`.
+   - For the current release, use `closer.lua` script for download links (e.g., `https://www.apache.org/dyn/closer.lua/beam/{{< param release_latest >}}/apache-beam-{{< param release_latest >}}-source-release.zip`)
    - Download links will not work until the release is finalized.
-- Update links to prior releases to point to https://archive.apache.org (see
-  example PR).
+- Move the previous release to the "Archived releases" section and update its links to point to https://archive.apache.org (see example PR).
 - Create the Blog post:
 
 #### Blog post
@@ -1052,7 +1052,7 @@ svn rm $OLD_RELEASE_VERSION   # Delete all artifacts from old releases.
 svn commit -m "Adding artifacts for the ${RELEASE_VERSION} release and removing old artifacts"
 ```
 
-Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
+Make sure the old release's artifacts have been copied to [archive.apache.org](https://archive.apache.org/dist/beam/).
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
 
 #### Recordkeeping with ASF
