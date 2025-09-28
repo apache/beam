@@ -178,9 +178,9 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     # Construct the full prefix to search for table directories
     # Following the pattern:
-    # {base_prefix}/{class_name}/{project}/{dataset}/{table_prefix}
+    # {base_prefix}/{project}/{dataset}/{table_prefix}
     search_prefix = (
-        f"{base_prefix}/{self.__class__.__name__}/"
+        f"{base_prefix}/"
         f"{self.project}/{self.dataset_id}/{table_prefix}")
 
     # List objects in the bucket with the constructed prefix
