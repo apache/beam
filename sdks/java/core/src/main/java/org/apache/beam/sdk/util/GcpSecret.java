@@ -40,8 +40,8 @@ public class GcpSecret implements Secret {
   }
 
   /**
-   * Returns the secret as a byte array. Assumes that the current active service account
-   * has permissions to read the secret.
+   * Returns the secret as a byte array. Assumes that the current active service account has
+   * permissions to read the secret.
    *
    * @return The secret as a byte array.
    */

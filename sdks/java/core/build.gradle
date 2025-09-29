@@ -101,6 +101,8 @@ dependencies {
   shadow library.java.joda_time
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation library.java.google_cloud_secret_manager
+  implementation library.java.proto_google_cloud_secret_manager_v1
+  implementation library.java.protobuf_java
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   provided library.java.json_org
   implementation library.java.everit_json_schema
