@@ -1716,6 +1716,16 @@ class SetupOptions(PipelineOptions):
         help=(
             'Docker registry url to use for tagging and pushing the prebuilt '
             'sdk worker container image.'))
+    parser.add_argument(
+        '--gbek',
+        default=None,
+        help=(
+            'When set, will replace all GroupByKey transforms in the pipeline '
+            'with EncryptedGroupByKey transforms using the secret passed in '
+            'the option. Beam will infer the secret type and value based on '
+            'secret itself. The option should be structured like: '
+            '--encrypt=type:<secret_type>;<secret_param>:<value>, for example '
+            '--encrypt=type:GcpSecret;version_name:my_secret/versions/latest'))
 
   def validate(self, validator):
     errors = []

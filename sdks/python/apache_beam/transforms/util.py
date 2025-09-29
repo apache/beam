@@ -341,6 +341,44 @@ class Secret():
     """Generates a new secret key."""
     return Fernet.generate_key()
 
+  @staticmethod
+  def parse_secret_option(secret) -> 'Secret':
+    """Parses a secret string and returns the appropriate secret type.
+
+    The secret string should be formatted like:
+    'type:<secret_type>;<secret_param>:<value>'
+
+    For example, 'type:GcpSecret;version_name:my_secret/versions/latest'
+    would return a GcpSecret initialized with 'my_secret/versions/latest'.
+    """
+    param_map = {}
+    for param in secret.split(';'):
+      parts = param.split(':')
+      param_map[parts[0]] = parts[1]
+
+    if 'type' not in param_map:
+      raise RuntimeError('Secret string must contain a valid type parameter')
+
+    secret_type = param_map['type'].lower()
+    del param_map['type']
+    secret_class = None
+    secret_params = None
+    if secret_type == 'gcpsecret':
+      secret_class = GcpSecret
+      secret_params = ['version_name']
+    else:
+      raise RuntimeError(
+          f'Invalid secret type {secret_type}, currently only '
+          'GcpSecret is supported')
+
+    for param_name in param_map.keys():
+      if param_name not in secret_params:
+        raise RuntimeError(
+            f'Invalid secret parameter {param_name}, '
+            f'{secret_type} only supports the following '
+            f'parameters: {secret_params}')
+    return secret_class(**param_map)
+
 
 class GcpSecret(Secret):
   """A secret manager implementation that retrieves secrets from Google Cloud
@@ -367,7 +405,12 @@ class GcpSecret(Secret):
       secret = response.payload.data
       return secret
     except Exception as e:
-      raise RuntimeError(f'Failed to retrieve secret bytes with excetion {e}')
+      raise RuntimeError(
+          'Failed to retrieve secret bytes for secret '
+          f'{self._version_name} with exception {e}')
+
+  def __eq__(self, secret):
+    return self._version_name == getattr(secret, '_version_name', None)
 
 
 class _EncryptMessage(DoFn):
@@ -499,7 +542,9 @@ class GroupByEncryptedKey(PTransform):
     self._hmac_key = hmac_key
 
   def expand(self, pcoll):
-    kv_type_hint = pcoll.element_type
+    key_type, value_type = (typehints.typehints.coerce_to_kv_type(
+        pcoll.element_type).tuple_types)
+    kv_type_hint = typehints.KV[key_type, value_type]
     if kv_type_hint and kv_type_hint != typehints.Any:
       coder = coders.registry.get_coder(kv_type_hint).as_deterministic_coder(
           f'GroupByEncryptedKey {self.label}'
@@ -518,10 +563,13 @@ class GroupByEncryptedKey(PTransform):
       key_coder = coders.registry.get_coder(typehints.Any)
       value_coder = key_coder
 
+    gbk = beam.GroupByKey()
+    gbk._inside_gbek = True
+
     return (
         pcoll
         | beam.ParDo(_EncryptMessage(self._hmac_key, key_coder, value_coder))
-        | beam.GroupByKey()
+        | gbk
         | beam.ParDo(_DecryptMessage(self._hmac_key, key_coder, value_coder)))
 
 
