@@ -141,6 +141,7 @@ public class CatalogManagerSchema implements Schema {
   // If such a TableProvider is not registered in the BeamCalciteSchema, this method
   // will attempt to do so.
   public void maybeRegisterProvider(TableName path, String type) {
+    type = type.toLowerCase();
     CatalogSchema catalogSchema = getCatalogSchema(path);
     BeamCalciteSchema beamCalciteSchema = catalogSchema.getDatabaseSchema(path);
 
