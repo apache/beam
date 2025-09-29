@@ -3403,7 +3403,7 @@ class GroupByKey(PTransform):
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> typing.Tuple[str, None]
+    # type: (...) -> tuple[str, Optional[Union[message.Message, bytes, str]]]
     # if we're containing a GroupByEncryptedKey, don't allow runners to
     # recognize this transform as a GBEK so that it doesn't get replaced.
     if self._replaced_by_gbek:

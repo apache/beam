@@ -368,6 +368,7 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
       assert_that(
           result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
   def test_gbk_with_gbek_option_fake_secret_manager_roundtrips(self):
     options = PipelineOptions()
     options.view_as(SetupOptions).gbek = self.secret_option
@@ -392,6 +393,7 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
       assert_that(
           result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
   @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
   def test_gbk_actually_does_encryption(self):
     options = PipelineOptions()
@@ -402,8 +404,8 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
                                                      ('b', 3), ('c', 4)],
                                                     reshuffle=False)
       result = pcoll_1 | beam.GroupByKey()
-      # assert_that(
-      #     result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
   def test_gbek_fake_secret_manager_throws(self):
     fakeSecret = FakeSecret(True)
