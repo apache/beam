@@ -52,7 +52,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: uuinkks
             - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
+              value: /pgdata/data
           ports:
             - containerPort: 5432
           securityContext:
@@ -62,7 +62,7 @@ spec:
             allowPrivilegeEscalation: false
           volumeMounts:
             - name: pgdata
-              mountPath: /var/lib/postgresql/data
+              mountPath: /pgdata
       volumes:
         - name: pgdata
           emptyDir: {}
