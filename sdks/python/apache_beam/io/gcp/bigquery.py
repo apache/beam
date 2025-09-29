@@ -2709,6 +2709,8 @@ class StorageWriteToBigQuery(PTransform):
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
     clustering_fields = []
+    time_partitioning_config = None
+
     if self.additional_bq_parameters:
       if callable(self.additional_bq_parameters):
         raise NotImplementedError(
@@ -2716,6 +2718,8 @@ class StorageWriteToBigQuery(PTransform):
             "supported for STORAGE_WRITE_API write method.")
       clustering_fields = (
           self.additional_bq_parameters.get("clustering", {}).get("fields", []))
+      time_partitioning_config = (
+          self.additional_bq_parameters.get("timePartitioning", None))
 
     output = (
         input_beam_rows
@@ -2733,6 +2737,7 @@ class StorageWriteToBigQuery(PTransform):
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
             clustering_fields=clustering_fields,
+            time_partitioning_config=time_partitioning_config,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
