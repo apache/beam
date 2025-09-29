@@ -30,7 +30,6 @@ import pytest
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import typehints
-from apache_beam import coders
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.io.iobase import SourceBase
