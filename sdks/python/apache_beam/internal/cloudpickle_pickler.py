@@ -39,10 +39,8 @@ from apache_beam.internal.cloudpickle import cloudpickle
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
     skip_reset_dynamic_type_state=True)
-DETERMINISTIC_CODER_CONFIG = cloudpickle.CloudPickleConfig(
-    id_generator=None,
-    skip_reset_dynamic_type_state=True,
-    use_relative_filepaths=True)
+NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
+    id_generator=None, skip_reset_dynamic_type_state=True)
 
 try:
   from absl import flags
