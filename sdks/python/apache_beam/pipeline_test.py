@@ -29,6 +29,7 @@ import pytest
 
 import apache_beam as beam
 from apache_beam import typehints
+from apache_beam import coders
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
 from apache_beam.io.iobase import SourceBase
@@ -1074,6 +1075,38 @@ class RunnerApiTest(unittest.TestCase):
     self.assertTrue(
         common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
         proto.requirements)
+
+  def test_coder_version_tag_included_in_runner_api_key(self):
+    class MyClass:
+      def __init__(self, value: int):
+        self.value = value
+
+    class VersionedCoder(coders.Coder):
+      def encode(self, value):
+        return str(value.value).encode()
+
+      def decode(self, encoded):
+        return MyClass(int(encoded.decode()))
+
+      def version_tag(self):
+        return "v269"
+
+      def to_type_hint(self):
+        return MyClass
+
+    coders.registry.register_coder(MyClass, VersionedCoder)
+    p = beam.Pipeline()
+    _ = (p | beam.Impulse() | beam.Map(lambda _: MyClass(1)))
+    pipeline_proto = p.to_runner_api()
+    coder_keys = sorted(list(pipeline_proto.components.coders.keys()))
+
+    self.assertListEqual(
+        coder_keys,
+        [
+            'ref_Coder_BytesCoder_1',
+            'ref_Coder_GlobalWindowCoder_2',
+            'ref_Coder_VersionedCoder_v269_3'
+        ])
 
   def test_annotations(self):
     some_proto = BytesCoder().to_runner_api(None)

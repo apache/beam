@@ -395,6 +395,13 @@ class Coder(object):
       else:
         return cls()
 
+  def version_tag(self) -> str:
+    """Appends a version tag to the coder key in the pipeline proto. Versioning
+    signals to the runner that a pipeline implementation has changed and is
+    not update compatible with different versions.
+    """
+    return ""
+
 
 @Coder.register_urn(
     python_urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
