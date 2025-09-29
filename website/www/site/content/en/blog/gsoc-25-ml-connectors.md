@@ -127,7 +127,7 @@ Here are some samples of those design docs:
 
 ## Where Did Challenges Arise During The Project?
 
-If there are only two logical places where challenges arose, they would be:
+There were 2 places where challenges arose:
 
 - **Running Docker TestContainers in Beam Self-Hosted CI Environment:** The main
 challenge was that Beam runs in CI on Ubuntu 20.04, which caused compatibility
