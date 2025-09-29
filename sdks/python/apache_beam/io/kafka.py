@@ -110,24 +110,19 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
-    [
-        ('consumer_config', typing.Mapping[str, str]),
-        ('topics', typing.List[str]),
-        ('key_deserializer', str),
-        ('value_deserializer', str),
-        ('start_read_time', typing.Optional[int]),
-        ('max_num_records', typing.Optional[int]),
-        ('max_read_time', typing.Optional[int]),
-        ('commit_offset_in_finalize', bool),
-        ('timestamp_policy', str),
-        ('consumer_polling_timeout', typing.Optional[int]),
-        ('redistribute', typing.Optional[bool]),
-        ('redistribute_num_keys', typing.Optional[np.int32]),
-        ('allow_duplicates', typing.Optional[bool]),
-        ('dynamic_read_poll_interval_seconds', typing.Optional[int])
-        ('consumer_factory_fn', typing.Optional[str]),
-        ('consumer_factory_fn_params', typing.Optional[typing.Mapping[str, str]])
-    ])
+    [('consumer_config', typing.Mapping[str, str]),
+     ('topics', typing.List[str]), ('key_deserializer', str),
+     ('value_deserializer', str), ('start_read_time', typing.Optional[int]),
+     ('max_num_records', typing.Optional[int]),
+     ('max_read_time', typing.Optional[int]),
+     ('commit_offset_in_finalize', bool), ('timestamp_policy', str),
+     ('consumer_polling_timeout', typing.Optional[int]),
+     ('redistribute', typing.Optional[bool]),
+     ('redistribute_num_keys', typing.Optional[np.int32]),
+     ('allow_duplicates', typing.Optional[bool]),
+     ('dynamic_read_poll_interval_seconds', typing.Optional[int]),
+     ('consumer_factory_fn_class', typing.Optional[str]),
+     ('consumer_factory_fn_params', typing.Optional[typing.Mapping[str, str]])])
 
 
 def default_io_expansion_service(append_args=None):
@@ -176,8 +171,7 @@ class ReadFromKafka(ExternalTransform):
       allow_duplicates=False,
       dynamic_read_poll_interval_seconds: typing.Optional[int] = None,
       consumer_factory_fn_class=None,
-      consumer_factory_fn_params=None
-  ):
+      consumer_factory_fn_params=None):
     """
     Initializes a read operation from Kafka.
 
@@ -220,13 +214,13 @@ class ReadFromKafka(ExternalTransform):
     :param dynamic_read_poll_interval_seconds: The interval in seconds at which
         to check for new partitions. If not None, dynamic partition discovery
         is enabled.
-    :param consumer_factory_fn_class: A fully qualified classpath to an existing provided
-        consumerFactoryFn. If not None, this will construct Kafka consumers with a custom
-        configuration.
-    :param consumer_factory_fn_params: A map which specifies the parameters for the provided
-        consumer_factory_fn_class. IF not None, the values in this map will be used when
-        constructing the consumer_factory_fn_class object. This cannot be null
-        if the consumer_factory_fn_class is not null.
+    :param consumer_factory_fn_class: A fully qualified classpath to an
+        existing provided consumerFactoryFn. If not None, this will construct
+        Kafka consumers with a custom configuration.
+    :param consumer_factory_fn_params: A map which specifies the parameters for
+        the provided consumer_factory_fn_class. IF not None, the values in this
+        map will be used when constructing the consumer_factory_fn_class object.
+        This cannot be null if the consumer_factory_fn_class is not null.
     """
     if timestamp_policy not in [ReadFromKafka.processing_time_policy,
                                 ReadFromKafka.create_time_policy,
