@@ -18,20 +18,26 @@
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -44,6 +50,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache}. */
 @RunWith(JUnit4.class)
 public class WindmillStateCacheTest {
+
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String COMPUTATION = "computation";
   private static final long SHARDING_KEY = 123;
@@ -150,6 +157,45 @@ public class WindmillStateCacheTest {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     cache = WindmillStateCache.builder().setSizeMb(400).build();
     assertEquals(0, cache.getWeight());
+  }
+
+  @Test
+  public void conflictingUserAndSystemTags() {
+    WindmillStateCache.ForKeyAndFamily keyCache =
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
+    StateTag<ValueState<String>> userTag = StateTags.value("tag1", StringUtf8Coder.of());
+    StateTag<ValueState<String>> systemTag = StateTags.makeSystemTagInternal(userTag);
+    assertEquals(Optional.empty(), keyCache.get(StateNamespaces.global(), userTag));
+    assertEquals(Optional.empty(), keyCache.get(StateNamespaces.global(), systemTag));
+    Supplier<Closeable> closeableSupplier = () -> mock(Closeable.class);
+    WindmillValue<String> userValue =
+        new WindmillValue<>(
+            StateNamespaces.global(),
+            WindmillStateUtil.encodeKey(StateNamespaces.global(), userTag),
+            STATE_FAMILY,
+            StringUtf8Coder.of(),
+            false);
+    WindmillValue<String> systemValue =
+        new WindmillValue<>(
+            StateNamespaces.global(),
+            WindmillStateUtil.encodeKey(StateNamespaces.global(), systemTag),
+            STATE_FAMILY,
+            StringUtf8Coder.of(),
+            false);
+    userValue.initializeForWorkItem(null, closeableSupplier);
+    systemValue.initializeForWorkItem(null, closeableSupplier);
+
+    userValue.write("userValue");
+    systemValue.write("systemValue");
+    keyCache.put(StateNamespaces.global(), userTag, userValue, 1);
+    keyCache.put(StateNamespaces.global(), systemTag, systemValue, 1);
+
+    assertEquals(
+        Optional.of("userValue"),
+        keyCache.get(StateNamespaces.global(), userTag).map(ValueState::read));
+    assertEquals(
+        Optional.of("systemValue"),
+        keyCache.get(StateNamespaces.global(), systemTag).map(ValueState::read));
   }
 
   @Test

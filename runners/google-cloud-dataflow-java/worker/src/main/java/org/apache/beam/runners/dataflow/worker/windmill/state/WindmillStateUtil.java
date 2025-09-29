@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
 import java.io.IOException;
 import java.lang.ref.SoftReference;
 import org.apache.beam.runners.core.StateNamespace;
@@ -29,6 +31,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 class WindmillStateUtil {
 
   private static final ThreadLocal<@Nullable RefHolder> threadLocalRefHolder = new ThreadLocal<>();
+
+  private static final Interner<ByteString> ENCODED_KEY_INTERNER = Interners.newWeakInterner();
 
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
   @VisibleForTesting
@@ -54,7 +58,7 @@ class WindmillStateUtil {
       namespace.appendTo(stream);
       stream.append('+');
       address.appendTo(stream);
-      return stream.toByteStringAndReset();
+      return ENCODED_KEY_INTERNER.intern(stream.toByteStringAndReset());
     } catch (IOException e) {
       throw new RuntimeException(e);
     } finally {
