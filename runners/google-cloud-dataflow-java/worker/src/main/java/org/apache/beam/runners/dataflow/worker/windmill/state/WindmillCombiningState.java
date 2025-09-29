@@ -32,6 +32,7 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
@@ -58,14 +59,14 @@ class WindmillCombiningState<InputT, AccumT, OutputT> extends WindmillState
       WindmillStateCache.ForKeyAndFamily cache,
       boolean isNewKey) {
     StateTag<BagState<AccumT>> internalBagAddress = StateTags.convertToBagTagInternal(address);
+    ByteString encodeKey = WindmillStateUtil.encodeKey(namespace, internalBagAddress);
+
     this.bag =
         cache
-            .get(namespace, internalBagAddress)
+            .get(namespace, encodeKey)
             .map(state -> (WindmillBag<AccumT>) state)
             .orElseGet(
-                () ->
-                    new WindmillBag<>(
-                        namespace, internalBagAddress, stateFamily, accumCoder, isNewKey));
+                () -> new WindmillBag<>(namespace, encodeKey, stateFamily, accumCoder, isNewKey));
 
     this.combineFn = combineFn;
     this.localAdditionsAccumulator = combineFn.createAccumulator();
