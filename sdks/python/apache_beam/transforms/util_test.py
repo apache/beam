@@ -253,7 +253,7 @@ class CoGroupByKeyTest(unittest.TestCase):
 
 
 class FakeSecret(beam.Secret):
-  def __init__(self, should_throw=False):
+  def __init__(self, version_name=None, should_throw=False):
     self._secret = b'aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE='
     self._should_throw = should_throw
 
@@ -274,6 +274,12 @@ class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
     super().__init__(hmac_key_secret, key_coder, value_coder)
 
   def process(self, element):
+    final_elements = list(super().process(element))
+    # Check if we're looking at the actual elements being encoded/decoded
+    # There is also a gbk on assertEqual, which uses None as the key type.
+    final_element_keys = [e for e in final_elements if e[0] in ['a', 'b', 'c']]
+    if len(final_element_keys) == 0:
+      return final_elements
     hmac_key, actual_elements = element
     if hmac_key not in self.known_hmacs:
       raise ValueError(f'GBK produced unencrypted value {hmac_key}')
@@ -287,7 +293,7 @@ class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
       except InvalidToken:
         raise ValueError(f'GBK produced unencrypted value {e[1]}')
 
-    return super().process(element)
+    return final_elements
 
 
 class SecretTest(unittest.TestCase):
@@ -393,13 +399,14 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
       assert_that(
           result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
-  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
   @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
+  @mock.patch('apache_beam.transforms.util.GcpSecret', FakeSecret)
   def test_gbk_actually_does_encryption(self):
     options = PipelineOptions()
     options.view_as(SetupOptions).gbek = self.secret_option
+    fakeSecret = FakeSecret()
 
-    with TestPipeline(options=options) as pipeline:
+    with TestPipeline('FnApiRunner', options=options) as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
                                                      ('b', 3), ('c', 4)],
                                                     reshuffle=False)
@@ -408,7 +415,7 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
           result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
   def test_gbek_fake_secret_manager_throws(self):
-    fakeSecret = FakeSecret(True)
+    fakeSecret = FakeSecret(None, True)
 
     with self.assertRaisesRegex(RuntimeError, r'Exception retrieving secret'):
       with TestPipeline() as pipeline:
