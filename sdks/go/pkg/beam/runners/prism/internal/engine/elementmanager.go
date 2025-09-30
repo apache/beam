@@ -1985,7 +1985,8 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 	return bundID, true, stillSchedulable
 }
 
-func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, bool) {
+func handleProcessingTimeTimer(ss *stageState, em *ElementManager, emNow mtime.Time,
+	processTimerFn func(e element, toProcess []element, holdsInBundle map[mtime.Time]int) []element) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, bool) {
 	// TODO: Determine if it's possible and a good idea to treat all EventTime processing as a MinTime
 	// Special Case for ProcessingTime handling.
 	// Eg. Always queue EventTime elements at minTime.
@@ -2027,10 +2028,8 @@ func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementM
 			if e.timestamp < minTs {
 				minTs = e.timestamp
 			}
-			holdsInBundle[e.holdTimestamp]++
 
-			// We're going to process this timer!
-			toProcess = append(toProcess, e)
+			toProcess = processTimerFn(e, toProcess, holdsInBundle)
 		}
 
 		nextTime = ss.processingTimeTimers.Peek()
@@ -2052,85 +2051,42 @@ func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementM
 	stillSchedulable := (nextTime < emNow && nextTime != mtime.MaxTimestamp || len(notYet) > 0)
 
 	return toProcess, minTs, newKeys, holdsInBundle, stillSchedulable
+}
+
+func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, bool) {
+	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int) []element {
+		holdsInBundle[e.holdTimestamp]++
+		// We're going to process this timer!
+		toProcess = append(toProcess, e)
+		return toProcess
+	})
+}
+
+func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, bool) {
+	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int) []element {
+		// TODO: how to deal with watermark holds for this implicit processing time timer
+		// holdsInBundle[e.holdTimestamp]++
+		state := ss.state[LinkID{}][e.window][string(e.keyBytes)]
+		endOfWindowReached := e.window.MaxTimestamp() < ss.input
+		ready := ss.strat.IsTriggerReady(triggerInput{
+			newElementCount:    0,
+			endOfWindowReached: endOfWindowReached,
+			emNow:              emNow,
+		}, &state)
+
+		if ready {
+			// We're going to process this trigger!
+			elems, _ := ss.buildTriggeredBundle(em, string(e.keyBytes), e.window)
+			toProcess = append(toProcess, elems...)
+		}
+
+		return toProcess
+	})
 }
 
 func (*ordinaryStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, bool) {
 	slog.Error("ordinary stages can't have processing time elements")
 	return nil, mtime.MinTimestamp, nil, nil, false
-}
-
-func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, bool) {
-	var toProcess []element
-	minTs := mtime.MaxTimestamp
-	holdsInBundle := map[mtime.Time]int{}
-
-	var notYet []fireElement
-
-	nextTime := ss.processingTimeTimers.Peek()
-	keyCounts := map[string]int{}
-	newKeys := set[string]{}
-
-	for nextTime <= emNow {
-		elems := ss.processingTimeTimers.FireAt(nextTime)
-		for _, e := range elems {
-			// Check if we're already executing this timer's key.
-			if ss.inprogressKeys.present(string(e.keyBytes)) {
-				notYet = append(notYet, fireElement{firing: nextTime, timer: e})
-				continue
-			}
-
-			// If we are set to have OneKeyPerBundle, and we already have a key for this bundle, we process it later.
-			if len(keyCounts) > 0 && OneKeyPerBundle {
-				notYet = append(notYet, fireElement{firing: nextTime, timer: e})
-				continue
-			}
-			// If we are set to have OneElementPerKey, and we already have an element for this key we set this to process later.
-			if v := keyCounts[string(e.keyBytes)]; v > 0 && OneElementPerKey {
-				notYet = append(notYet, fireElement{firing: nextTime, timer: e})
-				continue
-			}
-			keyCounts[string(e.keyBytes)]++
-			newKeys.insert(string(e.keyBytes))
-			if e.timestamp < minTs {
-				minTs = e.timestamp
-			}
-			// TODO: how to deal with watermark holds for this implicit processing time timer
-			// holdsInBundle[e.holdTimestamp]++
-
-			state := ss.state[LinkID{}][e.window][string(e.keyBytes)]
-			endOfWindowReached := e.window.MaxTimestamp() < ss.input
-			ready := ss.strat.IsTriggerReady(triggerInput{
-				newElementCount:    0,
-				endOfWindowReached: endOfWindowReached,
-				emNow:              emNow,
-			}, &state)
-
-			if ready {
-				// We're going to process this trigger!
-				elems, _ := ss.buildTriggeredBundle(em, string(e.keyBytes), e.window)
-				toProcess = append(toProcess, elems...)
-			}
-		}
-
-		nextTime = ss.processingTimeTimers.Peek()
-		if nextTime == mtime.MaxTimestamp {
-			// Escape the loop if there are no more events.
-			break
-		}
-	}
-
-	// Reschedule unfired timers.
-	notYetHolds := map[mtime.Time]int{}
-	for _, v := range notYet {
-		ss.processingTimeTimers.Persist(v.firing, v.timer, notYetHolds)
-		em.processTimeEvents.Schedule(v.firing, ss.ID)
-		em.wakeUpAt(v.firing)
-	}
-
-	// Add a refresh if there are still processing time events to process.
-	stillSchedulable := (nextTime < emNow && nextTime != mtime.MaxTimestamp || len(notYet) > 0)
-
-	return toProcess, minTs, newKeys, holdsInBundle, stillSchedulable
 }
 
 // makeInProgressBundle is common code to store a set of elements as a bundle in progress.
