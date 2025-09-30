@@ -18,16 +18,19 @@
 # pytype: skip-file
 
 import unittest
+import re
 
 from mock import patch
 
+import apache_beam as beam
 from apache_beam.internal.metrics.cells import HistogramCellFactory
 from apache_beam.internal.metrics.metric import Metrics as InternalMetrics
 from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.metrics.metric import Metrics
+from apache_beam.metrics.metric import Metrics, MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 from apache_beam.utils.histogram import LinearBucket
@@ -85,6 +88,42 @@ class MetricsTest(unittest.TestCase):
             0)
     finally:
       sampler.stop()
+
+
+class HistogramTest(unittest.TestCase):
+  def test_histogram(self):
+    class WordExtractingDoFn(beam.DoFn):
+      def __init__(self):
+        super().__init__()
+        self.word_lengths_dist = InternalMetrics.histogram(
+            self.__class__,
+            'latency_histogram_ms',
+            LinearBucket(0, 1, num_buckets=10))
+
+      def process(self, element):
+        text_line = element.strip()
+        words = re.findall(r'[\w\']+', text_line, re.UNICODE)
+        for w in words:
+          self.word_lengths_dist.update(len(w))
+        return words
+
+    with beam.Pipeline(runner=BundleBasedDirectRunner()) as p:
+      lines = p | 'read' >> beam.Create(["x x x yyyyyy yyyyyy yyyyyy"])
+      _ = (
+          lines
+          | 'split' >>
+          (beam.ParDo(WordExtractingDoFn()).with_output_types(str)))
+
+    result = p.result
+
+    # Do not query metrics when creating a template which doesn't run
+    filter = MetricsFilter().with_name('latency_histogram_ms')
+    query_result = result.metrics().query(filter)
+    histogram = query_result['histograms'][0].committed
+    assert histogram._buckets == {1: 3, 6: 3}
+    assert histogram.total_count() == 6
+    assert 1 < histogram.get_linear_interpolation(0.50) < 3
+    assert histogram.get_linear_interpolation(0.99) > 3
 
 
 if __name__ == '__main__':

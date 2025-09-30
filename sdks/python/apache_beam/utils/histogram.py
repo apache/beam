@@ -133,6 +133,8 @@ class Histogram(object):
         method. Should be a floating point number greater than 0 and less
         than 1.
     """
+    if percentile > 1 or percentile < 0:
+      raise ValueError('percentile should be between 0 and 1.')
     with self._lock:
       return self._get_linear_interpolation(percentile)
 

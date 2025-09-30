@@ -160,3 +160,6 @@ class HistogramData(object):
   @classmethod
   def from_proto(cls, proto: metrics_pb2.HistogramValue):
     return cls(Histogram.from_runner_api(proto))
+
+  def get_result(self):
+    return self.histogram

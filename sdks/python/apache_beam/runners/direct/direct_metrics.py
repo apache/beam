@@ -27,7 +27,6 @@ from collections import defaultdict
 from typing import Any
 from typing import SupportsInt
 
-from apache_beam.internal.metrics.cells import HistogramData
 from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeData
@@ -81,6 +80,27 @@ class CounterAggregator(MetricAggregator):
     return int(x)
 
 
+_IDENTITY_HISTOGRAM = object()
+
+
+class HistogramAggregator(MetricAggregator):
+  @staticmethod
+  def identity_element():
+    return _IDENTITY_HISTOGRAM
+
+  def combine(self, x, y):
+    if x is _IDENTITY_HISTOGRAM:
+      return y
+    if y is _IDENTITY_HISTOGRAM:
+      return x
+    return x.combine(y)
+
+  def result(self, x):
+    if x is _IDENTITY_HISTOGRAM:
+      raise TypeError
+    return x.get_result()
+
+
 class GenericAggregator(MetricAggregator):
   def __init__(self, data_class, identity_element_factory=None):
     self._data_class = data_class
@@ -108,8 +128,7 @@ class DirectMetrics(MetricResults):
         lambda: DirectMetric(GenericAggregator(StringSetData)))
     self._bounded_tries = defaultdict(
         lambda: DirectMetric(GenericAggregator(BoundedTrieData)))
-    self._histograms = defaultdict(
-        lambda: DirectMetric(GenericAggregator(HistogramData)))
+    self._histograms = defaultdict(lambda: DirectMetric(HistogramAggregator()))
 
   def _apply_operation(self, bundle, updates, op):
     for k, v in updates.counters.items():
@@ -178,6 +197,13 @@ class DirectMetrics(MetricResults):
             v.extract_latest_attempted())
         for k, v in self._bounded_tries.items() if self.matches(filter, k)
     ]
+    histograms = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k, v in self._histograms.items()
+        if self.matches(filter, k)
+    ]
 
     return {
         self.COUNTERS: counters,
@@ -185,6 +211,7 @@ class DirectMetrics(MetricResults):
         self.GAUGES: gauges,
         self.STRINGSETS: string_sets,
         self.BOUNDED_TRIES: bounded_tries,
+        self.HISTOGRAMS: histograms,
     }
 
 

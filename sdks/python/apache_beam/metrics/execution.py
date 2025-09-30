@@ -316,9 +316,6 @@ class MetricsContainer(object):
         for k, v in self.metrics.items()
         if isinstance(k.cell_type, HistogramCellFactory)
     }
-    print(f"{self.metrics=} {histograms=}")
-    # if self.metrics:
-    #   import IPython; IPython.embed()
 
     return MetricUpdates(
         counters, distributions, gauges, string_sets, bounded_tries, histograms)
