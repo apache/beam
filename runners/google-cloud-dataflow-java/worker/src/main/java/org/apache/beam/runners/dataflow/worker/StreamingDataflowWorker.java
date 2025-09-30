@@ -496,6 +496,19 @@ public final class StreamingDataflowWorker {
     LOG.debug("Stopped StreamingWorkerStatusPages before switching connectivity type.");
     StreamingWorkerHarnessFactoryOutput newHarnessFactoryOutput = null;
     if (connectivityType == ConnectivityType.CONNECTIVITY_TYPE_DIRECTPATH) {
+      // If dataflow experiment `enable_windmill_service_direct_path` is not set for
+      // the job, do not switch to FanOutStreamingEngineWorkerHarness. This is because
+      // `enable_windmill_service_direct_path` is tied to SDK version and is only
+      // enabled for job running with SDK above the cut off version,
+      // and we do not want jobs below the cutoff to switch to
+      // FanOutStreamingEngineWorkerHarness
+      if (!options.getIsWindmillServiceDirectPathEnabled()) {
+        LOG.info(
+            "Dataflow experiment `enable_windmill_service_direct_path` is not set for the job. Job"
+                + " cannot switch to connectivity type DIRECTPATH. Job will continue running on"
+                + " CLOUDPATH");
+        return;
+      }
       LOG.info("Switching connectivity type from CLOUDPATH to DIRECTPATH");
       LOG.debug("Shutting down to SingleSourceWorkerHarness");
       this.streamingWorkerHarness.get().shutdown();

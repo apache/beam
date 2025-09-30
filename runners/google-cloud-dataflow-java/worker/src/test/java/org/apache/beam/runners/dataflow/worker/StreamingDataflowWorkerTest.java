@@ -60,6 +60,7 @@ import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -137,7 +138,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
@@ -190,14 +190,13 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedLong;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -4076,11 +4075,15 @@ public class StreamingDataflowWorkerTest {
       return;
     }
 
-    String serverName = "StreamingDataflowWorkerTestChannel";
+    int port = -1;
+    try (ServerSocket socket = new ServerSocket(0)) {
+      port = socket.getLocalPort();
+    }
+    String serverEndpoint = "localhost:" + port;
     Server fakeServer =
         grpcCleanup
             .register(
-                InProcessServerBuilder.forName(serverName)
+                ServerBuilder.forPort(port)
                     .directExecutor()
                     .addService(new FakeWindmillServer.FakeWindmillMetadataService(server))
                     .addService(
@@ -4088,16 +4091,15 @@ public class StreamingDataflowWorkerTest {
                             .CloudWindmillServiceV1Alpha1ImplBase() {})
                     .build())
             .start();
-
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    // Start with CloudPath.
+    // Start with Directpath.
     DataflowWorkerHarnessOptions options =
-        createTestingPipelineOptions("--isWindmillServiceDirectPathEnabled=false");
-    options.setWindmillServiceEndpoint(serverName);
+        createTestingPipelineOptions("--isWindmillServiceDirectPathEnabled=true");
+    options.setWindmillServiceEndpoint(serverEndpoint);
 
     StreamingDataflowWorker worker =
         makeWorker(
@@ -4117,16 +4119,8 @@ public class StreamingDataflowWorkerTest {
     List<Consumer<StreamingGlobalConfig>> observers = observerCaptor.getAllValues();
 
     assertTrue(
-        "Worker should start with SingleSourceWorkerHarness",
-        worker.getStreamingWorkerHarness() instanceof SingleSourceWorkerHarness);
-
-    // Process some work with CloudPath.
-    server.whenGetWorkCalled().thenReturn(makeInput(1, 1000));
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-    assertEquals(1, result.size());
-    assertTrue(result.containsKey(1L));
-
-    ExecutorService harnessSwitchExecutor = worker.getHarnessSwitchExecutor();
+        "Worker should start with FanOutStreamingEngineWorkerHarness",
+        worker.getStreamingWorkerHarness() instanceof FanOutStreamingEngineWorkerHarness);
 
     // Prepare WorkerMetadataResponse
     server.injectWorkerMetadata(
@@ -4135,12 +4129,34 @@ public class StreamingDataflowWorkerTest {
             .addWorkEndpoints(
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken("workerToken1")
-                    .setDirectEndpoint(
-                        WindmillServiceAddress.create(HostAndPort.fromParts("localhost", 12345))
-                            .gcpServiceAddress()
-                            .toString())
+                    .setDirectEndpoint(serverEndpoint)
                     .build())
             .build());
+
+    // Switch to Cloudpath.
+    StreamingGlobalConfig cloudPathConfig =
+        StreamingGlobalConfig.builder()
+            .setUserWorkerJobSettings(
+                Windmill.UserWorkerRunnerV1Settings.newBuilder()
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
+                    .build())
+            .build();
+    for (Consumer<StreamingGlobalConfig> observer : observers) {
+      observer.accept(cloudPathConfig);
+    }
+
+    ExecutorService harnessSwitchExecutor = worker.getHarnessSwitchExecutor();
+    Future<?> cloudPathSwitchFuture = harnessSwitchExecutor.submit(() -> {});
+    cloudPathSwitchFuture.get(30, TimeUnit.SECONDS);
+    assertTrue(
+        "Worker should switch to SingleSourceWorkerHarness",
+        worker.getStreamingWorkerHarness() instanceof SingleSourceWorkerHarness);
+
+    // Process some work with CloudPath.
+    server.whenGetWorkCalled().thenReturn(makeInput(1, 1000));
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    assertEquals(1, result.size());
+    assertTrue(result.containsKey(1L));
 
     // Switch to Directpath.
     StreamingGlobalConfig directPathConfig =
@@ -4164,8 +4180,8 @@ public class StreamingDataflowWorkerTest {
         "Worker should switch to FanOutStreamingEngineWorkerHarness",
         worker.getStreamingWorkerHarness() instanceof FanOutStreamingEngineWorkerHarness);
 
-    // Switch to Cloudpath.
-    StreamingGlobalConfig cloudPathConfig =
+    // Switch to Cloudpath again.
+    cloudPathConfig =
         StreamingGlobalConfig.builder()
             .setUserWorkerJobSettings(
                 Windmill.UserWorkerRunnerV1Settings.newBuilder()
@@ -4176,7 +4192,7 @@ public class StreamingDataflowWorkerTest {
       observer.accept(cloudPathConfig);
     }
 
-    Future<?> cloudPathSwitchFuture = harnessSwitchExecutor.submit(() -> {});
+    cloudPathSwitchFuture = harnessSwitchExecutor.submit(() -> {});
     cloudPathSwitchFuture.get(30, TimeUnit.SECONDS);
     assertTrue(
         "Worker should switch back to SingleSourceWorkerHarness",
