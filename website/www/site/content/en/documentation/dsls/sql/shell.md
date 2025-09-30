@@ -65,7 +65,7 @@ The `beam-sql.sh` script supports several options:
 ```
 
 **Options:**
-- `--version <beam_version>`: Specify the Apache Beam version (default: 2.67.0)
+- `--version <beam_version>`: Specify the Apache Beam version (a recent stable version is used by default).
 - `--runner <runner_name>`: Specify the Beam runner to use (default: direct). Supported: direct, dataflow
 - `--io <io_connector>`: Specify an IO connector to include (e.g., iceberg, kafka). Can be used multiple times
 - `--list-versions`: List all available Beam versions from Maven Central and exit
