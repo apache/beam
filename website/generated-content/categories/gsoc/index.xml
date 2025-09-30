@@ -1,4 +1,327 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – gsoc</title><link>/categories/gsoc/</link><description>Recent content in gsoc on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 23 Sep 2025 00:00:00 -0400</lastBuildDate><atom:link href="/categories/gsoc/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Google Summer of Code 2025 - Beam YAML, Kafka and Iceberg User Accessibility</title><link>/blog/gsoc-25-yaml-user-accessibility/</link><pubDate>Tue, 23 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-yaml-user-accessibility/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – gsoc</title><link>/categories/gsoc/</link><description>Recent content in gsoc on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Fri, 26 Sep 2025 00:00:00 -0400</lastBuildDate><atom:link href="/categories/gsoc/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Google Summer of Code 2025 - Beam ML Vector DB/Feature Store integrations</title><link>/blog/gsoc-25-ml-connectors/</link><pubDate>Fri, 26 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-ml-connectors/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h2 id="what-will-i-cover-in-this-blog-post">What Will I Cover In This Blog Post?&lt;/h2>
+&lt;p>I have three objectives in mind when writing this blog post:&lt;/p>
+&lt;ul>
+&lt;li>Documenting the work I&amp;rsquo;ve been doing during this GSoC period in collaboration
+with the Apache Beam community&lt;/li>
+&lt;li>A thoughtful and cumulative thank you to my mentor and the Beam Community&lt;/li>
+&lt;li>Writing to an older version of myself before making my first ever contribution
+to Beam. This can be helpful for future contributors&lt;/li>
+&lt;/ul>
+&lt;h2 id="what-was-this-gsoc-project-about">What Was This GSoC Project About?&lt;/h2>
+&lt;p>The goal of this project is to enhance Beam&amp;rsquo;s Python SDK by developing
+connectors for vector databases like Milvus and feature stores like Tecton. These
+integrations will improve support for ML use cases such as Retrieval-Augmented
+Generation (RAG) and feature engineering. By bridging Beam with these systems,
+this project will attract more users, particularly in the ML community.&lt;/p>
+&lt;h2 id="why-was-this-project-important">Why Was This Project Important?&lt;/h2>
+&lt;p>While Beam&amp;rsquo;s Python SDK supports some vector databases, feature stores and
+embedding generators, the current integrations are limited to a few systems as
+mentioned in the tables down below. Expanding this ecosystem will provide more
+flexibility and richness for ML workflows particularly in feature engineering
+and RAG applications, potentially attracting more users, particularly in the ML
+community.&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Vector Database&lt;/th>
+&lt;th>Feature Store&lt;/th>
+&lt;th>Embedding Generator&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>BigQuery&lt;/td>
+&lt;td>Vertex AI&lt;/td>
+&lt;td>Vertex AI&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>AlloyDB&lt;/td>
+&lt;td>Feast&lt;/td>
+&lt;td>Hugging Face&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="why-did-i-choose-beam-as-part-of-gsoc-among-180-orgs">Why Did I Choose Beam As Part of GSoC Among 180+ Orgs?&lt;/h2>
+&lt;p>I chose to apply to Beam from among 180+ GSoC organizations because it aligns
+well with my passion for data processing systems that serve information
+retrieval systems and my core career values:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Freedom:&lt;/strong> Working on Beam supports open-source development, liberating
+developers from vendor lock-in through its unified programming model while
+enabling services like &lt;a href="https://projectshield.withgoogle.com/landing">Project Shield&lt;/a> to protect free
+speech globally&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Innovation:&lt;/strong> Working on Beam allows engagement with cutting-edge data
+processing techniques and distributed computing paradigms&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Accessibility:&lt;/strong> Working on Beam helps build open-source technology that
+makes powerful data processing capabilities available to all organizations
+regardless of size or resources. This accessibility enables projects like
+Project Shield to provide free protection to media, elections, and human rights
+websites worldwide&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="what-did-i-work-on-during-the-gsoc-program">What Did I Work On During the GSoC Program?&lt;/h2>
+&lt;p>During my GSoC program, I focused on developing connectors for vector databases,
+feature stores, and embedding generators to enhance Beam&amp;rsquo;s ML capabilities.
+Here are the artifacts I worked on and what remains to be done:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Type&lt;/th>
+&lt;th>System&lt;/th>
+&lt;th>Artifact&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Enrichment Handler&lt;/td>
+&lt;td>Milvus&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/pull/35216">PR #35216&lt;/a> &lt;br> &lt;a href="https://github.com/apache/beam/pull/35577">PR #35577&lt;/a> &lt;br> &lt;a href="https://github.com/apache/beam/pull/35467">PR #35467&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Sink I/O&lt;/td>
+&lt;td>Milvus&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/pull/35708">PR #35708&lt;/a> &lt;br> &lt;a href="https://github.com/apache/beam/pull/35944">PR #35944&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Enrichment Handler&lt;/td>
+&lt;td>Tecton&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/pull/36062">PR #36062&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Sink I/O&lt;/td>
+&lt;td>Tecton&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/pull/36078">PR #36078&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Embedding Gen&lt;/td>
+&lt;td>OpenAI&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/pull/36081">PR #36081&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Embedding Gen&lt;/td>
+&lt;td>Anthropic&lt;/td>
+&lt;td>To Be Added&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Here are side-artifacts that are not directly linked to my project:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Type&lt;/th>
+&lt;th>System&lt;/th>
+&lt;th>Artifact&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>AI Code Review&lt;/td>
+&lt;td>Gemini Code Assist&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/pull/35532">PR #35532&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Enrichment Handler&lt;/td>
+&lt;td>CloudSQL&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/pull/34398">PR #34398&lt;/a> &lt;br> &lt;a href="https://github.com/apache/beam/pull/35473">PR #35473&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Pytest Markers&lt;/td>
+&lt;td>GitHub CI&lt;/td>
+&lt;td>&lt;a href="https://github.com/apache/beam/pull/35655">PR #35655&lt;/a> &lt;br> &lt;a href="https://github.com/apache/beam/pull/35740">PR #35740&lt;/a> &lt;br> &lt;a href="https://github.com/apache/beam/pull/35816">PR #35816&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>For more granular contributions, checking out my
+&lt;a href="https://github.com/apache/beam/pulls?q=is%3Apr+author%3Amohamedawnallah">ongoing Beam contributions&lt;/a>.&lt;/p>
+&lt;h2 id="how-did-i-approach-this-project">How Did I Approach This Project?&lt;/h2>
+&lt;p>My approach centered on community-driven design and iterative implementation,
+Originally inspired by my mentor&amp;rsquo;s work. Here&amp;rsquo;s how it looked:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Design Document&lt;/strong>: Created a comprehensive design document outlining the
+proposed ML connector architecture&lt;/li>
+&lt;li>&lt;strong>Community Feedback&lt;/strong>: Shared the design with the Beam developer community
+mailing list for review&lt;/li>
+&lt;li>&lt;strong>Iterative Implementation&lt;/strong>: Incorporated community feedback and applied
+learnings in subsequent pull requests&lt;/li>
+&lt;li>&lt;strong>Continuous Improvement&lt;/strong>: Refined the approach based on real-world usage
+patterns and maintainer guidance&lt;/li>
+&lt;/ol>
+&lt;p>Here are some samples of those design docs:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Component&lt;/th>
+&lt;th>Type&lt;/th>
+&lt;th>Design Document&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Milvus&lt;/td>
+&lt;td>Vector Enrichment Handler&lt;/td>
+&lt;td>&lt;a href="https://lists.apache.org/thread/4c6l20tjopd94cqg6vsgj20xl2qgywtx">[Proposal][GSoC 2025] Milvus Vector Enrichment Handler for Beam&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Milvus&lt;/td>
+&lt;td>Vector Sink I/O Connector&lt;/td>
+&lt;td>&lt;a href="https://lists.apache.org/thread/cwlbwnhnf1kl7m0dn40jrqfsf4ho98tf">[Proposal][GSoC 2025] Milvus Vector Sink I/O Connector for Beam&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Tecton&lt;/td>
+&lt;td>Feature Store Enrichment Handler&lt;/td>
+&lt;td>&lt;a href="https://lists.apache.org/thread/7ynn4r8b8b1c47ojxlk39fhsn3t0jrd1">[Proposal][GSoC 2025] Tecton Feature Store Enrichment Handler for Beam&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Tecton&lt;/td>
+&lt;td>Feature Store Sink I/O Connector&lt;/td>
+&lt;td>&lt;a href="https://lists.apache.org/thread/dthd3t6md9881ksvbf4v05rxnlj1fgvn">[Proposal][GSoC 2025] Tecton Feature Store Sink I/O Connector for Beam&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="where-did-challenges-arise-during-the-project">Where Did Challenges Arise During The Project?&lt;/h2>
+&lt;p>There were 2 places where challenges arose:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Running Docker TestContainers in Beam Self-Hosted CI Environment:&lt;/strong> The main
+challenge was that Beam runs in CI on Ubuntu 20.04, which caused compatibility
+and connectivity issues with Milvus TestContainers due to the Docker-in-Docker
+environment. After several experiments with trial and error, I eventually tested
+with Ubuntu latest (which at the time of writing this blog post is Ubuntu 25.04),
+and no issues arose. This version compatibility problem led to the container
+startup failures and network connectivity issues&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Triggering and Modifying the PostCommit Python Workflows:&lt;/strong> This challenge
+magnified the above issue since for every experiment update to the given
+workflow, I had to do a round trip to my mentor to include those changes in the
+relevant workflow files and evaluate the results. I also wasn&amp;rsquo;t aware that
+someone can trigger post-commit Python workflows by updating the trigger files
+in &lt;code>.github/trigger_files&lt;/code> until near the middle of GSoC. I discovered there is
+actually a workflows README document in &lt;code>.github/workflows/README.md&lt;/code> that was
+not referenced in the &lt;code>CONTRIBUTING.md&lt;/code> file at the time of writing this post&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="how-did-this-project-start-to-attract-users-in-the-ml-community">How Did This Project Start To Attract Users in the ML Community?&lt;/h2>
+&lt;p>It is observed that after we had a Milvus Enrichment Handler PR before even
+merging, we started to see community-driven contributions like
+&lt;a href="https://github.com/apache/beam/pull/35686">this one that adds Qdrant&lt;/a>. Qdrant
+is a competitor to Milvus in the vector space. This demonstrates how
+the project&amp;rsquo;s momentum and visibility in the ML community space attracted
+contributors who wanted to expand the Beam ML ecosystem with additional vector
+database integrations.&lt;/p>
+&lt;h2 id="how-did-this-gsoc-experience-working-with-beam-community-shape-me">How Did This GSoC Experience Working With Beam Community Shape Me?&lt;/h2>
+&lt;p>If I have to boil it down across three dimensions, they would be:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Mindset:&lt;/strong> Before I was probably working in solitude making PRs about new
+integrations with mental chatter in the form of fingers crossed, hoping that
+there will be no divergence on the design. Now I can engage people I am working
+with through design docs, making sure my work aligns with their vision, which
+potentially leads to faster PR merges&lt;/li>
+&lt;li>&lt;strong>Skillset:&lt;/strong> It was one year before contributing to Beam where I wrote
+professionally in Python, so it was a great opprtunity to brush up on my Python
+skills and seeing how some design patterns are used in practice, like the query
+builder pattern seen in CloudSQL Vector Ingestion in the RAG package. I also
+learned about vector databases and feature stores, and also some AI
+integrations. I also think I got a bit better than before in root cause analysis
+and filtering signals from noise in long log files like PostCommit Python
+workflows&lt;/li>
+&lt;li>&lt;strong>Toolset:&lt;/strong> Learning about Beam Python SDK, Milvus, Tecton, Google CloudSQL,
+OpenAI and Anthropic text embedding generators, and lnav for effective log file
+navigation, including their capabilities and limitations&lt;/li>
+&lt;/ul>
+&lt;h2 id="tips-for-future-contributors">Tips for Future Contributors&lt;/h2>
+&lt;p>If I have to boil them down to three, they would be:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Observing:&lt;/strong> Observing how experienced developers in the Beam dev team
+work—how their PRs look, how they write design docs, what kind of feedback they
+get on their design docs and PRs, and how you can apply it (if feasible) to
+avoid getting the same feedback again. What kind of follow-up PRs do they create
+after their initial ones? How do they document and illustrate their work? What
+kind of comments do they post when reviewing other people&amp;rsquo;s related work? Over
+time, you build your own mental model and knowledge base on how the ideal
+contribution looks in this area. There is a lot to learn and explore in an
+exciting, not intimidating way&lt;/li>
+&lt;li>&lt;strong>Orienting:&lt;/strong> Understanding your place in the ecosystem and aligning your
+work with the project&amp;rsquo;s context. This means grasping how your contribution fits
+into Beam&amp;rsquo;s architecture and roadmap, identifying your role in addressing
+current gaps, and mapping stakeholders who will review, use, and maintain your
+work. Most importantly, align with both your mentor&amp;rsquo;s vision and the community&amp;rsquo;s
+vision to ensure your work serves the broader goals&lt;/li>
+&lt;li>&lt;strong>Acting:&lt;/strong> Acting on feedback from code reviews, design document discussions,
+and community input. This means thoughtfully addressing suggested changes in a
+way that moves the discussion forward, addressing concerns raised by
+maintainers, and iterating on your work based on community guidance. Being
+responsive to feedback, asking clarifying questions when needed, and
+demonstrating that you&amp;rsquo;re incorporating the community&amp;rsquo;s input into your
+contributions given that it is aligned with the project direction&lt;/li>
+&lt;/ul>
+&lt;h2 id="who-do-i-want-to-thank-for-making-this-journey-possible">Who Do I Want To Thank for Making This Journey Possible?&lt;/h2>
+&lt;p>If I have to boil them down to three, they would be:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>My Mentor, Danny McCormick:&lt;/strong> I wouldn&amp;rsquo;t hesitate to say that Danny is the
+best mentor I have worked with so far, given that I have worked with several
+mentors. What makes me say that:
+&lt;ul>
+&lt;li>&lt;strong>Generosity:&lt;/strong> Danny is very generous with his time, feedback, and
+genuinely committed to reviewing my work on a regular basis. We have weekly
+30-minute sync calls over almost 21 weeks (5 months) since the official
+community bonding period, where he shares with me his contextual expertise and
+addresses any questions I may have with openness to extend time if needed and
+flexible about skipping calls when there was no agenda&lt;/li>
+&lt;li>&lt;strong>Flexibility:&lt;/strong> When I got accepted to GSoC, after a few days I also got
+accepted to a part-time internship that I had applied to before GSoC, while
+also managing my last semester in my Bachelor of Computer Science, which was
+probably the hardest semester. During our discussion about working capacity,
+Danny was very flexible regarding that, with more emphasis on making progress,
+which encouraged me to make even more progress. I have also never felt there
+are very hard boundaries around my project scope—I felt there was an area to
+explore that motivated me to think of and add some side-artifacts to Beam,
+e.g., adding Gemini Code Assist for AI code review&lt;/li>
+&lt;li>&lt;strong>Proactivity&lt;/strong>: Danny was very proactive in offering support and help
+without originally asking, e.g., making Beam Infra tickets that add API keys
+to unblock my work&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Beam Community:&lt;/strong> From my first ever contribution to Beam &lt;a href="https://github.com/apache/beam/issues/32840#issuecomment-2424055627">adding FlattenWith and Tee examples to the playground&lt;/a>,
+I was welcomed with open arms and felt encouraged to make more contributions.
+Also, for their valuable comments on my design documents on the dev mailing list
+as well as the PRs&lt;/li>
+&lt;li>&lt;strong>Google:&lt;/strong> I would like to genuinely thank Google for introducing me to open
+source in &lt;a href="https://summerofcode.withgoogle.com/archive/2023/projects/u7Y9S6sc">GSoC 2023&lt;/a>
+and giving me a second chance to interact with Apache Beam through GSoC 2025.
+Without it, I probably wouldn&amp;rsquo;t be here writing this blog post, nor would I have
+this fruitful experience&lt;/li>
+&lt;/ul>
+&lt;h2 id="whats-next">What&amp;rsquo;s Next?&lt;/h2>
+&lt;p>I am now focusing on helping move the remaining artifacts in this project scope
+from the in-progress state to the merging state. After this, I would love to
+keep my contributions alive in Beam Python and Go SDK, to name a few. I would
+also love to connect with you all on my
+&lt;a href="https://www.linkedin.com/in/mohamedawnallah/">LinkedIn&lt;/a> and
+&lt;a href="https://github.com/mohamedawnallah">GitHub&lt;/a>.&lt;/p>
+&lt;h2 id="references">References&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="https://summerofcode.withgoogle.com/programs/2025/projects/X32yGjqz">Google Summer of Code Project Listing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://docs.google.com/document/d/1YOeK3jb94kSOUxucfqeZL0pkRI08dYljV_4v5SH5i5U/edit?usp=sharing">Original GSoC Proposal&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/issues/35046">GSoC 2025 Tracking Issue&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Google Summer of Code 2025 - Beam YAML, Kafka and Iceberg User Accessibility</title><link>/blog/gsoc-25-yaml-user-accessibility/</link><pubDate>Tue, 23 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-yaml-user-accessibility/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
