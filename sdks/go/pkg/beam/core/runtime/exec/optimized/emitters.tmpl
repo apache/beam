@@ -44,13 +44,15 @@ type emitNative struct {
 	est   *sdf.WatermarkEstimator
 
 	ctx context.Context
+  pn  typex.PaneInfo
 	ws  []typex.Window
 	et  typex.EventTime
 	value exec.FullValue
 }
 
-func (e *emitNative) Init(ctx context.Context, ws  []typex.Window, et typex.EventTime) error {
+func (e *emitNative) Init(ctx context.Context, pn typex.PaneInfo, ws  []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
+  e.pn = pn
 	e.ws = ws
 	e.et = et
 	return nil
@@ -72,7 +74,7 @@ func emitMaker{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 }
 
 func (e *emitNative) invoke{{$x.Name}}(elm {{$x.Type}}) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: elm }
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: e.et, Elm: elm }
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
@@ -88,7 +90,7 @@ func emitMakerET{{$x.Name}}(n exec.ElementProcessor) exec.ReusableEmitter {
 }
 
 func (e *emitNative) invokeET{{$x.Name}}(t typex.EventTime, elm {{$x.Type}}) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: t, Elm: elm }
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: t, Elm: elm }
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(t.ToTime())
 	}
@@ -105,7 +107,7 @@ func emitMaker{{$x.Name}}{{$y.Name}}(n exec.ElementProcessor) exec.ReusableEmitt
 }
 
 func (e *emitNative) invoke{{$x.Name}}{{$y.Name}}(key {{$x.Type}}, val {{$y.Type}}) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val }
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val }
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
@@ -121,7 +123,7 @@ func emitMakerET{{$x.Name}}{{$y.Name}}(n exec.ElementProcessor) exec.ReusableEmi
 }
 
 func (e *emitNative) invokeET{{$x.Name}}{{$y.Name}}(t typex.EventTime, key {{$x.Type}}, val {{$y.Type}}) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: t, Elm: key, Elm2: val }
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: t, Elm: key, Elm2: val }
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(t.ToTime())
 	}

@@ -30,6 +30,7 @@ import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.resources import ResourceHint
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
@@ -415,6 +416,94 @@ class ExceptionHandlingTest(unittest.TestCase):
       bad_elements = bad | beam.Keys()
       assert_that(good, equal_to([0, 1, 2]), 'good')
       assert_that(bad_elements, equal_to([(1, 5), (1, 10)]), 'bad')
+
+  def test_tags_with_exception_handling_then_resource_hint(self):
+    class TagHint(ResourceHint):
+      urn = 'beam:resources:tags:v1'
+
+    ResourceHint.register_resource_hint('tags', TagHint)
+    with beam.Pipeline() as pipeline:
+      ok, unused_errors = (
+        pipeline
+        | beam.Create([1])
+        | beam.Map(lambda x: x)
+        .with_exception_handling()
+        .with_resource_hints(tags='test_tag')
+      )
+    pd = ok.producer.transform
+    self.assertIsInstance(pd, beam.transforms.core.ParDo)
+    while hasattr(pd.fn, 'fn'):
+      pd = pd.fn
+    self.assertEqual(
+        pd.get_resource_hints(),
+        {'beam:resources:tags:v1': b'test_tag'},
+    )
+
+  def test_tags_with_exception_handling_timeout_then_resource_hint(self):
+    class TagHint(ResourceHint):
+      urn = 'beam:resources:tags:v1'
+
+    ResourceHint.register_resource_hint('tags', TagHint)
+    with beam.Pipeline() as pipeline:
+      ok, unused_errors = (
+        pipeline
+        | beam.Create([1])
+        | beam.Map(lambda x: x)
+        .with_exception_handling(timeout=1)
+        .with_resource_hints(tags='test_tag')
+      )
+    pd = ok.producer.transform
+    self.assertIsInstance(pd, beam.transforms.core.ParDo)
+    while hasattr(pd.fn, 'fn'):
+      pd = pd.fn
+    self.assertEqual(
+        pd.get_resource_hints(),
+        {'beam:resources:tags:v1': b'test_tag'},
+    )
+
+  def test_tags_with_resource_hint_then_exception_handling(self):
+    class TagHint(ResourceHint):
+      urn = 'beam:resources:tags:v1'
+
+    ResourceHint.register_resource_hint('tags', TagHint)
+    with beam.Pipeline() as pipeline:
+      ok, unused_errors = (
+        pipeline
+        | beam.Create([1])
+        | beam.Map(lambda x: x)
+        .with_resource_hints(tags='test_tag')
+        .with_exception_handling()
+      )
+    pd = ok.producer.transform
+    self.assertIsInstance(pd, beam.transforms.core.ParDo)
+    while hasattr(pd.fn, 'fn'):
+      pd = pd.fn
+    self.assertEqual(
+        pd.get_resource_hints(),
+        {'beam:resources:tags:v1': b'test_tag'},
+    )
+
+  def test_tags_with_resource_hint_then_exception_handling_timeout(self):
+    class TagHint(ResourceHint):
+      urn = 'beam:resources:tags:v1'
+
+    ResourceHint.register_resource_hint('tags', TagHint)
+    with beam.Pipeline() as pipeline:
+      ok, unused_errors = (
+        pipeline
+        | beam.Create([1])
+        | beam.Map(lambda x: x)
+        .with_resource_hints(tags='test_tag')
+        .with_exception_handling(timeout=1)
+      )
+    pd = ok.producer.transform
+    self.assertIsInstance(pd, beam.transforms.core.ParDo)
+    while hasattr(pd.fn, 'fn'):
+      pd = pd.fn
+    self.assertEqual(
+        pd.get_resource_hints(),
+        {'beam:resources:tags:v1': b'test_tag'},
+    )
 
 
 def test_callablewrapper_typehint():

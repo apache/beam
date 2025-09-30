@@ -58,7 +58,7 @@ jobs:
           pip install -r requirements.txt
           
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Initialize Log Sinks
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

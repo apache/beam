@@ -56,7 +56,7 @@ jobs:
           pip install -r requirements.txt
           
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
           
       - name: Run IAM Policy Enforcement
         working-directory: ./infra/enforcement

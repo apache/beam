@@ -219,7 +219,7 @@ final class MutationUtils {
         @Nullable BigDecimal decimal = row.getDecimal(columnName);
         // BigDecimal is not nullable
         if (decimal == null) {
-          checkNotNull(decimal, "Null decimal at column " + columnName);
+          checkNotNull(decimal, "Null decimal at column %s", columnName);
         } else {
           mutationBuilder.set(columnName).to(decimal);
         }

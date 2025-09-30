@@ -32,6 +32,7 @@ from apache_beam import pvalue
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import DoFn
+from apache_beam.transforms.core import Filter
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import WindowInto
@@ -45,6 +46,7 @@ __all__ = [
     'assert_that',
     'equal_to',
     'equal_to_per_window',
+    'has_at_least_one',
     'is_empty',
     'is_not_empty',
     'matches_all',
@@ -375,6 +377,33 @@ def assert_that(
 def AssertThat(pcoll, *args, **kwargs):
   """Like assert_that, but as an applicable PTransform."""
   return assert_that(pcoll, *args, **kwargs)
+
+
+def has_at_least_one(input, criterion, label="has_at_least_one"):
+  pipeline = input.pipeline
+  # similar to assert_that, we choose a label if it already exists.
+  if label in pipeline.applied_labels:
+    label_idx = 2
+    while f"{label}_{label_idx}" in pipeline.applied_labels:
+      label_idx += 1
+    label = f"{label}_{label_idx}"
+
+  def _apply_criterion(
+      e=DoFn.ElementParam,
+      t=DoFn.TimestampParam,
+      w=DoFn.WindowParam,
+      p=DoFn.PaneInfoParam):
+    if criterion(e, t, w, p):
+      return e, t, w, p
+
+  def _not_empty(actual):
+    actual = list(actual)
+    if not actual:
+      raise BeamAssertException('Failed assert: nothing matches the criterion')
+
+  result = input | label >> Map(_apply_criterion) | label + "_filter" >> Filter(
+      lambda e: e is not None)
+  assert_that(result, _not_empty)
 
 
 def open_shards(glob_pattern, mode='rt', encoding='utf-8'):

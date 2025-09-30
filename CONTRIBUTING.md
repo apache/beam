@@ -225,6 +225,10 @@ Execute:
 Pull request template has a link to a [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
 that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
 
+For detailed information about GitHub workflows, including how to trigger them
+manually and fix workflow issues, see the
+[workflows README](https://github.com/apache/beam/blob/master/.github/workflows/README.md).
+
 ### Review Process and Releases
 
 #### Get Reviewed

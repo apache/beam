@@ -80,6 +80,9 @@ def set_library(selected_library=DEFAULT_PICKLE_LIB):
   """ Sets pickle library that will be used. """
   global desired_pickle_lib
 
+  if selected_library == 'default':
+    selected_library = DEFAULT_PICKLE_LIB
+
   if selected_library == USE_DILL and not dill_pickler:
     raise ImportError(
         "Pipeline option pickle_library=dill is set, but dill is not "
@@ -97,9 +100,6 @@ def set_library(selected_library=DEFAULT_PICKLE_LIB):
   # If switching to or from dill, update the pickler hook overrides.
   if is_currently_dill != dill_is_requested:
     dill_pickler.override_pickler_hooks(selected_library == USE_DILL)
-
-  if selected_library == 'default':
-    selected_library = DEFAULT_PICKLE_LIB
 
   if dill_is_requested:
     desired_pickle_lib = dill_pickler
