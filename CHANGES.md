@@ -77,7 +77,8 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Python examples added for CloudSQL enrichment handler on [Beam website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-cloudsql/) (Python) ([#35473](https://github.com/apache/beam/issues/36095)).
 * Support for batch mode execution in WriteToPubSub transform added (Python) ([#35990](https://github.com/apache/beam/issues/35990)).
-* 
+* Added official support for Python 3.13 ([#34869](https://github.com/apache/beam/issues/34869)).
+
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
