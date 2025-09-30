@@ -576,11 +576,6 @@ def _make_function(code, globals, name, argdefs, closure):
   return types.FunctionType(code, globals, name, argdefs, closure)
 
 
-def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
-  fcode = get_code_from_identifier(code_path)
-  return _make_function(fcode, globals, name, argdefs, closure)
-
-
 def _make_empty_cell():
   if False:
     # trick the compiler into creating an empty cell in our lambda
@@ -1378,7 +1373,7 @@ class Pickler(pickle.Pickler):
     else:
       closure = tuple(_make_empty_cell() for _ in range(len(code.co_freevars)))
 
-      return code, base_globals, None, None, closure
+    return code, base_globals, None, None, closure
 
   def dump(self, obj):
     try:
