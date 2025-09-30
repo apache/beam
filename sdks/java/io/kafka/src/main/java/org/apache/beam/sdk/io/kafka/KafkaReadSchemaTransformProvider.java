@@ -233,6 +233,27 @@ public class KafkaReadSchemaTransformProvider
           kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
         }
 
+        Boolean redistribute = configuration.getRedistributed();
+        if (redistribute != null && redistribute == true) {
+          kafkaRead = kafkaRead.withRedistribute();
+        }
+        Integer redistributeNumKeys = configuration.getRedistributeNumKeys();
+        if (redistributeNumKeys != null && redistributeNumKeys > 0) {
+          kafkaRead = kafkaRead.withRedistributeNumKeys(redistributeNumKeys);
+        }
+        Boolean allowDuplicates = configuration.getAllowDuplicates();
+        if (allowDuplicates != null) {
+          kafkaRead = kafkaRead.withAllowDuplicates(allowDuplicates);
+        }
+        Boolean redistributeByRecordKey = configuration.getRedistributeByRecordKey();
+        if (redistributeByRecordKey != null) {
+          kafkaRead = kafkaRead.withRedistributeByRecordKey(redistributeByRecordKey);
+        }
+        Boolean offsetDeduplication = configuration.getOffsetDeduplication();
+        if (offsetDeduplication != null) {
+          kafkaRead = kafkaRead.withOffsetDeduplication(offsetDeduplication);
+        }
+
         PCollection<GenericRecord> kafkaValues =
             input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
 
@@ -281,6 +302,27 @@ public class KafkaReadSchemaTransformProvider
       Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
       if (maxReadTimeSeconds != null) {
         kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
+      }
+
+      Boolean redistribute = configuration.getRedistributed();
+      if (redistribute != null && redistribute == true) {
+        kafkaRead = kafkaRead.withRedistribute();
+      }
+      Integer redistributeNumKeys = configuration.getRedistributeNumKeys();
+      if (redistributeNumKeys != null && redistributeNumKeys > 0) {
+        kafkaRead = kafkaRead.withRedistributeNumKeys(redistributeNumKeys);
+      }
+      Boolean allowDuplicates = configuration.getAllowDuplicates();
+      if (allowDuplicates != null) {
+        kafkaRead = kafkaRead.withAllowDuplicates(allowDuplicates);
+      }
+      Boolean redistributeByRecordKey = configuration.getRedistributeByRecordKey();
+      if (redistributeByRecordKey != null) {
+        kafkaRead = kafkaRead.withRedistributeByRecordKey(redistributeByRecordKey);
+      }
+      Boolean offsetDeduplication = configuration.getOffsetDeduplication();
+      if (offsetDeduplication != null) {
+        kafkaRead = kafkaRead.withOffsetDeduplication(offsetDeduplication);
       }
 
       PCollection<byte[]> kafkaValues =
