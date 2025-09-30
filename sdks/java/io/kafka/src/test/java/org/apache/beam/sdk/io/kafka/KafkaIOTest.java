@@ -498,9 +498,6 @@ public class KafkaIOTest {
       if (redistributeByRecordKey != null && redistributeByRecordKey) {
         reader = reader.withRedistributeByRecordKey(redistributeByRecordKey);
       }
-      if (redistributeByRecordKey != null && redistributeByRecordKey) {
-        reader.withRedistributeByRecordKey(redistributeByRecordKey);
-      }
     }
     return reader;
   }
