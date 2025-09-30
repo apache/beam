@@ -67,10 +67,12 @@ class HistogramCell(MetricCell):
     return self.data.get_cumulative()
 
   def to_runner_api_monitoring_info(self, name, transform_id):
-    # Histogram metric is currently worker-local and internal
-    # use only. This method should be implemented when runners
-    # support Histogram metric reporting.
-    return None
+    from apache_beam.metrics import monitoring_infos
+    return monitoring_infos.user_histogram(
+        name.namespace,
+        name.name,
+        self.get_cumulative(),
+        ptransform=transform_id)
 
 
 class HistogramCellFactory(MetricCellFactory):

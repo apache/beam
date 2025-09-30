@@ -27,6 +27,7 @@ from collections import defaultdict
 from typing import Any
 from typing import SupportsInt
 
+from apache_beam.internal.metrics.cells import HistogramData
 from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeData
@@ -81,11 +82,13 @@ class CounterAggregator(MetricAggregator):
 
 
 class GenericAggregator(MetricAggregator):
-  def __init__(self, data_class):
+  def __init__(self, data_class, identity_element_factory=None):
     self._data_class = data_class
+    self._identity_element_factory = (
+        identity_element_factory or self._data_class.identity_element)
 
   def identity_element(self):
-    return self._data_class.identity_element()
+    return self._identity_element_factory()
 
   def combine(self, x, y):
     return x.combine(y)
@@ -105,6 +108,8 @@ class DirectMetrics(MetricResults):
         lambda: DirectMetric(GenericAggregator(StringSetData)))
     self._bounded_tries = defaultdict(
         lambda: DirectMetric(GenericAggregator(BoundedTrieData)))
+    self._histograms = defaultdict(
+        lambda: DirectMetric(GenericAggregator(HistogramData)))
 
   def _apply_operation(self, bundle, updates, op):
     for k, v in updates.counters.items():
@@ -121,6 +126,9 @@ class DirectMetrics(MetricResults):
 
     for k, v in updates.bounded_tries.items():
       op(self._bounded_tries[k], bundle, v)
+
+    for k, v in updates.histograms.items():
+      op(self._histograms[k], bundle, v)
 
   def commit_logical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.commit_logical(bundle, update)
