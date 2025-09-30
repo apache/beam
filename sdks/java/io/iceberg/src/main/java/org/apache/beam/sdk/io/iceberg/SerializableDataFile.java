@@ -17,25 +17,40 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.nio.ByteBuffer;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.transforms.Transform;
+import org.apache.iceberg.transforms.Transforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -48,12 +63,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>NOTE: If you add any new fields here, you need to also update the {@link #equals} and {@link
  * #hashCode()} methods.
  *
- * <p>Use {@link #from(DataFile, String)} to create a {@link SerializableDataFile} and {@link
+ * <p>Use {@link #from(DataFile, PartitionSpec)} to create a {@link SerializableDataFile} and {@link
  * #createDataFile(Map)} to reconstruct the original {@link DataFile}.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-abstract class SerializableDataFile {
+public abstract class SerializableDataFile {
   public static Builder builder() {
     return new AutoValue_SerializableDataFile.Builder();
   }
@@ -87,7 +102,7 @@ abstract class SerializableDataFile {
   abstract @Nullable Map<Integer, byte[]> getUpperBounds();
 
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
     abstract Builder setPath(String path);
 
     abstract Builder setFileFormat(String fileFormat);
@@ -119,14 +134,25 @@ abstract class SerializableDataFile {
     abstract SerializableDataFile build();
   }
 
+  public static SerializableDataFile from(DataFile f, Map<Integer, PartitionSpec> specs) {
+    return from(
+        f,
+        Preconditions.checkStateNotNull(
+            specs.get(f.specId()),
+            "Could not create a SerializableDataFile because DataFile is written using a partition spec id '%s' that is not found in the provided specs: %s",
+            f.specId(),
+            specs.keySet()));
+  }
+
   /**
    * Create a {@link SerializableDataFile} from a {@link DataFile} and its associated {@link
    * PartitionKey}.
    */
-  static SerializableDataFile from(DataFile f, String partitionPath) {
+  public static SerializableDataFile from(DataFile f, PartitionSpec spec) {
+    String partitionPath = getPartitionDataPath(f.partition(), spec);
 
-    return SerializableDataFile.builder()
-        .setPath(f.path().toString())
+    return builder()
+        .setPath(f.location())
         .setFileFormat(f.format().toString())
         .setRecordCount(f.recordCount())
         .setFileSizeInBytes(f.fileSizeInBytes())
@@ -150,7 +176,7 @@ abstract class SerializableDataFile {
    * it from Beam-compatible types.
    */
   @SuppressWarnings("nullness")
-  DataFile createDataFile(Map<Integer, PartitionSpec> partitionSpecs) {
+  public DataFile createDataFile(Map<Integer, PartitionSpec> partitionSpecs) {
     PartitionSpec partitionSpec =
         checkStateNotNull(
             partitionSpecs.get(getPartitionSpecId()),
@@ -179,6 +205,43 @@ abstract class SerializableDataFile {
         .withSplitOffsets(getSplitOffsets())
         .build();
   }
+
+  /**
+   * Returns an equivalent partition path that is made up of partition data. Needed to reconstruct a
+   * {@link DataFile}.
+   */
+  @VisibleForTesting
+  static String getPartitionDataPath(StructLike partitionKey, PartitionSpec spec) {
+    String partitionPath = spec.partitionToPath(partitionKey);
+
+    Map<String, Transform<?, ?>> transforms =
+        spec.fields().stream()
+            .collect(Collectors.toMap(PartitionField::name, PartitionField::transform));
+
+    if (partitionPath.isEmpty() || transforms.isEmpty()) {
+      return partitionPath;
+    }
+    List<String> resolved = new ArrayList<>();
+    for (String partition : Splitter.on('/').splitToList(partitionPath)) {
+      List<String> nameAndValue = Splitter.on('=').splitToList(partition);
+      String name = nameAndValue.get(0);
+      String value = nameAndValue.get(1);
+      String transformName = checkArgumentNotNull(transforms.get(name)).toString();
+      if (Transforms.month().toString().equals(transformName)) {
+        int month = YearMonth.parse(value).getMonthValue();
+        value = String.valueOf(month);
+      } else if (Transforms.hour().toString().equals(transformName)) {
+        long hour = ChronoUnit.HOURS.between(EPOCH, LocalDateTime.parse(value, HOUR_FORMATTER));
+        value = String.valueOf(hour);
+      }
+      resolved.add(name + "=" + value);
+    }
+    return String.join("/", resolved);
+  }
+
+  private static final DateTimeFormatter HOUR_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
+  private static final LocalDateTime EPOCH = LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC);
 
   // ByteBuddyUtils has trouble converting Map value type ByteBuffer
   // to byte[] and back to ByteBuffer, so we perform these conversions manually
