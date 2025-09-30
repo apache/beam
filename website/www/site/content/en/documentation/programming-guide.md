@@ -6327,17 +6327,14 @@ class MyMetricsDoFn(beam.DoFn):
     self.counter = metrics.Metrics.counter("namespace", "counter1")
 
   def process(self, element):
-    counter.inc()
+    self.counter.inc()
     yield element
 
-pipeline = beam.Pipeline()
+with beam.Pipeline(runner=BundleBasedDirectRunner()) as p:
+  p | beam.Create([1, 2, 3]) | beam.ParDo(MyMetricsDoFn())
 
-pipeline | beam.ParDo(MyMetricsDoFn())
-
-result = pipeline.run().wait_until_finish()
-
-metrics = result.metrics().query(
-    metrics.MetricsFilter.with_namespace("namespace").with_name("counter1"))
+metrics = p.result.metrics().query(
+metrics.MetricsFilter().with_namespace("namespace").with_name("counter1"))
 
 for metric in metrics["counters"]:
   print(metric)
