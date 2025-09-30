@@ -46,13 +46,15 @@ final class AppendableInputStream extends InputStream {
   private final AtomicLong blockedStartMs;
   private final BlockingDeque<InputStream> queue;
   private final InputStream stream;
+  private final long deadlineSeconds;
 
-  AppendableInputStream() {
+  AppendableInputStream(long deadlineSeconds) {
     this.cancelled = new AtomicBoolean(false);
     this.complete = new AtomicBoolean(false);
     this.blockedStartMs = new AtomicLong();
     this.queue = new LinkedBlockingDeque<>(QUEUE_MAX_CAPACITY);
     this.stream = new SequenceInputStream(new InputStreamEnumeration());
+    this.deadlineSeconds = deadlineSeconds;
   }
 
   long getBlockedStartMs() {
@@ -69,6 +71,10 @@ final class AppendableInputStream extends InputStream {
 
   int size() {
     return queue.size();
+  }
+
+  long getDeadlineSeconds() {
+    return deadlineSeconds;
   }
 
   /** Appends a new InputStream to the tail of this stream. */
@@ -155,7 +161,7 @@ final class AppendableInputStream extends InputStream {
 
       try {
         blockedStartMs.set(Instant.now().getMillis());
-        current = queue.poll(180, TimeUnit.SECONDS);
+        current = queue.poll(deadlineSeconds, TimeUnit.SECONDS);
         if (current != null && current != POISON_PILL) {
           return true;
         }

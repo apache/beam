@@ -307,8 +307,8 @@ class TypeHintsTest(unittest.TestCase):
     # When running this pipeline, you'd get a runtime error,
     # possibly on a remote machine, possibly very late.
 
-    with self.assertRaises(TypeError):
-      p.run()
+    with self.assertRaisesRegex(Exception, "not all arguments converted"):
+      p.run().wait_until_finish()
 
     # To catch this early, we can assert what types we expect.
     with self.assertRaises(typehints.TypeCheckError):
@@ -372,8 +372,8 @@ class TypeHintsTest(unittest.TestCase):
     # When running this pipeline, you'd get a runtime error,
     # possibly on a remote machine, possibly very late.
 
-    with self.assertRaises(TypeError):
-      p.run()
+    with self.assertRaisesRegex(Exception, "not all arguments converted"):
+      p.run().wait_until_finish()
 
     # To catch this early, we can annotate process() with the expected types.
     # Beam will then use these as type hints and perform type checking before
@@ -439,12 +439,13 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegex(Exception, "According to type-hint"):
       # [START type_hints_runtime_on]
       p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
       p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-      p.run()
+      result = p.run()
       # [END type_hints_runtime_on]
+      result.wait_until_finish()
 
   def test_deterministic_key(self):
     with TestPipeline() as p:

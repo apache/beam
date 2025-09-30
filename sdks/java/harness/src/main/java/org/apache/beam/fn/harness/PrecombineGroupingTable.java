@@ -37,8 +37,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
@@ -468,8 +469,8 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
     entry.compact();
     receiver.accept(
         isGloballyWindowed
-            ? WindowedValue.valueInGlobalWindow(KV.of(entry.getKey(), entry.getAccumulator()))
-            : WindowedValue.of(
+            ? WindowedValues.valueInGlobalWindow(KV.of(entry.getKey(), entry.getAccumulator()))
+            : WindowedValues.of(
                 KV.of(entry.getKey(), entry.getAccumulator()),
                 entry.getOutputTimestamp(),
                 entry.getGroupingKey().getWindows(),

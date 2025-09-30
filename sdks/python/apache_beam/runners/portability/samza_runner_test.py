@@ -33,6 +33,7 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
+from apache_beam.utils import subprocess_server
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
 
     try:
       return [
-          'java',
+          subprocess_server.JavaHelper.get_java(),
           '-jar',
           cls.samza_job_server_jar,
           '--artifacts-dir',
@@ -188,6 +189,9 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_reshuffle_after_custom_window(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/34831")
+
+  def test_sliding_windows(self):
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/35429")
 
 
 if __name__ == '__main__':

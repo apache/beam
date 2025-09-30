@@ -37,8 +37,8 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.hamcrest.Matchers;
@@ -121,7 +121,7 @@ public class DefaultParDoFnFactoryTest {
     SimpleParDoFn simpleParDoFn = (SimpleParDoFn) parDoFn;
     parDoFn.startBundle(new OutputReceiver());
     // DoFnInfo may not yet be initialized until an element is processed
-    parDoFn.processElement(WindowedValue.valueInGlobalWindow("foo"));
+    parDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
     @SuppressWarnings("rawtypes")
     DoFnInfo doFnInfo = simpleParDoFn.getDoFnInfo();
     DoFn innerDoFn = (TestDoFn) doFnInfo.getDoFn();

@@ -88,6 +88,8 @@ public class TableRowToStorageApiProtoIT {
                           .setType("BYTES")
                           .setMode("REPEATED")
                           .setName("arrayValue"))
+                  .add(
+                      new TableFieldSchema().setType("STRING").setName("123_IllegalProtoFieldName"))
                   .build());
 
   private static final List<Object> REPEATED_BYTES =
@@ -113,7 +115,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES);
+          .set("arrayValue", REPEATED_BYTES)
+          .set("123_IllegalProtoFieldName", "string");
 
   private static final TableRow BASE_TABLE_ROW_JODA_TIME =
       new TableRow()
@@ -131,7 +134,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", org.joda.time.LocalDate.parse("2019-08-16"))
           .set("numericValue", new BigDecimal("23.4"))
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES);
+          .set("arrayValue", REPEATED_BYTES)
+          .set("123_IllegalProtoFieldName", "string");
 
   private static final TableRow BASE_TABLE_ROW_JAVA_TIME =
       new TableRow()
@@ -149,7 +153,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", LocalDate.parse("2019-08-16"))
           .set("numericValue", new BigDecimal("23.4"))
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES);
+          .set("arrayValue", REPEATED_BYTES)
+          .set("123_IllegalProtoFieldName", "string");
 
   private static final TableRow BASE_TABLE_ROW_NUM_TIME =
       new TableRow()
@@ -167,7 +172,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", 18124)
           .set("numericValue", new BigDecimal("23.4"))
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES);
+          .set("arrayValue", REPEATED_BYTES)
+          .set("123_IllegalProtoFieldName", "string");
 
   @SuppressWarnings({
     "FloatingPointLiteralPrecision" // https://github.com/apache/beam/issues/23666
@@ -188,7 +194,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", 18124)
           .set("numericValue", 23.4)
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES);
+          .set("arrayValue", REPEATED_BYTES)
+          .set("123_IllegalProtoFieldName", "string");
 
   private static final TableRow BASE_TABLE_ROW_NULL =
       new TableRow()
@@ -230,7 +237,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES_EXPECTED);
+          .set("arrayValue", REPEATED_BYTES_EXPECTED)
+          .set("123_IllegalProtoFieldName", "string");
 
   // joda is up to millisecond precision, expect truncation
   private static final TableRow BASE_TABLE_ROW_JODA_EXPECTED =
@@ -250,7 +258,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES_EXPECTED);
+          .set("arrayValue", REPEATED_BYTES_EXPECTED)
+          .set("123_IllegalProtoFieldName", "string");
 
   private static final TableRow BASE_TABLE_ROW_NUM_EXPECTED =
       new TableRow()
@@ -269,7 +278,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES_EXPECTED);
+          .set("arrayValue", REPEATED_BYTES_EXPECTED)
+          .set("123_IllegalProtoFieldName", "string");
 
   private static final TableRow BASE_TABLE_ROW_FLOATS_EXPECTED =
       new TableRow()
@@ -288,7 +298,8 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", REPEATED_BYTES_EXPECTED);
+          .set("arrayValue", REPEATED_BYTES_EXPECTED)
+          .set("123_IllegalProtoFieldName", "string");
 
   // only nonnull values are returned, null in arrayValue should be converted to empty list
   private static final TableRow BASE_TABLE_ROW_NULL_EXPECTED =

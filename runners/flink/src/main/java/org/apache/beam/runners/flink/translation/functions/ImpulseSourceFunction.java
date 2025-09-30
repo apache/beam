@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -58,7 +59,7 @@ public class ImpulseSourceFunction
     if (Iterables.isEmpty(impulseEmitted.get())) {
       synchronized (sourceContext.getCheckpointLock()) {
         // emit single impulse element
-        sourceContext.collect(WindowedValue.valueInGlobalWindow(new byte[0]));
+        sourceContext.collect(WindowedValues.valueInGlobalWindow(new byte[0]));
         impulseEmitted.add(true);
       }
     }

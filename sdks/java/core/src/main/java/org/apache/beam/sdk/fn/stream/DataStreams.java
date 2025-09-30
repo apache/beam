@@ -214,7 +214,7 @@ public class DataStreams {
         long elementOverhead = rvals.size() * BYTES_LIST_ELEMENT_OVERHEAD;
         long totalWeight = byteString.size() + elementOverhead;
 
-        return new WeightedList<>(rvals, totalWeight);
+        return WeightedList.of(rvals, totalWeight);
       } catch (IOException e) {
         throw new IllegalStateException(e);
       }

@@ -17,7 +17,7 @@
 
 """Google Cloud Spanner IO
 
-Experimental; no backwards-compatibility guarantees.
+Deprecated; use apache_beam.io.gcp.spanner module instead.
 
 This is an experimental module for reading and writing data from Google Cloud
 Spanner. Visit: https://cloud.google.com/spanner for more details.
@@ -190,6 +190,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
+from apache_beam.utils.annotations import deprecated
 
 # Protect against environments where spanner library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -356,8 +357,8 @@ class _NaiveSpannerReadDoFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
@@ -612,8 +613,8 @@ class _ReadFromPartitionFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
@@ -675,6 +676,7 @@ class _ReadFromPartitionFn(DoFn):
       self._snapshot.close()
 
 
+@deprecated(since='2.68', current='apache_beam.io.gcp.spanner.ReadFromSpanner')
 class ReadFromSpanner(PTransform):
   """
   A PTransform to perform reads from cloud spanner.
@@ -825,6 +827,8 @@ class ReadFromSpanner(PTransform):
     return res
 
 
+@deprecated(
+    since='2.68', current='apache_beam.io.gcp.spanner.WriteToSpannerSchema')
 class WriteToSpanner(PTransform):
   def __init__(
       self,
@@ -1224,8 +1228,8 @@ class _WriteToSpannerDoFn(DoFn):
     labels = {
         **self.base_labels,
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.SPANNER_TABLE_ID: table_id
     }
+    if table_id: labels[monitoring_infos.SPANNER_TABLE_ID] = table_id
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)

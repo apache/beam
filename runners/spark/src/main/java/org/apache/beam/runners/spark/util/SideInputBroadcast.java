@@ -75,6 +75,7 @@ public class SideInputBroadcast<T> implements Serializable {
     this.bcast.unpersist();
   }
 
+  @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
   private T deserialize() {
     T val;
     try {

@@ -50,9 +50,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -473,6 +473,18 @@ public class JdbcDriverTest {
   }
 
   @Test
+  public void testCalciteConnectionProperties_BigQuery() throws Exception {
+    BeamSqlPipelineOptions options =
+        PipelineOptionsFactory.create().as(BeamSqlPipelineOptions.class);
+    options.setCalciteConnectionProperties(ImmutableMap.of("fun", "BIGQUERY", "lex", "BIG_QUERY"));
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE, options);
+    assertEquals(
+        "BIGQUERY", connection.getProperties().getProperty("fun", "CALCITE").toUpperCase());
+    assertEquals(
+        "BIG_QUERY", connection.getProperties().getProperty("lex", "CALCITE").toUpperCase());
+  }
+
+  @Test
   public void testInternalConnect_setDirectRunner() throws Exception {
     CalciteConnection connection =
         JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
@@ -508,5 +520,54 @@ public class JdbcDriverTest {
     thrown.expectMessage("No suitable driver found");
 
     DriverManager.getConnection("jdbc:baaaaaad");
+  }
+
+  @Test
+  public void testBigQueryDialect() throws Exception {
+    ReadOnlyTableProvider tableProvider =
+        new ReadOnlyTableProvider(
+            "test",
+            ImmutableMap.of(
+                "test",
+                TestUnboundedTable.of(
+                        Schema.FieldType.INT32, "order_id",
+                        Schema.FieldType.INT32, "site_id",
+                        Schema.FieldType.INT32, "price",
+                        Schema.FieldType.STRING, "label",
+                        Schema.FieldType.STRING, "date",
+                        Schema.FieldType.DATETIME, "order_time")
+                    .timestampColumnIndex(5)
+                    .addRows(
+                        Duration.ZERO,
+                        1,
+                        1,
+                        1,
+                        "test-1",
+                        "2025-06-30",
+                        FIRST_DATE,
+                        1,
+                        2,
+                        6,
+                        "test-2",
+                        "2025-06-30",
+                        FIRST_DATE)));
+    BeamSqlPipelineOptions options =
+        PipelineOptionsFactory.create().as(BeamSqlPipelineOptions.class);
+    options.setCalciteConnectionProperties(ImmutableMap.of("fun", "bigquery"));
+
+    CalciteConnection connection = JdbcDriver.connect(tableProvider, options);
+    assertEquals("bigquery", connection.getProperties().getProperty("fun", "CALCITE"));
+    Statement statement = connection.createStatement();
+
+    ResultSet resultSet1 =
+        statement.executeQuery(
+            "SELECT SUBSTRING(`label`,2), SUBSTR(`label`, 2,4) FROM test LIMIT 1");
+    assertTrue(resultSet1.next());
+    assertFalse(resultSet1.next());
+
+    ResultSet resultSet2 = statement.executeQuery("SELECT * FROM test LIMIT 2");
+    assertTrue(resultSet2.next());
+    assertTrue(resultSet2.next());
+    assertFalse(resultSet2.next());
   }
 }

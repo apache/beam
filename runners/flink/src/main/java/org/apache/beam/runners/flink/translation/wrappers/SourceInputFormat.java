@@ -29,7 +29,8 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
@@ -162,7 +163,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
       final Instant timestamp = reader.getCurrentTimestamp();
       // advance reader to have a record ready next time
       inputAvailable = readerInvoker.invokeAdvance(reader);
-      return WindowedValue.of(current, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+      return WindowedValues.of(current, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
     }
 
     return null;

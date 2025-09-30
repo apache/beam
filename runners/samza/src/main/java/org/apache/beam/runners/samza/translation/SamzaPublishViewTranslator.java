@@ -23,8 +23,8 @@ import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.samza.operators.MessageStream;
 
 /** Translates {@link SamzaPublishView} to a view {@link MessageStream} as side input. */

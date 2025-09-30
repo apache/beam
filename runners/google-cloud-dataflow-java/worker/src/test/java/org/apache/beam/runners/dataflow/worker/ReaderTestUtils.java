@@ -31,7 +31,7 @@ import java.util.List;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

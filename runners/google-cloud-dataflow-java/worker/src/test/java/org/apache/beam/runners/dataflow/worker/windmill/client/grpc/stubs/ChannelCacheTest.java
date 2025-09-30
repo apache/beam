@@ -195,6 +195,139 @@ public class ChannelCacheTest {
   }
 
   @Test
+  public void testConsumeFlowControlSettings_UsesDefaultOverridesForDirect()
+      throws InterruptedException {
+    String channelName = "channel";
+    AtomicReference<CountDownLatch> notifyWhenChannelClosed =
+        new AtomicReference<>(new CountDownLatch(1));
+    AtomicInteger newChannelsCreated = new AtomicInteger();
+    AtomicReference<UserWorkerGrpcFlowControlSettings> consumedFlowControlSettings =
+        new AtomicReference<>();
+    cache =
+        ChannelCache.forTesting(
+            (newFlowControlSettings, ignoredServiceAddress) -> {
+              ManagedChannel channel = newChannel(channelName);
+              newChannelsCreated.incrementAndGet();
+              consumedFlowControlSettings.set(newFlowControlSettings);
+              return channel;
+            },
+            () -> notifyWhenChannelClosed.get().countDown());
+    WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
+    when(someAddress.getKind())
+        .thenReturn(WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS);
+
+    UserWorkerGrpcFlowControlSettings emptyFlowControlSettings =
+        UserWorkerGrpcFlowControlSettings.newBuilder().build();
+
+    // Load the cache w/ this first get.
+    ManagedChannel cachedChannel = cache.get(someAddress);
+    // Verify that the appropriate default was used.
+    assertThat(consumedFlowControlSettings.get())
+        .isEqualTo(WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS);
+
+    // Load empty flow control settings.
+    cache.consumeFlowControlSettings(emptyFlowControlSettings);
+    // This get shouldn't reload the cache, since the same default flow control settings
+    // should be used.
+    assertThat(consumedFlowControlSettings.get())
+        .isEqualTo(WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS);
+    assertThat(cachedChannel).isSameInstanceAs(cache.get(someAddress));
+
+    // This get should reload the cache, since flow control settings have changed
+    UserWorkerGrpcFlowControlSettings flowControlSettingsModified =
+        UserWorkerGrpcFlowControlSettings.newBuilder().setEnableAutoFlowControl(true).build();
+    cache.consumeFlowControlSettings(flowControlSettingsModified);
+    ManagedChannel reloadedChannel = cache.get(someAddress);
+    notifyWhenChannelClosed.get().await();
+    assertThat(cachedChannel).isNotSameInstanceAs(reloadedChannel);
+    assertTrue(cachedChannel.isShutdown());
+    assertFalse(reloadedChannel.isShutdown());
+    assertThat(newChannelsCreated.get()).isEqualTo(2);
+    assertThat(cache.get(someAddress)).isSameInstanceAs(reloadedChannel);
+    assertThat(consumedFlowControlSettings.get()).isEqualTo(flowControlSettingsModified);
+
+    // Change back to empty settings and verify the default is used again.
+    notifyWhenChannelClosed.set(new CountDownLatch(1));
+    cache.consumeFlowControlSettings(emptyFlowControlSettings);
+    ManagedChannel reloadedChannel2 = cache.get(someAddress);
+    notifyWhenChannelClosed.get().await();
+    assertThat(reloadedChannel2).isNotSameInstanceAs(reloadedChannel);
+    assertThat(reloadedChannel2).isNotSameInstanceAs(cachedChannel);
+    assertTrue(reloadedChannel.isShutdown());
+    assertFalse(reloadedChannel2.isShutdown());
+    assertThat(newChannelsCreated.get()).isEqualTo(3);
+    assertThat(cache.get(someAddress)).isSameInstanceAs(reloadedChannel2);
+    assertThat(consumedFlowControlSettings.get())
+        .isEqualTo(WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS);
+  }
+
+  @Test
+  public void testConsumeFlowControlSettings_UsesDefaultOverridesForCloudPath()
+      throws InterruptedException {
+    String channelName = "channel";
+    AtomicReference<CountDownLatch> notifyWhenChannelClosed =
+        new AtomicReference<>(new CountDownLatch(1));
+    AtomicInteger newChannelsCreated = new AtomicInteger();
+    AtomicReference<UserWorkerGrpcFlowControlSettings> consumedFlowControlSettings =
+        new AtomicReference<>();
+    cache =
+        ChannelCache.forTesting(
+            (newFlowControlSettings, ignoredServiceAddress) -> {
+              ManagedChannel channel = newChannel(channelName);
+              newChannelsCreated.incrementAndGet();
+              consumedFlowControlSettings.set(newFlowControlSettings);
+              return channel;
+            },
+            () -> notifyWhenChannelClosed.get().countDown());
+    WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
+    when(someAddress.getKind()).thenReturn(WindmillServiceAddress.Kind.GCP_SERVICE_ADDRESS);
+
+    UserWorkerGrpcFlowControlSettings emptyFlowControlSettings =
+        UserWorkerGrpcFlowControlSettings.newBuilder().build();
+
+    // Load the cache w/ this first get.
+    ManagedChannel cachedChannel = cache.get(someAddress);
+    // Verify that the appropriate default was used.
+    assertThat(consumedFlowControlSettings.get())
+        .isEqualTo(WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS);
+
+    // Load empty flow control settings.
+    cache.consumeFlowControlSettings(emptyFlowControlSettings);
+    // This get shouldn't reload the cache, since the same default flow control settings
+    // should be used.
+    assertThat(consumedFlowControlSettings.get())
+        .isEqualTo(WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS);
+    assertThat(cachedChannel).isSameInstanceAs(cache.get(someAddress));
+
+    // This get should reload the cache, since flow control settings have changed
+    UserWorkerGrpcFlowControlSettings flowControlSettingsModified =
+        UserWorkerGrpcFlowControlSettings.newBuilder().setEnableAutoFlowControl(true).build();
+    cache.consumeFlowControlSettings(flowControlSettingsModified);
+    ManagedChannel reloadedChannel = cache.get(someAddress);
+    notifyWhenChannelClosed.get().await();
+    assertThat(cachedChannel).isNotSameInstanceAs(reloadedChannel);
+    assertTrue(cachedChannel.isShutdown());
+    assertFalse(reloadedChannel.isShutdown());
+    assertThat(newChannelsCreated.get()).isEqualTo(2);
+    assertThat(cache.get(someAddress)).isSameInstanceAs(reloadedChannel);
+    assertThat(consumedFlowControlSettings.get()).isEqualTo(flowControlSettingsModified);
+
+    // Change back to empty settings and verify the default is used again.
+    notifyWhenChannelClosed.set(new CountDownLatch(1));
+    cache.consumeFlowControlSettings(emptyFlowControlSettings);
+    ManagedChannel reloadedChannel2 = cache.get(someAddress);
+    notifyWhenChannelClosed.get().await();
+    assertThat(reloadedChannel2).isNotSameInstanceAs(reloadedChannel);
+    assertThat(reloadedChannel2).isNotSameInstanceAs(cachedChannel);
+    assertTrue(reloadedChannel.isShutdown());
+    assertFalse(reloadedChannel2.isShutdown());
+    assertThat(newChannelsCreated.get()).isEqualTo(3);
+    assertThat(cache.get(someAddress)).isSameInstanceAs(reloadedChannel2);
+    assertThat(consumedFlowControlSettings.get())
+        .isEqualTo(WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS);
+  }
+
+  @Test
   public void testConsumeFlowControlSettings_sameFlowControlSettings() {
     String channelName = "channel";
     AtomicInteger newChannelsCreated = new AtomicInteger();

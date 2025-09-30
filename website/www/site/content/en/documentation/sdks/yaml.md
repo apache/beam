@@ -273,6 +273,52 @@ pipeline:
         path: /path/to/output.json
 ```
 
+If a `chain` pipeline has required error consumption or needs additional
+transforms not supported in a typical `chain` context, use an
+`extra_transforms` block.
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: /path/to/input*.csv
+
+    - type: MapToFields
+      name: SomeStep
+      config:
+        language: python
+        fields:
+          col1: col1
+          # This could raise a divide-by-zero error.
+          ratio: col2 / col3
+        error_handling:
+          output: errors
+
+    - type: MapToFields
+      name: AnotherStep
+      config:
+        language: python
+        fields:
+          col1: col1
+          # This could raise a divide-by-zero error.
+          inverse_ratio: 1 / ratio
+        error_handling:
+          output: errors
+
+    - type: WriteToJson
+      config:
+        path: /path/to/output.json
+
+  extra_transforms:
+    - type: WriteToJson
+      name: WriteErrors
+      input: [SomeStep.errors, AnotherStep.errors]
+      config:
+        path: /path/to/errors.json
+```
+
 ### Source and sink transforms
 
 As syntactic sugar, you can name the first and last transforms in your pipeline
@@ -662,7 +708,7 @@ the yaml file can be parameterized with externally provided variables using
 the [jinja variable syntax](https://jinja.palletsprojects.com/en/stable/templates/#variables).
 The values are then passed via a `--jinja_variables` command line flag.
 
-For example, one could start a pipeline with
+For example, one could start a pipeline with:
 
 ```
 pipeline:
@@ -695,6 +741,80 @@ or writing dated sources and sinks, e.g.
 ```
 
 would write to files like `gs://path/to/2016/08/04/dated-output*.json`.
+
+A user can also use the `% include` directive to pull in other common templates:
+
+<PATH_TO_YOUR_REPO>/pipeline.yaml
+```yaml
+pipeline:
+  transforms:
+    - name: Read from GCS
+      type: ReadFromText
+      config:
+# NOTE: For include, the indentation has to line up correctly for it to be
+# parsed correctly. So in this example the included readFromText.yaml has
+# already indented yaml lines to line up correctly when including into this
+# pipeline here.
+{% include '<PATH_TO_YOUR_REPO>/submodules/readFromText.yaml' %}
+    - name: Write to GCS
+      type: WriteToText
+      input: Read from GCS
+      config:
+        path: "gs://MY-BUCKET/wordCounts/"
+```
+
+<PATH_TO_YOUR_REPO>/submodules/readFromText.yaml
+```yaml
+        path: {{readFromText.path}}
+```
+
+This pipeline can be run like this:
+
+```sh
+python -m apache_beam.yaml.main \
+    --yaml_pipeline_file=pipeline.yaml \
+    --jinja_variables='{"readFromText": {"path": "gs://dataflow-samples/shakespeare/kinglear.txt"}}'
+```
+
+The `% import` jinja directive can also be used to pull in macros:
+
+<PATH_TO_YOUR_REPO>/pipeline.yaml
+```yaml
+{% import '<PATH_TO_YOUR_REPO>/macros.yaml' as macros %}
+
+pipeline:
+  type: chain
+  transforms:
+
+# Read in text file
+{{ macros.readFromText(readFromText) | indent(4, true) }}
+
+# Write to text file on GCS, locally, etc
+    - name: Write to GCS
+      type: WriteToText
+      input: Read from GCS
+      config:
+        path: "gs://MY-BUCKET/wordCounts/"
+```
+
+<PATH_TO_YOUR_REPO>/macros.yaml
+```yaml
+{%- macro readFromText(params) -%}
+- name: Read from GCS
+  type: ReadFromText
+  config:
+    path: "{{ params.path }}"
+{%- endmacro -%}
+```
+
+This pipeline can be run with the same command as in the `% include` example
+above.
+
+There are many more ways to import and even use template inheritance using
+Jinja as seen [here](https://jinja.palletsprojects.com/en/stable/templates/#import)
+and [here](https://jinja.palletsprojects.com/en/stable/templates/#inheritance).
+
+Full jinja pipeline examples can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/jinja).
 
 ## Other Resources
 

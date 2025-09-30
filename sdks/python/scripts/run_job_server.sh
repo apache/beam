@@ -27,6 +27,11 @@ END
 
 JOB_PORT=8099
 ARTIFACT_PORT=8098
+if [[ -n "$JAVA_HOME" ]]; then
+  JAVA_CMD="$JAVA_HOME/bin/java"
+else
+  JAVA_CMD="java"
+fi
 
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -102,7 +107,7 @@ case $STARTSTOP in
     fi
 
     echo "Launching job server @ $JOB_PORT ..."
-    java -jar $JOB_SERVER_JAR --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 $ADDITIONAL_ARGS >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
+    "$JAVA_CMD" -jar $JOB_SERVER_JAR --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 $ADDITIONAL_ARGS >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
     mypid=$!
     if kill -0 $mypid >/dev/null 2>&1; then
       echo $mypid >> $pid

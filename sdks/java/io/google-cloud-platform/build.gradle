@@ -31,7 +31,17 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 dependencies {
-  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation(enforcedPlatform(library.java.google_cloud_platform_libraries_bom)) {
+    // TODO(https://github.com/apache/beam/issues/35868) remove exclude after upstream and/or tests fixed
+    exclude group: "com.google.cloud", module: "google-cloud-spanner"
+    exclude group: "com.google.api.grpc", module: "proto-google-cloud-spanner-v1"
+    exclude group: "com.google.api.grpc", module: "proto-google-cloud-spanner-admin-instance-v1"
+    exclude group: "com.google.api.grpc", module: "proto-google-cloud-spanner-admin-database-v1"
+    exclude group: "com.google.api.grpc", module: "grpc-google-cloud-spanner-v1"
+    exclude group: "com.google.api.grpc", module: "grpc-google-cloud-spanner-admin-instance-v1"
+    exclude group: "com.google.api.grpc", module: "grpc-google-cloud-spanner-admin-database-v1"
+  }
+  implementation(enforcedPlatform(library.java.google_cloud_spanner_bom))
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(path: ":sdks:java:core", configuration: "shadow")

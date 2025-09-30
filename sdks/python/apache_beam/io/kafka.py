@@ -45,7 +45,8 @@
   pipeline.
 
   * Install Java runtime in the computer from where the pipeline is constructed
-    and make sure that 'java' command is available.
+    and make sure that 'java' command is available or set JAVA_HOME environment
+    variable.
 
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) an expansion service jar and use
@@ -123,6 +124,7 @@ ReadFromKafkaSchema = typing.NamedTuple(
         ('redistribute', typing.Optional[bool]),
         ('redistribute_num_keys', typing.Optional[np.int32]),
         ('allow_duplicates', typing.Optional[bool]),
+        ('dynamic_read_poll_interval_seconds', typing.Optional[int]),
     ])
 
 
@@ -170,6 +172,7 @@ class ReadFromKafka(ExternalTransform):
       redistribute=False,
       redistribute_num_keys=np.int32(0),
       allow_duplicates=False,
+      dynamic_read_poll_interval_seconds: typing.Optional[int] = None,
   ):
     """
     Initializes a read operation from Kafka.
@@ -194,7 +197,7 @@ class ReadFromKafka(ExternalTransform):
     :param timestamp_policy: The built-in timestamp policy which is used for
         extracting timestamp from KafkaRecord.
     :param consumer_polling_timeout: Kafka client polling request
-        timeout time in seconds. A lower timeout optimizes for latency. Increase                                   
+        timeout time in seconds. A lower timeout optimizes for latency. Increase
         the timeout if the consumer is not fetching any records. Default is 2
         seconds.
     :param with_metadata: whether the returned PCollection should contain
@@ -204,12 +207,15 @@ class ReadFromKafka(ExternalTransform):
         this only works when using default key and value deserializers where
         Java Kafka Reader reads keys and values as 'byte[]'.
     :param expansion_service: The address (host:port) of the ExpansionService.
-    :param redistribute: whether a Redistribute transform should be applied 
+    :param redistribute: whether a Redistribute transform should be applied
         immediately after the read.
-    :param redistribute_num_keys: Configures how many keys the Redistribute 
+    :param redistribute_num_keys: Configures how many keys the Redistribute
         spreads the data across.
-    :param allow_duplicates: whether the Redistribute transform allows for 
+    :param allow_duplicates: whether the Redistribute transform allows for
         duplicates (this serves solely as a hint to the underlying runner).
+    :param dynamic_read_poll_interval_seconds: The interval in seconds at which
+        to check for new partitions. If not None, dynamic partition discovery
+        is enabled.
     """
     if timestamp_policy not in [ReadFromKafka.processing_time_policy,
                                 ReadFromKafka.create_time_policy,
@@ -234,7 +240,9 @@ class ReadFromKafka(ExternalTransform):
                 consumer_polling_timeout=consumer_polling_timeout,
                 redistribute=redistribute,
                 redistribute_num_keys=redistribute_num_keys,
-                allow_duplicates=allow_duplicates)),
+                allow_duplicates=allow_duplicates,
+                dynamic_read_poll_interval_seconds=
+                dynamic_read_poll_interval_seconds)),
         expansion_service or default_io_expansion_service())
 
 

@@ -51,7 +51,7 @@ public abstract class DataflowExecutionStateRegistry {
   public DataflowOperationContext.DataflowExecutionState getState(
       final NameContext nameContext,
       final String stateName,
-      final MetricsContainer container,
+      final @Nullable MetricsContainer container,
       final ProfileScope profileScope) {
     return getStateInternal(nameContext, stateName, null, null, container, profileScope);
   }

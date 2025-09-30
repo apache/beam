@@ -72,7 +72,7 @@ dependencies {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
-  testImplementation library.java.avro_tests
+  testImplementation project(path: ":sdks:java:extensions:avro:vendored-test", configuration: "shadowTest")
   testImplementation library.java.junit
   testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

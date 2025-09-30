@@ -56,7 +56,6 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RunnerPCollectionView;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
@@ -68,6 +67,8 @@ import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.samza.operators.MessageStream;
@@ -262,8 +263,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
               .getInputsOrThrow(sideInputId.getLocalName());
       final WindowingStrategy<?, BoundedWindow> windowingStrategy =
           WindowUtils.getWindowStrategy(sideInputCollectionId, components);
-      final WindowedValue.WindowedValueCoder<?> coder =
-          (WindowedValue.WindowedValueCoder) instantiateCoder(sideInputCollectionId, components);
+      final WindowedValues.WindowedValueCoder<?> coder =
+          (WindowedValues.WindowedValueCoder) instantiateCoder(sideInputCollectionId, components);
 
       // Create a runner-side view
       final PCollectionView<?> view = createPCollectionView(sideInputId, coder, windowingStrategy);
@@ -305,7 +306,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
               index.incrementAndGet();
             });
 
-    WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
+    WindowedValues.WindowedValueCoder<InT> windowedInputCoder =
         WindowUtils.instantiateWindowedCoder(inputId, pipeline.getComponents());
 
     // TODO: support schema and side inputs for portable runner
@@ -321,7 +322,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final Coder<?> timerKeyCoder =
         stagePayload.getTimersCount() > 0
             ? ((KvCoder)
-                    ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder())
+                    ((WindowedValues.FullWindowedValueCoder) windowedInputCoder).getValueCoder())
                 .getKeyCoder()
             : null;
 
@@ -463,7 +464,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
   // PCollectionView to represent a portable side input.
   private static PCollectionView<?> createPCollectionView(
       SideInputId sideInputId,
-      WindowedValue.WindowedValueCoder<?> coder,
+      WindowedValues.WindowedValueCoder<?> coder,
       WindowingStrategy<?, BoundedWindow> windowingStrategy) {
 
     return new RunnerPCollectionView<>(
@@ -484,7 +485,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
           String sideInputCollectionId,
           RunnerApi.PCollection sideInputPCollection,
           WindowingStrategy<SideInputT, BoundedWindow> windowingStrategy,
-          WindowedValue.WindowedValueCoder<SideInputT> coder,
+          WindowedValues.WindowedValueCoder<SideInputT> coder,
           PortableTranslationContext ctx) {
     final MessageStream<OpMessage<SideInputT>> sideInput =
         ctx.getMessageStreamById(sideInputCollectionId);
@@ -494,7 +495,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
               WindowedValue<SideInputT> wv = opMessage.getElement();
               return OpMessage.ofElement(wv.withValue(KV.of(null, wv.getValue())));
             });
-    final WindowedValue.WindowedValueCoder<KV<Void, SideInputT>> kvCoder =
+    final WindowedValues.WindowedValueCoder<KV<Void, SideInputT>> kvCoder =
         coder.withValueCoder(KvCoder.of(VoidCoder.of(), coder.getValueCoder()));
     final MessageStream<OpMessage<KV<Void, Iterable<SideInputT>>>> groupedSideInput =
         GroupByKeyTranslator.doTranslatePortable(

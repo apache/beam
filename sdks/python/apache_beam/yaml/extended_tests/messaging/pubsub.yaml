@@ -1,0 +1,61 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: PS_TOPIC
+    type: "apache_beam.yaml.integration_tests.temp_pubsub_emulator"
+    config:
+      project_id: "apache-beam-testing"
+
+pipelines:
+  # Pubsub write pipeline
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {value: "11a"}
+              - {value: "37a"}
+              - {value: "389a"}
+        - type: WriteToPubSub
+          config:
+            topic: "{PS_TOPIC}"
+            format: "RAW"
+
+    options:
+      streaming: true
+
+
+# TODO: Current PubSubIO doesn't have a max_read_time_seconds parameter like 
+# Kafka does.  Without it, the ReadFromPubSub will run forever.  This is not a
+# trival change. For now, we will live with the mocked tests located
+# [here](https://github.com/apache/beam/blob/bea04446b41c86856c24d0a9761622092ed9936f/sdks/python/apache_beam/yaml/yaml_io_test.py#L83).
+
+  # - pipeline:
+  #     type: chain
+  #     transforms:
+  #       - type: ReadFromPubSub
+  #         config:
+  #           topic: "{PS_TOPIC}"
+  #           format: "RAW"
+  # # ...
+
+
+  #   options:
+  #     streaming: true
+

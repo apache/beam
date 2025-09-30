@@ -21,6 +21,7 @@ import static org.apache.beam.io.debezium.DebeziumIOPostgresSqlConnectorIT.TABLE
 import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -50,7 +51,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 
@@ -63,13 +66,20 @@ public class DebeziumIOMySqlConnectorIT {
    *
    * <p>Creates a docker container using the image used by the debezium tutorial.
    */
+  private static final DockerImageName KAFKA_IMAGE =
+      DockerImageName.parse("confluentinc/cp-kafka:7.6.0");
+
+  @ClassRule public static Network network = Network.newNetwork();
+
   @ClassRule
   public static final MySQLContainer<?> MY_SQL_CONTAINER =
       new MySQLContainer<>(
-              DockerImageName.parse("debezium/example-mysql:1.4")
+              DockerImageName.parse("quay.io/debezium/example-mysql:3.1.1.Final")
                   .asCompatibleSubstituteFor("mysql"))
           .withPassword("debezium")
           .withUsername("mysqluser")
+          .withNetwork(network)
+          .withNetworkAliases("mysql")
           .withExposedPorts(3306)
           .waitingFor(
               new HttpWaitStrategy()
@@ -77,16 +87,31 @@ public class DebeziumIOMySqlConnectorIT {
                   .forStatusCodeMatching(response -> response == 200)
                   .withStartupTimeout(Duration.ofMinutes(2)));
 
+  @ClassRule
+  public static final KafkaContainer KAFKA_CONTAINER =
+      new KafkaContainer(KAFKA_IMAGE)
+          .withNetwork(network)
+          .withNetworkAliases("kafka")
+          .dependsOn(MY_SQL_CONTAINER);
+
   public static DataSource getMysqlDatasource(Void unused) {
     HikariConfig hikariConfig = new HikariConfig();
-    hikariConfig.setJdbcUrl(MY_SQL_CONTAINER.getJdbcUrl());
+
+    String jdbcUrl =
+        String.format(
+            "jdbc:mysql://%s:%d/inventory?allowPublicKeyRetrieval=true",
+            MY_SQL_CONTAINER.getHost(), MY_SQL_CONTAINER.getMappedPort(3306));
+    LOG.info("Hikari DataSource JDBC URL for mysqluser: {}", jdbcUrl);
+
+    hikariConfig.setJdbcUrl(jdbcUrl);
     hikariConfig.setUsername(MY_SQL_CONTAINER.getUsername());
     hikariConfig.setPassword(MY_SQL_CONTAINER.getPassword());
+    hikariConfig.addDataSourceProperty("allowPublicKeyRetrieval", "true");
     hikariConfig.setDriverClassName(MY_SQL_CONTAINER.getDriverClassName());
     return new HikariDataSource(hikariConfig);
   }
 
-  private void monitorEssentialMetrics() {
+  private void monitorEssentialMetrics() throws SQLException {
     DataSource ds = getMysqlDatasource(null);
     try {
       Connection conn = ds.getConnection();
@@ -98,11 +123,16 @@ public class DebeziumIOMySqlConnectorIT {
           rs.close();
           Thread.sleep(4000);
         } else {
-          throw new IllegalArgumentException("OIOI");
+          throw new IllegalArgumentException(
+              "Illegal Argument Exception in monitorEssentialMetrics.");
         }
       }
-    } catch (InterruptedException | SQLException ex) {
-      throw new IllegalArgumentException("Oi", ex);
+    } catch (SQLException ex) {
+      LOG.error("SQL error in monitoring thread. Shutting down.", ex);
+      throw (ex);
+    } catch (InterruptedException ex) {
+      LOG.info("Monitoring thread interrupted. Shutting down.");
+      Thread.currentThread().interrupt();
     }
   }
 
@@ -110,7 +140,6 @@ public class DebeziumIOMySqlConnectorIT {
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
     long writeSize = 500L;
     long testTime = writeSize * 200L;
-    MY_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline writePipeline = Pipeline.create(options);
@@ -158,6 +187,17 @@ public class DebeziumIOMySqlConnectorIT {
                             .setHost("localhost")
                             .setTable("inventory.customers")
                             .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
+                            .setDebeziumConnectionProperties(
+                                Lists.newArrayList(
+                                    "database.server.id=1849055",
+                                    "schema.history.internal.kafka.bootstrap.servers="
+                                        + KAFKA_CONTAINER.getBootstrapServers(),
+                                    "schema.history.internal.kafka.topic=schema-history-mysql-transform-"
+                                        + System.nanoTime(),
+                                    "schema.history.internal=io.debezium.storage.kafka.history.KafkaSchemaHistory",
+                                    "schema.history.internal.store.only.captured.tables.ddl=false",
+                                    "table.include.list=inventory.customers",
+                                    "snapshot.mode=initial_only"))
                             .build()))
             .get("output");
 
@@ -169,13 +209,29 @@ public class DebeziumIOMySqlConnectorIT {
               return null;
             });
     Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
-    Thread monitorThread = new Thread(this::monitorEssentialMetrics);
+    Thread monitorThread =
+        new Thread(
+            () -> {
+              try {
+                monitorEssentialMetrics();
+              } catch (SQLException e) {
+                e.printStackTrace();
+                fail("Failed because of SQLException in monitorEssentialMetrics!");
+              }
+            });
     monitorThread.start();
     writeThread.start();
-    readPipeline.run().waitUntilFinish();
+
     writeThread.join();
+    LOG.info("Write thread for SchemaTransform test joined.");
+
+    LOG.info("Starting read pipeline for SchemaTransform test...");
+    readPipeline.run().waitUntilFinish();
+    LOG.info("Read pipeline for SchemaTransform test finished.");
+
     monitorThread.interrupt();
     monitorThread.join();
+    LOG.info("Monitor thread for SchemaTransform test joined.");
   }
 
   /**
@@ -185,9 +241,11 @@ public class DebeziumIOMySqlConnectorIT {
    */
   @Test
   public void testDebeziumIOMySql() {
-    MY_SQL_CONTAINER.start();
 
-    String host = MY_SQL_CONTAINER.getContainerIpAddress();
+    String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
+    String schemaHistoryTopic = "mysql-schema-history-io-" + System.nanoTime();
+
+    String host = MY_SQL_CONTAINER.getHost();
     String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -203,15 +261,24 @@ public class DebeziumIOMySqlConnectorIT {
                         .withHostName(host)
                         .withPort(port)
                         .withConnectionProperty("database.server.id", "184054")
-                        .withConnectionProperty("database.server.name", "dbserver1")
                         .withConnectionProperty("database.include.list", "inventory")
-                        .withConnectionProperty("include.schema.changes", "false"))
+                        .withConnectionProperty("include.schema.changes", "false")
+                        .withConnectionProperty(
+                            "schema.history.internal.kafka.bootstrap.servers",
+                            kafkaBootstrapServers)
+                        .withConnectionProperty(
+                            "schema.history.internal.kafka.topic", schemaHistoryTopic)
+                        .withConnectionProperty(
+                            "schema.history.internal",
+                            "io.debezium.storage.kafka.history.KafkaSchemaHistory")
+                        .withConnectionProperty(
+                            "schema.history.internal.store.only.captured.tables.ddl", "true"))
                 .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
                 .withMaxNumberOfRecords(30)
                 .withCoder(StringUtf8Coder.of()));
     String expected =
-        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"1.3.1.Final\",\"name\":\"dbserver1\","
-            + "\"database\":\"inventory\",\"schema\":\"mysql-bin.000003\",\"table\":\"addresses\"},\"before\":null,"
+        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"3.1.1.Final\",\"name\":\"beam-debezium-connector\","
+            + "\"database\":\"inventory\",\"schema\":\"binlog.000002\",\"table\":\"addresses\"},\"before\":null,"
             + "\"after\":{\"fields\":{\"zip\":\"76036\",\"city\":\"Euless\","
             + "\"street\":\"3183 Moore Avenue\",\"id\":10,\"state\":\"Texas\",\"customer_id\":1001,"
             + "\"type\":\"SHIPPING\"}}}";
@@ -224,6 +291,5 @@ public class DebeziumIOMySqlConnectorIT {
             });
 
     p.run().waitUntilFinish();
-    MY_SQL_CONTAINER.stop();
   }
 }

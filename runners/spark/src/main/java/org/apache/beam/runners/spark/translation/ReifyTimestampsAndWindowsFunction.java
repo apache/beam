@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.spark.api.java.function.Function;
 
 /**
@@ -32,7 +33,10 @@ public class ReifyTimestampsAndWindowsFunction<K, V>
   public KV<K, WindowedValue<V>> call(WindowedValue<KV<K, V>> elem) throws Exception {
     return KV.of(
         elem.getValue().getKey(),
-        WindowedValue.of(
-            elem.getValue().getValue(), elem.getTimestamp(), elem.getWindows(), elem.getPane()));
+        WindowedValues.of(
+            elem.getValue().getValue(),
+            elem.getTimestamp(),
+            elem.getWindows(),
+            elem.getPaneInfo()));
   }
 }

@@ -1,0 +1,124 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The pipeline reads structured logs from an Iceberg table, applied
+# ML-specific transformations before writing them to a BigQuery table.
+
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromIceberg
+      name: ReadFromIceberg
+      config:
+        table: "logs_dataset.logs_hdfs"
+        catalog_name: "rest_catalog"
+        catalog_properties:
+          warehouse: "{{ WAREHOUSE }}"
+          catalog-impl: "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog"
+          io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
+          gcp_project: "{{ PROJECT }}"
+          gcp_location: "{{ REGION }}"
+
+    - type: MapToFields
+      name: MapToFields
+      config:
+        language: python
+        append: true
+        fields:
+          embedding:
+            callable: |
+              def fn(row):
+                line = [row.Date, row.Time, row.Level, row.Process,
+                    row.Component, row.Content]
+                return " ".join(line)
+
+    - type: MLTransform
+      name: Embedding
+      config:
+        write_artifact_location: "./beam-ml-artifacts"
+        transforms:
+          - type: SentenceTransformerEmbeddings
+            config: { model_name: all-MiniLM-L6-v2, columns: [ embedding ] }
+
+    - type: MapToFields
+      name: SchemaMapping
+      config:
+        language: python
+        fields:
+          id:
+            callable: "lambda row: row.LineId"
+            output_type: integer
+          date:
+            callable: "lambda row: row.Date"
+            output_type: string
+          time:
+            callable: "lambda row: row.Time"
+            output_type: string
+          level:
+            callable: "lambda row: row.Level"
+            output_type: string
+          process:
+            callable: "lambda row: row.Process"
+            output_type: string
+          component:
+            callable: "lambda row: row.Component"
+            output_type: string
+          content:
+            callable: "lambda row: row.Content"
+            output_type: string
+          embedding:
+            callable: "lambda row: row.embedding"
+            output_type:
+              type: array
+              items:
+                type: number
+
+    - type: MapToFields
+      name: Normalize
+      config:
+        language: python
+        append: true
+        drop: [embedding]
+        fields:
+          embedding:
+            callable: |
+              import numpy as np
+              
+              def normalize(row):
+                  embedding = row.embedding
+                  norm = np.linalg.norm(embedding)
+                  return embedding / norm
+            output_type:
+              type: array
+              items:
+                type: number
+
+    - type: WriteToBigQuery
+      name: WriteToBigQuery
+      config:
+        table: "{{ BQ_TABLE }}"
+        write_disposition: "WRITE_TRUNCATE"
+        create_disposition: "CREATE_IF_NEEDED"
+
+options:
+  yaml_experimental_features: [ 'ML' ]
+
+# Expected:
+#  Row(id=1, date='2024-10-01', time='12:00:00', level='INFO', process='Main', component='ComponentA', content='System started successfully', embedding=[0.13483997249264842, 0.26967994498529685, 0.40451991747794525, 0.5393598899705937, 0.674199862463242])
+#  Row(id=2, date='2024-10-01', time='12:00:05', level='WARN', process='Main', component='ComponentA', content='Memory usage is high', embedding=[0.13483997249264842, 0.26967994498529685, 0.40451991747794525, 0.5393598899705937, 0.674199862463242])
+#  Row(id=3, date='2024-10-01', time='12:00:10', level='ERROR', process='Main', component='ComponentA', content='Task failed due to timeout', embedding=[0.13483997249264842, 0.26967994498529685, 0.40451991747794525, 0.5393598899705937, 0.674199862463242])

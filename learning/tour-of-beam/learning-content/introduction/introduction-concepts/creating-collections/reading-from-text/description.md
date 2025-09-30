@@ -23,7 +23,7 @@ Each data source adapter has a Read transform; to read, you must apply that tran
 func main() {
     ctx := context.Background()
 
-    // First create pipline
+    // First create pipeline
     p, s := beam.NewPipelineWithRoot()
 
     // Now create the PCollection by reading text files. Separate elements will be added for each line in the input file
@@ -49,7 +49,7 @@ public static void main(String[] args) {
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-# First create pipline
+# First create pipeline
 with beam.Pipeline() as p:
 
     # Now create the PCollection by reading text files. Separate elements will be added for each line in the input file

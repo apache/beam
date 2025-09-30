@@ -31,7 +31,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.ShardedKey;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -41,6 +40,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -226,14 +227,14 @@ class WriteUngroupedRowsToFiles
     public void processElement(
         @Element KV<String, Row> element,
         BoundedWindow window,
-        PaneInfo pane,
+        PaneInfo paneInfo,
         MultiOutputReceiver out)
         throws Exception {
       String dest = element.getKey();
       Row data = element.getValue();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(dest);
       WindowedValue<IcebergDestination> windowedDestination =
-          WindowedValue.of(destination, window.maxTimestamp(), window, pane);
+          WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
 
       // Attempt to write record. If the writer is saturated and cannot accept
       // the record, spill it over to WriteGroupedRowsToFiles

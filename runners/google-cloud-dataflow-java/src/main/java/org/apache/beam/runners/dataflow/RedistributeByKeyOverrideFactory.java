@@ -17,15 +17,10 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import java.util.Collections;
 import org.apache.beam.runners.dataflow.internal.DataflowGroupByKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
@@ -138,12 +133,14 @@ class RedistributeByKeyOverrideFactory<K, V>
 
                 @ProcessElement
                 public void processElement(
-                    @Element KV<K, ValueInSingleWindow<V>> kv, OutputReceiver<KV<K, V>> r) {
-                  r.outputWindowedValue(
-                      KV.of(kv.getKey(), kv.getValue().getValue()),
-                      kv.getValue().getTimestamp(),
-                      Collections.singleton(kv.getValue().getWindow()),
-                      kv.getValue().getPane());
+                    @Element KV<K, ValueInSingleWindow<V>> kv,
+                    OutputReceiver<KV<K, V>> outputReceiver) {
+                  outputReceiver
+                      .builder(KV.of(kv.getKey(), kv.getValue().getValue()))
+                      .setTimestamp(kv.getValue().getTimestamp())
+                      .setWindow(kv.getValue().getWindow())
+                      .setPaneInfo(kv.getValue().getPaneInfo())
+                      .output();
                 }
               }));
     }

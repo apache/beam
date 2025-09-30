@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -46,9 +45,11 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
@@ -108,7 +109,7 @@ public class SimpleDoFnRunnerTest {
     thrown.expect(UserCodeException.class);
     thrown.expectCause(is(fn.exceptionToThrow));
 
-    runner.processElement(WindowedValue.valueInGlobalWindow("anyValue"));
+    runner.processElement(WindowedValues.valueInGlobalWindow("anyValue"));
   }
 
   @Test
@@ -170,7 +171,7 @@ public class SimpleDoFnRunnerTest {
     Instant currentTime = new Instant(42);
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(currentTime);
 
-    runner.processElement(WindowedValue.valueInGlobalWindow("anyValue"));
+    runner.processElement(WindowedValues.valueInGlobalWindow("anyValue"));
 
     verify(mockTimerInternals)
         .setTimer(
@@ -303,14 +304,14 @@ public class SimpleDoFnRunnerTest {
     runner.startBundle();
     // An element output at the current timestamp is fine.
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(Duration.ZERO, new Instant(0)));
+        WindowedValues.timestampedValueInGlobalWindow(Duration.ZERO, new Instant(0)));
     Exception exception =
         assertThrows(
             UserCodeException.class,
             () -> {
               // An element output before (current time - skew) is forbidden
               runner.processElement(
-                  WindowedValue.timestampedValueInGlobalWindow(
+                  WindowedValues.timestampedValueInGlobalWindow(
                       Duration.millis(1L), new Instant(0)));
             });
 
@@ -354,7 +355,8 @@ public class SimpleDoFnRunnerTest {
     runner.startBundle();
     // Outputting between "now" and "now - allowed skew" succeeds.
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(Duration.standardMinutes(5L), new Instant(0)));
+        WindowedValues.timestampedValueInGlobalWindow(
+            Duration.standardMinutes(5L), new Instant(0)));
 
     Exception exception =
         assertThrows(
@@ -362,7 +364,7 @@ public class SimpleDoFnRunnerTest {
             () -> {
               // Outputting before "now - allowed skew" fails.
               runner.processElement(
-                  WindowedValue.timestampedValueInGlobalWindow(
+                  WindowedValues.timestampedValueInGlobalWindow(
                       Duration.standardHours(1L), new Instant(0)));
             });
 
@@ -405,12 +407,12 @@ public class SimpleDoFnRunnerTest {
 
     runner.startBundle();
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(Duration.millis(1L), new Instant(0)));
+        WindowedValues.timestampedValueInGlobalWindow(Duration.millis(1L), new Instant(0)));
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(
+        WindowedValues.timestampedValueInGlobalWindow(
             Duration.millis(1L), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1))));
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(
+        WindowedValues.timestampedValueInGlobalWindow(
             // This is the maximum amount a timestamp in beam can move (from the maximum timestamp
             // to the minimum timestamp).
             Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis())
@@ -444,7 +446,7 @@ public class SimpleDoFnRunnerTest {
     runner.startBundle();
     // A timer with output timestamp at the current timestamp is fine.
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(KV.of("1", Duration.ZERO), new Instant(0)));
+        WindowedValues.timestampedValueInGlobalWindow(KV.of("1", Duration.ZERO), new Instant(0)));
 
     Exception exception =
         assertThrows(
@@ -452,7 +454,7 @@ public class SimpleDoFnRunnerTest {
             () -> {
               // A timer with output timestamp before (current time - skew) is forbidden
               runner.processElement(
-                  WindowedValue.timestampedValueInGlobalWindow(
+                  WindowedValues.timestampedValueInGlobalWindow(
                       KV.of("2", Duration.millis(1L)), new Instant(0)));
             });
 
@@ -495,7 +497,7 @@ public class SimpleDoFnRunnerTest {
     runner.startBundle();
     // Timer with output timestamp between "now" and "now - allowed skew" succeeds.
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(
+        WindowedValues.timestampedValueInGlobalWindow(
             KV.of("1", Duration.standardMinutes(5L)), new Instant(0)));
 
     Exception exception =
@@ -504,7 +506,7 @@ public class SimpleDoFnRunnerTest {
             () -> {
               // A timer with output timestamp before (current time - skew) is forbidden
               runner.processElement(
-                  WindowedValue.timestampedValueInGlobalWindow(
+                  WindowedValues.timestampedValueInGlobalWindow(
                       KV.of("2", Duration.standardHours(1L)), new Instant(0)));
             });
 
@@ -547,14 +549,14 @@ public class SimpleDoFnRunnerTest {
 
     runner.startBundle();
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(
+        WindowedValues.timestampedValueInGlobalWindow(
             KV.of("1", Duration.millis(1L)), new Instant(0)));
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(
+        WindowedValues.timestampedValueInGlobalWindow(
             KV.of("2", Duration.millis(1L)),
             BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1))));
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(
+        WindowedValues.timestampedValueInGlobalWindow(
             KV.of(
                 "3",
                 // This is the maximum amount a timestamp in beam can move (from the maximum
@@ -788,11 +790,11 @@ public class SimpleDoFnRunnerTest {
     }
   }
 
-  private static class ListOutputManager implements OutputManager {
-    private ListMultimap<TupleTag<?>, WindowedValue<?>> outputs = ArrayListMultimap.create();
+  private static class ListOutputManager implements WindowedValueMultiReceiver {
+    private final ListMultimap<TupleTag<?>, WindowedValue<?>> outputs = ArrayListMultimap.create();
 
     @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+    public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
       outputs.put(tag, output);
     }
   }

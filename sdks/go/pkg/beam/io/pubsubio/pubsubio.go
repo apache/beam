@@ -52,32 +52,48 @@ func init() {
 
 // ReadOptions represents options for reading from PubSub.
 type ReadOptions struct {
-	Subscription       string
+	Topic              string // Topic sets the topic to be read from. A new subscription will be generated for the job. Mutually exclusive with setting a Subscription.
+	Subscription       string // Subscription sets the name of an existing subscription to read from. Mutually exclusive with setting a Topic.
 	IDAttribute        string
 	TimestampAttribute string
 	WithAttributes     bool
 }
 
 // Read reads an unbounded number of PubSubMessages from the given
-// pubsub topic. It produces an unbounded PCollecton<*PubSubMessage>,
+// pubsub topic or subscription. It produces an unbounded PCollecton<*PubSubMessage>,
 // if WithAttributes is set, or an unbounded PCollection<[]byte>.
-func Read(s beam.Scope, project, topic string, opts *ReadOptions) beam.PCollection {
+//
+// The topic or subscription is required and must be set with ReadOptions.
+func Read(s beam.Scope, project string, opts ReadOptions) beam.PCollection {
 	s = s.Scope("pubsubio.Read")
 
-	payload := &pipepb.PubSubReadPayload{
-		Topic: pubsubx.MakeQualifiedTopicName(project, topic),
-	}
-	if opts != nil {
-		payload.IdAttribute = opts.IDAttribute
-		payload.TimestampAttribute = opts.TimestampAttribute
-		if opts.Subscription != "" {
-			payload.Subscription = pubsubx.MakeQualifiedSubscriptionName(project, opts.Subscription)
-		}
-		payload.WithAttributes = opts.WithAttributes
+	// Validate: only one of Topic or Subscription should be set
+	if (opts.Topic == "" && opts.Subscription == "") || (opts.Topic != "" && opts.Subscription != "") {
+		panic("Exactly one of Topic or Subscription must be set in ReadOptions")
 	}
 
-	out := beam.External(s, readURN, protox.MustEncode(payload), nil, []beam.FullType{typex.New(reflectx.ByteSlice)}, false)
-	if opts != nil && opts.WithAttributes {
+	payload := &pipepb.PubSubReadPayload{}
+
+	if opts.Topic != "" {
+		payload.Topic = pubsubx.MakeQualifiedTopicName(project, opts.Topic)
+	} else {
+		payload.Subscription = pubsubx.MakeQualifiedSubscriptionName(project, opts.Subscription)
+	}
+
+	payload.IdAttribute = opts.IDAttribute
+	payload.TimestampAttribute = opts.TimestampAttribute
+	payload.WithAttributes = opts.WithAttributes
+
+	out := beam.External(
+		s,
+		readURN,
+		protox.MustEncode(payload),
+		nil,
+		[]beam.FullType{typex.New(reflectx.ByteSlice)},
+		false,
+	)
+
+	if opts.WithAttributes {
 		return beam.ParDo(s, unmarshalMessageFn, out[0])
 	}
 	return out[0]

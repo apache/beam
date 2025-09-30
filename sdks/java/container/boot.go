@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -196,25 +197,22 @@ func main() {
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
 	enableGoogleCloudHeapSampling := strings.Contains(options, enableGoogleCloudHeapSamplingOption)
 	if enableGoogleCloudProfiler {
-		if metadata := info.GetMetadata(); metadata != nil {
-			if jobName, nameExists := metadata["job_name"]; nameExists {
-				if jobId, idExists := metadata["job_id"]; idExists {
-					if enableGoogleCloudHeapSampling {
-						args = append(args, fmt.Sprintf(googleCloudProfilerAgentHeapArgs, jobName, jobId))
-					} else {
-						args = append(args, fmt.Sprintf(googleCloudProfilerAgentBaseArgs, jobName, jobId))
-					}
-					logger.Printf(ctx, "Turning on Cloud Profiling. Profile heap: %t", enableGoogleCloudHeapSampling)
-				} else {
-					logger.Printf(ctx, "Required job_id missing from metadata, profiling will not be enabled without it.")
-				}
-			} else {
-				logger.Printf(ctx, "Required job_name missing from metadata, profiling will not be enabled without it.")
-			}
-		} else {
-			logger.Printf(ctx, "enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled.")
-		}
-	}
+		metadata := info.GetMetadata()
+	    profilerServiceName := ExtractProfilerServiceName(options, metadata)
+
+	    if profilerServiceName != "" {
+		   if jobId, idExists := metadata["job_id"]; idExists {
+			   if enableGoogleCloudHeapSampling {
+				   args = append(args, fmt.Sprintf(googleCloudProfilerAgentHeapArgs, profilerServiceName, jobId))
+			   } else {
+				   args = append(args, fmt.Sprintf(googleCloudProfilerAgentBaseArgs, profilerServiceName, jobId))
+			   }
+			   logger.Printf(ctx, "Turning on Cloud Profiling. Profile heap: %t, service: %s", enableGoogleCloudHeapSampling, profilerServiceName)
+		   } else {
+			   logger.Printf(ctx, "job_id is missing from metadata. Cannot enable profiling.")
+		   }
+	    }
+    }
 
 	disableJammAgent := strings.Contains(options, disableJammAgentOption)
 	if disableJammAgent {
@@ -222,12 +220,25 @@ func main() {
 	} else {
 		args = append(args, jammAgentArgs)
 	}
+
+	// If heap dumping is enabled, configure the JVM to dump it on oom events.
+	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
+		if heapDumpOption, ok := pipelineOptions.GetStructValue().GetFields()["enableHeapDumps"]; ok {
+			if heapDumpOption.GetBoolValue() {
+				args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
+					"-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
+					"-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
+			}
+		}
+	}
+
 	// Apply meta options
 	const metaDir = "/opt/apache/beam/options"
 
-	// Note: Error is unchecked, so parsing errors won't abort container.
-	// TODO: verify if it's intentional or not.
-	metaOptions, _ := LoadMetaOptions(ctx, logger, metaDir)
+	metaOptions, err := LoadMetaOptions(ctx, logger, metaDir)
+	if err != nil {
+		logger.Errorf(ctx, "LoadMetaOptions failed: %v", err)
+	}
 
 	javaOptions := BuildOptions(ctx, logger, metaOptions)
 	// (1) Add custom jvm arguments: "-server -Xmx1324 -XXfoo .."
@@ -412,4 +423,56 @@ func BuildOptions(ctx context.Context, logger *tools.Logger, metaOptions []*Meta
 		options.Classpath = append(options.Classpath, meta.Options.Classpath...)
 	}
 	return options
+}
+
+func ExtractProfilerServiceName(options string, metadata map[string]string) string {
+	const profilerKeyPrefix = "enable_google_cloud_profiler="
+
+	var profilerServiceName string
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(options), &parsed); err != nil {
+		return ""
+	}
+
+	displayData, ok := parsed["display_data"].([]interface{})
+	if !ok {
+		return ""
+	}
+
+	for _, item := range displayData {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if entry["key"] == "dataflowServiceOptions" {
+			rawValue, ok := entry["value"].(string)
+			if !ok {
+				continue
+			}
+			cleaned := strings.Trim(rawValue, "[]")
+			opts := strings.Split(cleaned, ",")
+			for _, opt := range opts {
+				opt = strings.TrimSpace(opt)
+				if strings.HasPrefix(opt, profilerKeyPrefix) {
+					parts := strings.SplitN(opt, "=", 2)
+					if len(parts) == 2 {
+						profilerServiceName = parts[1]
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback to job_name from metadata
+	if profilerServiceName == "" {
+		if jobName, exists := metadata["job_name"]; exists {
+			profilerServiceName = jobName
+		}else {
+            return errors.New("required job_name missing from metadata, profiling will not be enabled without it").Error()
+        }
+	}
+
+	return profilerServiceName
 }

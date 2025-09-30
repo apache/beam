@@ -21,17 +21,20 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import java.io.PrintWriter;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -58,7 +61,12 @@ public class AbstractWindmillStreamTest {
 
   private TestStream newStream(
       Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory) {
-    return new TestStream(clientFactory, streamRegistry, streamObserverFactory);
+    return new TestStream(
+        clientFactory,
+        streamRegistry,
+        streamObserverFactory,
+        Duration.ZERO,
+        Executors.newScheduledThreadPool(0));
   }
 
   @Test
@@ -139,34 +147,53 @@ public class AbstractWindmillStreamTest {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStreamTest.class);
 
     private final AtomicInteger numStarts = new AtomicInteger();
+    private final AtomicInteger numFlushPending = new AtomicInteger();
     private final AtomicInteger numHealthChecks = new AtomicInteger();
 
     private TestStream(
         Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory,
         Set<AbstractWindmillStream<?, ?>> streamRegistry,
-        StreamObserverFactory streamObserverFactory) {
+        StreamObserverFactory streamObserverFactory,
+        Duration halfCloseAfterTimeout,
+        ScheduledExecutorService executorService) {
       super(
           LoggerFactory.getLogger(AbstractWindmillStreamTest.class),
-          "Test",
           clientFactory,
           FluentBackoff.DEFAULT.backoff(),
           streamObserverFactory,
           streamRegistry,
           1,
-          "Test");
+          "Test",
+          java.time.Duration.of(halfCloseAfterTimeout.getMillis(), ChronoUnit.MILLIS),
+          executorService);
     }
 
     @Override
-    protected void onResponse(Integer response) {}
+    protected PhysicalStreamHandler newResponseHandler() {
+      return new PhysicalStreamHandler() {
 
-    @Override
-    protected void onNewStream() {
-      numStarts.incrementAndGet();
+        @Override
+        public void onResponse(Integer response) {}
+
+        @Override
+        public boolean hasPendingRequests() {
+          return false;
+        }
+
+        @Override
+        public void onDone(Status status) {}
+
+        @Override
+        public void appendHtml(PrintWriter writer) {}
+      };
     }
 
     @Override
-    protected boolean hasPendingRequests() {
-      return false;
+    protected void onFlushPending(boolean isNewStream) {
+      if (isNewStream) {
+        numStarts.incrementAndGet();
+      }
+      numFlushPending.incrementAndGet();
     }
 
     private void testSend() throws WindmillStreamShutdownException {
@@ -192,9 +219,6 @@ public class AbstractWindmillStreamTest {
 
     @Override
     protected void appendSpecificHtml(PrintWriter writer) {}
-
-    @Override
-    protected void shutdownInternal() {}
   }
 
   private static class TestCallStreamObserver extends CallStreamObserver<Integer> {

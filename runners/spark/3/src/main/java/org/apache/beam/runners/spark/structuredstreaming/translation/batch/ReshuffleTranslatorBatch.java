@@ -22,9 +22,9 @@ import static org.apache.spark.sql.functions.col;
 import java.io.IOException;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.internal.SQLConf;
 

@@ -55,9 +55,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -236,41 +236,41 @@ public class SimpleParDoFnTest {
 
     userParDoFn.startBundle(receiver, receiver1, receiver2, receiver3);
 
-    userParDoFn.processElement(WindowedValue.valueInGlobalWindow(3));
-    userParDoFn.processElement(WindowedValue.valueInGlobalWindow(42));
-    userParDoFn.processElement(WindowedValue.valueInGlobalWindow(666));
+    userParDoFn.processElement(WindowedValues.valueInGlobalWindow(3));
+    userParDoFn.processElement(WindowedValues.valueInGlobalWindow(42));
+    userParDoFn.processElement(WindowedValues.valueInGlobalWindow(666));
 
     userParDoFn.finishBundle();
 
     Object[] expectedReceivedElems = {
-      WindowedValue.valueInGlobalWindow("processing: 3"),
-      WindowedValue.valueInGlobalWindow("processing: 42"),
-      WindowedValue.valueInGlobalWindow("processing: 666"),
-      WindowedValue.valueInGlobalWindow("finished"),
+      WindowedValues.valueInGlobalWindow("processing: 3"),
+      WindowedValues.valueInGlobalWindow("processing: 42"),
+      WindowedValues.valueInGlobalWindow("processing: 666"),
+      WindowedValues.valueInGlobalWindow("finished"),
     };
     assertArrayEquals(expectedReceivedElems, receiver.receivedElems.toArray());
 
     Object[] expectedReceivedElems1 = {
-      WindowedValue.valueInGlobalWindow("tag1: processing: 3"),
-      WindowedValue.valueInGlobalWindow("tag1: processing: 42"),
-      WindowedValue.valueInGlobalWindow("tag1: processing: 666"),
-      WindowedValue.valueInGlobalWindow("tag1: finished"),
+      WindowedValues.valueInGlobalWindow("tag1: processing: 3"),
+      WindowedValues.valueInGlobalWindow("tag1: processing: 42"),
+      WindowedValues.valueInGlobalWindow("tag1: processing: 666"),
+      WindowedValues.valueInGlobalWindow("tag1: finished"),
     };
     assertArrayEquals(expectedReceivedElems1, receiver1.receivedElems.toArray());
 
     Object[] expectedReceivedElems2 = {
-      WindowedValue.valueInGlobalWindow("tag2: processing: 3"),
-      WindowedValue.valueInGlobalWindow("tag2: processing: 42"),
-      WindowedValue.valueInGlobalWindow("tag2: processing: 666"),
-      WindowedValue.valueInGlobalWindow("tag2: finished"),
+      WindowedValues.valueInGlobalWindow("tag2: processing: 3"),
+      WindowedValues.valueInGlobalWindow("tag2: processing: 42"),
+      WindowedValues.valueInGlobalWindow("tag2: processing: 666"),
+      WindowedValues.valueInGlobalWindow("tag2: finished"),
     };
     assertArrayEquals(expectedReceivedElems2, receiver2.receivedElems.toArray());
 
     Object[] expectedReceivedElems3 = {
-      WindowedValue.valueInGlobalWindow("tag3: processing: 3"),
-      WindowedValue.valueInGlobalWindow("tag3: processing: 42"),
-      WindowedValue.valueInGlobalWindow("tag3: processing: 666"),
-      WindowedValue.valueInGlobalWindow("tag3: finished"),
+      WindowedValues.valueInGlobalWindow("tag3: processing: 3"),
+      WindowedValues.valueInGlobalWindow("tag3: processing: 42"),
+      WindowedValues.valueInGlobalWindow("tag3: processing: 666"),
+      WindowedValues.valueInGlobalWindow("tag3: finished"),
     };
     assertArrayEquals(expectedReceivedElems3, receiver3.receivedElems.toArray());
   }
@@ -381,7 +381,7 @@ public class SimpleParDoFnTest {
     }
 
     try {
-      userParDoFn.processElement(WindowedValue.valueInGlobalWindow(3));
+      userParDoFn.processElement(WindowedValues.valueInGlobalWindow(3));
       fail("should have failed");
     } catch (Exception exn) {
       // Exception should be a UserCodeException since we're calling
@@ -453,7 +453,7 @@ public class SimpleParDoFnTest {
     thrown.expect(UserCodeException.class);
     thrown.expectCause(instanceOf(IllegalArgumentException.class));
     thrown.expectMessage("Unknown output tag");
-    userParDoFn.processElement(WindowedValue.valueInGlobalWindow(5));
+    userParDoFn.processElement(WindowedValues.valueInGlobalWindow(5));
   }
 
   @Test
@@ -513,7 +513,7 @@ public class SimpleParDoFnTest {
     // This test ensures proper behavior of the state sampling even with lazy initialization.
     try (Closeable trackerCloser = tracker.activate()) {
       try (Closeable processCloser = operationContext.enterProcess()) {
-        userParDoFn.processElement(WindowedValue.valueInGlobalWindow(5));
+        userParDoFn.processElement(WindowedValues.valueInGlobalWindow(5));
       }
     }
   }
@@ -603,7 +603,7 @@ public class SimpleParDoFnTest {
 
     parDoFn.startBundle(new TestReceiver());
     for (int input : inputData) {
-      parDoFn.processElement(WindowedValue.valueInGlobalWindow(input));
+      parDoFn.processElement(WindowedValues.valueInGlobalWindow(input));
     }
 
     return operationContext

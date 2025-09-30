@@ -28,9 +28,9 @@ import org.apache.beam.runners.twister2.Twister2BatchTranslationContext;
 import org.apache.beam.runners.twister2.translation.wrappers.Twister2EmptySource;
 import org.apache.beam.runners.twister2.translators.BatchTransformTranslator;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /** Flatten translator. */
 @SuppressWarnings({

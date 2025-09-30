@@ -82,11 +82,11 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment.MetricsEnvironmentState;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -589,10 +589,10 @@ public class ProcessBundleHandler {
       return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
     } catch (Exception e) {
       LOG.debug(
-          "Error processing bundle {} with bundleProcessor for {} after exception: {}",
+          "Error processing bundle {} with bundleProcessor for {} after exception",
           request.getInstructionId(),
           request.getProcessBundle().getProcessBundleDescriptorId(),
-          e.getMessage());
+          e);
       if (bundleProcessor != null) {
         // Make sure we clean up from the active set of bundle processors.
         bundleProcessorCache.discard(bundleProcessor);

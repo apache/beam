@@ -164,7 +164,7 @@ First, build a shaded JAR file that includes:
 ### Gradle build file
 ```groovy
 plugins {
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.gradleup.shadow' version '8.3.8'
     id 'application'
 }
 

@@ -207,6 +207,19 @@ public class GcsUtil {
 
   private static final FluentBackoff BACKOFF_FACTORY =
       FluentBackoff.DEFAULT.withMaxRetries(10).withInitialBackoff(Duration.standardSeconds(1));
+  private static final RetryDeterminer<IOException> RETRY_DETERMINER =
+      new RetryDeterminer<IOException>() {
+        @Override
+        public boolean shouldRetry(IOException e) {
+          if (e instanceof GoogleJsonResponseException) {
+            int statusCode = ((GoogleJsonResponseException) e).getStatusCode();
+            return statusCode == 408 // Request Timeout
+                || statusCode == 429 // Too many requests
+                || (statusCode >= 500 && statusCode < 600); // Server errors
+          }
+          return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+        }
+      };
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -863,7 +876,7 @@ public class GcsUtil {
               if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
                 return false;
               }
-              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+              return RETRY_DETERMINER.shouldRetry(e);
             }
           },
           IOException.class,
@@ -902,7 +915,7 @@ public class GcsUtil {
               if (errorExtractor.itemAlreadyExists(e) || errorExtractor.accessDenied(e)) {
                 return false;
               }
-              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+              return RETRY_DETERMINER.shouldRetry(e);
             }
           },
           IOException.class,
@@ -940,7 +953,7 @@ public class GcsUtil {
               if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
                 return false;
               }
-              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+              return RETRY_DETERMINER.shouldRetry(e);
             }
           },
           IOException.class,
@@ -977,7 +990,7 @@ public class GcsUtil {
 
     try {
       try {
-        MoreFutures.get(MoreFutures.allAsList(futures));
+        MoreFutures.get(MoreFutures.allOf(futures));
       } catch (ExecutionException e) {
         if (e.getCause() instanceof FileNotFoundException) {
           throw (FileNotFoundException) e.getCause();

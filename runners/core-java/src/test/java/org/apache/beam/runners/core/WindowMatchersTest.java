@@ -19,9 +19,10 @@ package org.apache.beam.runners.core;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -39,7 +40,7 @@ public class WindowMatchersTest {
     long windowEnd = 200;
 
     assertThat(
-        WindowedValue.of(
+        WindowedValues.of(
             "hello",
             new Instant(timestamp),
             new IntervalWindow(new Instant(windowStart), new Instant(windowEnd)),
@@ -60,7 +61,7 @@ public class WindowMatchersTest {
     long windowEnd2 = 150;
 
     assertThat(
-        WindowedValue.of(
+        WindowedValues.of(
             "hello",
             new Instant(timestamp),
             ImmutableList.of(
@@ -74,5 +75,30 @@ public class WindowMatchersTest {
                 new IntervalWindow(new Instant(windowStart), new Instant(windowEnd)),
                 new IntervalWindow(new Instant(windowStart2), new Instant(windowEnd2))),
             PaneInfo.NO_FIRING));
+  }
+
+  @Test
+  public void test_IsValueInGlobalWindow_TimestampedValueInGlobalWindow() {
+    assertThat(
+        WindowedValues.timestampedValueInGlobalWindow("foo", new Instant(7)),
+        WindowMatchers.isValueInGlobalWindow("foo", new Instant(7)));
+
+    assertThat(
+        WindowedValues.timestampedValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
+        WindowMatchers.isValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE));
+
+    assertThat(
+        WindowedValues.timestampedValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
+        WindowMatchers.isValueInGlobalWindow("foo"));
+  }
+
+  @Test
+  public void test_IsValueInGlobalWindow_ValueInGlobalWindow() {
+    assertThat(
+        WindowedValues.valueInGlobalWindow("foo"), WindowMatchers.isValueInGlobalWindow("foo"));
+
+    assertThat(
+        WindowedValues.valueInGlobalWindow("foo"),
+        WindowMatchers.isValueInGlobalWindow("foo", BoundedWindow.TIMESTAMP_MIN_VALUE));
   }
 }

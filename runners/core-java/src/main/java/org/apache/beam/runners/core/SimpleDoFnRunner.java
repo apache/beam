@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -52,12 +51,16 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
@@ -93,7 +96,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private final DoFnInvoker<InputT, OutputT> invoker;
 
   private final SideInputReader sideInputReader;
-  private final OutputManager outputManager;
+  private final WindowedValueMultiReceiver outputManager;
 
   private final TupleTag<OutputT> mainOutputTag;
   /** The set of known output tags. */
@@ -112,7 +115,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   final @Nullable SchemaCoder<OutputT> mainOutputSchemaCoder;
 
-  private @Nullable Map<TupleTag<?>, Coder<?>> outputCoders;
+  private final @Nullable Map<TupleTag<?>, Coder<?>> outputCoders;
 
   private final @Nullable DoFnSchemaInformation doFnSchemaInformation;
 
@@ -123,7 +126,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
-      OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
@@ -331,7 +334,36 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
       @Override
       public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-        outputWindowedValue(tag, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        outputWindowedValue(tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
+      }
+
+      @Override
+      public void output(
+          OutputT output,
+          Instant timestamp,
+          BoundedWindow window,
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
+        output(mainOutputTag, output, timestamp, window, currentRecordId, currentRecordOffset);
+      }
+
+      @Override
+      public <T> void output(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          BoundedWindow window,
+          @Nullable String currentRecordId,
+          @Nullable Long currentRecordOffset) {
+        outputWindowedValue(
+            tag,
+            WindowedValues.of(
+                output,
+                timestamp,
+                Collections.singletonList(window),
+                PaneInfo.NO_FIRING,
+                currentRecordId,
+                currentRecordOffset));
       }
     }
 
@@ -365,6 +397,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
+    private final OutputBuilderSupplier builderSupplier;
+
     /**
      * The state namespace for this context.
      *
@@ -382,6 +416,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private DoFnProcessContext(WindowedValue<InputT> elem) {
       fn.super();
       this.elem = elem;
+      this.builderSupplier = OutputBuilderSuppliers.supplierForElement(elem);
     }
 
     @Override
@@ -404,7 +439,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public PaneInfo pane() {
-      return elem.getPane();
+      return elem.getPaneInfo();
     }
 
     @Override
@@ -427,6 +462,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
       SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
@@ -436,7 +489,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
-      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPane());
+      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
     }
 
     @Override
@@ -446,13 +499,47 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
+      builderSupplier
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(
+              wv -> {
+                checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
+                SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
+              })
+          .output();
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
     public Instant timestamp() {
       return elem.getTimestamp();
+    }
+
+    @Override
+    public String currentRecordId() {
+      return elem.getRecordId();
+    }
+
+    @Override
+    public Long currentRecordOffset() {
+      return elem.getRecordOffset();
     }
 
     public Collection<? extends BoundedWindow> windows() {
@@ -531,17 +618,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, builderSupplier, mainOutputTag);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          this, builderSupplier, mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier, outputCoders);
     }
 
     @Override
@@ -637,6 +725,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final TimeDomain timeDomain;
     private final String timerId;
     private final KeyT key;
+    private final OutputBuilderSupplier builderSupplier;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
@@ -669,6 +758,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
       this.key = key;
+      this.builderSupplier =
+          OutputBuilderSuppliers.supplierForElement(
+              WindowedValues.builder()
+                  .setValue(null)
+                  .setTimestamp(timestamp)
+                  .setWindow(window)
+                  .setPaneInfo(PaneInfo.NO_FIRING));
     }
 
     @Override
@@ -755,17 +851,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, builderSupplier, mainOutputTag);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          this, builderSupplier, mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      // ... what to doooo 0...
+      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier, outputCoders);
     }
 
     @Override
@@ -867,6 +965,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkTimestamp(timestamp(), timestamp);
       outputWithTimestamp(tag, output, timestamp);
@@ -887,8 +1003,30 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       checkTimestamp(timestamp(), timestamp);
+
+      builderSupplier
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      checkTimestamp(timestamp(), timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override
@@ -908,6 +1046,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final Instant timestamp;
     private final KeyT key;
+    private final OutputBuilderSupplier builderSupplier;
+
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
@@ -930,6 +1070,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.window = window;
       this.timestamp = timestamp;
       this.key = key;
+      this.builderSupplier =
+          OutputBuilderSuppliers.supplierForElement(
+              WindowedValues.<Void>builder()
+                  .setValue(null)
+                  .setWindow(window)
+                  .setTimestamp(timestamp)
+                  .setPaneInfo(PaneInfo.NO_FIRING));
     }
 
     @Override
@@ -1002,17 +1149,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, builderSupplier, mainOutputTag);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          this, builderSupplier, mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier, outputCoders);
     }
 
     @Override
@@ -1096,6 +1244,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkTimestamp(this.timestamp, timestamp);
       outputWithTimestamp(tag, output, timestamp);
@@ -1116,8 +1282,29 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       checkTimestamp(this.timestamp, timestamp);
+      builderSupplier
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      checkTimestamp(this.timestamp, timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+          tag,
+          WindowedValues.of(
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     @Override

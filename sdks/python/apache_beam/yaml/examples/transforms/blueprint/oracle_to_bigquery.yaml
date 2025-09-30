@@ -1,0 +1,55 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This is an example of a Beam YAML pipeline that reads from spanner database
+# and writes to GCS avro files.  This matches the Dataflow Template located
+# here - https://cloud.google.com/dataflow/docs/guides/templates/provided/cloud-spanner-to-avro
+
+pipeline:
+  type: composite
+  transforms:
+    # Step 1: Reading data from Oracle
+    - type: ReadFromOracle
+      name: ReadFromOracle
+      config:
+        url: "jdbc:oracle:thin:system/oracle@localhost:12345/shipment"
+        query: "SELECT * FROM shipments"
+        driver_class_name: "oracle.jdbc.OracleDriver"
+    # Step 2: Write records out to BigQuery
+    - type: WriteToBigQuery
+      name: WriteShipments
+      input: ReadFromOracle
+      config:
+        table: "apache-beam-testing.yaml_test.shipments"
+        create_disposition: "CREATE_NEVER"
+        write_disposition: "WRITE_APPEND"
+        error_handling:
+          output: "deadLetterQueue"
+        num_streams: 1
+    # Step 3: Write the failed messages to BQ to a dead letter queue JSON file
+    - type: WriteToJson
+      input: WriteShipments.deadLetterQueue
+      config:
+        path: "gs://my-bucket/yaml-123/writingToBigQueryErrors.json"
+
+# Expected:
+#  Row(shipment_id='S1', customer_id='C1', shipment_date='2023-05-01', shipment_cost=150.0, customer_name='Alice', customer_email='alice@example.com')
+#  Row(shipment_id='S2', customer_id='C2', shipment_date='2023-06-12', shipment_cost=300.0, customer_name='Bob', customer_email='bob@example.com')
+#  Row(shipment_id='S3', customer_id='C1', shipment_date='2023-05-10', shipment_cost=20.0, customer_name='Alice', customer_email='alice@example.com')
+#  Row(shipment_id='S4', customer_id='C4', shipment_date='2024-07-01', shipment_cost=150.0, customer_name='Derek', customer_email='derek@example.com')
+#  Row(shipment_id='S5', customer_id='C5', shipment_date='2023-05-09', shipment_cost=300.0, customer_name='Erin', customer_email='erin@example.com')
+#  Row(shipment_id='S6', customer_id='C4', shipment_date='2024-07-02', shipment_cost=150.0, customer_name='Derek', customer_email='derek@example.com')

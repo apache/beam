@@ -25,8 +25,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -53,22 +54,23 @@ public class DedupingOperatorTest {
 
     harness.processElement(
         new StreamRecord<>(
-            WindowedValue.valueInGlobalWindow(
+            WindowedValues.valueInGlobalWindow(
                 new ValueWithRecordId<>(key1, key1.getBytes(StandardCharsets.UTF_8)))));
 
     harness.processElement(
         new StreamRecord<>(
-            WindowedValue.valueInGlobalWindow(
+            WindowedValues.valueInGlobalWindow(
                 new ValueWithRecordId<>(key2, key2.getBytes(StandardCharsets.UTF_8)))));
 
     harness.processElement(
         new StreamRecord<>(
-            WindowedValue.valueInGlobalWindow(
+            WindowedValues.valueInGlobalWindow(
                 new ValueWithRecordId<>(key1, key1.getBytes(StandardCharsets.UTF_8)))));
 
     assertThat(
         stripStreamRecordFromWindowedValue(harness.getOutput()),
-        contains(WindowedValue.valueInGlobalWindow(key1), WindowedValue.valueInGlobalWindow(key2)));
+        contains(
+            WindowedValues.valueInGlobalWindow(key1), WindowedValues.valueInGlobalWindow(key2)));
 
     OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 
@@ -83,17 +85,17 @@ public class DedupingOperatorTest {
 
     harness.processElement(
         new StreamRecord<>(
-            WindowedValue.valueInGlobalWindow(
+            WindowedValues.valueInGlobalWindow(
                 new ValueWithRecordId<>(key2, key2.getBytes(StandardCharsets.UTF_8)))));
 
     harness.processElement(
         new StreamRecord<>(
-            WindowedValue.valueInGlobalWindow(
+            WindowedValues.valueInGlobalWindow(
                 new ValueWithRecordId<>(key3, key3.getBytes(StandardCharsets.UTF_8)))));
 
     assertThat(
         stripStreamRecordFromWindowedValue(harness.getOutput()),
-        contains(WindowedValue.valueInGlobalWindow(key3)));
+        contains(WindowedValues.valueInGlobalWindow(key3)));
 
     harness.close();
   }

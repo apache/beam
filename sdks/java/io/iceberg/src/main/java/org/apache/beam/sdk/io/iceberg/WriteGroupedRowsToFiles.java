@@ -24,10 +24,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.ShardedKey;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -92,13 +93,13 @@ class WriteGroupedRowsToFiles
         ProcessContext c,
         @Element KV<ShardedKey<String>, Iterable<Row>> element,
         BoundedWindow window,
-        PaneInfo pane)
+        PaneInfo paneInfo)
         throws Exception {
 
       String tableIdentifier = element.getKey().getKey();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       WindowedValue<IcebergDestination> windowedDestination =
-          WindowedValue.of(destination, window.maxTimestamp(), window, pane);
+          WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
       RecordWriterManager writer;
       try (RecordWriterManager openWriter =
           new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {

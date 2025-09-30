@@ -108,6 +108,7 @@ public class SamzaPipelineResult implements PipelineResult {
     return asAttemptedOnlyMetricResults(executionContext.getMetricsContainer().getContainers());
   }
 
+  @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
   private StateInfo getStateInfo() {
     final ApplicationStatus status = runner.status();
     switch (status.getStatusCode()) {

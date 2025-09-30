@@ -22,6 +22,8 @@
 
 import collections
 import contextlib
+import hashlib
+import hmac
 import logging
 import random
 import re
@@ -32,9 +34,13 @@ from collections.abc import Callable
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import TypeVar
 from typing import Union
+
+from cryptography.fernet import Fernet
 
 import apache_beam as beam
 from apache_beam import coders
@@ -88,6 +94,8 @@ __all__ = [
     'BatchElements',
     'CoGroupByKey',
     'Distinct',
+    'GcpSecret',
+    'GroupByEncryptedKey',
     'Keys',
     'KvSwap',
     'LogElements',
@@ -95,16 +103,19 @@ __all__ = [
     'Reify',
     'RemoveDuplicates',
     'Reshuffle',
+    'Secret',
     'ToString',
     'Tee',
     'Values',
     'WithKeys',
-    'GroupIntoBatches'
+    'GroupIntoBatches',
+    'WaitOn'
 ]
 
 K = TypeVar('K')
 V = TypeVar('V')
 T = TypeVar('T')
+U = TypeVar('U')
 
 RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION = "2.64.0"
 
@@ -265,7 +276,9 @@ class _CoGBKImpl(PTransform):
     ]
             | Flatten(pipeline=self.pipeline)
             | GroupByKey()
-            | MapTuple(collect_values))
+            | MapTuple(collect_values).with_input_types(
+                tuple[K, Iterable[tuple[U, V]]]).with_output_types(
+                    tuple[K, dict[U, list[V]]]))
 
 
 @ptransform_fn
@@ -311,6 +324,205 @@ def Distinct(pcoll):  # pylint: disable=invalid-name
 def RemoveDuplicates(pcoll):
   """Produces a PCollection containing distinct elements of a PCollection."""
   return pcoll | 'RemoveDuplicates' >> Distinct()
+
+
+class Secret():
+  """A secret management class used for handling sensitive data.
+
+  This class provides a generic interface for secret management. Implementations
+  of this class should handle fetching secrets from a secret management system.
+  """
+  def get_secret_bytes(self) -> bytes:
+    """Returns the secret as a byte string."""
+    raise NotImplementedError()
+
+  @staticmethod
+  def generate_secret_bytes() -> bytes:
+    """Generates a new secret key."""
+    return Fernet.generate_key()
+
+
+class GcpSecret(Secret):
+  """A secret manager implementation that retrieves secrets from Google Cloud
+  Secret Manager.
+  """
+  def __init__(self, version_name: str):
+    """Initializes a GcpSecret object.
+
+    Args:
+      version_name: The full version name of the secret in Google Cloud Secret
+        Manager. For example:
+        projects/<id>/secrets/<secret_name>/versions/1.
+        For more info, see
+        https://cloud.google.com/python/docs/reference/secretmanager/latest/google.cloud.secretmanager_v1beta1.services.secret_manager_service.SecretManagerServiceClient#google_cloud_secretmanager_v1beta1_services_secret_manager_service_SecretManagerServiceClient_access_secret_version
+    """
+    self._version_name = version_name
+
+  def get_secret_bytes(self) -> bytes:
+    try:
+      from google.cloud import secretmanager
+      client = secretmanager.SecretManagerServiceClient()
+      response = client.access_secret_version(
+          request={"name": self._version_name})
+      secret = response.payload.data
+      return secret
+    except Exception as e:
+      raise RuntimeError(f'Failed to retrieve secret bytes with excetion {e}')
+
+
+class _EncryptMessage(DoFn):
+  """A DoFn that encrypts the key and value of each element."""
+  def __init__(
+      self,
+      hmac_key_secret: Secret,
+      key_coder: coders.Coder,
+      value_coder: coders.Coder):
+    self.hmac_key_secret = hmac_key_secret
+    self.key_coder = key_coder
+    self.value_coder = value_coder
+
+  def setup(self):
+    self._hmac_key = self.hmac_key_secret.get_secret_bytes()
+    self.fernet = Fernet(self._hmac_key)
+
+  def process(self,
+              element: Any) -> Iterable[Tuple[bytes, Tuple[bytes, bytes]]]:
+    """Encrypts the key and value of an element.
+
+    Args:
+      element: A tuple containing the key and value to be encrypted.
+
+    Yields:
+      A tuple containing the HMAC of the encoded key, and a tuple of the
+      encrypted key and value.
+    """
+    k, v = element
+    encoded_key = self.key_coder.encode(k)
+    encoded_value = self.value_coder.encode(v)
+    hmac_encoded_key = hmac.new(self._hmac_key, encoded_key,
+                                hashlib.sha256).digest()
+    out_element = (
+        hmac_encoded_key,
+        (self.fernet.encrypt(encoded_key), self.fernet.encrypt(encoded_value)))
+    yield out_element
+
+
+class _DecryptMessage(DoFn):
+  """A DoFn that decrypts the key and value of each element."""
+  def __init__(
+      self,
+      hmac_key_secret: Secret,
+      key_coder: coders.Coder,
+      value_coder: coders.Coder):
+    self.hmac_key_secret = hmac_key_secret
+    self.key_coder = key_coder
+    self.value_coder = value_coder
+
+  def setup(self):
+    hmac_key = self.hmac_key_secret.get_secret_bytes()
+    self.fernet = Fernet(hmac_key)
+
+  def decode_value(self, encoded_element: Tuple[bytes, bytes]) -> Any:
+    encrypted_value = encoded_element[1]
+    encoded_value = self.fernet.decrypt(encrypted_value)
+    real_val = self.value_coder.decode(encoded_value)
+    return real_val
+
+  def filter_elements_by_key(
+      self,
+      encrypted_key: bytes,
+      encoded_elements: Iterable[Tuple[bytes, bytes]]) -> Iterable[Any]:
+    for e in encoded_elements:
+      if encrypted_key == self.fernet.decrypt(e[0]):
+        yield self.decode_value(e)
+
+  # Right now, GBK always returns a list of elements, so we match this behavior
+  # here. This does mean that the whole list will be materialized every time,
+  # but passing an Iterable containing an Iterable breaks when pickling happens
+  def process(
+      self, element: Tuple[bytes, Iterable[Tuple[bytes, bytes]]]
+  ) -> Iterable[Tuple[Any, List[Any]]]:
+    """Decrypts the key and values of an element.
+
+    Args:
+      element: A tuple containing the HMAC of the encoded key and an iterable
+        of tuples of encrypted keys and values.
+
+    Yields:
+      A tuple containing the decrypted key and a list of decrypted values.
+    """
+    unused_hmac_encoded_key, encoded_elements = element
+    seen_keys = set()
+
+    # Since there could be hmac collisions, we will use the fernet encrypted
+    # key to confirm that the mapping is actually correct.
+    for e in encoded_elements:
+      encrypted_key, unused_encrypted_value = e
+      encoded_key = self.fernet.decrypt(encrypted_key)
+      if encoded_key in seen_keys:
+        continue
+      seen_keys.add(encoded_key)
+      real_key = self.key_coder.decode(encoded_key)
+
+      yield (
+          real_key,
+          list(self.filter_elements_by_key(encoded_key, encoded_elements)))
+
+
+@typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[K, Iterable[V]])
+class GroupByEncryptedKey(PTransform):
+  """A PTransform that provides a secure alternative to GroupByKey.
+
+  This transform encrypts the keys of the input PCollection, performs a
+  GroupByKey on the encrypted keys, and then decrypts the keys in the output.
+  This is useful when the keys contain sensitive data that should not be
+  stored at rest by the runner. Note the following caveats:
+  
+  1) Runners can implement arbitrary materialization steps, so this does not
+  guarantee that the whole pipeline will not have unencrypted data at rest by
+  itself.
+  2) If using this transform in streaming mode, this transform may not properly
+  handle update compatibility checks around coders. This means that an improper
+  update could lead to invalid coders, causing pipeline failure or data
+  corruption. If you need to update, make sure that the input type passed into
+  this transform does not change.
+  """
+  def __init__(self, hmac_key: Secret):
+    """Initializes a GroupByEncryptedKey transform.
+
+    Args:
+      hmac_key: A Secret object that provides the secret key for HMAC and
+        encryption. For example, a GcpSecret can be used to access a secret
+        stored in GCP Secret Manager
+    """
+    self._hmac_key = hmac_key
+
+  def expand(self, pcoll):
+    kv_type_hint = pcoll.element_type
+    if kv_type_hint and kv_type_hint != typehints.Any:
+      coder = coders.registry.get_coder(kv_type_hint).as_deterministic_coder(
+          f'GroupByEncryptedKey {self.label}'
+          'The key coder is not deterministic. This may result in incorrect '
+          'pipeline output. This can be fixed by adding a type hint to the '
+          'operation preceding the GroupByKey step, and for custom key '
+          'classes, by writing a deterministic custom Coder. Please see the '
+          'documentation for more details.')
+      if not coder.is_kv_coder():
+        raise ValueError(
+            'Input elements to the transform %s with stateful DoFn must be '
+            'key-value pairs.' % self)
+      key_coder = coder.key_coder()
+      value_coder = coder.value_coder()
+    else:
+      key_coder = coders.registry.get_coder(typehints.Any)
+      value_coder = key_coder
+
+    return (
+        pcoll
+        | beam.ParDo(_EncryptMessage(self._hmac_key, key_coder, value_coder))
+        | beam.GroupByKey()
+        | beam.ParDo(_DecryptMessage(self._hmac_key, key_coder, value_coder)))
 
 
 class _BatchSizeEstimator(object):
@@ -928,6 +1140,15 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
+def is_v1_prior_to_v2(*, v1, v2):
+  if v1 is None:
+    return False
+
+  v1_parts = (v1.split('.') + ['0', '0', '0'])[:3]
+  v2_parts = (v2.split('.') + ['0', '0', '0'])[:3]
+  return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
+
+
 def is_compat_version_prior_to(options, breaking_change_version):
   # This function is used in a branch statement to determine whether we should
   # keep the old behavior prior to a breaking change or use the new behavior.
@@ -936,15 +1157,8 @@ def is_compat_version_prior_to(options, breaking_change_version):
   update_compatibility_version = options.view_as(
       pipeline_options.StreamingOptions).update_compatibility_version
 
-  if update_compatibility_version is None:
-    return False
-
-  compat_version = tuple(map(int, update_compatibility_version.split('.')[0:3]))
-  change_version = tuple(map(int, breaking_change_version.split('.')[0:3]))
-  for i in range(min(len(compat_version), len(change_version))):
-    if compat_version[i] < change_version[i]:
-      return True
-  return False
+  return is_v1_prior_to_v2(
+      v1=update_compatibility_version, v2=breaking_change_version)
 
 
 def reify_metadata_default_window(
@@ -1445,30 +1659,49 @@ class LogElements(PTransform):
     level: (optional) The logging level for the output (e.g. `logging.DEBUG`,
         `logging.INFO`, `logging.WARNING`, `logging.ERROR`). If not specified,
         the log is printed to stdout.
+    with_pane_info (bool): (optional) Whether to include element's pane info.
+    use_epoch_time (bool): (optional) Whether to display epoch timestamps.
   """
   class _LoggingFn(DoFn):
     def __init__(
-        self, prefix='', with_timestamp=False, with_window=False, level=None):
+        self,
+        prefix='',
+        with_timestamp=False,
+        with_window=False,
+        level=None,
+        with_pane_info=False,
+        use_epoch_time=False):
       super().__init__()
       self.prefix = prefix
       self.with_timestamp = with_timestamp
       self.with_window = with_window
       self.level = level
+      self.with_pane_info = with_pane_info
+      self.use_epoch_time = use_epoch_time
+
+    def format_timestamp(self, timestamp):
+      if self.use_epoch_time:
+        return timestamp.seconds()
+      return timestamp.to_rfc3339()
 
     def process(
         self,
         element,
         timestamp=DoFn.TimestampParam,
         window=DoFn.WindowParam,
+        pane_info=DoFn.PaneInfoParam,
         **kwargs):
       log_line = self.prefix + str(element)
 
       if self.with_timestamp:
-        log_line += ', timestamp=' + repr(timestamp.to_rfc3339())
+        log_line += ', timestamp=' + repr(self.format_timestamp(timestamp))
 
       if self.with_window:
-        log_line += ', window(start=' + window.start.to_rfc3339()
-        log_line += ', end=' + window.end.to_rfc3339() + ')'
+        log_line += ', window(start=' + str(self.format_timestamp(window.start))
+        log_line += ', end=' + str(self.format_timestamp(window.end)) + ')'
+
+      if self.with_pane_info:
+        log_line += ', pane_info=' + repr(pane_info)
 
       if self.level == logging.DEBUG:
         logging.debug(log_line)
@@ -1491,17 +1724,28 @@ class LogElements(PTransform):
       prefix='',
       with_timestamp=False,
       with_window=False,
-      level=None):
+      level=None,
+      with_pane_info=False,
+      use_epoch_time=False,
+  ):
     super().__init__(label)
     self.prefix = prefix
     self.with_timestamp = with_timestamp
     self.with_window = with_window
+    self.with_pane_info = with_pane_info
+    self.use_epoch_time = use_epoch_time
     self.level = level
 
   def expand(self, input):
     return input | ParDo(
         self._LoggingFn(
-            self.prefix, self.with_timestamp, self.with_window, self.level))
+            self.prefix,
+            self.with_timestamp,
+            self.with_window,
+            self.level,
+            self.with_pane_info,
+            self.use_epoch_time,
+        ))
 
 
 class Reify(object):

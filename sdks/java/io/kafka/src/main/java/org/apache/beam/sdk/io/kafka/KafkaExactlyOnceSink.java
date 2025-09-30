@@ -237,6 +237,7 @@ class KafkaExactlyOnceSink<K, V>
   private static class ExactlyOnceWriter<K, V>
       extends DoFn<KV<Integer, Iterable<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>, Void> {
 
+    private static final Random RANDOM = new Random();
     private static final String NEXT_ID = "nextId";
     private static final String MIN_BUFFERED_ID = "minBufferedId";
     private static final String OUT_OF_ORDER_BUFFER = "outOfOrderBuffer";
@@ -584,7 +585,7 @@ class KafkaExactlyOnceSink<K, V>
           writerId =
               String.format(
                   "%X - %s",
-                  new Random().nextInt(Integer.MAX_VALUE),
+                  RANDOM.nextInt(Integer.MAX_VALUE),
                   DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
                       .withZone(DateTimeZone.UTC)
                       .print(DateTimeUtils.currentTimeMillis()));

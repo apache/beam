@@ -17,19 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.util.Collection;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.joda.time.Instant;
 
 /**
@@ -45,22 +41,19 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
   private final GroupAlsoByWindowFn<InputT, OutputT> fn;
 
   private final SideInputReader sideInputReader;
-  private final OutputManager outputManager;
-  private final TupleTag<OutputT> mainOutputTag;
+  private final WindowedValueReceiver<OutputT> outputManager;
   private final StepContext stepContext;
 
   public GroupAlsoByWindowFnRunner(
       PipelineOptions options,
       GroupAlsoByWindowFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
-      OutputManager outputManager,
-      TupleTag<OutputT> mainOutputTag,
+      WindowedValueReceiver<OutputT> outputManager,
       StepContext stepContext) {
     this.options = options;
     this.fn = fn;
     this.sideInputReader = sideInputReader;
     this.outputManager = outputManager;
-    this.mainOutputTag = mainOutputTag;
     this.stepContext = stepContext;
   }
 
@@ -96,29 +89,7 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
   private void invokeProcessElement(WindowedValue<InputT> elem) {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      OutputWindowedValue<OutputT> output =
-          new OutputWindowedValue<OutputT>() {
-            @Override
-            public void outputWindowedValue(
-                OutputT output,
-                Instant timestamp,
-                Collection<? extends BoundedWindow> windows,
-                PaneInfo pane) {
-              WindowedValue<OutputT> windowed = WindowedValue.of(output, timestamp, windows, pane);
-              outputManager.output(mainOutputTag, windowed);
-            }
-
-            @Override
-            public <AdditionalOutputT> void outputWindowedValue(
-                TupleTag<AdditionalOutputT> tag,
-                AdditionalOutputT output,
-                Instant timestamp,
-                Collection<? extends BoundedWindow> windows,
-                PaneInfo pane) {
-              throw new UnsupportedOperationException();
-            }
-          };
-      fn.processElement(elem.getValue(), options, stepContext, sideInputReader, output);
+      fn.processElement(elem.getValue(), options, stepContext, sideInputReader, outputManager);
     } catch (Exception ex) {
       if (ex instanceof RuntimeException) {
         throw (RuntimeException) ex;

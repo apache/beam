@@ -38,6 +38,7 @@ import org.apache.beam.model.pipeline.v1.SchemaApi.IterableTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.LogicalTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.MapTypeEntry;
 import org.apache.beam.model.pipeline.v1.SchemaApi.MapTypeValue;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
@@ -326,6 +327,7 @@ public class SchemaTranslation {
     if (!protoSchema.getId().isEmpty()) {
       schema.setUUID(UUID.fromString(protoSchema.getId()));
     }
+    overrideEncodingPositions(schema);
     return schema;
   }
 
@@ -501,6 +503,50 @@ public class SchemaTranslation {
       default:
         throw new IllegalArgumentException(
             "Unexpected type_info: " + protoFieldType.getTypeInfoCase());
+    }
+  }
+
+  private static void overrideEncodingPositions(Schema schema) {
+    @javax.annotation.Nullable UUID uuid = schema.getUUID();
+    if (schema.isEncodingPositionsOverridden() && uuid != null) {
+      RowCoder.overrideEncodingPositions(uuid, schema.getEncodingPositions());
+    }
+    schema.getFields().stream()
+        .map(Schema.Field::getType)
+        .forEach(SchemaTranslation::overrideEncodingPositions);
+  }
+
+  private static void overrideEncodingPositions(Schema.FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        overrideEncodingPositions(
+            org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(fieldType.getRowSchema()));
+        break;
+      case ARRAY:
+      case ITERABLE:
+        overrideEncodingPositions(
+            org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(
+                fieldType.getCollectionElementType()));
+        break;
+      case MAP:
+        overrideEncodingPositions(
+            org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(fieldType.getMapKeyType()));
+        overrideEncodingPositions(
+            org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(
+                fieldType.getMapValueType()));
+        break;
+      case LOGICAL_TYPE:
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>)
+                org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(
+                    fieldType.getLogicalType());
+        @javax.annotation.Nullable Schema.FieldType argumentType = logicalType.getArgumentType();
+        if (argumentType != null) {
+          overrideEncodingPositions(argumentType);
+        }
+        overrideEncodingPositions(logicalType.getBaseType());
+        break;
+      default:
     }
   }
 

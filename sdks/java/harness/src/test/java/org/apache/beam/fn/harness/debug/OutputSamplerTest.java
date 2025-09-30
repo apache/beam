@@ -31,7 +31,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -50,11 +51,11 @@ public class OutputSamplerTest {
   }
 
   public BeamFnApi.SampledElement encodeGlobalWindowedInt(Integer i) throws IOException {
-    WindowedValue.WindowedValueCoder<Integer> coder =
-        WindowedValue.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
+    WindowedValues.WindowedValueCoder<Integer> coder =
+        WindowedValues.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
 
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    coder.encode(WindowedValue.valueInGlobalWindow(i), stream);
+    coder.encode(WindowedValues.valueInGlobalWindow(i), stream);
     return BeamFnApi.SampledElement.newBuilder()
         .setElement(ByteString.copyFrom(stream.toByteArray()))
         .build();
@@ -94,7 +95,7 @@ public class OutputSamplerTest {
 
     // Purposely go over maxSamples and sampleEveryN. This helps to increase confidence.
     for (int i = 0; i < 15; ++i) {
-      outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
+      outputSampler.sample(WindowedValues.valueInGlobalWindow(i));
     }
 
     // The expected list is only 0..9 inclusive.
@@ -109,11 +110,11 @@ public class OutputSamplerTest {
 
   @Test
   public void testWindowedValueSample() throws IOException {
-    WindowedValue.WindowedValueCoder<Integer> coder =
-        WindowedValue.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
+    WindowedValues.WindowedValueCoder<Integer> coder =
+        WindowedValues.FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
 
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10, false);
-    outputSampler.sample(WindowedValue.valueInGlobalWindow(0));
+    outputSampler.sample(WindowedValues.valueInGlobalWindow(0));
 
     // The expected list is only 0..9 inclusive.
     List<BeamFnApi.SampledElement> expected = ImmutableList.of(encodeGlobalWindowedInt(0));
@@ -126,7 +127,7 @@ public class OutputSamplerTest {
     VarIntCoder coder = VarIntCoder.of();
 
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 10, 10, false);
-    outputSampler.sample(WindowedValue.valueInGlobalWindow(0));
+    outputSampler.sample(WindowedValues.valueInGlobalWindow(0));
 
     // The expected list is only 0..9 inclusive.
     List<BeamFnApi.SampledElement> expected = ImmutableList.of(encodeInt(0));
@@ -145,7 +146,7 @@ public class OutputSamplerTest {
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
     for (int i = 0; i < 100; ++i) {
-      outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
+      outputSampler.sample(WindowedValues.valueInGlobalWindow(i));
     }
 
     // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
@@ -173,7 +174,7 @@ public class OutputSamplerTest {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
-    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
+    WindowedValue<Integer> windowedValue = WindowedValues.valueInGlobalWindow(1);
     ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
 
     Exception exception = new RuntimeException("Test exception");
@@ -200,9 +201,9 @@ public class OutputSamplerTest {
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
     ElementSample<Integer> elementSampleA =
-        outputSampler.sample(WindowedValue.valueInGlobalWindow(1));
+        outputSampler.sample(WindowedValues.valueInGlobalWindow(1));
     ElementSample<Integer> elementSampleB =
-        outputSampler.sample(WindowedValue.valueInGlobalWindow(2));
+        outputSampler.sample(WindowedValues.valueInGlobalWindow(2));
 
     Exception exception = new RuntimeException("Test exception");
     String ptransformIdA = "ptransformA";
@@ -229,7 +230,7 @@ public class OutputSamplerTest {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
-    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
+    WindowedValue<Integer> windowedValue = WindowedValues.valueInGlobalWindow(1);
     ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
 
     Exception exception = new RuntimeException("Test exception");
@@ -253,11 +254,11 @@ public class OutputSamplerTest {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, false);
 
-    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(0);
+    WindowedValue<Integer> windowedValue = WindowedValues.valueInGlobalWindow(0);
     ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
 
     for (int i = 1; i < 100; ++i) {
-      outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
+      outputSampler.sample(WindowedValues.valueInGlobalWindow(i));
     }
 
     Exception exception = new RuntimeException("Test exception");
@@ -290,8 +291,8 @@ public class OutputSamplerTest {
     VarIntCoder coder = VarIntCoder.of();
     OutputSampler<Integer> outputSampler = new OutputSampler<>(coder, 5, 20, true);
 
-    WindowedValue<Integer> windowedValue = WindowedValue.valueInGlobalWindow(1);
-    outputSampler.sample(WindowedValue.valueInGlobalWindow(2));
+    WindowedValue<Integer> windowedValue = WindowedValues.valueInGlobalWindow(1);
+    outputSampler.sample(WindowedValues.valueInGlobalWindow(2));
     ElementSample<Integer> elementSample = outputSampler.sample(windowedValue);
 
     Exception exception = new RuntimeException("Test exception");
@@ -333,7 +334,7 @@ public class OutputSamplerTest {
 
               for (int i = 0; i < 1000000; i++) {
                 ElementSample<Integer> sample =
-                    outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
+                    outputSampler.sample(WindowedValues.valueInGlobalWindow(i));
                 outputSampler.exception(sample, new RuntimeException(""), "ptransformId", "pbId");
               }
 
@@ -352,7 +353,7 @@ public class OutputSamplerTest {
 
               for (int i = -1000000; i < 0; i++) {
                 ElementSample<Integer> sample =
-                    outputSampler.sample(WindowedValue.valueInGlobalWindow(i));
+                    outputSampler.sample(WindowedValues.valueInGlobalWindow(i));
                 outputSampler.exception(sample, new RuntimeException(""), "ptransformId", "pbId");
               }
 

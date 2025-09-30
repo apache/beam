@@ -30,9 +30,9 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -74,15 +74,15 @@ public class FlattenEvaluatorFactoryTest {
     TransformEvaluator<Integer> rightSideEvaluator =
         factory.forApplication(flattenedProducer, rightBundle);
 
-    leftSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(1));
-    rightSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(-1));
+    leftSideEvaluator.processElement(WindowedValues.valueInGlobalWindow(1));
+    rightSideEvaluator.processElement(WindowedValues.valueInGlobalWindow(-1));
     leftSideEvaluator.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1024)));
-    leftSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(4, PaneInfo.NO_FIRING));
+        WindowedValues.timestampedValueInGlobalWindow(2, new Instant(1024)));
+    leftSideEvaluator.processElement(WindowedValues.valueInGlobalWindow(4, PaneInfo.NO_FIRING));
     rightSideEvaluator.processElement(
-        WindowedValue.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+        WindowedValues.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING));
     rightSideEvaluator.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)));
+        WindowedValues.timestampedValueInGlobalWindow(-4, new Instant(-4096)));
 
     TransformResult<Integer> rightSideResult = rightSideEvaluator.finishBundle();
     TransformResult<Integer> leftSideResult = leftSideEvaluator.finishBundle();
@@ -99,15 +99,15 @@ public class FlattenEvaluatorFactoryTest {
     assertThat(
         flattenedLeftBundle.commit(Instant.now()).getElements(),
         containsInAnyOrder(
-            WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1024)),
-            WindowedValue.valueInGlobalWindow(4, PaneInfo.NO_FIRING),
-            WindowedValue.valueInGlobalWindow(1)));
+            WindowedValues.timestampedValueInGlobalWindow(2, new Instant(1024)),
+            WindowedValues.valueInGlobalWindow(4, PaneInfo.NO_FIRING),
+            WindowedValues.valueInGlobalWindow(1)));
     assertThat(
         flattenedRightBundle.commit(Instant.now()).getElements(),
         containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING),
-            WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)),
-            WindowedValue.valueInGlobalWindow(-1)));
+            WindowedValues.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+            WindowedValues.timestampedValueInGlobalWindow(-4, new Instant(-4096)),
+            WindowedValues.valueInGlobalWindow(-1)));
   }
 
   @Test

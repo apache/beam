@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -65,13 +66,14 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PCollectionViewTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -189,9 +191,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               .get(context.getPTransform().getInputsOrThrow(mainInputTag));
       Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
       Coder<?> inputCoder;
-      if (maybeWindowedValueInputCoder instanceof WindowedValue.WindowedValueCoder) {
+      if (maybeWindowedValueInputCoder instanceof WindowedValues.WindowedValueCoder) {
         inputCoder =
-            ((WindowedValue.WindowedValueCoder<?>) maybeWindowedValueInputCoder).getValueCoder();
+            ((WindowedValues.WindowedValueCoder<?>) maybeWindowedValueInputCoder).getValueCoder();
       } else {
         inputCoder = maybeWindowedValueInputCoder;
       }
@@ -349,6 +351,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       throw new IllegalStateException(e);
     }
     ByteString encodedWindow = encodedWindowOut.toByteString();
+    // IDEA: If this StateKey shows up on caching profiles, create a custom object that is cheap to
+    // weigh and compare similar to the other statekey types in this file.
     StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
 
     switch (sideInputSpec.getAccessPattern()) {
@@ -972,16 +976,71 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     throw new UnsupportedOperationException("WatermarkHoldState is unsupported by the Fn API.");
   }
 
+  private static class UserStateCacheTokenKey implements Weighted {
+    private final ByteString bytes;
+    private final int hash;
+
+    public UserStateCacheTokenKey(ByteString bytes) {
+      this.bytes = bytes;
+      this.hash = Objects.hash(UserStateCacheTokenKey.class, bytes);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof UserStateCacheTokenKey)) {
+        return false;
+      }
+      UserStateCacheTokenKey other = (UserStateCacheTokenKey) o;
+      return hash == other.hash && bytes.equals(other.bytes);
+    }
+
+    @Override
+    public int hashCode() {
+      return hash;
+    }
+
+    @Override
+    public long getWeight() {
+      // 12 = 4 bytes for int + 8 for reference.
+      // This doesn't account for backing memory of bytes but reducing
+      // overhead of weighing is more important.
+      return 12L + bytes.size();
+    }
+  }
+
   private Cache<?, ?> getCacheFor(StateKey stateKey) {
     switch (stateKey.getTypeCase()) {
       case BAG_USER_STATE:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasUserState()) {
+            continue;
+          }
+          return Caches.subCache(
+              processWideCache,
+              new UserStateCacheTokenKey(token.getToken()),
+              new BagUserStateCacheKey(stateKey.getBagUserState()));
+        }
+        break;
       case MULTIMAP_KEYS_USER_STATE:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasUserState()) {
+            continue;
+          }
+          return Caches.subCache(
+              processWideCache,
+              new UserStateCacheTokenKey(token.getToken()),
+              new MultimapKeysUserStateCacheKey(stateKey.getMultimapKeysUserState()));
+        }
+        break;
       case ORDERED_LIST_USER_STATE:
         for (CacheToken token : cacheTokens.get()) {
           if (!token.hasUserState()) {
             continue;
           }
-          return Caches.subCache(processWideCache, token, stateKey);
+          return Caches.subCache(
+              processWideCache,
+              new UserStateCacheTokenKey(token.getToken()),
+              new OrderedListUserStateCacheKey(stateKey.getOrderedListUserState()));
         }
         break;
       case ITERABLE_SIDE_INPUT:
@@ -997,6 +1056,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   .getIterableSideInput()
                   .getSideInputId()
                   .equals(token.getSideInput().getSideInputId())) {
+            // IDEA: If cachetoken shows up on profiles, create a simpler type to weigh like
+            // UserStateCacheTokenKey.
             return Caches.subCache(processWideCache, token, stateKey);
           }
         }
@@ -1014,6 +1075,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   .getMultimapKeysSideInput()
                   .getSideInputId()
                   .equals(token.getSideInput().getSideInputId())) {
+            // IDEA: If cachetoken shows up on profiles, create a simpler type to weigh like
+            // UserStateCacheTokenKey.
             return Caches.subCache(processWideCache, token, stateKey);
           }
         }
@@ -1036,6 +1099,63 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             valueCoder);
     stateFinalizers.add(rval::asyncClose);
     return rval;
+  }
+
+  // Shared base for implementation of cache keys with the same
+  // fields that also uses the subclass for hashing and equality.
+  private abstract static class UserStateCacheKeyBase implements Weighted {
+    private final String ptransformId;
+    private final String stateId;
+    private final ByteString window;
+    private final ByteString key;
+    private final int hash;
+
+    protected UserStateCacheKeyBase(
+        Class subclass, String ptransformId, String stateId, ByteString window, ByteString key) {
+      this.ptransformId = ptransformId;
+      this.stateId = stateId;
+      this.window = window;
+      this.key = key;
+      this.hash = Objects.hash(subclass, ptransformId, stateId, window, key);
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+      if (!(o instanceof UserStateCacheKeyBase)) {
+        return false;
+      }
+      UserStateCacheKeyBase other = (UserStateCacheKeyBase) o;
+      return hash == other.hash
+          && this.getClass().equals(o.getClass())
+          && ptransformId.equals(other.ptransformId)
+          && stateId.equals(other.stateId)
+          && window.equals(other.window)
+          && key.equals(other.key);
+    }
+
+    @Override
+    public final int hashCode() {
+      return hash;
+    }
+
+    @Override
+    public final long getWeight() {
+      // 36 = 4 bytes for int + 8 * 4 references.
+      // This doesn't account for backing memory of bytes but reducing
+      // overhead of weighing is more important.
+      return 36L + ptransformId.length() + stateId.length() + window.size() + key.size();
+    }
+  }
+
+  private static final class BagUserStateCacheKey extends UserStateCacheKeyBase {
+    public BagUserStateCacheKey(StateKey.BagUserState proto) {
+      super(
+          BagUserStateCacheKey.class,
+          proto.getTransformId(),
+          proto.getUserStateId(),
+          proto.getWindow(),
+          proto.getKey());
+    }
   }
 
   private StateKey createBagUserStateKey(String stateId) {
@@ -1063,11 +1183,23 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return rval;
   }
 
+  private static final class MultimapKeysUserStateCacheKey extends UserStateCacheKeyBase {
+    public MultimapKeysUserStateCacheKey(StateKey.MultimapKeysUserState proto) {
+      super(
+          MultimapKeysUserStateCacheKey.class,
+          proto.getTransformId(),
+          proto.getUserStateId(),
+          proto.getWindow(),
+          proto.getKey());
+    }
+  }
+
   private StateKey createMultimapKeysUserStateKey(String stateId) {
     StateKey.Builder builder = StateKey.newBuilder();
     builder
         .getMultimapKeysUserStateBuilder()
         .setWindow(encodedCurrentWindowSupplier.get())
+        .setKey(encodedCurrentKeySupplier.get())
         .setTransformId(ptransformId)
         .setUserStateId(stateId);
     return builder.build();
@@ -1084,6 +1216,17 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             valueCoder);
     stateFinalizers.add(rval::asyncClose);
     return rval;
+  }
+
+  private static final class OrderedListUserStateCacheKey extends UserStateCacheKeyBase {
+    public OrderedListUserStateCacheKey(StateKey.OrderedListUserState proto) {
+      super(
+          OrderedListUserStateCacheKey.class,
+          proto.getTransformId(),
+          proto.getUserStateId(),
+          proto.getWindow(),
+          proto.getKey());
+    }
   }
 
   private StateKey createOrderedListUserStateKey(String stateId) {

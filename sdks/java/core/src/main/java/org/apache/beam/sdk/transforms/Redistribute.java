@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.auto.service.AutoService;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -178,12 +177,14 @@ public class Redistribute {
 
                 @ProcessElement
                 public void processElement(
-                    @Element KV<K, ValueInSingleWindow<V>> kv, OutputReceiver<KV<K, V>> r) {
-                  r.outputWindowedValue(
-                      KV.of(kv.getKey(), kv.getValue().getValue()),
-                      kv.getValue().getTimestamp(),
-                      Collections.singleton(kv.getValue().getWindow()),
-                      kv.getValue().getPane());
+                    @Element KV<K, ValueInSingleWindow<V>> kv,
+                    OutputReceiver<KV<K, V>> outputReceiver) {
+                  outputReceiver
+                      .builder(KV.of(kv.getKey(), kv.getValue().getValue()))
+                      .setTimestamp(kv.getValue().getTimestamp())
+                      .setWindow(kv.getValue().getWindow())
+                      .setPaneInfo(kv.getValue().getPaneInfo())
+                      .output();
                 }
               }));
     }

@@ -65,7 +65,7 @@ public class SimpleExecutionState extends ExecutionState {
 
   /**
    * @param stateName A state name to be used in lull logging when stuck in a state.
-   * @param urn A optional string urn for an execution time metric.
+   * @param urn An optional string urn for an execution time metric.
    * @param labelsMetadata arbitrary metadata to use for reporting purposes.
    */
   public SimpleExecutionState(

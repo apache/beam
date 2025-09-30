@@ -43,6 +43,7 @@ try:
   os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
   import vllm  # pylint: disable=unused-import
   logging.info('vllm module successfully imported.')
+  os.environ["VLLM_CONFIGURE_LOGGING"] = "1"
 except ModuleNotFoundError:
   msg = 'vllm module was not found. This is ok as long as the specified ' \
     'runner has vllm dependencies installed.'
@@ -113,28 +114,30 @@ class _VLLMModelServer():
     self._server_started = False
     self._server_process = None
     self._server_port: int = -1
+    self._server_process_lock = threading.RLock()
 
     self.start_server()
 
   def start_server(self, retries=3):
-    if not self._server_started:
-      server_cmd = [
-          sys.executable,
-          '-m',
-          'vllm.entrypoints.openai.api_server',
-          '--model',
-          self._model_name,
-          '--port',
-          '{{PORT}}',
-      ]
-      for k, v in self._vllm_server_kwargs.items():
-        server_cmd.append(f'--{k}')
-        # Only add values for commands with value part.
-        if v is not None:
-          server_cmd.append(v)
-      self._server_process, self._server_port = start_process(server_cmd)
+    with self._server_process_lock:
+      if not self._server_started:
+        server_cmd = [
+            sys.executable,
+            '-m',
+            'vllm.entrypoints.openai.api_server',
+            '--model',
+            self._model_name,
+            '--port',
+            '{{PORT}}',
+        ]
+        for k, v in self._vllm_server_kwargs.items():
+          server_cmd.append(f'--{k}')
+          # Only add values for commands with value part.
+          if v is not None:
+            server_cmd.append(v)
+        self._server_process, self._server_port = start_process(server_cmd)
 
-    self.check_connectivity(retries)
+      self.check_connectivity(retries)
 
   def get_server_port(self) -> int:
     if not self._server_started:

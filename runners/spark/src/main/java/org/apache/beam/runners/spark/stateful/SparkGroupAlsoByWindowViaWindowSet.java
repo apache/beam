@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.LateDataUtils;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
@@ -50,12 +49,11 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -101,31 +99,16 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
 
   private static class OutputWindowedValueHolder<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
+      implements WindowedValueReceiver<KV<K, Iterable<V>>> {
     private final List<WindowedValue<KV<K, Iterable<V>>>> windowedValues = new ArrayList<>();
 
     @Override
-    public void outputWindowedValue(
-        final KV<K, Iterable<V>> output,
-        final Instant timestamp,
-        final Collection<? extends BoundedWindow> windows,
-        final PaneInfo pane) {
-      windowedValues.add(WindowedValue.of(output, timestamp, windows, pane));
+    public void output(final WindowedValue<KV<K, Iterable<V>>> value) {
+      windowedValues.add(value);
     }
 
     private List<WindowedValue<KV<K, Iterable<V>>>> getWindowedValues() {
       return windowedValues;
-    }
-
-    @Override
-    public <AdditionalOutputT> void outputWindowedValue(
-        final TupleTag<AdditionalOutputT> tag,
-        final AdditionalOutputT output,
-        final Instant timestamp,
-        final Collection<? extends BoundedWindow> windows,
-        final PaneInfo pane) {
-      throw new UnsupportedOperationException(
-          "Tagged outputs are not allowed in GroupAlsoByWindow.");
     }
   }
 

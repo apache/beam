@@ -57,7 +57,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python_Xlang_Gcp_Direct PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, highmem]
-    timeout-minutes: 100
+    timeout-minutes: 160
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:

@@ -27,6 +27,15 @@ boolean IfExistsOpt() :
     { return false; }
 }
 
+boolean CascadeOpt() :
+{
+}
+{
+    <CASCADE> { return true; }
+|
+    { return false; }
+}
+
 SqlNodeList Options() :
 {
     final Span s;
@@ -136,12 +145,227 @@ Schema.Field Field() :
     }
 }
 
+SqlNodeList PropertyList() :
+{
+    SqlNodeList list = new SqlNodeList(getPos());
+    SqlNode property;
+}
+{
+    property = Property() { list.add(property); }
+    (
+        <COMMA> property = Property() { list.add(property); }
+    )*
+    {
+        return list;
+    }
+}
+
+
+SqlNode Property() :
+{
+    SqlNode key;
+    SqlNode value;
+}
+{
+    key = StringLiteral()
+    <EQ>
+    value = StringLiteral()
+    {
+        SqlNodeList pair = new SqlNodeList(getPos());
+        pair.add(key);
+        pair.add(value);
+        return pair;
+    }
+}
+
+/**
+ * CREATE CATALOG ( IF NOT EXISTS )? catalog_name
+ *   TYPE type_name
+ *   ( PROPERTIES '(' key = value ( ',' key = value )* ')' )?
+ */
+SqlCreate SqlCreateCatalog(Span s, boolean replace) :
+{
+    final boolean ifNotExists;
+    final SqlNode catalogName;
+    final SqlNode type;
+    SqlNodeList properties = null;
+}
+{
+
+    <CATALOG> {
+        s.add(this);
+    }
+
+    ifNotExists = IfNotExistsOpt()
+    (
+        catalogName = StringLiteral()
+        |
+        catalogName = SimpleIdentifier()
+    )
+    <TYPE>
+    (
+        type = StringLiteral()
+        |
+        type = SimpleIdentifier()
+    )
+    [ <PROPERTIES> <LPAREN> properties = PropertyList() <RPAREN> ]
+
+    {
+        return new SqlCreateCatalog(
+            s.end(this),
+            replace,
+            ifNotExists,
+            catalogName,
+            type,
+            properties);
+    }
+}
+
+/**
+ * USE CATALOG catalog_name
+ */
+SqlCall SqlUseCatalog(Span s, String scope) :
+{
+    final SqlNode catalogName;
+}
+{
+    <USE> {
+        s.add(this);
+    }
+    <CATALOG>
+    (
+        catalogName = StringLiteral()
+        |
+        catalogName = SimpleIdentifier()
+    )
+    {
+        return new SqlUseCatalog(
+            s.end(this),
+            scope,
+            catalogName);
+    }
+}
+
+
+SqlDrop SqlDropCatalog(Span s, boolean replace) :
+{
+    final boolean ifExists;
+    final SqlNode catalogName;
+}
+{
+    <CATALOG> ifExists = IfExistsOpt()
+    (
+        catalogName = StringLiteral()
+        |
+        catalogName = SimpleIdentifier()
+    )
+    {
+        return new SqlDropCatalog(s.end(this), ifExists, catalogName);
+    }
+}
+
+/**
+ * CREATE DATABASE ( IF NOT EXISTS )? database_name
+ */
+SqlCreate SqlCreateDatabase(Span s, boolean replace) :
+{
+    final boolean ifNotExists;
+    final SqlNode databaseName;
+}
+{
+    <DATABASE> {
+        s.add(this);
+    }
+
+    ifNotExists = IfNotExistsOpt()
+    (
+        databaseName = StringLiteral()
+        |
+        databaseName = SimpleIdentifier()
+    )
+
+    {
+        return new SqlCreateDatabase(
+            s.end(this),
+            replace,
+            ifNotExists,
+            databaseName);
+    }
+}
+
+/**
+ * USE DATABASE database_name
+ */
+SqlCall SqlUseDatabase(Span s, String scope) :
+{
+    final SqlNode databaseName;
+}
+{
+    <USE> {
+        s.add(this);
+    }
+    <DATABASE>
+    (
+        databaseName = StringLiteral()
+        |
+        databaseName = SimpleIdentifier()
+    )
+    {
+        return new SqlUseDatabase(
+            s.end(this),
+            scope,
+            databaseName);
+    }
+}
+
+/**
+ * DROP DATABASE [ IF EXISTS ] database_name [ RESTRICT | CASCADE ]
+ */
+SqlDrop SqlDropDatabase(Span s, boolean replace) :
+{
+    final boolean ifExists;
+    final SqlNode databaseName;
+    final boolean cascade;
+}
+{
+    <DATABASE>
+    ifExists = IfExistsOpt()
+    (
+        databaseName = StringLiteral()
+        |
+        databaseName = SimpleIdentifier()
+    )
+
+    cascade = CascadeOpt()
+
+    {
+        return new SqlDropDatabase(s.end(this), ifExists, databaseName, cascade);
+    }
+}
+
+
+SqlNodeList PartitionFieldList() :
+{
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+    SqlNode field;
+}
+{
+    field = StringLiteral() { list.add(field); }
+    (
+        <COMMA> field = StringLiteral() { list.add(field); }
+    )*
+    {
+        return new SqlNodeList(list, getPos());
+    }
+}
+
 /**
  * Note: This example is probably out of sync with the code.
  *
- * CREATE TABLE ( IF NOT EXISTS )?
+ * CREATE EXTERNAL TABLE ( IF NOT EXISTS )?
  *   ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
  *   TYPE type_name
+ *   ( PARTITIONED BY '(' partition_field ( ',' partition_field )* ')' )?
  *   ( COMMENT comment_string )?
  *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
@@ -152,6 +376,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
     final SqlNode type;
+    SqlNodeList partitionFields = null;
     SqlNode comment = null;
     SqlNode location = null;
     SqlNode tblProperties = null;
@@ -171,6 +396,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
     |
         type = SimpleIdentifier()
     )
+    [ <PARTITIONED> <BY> <LPAREN> partitionFields = PartitionFieldList() <RPAREN> ]
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
@@ -183,6 +409,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
                 id,
                 fieldList,
                 type,
+                partitionFields,
                 comment,
                 location,
                 tblProperties);

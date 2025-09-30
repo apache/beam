@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -72,14 +73,21 @@ final class FirestoreV1WriteFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        CounterFactory counterFactory) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, counterFactory);
+        CounterFactory counterFactory,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock,
+          firestoreStatefulComponentFactory,
+          rpcQosOptions,
+          counterFactory,
+          projectId,
+          databaseId);
     }
 
     @Override
     void handleWriteFailures(
         ContextAdapter<WriteSuccessSummary> context,
-        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage) {
       throw new FailedWritesException(
@@ -102,19 +110,26 @@ final class FirestoreV1WriteFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        CounterFactory counterFactory) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, counterFactory);
+        CounterFactory counterFactory,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock,
+          firestoreStatefulComponentFactory,
+          rpcQosOptions,
+          counterFactory,
+          projectId,
+          databaseId);
     }
 
     @Override
     void handleWriteFailures(
         ContextAdapter<WriteFailure> context,
-        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage) {
       logMessage.run();
       for (KV<WriteFailure, BoundedWindow> kv : writeFailures) {
-        context.output(kv.getKey(), timestamp, kv.getValue());
+        context.output(kv.getKey(), kv.getValue().maxTimestamp(), kv.getValue());
       }
     }
 
@@ -158,6 +173,8 @@ final class FirestoreV1WriteFn {
     //  bundle scoped state
     private transient FirestoreStub firestoreStub;
     private transient DatabaseRootName databaseRootName;
+    private final @Nullable String configuredProjectId;
+    private final @Nullable String configuredDatabaseId;
 
     @VisibleForTesting
     transient Queue<@NonNull WriteElement> writes = new PriorityQueue<>(WriteElement.COMPARATOR);
@@ -171,12 +188,16 @@ final class FirestoreV1WriteFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        CounterFactory counterFactory) {
+        CounterFactory counterFactory,
+        @Nullable String configuredProjectId,
+        @Nullable String configuredDatabaseId) {
       this.clock = clock;
       this.firestoreStatefulComponentFactory = firestoreStatefulComponentFactory;
       this.rpcQosOptions = rpcQosOptions;
       this.counterFactory = counterFactory;
       this.rpcAttemptContext = V1FnRpcAttemptContext.BatchWrite;
+      this.configuredProjectId = configuredProjectId;
+      this.configuredDatabaseId = configuredDatabaseId;
     }
 
     @Override
@@ -202,11 +223,19 @@ final class FirestoreV1WriteFn {
 
     @Override
     public final void startBundle(StartBundleContext c) {
-      String project = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
+      String project =
+          configuredProjectId != null
+              ? configuredProjectId
+              : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
+
       if (project == null) {
         project = c.getPipelineOptions().as(GcpOptions.class).getProject();
       }
-      String databaseId = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
+
+      String databaseId =
+          configuredDatabaseId != null
+              ? configuredDatabaseId
+              : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
       databaseRootName =
           DatabaseRootName.of(
               requireNonNull(
@@ -244,7 +273,6 @@ final class FirestoreV1WriteFn {
                 getWriteType(write), getName(write));
         handleWriteFailures(
             contextAdapter,
-            clock.instant(),
             ImmutableList.of(
                 KV.of(
                     new WriteFailure(
@@ -436,7 +464,7 @@ final class FirestoreV1WriteFn {
         if (okCount == writesCount) {
           handleWriteSummary(
               context,
-              end,
+              Preconditions.checkArgumentNotNull(okWindow).maxTimestamp(),
               KV.of(new WriteSuccessSummary(okCount, okBytes), coerceNonNull(okWindow)),
               () ->
                   LOG.debug(
@@ -451,7 +479,6 @@ final class FirestoreV1WriteFn {
             int finalOkCount = okCount;
             handleWriteFailures(
                 context,
-                end,
                 ImmutableList.copyOf(nonRetryableWrites),
                 () ->
                     LOG.warn(
@@ -476,7 +503,7 @@ final class FirestoreV1WriteFn {
             if (okCount > 0) {
               handleWriteSummary(
                   context,
-                  end,
+                  Preconditions.checkArgumentNotNull(okWindow).maxTimestamp(),
                   KV.of(new WriteSuccessSummary(okCount, okBytes), coerceNonNull(okWindow)),
                   logMessage);
             } else {
@@ -512,7 +539,6 @@ final class FirestoreV1WriteFn {
 
     abstract void handleWriteFailures(
         ContextAdapter<OutT> context,
-        Instant timestamp,
         List<KV<WriteFailure, BoundedWindow>> writeFailures,
         Runnable logMessage);
 

@@ -850,7 +850,8 @@ class _CustomBigQuerySource(BoundedSource):
       return
     location = bq.get_query_location(
         self._get_project(), self.query.get(), self.use_legacy_sql)
-    bq.create_temporary_dataset(self._get_project(), location)
+    bq.create_temporary_dataset(
+        self._get_project(), location, kms_key=self.kms_key)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
@@ -987,7 +988,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
       kms_key: Optional[str] = None,
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
-      use_native_datetime: Optional[bool] = False):
+      use_native_datetime: Optional[bool] = False,
+      timeout: Optional[float] = None):
 
     if table is not None and query is not None:
       raise ValueError(
@@ -1022,6 +1024,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self.temp_table = temp_table
     self.query_priority = query_priority
     self.use_native_datetime = use_native_datetime
+    self.timeout = timeout
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
@@ -1060,7 +1063,10 @@ class _CustomBigQueryStorageSource(BoundedSource):
         self._get_parent_project(), self.query.get(), self.use_legacy_sql)
     _LOGGER.warning("### Labels: %s", str(self.bigquery_dataset_labels))
     bq.create_temporary_dataset(
-        self._get_parent_project(), location, self.bigquery_dataset_labels)
+        self._get_parent_project(),
+        location,
+        self.bigquery_dataset_labels,
+        kms_key=self.kms_key)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
@@ -1213,7 +1219,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
       self.split_result = [
           _CustomBigQueryStorageStreamSource(
-              stream.name, self.use_native_datetime)
+              stream.name, self.use_native_datetime, self.timeout)
           for stream in read_session.streams
       ]
 
@@ -1245,9 +1251,13 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
   THROTTLE_COUNTER = Metrics.counter(__name__, 'cumulativeThrottlingSeconds')
 
   def __init__(
-      self, read_stream_name: str, use_native_datetime: Optional[bool] = True):
+      self,
+      read_stream_name: str,
+      use_native_datetime: Optional[bool] = True,
+      timeout: Optional[float] = None):
     self.read_stream_name = read_stream_name
     self.use_native_datetime = use_native_datetime
+    self.timeout = timeout
 
   def display_data(self):
     return {
@@ -1307,10 +1317,12 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
   def read_arrow(self):
 
     storage_client = bq_storage.BigQueryReadClient()
+    read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
+    if self.timeout is not None:
+      read_rows_kwargs['timeout'] = self.timeout
     row_iter = iter(
-        storage_client.read_rows(
-            self.read_stream_name,
-            retry_delay_callback=self.retry_delay_callback).rows())
+        storage_client.read_rows(self.read_stream_name,
+                                 **read_rows_kwargs).rows())
     row = next(row_iter, None)
     # Handling the case where the user might provide very selective filters
     # which can result in read_rows_response being empty.
@@ -1324,10 +1336,11 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 
   def read_avro(self):
     storage_client = bq_storage.BigQueryReadClient()
+    read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
+    if self.timeout is not None:
+      read_rows_kwargs['timeout'] = self.timeout
     read_rows_iterator = iter(
-        storage_client.read_rows(
-            self.read_stream_name,
-            retry_delay_callback=self.retry_delay_callback))
+        storage_client.read_rows(self.read_stream_name, **read_rows_kwargs))
     # Handling the case where the user might provide very selective filters
     # which can result in read_rows_response being empty.
     first_read_rows_response = next(read_rows_iterator, None)
@@ -1581,6 +1594,21 @@ class BigQueryWriteFn(DoFn):
         additional_create_parameters=self.additional_bq_parameters)
     _KNOWN_TABLES.add(str_table_reference)
 
+  def _check_row_size(self, row_and_insert_id) -> Tuple[int, Optional[str]]:
+    """Returns error string when the row estimated size is too big"""
+    row_byte_size = get_deep_size(row_and_insert_id)
+
+    # Check if individual row exceeds size limit
+    if row_byte_size >= self._max_insert_payload_size:
+      row_mb_size = row_byte_size / 1_000_000
+      max_mb_size = self._max_insert_payload_size / 1_000_000
+      return (
+          row_byte_size,
+          (
+              f"Received row with size {row_mb_size}MB that exceeds "
+              f"the maximum insert payload size set ({max_mb_size}MB)."))
+    return (row_byte_size, None)
+
   def process(
       self, element, window_value=DoFn.WindowedValueParam, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
@@ -1597,20 +1625,15 @@ class BigQueryWriteFn(DoFn):
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
-      row_byte_size = get_deep_size(row_and_insert_id)
+      row_byte_size, row_too_big_error = self._check_row_size(row_and_insert_id)
 
       # send large rows that exceed BigQuery insert limits to DLQ
-      if row_byte_size >= self._max_insert_payload_size:
-        row_mb_size = row_byte_size / 1_000_000
-        max_mb_size = self._max_insert_payload_size / 1_000_000
-        error = (
-            f"Received row with size {row_mb_size}MB that exceeds "
-            f"the maximum insert payload size set ({max_mb_size}MB).")
+      if row_too_big_error is not None:
         return [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
                 window_value.with_value(
-                    (destination, row_and_insert_id[0], error))),
+                    (destination, row_and_insert_id[0], row_too_big_error))),
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS,
                 window_value.with_value((destination, row_and_insert_id[0])))
@@ -1634,11 +1657,50 @@ class BigQueryWriteFn(DoFn):
       if self._total_buffered_rows >= self._max_buffered_rows:
         return self._flush_all_batches()
     else:
-      # The input is already batched per destination, flush the rows now.
+      # The input is already batched per destination
+      # but we verify the payload size.
+      # The batch might be split into smaller batches
       batched_rows = element[1]
-      for r in batched_rows:
-        self._rows_buffer[destination].append((r, window_value))
-      return self._flush_batch(destination)
+      failed_outputs = []
+      current_batch = []
+      current_batch_size = 0
+
+      for row in batched_rows:
+        row_byte_size, row_too_big_error = self._check_row_size(row)
+        # Check if individual row exceeds size limit
+        if row_too_big_error is not None:
+          failed_outputs.extend([
+              pvalue.TaggedOutput(
+                  BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+                  window_value.with_value(
+                      (destination, row[0], row_too_big_error))),
+              pvalue.TaggedOutput(
+                  BigQueryWriteFn.FAILED_ROWS,
+                  window_value.with_value((destination, row[0])))
+          ])
+          continue
+
+        # Check if adding this row would exceed batch size limit
+        if (len(current_batch) != 0 and
+            current_batch_size + row_byte_size > self._max_insert_payload_size):
+
+          self._rows_buffer[destination].extend(
+              ((batch_row, window_value) for batch_row in current_batch))
+          failed_outputs.extend(self._flush_batch(destination))
+
+          # Start new batch with current row
+          current_batch = [row]
+          current_batch_size = row_byte_size
+        else:
+          current_batch.append(row)
+          current_batch_size += row_byte_size
+
+      if current_batch:
+        for batch_row in current_batch:
+          self._rows_buffer[destination].append((batch_row, window_value))
+        failed_outputs.extend(self._flush_batch(destination))
+
+      return failed_outputs
 
   def finish_bundle(self):
     bigquery_tools.BigQueryWrapper.HISTOGRAM_METRIC_LOGGER.log_metrics(
@@ -1710,11 +1772,14 @@ class BigQueryWriteFn(DoFn):
             'Errors were {}'.format(("" if should_retry else " not"), errors))
 
         # The log level is:
-        # - WARNING when we are continuing to retry, and have a deadline.
-        # - ERROR when we will no longer retry, or MAY retry forever.
-        log_level = (
-            logging.WARN if should_retry or self._retry_strategy
-            != RetryStrategy.RETRY_ALWAYS else logging.ERROR)
+        # - WARNING when should_retry is true, else ERROR.
+
+        if (should_retry and
+            self._retry_strategy in [RetryStrategy.RETRY_ON_TRANSIENT_ERROR,
+                                     RetryStrategy.RETRY_ALWAYS]):
+          log_level = logging.WARN
+        else:
+          log_level = logging.ERROR
 
         _LOGGER.log(log_level, message)
 
@@ -1776,7 +1841,7 @@ class _StreamToBigQuery(PTransform):
       with_auto_sharding,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       test_client=None,
-      max_retries=None,
+      max_retries=MAX_INSERT_RETRIES,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
@@ -1794,7 +1859,7 @@ class _StreamToBigQuery(PTransform):
     self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
     self._num_streaming_keys = num_streaming_keys
-    self.max_retries = max_retries or MAX_INSERT_RETRIES
+    self._max_retries = max_retries
     self._max_insert_payload_size = max_insert_payload_size
 
   class InsertIdPrefixFn(DoFn):
@@ -1822,7 +1887,7 @@ class _StreamToBigQuery(PTransform):
         ignore_insert_ids=self.ignore_insert_ids,
         ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding,
-        max_retries=self.max_retries,
+        max_retries=self._max_retries,
         max_insert_payload_size=self._max_insert_payload_size)
 
     def _add_random_shard(element):
@@ -1925,11 +1990,13 @@ class WriteToBigQuery(PTransform):
       num_storage_api_streams=0,
       ignore_unknown_columns=False,
       load_job_project_id=None,
+      max_retries=MAX_INSERT_RETRIES,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
-      expansion_service=None):
+      expansion_service=None,
+      big_lake_configuration=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2092,6 +2159,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       expansion_service: The address (host:port) of the expansion service.
         If no expansion service is provided, will attempt to run the default
         GCP expansion service. Used for STORAGE_WRITE_API method.
+      max_retries: The number of times that we will retry inserting a group of
+        rows into BigQuery. By default, we retry 10000 times with exponential
+        backoffs (effectively retry forever).
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
       use_cdc_writes: Configure the usage of CDC writes on BigQuery.
@@ -2142,10 +2212,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
     self.load_job_project_id = load_job_project_id
+    self._max_retries = max_retries
     self._max_insert_payload_size = max_insert_payload_size
     self._num_streaming_keys = num_streaming_keys
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2199,6 +2271,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
             f'{MAX_INSERT_PAYLOAD_SIZE} bytes, as per BigQuery quota limits: '
             'https://cloud.google.com/bigquery/quotas#streaming_inserts.')
 
+      if self._max_retries > MAX_INSERT_RETRIES:
+        raise ValueError(
+            'max_retries cannot be more than '
+            f'{MAX_INSERT_RETRIES}, hence please reduce the value.')
+
       outputs = pcoll | _StreamToBigQuery(
           table_reference=self.table_reference,
           table_side_inputs=self.table_side_inputs,
@@ -2216,6 +2293,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client,
           max_insert_payload_size=self._max_insert_payload_size,
+          max_retries=self._max_retries,
           num_streaming_keys=self._num_streaming_keys)
 
       return WriteResult(
@@ -2295,12 +2373,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           table_side_inputs=self.table_side_inputs,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
+          additional_bq_parameters=self.additional_bq_parameters,
           triggering_frequency=self.triggering_frequency,
           use_at_least_once=self.use_at_least_once,
           with_auto_sharding=self.with_auto_sharding,
           num_storage_api_streams=self._num_storage_api_streams,
           use_cdc_writes=self._use_cdc_writes,
           primary_key=self._primary_key,
+          big_lake_configuration=self._big_lake_configuration,
           expansion_service=self.expansion_service)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
@@ -2542,24 +2622,28 @@ class StorageWriteToBigQuery(PTransform):
       schema=None,
       create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
       write_disposition=BigQueryDisposition.WRITE_APPEND,
+      additional_bq_parameters=None,
       triggering_frequency=0,
       use_at_least_once=False,
       with_auto_sharding=False,
       num_storage_api_streams=0,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
+      big_lake_configuration=None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
     self._schema = schema
     self._create_disposition = create_disposition
     self._write_disposition = write_disposition
+    self.additional_bq_parameters = additional_bq_parameters
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
     self._num_storage_api_streams = num_storage_api_streams
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2629,6 +2713,15 @@ class StorageWriteToBigQuery(PTransform):
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
+    clustering_fields = []
+    if self.additional_bq_parameters:
+      if callable(self.additional_bq_parameters):
+        raise NotImplementedError(
+            "Currently, dynamic clustering and timepartitioning is not "
+            "supported for STORAGE_WRITE_API write method.")
+      clustering_fields = (
+          self.additional_bq_parameters.get("clustering", {}).get("fields", []))
+
     output = (
         input_beam_rows
         | SchemaAwareExternalTransform(
@@ -2644,6 +2737,8 @@ class StorageWriteToBigQuery(PTransform):
             use_at_least_once_semantics=self._use_at_least_once,
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
+            clustering_fields=clustering_fields,
+            big_lake_configuration=self._big_lake_configuration,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
@@ -2654,11 +2749,12 @@ class StorageWriteToBigQuery(PTransform):
         lambda row_and_error: row_and_error[0])
     if not is_rows:
       # return back from Beam Rows to Python dict elements
-      failed_rows = failed_rows | beam.Map(lambda row: row.as_dict())
+      failed_rows = failed_rows | beam.Map(lambda row: row._asdict())
+
       failed_rows_with_errors = failed_rows_with_errors | beam.Map(
           lambda row: {
               "error_message": row.error_message, "failed_row": row.failed_row.
-              as_dict()
+              _asdict()
           })
 
     return WriteResult(
@@ -2721,6 +2817,8 @@ class ReadFromBigQuery(PTransform):
       directly from BigQuery storage using the BigQuery Read API
       (https://cloud.google.com/bigquery/docs/reference/storage). If
       unspecified, the default is currently EXPORT.
+    timeout (float): The timeout for the read operation in seconds. This only
+      impacts DIRECT_READ. If None, the client default will be used.
     use_native_datetime (bool): By default this transform exports BigQuery
       DATETIME fields as formatted strings (for example:
       2021-01-01T12:59:59). If :data:`True`, BigQuery DATETIME fields will
@@ -2813,6 +2911,7 @@ class ReadFromBigQuery(PTransform):
       method=None,
       use_native_datetime=False,
       output_type=None,
+      timeout=None,
       *args,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
@@ -2820,6 +2919,8 @@ class ReadFromBigQuery(PTransform):
     self.output_type = output_type
     self._args = args
     self._kwargs = kwargs
+    if timeout is not None:
+      self._kwargs['timeout'] = timeout
 
     if self.method == ReadFromBigQuery.Method.EXPORT \
         and self.use_native_datetime is True:

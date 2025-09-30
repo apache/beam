@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import com.google.api.services.bigquery.model.Clustering;
+import com.google.api.services.bigquery.model.Table;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,6 +52,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,6 +85,8 @@ public class BigQueryManagedIT {
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID = "bigquery_managed_" + System.nanoTime();
 
+  private static final Clustering CLUSTERING = new Clustering().setFields(Arrays.asList("str"));
+
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
@@ -94,10 +99,11 @@ public class BigQueryManagedIT {
   }
 
   @Test
-  public void testBatchFileLoadsWriteRead() {
+  public void testBatchFileLoadsWriteRead() throws IOException, InterruptedException {
     String table =
         String.format("%s.%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
-    Map<String, Object> writeConfig = ImmutableMap.of("table", table);
+    Map<String, Object> writeConfig =
+        ImmutableMap.of("table", table, "clustering_fields", Collections.singletonList("str"));
 
     // file loads requires a GCS temp location
     String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
@@ -117,6 +123,11 @@ public class BigQueryManagedIT {
             .getSinglePCollection();
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
     readPipeline.run().waitUntilFinish();
+
+    // Asserting clustering
+    Table tableMetadata =
+        BQ_CLIENT.getTableResource(PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
+    Assert.assertEquals(CLUSTERING, tableMetadata.getClustering());
   }
 
   @Test
@@ -148,7 +159,7 @@ public class BigQueryManagedIT {
 
   public void testDynamicDestinations(boolean streaming) throws IOException, InterruptedException {
     String baseTableName =
-        String.format("%s:%s.dynamic_" + System.nanoTime(), PROJECT, BIG_QUERY_DATASET_ID);
+        String.format("%s.%s.dynamic_" + System.nanoTime(), PROJECT, BIG_QUERY_DATASET_ID);
     String destinationTemplate = baseTableName + "_{dest}";
     Map<String, Object> config =
         ImmutableMap.of("table", destinationTemplate, "drop", Collections.singletonList("dest"));
@@ -173,8 +184,7 @@ public class BigQueryManagedIT {
       long mod = i;
       String dest = destinations.get(i);
       List<Row> writtenRows =
-          BQ_CLIENT
-              .queryUnflattened(String.format("SELECT * FROM [%s]", dest), PROJECT, true, false)
+          BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM `%s`", dest), PROJECT, true, true)
               .stream()
               .map(tableRow -> BigQueryUtils.toBeamRow(rowFilter.outputSchema(), tableRow))
               .collect(Collectors.toList());

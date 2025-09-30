@@ -92,10 +92,12 @@ abstract class BaseFirestoreIT {
           .build();
 
   protected static String project;
+  protected static String databaseId;
 
   @Before
   public void setup() {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    databaseId = "firestoredb";
   }
 
   private static Instant toWriteTime(WriteResult result) {
@@ -441,7 +443,14 @@ abstract class BaseFirestoreIT {
     testPipeline
         .apply(Create.of(Collections.singletonList(documentIds)))
         .apply(createWrite)
-        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(RPC_QOS_OPTIONS).build());
+        .apply(
+            FirestoreIO.v1()
+                .write()
+                .withProjectId(project)
+                .withDatabaseId(databaseId)
+                .batchWrite()
+                .withRpcQosOptions(RPC_QOS_OPTIONS)
+                .build());
 
     testPipeline.run(TestPipeline.testingPipelineOptions());
 

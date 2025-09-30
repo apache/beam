@@ -142,17 +142,17 @@ class PyODIForestTest(unittest.TestCase):
     # (see the `test_scoring_with_matched_features`)
     detector = PyODFactory.create_detector(self.pickled_model_uri)
     options = PipelineOptions([])
-    p = beam.Pipeline(options=options)
-    _ = (
-        p | beam.Create(self.get_test_data_with_target())
-        | beam.Map(
-            lambda x: beam.Row(**dict(zip(["a", "b", "target"], map(int, x)))))
-        | beam.WithKeys(0)
-        | AnomalyDetection(detector=detector))
-
     # This should raise a ValueError with message
     # "X has 3 features, but IsolationForest is expecting 2 features as input."
-    self.assertRaises(ValueError, p.run)
+    with self.assertRaisesRegex(Exception, "is expecting 2 features"):
+      with beam.Pipeline(options=options) as p:
+        _ = (
+            p | beam.Create(self.get_test_data_with_target())
+            | beam.Map(
+                lambda x: beam.Row(
+                    **dict(zip(["a", "b", "target"], map(int, x)))))
+            | beam.WithKeys(0)
+            | AnomalyDetection(detector=detector))
 
 
 if __name__ == '__main__':

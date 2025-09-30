@@ -18,7 +18,7 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;

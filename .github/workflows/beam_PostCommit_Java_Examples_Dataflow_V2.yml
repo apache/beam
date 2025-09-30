@@ -77,8 +77,8 @@ jobs:
       - name: run PostCommit Java Examples Dataflow V2 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-            gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest
-            max-workers: 12
+          gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest
+          max-workers: 12
       - name: Setup Java 17 environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -99,7 +99,7 @@ jobs:
               -PdisableSpotlessCheck=true \
               -PdisableCheckStyle=true \
               -PskipCheckerFramework \
-              -PtestJavaVersion=java17 \
+              -PtestJavaVersion=17 \
               -Pjava17Home=$JAVA_HOME_17_X64 \
               -PdockerTag=${{ env.DOCKER_TAG }} \
       - name: Archive JUnit Test Results

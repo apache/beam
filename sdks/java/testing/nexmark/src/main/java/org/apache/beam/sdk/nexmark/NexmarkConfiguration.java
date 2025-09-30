@@ -19,6 +19,7 @@ package org.apache.beam.sdk.nexmark;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
@@ -33,6 +34,7 @@ import org.joda.time.Duration;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
 public class NexmarkConfiguration implements Serializable {
   public static final NexmarkConfiguration DEFAULT = new NexmarkConfiguration();
 

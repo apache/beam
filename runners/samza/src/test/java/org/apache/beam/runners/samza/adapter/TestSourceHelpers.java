@@ -29,7 +29,7 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.samza.system.IncomingMessageEnvelope;
 import org.apache.samza.system.SystemStreamPartition;
 import org.joda.time.Instant;
@@ -131,7 +131,7 @@ public class TestSourceHelpers {
         ssp,
         offset,
         null,
-        OpMessage.ofElement(WindowedValue.timestampedValueInGlobalWindow(element, timestamp)));
+        OpMessage.ofElement(WindowedValues.timestampedValueInGlobalWindow(element, timestamp)));
   }
 
   static IncomingMessageEnvelope createWatermarkMessage(

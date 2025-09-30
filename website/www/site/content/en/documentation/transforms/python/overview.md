@@ -82,4 +82,6 @@ limitations under the License.
   most useful for adjusting parallelism or preventing coupled failures.</td></tr>
   <tr><td><a href="/documentation/transforms/python/other/windowinto">WindowInto</a></td><td>Logically divides up or groups the elements of a collection into finite
   windows according to a function.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/other/waiton">WaitOn</a></td><td>Delays processing of a PCollection until other PCollections have finished processing.</td></tr>
 </table>
+

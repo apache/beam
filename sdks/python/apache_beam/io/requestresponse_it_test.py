@@ -17,6 +17,7 @@
 import base64
 import logging
 import sys
+import time
 import typing
 import unittest
 from dataclasses import dataclass
@@ -206,7 +207,7 @@ class FakeCallerForCache(Caller[str, str]):
 @pytest.mark.uses_testcontainer
 class TestRedisCache(unittest.TestCase):
   def setUp(self) -> None:
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def test_rrio_cache_all_miss(self):
@@ -303,6 +304,8 @@ class TestRedisCache(unittest.TestCase):
         if i == self.retries - 1:
           _LOGGER.error('Unable to start redis container for RRIO tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
 
 if __name__ == '__main__':

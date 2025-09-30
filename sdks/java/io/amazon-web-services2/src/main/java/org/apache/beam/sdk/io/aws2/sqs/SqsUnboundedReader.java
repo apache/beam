@@ -32,6 +32,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 import static software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName.SENT_TIMESTAMP;
 import static software.amazon.awssdk.services.sqs.model.QueueAttributeName.VISIBILITY_TIMEOUT;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayDeque;
@@ -81,8 +82,9 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497),
 })
+@SuppressFBWarnings(value = "CT_CONSTRUCTOR_THROW", justification = "Initialization is safe.")
 class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
   private static final String RECEIPT_HANDLE_IS_INVALID = "ReceiptHandleIsInvalid";
 

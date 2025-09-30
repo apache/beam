@@ -40,9 +40,10 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.hamcrest.Matchers;
@@ -176,9 +177,9 @@ public class DirectTransformExecutorTest {
           }
         };
 
-    WindowedValue<String> foo = WindowedValue.valueInGlobalWindow("foo");
-    WindowedValue<String> spam = WindowedValue.valueInGlobalWindow("spam");
-    WindowedValue<String> third = WindowedValue.valueInGlobalWindow("third");
+    WindowedValue<String> foo = WindowedValues.valueInGlobalWindow("foo");
+    WindowedValue<String> spam = WindowedValues.valueInGlobalWindow("spam");
+    WindowedValue<String> third = WindowedValues.valueInGlobalWindow("third");
     CommittedBundle<String> inputBundle =
         bundleFactory.createBundle(created).add(foo).add(spam).add(third).commit(Instant.now());
     when(registry.<String>forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
@@ -222,7 +223,7 @@ public class DirectTransformExecutorTest {
           }
         };
 
-    WindowedValue<String> foo = WindowedValue.valueInGlobalWindow("foo");
+    WindowedValue<String> foo = WindowedValues.valueInGlobalWindow("foo");
     CommittedBundle<String> inputBundle =
         bundleFactory.createBundle(created).add(foo).commit(Instant.now());
     when(registry.<String>forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
@@ -295,8 +296,8 @@ public class DirectTransformExecutorTest {
           }
         };
 
-    WindowedValue<String> fooElem = WindowedValue.valueInGlobalWindow("foo");
-    WindowedValue<String> barElem = WindowedValue.valueInGlobalWindow("bar");
+    WindowedValue<String> fooElem = WindowedValues.valueInGlobalWindow("foo");
+    WindowedValue<String> barElem = WindowedValues.valueInGlobalWindow("bar");
     CommittedBundle<String> inputBundle =
         bundleFactory.createBundle(created).add(fooElem).add(barElem).commit(Instant.now());
     when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
@@ -334,7 +335,7 @@ public class DirectTransformExecutorTest {
           }
         };
 
-    WindowedValue<String> fooBytes = WindowedValue.valueInGlobalWindow("foo");
+    WindowedValue<String> fooBytes = WindowedValues.valueInGlobalWindow("foo");
     CommittedBundle<String> inputBundle =
         bundleFactory.createBundle(created).add(fooBytes).commit(Instant.now());
     when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
@@ -372,7 +373,7 @@ public class DirectTransformExecutorTest {
           }
         };
 
-    WindowedValue<String> fooBytes = WindowedValue.valueInGlobalWindow("foo");
+    WindowedValue<String> fooBytes = WindowedValues.valueInGlobalWindow("foo");
     CommittedBundle<String> inputBundle =
         bundleFactory.createBundle(created).add(fooBytes).commit(Instant.now());
     when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);

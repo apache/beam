@@ -37,6 +37,11 @@ import zlib
 
 from apache_beam.internal.cloudpickle import cloudpickle
 
+DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
+    skip_reset_dynamic_type_state=True)
+NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
+    id_generator=None, skip_reset_dynamic_type_state=True)
+
 try:
   from absl import flags
 except (ImportError, ModuleNotFoundError):
@@ -113,7 +118,8 @@ def dumps(
     o,
     enable_trace=True,
     use_zlib=False,
-    enable_best_effort_determinism=False) -> bytes:
+    enable_best_effort_determinism=False,
+    config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   if enable_best_effort_determinism:
     # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
@@ -123,7 +129,7 @@ def dumps(
         'This has only been implemented for dill.')
   with _pickle_lock:
     with io.BytesIO() as file:
-      pickler = cloudpickle.CloudPickler(file)
+      pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:

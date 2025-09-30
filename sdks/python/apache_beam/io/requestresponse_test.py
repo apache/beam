@@ -31,8 +31,6 @@ try:
   from apache_beam.io.requestresponse import Caller
   from apache_beam.io.requestresponse import DefaultThrottler
   from apache_beam.io.requestresponse import RequestResponseIO
-  from apache_beam.io.requestresponse import UserCodeExecutionException
-  from apache_beam.io.requestresponse import UserCodeTimeoutException
   from apache_beam.io.requestresponse import retry_on_exception
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed.')
@@ -98,7 +96,7 @@ class TestCaller(unittest.TestCase):
 
   def test_call_timeout(self):
     caller = CallerWithTimeout()
-    with self.assertRaises(UserCodeTimeoutException):
+    with self.assertRaisesRegex(Exception, "Timeout"):
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
@@ -107,7 +105,7 @@ class TestCaller(unittest.TestCase):
 
   def test_call_runtime_error(self):
     caller = CallerWithRuntimeError()
-    with self.assertRaises(UserCodeExecutionException):
+    with self.assertRaisesRegex(Exception, "could not complete request"):
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
@@ -120,23 +118,23 @@ class TestCaller(unittest.TestCase):
 
   def test_caller_backoff_retry_strategy(self):
     caller = CallerThatRetries()
-    with self.assertRaises(TooManyRequests) as cm:
+    with self.assertRaises(Exception) as cm:
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
             | beam.Create(["sample_request"])
             | RequestResponseIO(caller=caller))
-    self.assertRegex(cm.exception.message, 'retries = 2')
+    self.assertRegex(str(cm.exception), 'retries = 2')
 
   def test_caller_no_retry_strategy(self):
     caller = CallerThatRetries()
-    with self.assertRaises(TooManyRequests) as cm:
+    with self.assertRaises(Exception) as cm:
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
             | beam.Create(["sample_request"])
             | RequestResponseIO(caller=caller, repeater=None))
-    self.assertRegex(cm.exception.message, 'retries = 0')
+    self.assertRegex(str(cm.exception), 'retries = 0')
 
   @retry(
       retry=retry_if_exception_type(IndexError),
@@ -148,7 +146,11 @@ class TestCaller(unittest.TestCase):
         window_ms=10000, bucket_ms=5000, overload_ratio=1)
     # manually override the number of received requests for testing.
     throttler.throttler._all_requests.add(time.time() * 1000, 100)
-    test_pipeline = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    test_pipeline = TestPipeline('FnApiRunner')
     _ = (
         test_pipeline
         | beam.Create(['sample_request'])

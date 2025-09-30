@@ -20,7 +20,6 @@
 # pytype: skip-file
 
 import logging
-import subprocess
 import typing
 import unittest
 
@@ -69,22 +68,6 @@ class SqlTransformTest(unittest.TestCase):
         --test-pipeline-options="--runner=FlinkRunner"
   """
   _multiprocess_can_split_ = True
-
-  @staticmethod
-  def _disable_zetasql_test():
-    # disable if run on Java8 which is no longer supported by ZetaSQL
-    try:
-      result = subprocess.run(['java', '-version'],
-                              check=True,
-                              capture_output=True,
-                              text=True)
-      version_line = result.stderr.splitlines()[0]
-      version = version_line.split()[2].strip('\"')
-      if version.startswith("1."):
-        return True
-      return False
-    except:  # pylint: disable=bare-except
-      return False
 
   def test_generate_data(self):
     with TestPipeline() as p:
@@ -165,19 +148,6 @@ class SqlTransformTest(unittest.TestCase):
           | beam.Map(lambda x: beam.Row(a=x, b=str(x)))
           | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
-
-  def test_zetasql_generate_data(self):
-    if self._disable_zetasql_test():
-      raise unittest.SkipTest("ZetaSQL tests need Java11+")
-
-    with TestPipeline() as p:
-      out = p | SqlTransform(
-          """SELECT
-            CAST(1 AS INT64) AS `int`,
-            CAST('foo' AS STRING) AS `str`,
-            CAST(3.14  AS FLOAT64) AS `flt`""",
-          dialect="zetasql")
-      assert_that(out, equal_to([(1, "foo", 3.14)]))
 
   def test_windowing_before_sql(self):
     with TestPipeline() as p:

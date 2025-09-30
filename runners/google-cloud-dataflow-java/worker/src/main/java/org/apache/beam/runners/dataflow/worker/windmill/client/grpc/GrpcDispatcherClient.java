@@ -21,6 +21,8 @@ import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.localhostChannel;
 
 import com.google.auto.value.AutoValue;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -132,16 +134,15 @@ public class GrpcDispatcherClient {
 
   /** Will block the calling thread until the initial endpoints are present. */
   public CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStubBlocking() {
-    boolean initialized = false;
-    long secondsWaited = 0;
-    while (!initialized) {
-      LOG.info(
-          "Blocking until Windmill Service endpoint has been set. "
-              + "Currently waited for [{}] seconds.",
-          secondsWaited);
+    Instant startTime = Instant.now();
+    while (true) {
       try {
-        initialized = onInitializedEndpoints.await(10, TimeUnit.SECONDS);
-        secondsWaited += 10;
+        if (onInitializedEndpoints.await(10, TimeUnit.SECONDS)) {
+          break;
+        }
+        LOG.info(
+            "Blocking until Windmill Service endpoint has been set. " + "Currently waited for {}.",
+            Duration.between(startTime, Instant.now()));
       } catch (InterruptedException e) {
         LOG.error(
             "Interrupted while waiting for initial Windmill Service endpoints. "
@@ -149,8 +150,10 @@ public class GrpcDispatcherClient {
             e);
       }
     }
-
-    LOG.info("Windmill Service endpoint initialized after {} seconds.", secondsWaited);
+    Duration elapsed = Duration.between(startTime, Instant.now());
+    if (elapsed.getSeconds() >= 5) {
+      LOG.info("Windmill Service endpoint initialized after {}.", elapsed);
+    }
 
     ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         dispatcherStubs.get().windmillMetadataServiceStubs();

@@ -71,12 +71,12 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     - name: Set up Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: |
           21
-          8
+          11
     - name: run PostCommit Java Jpms Direct Java21 script
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:

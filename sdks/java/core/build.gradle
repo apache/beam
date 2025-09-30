@@ -17,6 +17,9 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+
+def antlr_version = "4.7"
+
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
@@ -29,7 +32,8 @@ applyJavaNature(
     dependencies {
       include(dependency(library.java.commons_compress))
       include(dependency(library.java.commons_lang3))
-      include(dependency(library.java.antlr_runtime))
+      // Shade and repackage antlr runtime into Java core jar
+      include(dependency("org.antlr:antlr4-runtime:$antlr_version"))
     }
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
     relocate "org.apache.commons.compress", getJavaRelocatedPath("org.apache.commons.compress")
@@ -70,10 +74,11 @@ test {
 }
 
 dependencies {
-  antlr library.java.antlr
   // antlr is used to generate code from sdks/java/core/src/main/antlr/
-  permitUnusedDeclared library.java.antlr
-  permitUsedUndeclared library.java.antlr_runtime
+  antlr "org.antlr:antlr4:$antlr_version"
+  permitUnusedDeclared "org.antlr:antlr4:$antlr_version"
+  // alrady shaded and repackaged
+  permitUsedUndeclared "org.antlr:antlr4-runtime:$antlr_version"
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:fn-execution", configuration: "shadow")
@@ -101,7 +106,6 @@ dependencies {
   implementation library.java.snake_yaml
   shadowTest library.java.everit_json_schema
   provided library.java.junit
-  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
   provided library.java.hamcrest
   provided 'io.airlift:aircompressor:0.18'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
@@ -120,10 +124,17 @@ dependencies {
   shadowTest library.java.log4j2_api
   shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
-  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
 }
 
 project.tasks.compileTestJava {
   // TODO: fix other places with warnings in tests and delete this option
   options.compilerArgs += ['-Xlint:-rawtypes']
+}
+
+// Configure test task to use JUnit 4. JUnit 5 support is provided in module
+// sdks/java/testing/junit, which configures useJUnitPlatform(). Submodules that
+// need to run both JUnit 4 and 5 via the JUnit Platform must also add the
+// Vintage engine explicitly.
+test {
+  useJUnit()
 }

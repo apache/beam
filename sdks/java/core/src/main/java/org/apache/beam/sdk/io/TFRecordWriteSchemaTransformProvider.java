@@ -132,6 +132,10 @@ public class TFRecordWriteSchemaTransformProvider
       if (Boolean.TRUE.equals(configuration.getNoSpilling())) {
         writeTransform = writeTransform.withNoSpilling();
       }
+      if (configuration.getMaxNumWritersPerBundle() != null) {
+        writeTransform =
+            writeTransform.withMaxNumWritersPerBundle(configuration.getMaxNumWritersPerBundle());
+      }
 
       // Obtain input schema and verify only one field and its bytes
       Schema inputSchema = input.get(INPUT).getSchema();

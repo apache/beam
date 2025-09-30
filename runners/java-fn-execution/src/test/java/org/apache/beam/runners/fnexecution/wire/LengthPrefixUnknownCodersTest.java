@@ -31,10 +31,10 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
@@ -77,10 +77,10 @@ public class LengthPrefixUnknownCodersTest {
     return ImmutableList.of(
         /** Test wrapping unknown coders with {@code LengthPrefixCoder}. */
         new Object[] {
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               KvCoder.of(UnknownCoder.INSTANCE, UnknownCoder.INSTANCE),
               GlobalWindow.Coder.INSTANCE),
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               KvCoder.of(
                   LengthPrefixCoder.of(UnknownCoder.INSTANCE),
                   LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
@@ -91,10 +91,10 @@ public class LengthPrefixUnknownCodersTest {
          * Test bypassing unknown coders that are already wrapped with {@code LengthPrefixCoder}.
          */
         new Object[] {
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               KvCoder.of(UnknownCoder.INSTANCE, LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
               GlobalWindow.Coder.INSTANCE),
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               KvCoder.of(
                   LengthPrefixCoder.of(UnknownCoder.INSTANCE),
                   LengthPrefixCoder.of(UnknownCoder.INSTANCE)),
@@ -103,10 +103,10 @@ public class LengthPrefixUnknownCodersTest {
         },
         /** Test replacing unknown coders with {@code LengthPrefixCoder<ByteArray>}. */
         new Object[] {
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               KvCoder.of(LengthPrefixCoder.of(UnknownCoder.INSTANCE), UnknownCoder.INSTANCE),
               GlobalWindow.Coder.INSTANCE),
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               KvCoder.of(
                   LengthPrefixCoder.of(ByteArrayCoder.of()),
                   LengthPrefixCoder.of(ByteArrayCoder.of())),

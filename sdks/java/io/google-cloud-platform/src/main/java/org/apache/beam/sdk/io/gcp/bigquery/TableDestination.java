@@ -64,7 +64,7 @@ public class TableDestination implements Serializable {
   public TableDestination(
       String tableSpec,
       @Nullable String tableDescription,
-      TimePartitioning timePartitioning,
+      @Nullable TimePartitioning timePartitioning,
       Clustering clustering) {
     this(
         tableSpec,

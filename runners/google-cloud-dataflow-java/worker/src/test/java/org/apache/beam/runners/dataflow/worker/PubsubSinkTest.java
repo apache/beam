@@ -35,7 +35,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -77,16 +78,19 @@ public class PubsubSinkTest {
         (PubsubSink<String>)
             factory.create(
                 cloudSinkSpec,
-                WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
+                WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
                 null,
                 mockContext,
                 null);
 
     Sink.SinkWriter<WindowedValue<String>> writer = sink.writer();
 
-    assertEquals(2, writer.add(WindowedValue.timestampedValueInGlobalWindow("e0", new Instant(0))));
-    assertEquals(2, writer.add(WindowedValue.timestampedValueInGlobalWindow("e1", new Instant(1))));
-    assertEquals(2, writer.add(WindowedValue.timestampedValueInGlobalWindow("e2", new Instant(2))));
+    assertEquals(
+        2, writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0))));
+    assertEquals(
+        2, writer.add(WindowedValues.timestampedValueInGlobalWindow("e1", new Instant(1))));
+    assertEquals(
+        2, writer.add(WindowedValues.timestampedValueInGlobalWindow("e2", new Instant(2))));
     writer.close();
 
     assertEquals(
@@ -161,7 +165,7 @@ public class PubsubSinkTest {
         (PubsubSink<String>)
             factory.create(
                 cloudSinkSpec,
-                WindowedValue.getFullCoder(new ErrorCoder(), IntervalWindow.getCoder()),
+                WindowedValues.getFullCoder(new ErrorCoder(), IntervalWindow.getCoder()),
                 null,
                 mockContext,
                 null);
@@ -170,10 +174,10 @@ public class PubsubSinkTest {
     assertThrows(
         "encode error",
         CoderException.class,
-        () -> writer.add(WindowedValue.timestampedValueInGlobalWindow("e0", new Instant(0))));
+        () -> writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0))));
     assertThrows(
         "encode error",
         CoderException.class,
-        () -> writer.add(WindowedValue.timestampedValueInGlobalWindow("e0", new Instant(0))));
+        () -> writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0))));
   }
 }

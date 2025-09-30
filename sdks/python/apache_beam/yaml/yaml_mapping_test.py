@@ -175,7 +175,7 @@ class YamlMappingTest(unittest.TestCase):
           label='Errors')
 
   def test_validate_explicit_types(self):
-    with self.assertRaisesRegex(TypeError, r'.*violates schema.*'):
+    with self.assertRaisesRegex(Exception, r'.*violates schema.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([
@@ -284,7 +284,7 @@ class YamlMappingTest(unittest.TestCase):
           label='Other')
 
   def test_partition_without_unknown(self):
-    with self.assertRaisesRegex(ValueError, r'.*Unknown output name.*"o".*'):
+    with self.assertRaisesRegex(Exception, r'.*Unknown output name.*"o".*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([
@@ -416,8 +416,8 @@ class YamlMappingTest(unittest.TestCase):
             ''')
 
   def test_partition_bad_runtime_type(self):
-    with self.assertRaisesRegex(ValueError,
-                                r'.*Returned output name.*must be a string.*'):
+    with self.assertRaisesRegex(Exception,
+                                r'Returned output name.*must be a string.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([

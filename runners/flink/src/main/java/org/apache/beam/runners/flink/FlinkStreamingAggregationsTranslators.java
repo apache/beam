@@ -45,11 +45,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -210,8 +211,8 @@ public class FlinkStreamingAggregationsTranslators {
         SingletonKeyedWorkItemCoder.of(
             keyCoder, inputKvCoder.getValueCoder(), windowingStrategy.getWindowFn().windowCoder());
 
-    WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputAccumT>> windowedWorkItemCoder =
-        WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
+    WindowedValues.FullWindowedValueCoder<KeyedWorkItem<K, InputAccumT>> windowedWorkItemCoder =
+        WindowedValues.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
     // Key selector
     WorkItemKeySelector<K, InputAccumT> workItemKeySelector = new WorkItemKeySelector<>(keyCoder);
@@ -381,17 +382,17 @@ public class FlinkStreamingAggregationsTranslators {
         KvCoder.of(inputKvCoder.getKeyCoder(), accumulatorCoder);
 
     Coder<WindowedValue<KV<K, Iterable<InputT>>>> windowedAccumCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             accumKvCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
 
     Coder<WindowedValue<KV<K, Iterable<Iterable<InputT>>>>> outputCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(inputKvCoder.getKeyCoder(), IterableCoder.of(accumulatorCoder)),
             input.getWindowingStrategy().getWindowFn().windowCoder());
 
     TypeInformation<WindowedValue<KV<K, Iterable<Iterable<InputT>>>>> accumulatedTypeInfo =
         new CoderTypeInformation<>(
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(
                     inputKvCoder.getKeyCoder(),
                     IterableCoder.of(IterableCoder.of(inputKvCoder.getValueCoder()))),
@@ -468,7 +469,7 @@ public class FlinkStreamingAggregationsTranslators {
       accumKvCoder = KvCoder.of(inputKvCoder.getKeyCoder(), accumulatorCoder);
 
       windowedAccumCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               accumKvCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
     } catch (CannotProvideCoderException e) {
       throw new RuntimeException(e);

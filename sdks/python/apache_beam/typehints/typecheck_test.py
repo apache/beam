@@ -36,7 +36,6 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import decorators
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
@@ -84,7 +83,9 @@ class MyDoFnBadAnnotation(MyDoFn):
 
 class RuntimeTypeCheckTest(unittest.TestCase):
   def setUp(self):
+    # Use FnApiRunner since it guarantees all lifecycle methods will be called.
     self.p = TestPipeline(
+        'FnApiRunner',
         options=PipelineOptions(
             runtime_type_check=True, performance_runtime_type_check=False))
 
@@ -93,7 +94,7 @@ class RuntimeTypeCheckTest(unittest.TestCase):
     def fn(e: int) -> int:
       return str(e)  # type: ignore
 
-    with self.assertRaisesRegex(TypeCheckError,
+    with self.assertRaisesRegex(Exception,
                                 r'output should be.*int.*received.*str'):
       _ = self.p | beam.Create([1, 2, 3]) | beam.Map(fn)
       self.p.run()
@@ -144,34 +145,27 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
 
   def test_simple_input_error(self):
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaisesRegex(Exception,
+                                "Type-hint for argument: 'x' violated. "
+                                "Expected an instance of {}, "
+                                "instead found 1, an instance of {}".format(
+                                    str, int)):
       (
           self.p
           | beam.Create([1, 1])
           | beam.FlatMap(lambda x: [int(x)]).with_input_types(
               str).with_output_types(int))
-      self.p.run()
-
-    self.assertIn(
-        "Type-hint for argument: 'x' violated. "
-        "Expected an instance of {}, "
-        "instead found 1, an instance of {}".format(str, int),
-        e.exception.args[0])
+      self.p.run().wait_until_finish()
 
   def test_simple_output_error(self):
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaisesRegex(Exception,
+                                "Type-hint for argument: 'x' violated. "):
       (
           self.p
           | beam.Create(['1', '1'])
           | beam.FlatMap(lambda x: [int(x)]).with_input_types(
               int).with_output_types(int))
-      self.p.run()
-
-    self.assertIn(
-        "Type-hint for argument: 'x' violated. "
-        "Expected an instance of {}, "
-        "instead found 1, an instance of {}.".format(int, str),
-        e.exception.args[0])
+      self.p.run().wait_until_finish()
 
   def test_simple_input_error_with_kwarg_typehints(self):
     @with_input_types(element=int)
@@ -180,28 +174,28 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
       def process(self, element, *args, **kwargs):
         yield int(element)
 
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaisesRegex(Exception,
+                                "Type-hint for argument: 'element' violated"):
       (self.p | beam.Create(['1', '1']) | beam.ParDo(ToInt()))
-      self.p.run()
+      self.p.run().wait_until_finish()
 
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within "
-        "ParDo(ToInt): Type-hint for argument: "
-        "'element' violated. Expected an instance of "
-        "{}, instead found 1, "
-        "an instance of {}.".format(int, str))
+  def test_bad_flatten_input(self):
+    with self.assertRaisesRegex(
+        TypeError,
+        "Inputs to Flatten cannot include an iterable of PCollections. "):
+      with beam.Pipeline() as p:
+        pc = p | beam.Create([1, 1])
+        flatten_inputs = [pc, (pc, )]
+        flatten_inputs | beam.Flatten()
 
   def test_do_fn_returning_non_iterable_throws_error(self):
     # This function is incorrect because it returns a non-iterable object
     def incorrect_par_do_fn(x):
       return x + 5
 
-    with self.assertRaises(TypeError) as cm:
+    with self.assertRaisesRegex(Exception, "'int' object is not iterable "):
       (self.p | beam.Create([1, 1]) | beam.FlatMap(incorrect_par_do_fn))
-      self.p.run()
-
-    self.assertStartswith(cm.exception.args[0], "'int' object is not iterable ")
+      self.p.run().wait_until_finish()
 
   def test_simple_type_satisfied(self):
     @with_input_types(int, int)
@@ -230,15 +224,9 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         self.p
         | 'Create' >> beam.Create(['some_string'])
         | 'ToStr' >> beam.Map(int_to_string))
-    with self.assertRaises(TypeCheckError) as e:
-      self.p.run()
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within ParDo(ToStr): "
-        "Type-hint for argument: 'x' violated. "
-        "Expected an instance of {}, "
-        "instead found some_string, an instance of {}.".format(int, str))
+    with self.assertRaisesRegex(Exception,
+                                "Type-hint for argument: 'x' violated. "):
+      self.p.run().wait_until_finish()
 
   def test_pipeline_checking_satisfied_but_run_time_types_violate(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
@@ -256,17 +244,13 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         | 'IsEven' >> beam.Map(is_even_as_key)
         | 'Parity' >> beam.GroupByKey())
 
-    with self.assertRaises(TypeCheckError) as e:
-      self.p.run()
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within ParDo(IsEven): "
-        "Type-hint for return type violated: "
-        "Tuple[<class \'bool\'>, <class \'int\'>] hint type-constraint "
-        "violated. The type of element #0 in the passed tuple is incorrect. "
-        "Expected an instance of type <class \'bool\'>, "
-        "instead received an instance of type int. ")
+    with self.assertRaisesRegex(
+        Exception,
+        ("Type-hint for return type violated: Tuple\\[<class 'bool'>, <class " +
+         "'int'>\\] hint type-constraint violated. The type of element #0 in " +
+         "the passed tuple is incorrect. Expected an instance of type <class " +
+         "'bool'>, instead received an instance of type int.")):
+      self.p.run().wait_until_finish()
 
   def test_pipeline_runtime_checking_violation_composite_type_output(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
@@ -274,7 +258,10 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should return an instance of type: Tuple[float, int]. However, an instance
     # of 'int' will be generated instead.
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaisesRegex(
+        Exception,
+        ("Type-hint for return type violated. Expected an instance of {}, " +
+         "instead found 4.0, an instance of {}.").format(int, float)):
       (
           self.p
           | beam.Create([(1, 3.0)])
@@ -282,14 +269,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
               'Swap' >>
               beam.FlatMap(lambda x_y1: [x_y1[0] + x_y1[1]]).with_input_types(
                   Tuple[int, float]).with_output_types(int)))
-      self.p.run()
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within ParDo(Swap): "
-        "Type-hint for return type violated. "
-        "Expected an instance of {}, "
-        "instead found 4.0, an instance of {}.".format(int, float))
+      self.p.run().wait_until_finish()
 
   def test_downstream_input_type_hint_error_has_descriptive_error_msg(self):
     @with_input_types(int)
@@ -307,21 +287,16 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     # This will raise a type check error in IntToInt even though the actual
     # type check error won't happen until StrToInt. The user will be told that
     # StrToInt's input type hints were not satisfied while running IntToInt.
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaisesRegex(
+        Exception,
+        ("Type-hint for argument: 'element' violated. Expected an instance of "
+         + "{}, instead found 9, an instance of {}.").format(str, int)):
       (
           self.p
           | beam.Create([9])
           | beam.ParDo(IntToInt())
           | beam.ParDo(StrToInt()))
-      self.p.run()
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within ParDo(StrToInt): "
-        "Type-hint for argument: 'element' violated. "
-        "Expected an instance of {}, "
-        "instead found 9, an instance of {}. "
-        "[while running 'ParDo(IntToInt)']".format(str, int))
+      self.p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

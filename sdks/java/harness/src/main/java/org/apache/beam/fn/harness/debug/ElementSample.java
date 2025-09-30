@@ -18,7 +18,7 @@
 package org.apache.beam.fn.harness.debug;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /**
  * A record class that wraps an element sample with additional metadata. This ensures the ability to

@@ -24,8 +24,8 @@ import org.apache.beam.runners.twister2.Twister2BatchTranslationContext;
 import org.apache.beam.runners.twister2.translators.BatchTransformTranslator;
 import org.apache.beam.runners.twister2.translators.functions.ImpulseSource;
 import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /** Impulse translator. */
 public class ImpulseTranslatorBatch implements BatchTransformTranslator<Impulse> {

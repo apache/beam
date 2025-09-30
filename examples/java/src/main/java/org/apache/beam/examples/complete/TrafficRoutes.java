@@ -405,8 +405,12 @@ public class TrafficRoutes {
 
   private static Double tryParseAvgSpeed(String[] inputItems) {
     try {
-      return Double.parseDouble(tryParseString(inputItems, 9));
-    } catch (NumberFormatException | NullPointerException e) {
+      String parsed = tryParseString(inputItems, 9);
+      if (parsed == null) {
+        return null;
+      }
+      return Double.parseDouble(parsed);
+    } catch (NumberFormatException e) {
       return null;
     }
   }

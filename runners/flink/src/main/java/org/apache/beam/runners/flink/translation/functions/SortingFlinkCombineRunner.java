@@ -26,8 +26,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -109,7 +110,7 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
       } else {
         // emit the value that we currently have
         out.collect(
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     key,
                     flinkCombiner.extractOutput(
@@ -130,7 +131,7 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
 
     // emit the final accumulator
     out.collect(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of(
                 key,
                 flinkCombiner.extractOutput(
@@ -161,8 +162,8 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
           WindowedValue<KV<K, InputT>> value = elements.get(j);
           elements.set(
               j,
-              WindowedValue.of(
-                  value.getValue(), value.getTimestamp(), currentWindow, value.getPane()));
+              WindowedValues.of(
+                  value.getValue(), value.getTimestamp(), currentWindow, value.getPaneInfo()));
         }
         currentStart = i;
         currentWindow = nextWindow;
@@ -174,8 +175,8 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
         WindowedValue<KV<K, InputT>> value = elements.get(j);
         elements.set(
             j,
-            WindowedValue.of(
-                value.getValue(), value.getTimestamp(), currentWindow, value.getPane()));
+            WindowedValues.of(
+                value.getValue(), value.getTimestamp(), currentWindow, value.getPaneInfo()));
       }
     }
   }

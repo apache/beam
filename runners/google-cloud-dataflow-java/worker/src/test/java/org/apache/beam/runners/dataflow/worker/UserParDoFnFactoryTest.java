@@ -65,9 +65,9 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
@@ -193,7 +193,7 @@ public class UserParDoFnFactoryTest {
     Receiver rcvr = new OutputReceiver();
 
     parDoFn.startBundle(rcvr);
-    parDoFn.processElement(WindowedValue.valueInGlobalWindow("foo"));
+    parDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
 
     TestDoFn fn = (TestDoFn) ((SimpleParDoFn) parDoFn).getDoFnInfo().getDoFn();
     assertThat(fn, not(theInstance(initialFn)));
@@ -215,7 +215,7 @@ public class UserParDoFnFactoryTest {
     assertThat(fn.state, equalTo(TestDoFn.State.FINISHED));
 
     secondParDoFn.startBundle(rcvr);
-    secondParDoFn.processElement(WindowedValue.valueInGlobalWindow("spam"));
+    secondParDoFn.processElement(WindowedValues.valueInGlobalWindow("spam"));
     TestDoFn reobtainedFn = (TestDoFn) ((SimpleParDoFn) secondParDoFn).getDoFnInfo().getDoFn();
     secondParDoFn.finishBundle();
     assertThat(reobtainedFn.state, equalTo(TestDoFn.State.FINISHED));
@@ -252,13 +252,13 @@ public class UserParDoFnFactoryTest {
 
     Receiver rcvr = new OutputReceiver();
     parDoFn.startBundle(rcvr);
-    parDoFn.processElement(WindowedValue.valueInGlobalWindow("foo"));
+    parDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
 
     // Must be after the first call to process element for reallyStartBundle to have been called
     TestDoFn firstDoFn = (TestDoFn) ((SimpleParDoFn) parDoFn).getDoFnInfo().getDoFn();
 
     secondParDoFn.startBundle(rcvr);
-    secondParDoFn.processElement(WindowedValue.valueInGlobalWindow("spam"));
+    secondParDoFn.processElement(WindowedValues.valueInGlobalWindow("spam"));
 
     // Must be after the first call to process element for reallyStartBundle to have been called
     TestDoFn secondDoFn = (TestDoFn) ((SimpleParDoFn) secondParDoFn).getDoFnInfo().getDoFn();
@@ -290,7 +290,7 @@ public class UserParDoFnFactoryTest {
     Receiver rcvr = new OutputReceiver();
 
     parDoFn.startBundle(rcvr);
-    parDoFn.processElement(WindowedValue.valueInGlobalWindow("foo"));
+    parDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
     TestDoFn fn = (TestDoFn) ((SimpleParDoFn) parDoFn).getDoFnInfo().getDoFn();
 
     parDoFn.abort();
@@ -308,7 +308,7 @@ public class UserParDoFnFactoryTest {
             TestOperationContext.create(counters));
 
     secondParDoFn.startBundle(rcvr);
-    secondParDoFn.processElement(WindowedValue.valueInGlobalWindow("foo"));
+    secondParDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
     TestDoFn secondFn = (TestDoFn) ((SimpleParDoFn) secondParDoFn).getDoFnInfo().getDoFn();
 
     assertThat(secondFn, not(theInstance(fn)));
@@ -378,7 +378,7 @@ public class UserParDoFnFactoryTest {
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
     parDoFn.processElement(
-        WindowedValue.of("foo", new Instant(1), firstWindow, PaneInfo.NO_FIRING));
+        WindowedValues.of("foo", new Instant(1), firstWindow, PaneInfo.NO_FIRING));
 
     verify(stepContext)
         .setStateCleanupTimer(
@@ -435,7 +435,7 @@ public class UserParDoFnFactoryTest {
 
     GlobalWindow globalWindow = GlobalWindow.INSTANCE;
     parDoFn.processElement(
-        WindowedValue.of("foo", new Instant(1), globalWindow, PaneInfo.NO_FIRING));
+        WindowedValues.of("foo", new Instant(1), globalWindow, PaneInfo.NO_FIRING));
 
     assertThat(
         globalWindow.maxTimestamp().plus(allowedLateness),

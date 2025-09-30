@@ -75,30 +75,22 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         # TODO(https://github.com/apache/beam/issues/32208) move to Java11 after bump to Samza 1.8
         with:
-          java-version: 8
+          java-version: |
+            8
+            11
           python-version: |
-            3.9
             ${{ matrix.python_version }}
       - name: run PostCommit XVR Samza script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
-        if: ${{ matrix.python_version != '3.9' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:samza:job-server:validatesCrossLanguageRunner
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
-            -PskipNonPythonTask=true \
-      - name: run PostCommit XVR Samza script
-        env:
-          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
-        if: ${{ matrix.python_version == '3.9' }}
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :runners:samza:job-server:validatesCrossLanguageRunner
-          arguments: |
-            -PpythonVersion=${{ matrix.python_version }} \
-            -PskipNonPythonTask=false \
+            -PtestJavaVersion=8 \
+            -Pjava8Home=$JAVA_HOME_8_X64 \
+            -PskipNonPythonTask=${{ (matrix.python_version == '3.9' && true) || false }} \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

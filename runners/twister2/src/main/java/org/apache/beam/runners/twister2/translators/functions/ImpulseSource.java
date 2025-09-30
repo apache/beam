@@ -18,12 +18,13 @@
 package org.apache.beam.runners.twister2.translators.functions;
 
 import edu.iu.dsc.tws.api.tset.fn.SourceFunc;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /** A {@link SourceFunc} which executes the impulse transform contract. */
 public class ImpulseSource implements SourceFunc<WindowedValue<byte[]>> {
   private static final WindowedValue<byte[]> IMPULSE_VALUE =
-      WindowedValue.valueInGlobalWindow(new byte[0]);
+      WindowedValues.valueInGlobalWindow(new byte[0]);
 
   private boolean impulseEmitted = false;
 

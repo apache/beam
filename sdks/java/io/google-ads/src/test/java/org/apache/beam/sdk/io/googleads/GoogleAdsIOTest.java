@@ -290,6 +290,7 @@ public class GoogleAdsIOTest {
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
     @Before
+    @SuppressWarnings("LockOnNonEnclosingClassLiteral") // valid use
     public void init() {
       GoogleAdsOptions options = pipeline.getOptions().as(GoogleAdsOptions.class);
       options.setGoogleAdsCredentialFactoryClass(NoopCredentialFactory.class);

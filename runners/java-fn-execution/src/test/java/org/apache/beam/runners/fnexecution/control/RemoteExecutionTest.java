@@ -18,7 +18,7 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static org.apache.beam.sdk.options.ExperimentalOptions.addExperiment;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -129,7 +129,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
@@ -142,6 +141,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -1914,13 +1915,13 @@ public class RemoteExecutionTest implements Serializable {
           outputValues.get(mainOutputTransform),
           containsInAnyOrder(
               valueInGlobalWindow(KV.of("mainX", "")),
-              WindowedValue.timestampedValueInGlobalWindow(
+              WindowedValues.timestampedValueInGlobalWindow(
                   KV.of("event", "Y"),
                   BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(100L))),
-              WindowedValue.timestampedValueInGlobalWindow(
+              WindowedValues.timestampedValueInGlobalWindow(
                   KV.of("processing", "Z"),
                   BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(200L))),
-              WindowedValue.timestampedValueInGlobalWindow(
+              WindowedValues.timestampedValueInGlobalWindow(
                   KV.of("onWindowExpiration", "key"),
                   BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(5000L)))));
       assertThat(

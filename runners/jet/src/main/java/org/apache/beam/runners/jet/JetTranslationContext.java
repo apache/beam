@@ -19,8 +19,8 @@ package org.apache.beam.runners.jet;
 
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 class JetTranslationContext {
@@ -41,12 +41,12 @@ class JetTranslationContext {
     return dagBuilder;
   }
 
-  <T> WindowedValue.FullWindowedValueCoder<T> getTypeInfo(PCollection<T> collection) {
+  <T> WindowedValues.FullWindowedValueCoder<T> getTypeInfo(PCollection<T> collection) {
     return getTypeInfo(collection.getCoder(), collection.getWindowingStrategy());
   }
 
-  <T> WindowedValue.FullWindowedValueCoder<T> getTypeInfo(
+  <T> WindowedValues.FullWindowedValueCoder<T> getTypeInfo(
       Coder<T> coder, WindowingStrategy<?, ?> windowingStrategy) {
-    return WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
+    return WindowedValues.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
   }
 }

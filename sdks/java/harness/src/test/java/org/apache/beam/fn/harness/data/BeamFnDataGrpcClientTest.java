@@ -18,7 +18,7 @@
 package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -51,7 +51,8 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
@@ -68,7 +69,7 @@ import org.junit.runners.JUnit4;
 public class BeamFnDataGrpcClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
-          WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+          WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
   private static final String INSTRUCTION_ID_A = "12L";
   private static final String INSTRUCTION_ID_B = "56L";
   private static final String TRANSFORM_ID_A = "34L";

@@ -21,8 +21,8 @@ import static org.apache.beam.runners.spark.structuredstreaming.translation.help
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.windowedValueEncoder;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.seqOf;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.sdk.util.WindowedValue.getFullCoder;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.getFullCoder;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -36,7 +36,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.sql.Dataset;
@@ -102,7 +103,7 @@ public class SideInputValuesTest {
   }
 
   private static <T> WindowedValue<T> valueInWindows(T value, BoundedWindow... windows) {
-    return WindowedValue.of(value, Instant.EPOCH, Lists.list(windows), PaneInfo.NO_FIRING);
+    return WindowedValues.of(value, Instant.EPOCH, Lists.list(windows), PaneInfo.NO_FIRING);
   }
 
   public static class SparkKryo extends ExternalResource {

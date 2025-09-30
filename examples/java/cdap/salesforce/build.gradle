@@ -21,7 +21,7 @@ import groovy.json.JsonOutput
 plugins {
     id 'java'
     id 'org.apache.beam.module'
-    id 'com.github.johnrengelman.shadow'
+    id 'com.gradleup.shadow'
 }
 
 applyJavaNature(
@@ -65,9 +65,14 @@ dependencies {
     implementation library.java.cdap_hydrator_common
     //TODO: modify to 'implementation library.java.cdap_plugin_salesforce',
     // when new release with HasOffset interface will be published
-    implementation "com.akvelon:cdap-salesforce-plugins:1.5.1"
+    implementation("com.akvelon:cdap-salesforce-plugins:1.5.1") {
+        // circular dependency to Beam component
+        exclude group: "org.apache.beam", module: "beam-sdks-java-io-sparkreceiver"
+    }
+    implementation library.java.spark3_streaming
+    permitUnusedDeclared library.java.spark3_streaming
     implementation library.java.google_code_gson
-    implementation library.java.hadoop_common
+    implementation "org.apache.hadoop:hadoop-client-api:3.3.4"
     implementation library.java.slf4j_api
     implementation library.java.vendored_guava_32_1_2_jre
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")

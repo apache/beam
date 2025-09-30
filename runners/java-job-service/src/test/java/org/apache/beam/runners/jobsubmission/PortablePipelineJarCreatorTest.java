@@ -143,6 +143,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     assertNull(manifest.getMainAttributes().getValue(Name.MAIN_CLASS));
   }
 
+  @SuppressWarnings("IncorrectMainMethod") // intended
   private static class EvilPipelineRunner {
     public static int main(String[] args) {
       return 0;

@@ -26,8 +26,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /** Map to tuple function. */
 @SuppressWarnings({
@@ -37,7 +38,7 @@ public class MapToTupleFunction<K, V>
     implements MapFunc<Tuple<byte[], byte[]>, WindowedValue<KV<K, V>>> {
 
   private transient Coder<K> keyCoder;
-  private transient WindowedValue.WindowedValueCoder<V> wvCoder;
+  private transient WindowedValues.WindowedValueCoder<V> wvCoder;
   private static final Logger LOG = Logger.getLogger(MapToTupleFunction.class.getName());
 
   private transient boolean isInitialized = false;
@@ -49,7 +50,7 @@ public class MapToTupleFunction<K, V>
     this.isInitialized = false;
   }
 
-  public MapToTupleFunction(Coder<K> inputKeyCoder, WindowedValue.WindowedValueCoder<V> wvCoder) {
+  public MapToTupleFunction(Coder<K> inputKeyCoder, WindowedValues.WindowedValueCoder<V> wvCoder) {
     this.keyCoder = inputKeyCoder;
     this.wvCoder = wvCoder;
     keyCoderBytes = SerializableUtils.serializeToByteArray(keyCoder);
@@ -61,17 +62,17 @@ public class MapToTupleFunction<K, V>
     Tuple<byte[], byte[]> element = null;
 
     WindowedValue<KV<K, WindowedValue<V>>> temp =
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of(
                 input.getValue().getKey(),
-                WindowedValue.of(
+                WindowedValues.of(
                     input.getValue().getValue(),
                     input.getTimestamp(),
                     input.getWindows(),
-                    input.getPane())),
+                    input.getPaneInfo())),
             input.getTimestamp(),
             input.getWindows(),
-            input.getPane());
+            input.getPaneInfo());
     try {
       element =
           new Tuple<>(
@@ -98,7 +99,7 @@ public class MapToTupleFunction<K, V>
     }
     keyCoder = (Coder<K>) SerializableUtils.deserializeFromByteArray(keyCoderBytes, "Coder");
     wvCoder =
-        (WindowedValue.WindowedValueCoder<V>)
+        (WindowedValues.WindowedValueCoder<V>)
             SerializableUtils.deserializeFromByteArray(wvCoderBytes, "Coder");
     this.isInitialized = true;
   }

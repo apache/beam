@@ -21,6 +21,7 @@ Generates Python proto modules and grpc stubs for Beam protos.
 import argparse
 import contextlib
 import glob
+import importlib.resources
 import inspect
 import logging
 import os
@@ -30,8 +31,6 @@ import shutil
 import sys
 from collections import defaultdict
 from importlib import import_module
-
-import pkg_resources
 
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
@@ -474,7 +473,7 @@ def generate_proto_files(force=False):
 
   protoc_gen_mypy = _find_protoc_gen_mypy()
   from grpc_tools import protoc
-  builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
+  builtin_protos = importlib.resources.files('grpc_tools') / '_proto'
   args = (
       [sys.executable] +  # expecting to be called from command line
       ['--proto_path=%s' % builtin_protos] +

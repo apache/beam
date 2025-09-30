@@ -36,9 +36,9 @@ import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -61,7 +61,7 @@ public class Twister2SideInputReader implements SideInputReader {
   public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     checkNotNull(view, "View passed to sideInput cannot be null");
     TupleTag<?> tag = view.getTagInternal();
-    checkNotNull(sideInputs.get(tag), "Side input for " + view + " not available.");
+    checkNotNull(sideInputs.get(tag), "Side input for %s not available.", view);
     return getSideInput(view, window);
   }
 

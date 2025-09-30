@@ -27,13 +27,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TransformInputs;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -112,7 +113,7 @@ class FlinkStreamingTranslationContext {
 
   public <T> Coder<WindowedValue<T>> getWindowedInputCoder(PCollection<T> collection) {
     final Coder<T> valueCoder = collection.getCoder();
-    return WindowedValue.getFullCoder(
+    return WindowedValues.getFullCoder(
         valueCoder, collection.getWindowingStrategy().getWindowFn().windowCoder());
   }
 

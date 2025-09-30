@@ -18,12 +18,10 @@
 package org.apache.beam.runners.spark.translation;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -34,11 +32,10 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.joda.time.Instant;
@@ -79,7 +76,7 @@ class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow
     timerInternals.advanceProcessingTime(Instant.now());
     timerInternals.advanceSynchronizedProcessingTime(Instant.now());
     StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
-    GABWOutputWindowedValue<K, InputT> outputter = new GABWOutputWindowedValue<>();
+    GABWWindowedValueReceiver<K, InputT> outputter = new GABWWindowedValueReceiver<>();
 
     ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner =
         new ReduceFnRunner<>(
@@ -136,27 +133,13 @@ class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow
     }
   }
 
-  private static class GABWOutputWindowedValue<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
+  private static class GABWWindowedValueReceiver<K, V>
+      implements WindowedValueReceiver<KV<K, Iterable<V>>> {
     private final List<WindowedValue<KV<K, Iterable<V>>>> outputs = new ArrayList<>();
 
     @Override
-    public void outputWindowedValue(
-        KV<K, Iterable<V>> output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      outputs.add(WindowedValue.of(output, timestamp, windows, pane));
-    }
-
-    @Override
-    public <AdditionalOutputT> void outputWindowedValue(
-        TupleTag<AdditionalOutputT> tag,
-        AdditionalOutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      throw new UnsupportedOperationException("GroupAlsoByWindow should not use tagged outputs.");
+    public void output(WindowedValue<KV<K, Iterable<V>>> value) {
+      outputs.add(value);
     }
 
     Iterable<WindowedValue<KV<K, Iterable<V>>>> getOutputs() {

@@ -44,12 +44,13 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.samza.operators.MessageStream;
@@ -117,7 +118,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     final MessageStream<OpMessage<KV<K, InputT>>> inputStream = ctx.getMessageStreamById(inputId);
     final WindowingStrategy<?, BoundedWindow> windowingStrategy =
         WindowUtils.getWindowStrategy(inputId, pipeline.getComponents());
-    final WindowedValue.WindowedValueCoder<KV<K, InputT>> windowedInputCoder =
+    final WindowedValues.WindowedValueCoder<KV<K, InputT>> windowedInputCoder =
         WindowUtils.instantiateWindowedCoder(inputId, pipeline.getComponents());
     final TupleTag<KV<K, OutputT>> outputTag =
         new TupleTag<>(Iterables.getOnlyElement(transform.getTransform().getOutputsMap().keySet()));
@@ -151,14 +152,14 @@ class GroupByKeyTranslator<K, InputT, OutputT>
       RunnerApi.PCollection input,
       MessageStream<OpMessage<KV<K, InputT>>> inputStream,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
-      WindowedValue.WindowedValueCoder<KV<K, InputT>> windowedInputCoder,
+      WindowedValues.WindowedValueCoder<KV<K, InputT>> windowedInputCoder,
       TupleTag<KV<K, OutputT>> outputTag,
       PortableTranslationContext ctx) {
     final boolean needRepartition = ctx.getPipelineOptions().getMaxSourceParallelism() > 1;
     final Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
     final KvCoder<K, InputT> kvInputCoder = (KvCoder<K, InputT>) windowedInputCoder.getValueCoder();
     final Coder<WindowedValue<KV<K, InputT>>> elementCoder =
-        WindowedValue.FullWindowedValueCoder.of(kvInputCoder, windowCoder);
+        WindowedValues.FullWindowedValueCoder.of(kvInputCoder, windowCoder);
 
     @SuppressWarnings("unchecked")
     final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn =

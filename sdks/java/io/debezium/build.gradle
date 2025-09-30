@@ -23,7 +23,7 @@ applyJavaNature(
         mavenRepositories: [
                 [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
         ],
-        enableSpotbugs: false,
+        requireJavaVersion: JavaVersion.VERSION_17,
 )
 provideIntegrationTestingDependencies()
 
@@ -36,12 +36,24 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
+    // Explicitly declare Jackson dependencies
+    // and align with the 2.17.1 version.
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.17.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
+    permitUnusedDeclared 'com.fasterxml.jackson.core:jackson-core:2.17.1'
+    permitUnusedDeclared 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
     provided library.java.jackson_dataformat_csv
     permitUnusedDeclared library.java.jackson_dataformat_csv
-    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation project(path: ":sdks:java:io:common")
+
+    // Kafka connect dependencies
+    implementation "org.apache.kafka:connect-api:3.9.0"
+
+    // Debezium dependencies
+    implementation group: 'io.debezium', name: 'debezium-core', version: '3.1.1.Final'
 
     // Test dependencies
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":sdks:java:io:common")
     testImplementation library.java.junit
     testImplementation project(path: ":sdks:java:io:jdbc")
     testRuntimeOnly library.java.slf4j_jdk14
@@ -49,29 +61,61 @@ dependencies {
     testImplementation project(":runners:google-cloud-dataflow-java")
     testImplementation library.java.hamcrest
     testImplementation library.java.testcontainers_base
-    testImplementation library.java.testcontainers_mysql
-    testImplementation library.java.testcontainers_postgresql
-    // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
-    testImplementation 'com.zaxxer:HikariCP:4.0.3'
+    testImplementation "org.testcontainers:kafka"
+    testImplementation "org.testcontainers:mysql"
+    testImplementation "org.testcontainers:postgresql"
+    testImplementation "io.debezium:debezium-testing-testcontainers:3.1.1.Final"
+    testImplementation 'com.zaxxer:HikariCP:5.1.0'
 
-    // Kafka connect dependencies
-    implementation "org.apache.kafka:connect-api:2.5.0"
-    implementation "org.apache.kafka:connect-json:2.5.0"
-    permitUnusedDeclared "org.apache.kafka:connect-json:2.5.0" // BEAM-11761
+    // Debezium connector implementations for testing
+    testImplementation group: 'io.debezium', name: 'debezium-connector-mysql', version: '3.1.1.Final'
+    testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '3.1.1.Final'
+}
 
-    // Debezium dependencies
-    implementation group: 'io.debezium', name: 'debezium-core', version: '1.3.1.Final'
-    testImplementation group: 'io.debezium', name: 'debezium-connector-mysql', version: '1.3.1.Final'
-    testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '1.3.1.Final'
+// Pin the Antlr version to 4.10
+// and force Jackson versions to 2.17.1
+// TODO: Remove pin after upgrading Beam's Jackson version
+// This overrides the global 2.15.4 forced by BeamModulePlugin.
+configurations.all {
+    resolutionStrategy {
+        force 'org.antlr:antlr4:4.10',
+                'org.antlr:antlr4-runtime:4.10',
+                'com.fasterxml.jackson.core:jackson-core:2.17.1',
+                'com.fasterxml.jackson.core:jackson-annotations:2.17.1',
+                'com.fasterxml.jackson.core:jackson-databind:2.17.1',
+                'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1'
+    }
+}
+
+def configureTestJvmArgs(Task task) {
+    List<String> currentJvmArgs = task.jvmArgs ? new ArrayList<>(task.jvmArgs) : new ArrayList<>()
+
+    // Add standard opens required for Jackson, Afterburner, and other reflective frameworks
+    // when dealing with Java Modules or complex classloader scenarios.
+    currentJvmArgs.addAll([
+        '--add-opens=java.base/java.lang=ALL-UNNAMED',
+        '--add-opens=java.base/java.util=ALL-UNNAMED',
+        '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+        '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+        '--add-opens=java.base/java.io=ALL-UNNAMED',
+        '--add-opens=java.base/java.nio=ALL-UNNAMED',
+        '--add-opens=java.base/java.math=ALL-UNNAMED',
+        '--add-opens=java.base/java.time=ALL-UNNAMED', // For JSR310 types
+    ])
+
+    task.jvmArgs = currentJvmArgs.unique() // Assign the new, filtered list back, removing duplicates
+    project.logger.lifecycle("Task ${task.name} final jvmArgs: ${task.jvmArgs.join(' ')}")
 }
 
 test {
     testLogging {
         outputs.upToDateWhen {false}
         showStandardStreams = true
+        exceptionFormat = 'full'
     }
-}
+    configureTestJvmArgs(delegate)
 
+}
 
 task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
@@ -87,16 +131,5 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   testClassesDirs = sourceSets.test.output.classesDirs
 
   useJUnit {
-  }
-}
-
-configurations.all (Configuration it) -> {
-  resolutionStrategy {
-    // Force protobuf 3 because debezium is currently incompatible with protobuf 4.
-    // TODO - remove this and upgrade the version of debezium once a proto-4 compatible version is available
-    // https://github.com/apache/beam/pull/33526 does some of this, but was abandoned because it still doesn't
-    // work with protobuf 4.
-    force "com.google.protobuf:protobuf-java:3.25.5"
-    force "com.google.protobuf:protobuf-java-util:3.25.5"
   }
 }

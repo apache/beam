@@ -32,7 +32,8 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -127,11 +128,11 @@ public class BundleCheckpointHandlers {
             stateInternals
                 .state(stateNamespace, StateTags.value(tag, residualCoder))
                 .write(
-                    WindowedValue.of(
+                    WindowedValues.of(
                         stateValue.getValue(),
                         stateValue.getTimestamp(),
                         ImmutableList.of(window),
-                        stateValue.getPane()));
+                        stateValue.getPaneInfo()));
           }
         } catch (Exception e) {
           throw new RuntimeException("Failed to set timer/state for the residual", e);

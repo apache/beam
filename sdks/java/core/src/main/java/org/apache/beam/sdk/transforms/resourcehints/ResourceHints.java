@@ -174,7 +174,7 @@ public class ResourceHints {
         String number = m.group(1);
         String suffix = m.group(2);
         if (number != null && suffix != null && suffixes.containsKey(suffix)) {
-          return (long) (Double.valueOf(number) * suffixes.get(suffix));
+          return (long) (Double.parseDouble(number) * suffixes.get(suffix));
         }
       }
       throw new IllegalArgumentException("Unable to parse '" + s + "' as a byte value.");

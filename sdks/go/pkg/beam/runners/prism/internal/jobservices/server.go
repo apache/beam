@@ -43,7 +43,7 @@ type Server struct {
 	server *grpc.Server
 
 	// Job Management
-	mu    sync.Mutex
+	mu    sync.RWMutex
 	index uint32 // Use with atomics.
 	jobs  map[string]*Job
 

@@ -51,9 +51,9 @@ jobs:
         RC_NUM: "${{ github.event.inputs.RC }}"
         RC_VERSION: "rc${{ github.event.inputs.RC }}"
       run: |
-        
+
         echo "Publish SDK docker images to Docker Hub."
-        
+
         echo "================Pull RC Containers from DockerHub==========="
         IMAGES=$(docker search apache/beam --format "{{.Name}}" --limit 100)
         KNOWN_IMAGES=()
@@ -64,7 +64,7 @@ jobs:
             KNOWN_IMAGES+=( $IMAGE )
           fi
         done < <(echo "${IMAGES}")
-        
+
         echo "================Confirming Release and RC version==========="
         echo "Publishing the following images:"
         # Sort by name for easy examination
@@ -75,7 +75,7 @@ jobs:
         for IMAGE in "${KNOWN_IMAGES[@]}"; do
           # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as ${RELEASE}.
           docker buildx imagetools create --tag "${IMAGE}:${RELEASE}" "${IMAGE}:${RELEASE}${RC_VERSION}"
-      
+
           # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as latest.
           docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:${RELEASE}"
         done
@@ -93,8 +93,10 @@ jobs:
         echo "::add-mask::$PYPI_PASSWORD"
     - name: Validate PyPi id/password
       run: |
-        echo "::add-mask::${{ github.event.inputs.PYPI_API_TOKEN }}"
-        if [ "${{ github.event.inputs.PYPI_API_TOKEN }}" == "" ]
+        # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+        PYPI_API_TOKEN=$(jq -r '.inputs.PYPI_API_TOKEN' $GITHUB_EVENT_PATH)
+        echo "::add-mask::$PYPI_API_TOKEN"
+        if [ "$PYPI_API_TOKEN" == "" ]
         then
           echo "Must provide a PyPi password to publish artifacts to PyPi"
           exit 1
@@ -131,7 +133,7 @@ jobs:
         git config user.email actions@"$RUNNER_NAME".local
     - name: Import GPG key
       id: import_gpg
-      uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+      uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
       with:
         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
     - name: Push tags
@@ -142,14 +144,14 @@ jobs:
       run: |
         # Ensure local tags are in sync. If there's a mismatch, it will tell you.
         git fetch --all --tags --prune
-        
+
         # If the tag exists, a commit number is produced, otherwise there's an error.
         git rev-list $RC_TAG -n 1
-        
+
         # Tag for Go SDK
         git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "sdks/$VERSION_TAG"
-        
+
         # Tag for repo root.
         git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
         git push https://github.com/apache/beam "$VERSION_TAG"

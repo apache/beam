@@ -454,7 +454,7 @@ public class FileIOTest implements Serializable {
 
   @Test
   public void testFilenameFnResolution() throws Exception {
-    FileIO.Write.FileNaming foo = (window, pane, numShards, shardIndex, compression) -> "foo";
+    FileIO.Write.FileNaming foo = (window, paneInfo, numShards, shardIndex, compression) -> "foo";
 
     String expected =
         FileSystems.matchNewResource("test", true).resolve("foo", RESOLVE_FILE).toString();
@@ -526,7 +526,7 @@ public class FileIOTest implements Serializable {
 
     Contextful.Fn<String, FileIO.Write.FileNaming> fileNaming =
         (element, c) ->
-            (window, pane, numShards, shardIndex, compression) ->
+            (window, paneInfo, numShards, shardIndex, compression) ->
                 c.sideInput(outputFileNameView) + "-" + shardIndex;
 
     p.apply(Create.of(""))
