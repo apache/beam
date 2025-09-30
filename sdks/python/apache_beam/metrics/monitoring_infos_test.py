@@ -23,7 +23,9 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import StringSetCell
-from apache_beam.utils.histogram import Histogram, LinearBucket
+from apache_beam.utils.histogram import Histogram
+from apache_beam.utils.histogram import LinearBucket
+from apache_beam.internal.metrics.cells import HistogramCell
 
 
 class MonitoringInfosTest(unittest.TestCase):
@@ -149,7 +151,6 @@ class MonitoringInfosTest(unittest.TestCase):
     expected_labels[monitoring_infos.NAMESPACE_LABEL] = "histogramnamespace"
     expected_labels[monitoring_infos.NAME_LABEL] = "histogramname"
 
-    from apache_beam.internal.metrics.cells import HistogramCell
     cell = HistogramCell(LinearBucket(0, 1, 100))
     for point in datapoints:
       cell.update(point)

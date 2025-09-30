@@ -116,7 +116,6 @@ class HistogramTest(unittest.TestCase):
 
     result = p.result
 
-    # Do not query metrics when creating a template which doesn't run
     filter = MetricsFilter().with_name('latency_histogram_ms')
     query_result = result.metrics().query(filter)
     histogram = query_result['histograms'][0].committed

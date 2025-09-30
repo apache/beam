@@ -348,11 +348,11 @@ def user_set_string(namespace, name, metric, ptransform=None):
 
 
 def user_histogram(namespace, name, metric: HistogramData, ptransform=None):
-  """Return the string set monitoring info for the URN, metric and labels.
+  """Return the histogram monitoring info for the URN, metric and labels.
 
   Args:
-    namespace: User-defined namespace of StringSet.
-    name: Name of StringSet.
+    namespace: User-defined namespace of Histogram.
+    name: Name of Histogram.
     metric: The Histogram representing the metrics.
     ptransform: The ptransform id used as a label.
   """
@@ -579,11 +579,3 @@ def _encode_distribution(value_coder, count, sum, min, max):
   value_coder.encode_to_stream(min, stream, True)
   value_coder.encode_to_stream(max, stream, True)
   return stream.get()
-
-
-def _encode_histogram(coder, histogram):
-  pass  #TODO
-
-
-def _decode_histogram(coder, payload):
-  pass  # TODO

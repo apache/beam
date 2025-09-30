@@ -102,13 +102,11 @@ class HistogramAggregator(MetricAggregator):
 
 
 class GenericAggregator(MetricAggregator):
-  def __init__(self, data_class, identity_element_factory=None):
+  def __init__(self, data_class):
     self._data_class = data_class
-    self._identity_element_factory = (
-        identity_element_factory or self._data_class.identity_element)
 
   def identity_element(self):
-    return self._identity_element_factory()
+    return self._data_class.identity_element()
 
   def combine(self, x, y):
     return x.combine(y)
