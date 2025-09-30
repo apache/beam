@@ -437,7 +437,7 @@ if __name__ == '__main__':
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'requests_mock>=1.7,<2.0',
               'tenacity>=8.0.0,<9',
-              'pytest>=7.1.2,<8.0',
+              'pytest>=7.1.2,<9.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
