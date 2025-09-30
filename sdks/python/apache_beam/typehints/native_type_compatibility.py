@@ -164,6 +164,7 @@ def _match_is_exactly_sequence(user_type):
 def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
+      hasattr(user_type, '__annotations__') and
       hasattr(user_type, '_fields'))
 
 
