@@ -403,8 +403,8 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
   @mock.patch('apache_beam.transforms.util.GcpSecret', FakeSecret)
   def test_gbk_actually_does_encryption(self):
     options = PipelineOptions()
-    options.view_as(SetupOptions).gbek = self.secret_option
-    fakeSecret = FakeSecret()
+    # Version of GcpSecret doesn't matter since it is replaced by FakeSecret
+    options.view_as(SetupOptions).gbek = 'type:GcpSecret;version_name:Foo'
 
     with TestPipeline('FnApiRunner', options=options) as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
