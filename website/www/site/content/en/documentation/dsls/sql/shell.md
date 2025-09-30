@@ -46,7 +46,7 @@ The `beam-sql.sh` script automatically downloads and sets up the Beam SQL shell 
    ```
 
 The script will automatically:
-- Download the latest stable Beam version (2.67.0 by default)
+- Download a recent stable Beam version by default
 - Build a self-contained JAR with all dependencies
 - Cache the JAR for future use (stored in `~/.beam/cache/`)
 - Launch the Beam SQL shell
