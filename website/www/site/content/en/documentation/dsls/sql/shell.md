@@ -26,11 +26,11 @@ This page describes how to work with the shell, but does not focus on specific f
 
 ## Quickstart
 
-There are two ways to get started with the Beam SQL shell:
+The easiest way to get started with the Beam SQL shell is using the `beam-sql.sh` script:
 
-### Option 1: Using beam-sql.sh Script (Recommended)
+### Using beam-sql.sh Script
 
-The easiest way to get started is using the `beam-sql.sh` script, which automatically downloads and sets up the Beam SQL shell with all dependencies.
+The `beam-sql.sh` script automatically downloads and sets up the Beam SQL shell with all dependencies.
 
 #### Installation
 
@@ -48,14 +48,13 @@ The easiest way to get started is using the `beam-sql.sh` script, which automati
 The script will automatically:
 - Download the latest stable Beam version (2.67.0 by default)
 - Build a self-contained JAR with all dependencies
-- Cache the JAR for future use (stored in `~/.beamshell/cache/`)
+- Cache the JAR for future use (stored in `~/.beam/cache/`)
 - Launch the Beam SQL shell
 
 #### Prerequisites
 
 - **Java**: Java 8 or higher must be installed and available in your PATH
-- **Maven** (optional): If Maven is not installed, the script will automatically download and set up a Maven wrapper
-- **curl** (optional): Required only if Maven is not installed (for downloading the Maven wrapper)
+- **curl**: Required for downloading the Maven wrapper and dependencies
 
 #### Command-line Options
 
@@ -88,21 +87,10 @@ The `beam-sql.sh` script supports several options:
 ./beam-sql.sh --list-versions
 ```
 
-### Option 2: Building from Source
-
-To use Beam SQL shell by building from source, you must first clone the [Beam SDK repository](https://github.com/apache/beam). Then, from the root of the repository clone, execute the following commands to run the shell:
-
-```
-./gradlew -p sdks/java/extensions/sql/jdbc -Pbeam.sql.shell.bundled=':runners:flink:1.17,:sdks:java:io:kafka' installDist
-
-./sdks/java/extensions/sql/jdbc/build/install/jdbc/bin/jdbc
-```
-
-_Note: If you haven't built the project before running the Gradle command, the command will take a few minutes as Gradle must build all dependencies first._
 
 ### Starting the Shell
 
-After you run either method, the SQL shell starts and you can type queries:
+After you run the script, the SQL shell starts and you can type queries:
 
 ```
 Welcome to Beam SQL 2.67.0 (based on sqlline version 1.4.0)
@@ -178,9 +166,9 @@ When you're satisfied with the logic of your SQL statements, you can submit the 
 
 ## Specifying the Runner
 
-By default, Beam uses the `DirectRunner` to run the pipeline on the machine where you're executing the commands. If you want to run the pipeline with a different runner, you have two options:
+By default, Beam uses the `DirectRunner` to run the pipeline on the machine where you're executing the commands. If you want to run the pipeline with a different runner, you can specify it using the `beam-sql.sh` script:
 
-### Option 1: Using beam-sql.sh Script (Recommended)
+### Using beam-sql.sh Script
 
 When using the `beam-sql.sh` script, you can specify the runner directly via command-line options:
 
@@ -200,25 +188,6 @@ Then, configure the runner using the `SET` command ([reference page](/documentat
 0: BeamSQL> SET tempLocation='gs://your-bucket/temp';
 ```
 
-### Option 2: Building from Source
-
-If you're building from source, you must perform two steps:
-
-1.  Make sure the SQL shell includes the desired runner. Add the corresponding project id to the `-Pbeam.sql.shell.bundled` parameter of the Gradle invocation ([source code](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/shell/build.gradle), [project ids](https://github.com/apache/beam/blob/master/settings.gradle.kts)). For example, use the following command to include Flink runner and KafkaIO:
-
-    ```
-    ./gradlew -p sdks/java/extensions/sql/jdbc -Pbeam.sql.shell.bundled=':runners:flink:1.17,:sdks:java:io:kafka' installDist
-    ```
-
-    _Note: You can bundle multiple runners (using a comma-separated list) or other additional components in the same manner. For example, you can add support for more I/Os._
-
-2.  Then, specify the runner using the `SET` command ([reference page](/documentation/dsls/sql/set/)):
-
-    ```
-    0: BeamSQL> SET runner='FlinkRunner';
-    ```
-
-Beam will submit all future `INSERT` statements as pipelines to the specified runner. In this case, the Beam SQL shell does not display the query results. You must manage the submitted jobs through the corresponding runner's UI (for example, using the Flink UI or command line).
 
 ## Specifying the PipelineOptions
 

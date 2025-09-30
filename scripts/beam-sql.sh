@@ -25,32 +25,63 @@ set -e # Exit immediately if a command exits with a non-zero status.
 DEFAULT_BEAM_VERSION="2.67.0"
 MAIN_CLASS="org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
 # Directory to store cached executable JAR files
-CACHE_DIR="${HOME}/.beamshell/cache"
+CACHE_DIR="${HOME}/.beam/cache"
+
+# Maven Wrapper Configuration
+MAVEN_WRAPPER_VERSION="3.2.0"
+MAVEN_VERSION="3.9.6"
+MAVEN_WRAPPER_SCRIPT_URL="https://raw.githubusercontent.com/apache/maven-wrapper/refs/tags/maven-wrapper-${MAVEN_WRAPPER_VERSION}/maven-wrapper-distribution/src/resources/mvnw"
+MAVEN_WRAPPER_JAR_URL="https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/${MAVEN_WRAPPER_VERSION}/maven-wrapper-${MAVEN_WRAPPER_VERSION}.jar"
+MAVEN_DISTRIBUTION_URL="https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.zip"
+
+# Maven Plugin Configuration
+MAVEN_SHADE_PLUGIN_VERSION="3.5.1"
 mkdir -p "${CACHE_DIR}"
 
 # Create a temporary directory for our Maven project.
 WORK_DIR=$(mktemp -d)
 
+# Ensure cleanup on script exit
+cleanup() {
+  if [ -n "${WORK_DIR}" ] && [ -d "${WORK_DIR}" ]; then
+    rm -rf "${WORK_DIR}"
+  fi
+}
+trap cleanup EXIT
+
 # --- Helper Functions ---
 # This function downloads the maven wrapper script and supporting files.
 function setup_maven_wrapper() {
-  echo "🔧 Setting up Maven Wrapper..."
-  local wrapper_dir="${WORK_DIR}/.mvn/wrapper"
-  mkdir -p "${wrapper_dir}"
+  local beam_dir="${HOME}/.beam"
+  local maven_wrapper_dir="${beam_dir}/maven-wrapper"
+  local mvnw_script="${maven_wrapper_dir}/mvnw"
+  local wrapper_jar="${maven_wrapper_dir}/.mvn/wrapper/maven-wrapper.jar"
+  local wrapper_props="${maven_wrapper_dir}/.mvn/wrapper/maven-wrapper.properties"
 
-  # Define URLs for a stable version of the wrapper files
-  local mvnw_script_url="https://raw.githubusercontent.com/apache/maven-wrapper/maven-wrapper-3.2.0/src/main/wrapper/mvnw"
-  local wrapper_jar_url="https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.2.0/maven-wrapper-3.2.0.jar"
+  # Check if Maven wrapper is already cached
+  if [ -f "${mvnw_script}" ] && [ -f "${wrapper_jar}" ] && [ -f "${wrapper_props}" ]; then
+    echo "🔧 Using cached Maven Wrapper from ${maven_wrapper_dir}"
+    # Use the cached wrapper directly
+    MAVEN_CMD="${mvnw_script}"
+    return
+  fi
 
-  # We will create the properties file ourselves to specify a modern Maven version
-  echo "distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.6/apache-maven-3.9.6-bin.zip" > "${wrapper_dir}/maven-wrapper.properties"
+  echo "🔧 Downloading Maven Wrapper for the first time..."
+  mkdir -p "${maven_wrapper_dir}/.mvn/wrapper"
 
-  # Download the mvnw script and the wrapper JAR
-  curl -sSL -o "${WORK_DIR}/mvnw" "${mvnw_script_url}"
-  curl -sSL -o "${wrapper_dir}/maven-wrapper.jar" "${wrapper_jar_url}"
+  # Create the properties file to specify a modern Maven version
+  echo "distributionUrl=${MAVEN_DISTRIBUTION_URL}" > "${wrapper_props}"
+
+  # Download the mvnw script and the wrapper JAR to cache directory
+  curl -sSL -o "${mvnw_script}" "${MAVEN_WRAPPER_SCRIPT_URL}"
+  curl -sSL -o "${wrapper_jar}" "${MAVEN_WRAPPER_JAR_URL}"
 
   # Make the wrapper script executable
-  chmod +x "${WORK_DIR}/mvnw"
+  chmod +x "${mvnw_script}"
+
+  echo "✅ Maven Wrapper cached in ${maven_wrapper_dir} for future use"
+  # Use the cached wrapper directly
+  MAVEN_CMD="${mvnw_script}"
 }
 
 function usage() {
@@ -63,6 +94,7 @@ function usage() {
   echo "  --runner    Specify the Beam runner to use (default: direct). Supported: direct, dataflow."
   echo "  --io        Specify an IO connector to include (e.g., iceberg, kafka). Can be used multiple times."
   echo "  --list-versions      List all available Beam versions from Maven Central and exit."
+  echo "  --debug     Enable debug mode (sets bash -x flag)."
   echo "  -h, --help  Show this help message."
   exit 1
 }
@@ -95,28 +127,31 @@ function list_versions() {
   echo "${versions}"
 }
 
-# This function ensures our temporary directory is cleaned up when the script exits.
-function cleanup() {
-  rm -rf "${WORK_DIR}"
-}
-trap cleanup EXIT # Register the cleanup function to run on script exit
 
 # --- Argument Parsing ---
 BEAM_VERSION="${DEFAULT_BEAM_VERSION}"
 IO_CONNECTORS=()
 BEAM_RUNNER="direct"
 SQLLINE_ARGS=()
+DEBUG_MODE=false
+
 while [[ "$#" -gt 0 ]]; do
   case $1 in
     --version) BEAM_VERSION="$2"; shift ;;
     --runner) BEAM_RUNNER=$(echo "$2" | tr '[:upper:]' '[:lower:]'); shift ;;
     --io) IO_CONNECTORS+=("$2"); shift ;;
     --list-versions) list_versions; exit 0 ;;
+    --debug) DEBUG_MODE=true ;;
     -h|--help) usage ;;
     *) SQLLINE_ARGS+=("$1") ;;
   esac
   shift
 done
+
+# Enable debug mode if requested
+if [ "${DEBUG_MODE}" = true ]; then
+  set -x
+fi
 
 # --- Prerequisite Check ---
 # Java is always required.
@@ -125,21 +160,13 @@ if ! command -v java &> /dev/null; then
   exit 1
 fi
 
-# Decide which Maven command to use. Prefer system 'mvn'.
-MAVEN_CMD=""
-if command -v mvn &> /dev/null; then
-  echo "🔧 Found system Maven. Using 'mvn'."
-  MAVEN_CMD="mvn"
-else
-  echo "🔧 System 'mvn' not found. Setting up Maven Wrapper."
-  # Check for curl, which is required for the fallback wrapper setup.
-  if ! command -v curl &> /dev/null; then
-    echo "❌ Error: 'curl' is required to download the Maven wrapper, as system 'mvn' was not found." >&2
-    exit 1
-  fi
-  setup_maven_wrapper
-  MAVEN_CMD="${WORK_DIR}/mvnw"
+# Curl is required for Maven wrapper setup.
+if ! command -v curl &> /dev/null; then
+  echo "❌ Error: 'curl' command not found. It is required to download the Maven wrapper." >&2
+  exit 1
 fi
+
+setup_maven_wrapper
 
 echo "🚀 Preparing Beam SQL Shell v${BEAM_VERSION}..."
 echo "    Runner: ${BEAM_RUNNER}"
@@ -203,7 +230,7 @@ cat >> "${POM_FILE}" << EOL
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>${MAVEN_SHADE_PLUGIN_VERSION}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -247,7 +274,7 @@ EOL
   # Copy the newly built JAR to our cache directory.
   cp "${UBER_JAR_PATH}" "${CACHE_FILE}"
   CP="${CACHE_FILE}"
-  echo "✅ JAR built and cached for future use."
+  echo "💾 JAR built and cached for future use."
 fi
 
 # --- Launch Shell ---
