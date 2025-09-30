@@ -234,7 +234,7 @@ public class KafkaReadSchemaTransformProvider
         }
 
         Boolean redistribute = configuration.getRedistributed();
-        if (redistribute != null && redistribute == true) {
+        if (redistribute != null && redistribute) {
           kafkaRead = kafkaRead.withRedistribute();
         }
         Integer redistributeNumKeys = configuration.getRedistributeNumKeys();
@@ -305,7 +305,7 @@ public class KafkaReadSchemaTransformProvider
       }
 
       Boolean redistribute = configuration.getRedistributed();
-      if (redistribute != null && redistribute == true) {
+      if (redistribute != null && redistribute) {
         kafkaRead = kafkaRead.withRedistribute();
       }
       Integer redistributeNumKeys = configuration.getRedistributeNumKeys();
