@@ -6333,10 +6333,10 @@ class MyMetricsDoFn(beam.DoFn):
 with beam.Pipeline(runner=BundleBasedDirectRunner()) as p:
   p | beam.Create([1, 2, 3]) | beam.ParDo(MyMetricsDoFn())
 
-metrics = p.result.metrics().query(
+metrics_ = p.result.metrics().query(
 metrics.MetricsFilter().with_namespace("namespace").with_name("counter1"))
 
-for metric in metrics["counters"]:
+for metric in metrics_["counters"]:
   print(metric)
 {{< /highlight >}}
 
