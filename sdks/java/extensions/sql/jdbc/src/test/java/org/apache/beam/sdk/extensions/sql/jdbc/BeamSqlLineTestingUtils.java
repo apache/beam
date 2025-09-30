@@ -49,13 +49,40 @@ class BeamSqlLineTestingUtils {
     } catch (UnsupportedEncodingException e) {
       throw new RuntimeException(e);
     }
-    return outputLines.stream().map(BeamSqlLineTestingUtils::splitFields).collect(toList());
+    return outputLines.stream()
+        .map(BeamSqlLineTestingUtils::parseSqllineOutput)
+        .filter(line -> !line.isEmpty())
+        .collect(toList());
   }
 
-  private static List<String> splitFields(String outputLine) {
-    return Arrays.stream(outputLine.split("\\|"))
-        .map(field -> field.trim())
-        .filter(field -> field.length() != 0)
-        .collect(toList());
+  private static List<String> parseSqllineOutput(String outputLine) {
+    // Handle sqlline 1.12 table format with borders like +--+, |  |, etc.
+    String trimmed = outputLine.trim();
+
+    // Skip table borders and empty lines
+    if (trimmed.isEmpty() || trimmed.matches("^[+\\-|\\s]+$")) {
+      return Arrays.asList();
+    }
+
+    // Parse data rows that contain actual values
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+      // Remove the outer | characters and split by |
+      String content = trimmed.substring(1, trimmed.length() - 1);
+      return Arrays.stream(content.split("\\|"))
+          .map(field -> field.trim())
+          .filter(field -> !field.isEmpty())
+          .collect(toList());
+    }
+
+    // For non-table format, try the old parsing method
+    if (trimmed.contains("|")) {
+      return Arrays.stream(trimmed.split("\\|"))
+          .map(field -> field.trim())
+          .filter(field -> !field.isEmpty())
+          .collect(toList());
+    }
+
+    // Single value or non-table format (trimmed is not empty at this point)
+    return Arrays.asList(trimmed);
   }
 }

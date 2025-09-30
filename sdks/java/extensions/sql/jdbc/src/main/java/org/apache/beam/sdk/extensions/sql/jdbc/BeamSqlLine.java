@@ -53,6 +53,17 @@ public class BeamSqlLine {
       argsList.add(CONNECT_STRING_PREFIX);
     }
 
+    // Add default credentials to prevent interactive prompts
+    if (!argsList.contains("-n")) {
+      argsList.add("-n");
+      argsList.add("beam");
+    }
+
+    if (!argsList.contains("-p")) {
+      argsList.add("-p");
+      argsList.add("beam");
+    }
+
     return argsList.toArray(new String[argsList.size()]);
   }
 
