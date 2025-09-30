@@ -203,12 +203,12 @@ def dump_session(file_path):
 
   with _pickle_lock, open(file_path, 'wb') as file:
     coder_reg = typecoders.registry.get_custom_type_coder_tuples()
-    logicaltype_reg = schemas.LogicalType._known_logical_types.copy()
+    logical_type_reg = schemas.LogicalType._known_logical_types.copy()
 
     pickler = cloudpickle.CloudPickler(file)
     # TODO(https://github.com/apache/beam/issues/18500) add file system registry
     # once implemented
-    pickler.dump({"coder": coder_reg, "logicaltype": logicaltype_reg})
+    pickler.dump({"coder": coder_reg, "logical_type": logical_type_reg})
 
 
 def load_session(file_path):
@@ -224,7 +224,7 @@ def load_session(file_path):
       typecoders.registry.load_custom_type_coder_tuples(registries["coder"])
     else:
       _LOGGER.warning('No coder registry found in saved session')
-    if "logicaltype" in registries:
-      schemas.LogicalType._known_logical_types.load(registries["logicaltype"])
+    if "logical_type" in registries:
+      schemas.LogicalType._known_logical_types.load(registries["logical_type"])
     else:
       _LOGGER.warning('No logical type registry found in saved session')
