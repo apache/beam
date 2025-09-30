@@ -66,20 +66,18 @@ class BeamSqlLineTestingUtils {
 
     // Parse data rows that contain actual values
     if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
-      // Remove the outer | characters and split by |
+      // Remove the outer | characters and split by |, preserving trailing empty fields
       String content = trimmed.substring(1, trimmed.length() - 1);
-      return Arrays.stream(content.split("\\|"))
+      return Arrays.stream(content.split("\\|", -1)) // -1 preserves trailing empty strings
           .map(field -> field.trim())
-          .filter(field -> !field.isEmpty())
-          .collect(toList());
+          .collect(toList()); // Don't filter empty fields - they represent NULL values
     }
 
     // For non-table format, try the old parsing method
     if (trimmed.contains("|")) {
-      return Arrays.stream(trimmed.split("\\|"))
+      return Arrays.stream(trimmed.split("\\|", -1)) // -1 preserves trailing empty strings
           .map(field -> field.trim())
-          .filter(field -> !field.isEmpty())
-          .collect(toList());
+          .collect(toList()); // Don't filter empty fields - they represent NULL values
     }
 
     // Single value or non-table format (trimmed is not empty at this point)

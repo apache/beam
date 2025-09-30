@@ -35,6 +35,8 @@ import sqlline.SqlLine.Status;
 public class BeamSqlLine {
 
   private static final String NICKNAME = "BeamSQL";
+  private static final String DEFAULT_USER = "beam";
+  private static final String DEFAULT_PASSWORD = "beam";
 
   public static void main(String[] args) throws IOException {
     runSqlLine(args, null, System.out, System.err);
@@ -56,12 +58,12 @@ public class BeamSqlLine {
     // Add default credentials to prevent interactive prompts
     if (!argsList.contains("-n")) {
       argsList.add("-n");
-      argsList.add("beam");
+      argsList.add(DEFAULT_USER);
     }
 
     if (!argsList.contains("-p")) {
       argsList.add("-p");
-      argsList.add("beam");
+      argsList.add(DEFAULT_PASSWORD);
     }
 
     return argsList.toArray(new String[argsList.size()]);
