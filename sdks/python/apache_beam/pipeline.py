@@ -1712,5 +1712,7 @@ class ComponentIdMap(object):
     prefix = self._normalize(
         '%s_%s_%s' %
         (self.namespace, obj_type.__name__, label or type(obj).__name__))[0:100]
+    if isinstance(obj, typecoders.coders.Coder) and obj.version_tag():
+      prefix = "%s_%s" % (prefix, obj.version_tag())
     self._counters[obj_type] += 1
     return '%s_%d' % (prefix, self._counters[obj_type])

@@ -395,6 +395,15 @@ class Coder(object):
       else:
         return cls()
 
+  def version_tag(self) -> str:
+    """For internal use. Appends a version tag to the coder key in the pipeline
+    proto. Some runners (e.g. DataflowRunner) use coder key/id to verify if a
+    pipeline is update compatible. If the implementation of a coder changed
+    in an update incompatible way a version tag can be added to fail compat
+    compatibility checks.
+    """
+    return ""
+
 
 @Coder.register_urn(
     python_urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
