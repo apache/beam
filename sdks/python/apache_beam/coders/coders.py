@@ -396,9 +396,11 @@ class Coder(object):
         return cls()
 
   def version_tag(self) -> str:
-    """Appends a version tag to the coder key in the pipeline proto. Versioning
-    signals to the runner that a pipeline implementation has changed and is
-    not update compatible with different versions.
+    """For internal use. Appends a version tag to the coder key in the pipeline
+    proto. Some runners (e.g. DataflowRunner) use coder key/id to verify if a
+    pipeline is update compatibile. If the implementation of a coder changed
+    in an update incompatible way a version tag can be added to fail compat
+    checks.
     """
     return ""
 
