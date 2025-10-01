@@ -28,3 +28,7 @@ class ProgrammingGuideTest(unittest.TestCase):
 
     # Not in example but just to confirm that anything is returned
     assert metrics_["counters"]
+
+
+if __name__ == '__main__':
+  unittest.main()
