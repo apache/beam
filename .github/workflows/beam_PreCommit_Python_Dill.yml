@@ -26,8 +26,6 @@ on:
     branches: ['master', 'release-*']
     # paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_Dill.yml"]
     paths: [ ".github/workflows/beam_PreCommit_Python_Dill.yml", 'release/trigger_all_tests.json']
-  workflow_run:
-    types: [created]
   schedule:
     - cron: '45 2/6 * * *'
   workflow_dispatch:
