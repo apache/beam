@@ -53,7 +53,7 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
     self._executable_jar = spark_options.spark_job_server_jar
     self._spark_version = spark_options.spark_version
-    self._user_agnet = options.view_as(pipeline_options.SetupOptions).user_agent
+    self._user_agent = options.view_as(pipeline_options.SetupOptions).user_agent
 
   def start(self):
     return self
@@ -80,7 +80,7 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
         url = job_server.JavaJarJobServer.path_to_beam_jar(
             ':runners:spark:3:job-server:shadowJar')
     return job_server.JavaJarJobServer.local_jar(
-        url, user_agent=self._user_agnet)
+        url, user_agent=self._user_agent)
 
   def create_beam_job(self, job_id, job_name, pipeline, options):
     return SparkBeamJob(
