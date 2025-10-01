@@ -1,8 +1,8 @@
+import unittest
+
 import apache_beam as beam
 from apache_beam import metrics
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
-
-import unittest
 
 
 class ProgrammingGuideTest(unittest.TestCase):
