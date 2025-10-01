@@ -17,13 +17,15 @@ name: PreCommit Python Dill tests with dill deps installed
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Dill.json']
+    # paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Dill.json']    
+    paths: [ '.github/trigger_files/beam_PreCommit_Python_Dill.json']
   issue_comment:
     types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_Dill.yml"]
+    # paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_Dill.yml"]
+    paths: [ ".github/workflows/beam_PreCommit_Python_Dill.yml"]
   schedule:
     - cron: '45 2/6 * * *'
   workflow_dispatch:
