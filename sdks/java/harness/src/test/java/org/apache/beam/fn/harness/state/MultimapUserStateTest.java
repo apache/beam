@@ -213,6 +213,9 @@ public class MultimapUserStateTest {
             KV.of(ByteString.copyFrom(A2), "V3")));
 
     userState.put(A1, "V4");
+    // Iterable is a snapshot of the entries at this time.
+    PrefetchableIterable<Map.Entry<byte[], String>> entriesBeforeOperations = userState.entries();
+
     assertThat(
         StreamSupport.stream(userState.entries().spliterator(), false)
             .map(entry -> KV.of(ByteString.copyFrom(entry.getKey()), entry.getValue()))
@@ -240,6 +243,18 @@ public class MultimapUserStateTest {
 
     userState.clear();
     assertThat(userState.entries(), emptyIterable());
+    // Check that after applying all these operations, our original entries Iterable contains a
+    // snapshot of state from when it was created.
+    assertThat(
+        StreamSupport.stream(entriesBeforeOperations.spliterator(), false)
+            .map(entry -> KV.of(ByteString.copyFrom(entry.getKey()), entry.getValue()))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(
+            KV.of(ByteString.copyFrom(A1), "V1"),
+            KV.of(ByteString.copyFrom(A1), "V2"),
+            KV.of(ByteString.copyFrom(A1), "V4"),
+            KV.of(ByteString.copyFrom(A2), "V3")));
+
     userState.asyncClose();
     assertThrows(IllegalStateException.class, () -> userState.entries());
   }

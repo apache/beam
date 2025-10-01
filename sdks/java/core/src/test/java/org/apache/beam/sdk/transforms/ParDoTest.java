@@ -2951,17 +2951,18 @@ public class ParDoTest implements Serializable {
               count.add(1);
 
               if (count.read() >= 4) {
-                // Those should be evaluated only when ReadableState.read is called.
+                // This should be evaluated only when ReadableState.read is called.
                 ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
-                ReadableState<Boolean> containsBadView = state.containsKey("BadKey");
 
-                // Those are evaluated immediately.
+                // This is evaluated immediately.
                 Iterable<Entry<String, Integer>> entries = state.entries().read();
 
                 state.remove("b");
                 assertEquals(4, Iterables.size(entries));
                 state.put("a", 2);
+                state.put("a", 3);
 
+                assertEquals(5, Iterables.size(entriesView.read()));
                 // Note we output the view of state before the modifications in this if statement.
                 for (Entry<String, Integer> entry : entries) {
                   r.output(KV.of(entry.getKey(), entry.getValue()));
