@@ -17,7 +17,7 @@ limitations under the License.
 {{if (eq .Sdk "go")}}
 ```
 import (
-  "github.com/apache/fbeam/sdks/go/pkg/beam"
+  "github.com/apache/beam/sdks/go/pkg/beam"
   "github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
 )
 

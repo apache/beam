@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,9 @@ public class TestPipelineExtensionTest {
     // Verify that the pipeline is injected and not null
     assertNotNull(pipeline);
     assertNotNull(pipeline.getOptions());
+    assertEquals(
+        "TestPipelineExtensionTest-testPipelineInjection",
+        pipeline.getOptions().as(ApplicationNameOptions.class).getAppName());
   }
 
   @Test

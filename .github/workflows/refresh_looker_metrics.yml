@@ -48,5 +48,5 @@ jobs:
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
       - run: python .test-infra/tools/refresh_looker_metrics.py
