@@ -44,8 +44,20 @@ public class GroupByKeyTranslation {
     }
 
     @Override
+    public String getUrn(GroupByKey<?, ?> transform) {
+      if (transform.surroundsGBEK()) {
+        return "beam:transform:group_by_key_wrapper:v1";
+      }
+      return PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
+    }
+
+    @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, GroupByKey<?, ?>> transform, SdkComponents components) {
+      if (transform.getTransform().surroundsGBEK()) {
+        // Can use null for spec for empty composite.
+        return null;
+      }
       return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
     }
   }

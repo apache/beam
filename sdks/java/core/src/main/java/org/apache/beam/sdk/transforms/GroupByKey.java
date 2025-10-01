@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -115,9 +116,13 @@ public class GroupByKey<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
   private final boolean fewKeys;
+  private boolean insideGBEK;
+  private boolean surroundsGBEK;
 
   private GroupByKey(boolean fewKeys) {
     this.fewKeys = fewKeys;
+    this.insideGBEK = false;
+    surroundsGBEK = false;
   }
 
   /**
@@ -146,6 +151,21 @@ public class GroupByKey<K, V>
   /** Returns whether it groups just few keys. */
   public boolean fewKeys() {
     return fewKeys;
+  }
+
+  /**
+   * For Beam internal use only. Tells runner that this is an inner GBK inside a GroupByEncryptedKey
+   */
+  public void setInsideGBEK() {
+    this.insideGBEK = true;
+  }
+
+  /**
+   * For Beam internal use only. Tells runner that this is a GBK wrapped around of a
+   * GroupByEncryptedKey
+   */
+  public boolean surroundsGBEK() {
+    return this.surroundsGBEK;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -242,6 +262,20 @@ public class GroupByKey<K, V>
       keyCoder.verifyDeterministic();
     } catch (NonDeterministicException e) {
       throw new IllegalStateException("the keyCoder of a GroupByKey must be deterministic", e);
+    }
+
+    PipelineOptions options = input.getPipeline().getOptions();
+    String gbekOveride = options.getGBEK();
+    if (!this.insideGBEK && gbekOveride != null && !gbekOveride.trim().isEmpty()) {
+      this.surroundsGBEK = true;
+      Secret hmacSecret = Secret.parseSecretOption(gbekOveride);
+      GroupByKey<byte[], KV<byte[], byte[]>> gbk = GroupByKey.create();
+      if (this.fewKeys) {
+        gbk = GroupByKey.createWithFewKeys();
+      }
+      gbk.setInsideGBEK();
+      GroupByEncryptedKey<K, V> gbek = GroupByEncryptedKey.createWithCustomGbk(hmacSecret, gbk);
+      return input.apply(gbek);
     }
 
     // This primitive operation groups by the combination of key and window,
