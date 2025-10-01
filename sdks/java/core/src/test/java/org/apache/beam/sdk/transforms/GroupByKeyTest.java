@@ -26,12 +26,18 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.secretmanager.v1.ProjectName;
+import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
+import com.google.cloud.secretmanager.v1.SecretName;
+import com.google.cloud.secretmanager.v1.SecretPayload;
+import com.google.protobuf.ByteString;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -90,7 +96,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -109,6 +117,45 @@ public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
     @Rule public transient TestPipeline p = TestPipeline.create();
+
+    private static final String PROJECT_ID = "apache-beam-testing";
+    private static final String SECRET_ID = "gbek-test";
+    public static String gcpSecretVersionName;
+
+    @BeforeClass
+    public static void setup() throws IOException {
+      SecretManagerServiceClient client = SecretManagerServiceClient.create();
+      ProjectName projectName = ProjectName.of(PROJECT_ID);
+      SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
+
+      try {
+        client.getSecret(secretName);
+      } catch (Exception e) {
+        com.google.cloud.secretmanager.v1.Secret secret =
+            com.google.cloud.secretmanager.v1.Secret.newBuilder()
+                .setReplication(
+                    com.google.cloud.secretmanager.v1.Replication.newBuilder()
+                        .setAutomatic(
+                            com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
+                                .build())
+                        .build())
+                .build();
+        client.createSecret(projectName, SECRET_ID, secret);
+        byte[] secretBytes = new byte[32];
+        new SecureRandom().nextBytes(secretBytes);
+        client.addSecretVersion(
+            secretName,
+            SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
+      }
+      gcpSecretVersionName = secretName.toString() + "/versions/latest";
+    }
+
+    @AfterClass
+    public static void tearDown() throws IOException {
+      SecretManagerServiceClient client = SecretManagerServiceClient.create();
+      SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
+      client.deleteSecret(secretName);
+    }
   }
 
   /** Tests validating basic {@link GroupByKey} scenarios. */
@@ -613,6 +660,47 @@ public class GroupByKeyTest implements Serializable {
     @Category({ValidatesRunner.class, LargeKeys.Above100MB.class})
     public void testLargeKeys100MB() throws Exception {
       runLargeKeysTest(p, 100 << 20);
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testGroupByKeyWithValidGcpSecretOption() {
+      List<KV<String, Integer>> ungroupedPairs =
+          Arrays.asList(
+              KV.of("k1", 3),
+              KV.of("k5", Integer.MAX_VALUE),
+              KV.of("k5", Integer.MIN_VALUE),
+              KV.of("k2", 66),
+              KV.of("k1", 4),
+              KV.of("k2", -33),
+              KV.of("k3", 0));
+
+      PCollection<KV<String, Integer>> input =
+          p.apply(
+              Create.of(ungroupedPairs)
+                  .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+
+      p.getOptions().setGBEK(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+      PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+
+      SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> checker =
+          containsKvs(
+              kv("k1", 3, 4),
+              kv("k5", Integer.MIN_VALUE, Integer.MAX_VALUE),
+              kv("k2", 66, -33),
+              kv("k3", 0));
+      PAssert.that(output).satisfies(checker);
+      PAssert.that(output).inWindow(GlobalWindow.INSTANCE).satisfies(checker);
+
+      p.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testGroupByKeyWithInvalidGcpSecretOption() {
+      p.getOptions().setGBEK("type:gcpsecret;version_name:bad_path/versions/latest");
+      p.apply(Create.of(KV.of("k1", 1))).apply(GroupByKey.create());
+      assertThrows(RuntimeException.class, () -> p.run());
     }
   }
 

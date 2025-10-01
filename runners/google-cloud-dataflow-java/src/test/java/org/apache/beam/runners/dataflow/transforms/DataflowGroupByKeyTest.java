@@ -18,6 +18,15 @@
 package org.apache.beam.runners.dataflow.transforms;
 
 import com.google.api.services.dataflow.Dataflow;
+import com.google.cloud.secretmanager.v1.ProjectName;
+import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
+import com.google.cloud.secretmanager.v1.SecretName;
+import com.google.cloud.secretmanager.v1.SecretPayload;
+import com.google.protobuf.ByteString;
+import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -26,15 +35,21 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,9 +63,47 @@ public class DataflowGroupByKeyTest {
 
   @Mock private Dataflow dataflow;
 
+  private static final String PROJECT_ID = "apache-beam-testing";
+  private static final String SECRET_ID = "gbek-test";
+  private static String gcpSecretVersionName;
+
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+  }
+
+  @BeforeClass
+  public static void setup() throws IOException {
+    SecretManagerServiceClient client = SecretManagerServiceClient.create();
+    ProjectName projectName = ProjectName.of(PROJECT_ID);
+    SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
+
+    try {
+      client.getSecret(secretName);
+    } catch (Exception e) {
+      com.google.cloud.secretmanager.v1.Secret secret =
+          com.google.cloud.secretmanager.v1.Secret.newBuilder()
+              .setReplication(
+                  com.google.cloud.secretmanager.v1.Replication.newBuilder()
+                      .setAutomatic(
+                          com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
+                              .build())
+                      .build())
+              .build();
+      client.createSecret(projectName, SECRET_ID, secret);
+      byte[] secretBytes = new byte[32];
+      new SecureRandom().nextBytes(secretBytes);
+      client.addSecretVersion(
+          secretName, SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
+    }
+    gcpSecretVersionName = secretName.toString() + "/versions/latest";
+  }
+
+  @AfterClass
+  public static void tearDown() throws IOException {
+    SecretManagerServiceClient client = SecretManagerServiceClient.create();
+    SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
+    client.deleteSecret(secretName);
   }
 
   /**
@@ -91,5 +144,47 @@ public class DataflowGroupByKeyTest {
             + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
 
     input.apply("GroupByKey", GroupByKey.create());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testGroupByKeyWithValidGcpSecretOption() {
+    Pipeline p = createTestServiceRunner();
+    List<KV<String, Integer>> ungroupedPairs =
+        Arrays.asList(
+            KV.of("k1", 3),
+            KV.of("k5", Integer.MAX_VALUE),
+            KV.of("k5", Integer.MIN_VALUE),
+            KV.of("k2", 66),
+            KV.of("k1", 4),
+            KV.of("k2", -33),
+            KV.of("k3", 0));
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+            Create.of(ungroupedPairs)
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    p.getOptions().setGBEK(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(new DataflowGroupByKey<>());
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            KV.of("k1", Arrays.asList(3, 4)),
+            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
+            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k3", Arrays.asList(0)));
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testGroupByKeyWithInvalidGcpSecretOption() {
+    Pipeline p = createTestServiceRunner();
+    p.getOptions().setGBEK("type:gcpsecret;version_name:bad_path/versions/latest");
+    p.apply(Create.of(KV.of("k1", 1))).apply(new DataflowGroupByKey<>());
+    thrown.expect(RuntimeException.class);
+    p.run();
   }
 }
