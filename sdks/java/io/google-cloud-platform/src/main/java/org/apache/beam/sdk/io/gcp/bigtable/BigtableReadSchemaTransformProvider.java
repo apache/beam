@@ -68,7 +68,7 @@ public class BigtableReadSchemaTransformProvider
               "column_families",
               Schema.FieldType.STRING,
               Schema.FieldType.map(
-                  Schema.FieldType.STRING,
+                  Schema.FieldType.BYTES,
                   Schema.FieldType.array(Schema.FieldType.row(CELL_SCHEMA))))
           .build();
   public static final Schema FLATTENED_ROW_SCHEMA =
@@ -210,6 +210,7 @@ public class BigtableReadSchemaTransformProvider
 
       if (Boolean.FALSE.equals(configuration.getFlatten())) {
         // Non-flattening logic (original behavior): one output row per Bigtable row.
+
         Map<String, Map<String, List<Row>>> families = new HashMap<>();
         for (Family fam : bigtableRow.getFamiliesList()) {
           Map<String, List<Row>> columns = new HashMap<>();
