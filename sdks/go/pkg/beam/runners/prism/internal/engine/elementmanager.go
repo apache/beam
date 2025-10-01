@@ -2075,9 +2075,13 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 		}, &state)
 
 		if ready {
+			state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+
 			// We're going to process this trigger!
 			elems, _ := ss.buildTriggeredBundle(em, string(e.keyBytes), e.window)
 			toProcess = append(toProcess, elems...)
+
+			ss.state[LinkID{}][e.window][string(e.keyBytes)] = state
 		}
 
 		return toProcess
