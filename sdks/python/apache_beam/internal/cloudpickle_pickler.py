@@ -66,7 +66,7 @@ def _patched_dynamic_function_reduce(self, func):
 
   if code_path:
     make_function = _make_function_from_identifier
-    newargs = (code_path,)
+    newargs = (code_path, )
   else:
     make_function = cloudpickle._make_function
 
@@ -157,8 +157,7 @@ def dumps(
     with io.BytesIO() as file:
       use_stable_patch = (
           config and hasattr(config, 'enable_stable_function_identifiers') and
-          config.enable_stable_function_identifiers
-      )
+          config.enable_stable_function_identifiers)
 
       if use_stable_patch:
         cloudpickle._dynamic_function_reduce = _patched_dynamic_function_reduce
