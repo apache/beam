@@ -93,14 +93,14 @@ public class BigtableReadSchemaTransformProvider
   @Override
   public String description() {
     return "Reads data from a Google Cloud Bigtable table.\n"
-      + "The transform requires the project ID, instance ID, and table ID parameters.\n"
-      + "Optionally, the output can be flattened or nested rows.\n"
-      + "Example usage:\n"
-      + "  - type: ReadFromBigTable\n"
-      + "    config:\n"
-      + "      project: \"my-gcp-project\"\n"
-      + "      instance: \"my-bigtable-instance\"\n"
-      + "      table: \"my-table\"\n";
+        + "The transform requires the project ID, instance ID, and table ID parameters.\n"
+        + "Optionally, the output can be flattened or nested rows.\n"
+        + "Example usage:\n"
+        + "  - type: ReadFromBigTable\n"
+        + "    config:\n"
+        + "      project: \"my-gcp-project\"\n"
+        + "      instance: \"my-bigtable-instance\"\n"
+        + "      table: \"my-table\"\n";
   }
 
   @Override
@@ -136,7 +136,8 @@ public class BigtableReadSchemaTransformProvider
     @SchemaFieldDescription("Google Cloud project ID containing the Bigtable instance.")
     public abstract String getProjectId();
 
-    @SchemaFieldDescription("If set to false, output rows are nested; if true or omitted, output rows are flattened.")
+    @SchemaFieldDescription(
+        "If set to false, output rows are nested; if true or omitted, output rows are flattened.")
     public abstract @Nullable Boolean getFlatten();
 
     /** Builder for the {@link BigtableReadSchemaTransformConfiguration}. */
