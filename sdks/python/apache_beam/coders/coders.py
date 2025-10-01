@@ -931,7 +931,7 @@ class DeterministicFastPrimitivesCoderV2(FastCoder):
     self._underlying_coder = coder
     self._step_label = step_label
     self._skip_use_relative_filepaths = False
-    self._version_tag = "2.69.0"
+    self._version_tag = "v2_69"
     from apache_beam.transforms.util import is_v1_prior_to_v2
     # Versions prior to 2.69.0 did not use relative filepaths.
     if update_compatibility_version and is_v1_prior_to_v2(
