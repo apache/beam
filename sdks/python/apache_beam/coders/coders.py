@@ -927,9 +927,10 @@ class CloudpickleCoder(_PickleCoderBase):
 
 class DeterministicFastPrimitivesCoderV2(FastCoder):
   """Throws runtime errors when encoding non-deterministic values."""
-  def __init__(self, coder, step_label):
+  def __init__(self, coder, step_label, update_compatibility_version=None):
     self._underlying_coder = coder
     self._step_label = step_label
+    self._update_compatibility_version = update_compatibility_version
 
   def _create_impl(self):
 
