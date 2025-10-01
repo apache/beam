@@ -280,7 +280,7 @@ def get_portability_package_data():
 
 python_requires = '>=3.9'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 13:
+if sys.version_info.major == 3 and sys.version_info.minor >= 14:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
