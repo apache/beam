@@ -35,10 +35,6 @@ from apache_beam.internal.pickler import dumps
 from apache_beam.internal.pickler import loads
 
 
-def pickle_depickle(obj, enable_lambda_name):
-  return loads(dumps(obj, enable_lambda_name=enable_lambda_name))
-
-
 def maybe_skip_if_no_dill(pickle_library):
   if pickle_library == 'dill':
     pytest.importorskip("dill")
@@ -305,18 +301,6 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     self.assertNotEqual(
         dumps(set1, enable_best_effort_determinism=False),
         dumps(set2, enable_best_effort_determinism=False))
-
-  def test_enable_lambda_name_pickling(self):
-    pickler.set_library('cloudpickle')
-    pickled = pickle_depickle(lambda x: x, enable_lambda_name=True)
-    pickled_type = type(pickled)
-    self.assertIsInstance(pickled, pickled_type)
-
-  def test_disable_lambda_name_pickling(self):
-    pickler.set_library('cloudpickle')
-    pickled = pickle_depickle(lambda x: x, enable_lambda_name=False)
-    pickled_type = type(pickled)
-    self.assertIsInstance(pickled, pickled_type)
 
 
 if __name__ == '__main__':
