@@ -167,12 +167,16 @@ class Histogram(object):
   def __eq__(self, other):
     if not isinstance(other, Histogram):
       return False
+
+    def nonzero_buckets(buckets):
+      return {k: v for k, v in buckets.items() if v != 0}
+
     return (
         self._bucket_type == other._bucket_type and
         self._num_records == other._num_records and
         self._num_top_records == other._num_top_records and
         self._num_bot_records == other._num_bot_records and
-        self._buckets == other._buckets)
+        nonzero_buckets(self._buckets) == nonzero_buckets(other._buckets))
 
   def __hash__(self):
     return hash((
