@@ -6324,19 +6324,20 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 {{< highlight py >}}
 class MyMetricsDoFn(beam.DoFn):
   def __init__(self):
+    super().__init__()
     self.counter = metrics.Metrics.counter("namespace", "counter1")
 
   def process(self, element):
     self.counter.inc()
     yield element
 
-with beam.Pipeline(runner=BundleBasedDirectRunner()) as p:
+with beam.Pipeline() as p:
   p | beam.Create([1, 2, 3]) | beam.ParDo(MyMetricsDoFn())
 
-metrics_ = p.result.metrics().query(
-metrics.MetricsFilter().with_namespace("namespace").with_name("counter1"))
+metrics_filter = metrics.MetricsFilter().with_name("counter1")
+query_result  = p.result.metrics().query(metrics_filter)
 
-for metric in metrics_["counters"]:
+for metric in query_result["counters"]:
   print(metric)
 {{< /highlight >}}
 

@@ -17,17 +17,16 @@ class ProgrammingGuideTest(unittest.TestCase):
         yield element
 
     with beam.Pipeline(runner=BundleBasedDirectRunner()) as p:
-      _ = p | beam.Create([1, 2, 3]) | beam.ParDo(MyMetricsDoFn())
+      _ = (p | beam.Create([1, 2, 3]) | beam.ParDo(MyMetricsDoFn()))
 
-    metrics_ = p.result.metrics().query(
-        metrics.MetricsFilter().with_namespace("namespace").with_name(
-            "counter1"))
+    metrics_filter = metrics.MetricsFilter().with_name("counter1")
+    query_result = p.result.metrics().query(metrics_filter)
 
-    for metric in metrics_["counters"]:
+    for metric in query_result["counters"]:
       print(metric)
 
     # Not in example but just to confirm that anything is returned
-    assert metrics_["counters"]
+    assert query_result["counters"]
 
 
 if __name__ == '__main__':
