@@ -224,15 +224,35 @@ func TriggerAfterProcessingTime(s beam.Scope) {
 	con := teststream.NewConfig()
 	con.AdvanceProcessingTime(100)
 	con.AddElements(1000, 1.0, 2.0, 3.0)
-	con.AdvanceProcessingTime(2000)
-	con.AddElements(22000, 4.0)
-
+	con.AdvanceWatermark(1000)      // must advance watermark so that elements are processed in the downstream stages
+	con.AdvanceProcessingTime(5000) // advance processing time to fire the trigger
+	con.AddElements(2000, 4.0)
+	con.AdvanceWatermark(2000)
 	col := teststream.Create(s, con)
 
 	validateEquals(s.Scope("Global"), window.NewGlobalWindows(), col,
 		[]beam.WindowIntoOption{
 			beam.Trigger(trigger.AfterProcessingTime().PlusDelay(5 * time.Second)),
-		}, 6.0)
+		}, 6.0, 4.0)
+}
+
+// TriggerAfterProcessingTime tests the AfterProcessingTime Trigger, it fires output panes once 't' processing time has passed
+// Not yet supported by the flink runner:
+// java.lang.UnsupportedOperationException: Advancing Processing time is not supported by the Flink Runner.
+func TriggerAfterProcessingTimeNotTriggered(s beam.Scope) {
+	con := teststream.NewConfig()
+	con.AdvanceProcessingTime(100)
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(1000)      // must advance watermark so that elements are processed in the downstream stages
+	con.AdvanceProcessingTime(4999) // advance processing time but not enough to fire the trigger
+	con.AddElements(2000, 4.0)
+	con.AdvanceWatermark(2000)
+	col := teststream.Create(s, con)
+
+	validateEquals(s.Scope("Global"), window.NewGlobalWindows(), col,
+		[]beam.WindowIntoOption{
+			beam.Trigger(trigger.AfterProcessingTime().PlusDelay(5 * time.Second)),
+		}, 10.0)
 }
 
 // TriggerRepeat tests the repeat trigger. As of now is it is configure to take only one trigger as a subtrigger.
