@@ -50,8 +50,8 @@ except (ImportError, ModuleNotFoundError):
   pass
 
 _original_function_getnewargs = cloudpickle.CloudPickler._function_getnewargs
-_original_dynamic_function_reduce =
-  cloudpickle.CloudPickler._dynamic_function_reduce
+_original_dynamic_function_reduce = cloudpickle.CloudPickler.
+                                          _dynamic_function_reduce
 
 
 def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
