@@ -51,25 +51,33 @@ final class GrpcGetDataStreamRequests {
     private final ComputationOrGlobalDataRequest dataRequest;
     private AppendableInputStream responseStream;
 
-    private QueuedRequest(long id, ComputationOrGlobalDataRequest dataRequest) {
+    private QueuedRequest(
+        long id, ComputationOrGlobalDataRequest dataRequest, long deadlineSeconds) {
       this.id = id;
       this.dataRequest = dataRequest;
-      responseStream = new AppendableInputStream();
+      responseStream = new AppendableInputStream(deadlineSeconds);
     }
 
     static QueuedRequest forComputation(
-        long id, String computation, KeyedGetDataRequest keyedGetDataRequest) {
+        long id,
+        String computation,
+        KeyedGetDataRequest keyedGetDataRequest,
+        long deadlineSeconds) {
       ComputationGetDataRequest computationGetDataRequest =
           ComputationGetDataRequest.newBuilder()
               .setComputationId(computation)
               .addRequests(keyedGetDataRequest)
               .build();
       return new QueuedRequest(
-          id, ComputationOrGlobalDataRequest.computation(computationGetDataRequest));
+          id,
+          ComputationOrGlobalDataRequest.computation(computationGetDataRequest),
+          deadlineSeconds);
     }
 
-    static QueuedRequest global(long id, GlobalDataRequest globalDataRequest) {
-      return new QueuedRequest(id, ComputationOrGlobalDataRequest.global(globalDataRequest));
+    static QueuedRequest global(
+        long id, GlobalDataRequest globalDataRequest, long deadlineSeconds) {
+      return new QueuedRequest(
+          id, ComputationOrGlobalDataRequest.global(globalDataRequest), deadlineSeconds);
     }
 
     static Comparator<QueuedRequest> globalRequestsFirst() {
@@ -93,7 +101,7 @@ final class GrpcGetDataStreamRequests {
     }
 
     void resetResponseStream() {
-      this.responseStream = new AppendableInputStream();
+      this.responseStream = new AppendableInputStream(responseStream.getDeadlineSeconds());
     }
 
     public ComputationOrGlobalDataRequest getDataRequest() {

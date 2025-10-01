@@ -33,7 +33,6 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import BadRequest
   from testcontainers.redis import RedisContainer
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.bigquery import \
@@ -141,7 +140,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
 
   def setUp(self) -> None:
     self.condition_template = "id = {}"
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
@@ -159,6 +158,8 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
               'Unable to start redis container for BigQuery '
               ' enrichment tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
   def tearDown(self) -> None:
     self.container.stop()
@@ -286,7 +287,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         column_names=['wrong_column'],
         condition_value_fn=condition_value_fn,
     )
-    with self.assertRaises(BadRequest):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline

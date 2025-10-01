@@ -59,6 +59,7 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -383,19 +384,17 @@ public class StreamingSideInputDoFnRunnerTest {
     assertThat(sideInputFetcher.elementBag(createWindow(0)).read(), Matchers.emptyIterable());
   }
 
-  @SuppressWarnings("unchecked")
-  private <ReceiverT> StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
-      DoFnRunners.OutputManager outputManager,
+  private StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
+      WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
       StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
       throws Exception {
     return createRunner(WINDOW_FN, outputManager, views, sideInputFetcher);
   }
 
-  @SuppressWarnings("unchecked")
-  private <ReceiverT> StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
+  private StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
       WindowFn<?, ?> windowFn,
-      DoFnRunners.OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
       StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
       throws Exception {
@@ -416,7 +415,7 @@ public class StreamingSideInputDoFnRunnerTest {
     return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcher);
   }
 
-  private <ReceiverT> StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
+  private StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
       List<PCollectionView<String>> views) throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Iterable<PCollectionView<?>> typedViews = (Iterable) views;

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.auth;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Arrays;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.auth.oauth2.GoogleCredentials;
@@ -40,6 +41,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
  *   "durationSeconds": 3600
  * }}</pre>
  */
+@SuppressFBWarnings(value = "CT_CONSTRUCTOR_THROW", justification = "Initialization is safe.")
 public class GoogleADCIdTokenProvider implements WebIdTokenProvider {
   private final IdTokenProvider idTokenProvider;
 

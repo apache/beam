@@ -186,7 +186,7 @@ class LangChainChunkingTest(unittest.TestCase):
         metadata_fields={},
         text_splitter=splitter)
 
-    with self.assertRaises(KeyError):
+    with self.assertRaisesRegex(Exception, "nonexistent"):
       with TestPipeline() as p:
         _ = (
             p

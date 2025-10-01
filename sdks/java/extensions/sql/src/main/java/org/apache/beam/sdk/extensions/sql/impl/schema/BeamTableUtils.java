@@ -35,8 +35,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.NlsString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
@@ -108,6 +108,7 @@ public final class BeamTableUtils {
    * @return The casted object in Schema.Field.Type.
    */
   public static Object autoCastField(Schema.Field field, @Nullable Object rawObj) {
+    // handle null
     if (rawObj == null) {
       if (!field.getType().getNullable()) {
         throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));
@@ -116,12 +117,14 @@ public final class BeamTableUtils {
     }
 
     FieldType type = field.getType();
+    // handle NlsString
     if (CalciteUtils.isStringType(type)) {
       if (rawObj instanceof NlsString) {
         return ((NlsString) rawObj).getValue();
       } else {
         return rawObj;
       }
+      // handle date/time
     } else if (CalciteUtils.DATE.typesEqual(type) || CalciteUtils.NULLABLE_DATE.typesEqual(type)) {
       if (rawObj instanceof GregorianCalendar) { // used by the SQL CLI
         GregorianCalendar calendar = (GregorianCalendar) rawObj;
@@ -143,6 +146,7 @@ public final class BeamTableUtils {
     } else if (CalciteUtils.isDateTimeType(type)) {
       // Internal representation of Date in Calcite is convertible to Joda's Datetime.
       return new DateTime(rawObj);
+      // handle decimal
     } else if (type.getTypeName().isNumericType()
         && ((rawObj instanceof String)
             || (rawObj instanceof BigDecimal && type.getTypeName() != TypeName.DECIMAL))) {
@@ -168,8 +172,14 @@ public final class BeamTableUtils {
               String.format("Column type %s is not supported yet!", type));
       }
     } else if (type.getTypeName().isPrimitiveType()) {
+      // handle bytes represented by ByteString
       if (TypeName.BYTES.equals(type.getTypeName()) && rawObj instanceof ByteString) {
         return ((ByteString) rawObj).getBytes();
+        // handle Float <-> Double mixed use
+      } else if (TypeName.FLOAT.equals(type.getTypeName()) && rawObj instanceof Double) {
+        return ((Double) rawObj).floatValue();
+      } else if (TypeName.DOUBLE.equals(type.getTypeName()) && rawObj instanceof Float) {
+        return ((Float) rawObj).doubleValue();
       }
     }
     return rawObj;

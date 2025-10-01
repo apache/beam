@@ -1403,20 +1403,16 @@ class FlinkStreamingTransformTranslators {
       @Override
       public void collect(WindowedValue<ValueWithRecordId<OutputT>> element) {
         OutputT originalValue = element.getValue().getValue();
-        WindowedValue<OutputT> output =
-            WindowedValues.of(
-                originalValue, element.getTimestamp(), element.getWindows(), element.getPane());
-        ctx.collect(output);
+        WindowedValues.builder(element).withValue(originalValue).setReceiver(ctx::collect).output();
       }
 
       @Override
       public void collectWithTimestamp(
           WindowedValue<ValueWithRecordId<OutputT>> element, long timestamp) {
         OutputT originalValue = element.getValue().getValue();
-        WindowedValue<OutputT> output =
-            WindowedValues.of(
-                originalValue, element.getTimestamp(), element.getWindows(), element.getPane());
-        ctx.collectWithTimestamp(output, timestamp);
+        WindowedValues.builder(element)
+            .withValue(originalValue)
+            .setReceiver(wv -> ctx.collectWithTimestamp(wv, timestamp));
       }
 
       @Override

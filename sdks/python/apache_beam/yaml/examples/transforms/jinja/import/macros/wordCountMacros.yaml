@@ -1,0 +1,64 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+{%- macro readFromTextTransform(params) -%}
+
+- name: Read from GCS
+  type: ReadFromText
+  config:
+    path: "{{ params.path }}"
+{%- endmacro -%}
+
+{%- macro mapToFieldsSplitConfig(params) -%}
+language: "{{ params.language }}"
+fields:
+  value: "{{ params.fields.value }}"
+  word:
+    callable: |-
+      import re
+      def my_mapping(row):
+        return re.findall(r'[A-Za-z\']+', row.line.lower())
+{%- endmacro -%}
+
+{%- macro explodeTransform(params) -%}
+- name: Explode word arrays
+  type: Explode
+  config:
+    fields: "{{ params.fields }}"
+{%- endmacro -%}
+
+{%- macro combineTransform(params) -%}
+- name: Count words
+  type: Combine
+  config:
+    group_by: "{{ params.group_by }}"
+    combine:
+      value: "{{ params.combine.value }}"
+{%- endmacro -%}
+
+{%- macro mapToFieldsCountConfig(params) -%}
+language: "{{ params.language }}"
+fields:
+  output: '{{ params.fields.output }}'
+{%- endmacro -%}
+
+{%- macro writeToTextTransform(params) -%}
+- name: Write to GCS
+  type: WriteToText
+  config:
+    path: "{{ params.path }}"
+{%- endmacro -%}

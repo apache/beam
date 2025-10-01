@@ -48,7 +48,7 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
   public abstract BoundedWindow getWindow();
 
   /** Returns the pane of this {@code FailsafeValueInSingleWindow} in its window. */
-  public abstract PaneInfo getPane();
+  public abstract PaneInfo getPaneInfo();
 
   /** Returns the failsafe value of this {@code FailsafeValueInSingleWindow}. */
   public abstract ErrorT getFailsafeValue();
@@ -97,7 +97,7 @@ public abstract class FailsafeValueInSingleWindow<T, ErrorT> {
         throws IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
-      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
+      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream);
       failsafeValueCoder.encode(windowedElem.getFailsafeValue(), outStream);
     }

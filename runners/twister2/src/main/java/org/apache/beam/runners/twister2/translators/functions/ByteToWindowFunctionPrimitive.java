@@ -81,7 +81,7 @@ public class ByteToWindowFunctionPrimitive<K, V>
             KV.of(key, value.getValue()),
             value.getTimestamp(),
             value.getWindows(),
-            value.getPane());
+            value.getPaneInfo());
 
     return element;
   }

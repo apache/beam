@@ -42,6 +42,12 @@ The following examples demonstrate how to create a pipeline that use the enrichm
 | Service                            | Example                                                                                                                        |
 |:-----------------------------------|:-------------------------------------------------------------------------------------------------------------------------------|
 | BigQuery Storage Read API           | [Enrichment with BigQuery Storage Read API](/documentation/transforms/python/elementwise/enrichment-bigquery-storage/#example)  |
+| Service                            | Example                                                                                                                                                                      |
+|:-----------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Cloud Bigtable                     | [Enrichment with Bigtable](/documentation/transforms/python/elementwise/enrichment-bigtable/#example)                                                                        |
+| Cloud SQL (PostgreSQL, MySQL, SQLServer)                    | [Enrichment with CloudSQL](/documentation/transforms/python/elementwise/enrichment-cloudsql)                                                                        |
+| Vertex AI Feature Store            | [Enrichment with Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store)               |
+| Vertex AI Feature Store (Legacy)   | [Enrichment with Legacy Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-2-enrichment-with-vertex-ai-feature-store-legacy) |
 {{< /table >}}
 
 ## BigQuery Support

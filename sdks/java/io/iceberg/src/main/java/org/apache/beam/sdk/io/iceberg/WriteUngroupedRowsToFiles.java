@@ -227,14 +227,14 @@ class WriteUngroupedRowsToFiles
     public void processElement(
         @Element KV<String, Row> element,
         BoundedWindow window,
-        PaneInfo pane,
+        PaneInfo paneInfo,
         MultiOutputReceiver out)
         throws Exception {
       String dest = element.getKey();
       Row data = element.getValue();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(dest);
       WindowedValue<IcebergDestination> windowedDestination =
-          WindowedValues.of(destination, window.maxTimestamp(), window, pane);
+          WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
 
       // Attempt to write record. If the writer is saturated and cannot accept
       // the record, spill it over to WriteGroupedRowsToFiles

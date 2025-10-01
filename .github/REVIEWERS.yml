@@ -23,6 +23,7 @@ labels:
       - jrmccluskey
       - lostluck
       - shunping
+      - liferoad
     exclusionList: []
   - name: Python
     reviewers:
@@ -49,9 +50,6 @@ labels:
     reviewers:
       - igorbernstein2
       - mutianf
-      - djyau
-      - andre-sampaio
-      - meeral-k
     exclusionList: []
   - name: kafka
     reviewers:
@@ -63,6 +61,7 @@ labels:
     reviewers:
       - Abacn
       - damccorm
+      - liferoad
     exclusionList: []
   - name: website
     reviewers:

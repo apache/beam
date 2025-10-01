@@ -45,8 +45,18 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   }
 
   @Override
-  public PaneInfo getPane() {
+  public PaneInfo getPaneInfo() {
     return PaneInfo.NO_FIRING;
+  }
+
+  @Override
+  public @Nullable String getRecordId() {
+    return null;
+  }
+
+  @Override
+  public @Nullable Long getRecordOffset() {
+    return null;
   }
 
   @Override
@@ -93,7 +103,7 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   public String toString() {
     return MoreObjects.toStringHelper(getClass())
         .add("value", getValue())
-        .add("pane", getPane())
+        .add("paneInfo", getPaneInfo())
         .toString();
   }
 }

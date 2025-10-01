@@ -42,6 +42,7 @@ import apache_beam as beam
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
+from apache_beam.coders import coders_test_common
 from apache_beam.coders import row_coder
 from apache_beam.coders import typecoders
 from apache_beam.tools import utils
@@ -249,6 +250,10 @@ def row_coder_benchmark_factory(generate_fn):
   return coder_benchmark_factory(get_row_coder(generate_fn()), generate_fn)
 
 
+def importable_named_tuple():
+  return [coders_test_common.MyTypedNamedTuple('a', i) for i in range(1000)]
+
+
 def run_coder_benchmarks(
     num_runs, input_size, seed, verbose, filter_regex='.*'):
   random.seed(seed)
@@ -310,6 +315,11 @@ def run_coder_benchmarks(
       batch_row_coder_benchmark_factory(nullable_row, True),
       batch_row_coder_benchmark_factory(diverse_row, False),
       batch_row_coder_benchmark_factory(diverse_row, True),
+      coder_benchmark_factory(
+          coders.IterableCoder(
+              coders.FastPrimitivesCoder().as_deterministic_coder(
+                  step_label="step")),
+          importable_named_tuple),
   ]
 
   suite = [

@@ -107,11 +107,11 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                     WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
                 Collection<? extends BoundedWindow> windows =
                     WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
-                PaneInfo pane = WindmillSink.decodeMetadataPane(message.getMetadata());
+                PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
 
                 InputStream inputStream = message.getData().newInput();
                 ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
-                return WindowedValues.of(value, timestamp, windows, pane);
+                return WindowedValues.of(value, timestamp, windows, paneInfo);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }

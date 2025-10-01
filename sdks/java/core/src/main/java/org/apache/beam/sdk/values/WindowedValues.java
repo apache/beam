@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -45,14 +47,17 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Instant;
 
 /**
- * Implementations of {@link WindowedValue} and static utility methods.
+ * Implementations of {@link org.apache.beam.sdk.values.WindowedValue} and static utility methods.
  *
  * <p>These are primarily intended for internal use by Beam SDK developers and runner developers.
  * Backwards incompatible changes will likely occur.
@@ -61,42 +66,220 @@ import org.joda.time.Instant;
 public class WindowedValues {
   private WindowedValues() {} // non-instantiable utility class
 
+  public static <T> Builder<T> builder() {
+    return new Builder<>();
+  }
+
+  /** Create a Builder that takes element metadata from the provideed delegate. */
+  public static <T> Builder<T> builder(WindowedValue<T> template) {
+    return new Builder<T>()
+        .setValue(template.getValue())
+        .setTimestamp(template.getTimestamp())
+        .setWindows(template.getWindows())
+        .setPaneInfo(template.getPaneInfo());
+  }
+
+  public static class Builder<T> implements OutputBuilder<T> {
+
+    // Because T itself can be nullable, checking `maybeValue == null` cannot determine if it is set
+    // or
+    // not.
+    //
+    // Note also that JDK Optional class is written in such a way that it cannot have a nullable
+    // type
+    // for T (rendering it largely useless for its one reason for existing - composable
+    // presence/absence).
+    private @Nullable T maybeValue;
+    private boolean hasValue = false;
+
+    private @MonotonicNonNull WindowedValueReceiver<T> receiver;
+    private @MonotonicNonNull PaneInfo paneInfo;
+    private @MonotonicNonNull Instant timestamp;
+    private @MonotonicNonNull Collection<? extends BoundedWindow> windows;
+    private @Nullable String recordId;
+    private @Nullable Long recordOffset;
+
+    @Override
+    public Builder<T> setValue(T value) {
+      this.hasValue = true;
+      this.maybeValue = value;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setTimestamp(Instant timestamp) {
+      this.timestamp = timestamp;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setWindows(Collection<? extends BoundedWindow> windows) {
+      this.windows = windows;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setPaneInfo(PaneInfo paneInfo) {
+      this.paneInfo = paneInfo;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setWindow(BoundedWindow window) {
+      return setWindows(Collections.singleton(window));
+    }
+
+    @Override
+    public Builder<T> setRecordId(@Nullable String recordId) {
+      this.recordId = recordId;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setRecordOffset(@Nullable Long recordOffset) {
+      this.recordOffset = recordOffset;
+      return this;
+    }
+
+    public Builder<T> setReceiver(WindowedValueReceiver<T> receiver) {
+      this.receiver = receiver;
+      return this;
+    }
+
+    @Override
+    public T getValue() {
+      // If T is itself a nullable type, then this checkState ensures it is set, whether or not it
+      // is null.
+      // If T is a non-nullable type, this checkState ensures it is not null.
+      checkState(hasValue, "Value not set");
+      return getValueIgnoringNullness();
+    }
+
+    // This method is a way to @Nullable T to polymorphic-in-nullness T
+    @SuppressWarnings("nullness")
+    T getValueIgnoringNullness() {
+      return maybeValue;
+    }
+
+    @Override
+    public Instant getTimestamp() {
+      checkStateNotNull(timestamp, "Timestamp not set");
+      return timestamp;
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      checkStateNotNull(windows, "Windows not set");
+      return windows;
+    }
+
+    @Override
+    public PaneInfo getPaneInfo() {
+      checkStateNotNull(paneInfo, "PaneInfo not set");
+      return paneInfo;
+    }
+
+    @Override
+    public @Nullable String getRecordId() {
+      return recordId;
+    }
+
+    @Override
+    public @Nullable Long getRecordOffset() {
+      return recordOffset;
+    }
+
+    @Override
+    public Collection<Builder<T>> explodeWindows() {
+      throw new UnsupportedOperationException(
+          "Cannot explodeWindows() on WindowedValue builder; use build().explodeWindows()");
+    }
+
+    @Override
+    @Pure
+    public <OtherT> Builder<OtherT> withValue(OtherT newValue) {
+      // because of erasure, this type system lie is safe
+      return ((Builder<OtherT>) builder(this)).setValue(newValue);
+    }
+
+    @Override
+    public void output() {
+      try {
+        checkStateNotNull(receiver, "A WindowedValueReceiver must be set via setReceiver()")
+            .output(build());
+      } catch (Exception exc) {
+        if (exc instanceof RuntimeException) {
+          throw (RuntimeException) exc;
+        } else {
+          throw new RuntimeException("Exception thrown when outputting WindowedValue", exc);
+        }
+      }
+    }
+
+    public WindowedValue<T> build() {
+      return WindowedValues.of(getValue(), getTimestamp(), getWindows(), getPaneInfo());
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("value", getValue())
+          .add("timestamp", getTimestamp())
+          .add("windows", getWindows())
+          .add("paneInfo", getPaneInfo())
+          .add("receiver", receiver)
+          .toString();
+    }
+  }
+
+  public static <T> WindowedValue<T> of(
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
+    return of(value, timestamp, windows, paneInfo, null, null);
+  }
+
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
   public static <T> WindowedValue<T> of(
-      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
-    checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset) {
+    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), pane);
+      return of(value, timestamp, windows.iterator().next(), paneInfo);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+      return new TimestampedValueInMultipleWindows<>(
+          value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset);
     }
   }
 
   /** @deprecated for use only in compatibility with old broken code */
   @Deprecated
   static <T> WindowedValue<T> createWithoutValidation(
-      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), pane);
+      return of(value, timestamp, windows.iterator().next(), paneInfo);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+      return new TimestampedValueInMultipleWindows<>(
+          value, timestamp, windows, paneInfo, null, null);
     }
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
   public static <T> WindowedValue<T> of(
-      T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
-    checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
+      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
+    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      return valueInGlobalWindow(value, pane);
+      return valueInGlobalWindow(value, paneInfo);
     } else if (isGlobal) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, pane);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null);
     } else {
-      return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane);
+      return new TimestampedValueInSingleWindow<>(value, timestamp, window, paneInfo, null, null);
     }
   }
 
@@ -105,15 +288,15 @@ public class WindowedValues {
    * default timestamp and pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value) {
-    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING);
+    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null);
   }
 
   /**
    * Returns a {@code WindowedValue} with the given value in the {@link GlobalWindow} using the
    * default timestamp and the specified pane.
    */
-  public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo pane) {
-    return new ValueInGlobalWindow<>(value, pane);
+  public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo paneInfo) {
+    return new ValueInGlobalWindow<>(value, paneInfo, null, null);
   }
 
   /**
@@ -124,7 +307,7 @@ public class WindowedValues {
     if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING, null, null);
     }
   }
 
@@ -137,7 +320,7 @@ public class WindowedValues {
     if (paneInfo.equals(PaneInfo.NO_FIRING)) {
       return timestampedValueInGlobalWindow(value, timestamp);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null);
     }
   }
 
@@ -151,7 +334,9 @@ public class WindowedValues {
         newValue,
         windowedValue.getTimestamp(),
         windowedValue.getWindows(),
-        windowedValue.getPaneInfo());
+        windowedValue.getPaneInfo(),
+        windowedValue.getRecordId(),
+        windowedValue.getRecordOffset());
   }
 
   public static <T> boolean equals(
@@ -179,7 +364,7 @@ public class WindowedValues {
         windowedValue.getValue(),
         windowedValue.getTimestamp().getMillis(),
         windowedValue.getWindows(),
-        windowedValue.getPane());
+        windowedValue.getPaneInfo());
   }
 
   private static final Collection<? extends BoundedWindow> GLOBAL_WINDOWS =
@@ -199,16 +384,34 @@ public class WindowedValues {
   private abstract static class SimpleWindowedValue<T> implements WindowedValue<T> {
 
     private final T value;
-    private final PaneInfo pane;
+    private final PaneInfo paneInfo;
+    private final @Nullable String currentRecordId;
+    private final @Nullable Long currentRecordOffset;
 
-    protected SimpleWindowedValue(T value, PaneInfo pane) {
-      this.value = value;
-      this.pane = checkNotNull(pane);
+    @Override
+    public @Nullable String getRecordId() {
+      return currentRecordId;
     }
 
     @Override
-    public PaneInfo getPane() {
-      return pane;
+    public @Nullable Long getRecordOffset() {
+      return currentRecordOffset;
+    }
+
+    protected SimpleWindowedValue(
+        T value,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      this.value = value;
+      this.paneInfo = checkNotNull(paneInfo);
+      this.currentRecordId = currentRecordId;
+      this.currentRecordOffset = currentRecordOffset;
+    }
+
+    @Override
+    public PaneInfo getPaneInfo() {
+      return paneInfo;
     }
 
     @Override
@@ -228,12 +431,31 @@ public class WindowedValues {
       }
       return windowedValues.build();
     }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      if (!(other instanceof WindowedValue)) {
+        return false;
+      }
+
+      return WindowedValues.equals(this, (WindowedValue<T>) other);
+    }
+
+    @Override
+    public int hashCode() {
+      return WindowedValues.hashCode(this);
+    }
   }
 
   /** The abstract superclass of WindowedValue representations where timestamp == MIN. */
   private abstract static class MinTimestampWindowedValue<T> extends SimpleWindowedValue<T> {
-    public MinTimestampWindowedValue(T value, PaneInfo pane) {
-      super(value, pane);
+
+    public MinTimestampWindowedValue(
+        T value,
+        PaneInfo pane,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, pane, currentRecordId, currentRecordOffset);
     }
 
     @Override
@@ -246,8 +468,12 @@ public class WindowedValues {
   private static class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T>
       implements SingleWindowedValue {
 
-    public ValueInGlobalWindow(T value, PaneInfo pane) {
-      super(value, pane);
+    public ValueInGlobalWindow(
+        T value,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, paneInfo, currentRecordId, currentRecordOffset);
     }
 
     @Override
@@ -262,14 +488,14 @@ public class WindowedValues {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInGlobalWindow<>(newValue, getPane());
+      return new ValueInGlobalWindow<>(newValue, getPaneInfo(), getRecordId(), getRecordOffset());
     }
 
     @Override
     public boolean equals(@Nullable Object o) {
       if (o instanceof ValueInGlobalWindow) {
         ValueInGlobalWindow<?> that = (ValueInGlobalWindow<?>) o;
-        return Objects.equals(that.getPane(), this.getPane())
+        return Objects.equals(that.getPaneInfo(), this.getPaneInfo())
             && Objects.equals(that.getValue(), this.getValue());
       } else {
         return super.equals(o);
@@ -278,14 +504,14 @@ public class WindowedValues {
 
     @Override
     public int hashCode() {
-      return Objects.hash(getValue(), getPane());
+      return Objects.hash(getValue(), getPaneInfo());
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
           .add("value", getValue())
-          .add("pane", getPane())
+          .add("paneInfo", getPaneInfo())
           .toString();
     }
   }
@@ -294,8 +520,13 @@ public class WindowedValues {
   private abstract static class TimestampedWindowedValue<T> extends SimpleWindowedValue<T> {
     private final Instant timestamp;
 
-    public TimestampedWindowedValue(T value, Instant timestamp, PaneInfo pane) {
-      super(value, pane);
+    public TimestampedWindowedValue(
+        T value,
+        Instant timestamp,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, paneInfo, currentRecordId, currentRecordOffset);
       this.timestamp = checkNotNull(timestamp);
     }
 
@@ -312,8 +543,13 @@ public class WindowedValues {
   private static class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T>
       implements SingleWindowedValue {
 
-    public TimestampedValueInGlobalWindow(T value, Instant timestamp, PaneInfo pane) {
-      super(value, timestamp, pane);
+    public TimestampedValueInGlobalWindow(
+        T value,
+        Instant timestamp,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
     }
 
     @Override
@@ -328,7 +564,8 @@ public class WindowedValues {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInGlobalWindow<>(newValue, getTimestamp(), getPane());
+      return new TimestampedValueInGlobalWindow<>(
+          newValue, getTimestamp(), getPaneInfo(), getRecordId(), getRecordOffset());
     }
 
     @Override
@@ -339,7 +576,7 @@ public class WindowedValues {
         // Also compare timestamps according to millis-since-epoch because otherwise expensive
         // comparisons are made on their Chronology objects.
         return this.getTimestamp().isEqual(that.getTimestamp())
-            && Objects.equals(that.getPane(), this.getPane())
+            && Objects.equals(that.getPaneInfo(), this.getPaneInfo())
             && Objects.equals(that.getValue(), this.getValue());
       } else {
         return super.equals(o);
@@ -349,7 +586,7 @@ public class WindowedValues {
     @Override
     public int hashCode() {
       // Hash only the millis of the timestamp to be consistent with equals
-      return Objects.hash(getValue(), getPane(), getTimestamp().getMillis());
+      return Objects.hash(getValue(), getPaneInfo(), getTimestamp().getMillis());
     }
 
     @Override
@@ -357,7 +594,7 @@ public class WindowedValues {
       return MoreObjects.toStringHelper(getClass())
           .add("value", getValue())
           .add("timestamp", getTimestamp())
-          .add("pane", getPane())
+          .add("paneInfo", getPaneInfo())
           .toString();
     }
   }
@@ -372,14 +609,20 @@ public class WindowedValues {
     private final BoundedWindow window;
 
     public TimestampedValueInSingleWindow(
-        T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
-      super(value, timestamp, pane);
+        T value,
+        Instant timestamp,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
       this.window = checkNotNull(window);
     }
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInSingleWindow<>(newValue, getTimestamp(), window, getPane());
+      return new TimestampedValueInSingleWindow<>(
+          newValue, getTimestamp(), window, getPaneInfo(), getRecordId(), getRecordOffset());
     }
 
     @Override
@@ -401,7 +644,7 @@ public class WindowedValues {
         // comparisons are made on their Chronology objects.
         return this.getTimestamp().isEqual(that.getTimestamp())
             && Objects.equals(that.getValue(), this.getValue())
-            && Objects.equals(that.getPane(), this.getPane())
+            && Objects.equals(that.getPaneInfo(), this.getPaneInfo())
             && Objects.equals(that.window, this.window);
       } else {
         return super.equals(o);
@@ -411,7 +654,7 @@ public class WindowedValues {
     @Override
     public int hashCode() {
       // Hash only the millis of the timestamp to be consistent with equals
-      return Objects.hash(getValue(), getTimestamp().getMillis(), getPane(), window);
+      return Objects.hash(getValue(), getTimestamp().getMillis(), getPaneInfo(), window);
     }
 
     @Override
@@ -420,7 +663,7 @@ public class WindowedValues {
           .add("value", getValue())
           .add("timestamp", getTimestamp())
           .add("window", window)
-          .add("pane", getPane())
+          .add("paneInfo", getPaneInfo())
           .toString();
     }
   }
@@ -430,8 +673,13 @@ public class WindowedValues {
     private Collection<? extends BoundedWindow> windows;
 
     public TimestampedValueInMultipleWindows(
-        T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
-      super(value, timestamp, pane);
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
       this.windows = checkNotNull(windows);
     }
 
@@ -443,7 +691,7 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInMultipleWindows<>(
-          newValue, getTimestamp(), getWindows(), getPane());
+          newValue, getTimestamp(), getWindows(), getPaneInfo(), getRecordId(), getRecordOffset());
     }
 
     @Override
@@ -455,7 +703,7 @@ public class WindowedValues {
         // comparisons are made on their Chronology objects.
         if (this.getTimestamp().isEqual(that.getTimestamp())
             && Objects.equals(that.getValue(), this.getValue())
-            && Objects.equals(that.getPane(), this.getPane())) {
+            && Objects.equals(that.getPaneInfo(), this.getPaneInfo())) {
           ensureWindowsAreASet();
           that.ensureWindowsAreASet();
           return that.windows.equals(this.windows);
@@ -471,7 +719,7 @@ public class WindowedValues {
     public int hashCode() {
       // Hash only the millis of the timestamp to be consistent with equals
       ensureWindowsAreASet();
-      return Objects.hash(getValue(), getTimestamp().getMillis(), getPane(), windows);
+      return Objects.hash(getValue(), getTimestamp().getMillis(), getPaneInfo(), windows);
     }
 
     @Override
@@ -480,7 +728,7 @@ public class WindowedValues {
           .add("value", getValue())
           .add("timestamp", getTimestamp())
           .add("windows", windows)
-          .add("pane", getPane())
+          .add("paneInfo", getPaneInfo())
           .toString();
     }
 
@@ -581,7 +829,7 @@ public class WindowedValues {
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
+      PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -595,12 +843,12 @@ public class WindowedValues {
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
-      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
+      PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
       // we call this deprecated no-validation path when decoding
-      return WindowedValues.createWithoutValidation(value, timestamp, windows, pane);
+      return WindowedValues.createWithoutValidation(value, timestamp, windows, paneInfo);
     }
 
     @Override
@@ -616,7 +864,7 @@ public class WindowedValues {
         throws Exception {
       InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer);
       windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
-      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer);
+      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPaneInfo(), observer);
       valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }
 
@@ -729,8 +977,8 @@ public class WindowedValues {
         Coder<? extends BoundedWindow> windowCoder,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      return new ParamWindowedValueCoder<>(valueCoder, windowCoder, timestamp, windows, pane);
+        PaneInfo paneInfo) {
+      return new ParamWindowedValueCoder<>(valueCoder, windowCoder, timestamp, windows, paneInfo);
     }
 
     /**
@@ -763,15 +1011,15 @@ public class WindowedValues {
         Coder<? extends BoundedWindow> windowCoder,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
+        PaneInfo paneInfo) {
       super(valueCoder, windowCoder);
-      this.windowedValuePrototype = WindowedValues.of(EMPTY_BYTES, timestamp, windows, pane);
+      this.windowedValuePrototype = WindowedValues.of(EMPTY_BYTES, timestamp, windows, paneInfo);
     }
 
     @Override
     public <NewT> WindowedValueCoder<NewT> withValueCoder(Coder<NewT> valueCoder) {
       return new ParamWindowedValueCoder<>(
-          valueCoder, getWindowCoder(), getTimestamp(), getWindows(), getPane());
+          valueCoder, getWindowCoder(), getTimestamp(), getWindows(), getPaneInfo());
     }
 
     @Override
@@ -817,8 +1065,8 @@ public class WindowedValues {
       return windowedValuePrototype.getWindows();
     }
 
-    public PaneInfo getPane() {
-      return windowedValuePrototype.getPane();
+    public PaneInfo getPaneInfo() {
+      return windowedValuePrototype.getPaneInfo();
     }
 
     /** Returns the serialized payload that will be provided when deserializing this coder. */
@@ -827,7 +1075,8 @@ public class WindowedValues {
       // ParamWindowedValueCoder
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       WindowedValue<byte[]> windowedValue =
-          WindowedValues.of(EMPTY_BYTES, from.getTimestamp(), from.getWindows(), from.getPane());
+          WindowedValues.of(
+              EMPTY_BYTES, from.getTimestamp(), from.getWindows(), from.getPaneInfo());
       WindowedValues.FullWindowedValueCoder<byte[]> windowedValueCoder =
           WindowedValues.FullWindowedValueCoder.of(ByteArrayCoder.of(), from.getWindowCoder());
       try {
@@ -855,7 +1104,7 @@ public class WindowedValues {
             windowCoder,
             windowedValue.getTimestamp(),
             windowedValue.getWindows(),
-            windowedValue.getPane());
+            windowedValue.getPaneInfo());
       } catch (IOException e) {
         throw new RuntimeException(
             "Unable to decode constant members from payload for ParamWindowedValueCoder: ", e);

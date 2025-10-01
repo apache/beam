@@ -35,6 +35,7 @@ import fastavro
 import apache_beam as beam
 import apache_beam.io as beam_io
 from apache_beam import coders
+from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
@@ -247,6 +248,10 @@ def _create_parser(
         beam_schema,
         lambda record: covert_to_row(
             fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
+  elif format == 'PROTO':
+    _validate_schema()
+    beam_schema = json_utils.json_schema_to_beam_schema(schema)
+    return beam_schema, RowCoder(beam_schema).decode
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -291,6 +296,8 @@ def _create_formatter(
       return buffer.read()
 
     return formatter
+  elif format == 'PROTO':
+    return RowCoder(beam_schema).encode
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -416,7 +423,7 @@ def write_to_pubsub(
 
   Args:
     topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-    format: How to format the message payload.  Currently suported
+    format: How to format the message payload.  Currently supported
       formats are
 
         - RAW: Expects a message with a single field (excluding
@@ -426,6 +433,8 @@ def write_to_pubsub(
             from the input PCollection schema.
         - JSON: Formats records with a given JSON schema, which may be inferred
             from the input PCollection schema.
+        - PROTO: Encodes records with a given Protobuf schema, which may be
+            inferred from the input PCollection schema.
 
     schema: Schema specification for the given format.
     attributes: List of attribute keys whose values will be pulled out as
@@ -494,6 +503,9 @@ def write_to_pubsub(
 
 def read_from_iceberg(
     table: str,
+    filter: Optional[str] = None,
+    keep: Optional[list[str]] = None,
+    drop: Optional[list[str]] = None,
     catalog_name: Optional[str] = None,
     catalog_properties: Optional[Mapping[str, str]] = None,
     config_properties: Optional[Mapping[str, str]] = None,
@@ -509,6 +521,13 @@ def read_from_iceberg(
 
   Args:
     table: The identifier of the Apache Iceberg table. Example: "db.table1".
+    filter: SQL-like predicate to filter data at scan time.
+      Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax:
+      https://calcite.apache.org/docs/reference.html
+    keep: A subset of column names to read exclusively. If null or empty,
+      all columns will be read.
+    drop: A subset of column names to exclude from reading. If null or empty,
+      all columns will be read.
     catalog_name: The name of the catalog. Example: "local".
     catalog_properties: A map of configuration properties for the Apache Iceberg
       catalog.
@@ -522,6 +541,9 @@ def read_from_iceberg(
       config=dict(
           table=table,
           catalog_name=catalog_name,
+          filter=filter,
+          keep=keep,
+          drop=drop,
           catalog_properties=catalog_properties,
           config_properties=config_properties))
 
@@ -531,6 +553,8 @@ def write_to_iceberg(
     catalog_name: Optional[str] = None,
     catalog_properties: Optional[Mapping[str, str]] = None,
     config_properties: Optional[Mapping[str, str]] = None,
+    partition_fields: Optional[Iterable[str]] = None,
+    table_properties: Optional[Mapping[str, str]] = None,
     triggering_frequency_seconds: Optional[int] = None,
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
@@ -557,9 +581,25 @@ def write_to_iceberg(
       CatalogUtil in the Apache Iceberg documentation.
     config_properties: An optional set of Hadoop configuration properties.
       For more information, see CatalogUtil in the Apache Iceberg documentation.
+    partition_fields: Fields used to create a partition spec that is applied
+      when tables are created. For a field 'foo', the available partition
+      transforms are:
+
+        - foo
+        - truncate(foo, N)
+        - bucket(foo, N)
+        - hour(foo)
+        - day(foo)
+        - month(foo)
+        - year(foo)
+        - void(foo)
+      For more information on partition transforms, please visit
+      https://iceberg.apache.org/spec/#partition-transforms.
+    table_properties: Iceberg table properties to be set on the table when it
+      is created. For more information on table properties, please visit
+      https://iceberg.apache.org/docs/latest/configuration/#table-properties.
     triggering_frequency_seconds: For streaming write pipelines, the frequency
       at which the sink attempts to produce snapshots, in seconds.
-
     keep: An optional list of field names to keep when writing to the
       destination. Other fields are dropped. Mutually exclusive with drop
       and only.
@@ -576,6 +616,8 @@ def write_to_iceberg(
           catalog_name=catalog_name,
           catalog_properties=catalog_properties,
           config_properties=config_properties,
+          partition_fields=partition_fields,
+          table_properties=table_properties,
           triggering_frequency_seconds=triggering_frequency_seconds,
           keep=keep,
           drop=drop,
@@ -600,7 +642,7 @@ def read_from_tfrecord(
     compression_type (CompressionTypes): Used to handle compressed input files.
       Default value is CompressionTypes.AUTO, in which case the file_path's
       extension will be used to detect the compression.
-    validate (bool): Boolean flag to verify that the files exist during the 
+    validate (bool): Boolean flag to verify that the files exist during the
       pipeline creation time.
   """
   return ReadFromTFRecord(

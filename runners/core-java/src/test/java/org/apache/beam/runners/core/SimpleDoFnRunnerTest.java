@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -790,11 +790,11 @@ public class SimpleDoFnRunnerTest {
     }
   }
 
-  private static class ListOutputManager implements OutputManager {
-    private ListMultimap<TupleTag<?>, WindowedValue<?>> outputs = ArrayListMultimap.create();
+  private static class ListOutputManager implements WindowedValueMultiReceiver {
+    private final ListMultimap<TupleTag<?>, WindowedValue<?>> outputs = ArrayListMultimap.create();
 
     @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+    public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
       outputs.put(tag, output);
     }
   }

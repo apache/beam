@@ -35,7 +35,6 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -223,7 +222,7 @@ public class StateTags {
   }
 
   /** Create a state tag for holding the watermark. */
-  public static <W extends BoundedWindow> StateTag<WatermarkHoldState> watermarkStateInternal(
+  public static StateTag<WatermarkHoldState> watermarkStateInternal(
       String id, TimestampCombiner timestampCombiner) {
     return new SimpleStateTag<>(
         new StructuredId(id), StateSpecs.watermarkStateInternal(timestampCombiner));

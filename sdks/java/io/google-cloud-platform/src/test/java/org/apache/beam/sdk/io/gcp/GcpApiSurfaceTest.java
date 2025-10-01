@@ -88,6 +88,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.pubsub.v1"),
             classesInPackage("com.google.cloud.pubsublite"),
             Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
+            Matchers.equalTo(com.google.errorprone.annotations.CheckReturnValue.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
             Matchers.<Class<?>>equalTo(com.google.api.resourcenames.ResourceName.class),
             Matchers.<Class<?>>equalTo(com.google.common.base.Function.class),

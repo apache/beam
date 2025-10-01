@@ -89,6 +89,14 @@ type PColInfo struct {
 	KeyDec      func(io.Reader) []byte
 }
 
+func (info PColInfo) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("GlobalID", info.GlobalID),
+		slog.String("WindowCoder", info.WindowCoder.String()),
+		// Do not attempt to log functions, or it will result in JSON marshaling error.
+	)
+}
+
 // WinCoderType indicates what kind of coder
 // the window is using. There are only 3
 // valid single window encodings.
@@ -109,6 +117,19 @@ const (
 	// WinCustom indicates the window customm coded with end event time timestamp followed by a custom coder.
 	WinCustom
 )
+
+func (wct WinCoderType) String() string {
+	switch wct {
+	case WinGlobal:
+		return "WinGlobal"
+	case WinInterval:
+		return "WinInterval"
+	case WinCustom:
+		return "WinCustom"
+	default:
+		return fmt.Sprintf("Unknown(%d)", wct)
+	}
+}
 
 // ToData recodes the elements with their approprate windowed value header.
 func (es elements) ToData(info PColInfo) [][]byte {
@@ -161,6 +182,10 @@ type Config struct {
 	// MaxBundleSize caps the number of elements permitted in a bundle.
 	// 0 or less means this is ignored.
 	MaxBundleSize int
+	// Whether to use real-time clock as processing time
+	EnableRTC bool
+	// Whether to process the data in a streaming mode
+	StreamingMode bool
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
@@ -235,7 +260,7 @@ func NewElementManager(config Config) *ElementManager {
 // AddStage adds a stage to this element manager, connecting it's PCollections and
 // nodes to the watermark propagation graph.
 func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, sides []LinkID) {
-	slog.Debug("AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
+	slog.Debug("em.AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
 	ss := makeStageState(ID, inputIDs, outputIDs, sides)
 
 	em.stages[ss.ID] = ss
@@ -336,7 +361,7 @@ func (rb RunBundle) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("ID", rb.BundleID),
 		slog.String("stage", rb.StageID),
-		slog.Time("watermark", rb.Watermark.ToTime()))
+		slog.Any("watermark", rb.Watermark))
 }
 
 // Bundles is the core execution loop. It produces a sequences of bundles able to be executed.
@@ -479,6 +504,40 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 	return runStageCh
 }
 
+// DumpStages puts all the stage information into a string and returns it.
+func (em *ElementManager) DumpStages() string {
+	var stageState []string
+	ids := maps.Keys(em.stages)
+	if em.testStreamHandler != nil {
+		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
+			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
+	} else {
+		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.ProcessingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		ss := em.stages[id]
+		inW := ss.InputWatermark()
+		outW := ss.OutputWatermark()
+		upPCol, upW := ss.UpstreamWatermark()
+		upS := em.pcolParents[upPCol]
+		if upS == "" {
+			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
+		}
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject))
+
+		var outputConsumers, sideConsumers []string
+		for _, col := range ss.outputIDs {
+			outputConsumers = append(outputConsumers, em.consumers[col]...)
+			for _, l := range em.sideConsumers[col] {
+				sideConsumers = append(sideConsumers, l.Global)
+			}
+		}
+		stageState = append(stageState, fmt.Sprintf("\tsideInputs: %v outputCols: %v outputConsumers: %v sideConsumers: %v\n", ss.sides, ss.outputIDs, outputConsumers, sideConsumers))
+	}
+	return strings.Join(stageState, "")
+}
+
 // checkForQuiescence sees if this element manager is no longer able to do any pending work or make progress.
 //
 // Quiescense can happen if there are no inprogress bundles, and there are no further watermark refreshes, which
@@ -499,9 +558,9 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 		// If there are changed stages that need a watermarks refresh,
 		// we aren't yet stuck.
 		v := em.livePending.Load()
-		slog.Debug("Bundles: nothing in progress after advance",
-			slog.Any("advanced", advanced),
-			slog.Int("changeCount", len(em.changedStages)),
+		slog.Debug("Bundles: nothing in progress after advance, but some stages need a watermark refresh",
+			slog.Any("mayProgress", advanced),
+			slog.Any("needRefresh", em.changedStages),
 			slog.Int64("pendingElementCount", v),
 		)
 		return nil
@@ -544,36 +603,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 	// Jobs must never get stuck so this indicates a bug in prism to be investigated.
 
 	slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
-	var stageState []string
-	ids := maps.Keys(em.stages)
-	if em.testStreamHandler != nil {
-		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
-			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
-	} else {
-		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.ProcessingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
-		ss := em.stages[id]
-		inW := ss.InputWatermark()
-		outW := ss.OutputWatermark()
-		upPCol, upW := ss.UpstreamWatermark()
-		upS := em.pcolParents[upPCol]
-		if upS == "" {
-			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
-		}
-		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject))
-
-		var outputConsumers, sideConsumers []string
-		for _, col := range ss.outputIDs {
-			outputConsumers = append(outputConsumers, em.consumers[col]...)
-			for _, l := range em.sideConsumers[col] {
-				sideConsumers = append(sideConsumers, l.Global)
-			}
-		}
-		stageState = append(stageState, fmt.Sprintf("\tsideInputs: %v outputCols: %v outputConsumers: %v sideConsumers: %v\n", ss.sides, ss.outputIDs, outputConsumers, sideConsumers))
-	}
-	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, ""))
+	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, em.DumpStages())
 }
 
 // InputForBundle returns pre-allocated data for the given bundle, encoding the elements using
@@ -586,7 +616,7 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 	return es.ToData(info)
 }
 
-// DataAndTimerInputForBundle returns pre-allocated data for the given bundle and the estimated number of elements.
+// DataAndTimerInputForBundle returns pre-allocated data for the given bundle and the estimated number of data elements.
 // Elements are encoded with the PCollection's coders.
 func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo) ([]*Block, int) {
 	ss := em.stages[rb.StageID]
@@ -594,14 +624,16 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 	defer ss.mu.Unlock()
 	es := ss.inprogress[rb.BundleID]
 
-	var total int
+	var total_data int
 
 	var ret []*Block
 	cur := &Block{}
 	for _, e := range es.es {
 		switch {
 		case e.IsTimer() && (cur.Kind != BlockTimer || e.family != cur.Family || cur.Transform != e.transform):
-			total += len(cur.Bytes)
+			if cur.Kind == BlockData {
+				total_data += len(cur.Bytes)
+			}
 			cur = &Block{
 				Kind:      BlockTimer,
 				Transform: e.transform,
@@ -629,7 +661,6 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 
 			cur.Bytes = append(cur.Bytes, buf.Bytes())
 		case cur.Kind != BlockData:
-			total += len(cur.Bytes)
 			cur = &Block{
 				Kind: BlockData,
 			}
@@ -642,8 +673,10 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 			cur.Bytes = append(cur.Bytes, buf.Bytes())
 		}
 	}
-	total += len(cur.Bytes)
-	return ret, total
+	if cur.Kind == BlockData {
+		total_data += len(cur.Bytes)
+	}
+	return ret, total_data
 }
 
 // BlockKind indicates how the block is to be handled.
@@ -825,7 +858,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 						element{
 							window:    w,
 							timestamp: et,
-							pane:      stage.kind.updatePane(stage, pn, w, keyBytes),
+							pane:      stage.kind.getPaneOrDefault(stage, pn, w, keyBytes, rb.BundleID),
 							elmBytes:  elmBytes,
 							keyBytes:  keyBytes,
 							sequence:  seq,
@@ -836,7 +869,9 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 		consumers := em.consumers[output]
 		sideConsumers := em.sideConsumers[output]
-		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb, slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers)
+		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb,
+			slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers,
+			"pendingDelta", len(newPending)*len(consumers))
 		for _, sID := range consumers {
 			consumer := em.stages[sID]
 			count := consumer.AddPending(em, newPending)
@@ -866,70 +901,76 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	// Clear out the inprogress elements associated with the completed bundle.
 	// Must be done after adding the new pending elements to avoid an incorrect
 	// watermark advancement.
-	stage.mu.Lock()
-	completed := stage.inprogress[rb.BundleID]
-	em.addPending(-len(completed.es))
-	delete(stage.inprogress, rb.BundleID)
-	for k := range stage.inprogressKeysByBundle[rb.BundleID] {
-		delete(stage.inprogressKeys, k)
-	}
-	delete(stage.inprogressKeysByBundle, rb.BundleID)
-
-	// Adjust holds as needed.
-	for h, c := range newHolds {
-		if c > 0 {
-			stage.watermarkHolds.Add(h, c)
-		} else if c < 0 {
-			stage.watermarkHolds.Drop(h, -c)
+	func() {
+		stage.mu.Lock()
+		// Defer unlocking the mutex within an anonymous function to ensure it's released
+		// even if a panic occurs during `em.addPending`. This prevents potential deadlocks
+		// if the waitgroup unexpectedly drops below zero due to a runner bug.
+		defer stage.mu.Unlock()
+		completed := stage.inprogress[rb.BundleID]
+		em.addPending(-len(completed.es))
+		delete(stage.inprogress, rb.BundleID)
+		for k := range stage.inprogressKeysByBundle[rb.BundleID] {
+			delete(stage.inprogressKeys, k)
 		}
-	}
-	for hold, v := range stage.inprogressHoldsByBundle[rb.BundleID] {
-		stage.watermarkHolds.Drop(hold, v)
-	}
-	delete(stage.inprogressHoldsByBundle, rb.BundleID)
+		delete(stage.inprogressKeysByBundle, rb.BundleID)
+		delete(stage.bundlePanes, rb.BundleID)
 
-	// Clean up OnWindowExpiration bundle accounting, so window state
-	// may be garbage collected.
-	if stage.expiryWindowsByBundles != nil {
-		win, ok := stage.expiryWindowsByBundles[rb.BundleID]
-		if ok {
-			stage.inProgressExpiredWindows[win] -= 1
-			if stage.inProgressExpiredWindows[win] == 0 {
-				delete(stage.inProgressExpiredWindows, win)
+		// Adjust holds as needed.
+		for h, c := range newHolds {
+			if c > 0 {
+				stage.watermarkHolds.Add(h, c)
+			} else if c < 0 {
+				stage.watermarkHolds.Drop(h, -c)
 			}
-			delete(stage.expiryWindowsByBundles, rb.BundleID)
 		}
-	}
+		for hold, v := range stage.inprogressHoldsByBundle[rb.BundleID] {
+			stage.watermarkHolds.Drop(hold, v)
+		}
+		delete(stage.inprogressHoldsByBundle, rb.BundleID)
 
-	// If there are estimated output watermarks, set the estimated
-	// output watermark for the stage.
-	if len(residuals.MinOutputWatermarks) > 0 {
-		estimate := mtime.MaxTimestamp
-		for _, t := range residuals.MinOutputWatermarks {
-			estimate = mtime.Min(estimate, t)
+		// Clean up OnWindowExpiration bundle accounting, so window state
+		// may be garbage collected.
+		if stage.expiryWindowsByBundles != nil {
+			win, ok := stage.expiryWindowsByBundles[rb.BundleID]
+			if ok {
+				stage.inProgressExpiredWindows[win] -= 1
+				if stage.inProgressExpiredWindows[win] == 0 {
+					delete(stage.inProgressExpiredWindows, win)
+				}
+				delete(stage.expiryWindowsByBundles, rb.BundleID)
+			}
 		}
-		stage.estimatedOutput = estimate
-	}
 
-	// Handle persisting.
-	for link, winMap := range d.state {
-		linkMap, ok := stage.state[link]
-		if !ok {
-			linkMap = map[typex.Window]map[string]StateData{}
-			stage.state[link] = linkMap
+		// If there are estimated output watermarks, set the estimated
+		// output watermark for the stage.
+		if len(residuals.MinOutputWatermarks) > 0 {
+			estimate := mtime.MaxTimestamp
+			for _, t := range residuals.MinOutputWatermarks {
+				estimate = mtime.Min(estimate, t)
+			}
+			stage.estimatedOutput = estimate
 		}
-		for w, keyMap := range winMap {
-			wlinkMap, ok := linkMap[w]
+
+		// Handle persisting.
+		for link, winMap := range d.state {
+			linkMap, ok := stage.state[link]
 			if !ok {
-				wlinkMap = map[string]StateData{}
-				linkMap[w] = wlinkMap
+				linkMap = map[typex.Window]map[string]StateData{}
+				stage.state[link] = linkMap
 			}
-			for key, data := range keyMap {
-				wlinkMap[key] = data
+			for w, keyMap := range winMap {
+				wlinkMap, ok := linkMap[w]
+				if !ok {
+					wlinkMap = map[string]StateData{}
+					linkMap[w] = wlinkMap
+				}
+				for key, data := range keyMap {
+					wlinkMap[key] = data
+				}
 			}
 		}
-	}
-	stage.mu.Unlock()
+	}()
 
 	em.markChangedAndClearBundle(stage.ID, rb.BundleID, ptRefreshes)
 }
@@ -1006,11 +1047,16 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 // FailBundle clears the extant data allowing the execution to shut down.
 func (em *ElementManager) FailBundle(rb RunBundle) {
 	stage := em.stages[rb.StageID]
-	stage.mu.Lock()
-	completed := stage.inprogress[rb.BundleID]
-	em.addPending(-len(completed.es))
-	delete(stage.inprogress, rb.BundleID)
-	stage.mu.Unlock()
+	func() {
+		stage.mu.Lock()
+		// Defer unlocking the mutex within an anonymous function to ensure it's released
+		// even if a panic occurs during `em.addPending`. This prevents potential deadlocks
+		// if the waitgroup unexpectedly drops below zero due to a runner bug.
+		defer stage.mu.Unlock()
+		completed := stage.inprogress[rb.BundleID]
+		em.addPending(-len(completed.es))
+		delete(stage.inprogress, rb.BundleID)
+	}()
 	em.markChangedAndClearBundle(rb.StageID, rb.BundleID, nil)
 }
 
@@ -1019,7 +1065,7 @@ func (em *ElementManager) FailBundle(rb RunBundle) {
 func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals Residuals) {
 	stage := em.stages[rb.StageID]
 
-	stage.splitBundle(rb, firstRsIndex)
+	stage.splitBundle(rb, firstRsIndex, em)
 	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
@@ -1127,18 +1173,20 @@ type stageState struct {
 	input              mtime.Time // input watermark for the parallel input.
 	output             mtime.Time // Output watermark for the whole stage
 	estimatedOutput    mtime.Time // Estimated watermark output from DoFns
+	previousInput      mtime.Time // input watermark before the latest watermark refresh
 
 	pending    elementHeap                          // pending input elements for this stage that are to be processesd
 	inprogress map[string]elements                  // inprogress elements by active bundles, keyed by bundle
 	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 
 	// Fields for stateful stages which need to be per key.
-	pendingByKeys          map[string]*dataAndTimers                        // pending input elements by Key, if stateful.
-	inprogressKeys         set[string]                                      // all keys that are assigned to bundles.
-	inprogressKeysByBundle map[string]set[string]                           // bundle to key assignments.
-	state                  map[LinkID]map[typex.Window]map[string]StateData // state data for this stage, from {tid, stateID} -> window -> userKey
-	stateTypeLen           map[LinkID]func([]byte) int                      // map from state to a function that will produce the total length of a single value in bytes.
-	bundlesToInject        []RunBundle                                      // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
+	pendingByKeys          map[string]*dataAndTimers                             // pending input elements by Key, if stateful.
+	inprogressKeys         set[string]                                           // all keys that are assigned to bundles.
+	inprogressKeysByBundle map[string]set[string]                                // bundle to key assignments.
+	state                  map[LinkID]map[typex.Window]map[string]StateData      // state data for this stage, from {tid, stateID} -> window -> userKey
+	stateTypeLen           map[LinkID]func([]byte) int                           // map from state to a function that will produce the total length of a single value in bytes.
+	bundlesToInject        []RunBundle                                           // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
+	bundlePanes            map[string]map[typex.Window]map[string]typex.PaneInfo // PaneInfo snapshot for bundles, from BundleID -> window -> userKey
 
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
@@ -1150,6 +1198,13 @@ type stageState struct {
 	processingTimeTimers *timerHandler
 }
 
+// bundlePane holds pane info for a bundle.
+type bundlePane struct {
+	win  typex.Window
+	key  string
+	pane typex.PaneInfo
+}
+
 // stageKind handles behavioral differences between ordinary, stateful, and aggregation stage kinds.
 //
 // kinds should be stateless, and stageState retains all state for the stage,
@@ -1158,10 +1213,11 @@ type stageKind interface {
 	// addPending handles adding new pending elements to the stage appropriate for the kind.
 	addPending(ss *stageState, em *ElementManager, newPending []element) int
 	// buildEventTimeBundle handles building bundles for the stage per it's kind.
-	buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, schedulable bool, pendingAdjustment int)
+	buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string],
+		holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane, schedulable bool, pendingAdjustment int)
 
-	// updatePane based on the stage state.
-	updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo
+	// getPaneOrDefault based on the stage state, element metadata, and bundle id.
+	getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo
 }
 
 // ordinaryStageKind represents stages that have no special behavior associated with them.
@@ -1170,8 +1226,8 @@ type ordinaryStageKind struct{}
 
 func (*ordinaryStageKind) String() string { return "OrdinaryStage" }
 
-func (*ordinaryStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo {
-	return pane
+func (*ordinaryStageKind) getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
+	return defaultPane
 }
 
 // statefulStageKind require keyed elements, and handles stages with stateful transforms, with state and timers.
@@ -1179,8 +1235,8 @@ type statefulStageKind struct{}
 
 func (*statefulStageKind) String() string { return "StatefulStage" }
 
-func (*statefulStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo {
-	return pane
+func (*statefulStageKind) getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
+	return defaultPane
 }
 
 // aggregateStageKind handles stages that perform aggregations over their primary inputs.
@@ -1189,9 +1245,12 @@ type aggregateStageKind struct{}
 
 func (*aggregateStageKind) String() string { return "AggregateStage" }
 
-func (*aggregateStageKind) updatePane(ss *stageState, pane typex.PaneInfo, w typex.Window, keyBytes []byte) typex.PaneInfo {
+func (*aggregateStageKind) getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+	if pane, ok := ss.bundlePanes[bundID][w][string(keyBytes)]; ok {
+		return pane
+	}
 	return ss.state[LinkID{}][w][string(keyBytes)].Pane
 }
 
@@ -1246,6 +1305,43 @@ func (ss *stageState) AddPending(em *ElementManager, newPending []element) int {
 	return ss.kind.addPending(ss, em, newPending)
 }
 
+func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
+	// Check on triggers for this key.
+	// We use an empty linkID as the key into state for aggregations.
+	count := 0
+	if ss.state == nil {
+		ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
+	}
+	lv, ok := ss.state[LinkID{}]
+	if !ok {
+		lv = make(map[typex.Window]map[string]StateData)
+		ss.state[LinkID{}] = lv
+	}
+	wv, ok := lv[window]
+	if !ok {
+		wv = make(map[string]StateData)
+		lv[window] = wv
+	}
+	state := wv[key]
+	endOfWindowReached := window.MaxTimestamp() < ss.input
+	ready := ss.strat.IsTriggerReady(triggerInput{
+		newElementCount:    1,
+		endOfWindowReached: endOfWindowReached,
+	}, &state)
+
+	if ready {
+		state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+	}
+	// Store the state as triggers may have changed it.
+	ss.state[LinkID{}][window][key] = state
+
+	// If we're ready, it's time to fire!
+	if ready {
+		count += ss.buildTriggeredBundle(em, key, window)
+	}
+	return count
+}
+
 // addPending for aggregate stages behaves likes stateful stages, but don't need to handle timers or a separate window
 // expiration condition.
 func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1265,6 +1361,13 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 	if ss.pendingByKeys == nil {
 		ss.pendingByKeys = map[string]*dataAndTimers{}
 	}
+
+	type windowKey struct {
+		window typex.Window
+		key    string
+	}
+	pendingWindowKeys := set[windowKey]{}
+
 	count := 0
 	for _, e := range newPending {
 		count++
@@ -1277,37 +1380,18 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 			ss.pendingByKeys[string(e.keyBytes)] = dnt
 		}
 		heap.Push(&dnt.elements, e)
-		// Check on triggers for this key.
-		// We use an empty linkID as the key into state for aggregations.
-		if ss.state == nil {
-			ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
-		}
-		lv, ok := ss.state[LinkID{}]
-		if !ok {
-			lv = make(map[typex.Window]map[string]StateData)
-			ss.state[LinkID{}] = lv
-		}
-		wv, ok := lv[e.window]
-		if !ok {
-			wv = make(map[string]StateData)
-			lv[e.window] = wv
-		}
-		state := wv[string(e.keyBytes)]
-		endOfWindowReached := e.window.MaxTimestamp() < ss.input
-		ready := ss.strat.IsTriggerReady(triggerInput{
-			newElementCount:    1,
-			endOfWindowReached: endOfWindowReached,
-		}, &state)
 
-		if ready {
-			state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+		if em.config.StreamingMode {
+			// In streaming mode, we check trigger readiness on each element
+			count += ss.injectTriggeredBundlesIfReady(em, e.window, string(e.keyBytes))
+		} else {
+			// In batch mode, we store key + window pairs here and check trigger readiness for each of them later.
+			pendingWindowKeys.insert(windowKey{window: e.window, key: string(e.keyBytes)})
 		}
-		// Store the state as triggers may have changed it.
-		ss.state[LinkID{}][e.window][string(e.keyBytes)] = state
-
-		// If we're ready, it's time to fire!
-		if ready {
-			count += ss.buildTriggeredBundle(em, e.keyBytes, e.window)
+	}
+	if !em.config.StreamingMode {
+		for wk := range pendingWindowKeys {
+			count += ss.injectTriggeredBundlesIfReady(em, wk.window, wk.key)
 		}
 	}
 	return count
@@ -1422,12 +1506,30 @@ func computeNextWatermarkPane(pane typex.PaneInfo) typex.PaneInfo {
 	return pane
 }
 
+func (ss *stageState) savePanes(bundID string, panesInBundle []bundlePane) {
+	if len(panesInBundle) == 0 {
+		return
+	}
+	if ss.bundlePanes == nil {
+		ss.bundlePanes = make(map[string]map[typex.Window]map[string]typex.PaneInfo)
+	}
+	if ss.bundlePanes[bundID] == nil {
+		ss.bundlePanes[bundID] = make(map[typex.Window]map[string]typex.PaneInfo)
+	}
+	for _, p := range panesInBundle {
+		if ss.bundlePanes[bundID][p.win] == nil {
+			ss.bundlePanes[bundID][p.win] = make(map[string]typex.PaneInfo)
+		}
+		ss.bundlePanes[bundID][p.win][p.key] = p.pane
+	}
+}
+
 // buildTriggeredBundle must be called with the stage.mu lock held.
 // When in discarding mode, returns 0.
 // When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
-func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win typex.Window) int {
+func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win typex.Window) int {
 	var toProcess []element
-	dnt := ss.pendingByKeys[string(key)]
+	dnt := ss.pendingByKeys[key]
 	var notYet []element
 
 	rb := RunBundle{StageID: ss.ID, BundleID: "agg-" + em.nextBundID(), Watermark: ss.input}
@@ -1456,7 +1558,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 	}
 	dnt.elements = append(dnt.elements, notYet...)
 	if dnt.elements.Len() == 0 {
-		delete(ss.pendingByKeys, string(key))
+		delete(ss.pendingByKeys, key)
 	} else {
 		// Ensure the heap invariants are maintained.
 		heap.Init(&dnt.elements)
@@ -1465,13 +1567,24 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key []byte, win t
 	if ss.inprogressKeys == nil {
 		ss.inprogressKeys = set[string]{}
 	}
+	panesInBundle := []bundlePane{
+		{
+			win:  win,
+			key:  string(key),
+			pane: ss.state[LinkID{}][win][key].Pane,
+		},
+	}
+
 	ss.makeInProgressBundle(
 		func() string { return rb.BundleID },
 		toProcess,
 		ss.input,
-		singleSet(string(key)),
+		singleSet(key),
 		nil,
+		panesInBundle,
 	)
+	slog.Debug("started a triggered bundle", "stageID", ss.ID, "bundleID", rb.BundleID, "size", len(toProcess))
+
 	ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
 	em.refreshCond.L.Lock()
@@ -1575,26 +1688,28 @@ func (ss *stageState) startEventTimeBundle(watermark mtime.Time, genBundID func(
 	}()
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	toProcess, minTs, newKeys, holdsInBundle, stillSchedulable, accumulatingPendingAdjustment := ss.kind.buildEventTimeBundle(ss, watermark)
+	toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment := ss.kind.buildEventTimeBundle(ss, watermark)
 
 	if len(toProcess) == 0 {
 		// If we have nothing, there's nothing to progress.
 		return "", false, stillSchedulable, accumulatingPendingAdjustment
 	}
 
-	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
+	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, panesInBundle)
+	slog.Debug("started an event time bundle", "stageID", ss.ID, "bundleID", bundID, "bundleSize", len(toProcess), "upstreamWatermark", watermark)
+
 	return bundID, true, stillSchedulable, accumulatingPendingAdjustment
 }
 
 // buildEventTimeBundle for ordinary stages processes all pending elements.
-func (*ordinaryStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, schedulable bool, pendingAdjustment int) {
+func (*ordinaryStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, _ []bundlePane, schedulable bool, pendingAdjustment int) {
 	toProcess = ss.pending
 	ss.pending = nil
-	return toProcess, mtime.MaxTimestamp, nil, nil, true, 0
+	return toProcess, mtime.MaxTimestamp, nil, nil, nil, true, 0
 }
 
 // buildEventTimeBundle for stateful stages, processes all elements that are before the input watermark time.
-func (*statefulStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, schedulable bool, pendingAdjustment int) {
+func (*statefulStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, _ []bundlePane, schedulable bool, pendingAdjustment int) {
 	minTs := mtime.MaxTimestamp
 	// TODO: Allow configurable limit of keys per bundle, and elements per key to improve parallelism.
 	// TODO: when we do, we need to ensure that the stage remains schedualable for bundle execution, for remaining pending elements and keys.
@@ -1678,11 +1793,11 @@ keysPerBundle:
 	// If we're out of data, and timers were not cleared then the watermark is accurate.
 	stillSchedulable := !(len(ss.pendingByKeys) == 0 && !timerCleared)
 
-	return toProcess, minTs, newKeys, holdsInBundle, stillSchedulable, 0
+	return toProcess, minTs, newKeys, holdsInBundle, nil, stillSchedulable, 0
 }
 
 // buildEventTimeBundle for aggregation stages, processes all elements that are within the watermark for completed windows.
-func (*aggregateStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, schedulable bool, pendingAdjustment int) {
+func (*aggregateStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, _ mtime.Time, _ set[string], _ map[mtime.Time]int, panesInBundle []bundlePane, schedulable bool, pendingAdjustment int) {
 	minTs := mtime.MaxTimestamp
 	// TODO: Allow configurable limit of keys per bundle, and elements per key to improve parallelism.
 	// TODO: when we do, we need to ensure that the stage remains schedualable for bundle execution, for remaining pending elements and keys.
@@ -1704,7 +1819,7 @@ keysPerBundle:
 		}
 
 		var toProcessForKey []element
-
+		var toSkipForKey []element
 		// Can we pre-compute this bit when adding to pendingByKeys?
 		// startBundle is in run in a single scheduling goroutine, so moving per-element code
 		// to be computed by the bundle parallel goroutines will speed things up a touch.
@@ -1713,28 +1828,39 @@ keysPerBundle:
 			// if we're after the end of window, or after the window expiry deadline.
 			// We will only ever trigger aggregations by watermark at most twice, once the watermark passes the window ends for OnTime completion,
 			// and once for when the window is closing.
-			elm := dnt.elements[0]
+			elm := heap.Pop(&dnt.elements).(element)
+			shouldSkip := false
+
 			if watermark <= elm.window.MaxTimestamp() {
 				// The watermark hasn't passed the end of the window yet, we do nothing.
-				break
+				shouldSkip = true
 			}
 			// Watermark is past the end of this window. Have we fired an OnTime pane yet?
 			state := ss.state[LinkID{}][elm.window][string(elm.keyBytes)]
 			// If this is not the ontime firing for this key.
 
-			if state.Pane.Timing != typex.PaneEarly && watermark <= ss.strat.EarliestCompletion(elm.window) {
+			if !shouldSkip && state.Pane.Timing != typex.PaneEarly && watermark <= ss.strat.EarliestCompletion(elm.window) {
 				// The watermark is still before the earliest final completion for this window.
 				// Do not add further data for this firing.
 				// If this is the Never trigger, we also don't fire OnTime until after the earliest completion.
-				break
+				shouldSkip = true
 			}
-			if ss.strat.IsNeverTrigger() && watermark <= ss.strat.EarliestCompletion(elm.window) {
+			if !shouldSkip && ss.strat.IsNeverTrigger() && watermark <= ss.strat.EarliestCompletion(elm.window) {
 				// The NeverTrigger only has a single firing at the end of window + allowed lateness.
-				break
+				shouldSkip = true
 			}
-			e := heap.Pop(&dnt.elements).(element)
 
-			toProcessForKey = append(toProcessForKey, e)
+			if shouldSkip {
+				toSkipForKey = append(toSkipForKey, elm)
+			} else {
+				toProcessForKey = append(toProcessForKey, elm)
+			}
+		}
+
+		// Re-add skipped elements to the heap.
+		// This ensures that `dnt.elements` reflects only the truly skipped elements for future processing.
+		for _, elm := range toSkipForKey {
+			heap.Push(&dnt.elements, elm)
 		}
 
 		// Get the pane for the aggregation correct, only mutate it once per key and window.
@@ -1766,6 +1892,13 @@ keysPerBundle:
 			}
 			ss.state[LinkID{}][elm.window][string(elm.keyBytes)] = state
 
+			// Save latest PaneInfo for this window + key pair. It will be used in PersistBundle.
+			panesInBundle = append(panesInBundle, bundlePane{
+				win:  elm.window,
+				key:  string(elm.keyBytes),
+				pane: ss.state[LinkID{}][elm.window][string(elm.keyBytes)].Pane,
+			})
+
 			// The pane is already correct for this key + window + firing.
 			if ss.strat.Accumulating && !state.Pane.IsLast {
 				// If this isn't the last pane, then we must add the element back to the pending store for subsequent firings.
@@ -1787,7 +1920,7 @@ keysPerBundle:
 	// If this is an aggregate, we need a watermark change in order to reschedule
 	stillSchedulable := false
 
-	return toProcess, minTs, newKeys, holdsInBundle, stillSchedulable, accumulatingPendingAdjustment
+	return toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment
 }
 
 func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.Time, genBundID func() string) (string, bool, bool) {
@@ -1862,14 +1995,16 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 		// If we have nothing
 		return "", false, stillSchedulable
 	}
-	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
+	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, nil)
+
+	slog.Debug("started a processing time bundle", "stageID", ss.ID, "bundleID", bundID, "size", len(toProcess), "emNow", emNow)
 	return bundID, true, stillSchedulable
 }
 
 // makeInProgressBundle is common code to store a set of elements as a bundle in progress.
 //
 // Callers must hold the stage lock.
-func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []element, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int) string {
+func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []element, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) string {
 	// Catch the ordinary case for the minimum timestamp.
 	if toProcess[0].timestamp < minTs {
 		minTs = toProcess[0].timestamp
@@ -1893,10 +2028,13 @@ func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []
 	ss.inprogressKeysByBundle[bundID] = newKeys
 	ss.inprogressKeys.merge(newKeys)
 	ss.inprogressHoldsByBundle[bundID] = holdsInBundle
+
+	// Save latest PaneInfo for PersistBundle
+	ss.savePanes(bundID, panesInBundle)
 	return bundID
 }
 
-func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
+func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementManager) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
@@ -1907,8 +2045,19 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
 	res := es.es[firstResidual:]
 
 	es.es = prim
-	ss.pending = append(ss.pending, res...)
-	heap.Init(&ss.pending)
+
+	for _, e := range res {
+		delete(ss.inprogressKeysByBundle[rb.BundleID], string(e.keyBytes))
+		delete(ss.inprogressKeys, string(e.keyBytes))
+
+		if e.IsTimer() {
+			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")
+			ss.watermarkHolds.Drop(e.holdTimestamp, 1)
+			ss.inprogressHoldsByBundle[rb.BundleID][e.holdTimestamp]--
+		}
+	}
+	// we don't need to increment pending count in em, since it is already pending
+	ss.kind.addPending(ss, em, res)
 	ss.inprogress[rb.BundleID] = es
 }
 
@@ -1945,7 +2094,7 @@ func (ss *stageState) String() string {
 	return fmt.Sprintf("[%v] IN: %v OUT: %v UP: %q %v, kind: %v", ss.ID, ss.input, ss.output, pcol, up, ss.kind)
 }
 
-// updateWatermarks performs the following operations:
+// updateWatermarks performs the following operations and returns a possible set of stages to refresh next or nil.
 //
 // Watermark_In'  = MAX(Watermark_In, MIN(U(TS_Pending), U(Watermark_InputPCollection)))
 // Watermark_Out' = MAX(Watermark_Out, MIN(Watermark_In', U(minWatermarkHold)))
@@ -1965,6 +2114,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	if minPending < newIn {
 		newIn = minPending
 	}
+
+	ss.previousInput = ss.input
 
 	// If bigger, advance the input watermark.
 	if newIn > ss.input {
@@ -2095,6 +2246,7 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 			wm,
 			usedKeys,
 			map[mtime.Time]int{wm: 1},
+			nil,
 		)
 		ss.expiryWindowsByBundles[rb.BundleID] = win
 
@@ -2123,16 +2275,17 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 	ptimeEventsReady := ss.processingTimeTimers.Peek() <= emNow || emNow == mtime.MaxTimestamp
 	injectedReady := len(ss.bundlesToInject) > 0
 
-	// If the upstream watermark and the input watermark are the same,
-	// then we can't yet process this stage.
+	// If the upstream watermark does not change, we can't yet process this stage.
+	// To check whether upstream water is unchanged, we evaluate if the input watermark, and
+	// the input watermark before the latest refresh are the same.
 	inputW := ss.input
 	_, upstreamW := ss.UpstreamWatermark()
-	if inputW == upstreamW {
+	previousInputW := ss.previousInput
+	if inputW == upstreamW && previousInputW == inputW {
 		slog.Debug("bundleReady: unchanged upstream watermark",
 			slog.String("stage", ss.ID),
 			slog.Group("watermark",
-				slog.Any("upstream", upstreamW),
-				slog.Any("input", inputW)))
+				slog.Any("upstream == input == previousInput", inputW)))
 		return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
 	}
 	ready := true
@@ -2158,11 +2311,12 @@ func (em *ElementManager) ProcessingTimeNow() (ret mtime.Time) {
 	if em.testStreamHandler != nil && !em.testStreamHandler.completed {
 		return em.testStreamHandler.Now()
 	}
-	// TODO toggle between testmode and production mode.
+
 	// "Test" mode -> advance to next processing time event if any, to allow execution.
-	// if test mode...
-	if t, ok := em.processTimeEvents.Peek(); ok {
-		return t
+	if !em.config.EnableRTC {
+		if t, ok := em.processTimeEvents.Peek(); ok {
+			return t
+		}
 	}
 
 	// "Production" mode, always real time now.

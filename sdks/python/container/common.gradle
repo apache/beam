@@ -39,7 +39,22 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
       executable 'sh'
       args '-c', "cd ${rootDir} && ${runScriptsPath} " +
               "${project.ext.pythonVersion} " +
-              "${files(configurations.sdkSourceTarball.files).singleFile} " + "${pipExtraOptions}"
+              "${files(configurations.sdkSourceTarball.files).singleFile} " +
+              "base_image_requirements.txt " +
+              "container " +
+              "[gcp,dataframe,test] " +
+              "${pipExtraOptions}"
+    }
+    // Generate versions for ML dependencies
+    exec {
+      executable 'sh'
+      args '-c', "cd ${rootDir} && ${runScriptsPath} " +
+              "${project.ext.pythonVersion} " +
+              "${files(configurations.sdkSourceTarball.files).singleFile} " +
+              "ml_image_requirements.txt " +
+              "container/ml " +
+              "[gcp,dataframe,test,tensorflow,torch,transformers] " +
+              "${pipExtraOptions}"
     }
   }
 }

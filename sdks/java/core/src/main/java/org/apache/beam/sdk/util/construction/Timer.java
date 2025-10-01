@@ -65,9 +65,9 @@ public abstract class Timer<K> {
       Collection<? extends BoundedWindow> windows,
       Instant fireTimestamp,
       Instant holdTimestamp,
-      PaneInfo pane) {
+      PaneInfo paneInfo) {
     return new AutoValue_Timer(
-        userKey, dynamicTimerTag, windows, false, fireTimestamp, holdTimestamp, pane);
+        userKey, dynamicTimerTag, windows, false, fireTimestamp, holdTimestamp, paneInfo);
   }
 
   /**
@@ -114,7 +114,7 @@ public abstract class Timer<K> {
    * Returns the {@link PaneInfo} that is related to the timer. This field is nullable only when the
    * timer is being cleared.
    */
-  public abstract @Nullable PaneInfo getPane();
+  public abstract @Nullable PaneInfo getPaneInfo();
 
   @Override
   public final boolean equals(@Nullable Object other) {
@@ -128,7 +128,7 @@ public abstract class Timer<K> {
         && (this.getClearBit() == that.getClearBit())
         && Objects.equals(this.getFireTimestamp(), that.getFireTimestamp())
         && Objects.equals(this.getHoldTimestamp(), that.getHoldTimestamp())
-        && Objects.equals(this.getPane(), that.getPane());
+        && Objects.equals(this.getPaneInfo(), that.getPaneInfo());
   }
 
   @Override
@@ -144,7 +144,7 @@ public abstract class Timer<K> {
         getFireTimestamp().getMillis(),
         getHoldTimestamp().getMillis(),
         getWindows(),
-        getPane());
+        getPaneInfo());
   }
 
   /**
@@ -185,7 +185,7 @@ public abstract class Timer<K> {
       if (!timer.getClearBit()) {
         InstantCoder.of().encode(timer.getFireTimestamp(), outStream);
         InstantCoder.of().encode(timer.getHoldTimestamp(), outStream);
-        PaneInfoCoder.INSTANCE.encode(timer.getPane(), outStream);
+        PaneInfoCoder.INSTANCE.encode(timer.getPaneInfo(), outStream);
       }
     }
 
@@ -200,8 +200,8 @@ public abstract class Timer<K> {
       }
       Instant fireTimestamp = InstantCoder.of().decode(inStream);
       Instant holdTimestamp = InstantCoder.of().decode(inStream);
-      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
-      return Timer.of(userKey, dynamicTimerTag, windows, fireTimestamp, holdTimestamp, pane);
+      PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+      return Timer.of(userKey, dynamicTimerTag, windows, fireTimestamp, holdTimestamp, paneInfo);
     }
 
     @Override
@@ -242,7 +242,7 @@ public abstract class Timer<K> {
       if (!value.getClearBit()) {
         InstantCoder.of().registerByteSizeObserver(value.getFireTimestamp(), observer);
         InstantCoder.of().registerByteSizeObserver(value.getHoldTimestamp(), observer);
-        PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer);
+        PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPaneInfo(), observer);
       }
     }
   }

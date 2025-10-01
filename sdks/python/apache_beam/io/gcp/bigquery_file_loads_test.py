@@ -24,6 +24,8 @@ import os
 import secrets
 import time
 import unittest
+from unittest.mock import Mock
+from unittest.mock import call
 
 import mock
 import pytest
@@ -39,6 +41,7 @@ from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
@@ -59,6 +62,11 @@ try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
+
+try:
+  import dill
+except ImportError:
+  dill = None
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -403,6 +411,13 @@ class TestPartitionFiles(unittest.TestCase):
           label='CheckSinglePartition')
 
 
+def maybe_skip(compat_version):
+  if compat_version and not dill:
+    raise unittest.SkipTest(
+        'Dill dependency not installed which is required for compat_version'
+        ' <= 2.67.0')
+
+
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_trigger_load_jobs_with_empty_files(self):
     destination = "project:dataset.table"
@@ -447,8 +462,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         temp_file_format=bigquery_tools.FileFormat.JSON)
 
-    # Need to test this with the DirectRunner to avoid serializing mocks
-    with TestPipeline('DirectRunner') as p:
+    # Need to test this with the FnApiRunner to avoid serializing mocks
+    with TestPipeline('FnApiRunner') as p:
       outputs = p | beam.Create(_ELEMENTS) | transform
 
       dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
@@ -482,7 +497,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
+  @pytest.mark.uses_dill
   def test_reshuffle_before_load(self, compat_version):
+    maybe_skip(compat_version)
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -541,7 +558,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         load_job_project_id='loadJobProject')
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = p | beam.Create(_ELEMENTS) | transform
       jobs = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS] \
              | "GetJobs" >> beam.Map(lambda x: x[1])
@@ -571,7 +591,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Insert.return_value = result_job
     bq_client.tables.Delete.return_value = None
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = (
           p
           | beam.Create(_ELEMENTS, reshuffle=False)
@@ -709,7 +732,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Insert.return_value = result_job
     bq_client.tables.Delete.return_value = None
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = (
           p
           | beam.Create(_ELEMENTS, reshuffle=False)
@@ -811,6 +837,166 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     # TriggerCopyJob only processes once
     self.assertEqual(mock_call_process.call_count, 1)
 
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper.wait_for_bq_job')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._insert_copy_job')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._start_job',
+      wraps=BigQueryWrapper._start_job)
+  def test_multiple_identical_destinations_on_write_truncate(
+      self, mock_perform_start_job, mock_insert_copy_job, mock_wait_for_bq_job):
+    """
+    Test that multiple identical table names,
+     but under different datasets are handled correctly.
+    This essentially means that the `write_disposition` is set
+     to `WRITE_TRUNCATE` for the first job and `WRITE_APPEND` for the rest.
+
+    Previously this was not the case and all jobs were set to `WRITE_APPEND`
+     from the 2nd table that was named identically with at least
+     one previous table - but from different dataset.
+    """
+    def dynamic_destination_resolver(element, *side_inputs):
+      """A dynamic destination resolver that returns a destination strictly the
+       same table, but different dataset."""
+      if element['name'] == 'beam':
+        return 'project1:dataset1.table1'
+      elif element['name'] == 'flink':
+        return 'project1:dataset2.table1'
+
+      return 'project1:dataset3.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = mock.Mock()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+    bq_client.tables.Delete.return_value = None
+
+    m = bigquery_tools.BigQueryWrapper(bq_client)
+    m.wait_for_bq_job = mock.Mock()
+    m.wait_for_bq_job.return_value = None
+
+    mock_jobs = [
+        Mock(jobReference=bigquery_api.JobReference(jobId=f'job_name{i}'))
+        # Order matters in a sense to prove that jobs with different ids
+        #  (`2` & `3`) are run with `WRITE_APPEND` without this current fix.
+        for i in [1, 2, 1, 3, 1]
+    ]
+    mock_perform_start_job.side_effect = mock_jobs
+
+    # For now we don't care about the return value.
+    mock_insert_copy_job.return_value = None
+
+    # Pin to FnApiRunner for now to make mocks act appropriately.
+    # TODO(https://github.com/apache/beam/issues/34549)
+    with TestPipeline('FnApiRunner') as p:
+      _ = (
+          p
+          | beam.Create([
+              {
+                  'name': 'beam', 'language': 'java'
+              },
+              {
+                  'name': 'flink', 'language': 'java'
+              },
+              {
+                  'name': 'beam', 'language': 'java'
+              },
+              {
+                  'name': 'spark', 'language': 'java'
+              },
+              {
+                  'name': 'beam', 'language': 'java'
+              },
+          ],
+                        reshuffle=False)
+          | bqfl.BigQueryBatchFileLoads(
+              dynamic_destination_resolver,
+              custom_gcs_temp_location=self._new_tempdir(),
+              test_client=bq_client,
+              validate=False,
+              temp_file_format=bigquery_tools.FileFormat.JSON,
+              max_file_size=45,
+              max_partition_size=80,
+              max_files_per_partition=3,
+              write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
+
+    from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+    mock_insert_copy_job.assert_has_calls(
+        [
+            call(
+                'project1',
+                mock.ANY,
+                TableReference(
+                    datasetId='dataset1',
+                    projectId='project1',
+                    tableId='job_name1'),
+                TableReference(
+                    datasetId='dataset1',
+                    projectId='project1',
+                    tableId='table1'),
+                create_disposition=None,
+                write_disposition='WRITE_TRUNCATE',
+                job_labels={'step_name': 'bigquerybatchfileloads'}),
+            call(
+                'project1',
+                mock.ANY,
+                TableReference(
+                    datasetId='dataset1',
+                    projectId='project1',
+                    tableId='job_name2'),
+                TableReference(
+                    datasetId='dataset1',
+                    projectId='project1',
+                    tableId='table1'),
+                create_disposition=None,
+                write_disposition='WRITE_APPEND',
+                job_labels={'step_name': 'bigquerybatchfileloads'}),
+            call(
+                'project1',
+                mock.ANY,
+                TableReference(
+                    datasetId='dataset2',
+                    projectId='project1',
+                    tableId='job_name1'),
+                TableReference(
+                    datasetId='dataset2',
+                    projectId='project1',
+                    tableId='table1'),
+                create_disposition=None,
+                # Previously this was `WRITE_APPEND`.
+                write_disposition='WRITE_TRUNCATE',
+                job_labels={'step_name': 'bigquerybatchfileloads'}),
+            call(
+                'project1',
+                mock.ANY,
+                TableReference(
+                    datasetId='dataset3',
+                    projectId='project1',
+                    tableId='job_name3'),
+                TableReference(
+                    datasetId='dataset3',
+                    projectId='project1',
+                    tableId='table1'),
+                create_disposition=None,
+                # Previously this was `WRITE_APPEND`.
+                write_disposition='WRITE_TRUNCATE',
+                job_labels={'step_name': 'bigquerybatchfileloads'}),
+        ],
+        any_order=True)
+    self.assertEqual(4, mock_insert_copy_job.call_count)
+
   @parameterized.expand([
       param(is_streaming=False, with_auto_sharding=False, compat_version=None),
       param(is_streaming=True, with_auto_sharding=False, compat_version=None),
@@ -822,6 +1008,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   ])
   def test_triggering_frequency(
       self, is_streaming, with_auto_sharding, compat_version):
+    maybe_skip(compat_version)
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()

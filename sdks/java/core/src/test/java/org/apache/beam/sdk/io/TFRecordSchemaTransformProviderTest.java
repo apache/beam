@@ -276,6 +276,7 @@ public class TFRecordSchemaTransformProviderTest {
             "num_shards",
             "compression",
             "no_spilling",
+            "max_num_writers_per_bundle",
             "error_handling"),
         tfrecordProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())

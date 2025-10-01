@@ -28,6 +28,7 @@ import uuid
 from typing import List
 from typing import Union
 
+from cachetools.func import ttl_cache
 from google.api_core import exceptions
 from google.api_core.gapic_v1 import client_info
 from google.cloud import environment_vars
@@ -36,7 +37,6 @@ from google.cloud.datastore import client
 
 from apache_beam.io.gcp.datastore.v1new import types
 from apache_beam.version import __version__ as beam_version
-from cachetools.func import ttl_cache
 
 # https://cloud.google.com/datastore/docs/concepts/errors#error_codes
 _RETRYABLE_DATASTORE_ERRORS = (

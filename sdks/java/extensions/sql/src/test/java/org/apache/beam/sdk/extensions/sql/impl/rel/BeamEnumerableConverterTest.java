@@ -38,19 +38,20 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Enumerable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.Enumerator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.volcano.VolcanoPlanner;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.RelOptTableImpl;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.TableModify.Operation;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Enumerable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Enumerator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.prepare.RelOptTableImpl;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.TableModify.Operation;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -74,7 +75,7 @@ public class BeamEnumerableConverterTest {
       RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
       ImmutableList<ImmutableList<RexLiteral>> tuples =
           ImmutableList.of(ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ZERO)));
-      BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
+      BeamRelNode node = new BeamValuesRel(cluster, type, tuples, RelTraitSet.createEmpty());
 
       Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
       Enumerator<Object> enumerator = enumerable.enumerator();
@@ -94,7 +95,7 @@ public class BeamEnumerableConverterTest {
               ImmutableList.of(
                   rexBuilder.makeBigintLiteral(BigDecimal.ZERO),
                   rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
-      BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
+      BeamRelNode node = new BeamValuesRel(cluster, type, tuples, RelTraitSet.createEmpty());
 
       Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
       Enumerator<Object> enumerator = enumerable.enumerator();
@@ -117,7 +118,7 @@ public class BeamEnumerableConverterTest {
               ImmutableList.of(
                   rexBuilder.makeBigintLiteral(BigDecimal.ZERO),
                   rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
-      BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
+      BeamRelNode node = new BeamValuesRel(cluster, type, tuples, RelTraitSet.createEmpty());
 
       List<Row> rowList = BeamEnumerableConverter.toRowList(options, node);
       assertTrue(rowList.size() == 1);
@@ -164,7 +165,7 @@ public class BeamEnumerableConverterTest {
               cluster,
               RelOptTableImpl.create(null, type, ImmutableList.of(), null),
               null,
-              new BeamValuesRel(cluster, type, tuples, null),
+              new BeamValuesRel(cluster, type, tuples, RelTraitSet.createEmpty()),
               Operation.INSERT,
               null,
               null,
@@ -222,7 +223,7 @@ public class BeamEnumerableConverterTest {
           ImmutableList.of(
               ImmutableList.of(
                   rexBuilder.makeNullLiteral(CalciteUtils.toRelDataType(TYPE_FACTORY, fieldType))));
-      BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
+      BeamRelNode node = new BeamValuesRel(cluster, type, tuples, RelTraitSet.createEmpty());
 
       Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
       Enumerator<Object> enumerator = enumerable.enumerator();

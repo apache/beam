@@ -257,7 +257,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
         @Element KV<String, TableRowInfo<ElementT>> element,
         @Timestamp Instant timestamp,
         BoundedWindow window,
-        PaneInfo pane) {
+        PaneInfo paneInfo) {
       Map<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> tableRows = this.tableRows;
       Map<String, List<String>> uniqueIdsForTableRows = this.uniqueIdsForTableRows;
       String tableSpec = element.getKey();
@@ -265,7 +265,9 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       TableRow failsafeTableRow = toFailsafeTableRow.apply(element.getValue().tableRow);
       tableRows
           .computeIfAbsent(tableSpec, k -> new ArrayList<>())
-          .add(FailsafeValueInSingleWindow.of(tableRow, timestamp, window, pane, failsafeTableRow));
+          .add(
+              FailsafeValueInSingleWindow.of(
+                  tableRow, timestamp, window, paneInfo, failsafeTableRow));
       uniqueIdsForTableRows
           .computeIfAbsent(tableSpec, k -> new ArrayList<>())
           .add(element.getValue().uniqueId);

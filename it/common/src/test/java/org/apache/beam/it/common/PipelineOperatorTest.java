@@ -199,4 +199,38 @@ public final class PipelineOperatorTest {
     verify(client).drainJob(any(), any(), any());
     assertThat(result).isEqualTo(Result.TIMEOUT);
   }
+
+  @Test
+  public void testForceCancelAfterCondition() throws IOException {
+    // Arrange
+    AtomicInteger callCount = new AtomicInteger();
+    int totalCalls = 3;
+    Supplier<Boolean> checker = () -> callCount.incrementAndGet() >= totalCalls;
+
+    when(client.getJobStatus(any(), any(), any()))
+        .thenReturn(JobState.RUNNING)
+        .thenThrow(new IOException())
+        .thenReturn(JobState.RUNNING)
+        .thenReturn(JobState.CANCELLING)
+        .thenReturn(JobState.CANCELLED);
+
+    // Act
+    Result result =
+        new PipelineOperator(client).waitForConditionAndForceCancel(DEFAULT_CONFIG, checker);
+
+    // Assert
+    verify(client, atLeast(totalCalls))
+        .getJobStatus(projectCaptor.capture(), regionCaptor.capture(), jobIdCaptor.capture());
+    verify(client)
+        .forceCancelJob(projectCaptor.capture(), regionCaptor.capture(), jobIdCaptor.capture());
+
+    Set<String> allProjects = new HashSet<>(projectCaptor.getAllValues());
+    Set<String> allRegions = new HashSet<>(regionCaptor.getAllValues());
+    Set<String> allJobIds = new HashSet<>(jobIdCaptor.getAllValues());
+
+    assertThat(allProjects).containsExactly(PROJECT);
+    assertThat(allRegions).containsExactly(REGION);
+    assertThat(allJobIds).containsExactly(JOB_ID);
+    assertThat(result).isEqualTo(Result.CONDITION_MET);
+  }
 }

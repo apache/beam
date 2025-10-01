@@ -104,7 +104,7 @@ public class MetricsPusherTest {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        LOG.error(e.getMessage(), e);
+        LOG.error("Suppressed Exception.", e);
       }
     }
   }

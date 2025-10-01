@@ -22,6 +22,7 @@ import os
 import unittest
 from typing import Optional
 
+import pytest
 from parameterized import parameterized
 
 from apache_beam.internal.cloudpickle import cloudpickle
@@ -323,7 +324,10 @@ class TestInitCallCount(unittest.TestCase):
       self.my_arg = arg * 10
       type(self).counter += 1
 
-  def test_on_pickle(self):
+  @pytest.mark.uses_dill
+  def test_on_dill_pickle(self):
+    pytest.importorskip("dill")
+
     FooForPickle = TestInitCallCount.FooForPickle
 
     import dill
@@ -338,6 +342,9 @@ class TestInitCallCount(unittest.TestCase):
     new_foo_2 = dill.loads(dill.dumps(foo))
     self.assertEqual(FooForPickle.counter, 1)
     self.assertEqual(new_foo_2.__dict__, foo.__dict__)
+
+  def test_on_pickle(self):
+    FooForPickle = TestInitCallCount.FooForPickle
 
     # Note that pickle does not support classes/functions nested in a function.
     import pickle

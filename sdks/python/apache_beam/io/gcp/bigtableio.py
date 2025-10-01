@@ -55,14 +55,13 @@ from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.typehints.row_type import RowTypeConstraint
 
 _LOGGER = logging.getLogger(__name__)
+FLUSH_COUNT = 1000
+MAX_ROW_BYTES = 5242880  # 5MB
 
 try:
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row import Cell, PartialRowData
   from google.cloud.bigtable.batcher import MutationsBatcher
-
-  FLUSH_COUNT = 1000
-  MAX_ROW_BYTES = 5242880  # 5MB
 
 except ImportError:
   _LOGGER.warning(
@@ -78,20 +77,27 @@ class _BigTableWriteFn(beam.DoFn):
     project_id(str): GCP Project ID
     instance_id(str): GCP Instance ID
     table_id(str): GCP Table ID
+    flush_count(int): Max number of rows to flush
+    max_row_bytes(int) Max number of row mutations size to flush
 
   """
-  def __init__(self, project_id, instance_id, table_id):
+  def __init__(
+      self, project_id, instance_id, table_id, flush_count, max_row_bytes):
     """ Constructor of the Write connector of Bigtable
     Args:
       project_id(str): GCP Project of to write the Rows
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
+      flush_count(int): Max number of rows to flush
+      max_row_bytes(int) Max number of row mutations size to flush
     """
     super().__init__()
     self.beam_options = {
         'project_id': project_id,
         'instance_id': instance_id,
-        'table_id': table_id
+        'table_id': table_id,
+        'flush_count': flush_count,
+        'max_row_bytes': max_row_bytes,
     }
     self.table = None
     self.batcher = None
@@ -144,8 +150,8 @@ class _BigTableWriteFn(beam.DoFn):
     self.batcher = MutationsBatcher(
         self.table,
         batch_completed_callback=self.write_mutate_metrics,
-        flush_count=FLUSH_COUNT,
-        max_row_bytes=MAX_ROW_BYTES)
+        flush_count=self.beam_options['flush_count'],
+        max_row_bytes=self.beam_options['max_row_bytes'])
 
   def process(self, row):
     self.written.inc()
@@ -200,7 +206,10 @@ class WriteToBigTable(beam.PTransform):
       instance_id,
       table_id,
       use_cross_language=False,
-      expansion_service=None):
+      expansion_service=None,
+      flush_count=FLUSH_COUNT,
+      max_row_bytes=MAX_ROW_BYTES,
+  ):
     """Initialize an WriteToBigTable transform.
 
     :param table_id:
@@ -215,6 +224,12 @@ class WriteToBigTable(beam.PTransform):
       The address of the expansion service in the case of using cross-language.
       If no expansion service is provided, will attempt to run the default GCP
       expansion service.
+    :type flush_count: int
+    :param flush_count: (Optional) Max number of rows to flush.
+      Default is FLUSH_COUNT (1000 rows).
+    :type max_row_bytes: int
+    :param max_row_bytes: (Optional) Max number of row mutations size to flush.
+      Default is MAX_ROW_BYTES (5 MB).
     """
     super().__init__()
     self._table_id = table_id
@@ -228,6 +243,9 @@ class WriteToBigTable(beam.PTransform):
       self.schematransform_config = (
           SchemaAwareExternalTransform.discover_config(
               self._expansion_service, self.URN))
+
+    self._flush_count = flush_count
+    self._max_row_bytes = max_row_bytes
 
   def expand(self, input):
     if self._use_cross_language:
@@ -250,7 +268,11 @@ class WriteToBigTable(beam.PTransform):
           input
           | beam.ParDo(
               _BigTableWriteFn(
-                  self._project_id, self._instance_id, self._table_id)))
+                  self._project_id,
+                  self._instance_id,
+                  self._table_id,
+                  flush_count=self._flush_count,
+                  max_row_bytes=self._max_row_bytes)))
 
   class _DirectRowMutationsToBeamRow(beam.DoFn):
     def process(self, direct_row):
@@ -335,7 +357,8 @@ class ReadFromBigtable(PTransform):
         rearrange_based_on_discovery=True,
         table_id=self._table_id,
         instance_id=self._instance_id,
-        project_id=self._project_id)
+        project_id=self._project_id,
+        flatten=False)
 
     return (
         input.pipeline

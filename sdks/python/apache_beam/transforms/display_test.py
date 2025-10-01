@@ -217,6 +217,14 @@ class DisplayDataTest(unittest.TestCase):
     ]
 
     hc.assert_that(dd.items, hc.has_items(*expected_items))
+    expected_items.append(
+        DisplayDataItemMatcher(
+            key='extra_key', value='extra_value', namespace=nspace))
+    hc.assert_that(
+        DisplayData.create_from(fn, extra_items={
+            'extra_key': 'extra_value'
+        }).items,
+        hc.has_items(*expected_items))
 
   def test_drop_if_none(self):
     class MyDoFn(beam.DoFn):

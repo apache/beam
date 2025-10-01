@@ -37,7 +37,6 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
@@ -50,11 +49,10 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowTracing;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -135,7 +133,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                         value,
                         windowedValue.getTimestamp(),
                         windowedValue.getWindows(),
-                        windowedValue.getPane());
+                        windowedValue.getPaneInfo());
                 keyManagers
                     .computeIfAbsent(keyBytes, x -> new KeyManager(key))
                     .processElement(updatedWindowedValue);
@@ -227,28 +225,12 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                       TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
               stateInternals,
               timerInternals,
-              new OutputWindowedValue<KV<K, Iterable<V>>>() {
+              new WindowedValueReceiver<KV<K, Iterable<V>>>() {
                 @Override
-                public void outputWindowedValue(
-                    KV<K, Iterable<V>> output,
-                    Instant timestamp,
-                    Collection<? extends BoundedWindow> windows,
-                    PaneInfo pane) {
-                  WindowedValue<KV<K, Iterable<V>>> windowedValue =
-                      WindowedValues.of(output, timestamp, windows, pane);
+                public void output(WindowedValue<KV<K, Iterable<V>>> windowedValue) {
                   byte[] encodedValue = Utils.encode(windowedValue, outputCoder);
                   //noinspection ResultOfMethodCallIgnored
                   appendableTraverser.append(encodedValue);
-                }
-
-                @Override
-                public <AdditionalOutputT> void outputWindowedValue(
-                    TupleTag<AdditionalOutputT> tag,
-                    AdditionalOutputT output,
-                    Instant timestamp,
-                    Collection<? extends BoundedWindow> windows,
-                    PaneInfo pane) {
-                  throw new UnsupportedOperationException("Grouping should not use side outputs");
                 }
               },
               NullSideInputReader.empty(),

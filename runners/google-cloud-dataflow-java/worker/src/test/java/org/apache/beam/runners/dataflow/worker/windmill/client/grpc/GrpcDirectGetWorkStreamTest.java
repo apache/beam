@@ -81,7 +81,11 @@ public class GrpcDirectGetWorkStreamTest {
   private static final String FAKE_SERVER_NAME = "Fake server for GrpcDirectGetWorkStreamTest";
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   private ManagedChannel inProcessChannel;
   private GrpcDirectGetWorkStream stream;
 
@@ -388,7 +392,9 @@ public class GrpcDirectGetWorkStreamTest {
 
   @Test
   public void testConsumedWorkItems_itemsSplitAcrossResponses() throws InterruptedException {
-    int expectedRequests = 3;
+    // We send all the responses on the first request. We don't care if there are additional
+    // requests.
+    int expectedRequests = 1;
     CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
@@ -422,9 +428,9 @@ public class GrpcDirectGetWorkStreamTest {
     Windmill.WorkItem workItem3 =
         Windmill.WorkItem.newBuilder()
             .setKey(ByteString.copyFromUtf8("somewhat_long_key3"))
-            .setWorkToken(2L)
-            .setShardingKey(2L)
-            .setCacheToken(2L)
+            .setWorkToken(3L)
+            .setShardingKey(3L)
+            .setCacheToken(3L)
             .build();
 
     List<ByteString> chunks1 = new ArrayList<>();
@@ -440,11 +446,11 @@ public class GrpcDirectGetWorkStreamTest {
 
     chunks3.add(workItem3.toByteString());
 
+    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
+
     testStub.injectResponse(createResponse(chunks1, bytes.size() - third));
     testStub.injectResponse(createResponse(chunks2, bytes.size() - 2 * third));
     testStub.injectResponse(createResponse(chunks3, 0));
-
-    assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
     assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2, workItem3);
   }
@@ -454,6 +460,7 @@ public class GrpcDirectGetWorkStreamTest {
 
     private final TestGetWorkRequestObserver requestObserver;
     private @Nullable StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver;
+    private final CountDownLatch waitForStream = new CountDownLatch(1);
 
     private GetWorkStreamTestStub(TestGetWorkRequestObserver requestObserver) {
       this.requestObserver = requestObserver;
@@ -462,15 +469,17 @@ public class GrpcDirectGetWorkStreamTest {
     @Override
     public StreamObserver<Windmill.StreamingGetWorkRequest> getWorkStream(
         StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver) {
-      if (this.responseObserver == null) {
-        this.responseObserver = responseObserver;
-        requestObserver.responseObserver = this.responseObserver;
-      }
+      assertThat(this.responseObserver).isNull();
+      this.responseObserver = responseObserver;
+      requestObserver.responseObserver = this.responseObserver;
+      waitForStream.countDown();
 
       return requestObserver;
     }
 
-    private void injectResponse(Windmill.StreamingGetWorkResponseChunk responseChunk) {
+    private void injectResponse(Windmill.StreamingGetWorkResponseChunk responseChunk)
+        throws InterruptedException {
+      waitForStream.await();
       checkNotNull(responseObserver).onNext(responseChunk);
     }
   }

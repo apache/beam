@@ -216,8 +216,8 @@ class ValueProviderTests(unittest.TestCase):
     options = PipelineOptions(['--experiments', 'a', '--experiments', 'b,c'])
     options = options.view_as(DebugOptions)
     self.assertIn('a', options.experiments)
-    self.assertIn('b,c', options.experiments)
-    self.assertNotIn('c', options.experiments)
+    self.assertIn('b', options.experiments)
+    self.assertIn('c', options.experiments)
 
   def test_nested_value_provider_wrap_static(self):
     vp = NestedValueProvider(StaticValueProvider(int, 1), lambda x: x + 1)

@@ -88,11 +88,15 @@ public class SchemasUtils {
   }
 
   private void validateSchemaTypes(TableSchema bigQuerySchema) {
+    if (bigQuerySchema == null) {
+      LOG.error("Provided BigQuery schema is null. Please check your input.");
+      return;
+    }
     try {
       beamSchema = fromTableSchema(bigQuerySchema);
     } catch (UnsupportedOperationException exception) {
-      LOG.error("Check json schema, {}", exception.getMessage());
-    } catch (NullPointerException npe) {
+      LOG.error("Check json schema", exception);
+    } catch (Exception e) {
       LOG.error("Missing schema keywords, please check what all required fields presented");
     }
   }
@@ -136,14 +140,15 @@ public class SchemasUtils {
       result = FileSystems.match(filePath);
       checkArgument(
           result.status() == MatchResult.Status.OK && !result.metadata().isEmpty(),
-          "Failed to match any files with the pattern: " + filePath);
+          "Failed to match any files with the pattern: %s",
+          filePath);
 
       List<ResourceId> rId =
           result.metadata().stream()
               .map(MatchResult.Metadata::resourceId)
               .collect(Collectors.toList());
 
-      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got " + rId.size() + " files.");
+      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got %s files.", rId.size());
 
       Reader reader =
           Channels.newReader(FileSystems.open(rId.get(0)), StandardCharsets.UTF_8.name());

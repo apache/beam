@@ -31,9 +31,9 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -136,9 +136,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public PCollection<Row> expand(PInput input) {
     TableProvider inputTableProvider =
         new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input));
-    InMemoryMetaStore metaTableProvider = new InMemoryMetaStore();
-    metaTableProvider.registerProvider(inputTableProvider);
-    BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(metaTableProvider);
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    catalogManager.registerTableProvider(PCOLLECTION_NAME, inputTableProvider);
+    BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
 
     // TODO: validate duplicate functions.
     registerFunctions(sqlEnvBuilder);
@@ -147,7 +147,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     // the same names are reused.
     if (autoLoading()) {
       sqlEnvBuilder.autoLoadUserDefinedFunctions();
-      ServiceLoader.load(TableProvider.class).forEach(metaTableProvider::registerProvider);
+      ServiceLoader.load(TableProvider.class).forEach(catalogManager::registerTableProvider);
     }
 
     tableProviderMap().forEach(sqlEnvBuilder::addSchema);

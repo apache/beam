@@ -122,7 +122,7 @@ public class DefaultFilenamePolicyTest {
             "myPaneStr3",
             "slidingWindow1"));
 
-    // test first/last pane
+    // test first/last paneInfo
     assertEquals(
         "/out.txt/part-00042-myWindowStr-pane-11-true-false",
         constructName(
@@ -130,7 +130,7 @@ public class DefaultFilenamePolicyTest {
 
     assertEquals(
         "/path/to/out.txt",
-        constructName("/path/to/ou", "t.t", "xt", 1, 1, "pane", "anotherWindowStr"));
+        constructName("/path/to/ou", "t.t", "xt", 1, 1, "paneInfo", "anotherWindowStr"));
 
     assertEquals(
         "/out0102shard-oneMoreWindowStr-pane--1-false-false-pane--1-false-false.txt",

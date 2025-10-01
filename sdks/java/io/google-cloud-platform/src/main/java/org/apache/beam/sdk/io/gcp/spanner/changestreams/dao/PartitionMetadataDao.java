@@ -178,47 +178,56 @@ public class PartitionMetadataDao {
    *
    * @return the earliest partition watermark which is not in a {@link State#FINISHED} state.
    */
-  public @Nullable Timestamp getUnfinishedMinWatermark() {
+  public @Nullable Timestamp getUnfinishedMinWatermarkFrom(Timestamp sinceTimestamp) {
     Statement statement;
+    final String minWatermark = "min_watermark";
     if (this.isPostgres()) {
       statement =
           Statement.newBuilder(
-                  "SELECT \""
+                  "SELECT MIN(\""
                       + COLUMN_WATERMARK
-                      + "\" FROM \""
+                      + "\") as "
+                      + minWatermark
+                      + " FROM \""
                       + metadataTableName
                       + "\" WHERE \""
                       + COLUMN_STATE
                       + "\" != $1"
-                      + " ORDER BY \""
+                      + " AND \""
                       + COLUMN_WATERMARK
-                      + "\" ASC LIMIT 1")
+                      + "\" >= $2")
               .bind("p1")
               .to(State.FINISHED.name())
+              .bind("p2")
+              .to(sinceTimestamp)
               .build();
     } else {
       statement =
           Statement.newBuilder(
-                  "SELECT "
+                  "SELECT MIN("
                       + COLUMN_WATERMARK
+                      + ") as "
+                      + minWatermark
                       + " FROM "
                       + metadataTableName
                       + " WHERE "
                       + COLUMN_STATE
                       + " != @state"
-                      + " ORDER BY "
+                      + " AND "
                       + COLUMN_WATERMARK
-                      + " ASC LIMIT 1")
+                      + " >= @since;")
               .bind("state")
               .to(State.FINISHED.name())
+              .bind("since")
+              .to(sinceTimestamp)
               .build();
     }
     try (ResultSet resultSet =
         databaseClient
             .singleUse()
-            .executeQuery(statement, Options.tag("query=getUnfinishedMinWatermark"))) {
-      if (resultSet.next()) {
-        return resultSet.getTimestamp(COLUMN_WATERMARK);
+            .executeQuery(statement, Options.tag("query=getUnfinishedMinWatermarkFrom"))) {
+      if (resultSet.next() && !resultSet.isNull(minWatermark)) {
+        return resultSet.getTimestamp(minWatermark);
       }
       return null;
     }

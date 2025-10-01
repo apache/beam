@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static software.amazon.awssdk.utils.IoUtils.drainInputStream;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -42,6 +43,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(value = "CT_CONSTRUCTOR_THROW", justification = "Initialization is safe.")
 class S3ReadableSeekableByteChannel implements SeekableByteChannel {
   private static final long ABORT_THRESHOLD = 1024 * 8; // corresponds to default TCP buffer size
   private final S3Client s3Client;

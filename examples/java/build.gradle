@@ -21,7 +21,7 @@ import groovy.json.JsonOutput
 plugins {
   id 'java'
   id 'org.apache.beam.module'
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
 }
 
 applyJavaNature(
@@ -36,12 +36,19 @@ ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for processing virtually any size data. This
 artifact includes all Apache Beam Java SDK examples."""
 
+apply from: "$projectDir/common.gradle"
+
 /** Define the list of runners which execute a precommit test.
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
  */
 def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
+// The following runners have configuration created but not added to preCommit
+def nonPreCommitRunners = ["dataflowRunner", "prismRunner"]
 for (String runner : preCommitRunners) {
+  configurations.create(runner + "PreCommit")
+}
+for (String runner: nonPreCommitRunners) {
   configurations.create(runner + "PreCommit")
 }
 configurations.sparkRunnerPreCommit {
@@ -66,8 +73,6 @@ dependencies {
   implementation project(":sdks:java:extensions:python")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
-  runtimeOnly project(":sdks:java:io:iceberg")
-  implementation project(":sdks:java:managed")
   implementation project(":sdks:java:extensions:ml")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
@@ -123,6 +128,10 @@ dependencies {
   flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
   sparkRunnerPreCommit project(":runners:spark:3")
   sparkRunnerPreCommit project(":sdks:java:io:hadoop-file-system")
+  dataflowRunnerPreCommit project(":runners:google-cloud-dataflow-java")
+  dataflowRunnerPreCommit project(":runners:google-cloud-dataflow-java:worker") // v2 worker
+  dataflowRunnerPreCommit project(":sdks:java:harness") // v2 worker
+  prismRunnerPreCommit project(":runners:prism:java")
 
   // Add dependency if requested on command line for runner
   if (project.hasProperty("runnerDependency")) {
@@ -165,13 +174,6 @@ task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
   }
-}
-
-tasks.create(name:"execute", type:JavaExec) {
-  main = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "NONE"
-  classpath = sourceSets.main.runtimeClasspath
-  systemProperties System.getProperties()
-  args project.hasProperty("exec.args") ? project.getProperty("exec.args").split() : []
 }
 
 // Run this task to validate the Java environment setup for contributors

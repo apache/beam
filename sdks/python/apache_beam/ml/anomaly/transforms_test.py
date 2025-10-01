@@ -64,8 +64,18 @@ def _prediction_iterable_is_equal_to(
   if len(a_list) != len(b_list):
     return False
 
-  return all(
-      map(lambda x: _prediction_is_equal_to(x[0], x[1]), zip(a_list, b_list)))
+  a_dict = {}
+  b_dict = {}
+  for i in a_list:
+    a_dict[i.model_id] = i
+  for i in b_list:
+    b_dict[i.model_id] = i
+
+  for k, a_val in a_dict.items():
+    if k not in b_dict or not _prediction_is_equal_to(a_val, b_dict[k]):
+      return False
+
+  return True
 
 
 def _prediction_is_equal_to(a: AnomalyPrediction, b: AnomalyPrediction):

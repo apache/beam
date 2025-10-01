@@ -135,7 +135,7 @@ public class Wait {
     }
 
     @ProcessElement
-    public void process(ProcessContext c, BoundedWindow w) {
+    public void process(ProcessContext unused, BoundedWindow w) {
       windows.add(w);
     }
 

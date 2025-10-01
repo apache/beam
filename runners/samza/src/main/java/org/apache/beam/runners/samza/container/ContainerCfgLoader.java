@@ -38,6 +38,7 @@ public class ContainerCfgLoader implements ConfigLoader {
 
   private static final Object LOCK = new Object();
   static volatile JobModel jobModel;
+  private static final Random RANDOM = new Random();
 
   @Override
   public Config getConfig() {
@@ -48,8 +49,7 @@ public class ContainerCfgLoader implements ConfigLoader {
           LOG.info(String.format("Got container ID: %s", containerId));
           final String coordinatorUrl = System.getenv(ShellCommandConfig.ENV_COORDINATOR_URL);
           LOG.info(String.format("Got coordinator URL: %s", coordinatorUrl));
-          final int delay =
-              new Random().nextInt(SamzaContainer.DEFAULT_READ_JOBMODEL_DELAY_MS()) + 1;
+          final int delay = RANDOM.nextInt(SamzaContainer.DEFAULT_READ_JOBMODEL_DELAY_MS()) + 1;
           jobModel = SamzaContainer.readJobModel(coordinatorUrl, delay);
         }
       }

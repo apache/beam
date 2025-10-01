@@ -29,15 +29,15 @@ public class SqlTypes {
 
   private SqlTypes() {}
 
-  /** Beam LogicalType corresponding to ZetaSQL/CalciteSQL DATE type. */
+  /** Beam LogicalType corresponding to CalciteSQL DATE type. */
   public static final LogicalType<LocalDate, Long> DATE = new Date();
 
-  /** Beam LogicalType corresponding to ZetaSQL/CalciteSQL TIME type. */
+  /** Beam LogicalType corresponding to CalciteSQL TIME type. */
   public static final LogicalType<LocalTime, Long> TIME = new Time();
 
-  /** Beam LogicalType corresponding to ZetaSQL DATETIME type. */
+  /** Beam LogicalType corresponding to DATETIME type. */
   public static final LogicalType<LocalDateTime, Row> DATETIME = new DateTime();
 
-  /** Beam LogicalType corresponding to ZetaSQL TIMESTAMP type. */
+  /** Beam LogicalType corresponding to TIMESTAMP type. */
   public static final LogicalType<Instant, Row> TIMESTAMP = new MicrosInstant();
 }

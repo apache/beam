@@ -1,0 +1,45 @@
+# This is a composite action to build and push a Docker image.
+name: 'Docker Build and Push'
+description: 'Builds and pushes a Docker image to a container registry.'
+
+inputs:
+  dockerfile_path:
+    description: 'Path to the Dockerfile'
+    required: true
+  image_name:
+    description: 'Base name for the Docker image (e.g., gcr.io/my-project/my-app)'
+    required: true
+  image_tag:
+    description: 'Tag for the Docker image (e.g., latest, or a git sha)'
+    required: true
+  build_context:
+    description: 'The build context for the Docker build command'
+    required: false
+    default: '.'
+
+outputs:
+  image_url:
+    description: "The full URL of the pushed image, including the tag"
+    value: ${{ steps.build-push.outputs.image_url }} # the value is set from a step's output
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure Docker to use Google Cloud credentials
+      shell: bash
+      run: gcloud auth configure-docker --quiet
+
+    - name: Build and Push Docker Image
+      id: build-push # give the step an ID to reference its output
+      shell: bash
+      run: |
+        # Construct the full image URL from the inputs
+        FULL_IMAGE_URL="${{ inputs.image_name }}:${{ inputs.image_tag }}"
+        echo "Building image: $FULL_IMAGE_URL"
+        
+        # Build the image
+        docker build -t $FULL_IMAGE_URL -f ${{ inputs.dockerfile_path }} ${{ inputs.build_context }}
+        # Push the image
+        docker push $FULL_IMAGE_URL
+        # Set the output value for this action
+        echo "image_url=$FULL_IMAGE_URL" >> $GITHUB_OUTPUT

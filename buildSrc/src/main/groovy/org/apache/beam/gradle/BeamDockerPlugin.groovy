@@ -242,11 +242,7 @@ class BeamDockerPlugin implements Plugin<Project> {
       if (ext.builder != null) {
         buildCommandLine.addAll('--builder', ext.builder)
       }
-      // Jenkins dependencies aren't up to date enough to accept this flag.
-      // Temporarily exclude until we fully move to GHA.
-      if (!ext.project.jenkins.isCIBuild) {
-        buildCommandLine.addAll('--provenance=false')
-      }
+      buildCommandLine.addAll('--provenance=false')
     } else {
       buildCommandLine.add 'build'
       // TARGETOS and TARGETARCH args not present through `docker build`, add here

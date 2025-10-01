@@ -130,7 +130,8 @@ public class PCollectionConsumerRegistryTest {
 
   @Before
   public void setUp() throws Exception {
-    sampler = new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+    sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
   }
 
   @After
@@ -632,7 +633,7 @@ public class PCollectionConsumerRegistryTest {
 
     // This section is to set up the StateSampler with the expected metadata.
     ExecutionStateSampler sampler =
-        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis);
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
     ExecutionStateSampler.ExecutionStateTracker stateTracker = sampler.create();
     stateTracker.start("process-bundle");
     ExecutionStateSampler.ExecutionState state =

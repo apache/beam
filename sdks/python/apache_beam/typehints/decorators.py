@@ -424,6 +424,11 @@ class IOTypeHints(NamedTuple):
           output_type = types[0]
         except ValueError:
           pass
+    if isinstance(output_type, typehints.TypeVariable):
+      # We don't know what T yields, so we just assume Any.
+      return self._replace(
+          output_types=((typehints.Any, ), {}),
+          origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
     yielded_type = typehints.get_yielded_type(output_type)
     return self._replace(

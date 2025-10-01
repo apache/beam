@@ -36,6 +36,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class GrpcGetDataStreamRequestsTest {
 
+  private static final int DEADLINE_SECONDS = 10;
+
   @Test
   public void testQueuedRequest_globalRequestsFirstComparator() {
     List<GrpcGetDataStreamRequests.QueuedRequest> requests = new ArrayList<>();
@@ -49,7 +51,7 @@ public class GrpcGetDataStreamRequestsTest {
             .build();
     requests.add(
         GrpcGetDataStreamRequests.QueuedRequest.forComputation(
-            1, "computation1", keyedGetDataRequest1));
+            1, "computation1", keyedGetDataRequest1, DEADLINE_SECONDS));
 
     Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
         Windmill.KeyedGetDataRequest.newBuilder()
@@ -61,7 +63,7 @@ public class GrpcGetDataStreamRequestsTest {
             .build();
     requests.add(
         GrpcGetDataStreamRequests.QueuedRequest.forComputation(
-            2, "computation2", keyedGetDataRequest2));
+            2, "computation2", keyedGetDataRequest2, DEADLINE_SECONDS));
 
     Windmill.GlobalDataRequest globalDataRequest =
         Windmill.GlobalDataRequest.newBuilder()
@@ -72,7 +74,8 @@ public class GrpcGetDataStreamRequestsTest {
                     .build())
             .setComputationId("computation1")
             .build();
-    requests.add(GrpcGetDataStreamRequests.QueuedRequest.global(3, globalDataRequest));
+    requests.add(
+        GrpcGetDataStreamRequests.QueuedRequest.global(3, globalDataRequest, DEADLINE_SECONDS));
 
     requests.sort(GrpcGetDataStreamRequests.QueuedRequest.globalRequestsFirst());
 
@@ -94,7 +97,7 @@ public class GrpcGetDataStreamRequestsTest {
             .build();
     queuedBatch.addRequest(
         GrpcGetDataStreamRequests.QueuedRequest.forComputation(
-            1, "computation1", keyedGetDataRequest1));
+            1, "computation1", keyedGetDataRequest1, DEADLINE_SECONDS));
 
     Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
         Windmill.KeyedGetDataRequest.newBuilder()
@@ -106,7 +109,7 @@ public class GrpcGetDataStreamRequestsTest {
             .build();
     queuedBatch.addRequest(
         GrpcGetDataStreamRequests.QueuedRequest.forComputation(
-            2, "computation2", keyedGetDataRequest2));
+            2, "computation2", keyedGetDataRequest2, DEADLINE_SECONDS));
 
     Windmill.GlobalDataRequest globalDataRequest =
         Windmill.GlobalDataRequest.newBuilder()
@@ -117,7 +120,8 @@ public class GrpcGetDataStreamRequestsTest {
                     .build())
             .setComputationId("computation1")
             .build();
-    queuedBatch.addRequest(GrpcGetDataStreamRequests.QueuedRequest.global(3, globalDataRequest));
+    queuedBatch.addRequest(
+        GrpcGetDataStreamRequests.QueuedRequest.global(3, globalDataRequest, DEADLINE_SECONDS));
 
     Windmill.StreamingGetDataRequest getDataRequest = queuedBatch.asGetDataRequest();
 

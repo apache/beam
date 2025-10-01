@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import static org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.PrintWriter;
 import java.util.concurrent.Executor;
@@ -37,7 +38,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalL
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListeners;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,8 +57,8 @@ public final class ChannelCache implements StatusDataProvider {
   private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
 
   @GuardedBy("this")
-  @MonotonicNonNull
-  private UserWorkerGrpcFlowControlSettings currentFlowControlSettings = null;
+  private UserWorkerGrpcFlowControlSettings currentFlowControlSettings =
+      UserWorkerGrpcFlowControlSettings.getDefaultInstance();
 
   private ChannelCache(
       WindmillChannelFactory channelFactory,
@@ -77,7 +77,8 @@ public final class ChannelCache implements StatusDataProvider {
                   private UserWorkerGrpcFlowControlSettings resolveFlowControlSettings(
                       WindmillServiceAddress.Kind addressType) {
                     synchronized (ChannelCache.this) {
-                      if (currentFlowControlSettings == null) {
+                      if (currentFlowControlSettings.equals(
+                          UserWorkerGrpcFlowControlSettings.getDefaultInstance())) {
                         return addressType == AUTHENTICATED_GCP_SERVICE_ADDRESS
                             ? WindmillChannels.DEFAULT_DIRECTPATH_FLOW_CONTROL_SETTINGS
                             : WindmillChannels.DEFAULT_CLOUDPATH_FLOW_CONTROL_SETTINGS;
@@ -93,7 +94,7 @@ public final class ChannelCache implements StatusDataProvider {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
-        notification -> shutdownChannel(notification.getValue()),
+        notification -> shutdownChannel(checkNotNull(notification.getValue())),
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build()));
   }
@@ -106,7 +107,7 @@ public final class ChannelCache implements StatusDataProvider {
         // Shutdown the channels as they get removed from the cache, so they do not leak.
         // Add hook for testing so that we don't have to sleep/wait for arbitrary time in test.
         notification -> {
-          shutdownChannel(notification.getValue());
+          shutdownChannel(checkNotNull(notification.getValue()));
           onChannelShutdown.run();
         },
         // Run the removal synchronously on the calling thread to prevent waiting on asynchronous

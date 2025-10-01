@@ -66,7 +66,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowedValue;
-import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -914,9 +913,14 @@ public class Create<T> {
 
     private static class ConvertWindowedValues<T> extends DoFn<WindowedValue<T>, T> {
       @ProcessElement
-      public void processElement(@Element WindowedValue<T> element, OutputReceiver<T> r) {
-        r.outputWindowedValue(
-            element.getValue(), element.getTimestamp(), element.getWindows(), element.getPane());
+      public void processElement(
+          @Element WindowedValue<T> element, OutputReceiver<T> outputReceiver) {
+        outputReceiver
+            .builder(element.getValue())
+            .setTimestamp(element.getTimestamp())
+            .setWindows(element.getWindows())
+            .setPaneInfo(element.getPaneInfo())
+            .output();
       }
     }
   }

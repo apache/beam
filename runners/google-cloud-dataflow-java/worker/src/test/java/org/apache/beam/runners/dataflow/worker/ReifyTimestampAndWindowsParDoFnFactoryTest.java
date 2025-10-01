@@ -56,7 +56,7 @@ public class ReifyTimestampAndWindowsParDoFnFactoryTest {
         receiver.reified.getValue().getValue().getValue(), equalTo(elem.getValue().getValue()));
     assertThat(receiver.reified.getValue().getValue().getTimestamp(), equalTo(elem.getTimestamp()));
     assertThat(receiver.reified.getValue().getValue().getWindows(), equalTo(elem.getWindows()));
-    assertThat(receiver.reified.getValue().getValue().getPane(), equalTo(elem.getPane()));
+    assertThat(receiver.reified.getValue().getValue().getPaneInfo(), equalTo(elem.getPaneInfo()));
   }
 
   @Test

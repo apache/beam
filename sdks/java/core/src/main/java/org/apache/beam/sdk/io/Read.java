@@ -401,6 +401,7 @@ public class Read {
         return true;
       }
 
+      @SuppressWarnings("Finalize")
       @Override
       protected void finalize() throws Throwable {
         if (currentReader != null) {

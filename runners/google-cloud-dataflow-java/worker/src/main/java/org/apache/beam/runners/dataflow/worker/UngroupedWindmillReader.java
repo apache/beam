@@ -116,7 +116,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
       InputStream metadata = message.getMetadata().newInput();
       Collection<? extends BoundedWindow> windows =
           WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
-      PaneInfo pane = WindmillSink.decodeMetadataPane(message.getMetadata());
+      PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
         InputStream key = context.getSerializedKey().newInput();
@@ -125,10 +125,10 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
         @SuppressWarnings("unchecked")
         T result =
             (T) KV.of(decode(kvCoder.getKeyCoder(), key), decode(kvCoder.getValueCoder(), data));
-        return WindowedValues.of(result, timestampMillis, windows, pane);
+        return WindowedValues.of(result, timestampMillis, windows, paneInfo);
       } else {
         notifyElementRead(data.available() + metadata.available());
-        return WindowedValues.of(decode(valueCoder, data), timestampMillis, windows, pane);
+        return WindowedValues.of(decode(valueCoder, data), timestampMillis, windows, paneInfo);
       }
     }
 

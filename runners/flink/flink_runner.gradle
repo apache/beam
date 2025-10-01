@@ -48,6 +48,8 @@ applyJavaNature(
     enableStrictDependencies:true,
     automaticModuleName: 'org.apache.beam.runners.flink',
     archivesBaseName: archivesBaseName,
+    // flink runner jars are in same package name. Publish javadoc once.
+    exportJavadoc: project.ext.flink_version.startsWith(all_versions.first())
 )
 
 description = "Apache Beam :: Runners :: Flink $flink_version"

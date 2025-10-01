@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.mongodb;
 
-import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.AND;
-import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.COMPARISON;
-import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.OR;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.AND;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.COMPARISON;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.OR;
 
+import com.mongodb.BasicDBObject;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.client.model.Filters;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,14 +58,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.json.JsonMode;
@@ -178,7 +181,21 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
     if (cnf.size() == 1) {
       return cnf.get(0);
     }
-    return Filters.and(cnf);
+    // Convert all filters to BsonDocument and merge them into a single Document
+    // This avoids wrapping in $and which changed behavior in MongoDB driver 5.x
+    Document compositeFilter = new Document();
+    for (Bson filter : cnf) {
+      // Convert any Bson filter to BsonDocument first
+      BsonDocument bsonDoc =
+          filter.toBsonDocument(BasicDBObject.class, MongoClientSettings.getDefaultCodecRegistry());
+      // Convert BsonDocument to Document for easier manipulation
+      Document doc = Document.parse(bsonDoc.toJson());
+      // Merge all top-level conditions into the composite filter
+      for (String key : doc.keySet()) {
+        compositeFilter.append(key, doc.get(key));
+      }
+    }
+    return compositeFilter;
   }
 
   /**

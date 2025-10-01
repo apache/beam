@@ -1,4 +1,7 @@
 {
+  "https://github.com/apache/beam/pull/36138": "Cleanly separating v1 worker and v2 sdk harness container image handling",
+  "https://github.com/apache/beam/pull/34902": "Introducing OutputBuilder",
+  "https://github.com/apache/beam/pull/35177": "Introducing WindowedValueReceiver to runners",
     "comment": "Modify this file in a trivial way to cause this test suite to run",
     "modification": 3,
   "https://github.com/apache/beam/pull/35159": "moving WindowedValue and making an interface"

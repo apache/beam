@@ -85,7 +85,7 @@ func TestLogger(t *testing.T) {
 
 		catcher.err = errors.New("test error")
 		wantMsg := "checking for error?"
-		l.Printf(ctx, wantMsg)
+		l.Printf(ctx, "%s", wantMsg)
 
 		line, err := buf.ReadString('\n')
 		if err != nil {

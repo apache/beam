@@ -29,7 +29,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   from apache_beam.examples.inference import vertex_ai_image_classification
-  from apache_beam.examples.inference import vertex_ai_llm_text_classification
 except ImportError as e:
   raise unittest.SkipTest(
       "Vertex AI model handler dependencies are not installed")
@@ -37,7 +36,6 @@ except ImportError as e:
 _INPUT = "gs://apache-beam-ml/testing/inputs/vertex_images/*/*.jpg"
 _OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/vertex_images"
 _FLOWER_ENDPOINT_ID = "5384055553544683520"
-_LLM_ENDPOINT_ID = "9157860935048626176"
 _ENDPOINT_PROJECT = "apache-beam-testing"
 _ENDPOINT_REGION = "us-central1"
 _ENDPOINT_NETWORK = "projects/844138762903/global/networks/beam-test-vpc"
@@ -62,21 +60,6 @@ class VertexAIInference(unittest.TestCase):
         'subnetwork': _SUBNETWORK,
     }
     vertex_ai_image_classification.run(
-        test_pipeline.get_full_options_as_args(**extra_opts))
-    self.assertEqual(FileSystems().exists(output_file), True)
-
-  @pytest.mark.vertex_ai_postcommit
-  def test_vertex_ai_run_llm_text_classification(self):
-    output_file = '/'.join([_OUTPUT_DIR, str(uuid.uuid4()), 'output.txt'])
-
-    test_pipeline = TestPipeline(is_integration_test=True)
-    extra_opts = {
-        'output': output_file,
-        'endpoint_id': _LLM_ENDPOINT_ID,
-        'endpoint_project': _ENDPOINT_PROJECT,
-        'endpoint_region': _ENDPOINT_REGION
-    }
-    vertex_ai_llm_text_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
     self.assertEqual(FileSystems().exists(output_file), True)
 

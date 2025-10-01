@@ -26,10 +26,18 @@ from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
 
 try:
+  from apache_beam.ml.rag.types import Chunk
+  from apache_beam.ml.rag.types import Content
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIMultiModalEmbeddings
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIImageEmbeddings
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexImage
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexVideo
   from vertexai.vision_models import Image
+  from vertexai.vision_models import Video
+  from vertexai.vision_models import VideoSegmentConfig
 except ImportError:
+  VertexAIMultiModalEmbeddings = None  # type: ignore
   VertexAITextEmbeddings = None  # type: ignore
   VertexAIImageEmbeddings = None  # type: ignore
 
@@ -153,7 +161,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
   def test_with_int_data_types(self):
     embedding_config = VertexAITextEmbeddings(
         model_name=model_name, columns=[test_query_column])
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline
@@ -284,6 +292,105 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
           model_name=self.model_name,
           columns=[test_query_column],
           dimension=127)
+
+
+image_feature_column: str = "img_feature"
+text_feature_column: str = "txt_feature"
+video_feature_column: str = "vid_feature"
+
+
+def _make_text_chunk(input: str) -> Chunk:
+  return Chunk(content=Content(text=input))
+
+
+@unittest.skipIf(
+    VertexAIMultiModalEmbeddings is None,
+    'Vertex AI Python SDK is not installed.')
+class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp(
+        prefix='_vertex_ai_multi_modal_test')
+    self.gcs_artifact_location = os.path.join(
+        'gs://temp-storage-for-perf-tests/vertex_ai_multi_modal',
+        uuid.uuid4().hex)
+    self.model_name = "multimodalembedding"
+    self.image_path = "gs://apache-beam-ml/testing/inputs/vertex_images/sunflowers/1008566138_6927679c8a.jpg"  # pylint: disable=line-too-long
+    self.video_path = "gs://cloud-samples-data/vertex-ai-vision/highway_vehicles.mp4"  # pylint: disable=line-too-long
+    self.video_segment_config = VideoSegmentConfig(end_offset_sec=1)
+
+  def tearDown(self) -> None:
+    shutil.rmtree(self.artifact_location)
+
+  def test_vertex_ai_multimodal_embedding_img_and_text(self):
+    embedding_config = VertexAIMultiModalEmbeddings(
+        model_name=self.model_name,
+        image_column=image_feature_column,
+        text_column=text_feature_column,
+        dimension=128,
+        project="apache-beam-testing",
+        location="us-central1")
+    with beam.Pipeline() as pipeline:
+      transformed_pcoll = (
+          pipeline | "CreateData" >> beam.Create([{
+              image_feature_column: VertexImage(
+                  image_content=Image(gcs_uri=self.image_path)),
+              text_feature_column: _make_text_chunk("an image of sunflowers"),
+          }])
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+
+      def assert_element(element):
+        assert len(element[image_feature_column].embedding) == 128
+        assert len(
+            element[text_feature_column].embedding.dense_embedding) == 128
+
+      _ = (transformed_pcoll | beam.Map(assert_element))
+
+  def test_vertex_ai_multimodal_embedding_video(self):
+    embedding_config = VertexAIMultiModalEmbeddings(
+        model_name=self.model_name,
+        video_column=video_feature_column,
+        dimension=1408,
+        project="apache-beam-testing",
+        location="us-central1")
+    with beam.Pipeline() as pipeline:
+      transformed_pcoll = (
+          pipeline | "CreateData" >> beam.Create([{
+              video_feature_column: VertexVideo(
+                  video_content=Video(gcs_uri=self.video_path),
+                  config=self.video_segment_config)
+          }])
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+
+      def assert_element(element):
+        # Videos are returned in VideoEmbedding objects, must unroll
+        # for each segment.
+        for segment in element[video_feature_column].embeddings:
+          assert len(segment.embedding) == 1408
+
+      _ = (transformed_pcoll | beam.Map(assert_element))
+
+  def test_improper_dimension(self):
+    with self.assertRaises(ValueError):
+      _ = VertexAIMultiModalEmbeddings(
+          model_name=self.model_name,
+          image_column="fake_img_column",
+          dimension=127)
+
+  def test_missing_columns(self):
+    with self.assertRaises(ValueError):
+      _ = VertexAIMultiModalEmbeddings(
+          model_name=self.model_name, dimension=128)
+
+  def test_improper_video_dimension(self):
+    with self.assertRaises(ValueError):
+      _ = VertexAIMultiModalEmbeddings(
+          model_name=self.model_name,
+          video_column=video_feature_column,
+          dimension=128)
 
 
 if __name__ == '__main__':

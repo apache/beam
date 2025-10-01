@@ -76,6 +76,7 @@ from typing import Union
 from google.protobuf import message
 
 from apache_beam import pvalue
+from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import CrossLanguageOptions
@@ -83,6 +84,7 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import StreamingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.portability import common_urns
@@ -115,11 +117,11 @@ __all__ = ['Pipeline', 'transform_annotations']
 
 
 class Pipeline(HasDisplayData):
-  """A pipeline object that manages a DAG of 
-  :class:`~apache_beam.transforms.ptransform.PTransform` s 
+  """A pipeline object that manages a DAG of
+  :class:`~apache_beam.transforms.ptransform.PTransform` s
   and their :class:`~apache_beam.pvalue.PValue` s.
 
-  Conceptually the :class:`~apache_beam.transforms.ptransform.PTransform` s are 
+  Conceptually the :class:`~apache_beam.transforms.ptransform.PTransform` s are
   the DAG's nodes and the :class:`~apache_beam.pvalue.PValue` s are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.
@@ -228,6 +230,9 @@ class Pipeline(HasDisplayData):
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
+
+    typecoders.registry.update_compatibility_version = self._options.view_as(
+        StreamingOptions).update_compatibility_version
 
     # set default experiments for portable runners
     # (needs to occur prior to pipeline construction)
@@ -575,6 +580,10 @@ class Pipeline(HasDisplayData):
     # type: (Union[bool, str]) -> PipelineResult
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
+    # All pipeline options are finalized at this point.
+    # Call get_all_options to print warnings on invalid options.
+    self.options.get_all_options(
+        retain_unknown_options=True, display_warnings=True)
 
     for error_handler in self._error_handlers:
       error_handler.verify_closed()
@@ -722,6 +731,10 @@ class Pipeline(HasDisplayData):
       return self.apply(
           transform.transform, pvalueish, label or transform.label)
 
+    if not label and isinstance(transform, ptransform._PTransformFnPTransform):
+      # This must be set before label is inspected.
+      transform.set_options(self._options)
+
     if not isinstance(transform, ptransform.PTransform):
       raise TypeError("Expected a PTransform object, got %s" % transform)
 
@@ -766,6 +779,12 @@ class Pipeline(HasDisplayData):
             'streaming jobs.' % full_label)
     self.applied_labels.add(full_label)
 
+    if pvalueish is None:
+      full_label = self._current_transform().full_label
+      raise TypeCheckError(
+          f'Transform "{full_label}" was applied to the output of '
+          f'an object of type None.')
+
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
     try:
       if not isinstance(inputs, dict):
@@ -805,9 +824,6 @@ class Pipeline(HasDisplayData):
       self._assert_not_applying_PDone(pvalueish, transform)
 
       pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
-      if pvalueish_result is None:
-        pvalueish_result = pvalue.PDone(self)
-        pvalueish_result.producer = current
 
       if type_options is not None and type_options.pipeline_type_check:
         transform.type_check_outputs(pvalueish_result)
@@ -825,10 +841,10 @@ class Pipeline(HasDisplayData):
         self._infer_result_type(transform, tuple(inputs.values()), result)
 
         assert isinstance(result.producer.inputs, tuple)
-        # The DoOutputsTuple adds the PCollection to the outputs when accessed
-        # except for the main tag. Add the main tag here.
         if isinstance(result, pvalue.DoOutputsTuple):
-          current.add_output(result, result._main_tag)
+          for tag, pc in list(result._pcolls.items()):
+            if tag not in current.outputs:
+              current.add_output(pc, tag)
           continue
 
         # If there is already a tag with the same name, increase a counter for
@@ -1214,7 +1230,9 @@ class AppliedPTransform(object):
     self.full_label = full_label
     self.main_inputs = dict(main_inputs or {})
 
-    self.side_inputs = tuple() if transform is None else transform.side_inputs
+    self.side_inputs = (
+        tuple() if transform is None else getattr(
+            transform, 'side_inputs', tuple()))
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
     self.environment_id = environment_id if environment_id else None  # type: Optional[str]
@@ -1231,6 +1249,8 @@ class AppliedPTransform(object):
       }
 
     self.annotations = annotations
+
+    self.display_data = {}
 
   @property
   def inputs(self):
@@ -1435,6 +1455,11 @@ class AppliedPTransform(object):
         (transform_urn not in Pipeline.runner_implemented_transforms())):
       environment_id = context.get_environment_id_for_resource_hints(
           self.resource_hints)
+    if self.transform is not None:
+      display_data = DisplayData.create_from(
+          self.transform, extra_items=self.display_data)
+    else:
+      display_data = None
 
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
@@ -1454,8 +1479,7 @@ class AppliedPTransform(object):
         environment_id=environment_id,
         annotations=self.annotations,
         # TODO(https://github.com/apache/beam/issues/18012): Add display_data.
-        display_data=DisplayData.create_from(self.transform).to_proto()
-        if self.transform else None)
+        display_data=display_data.to_proto() if display_data else None)
 
   @staticmethod
   def from_runner_api(

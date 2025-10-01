@@ -30,7 +30,6 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -42,8 +41,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -54,7 +52,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,27 +142,13 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
             new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
                 doFn,
                 serializedOptions.get(),
-                new OutputWindowedValue<OutputT>() {
+                new WindowedValueMultiReceiver() {
                   @Override
-                  public void outputWindowedValue(
-                      OutputT output,
-                      Instant timestamp,
-                      Collection<? extends BoundedWindow> windows,
-                      PaneInfo pane) {
-                    outputManager.output(
-                        mainOutputTag, WindowedValues.of(output, timestamp, windows, pane));
-                  }
-
-                  @Override
-                  public <AdditionalOutputT> void outputWindowedValue(
-                      TupleTag<AdditionalOutputT> tag,
-                      AdditionalOutputT output,
-                      Instant timestamp,
-                      Collection<? extends BoundedWindow> windows,
-                      PaneInfo pane) {
-                    outputManager.output(tag, WindowedValues.of(output, timestamp, windows, pane));
+                  public <T> void output(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+                    outputManager.output(tag, windowedValue);
                   }
                 },
+                mainOutputTag,
                 sideInputReader,
                 executorService,
                 10000,

@@ -58,11 +58,26 @@ public abstract class ValueInSingleWindow<T> {
   public abstract BoundedWindow getWindow();
 
   /** Returns the pane of this {@code ValueInSingleWindow} in its window. */
-  public abstract PaneInfo getPane();
+  public abstract PaneInfo getPaneInfo();
+
+  public abstract @Nullable String getCurrentRecordId();
+
+  public abstract @Nullable Long getCurrentRecordOffset();
+
+  public static <T> ValueInSingleWindow<T> of(
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset) {
+    return new AutoValue_ValueInSingleWindow<>(
+        value, timestamp, window, paneInfo, currentRecordId, currentRecordOffset);
+  }
 
   public static <T> ValueInSingleWindow<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, paneInfo);
+    return of(value, timestamp, window, paneInfo, null, null);
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
@@ -95,7 +110,7 @@ public abstract class ValueInSingleWindow<T> {
         throws IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
-      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
+      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -108,9 +123,9 @@ public abstract class ValueInSingleWindow<T> {
     public ValueInSingleWindow<T> decode(InputStream inStream, Context context) throws IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
-      PaneInfo pane = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
+      PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
-      return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, pane);
+      return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, paneInfo, null, null);
     }
 
     @Override

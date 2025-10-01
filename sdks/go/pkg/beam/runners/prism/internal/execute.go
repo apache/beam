@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"runtime/debug"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -76,6 +77,14 @@ func RunPipeline(j *jobservices.Job) {
 	// any related job resources.
 	defer func() {
 		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
+		j.WaitForCleanUp()
+	}()
+
+	// Add this defer function to capture and log panics.
+	defer func() {
+		if e := recover(); e != nil {
+			j.Failed(fmt.Errorf("pipeline panicked: %v\nStacktrace: %s", e, string(debug.Stack())))
+		}
 	}()
 
 	j.SendMsg("running " + j.String())
@@ -95,7 +104,7 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("pipeline completed " + j.String())
 
 	j.SendMsg("terminating " + j.String())
-	j.Done()
+	j.PendingDone()
 }
 
 type transformExecuter interface {
@@ -144,8 +153,34 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
+	pcols := comps.GetPcollections()
 
-	em := engine.NewElementManager(engine.Config{})
+	config := engine.Config{}
+	m := j.PipelineOptions().AsMap()
+	if experimentsSlice, ok := m["beam:option:experiments:v1"].([]interface{}); ok {
+		for _, exp := range experimentsSlice {
+			if expStr, ok := exp.(string); ok {
+				if expStr == "prism_enable_rtc" {
+					config.EnableRTC = true
+					break // Found it, no need to check the rest of the slice
+				}
+			}
+		}
+	}
+
+	if streaming, ok := m["beam:option:streaming:v1"].(bool); ok {
+		config.StreamingMode = streaming
+	}
+
+	// Set StreamingMode to true if there is any unbounded PCollection.
+	for _, pcoll := range pcols {
+		if pcoll.GetIsBounded() == pipepb.IsBounded_UNBOUNDED {
+			config.StreamingMode = true
+			break
+		}
+	}
+
+	em := engine.NewElementManager(config)
 
 	// TODO move this loop and code into the preprocessor instead.
 	stages := map[string]*stage{}
@@ -305,7 +340,6 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
 			}
 			stages[stage.ID] = stage
-			j.Logger.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
 			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
@@ -346,7 +380,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		case rb, ok := <-bundles:
 			if !ok {
 				err := eg.Wait()
-				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Any("topo", topo))
+				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.String("stages", em.DumpStages()))
 				return err
 			}
 			eg.Go(func() error {
@@ -443,7 +477,27 @@ func buildTrigger(tpb *pipepb.Trigger) engine.Trigger {
 		}
 	case *pipepb.Trigger_Repeat_:
 		return &engine.TriggerRepeatedly{Repeated: buildTrigger(at.Repeat.GetSubtrigger())}
-	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+	case *pipepb.Trigger_AfterProcessingTime_:
+		var transforms []engine.TimestampTransform
+		for _, ts := range at.AfterProcessingTime.GetTimestampTransforms() {
+			var delay, period, offset time.Duration
+			if d := ts.GetDelay(); d != nil {
+				delay = time.Duration(d.GetDelayMillis()) * time.Millisecond
+			}
+			if align := ts.GetAlignTo(); align != nil {
+				period = time.Duration(align.GetPeriod()) * time.Millisecond
+				offset = time.Duration(align.GetOffset()) * time.Millisecond
+			}
+			transforms = append(transforms, engine.TimestampTransform{
+				Delay:         delay,
+				AlignToPeriod: period,
+				AlignToOffset: offset,
+			})
+		}
+		return &engine.TriggerAfterProcessingTime{
+			Transforms: transforms,
+		}
+	case *pipepb.Trigger_AfterSynchronizedProcessingTime_:
 		panic(fmt.Sprintf("unsupported trigger: %v", prototext.Format(tpb)))
 	default:
 		return &engine.TriggerDefault{}

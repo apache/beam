@@ -136,6 +136,12 @@ public class DirectRunnerClient implements PipelineLauncher {
   }
 
   @Override
+  public Job forceCancelJob(String project, String region, String jobId) throws IOException {
+    LOG.warn("Cannot force-cancel a direct runner job. Cancelling the job instead.");
+    return cancelJob(project, region, jobId);
+  }
+
+  @Override
   public Double getMetric(String project, String region, String jobId, String metricName) {
     return null;
   }

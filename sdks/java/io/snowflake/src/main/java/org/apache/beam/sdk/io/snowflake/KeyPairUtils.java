@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.snowflake;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -47,6 +48,7 @@ public class KeyPairUtils {
     UNKNOWN
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static PrivateKey preparePrivateKey(String privateKey, String privateKeyPassphrase) {
     try {
       KeyFactory keyFactory = KeyFactory.getInstance("RSA");

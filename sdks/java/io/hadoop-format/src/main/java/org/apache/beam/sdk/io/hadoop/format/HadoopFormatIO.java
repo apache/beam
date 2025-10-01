@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -313,6 +314,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(value = "CT_CONSTRUCTOR_THROW", justification = "Initialization is safe.")
 public class HadoopFormatIO {
   private static final Logger LOG = LoggerFactory.getLogger(HadoopFormatIO.class);
 
@@ -553,9 +555,8 @@ public class HadoopFormatIO {
       if (configuration.get("mapreduce.job.inputformat.class").endsWith("DBInputFormat")) {
         checkArgument(
             configuration.get(DBConfiguration.INPUT_ORDER_BY_PROPERTY) != null,
-            "Configuration must contain \""
-                + DBConfiguration.INPUT_ORDER_BY_PROPERTY
-                + "\" when using DBInputFormat");
+            "Configuration must contain \"%s\" when using DBInputFormat",
+            DBConfiguration.INPUT_ORDER_BY_PROPERTY);
       }
     }
 
@@ -1059,8 +1060,7 @@ public class HadoopFormatIO {
     public SerializableSplit() {}
 
     public SerializableSplit(InputSplit split) {
-      checkArgument(
-          split instanceof Writable, String.format("Split is not of type Writable: %s", split));
+      checkArgument(split instanceof Writable, "Split is not of type Writable: %s", split);
       this.inputSplit = split;
     }
 
@@ -1682,14 +1682,17 @@ public class HadoopFormatIO {
       checkArgument(conf != null, "Configuration can not be null");
       checkArgument(
           conf.get(OUTPUT_FORMAT_CLASS_ATTR) != null,
-          "Configuration must contain \"" + OUTPUT_FORMAT_CLASS_ATTR + "\"");
+          "Configuration must contain \"%s\"",
+          OUTPUT_FORMAT_CLASS_ATTR);
       checkArgument(
           conf.get(OUTPUT_KEY_CLASS) != null,
-          "Configuration must contain \"" + OUTPUT_KEY_CLASS + "\"");
+          "Configuration must contain \"%s\"",
+          OUTPUT_KEY_CLASS);
       checkArgument(
           conf.get(OUTPUT_VALUE_CLASS) != null,
-          "Configuration must contain \"" + OUTPUT_VALUE_CLASS + "\"");
-      checkArgument(conf.get(JOB_ID) != null, "Configuration must contain \"" + JOB_ID + "\"");
+          "Configuration must contain \"%s\"",
+          OUTPUT_VALUE_CLASS);
+      checkArgument(conf.get(JOB_ID) != null, "Configuration must contain \"%s\"", JOB_ID);
     }
 
     /**
