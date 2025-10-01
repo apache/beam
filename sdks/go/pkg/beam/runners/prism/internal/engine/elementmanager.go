@@ -1602,8 +1602,9 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win t
 }
 
 // startTriggeredBundle must be called with the stage.mu lock held.
-// When in discarding mode, returns 0.
-// When in accumulating mode, returns the number of fired elements to maintain a correct pending count.
+// Returns the accumulation diff that the pending work needs to be adjusted by, as completed work is subtracted from the pending count.
+// When in discarding mode, returns 0, as the pending work already includes these elements.
+// When in accumulating mode, returns the number of fired elements, since those elements remain pending even after this bundle is fired.
 func (ss *stageState) startTriggeredBundle(em *ElementManager, key string, win typex.Window) int {
 	toProcess, accumulationDiff := ss.buildTriggeredBundle(em, key, win)
 	if len(toProcess) == 0 {
@@ -1985,6 +1986,7 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 	return bundID, true, stillSchedulable
 }
 
+// handleProcessingTimeTimer contains the common code for handling processing-time timers for aggregation stages and stateful stages.
 func handleProcessingTimeTimer(ss *stageState, em *ElementManager, emNow mtime.Time,
 	processTimerFn func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane)) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
 	// TODO: Determine if it's possible and a good idea to treat all EventTime processing as a MinTime
@@ -2054,6 +2056,7 @@ func handleProcessingTimeTimer(ss *stageState, em *ElementManager, emNow mtime.T
 	return toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable
 }
 
+// buildProcessingTimeBundle for stateful stages prepares bundles for processing-time timers
 func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
 	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane) {
 		holdsInBundle[e.holdTimestamp]++
@@ -2063,6 +2066,7 @@ func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementM
 	})
 }
 
+// buildProcessingTimeBundle for aggregation stages prepares bundles for after-processing-time triggers
 func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
 	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane) {
 		// TODO: how to deal with watermark holds for this implicit processing time timer
@@ -2091,6 +2095,7 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 	})
 }
 
+// buildProcessingTimeBundle for stateless stages is not supposed to be called currently
 func (*ordinaryStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
 	slog.Error("ordinary stages can't have processing time elements")
 	return nil, mtime.MinTimestamp, nil, nil, nil, false
