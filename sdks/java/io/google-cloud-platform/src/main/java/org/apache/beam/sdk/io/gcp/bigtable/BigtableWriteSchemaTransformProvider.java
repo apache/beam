@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -84,6 +85,20 @@ public class BigtableWriteSchemaTransformProvider
   }
 
   @Override
+  public String description() {
+    return "Writes data to a Google Cloud Bigtable table.\n"
+      + "This transform requires the Google Cloud project ID, Bigtable instance ID, and table ID.\n"
+      + "The input PCollection should be schema-compliant mutations or keyed rows.\n"
+      + "Example usage:\n"
+      + "  - type: WriteToBigTable\n"
+      + "    input: input\n"
+      + "    config:\n"
+      + "      project: \"my-gcp-project\"\n"
+      + "      instance: \"my-bigtable-instance\"\n"
+      + "      table: \"my-table\"\n";
+  }
+
+  @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(INPUT_TAG);
   }
@@ -108,10 +123,13 @@ public class BigtableWriteSchemaTransformProvider
       checkArgument(!this.getProjectId().isEmpty(), String.format(invalidConfigMessage, "project"));
     }
 
+    @SchemaFieldDescription("Bigtable table ID to write data into.")
     public abstract String getTableId();
 
+    @SchemaFieldDescription("Bigtable instance ID where the table is located.")
     public abstract String getInstanceId();
 
+    @SchemaFieldDescription("Google Cloud project ID containing the Bigtable instance.")
     public abstract String getProjectId();
 
     /** Builder for the {@link BigtableWriteSchemaTransformConfiguration}. */
