@@ -400,7 +400,7 @@ class Coder(object):
     proto. Some runners (e.g. DataflowRunner) use coder key/id to verify if a
     pipeline is update compatibile. If the implementation of a coder changed
     in an update incompatible way a version tag can be added to fail compat
-    checks.
+    compatibility checks.
     """
     return ""
 
