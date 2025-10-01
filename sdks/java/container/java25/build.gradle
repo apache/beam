@@ -16,18 +16,13 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'org.apache.beam.module'
+project.ext {
+    imageJavaVersion = '25'
 }
 
-description = "Apache Beam :: SDKs :: Java :: Container :: Distroless"
+// Load the main build script which contains all build logic.
+apply from: "../common.gradle"
 
-configurations {
-    dockerDependency
-}
-
-tasks.register('pushAll') {
-  dependsOn ":sdks:java:container:distroless:java17:docker"
-  dependsOn ":sdks:java:container:distroless:java21:docker"
-  // TODO(#35627) add Java25 distroless container once gcr.io/distroless includes java25
+dependencies {
+    dockerDependency project(path: ":sdks:java:container:agent")
 }

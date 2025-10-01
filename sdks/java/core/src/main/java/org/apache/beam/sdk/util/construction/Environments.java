@@ -97,7 +97,8 @@ public class Environments {
   public enum JavaVersion {
     java11("java11", "11", 11),
     java17("java17", "17", 17),
-    java21("java21", "21", 21);
+    java21("java21", "21", 21),
+    java25("java25", "25", 25);
 
     // Legacy name, as used in container image
     private final String legacyName;
@@ -135,7 +136,7 @@ public class Environments {
         specification = specification.substring(2);
       }
       int specificationInt = Integer.parseInt(specification);
-      JavaVersion fallback = java21;
+      JavaVersion fallback = java25;
       int minDistance = Integer.MAX_VALUE;
       for (JavaVersion candidate : JavaVersion.values()) {
         int distance = candidate.specificationInt - specificationInt;
