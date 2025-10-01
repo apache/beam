@@ -24,6 +24,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache.ForKeyAndFamily;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.*;
@@ -43,6 +44,7 @@ final class CachingStateTable extends StateTable {
   private final @Nullable StateTable derivedStateTable;
   private final boolean isNewKey;
   private final boolean mapStateViaMultimapState;
+  private final WindmillStateTagUtil windmillStateTagUtil;
 
   private CachingStateTable(Builder builder) {
     this.stateFamily = builder.stateFamily;
@@ -53,7 +55,7 @@ final class CachingStateTable extends StateTable {
     this.scopedReadStateSupplier = builder.scopedReadStateSupplier;
     this.derivedStateTable = builder.derivedStateTable;
     this.mapStateViaMultimapState = builder.mapStateViaMultimapState;
-
+    this.windmillStateTagUtil = builder.windmillStateTagUtil;
     if (this.isSystemTable) {
       Preconditions.checkState(derivedStateTable == null);
     } else {
@@ -64,11 +66,12 @@ final class CachingStateTable extends StateTable {
   static CachingStateTable.Builder builder(
       String stateFamily,
       WindmillStateReader reader,
-      WindmillStateCache.ForKeyAndFamily cache,
+      ForKeyAndFamily cache,
       boolean isNewKey,
-      Supplier<Closeable> scopedReadStateSupplier) {
+      Supplier<Closeable> scopedReadStateSupplier,
+      WindmillStateTagUtil windmillStateTagUtil) {
     return new CachingStateTable.Builder(
-        stateFamily, reader, cache, scopedReadStateSupplier, isNewKey);
+        stateFamily, reader, cache, scopedReadStateSupplier, isNewKey, windmillStateTagUtil);
   }
 
   @Override
@@ -89,7 +92,12 @@ final class CachingStateTable extends StateTable {
                 .orElseGet(
                     () ->
                         new WindmillBag<>(
-                            namespace, resolvedAddress, stateFamily, elemCoder, isNewKey));
+                            namespace,
+                            resolvedAddress,
+                            stateFamily,
+                            elemCoder,
+                            isNewKey,
+                            windmillStateTagUtil));
 
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -122,7 +130,13 @@ final class CachingStateTable extends StateTable {
                   .orElseGet(
                       () ->
                           new WindmillMap<>(
-                              namespace, spec, stateFamily, keyCoder, valueCoder, isNewKey));
+                              namespace,
+                              spec,
+                              stateFamily,
+                              keyCoder,
+                              valueCoder,
+                              isNewKey,
+                              windmillStateTagUtil));
         }
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -140,7 +154,13 @@ final class CachingStateTable extends StateTable {
                 .orElseGet(
                     () ->
                         new WindmillMultimap<>(
-                            namespace, spec, stateFamily, keyCoder, valueCoder, isNewKey));
+                            namespace,
+                            spec,
+                            stateFamily,
+                            keyCoder,
+                            valueCoder,
+                            isNewKey,
+                            windmillStateTagUtil));
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
       }
@@ -162,7 +182,8 @@ final class CachingStateTable extends StateTable {
                             specOrInternalTag,
                             stateFamily,
                             elemCoder,
-                            isNewKey));
+                            isNewKey,
+                            windmillStateTagUtil));
 
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -180,7 +201,12 @@ final class CachingStateTable extends StateTable {
                 .orElseGet(
                     () ->
                         new WindmillWatermarkHold(
-                            namespace, address, stateFamily, timestampCombiner, isNewKey));
+                            namespace,
+                            address,
+                            stateFamily,
+                            timestampCombiner,
+                            isNewKey,
+                            windmillStateTagUtil));
 
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -202,7 +228,8 @@ final class CachingStateTable extends StateTable {
                 accumCoder,
                 combineFn,
                 cache,
-                isNewKey);
+                isNewKey,
+                windmillStateTagUtil);
 
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -229,7 +256,12 @@ final class CachingStateTable extends StateTable {
                 .orElseGet(
                     () ->
                         new WindmillValue<>(
-                            namespace, addressOrInternalTag, stateFamily, coder, isNewKey));
+                            namespace,
+                            addressOrInternalTag,
+                            stateFamily,
+                            coder,
+                            isNewKey,
+                            windmillStateTagUtil));
 
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -247,6 +279,7 @@ final class CachingStateTable extends StateTable {
     private final WindmillStateCache.ForKeyAndFamily cache;
     private final Supplier<Closeable> scopedReadStateSupplier;
     private final boolean isNewKey;
+    private final WindmillStateTagUtil windmillStateTagUtil;
     private boolean isSystemTable;
     private @Nullable StateTable derivedStateTable;
     private boolean mapStateViaMultimapState = false;
@@ -254,9 +287,10 @@ final class CachingStateTable extends StateTable {
     private Builder(
         String stateFamily,
         WindmillStateReader reader,
-        WindmillStateCache.ForKeyAndFamily cache,
+        ForKeyAndFamily cache,
         Supplier<Closeable> scopedReadStateSupplier,
-        boolean isNewKey) {
+        boolean isNewKey,
+        WindmillStateTagUtil windmillStateTagUtil) {
       this.stateFamily = stateFamily;
       this.reader = reader;
       this.cache = cache;
@@ -264,6 +298,7 @@ final class CachingStateTable extends StateTable {
       this.isNewKey = isNewKey;
       this.isSystemTable = true;
       this.derivedStateTable = null;
+      this.windmillStateTagUtil = windmillStateTagUtil;
     }
 
     Builder withDerivedState(StateTable derivedStateTable) {

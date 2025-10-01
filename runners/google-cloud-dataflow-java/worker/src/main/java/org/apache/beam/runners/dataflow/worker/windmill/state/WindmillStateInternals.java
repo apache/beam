@@ -62,12 +62,14 @@ public class WindmillStateInternals<K> implements StateInternals {
       WindmillStateReader reader,
       boolean isNewKey,
       WindmillStateCache.ForKeyAndFamily cache,
+      WindmillStateTagUtil windmillStateTagUtil,
       Supplier<Closeable> scopedReadStateSupplier) {
     this.key = key;
     this.cache = cache;
     this.scopedReadStateSupplier = scopedReadStateSupplier;
     CachingStateTable.Builder builder =
-        CachingStateTable.builder(stateFamily, reader, cache, isNewKey, scopedReadStateSupplier);
+        CachingStateTable.builder(
+            stateFamily, reader, cache, isNewKey, scopedReadStateSupplier, windmillStateTagUtil);
     if (cache.supportMapStateViaMultimapState()) {
       builder = builder.withMapStateViaMultimapState();
     }
