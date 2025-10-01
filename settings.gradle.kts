@@ -18,14 +18,14 @@
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
 pluginManagement {
-  plugins {
-     id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
-  }
+    plugins {
+        id("org.javacc.javacc") version "3.0.3" // enable the JavaCC parser generator
+    }
 }
 
 plugins {
-  id("com.gradle.develocity") version "3.19"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.4.0"
+    id("com.gradle.develocity") version "3.19"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.2.1"
 }
 
 
@@ -36,32 +36,32 @@ val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { S
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
 develocity {
-  server = "https://develocity.apache.org"
-  projectId = "beam"
+    server = "https://develocity.apache.org"
+    projectId = "beam"
 
-  buildScan {
-    uploadInBackground = !isCi
-    publishing.onlyIf { it.isAuthenticated }
-    obfuscation {
-      ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
+    buildScan {
+        uploadInBackground = !isCi
+        publishing.onlyIf { it.isAuthenticated }
+        obfuscation {
+            ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
+        }
     }
-  }
 }
 
 buildCache {
-  local {
-    isEnabled = true
-  }
-  remote<HttpBuildCache> {
-    url = uri("https://beam-cache.apache.org/cache/")
-    isAllowUntrustedServer = false
-    credentials {
-      username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
-      password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+    local {
+        isEnabled = true
     }
-    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-  }
+    remote<HttpBuildCache> {
+        url = uri("https://beam-cache.apache.org/cache/")
+        isAllowUntrustedServer = false
+        credentials {
+            username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
+            password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+        }
+        isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+        isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+    }
 }
 
 rootProject.name = "beam"
@@ -186,6 +186,7 @@ include(":sdks:java:extensions:kryo")
 include(":sdks:java:extensions:google-cloud-platform-core")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
+include(":sdks:java:extensions:kafka-factories")
 include(":sdks:java:extensions:ml")
 include(":sdks:java:extensions:ordered")
 include(":sdks:java:extensions:protobuf")
