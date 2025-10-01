@@ -74,6 +74,7 @@ google-cloud-pubsub==2.31.1
 google-cloud-pubsublite==1.12.0
 google-cloud-recommendations-ai==0.10.18
 google-cloud-resource-manager==1.14.2
+google-cloud-secret-manager==2.24.0
 google-cloud-spanner==3.57.0
 google-cloud-storage==2.19.0
 google-cloud-videointelligence==2.16.2
