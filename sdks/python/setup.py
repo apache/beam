@@ -587,7 +587,7 @@ if __name__ == '__main__':
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
           'torch': ['torch>=1.9.0,<2.8.0'],
-          'tensorflow': ['tensorflow>=2.12rc1,<2.17'],
+          'tensorflow': ['tensorflow>=2.12rc1,<2.21'],
           'transformers': [
               'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
