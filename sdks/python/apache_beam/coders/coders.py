@@ -930,14 +930,21 @@ class DeterministicFastPrimitivesCoderV2(FastCoder):
   def __init__(self, coder, step_label, update_compatibility_version=None):
     self._underlying_coder = coder
     self._step_label = step_label
-    self._update_compatibility_version = update_compatibility_version
+    self._skip_use_relative_filepaths = False
+    self._version_tag = "2.69.0"
+    from apache_beam.transforms.util import is_v1_prior_to_v2
+    # Versions prior to 2.69.0 did not use relative filepaths.
+    if update_compatibility_version and is_v1_prior_to_v2(
+        v1=update_compatibility_version, v2="2.69.0"):
+      self._version_tag = ""
+      self._skip_use_relative_filepaths = True
 
   def _create_impl(self):
-
     return coder_impl.FastPrimitivesCoderImpl(
         self._underlying_coder.get_impl(),
         requires_deterministic_step_label=self._step_label,
-        force_use_dill=False)
+        force_use_dill=False,
+        skip_use_relative_filepaths=self._skip_use_relative_filepaths)
 
   def is_deterministic(self):
     # type: () -> bool
@@ -962,6 +969,9 @@ class DeterministicFastPrimitivesCoderV2(FastCoder):
         python_urns.PICKLED_CODER,
         google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
+
+  def version_tag(self):
+    return self._version_tag
 
 
 class DeterministicFastPrimitivesCoder(FastCoder):
@@ -994,11 +1004,8 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     return Any
 
 
-def _should_force_use_dill():
-  from apache_beam.coders import typecoders
+def _should_force_use_dill(update_compat_version):
   from apache_beam.transforms.util import is_v1_prior_to_v2
-  update_compat_version = typecoders.registry.update_compatibility_version
-
   if not update_compat_version:
     return False
 
@@ -1017,9 +1024,12 @@ def _should_force_use_dill():
 
 
 def _update_compatible_deterministic_fast_primitives_coder(coder, step_label):
-  if _should_force_use_dill():
+  from apache_beam.coders import typecoders
+  update_compat_version = typecoders.registry.update_compatibility_version
+  if _should_force_use_dill(update_compat_version):
     return DeterministicFastPrimitivesCoder(coder, step_label)
-  return DeterministicFastPrimitivesCoderV2(coder, step_label)
+  return DeterministicFastPrimitivesCoderV2(
+      coder, step_label, update_compat_version)
 
 
 class FastPrimitivesCoder(FastCoder):
