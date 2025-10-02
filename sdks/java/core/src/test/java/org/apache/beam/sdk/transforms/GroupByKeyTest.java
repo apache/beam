@@ -121,9 +121,11 @@ public class GroupByKeyTest implements Serializable {
     private static final String PROJECT_ID = "apache-beam-testing";
     private static final String SECRET_ID = "gbek-test";
     public static String gcpSecretVersionName;
+    private static String secretId;
 
     @BeforeClass
     public static void setup() throws IOException {
+      secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
       SecretManagerServiceClient client;
       try {
         client = SecretManagerServiceClient.create();
@@ -132,7 +134,7 @@ public class GroupByKeyTest implements Serializable {
         return;
       }
       ProjectName projectName = ProjectName.of(PROJECT_ID);
-      SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
+      SecretName secretName = SecretName.of(PROJECT_ID, secretId);
 
       try {
         client.getSecret(secretName);
@@ -146,7 +148,7 @@ public class GroupByKeyTest implements Serializable {
                                 .build())
                         .build())
                 .build();
-        client.createSecret(projectName, SECRET_ID, secret);
+        client.createSecret(projectName, secretId, secret);
         byte[] secretBytes = new byte[32];
         new SecureRandom().nextBytes(secretBytes);
         client.addSecretVersion(
@@ -160,7 +162,7 @@ public class GroupByKeyTest implements Serializable {
     public static void tearDown() throws IOException {
       if (gcpSecretVersionName != null) {
         SecretManagerServiceClient client = SecretManagerServiceClient.create();
-        SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
+        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
         client.deleteSecret(secretName);
       }
     }
