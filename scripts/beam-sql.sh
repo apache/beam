@@ -85,15 +85,26 @@ function setup_maven_wrapper() {
 }
 
 function usage() {
-  echo "Usage: $0 [--version <beam_version>] [--runner <runner_name>] [--io <io_connector>]..."
+  echo "Usage: $0 [--version <beam_version>] [--runner <runner_name>] [--io <io_connector>] [--list-versions] [--list-ios] [--list-runners] [--debug] [-h|--help]"
   echo ""
   echo "A self-contained launcher for the Apache Beam SQL Shell."
   echo ""
   echo "Options:"
   echo "  --version   Specify the Apache Beam version (default: ${DEFAULT_BEAM_VERSION})."
-  echo "  --runner    Specify the Beam runner to use (default: direct). Supported: direct, dataflow."
-  echo "  --io        Specify an IO connector to include (e.g., iceberg, kafka). Can be used multiple times."
+  echo "  --runner    Specify the Beam runner to use (default: direct)."
+  echo "              Supported runners:"
+  echo "                direct    - DirectRunner (runs locally, good for development)"
+  echo "                dataflow  - DataflowRunner (runs on Google Cloud Dataflow)"
+  echo "  --io        Specify an IO connector to include. Can be used multiple times."
+  echo "              Available connectors: amazon-web-services2, amqp, azure,"
+  echo "              azure-cosmos, cassandra, cdap, clickhouse, csv, debezium, elasticsearch,"
+  echo "              google-ads, google-cloud-platform, hadoop-format, hbase, hcatalog, iceberg,"
+  echo "              influxdb, jdbc, jms, json, kafka, kinesis, kudu, mongodb, mqtt, neo4j,"
+  echo "              parquet, pulsar, rabbitmq, redis, singlestore, snowflake, solace, solr,"
+  echo "              sparkreceiver, splunk, synthetic, thrift, tika, xml"
   echo "  --list-versions      List all available Beam versions from Maven Central and exit."
+  echo "  --list-ios           List all available IO connectors from Maven Central and exit."
+  echo "  --list-runners       List all available runners and exit."
   echo "  --debug     Enable debug mode (sets bash -x flag)."
   echo "  -h, --help  Show this help message."
   exit 1
@@ -127,6 +138,154 @@ function list_versions() {
   echo "${versions}"
 }
 
+# This function lists all available IO connectors by querying Maven Central.
+function list_ios() {
+  echo "🔎 Fetching available Apache Beam IO connectors from Maven Central..."
+  local search_url="https://search.maven.org/solrsearch/select?q=g:org.apache.beam+AND+a:beam-sdks-java-io-*&rows=100&wt=json"
+
+  if ! command -v curl &> /dev/null; then
+    echo "❌ Error: 'curl' is required to fetch the IO connector list." >&2
+    return 1
+  fi
+
+  # Fetch and parse the JSON response to extract IO connector names
+  local ios
+  ios=$(curl -sS "${search_url}" | \
+    grep -o '"a":"beam-sdks-java-io-[^"]*"' | \
+    sed 's/"a":"beam-sdks-java-io-\([^"]*\)"/\1/' | \
+    grep -v -E '(tests?|expansion-service|parent|upgrade)' | \
+    sort -u)
+
+  if [ -z "${ios}" ]; then
+    echo "❌ Could not retrieve IO connectors. Please check your internet connection or try again later." >&2
+    echo "📋 Here are the known IO connectors (may not be complete):"
+    echo "amazon-web-services2, amqp, azure, azure-cosmos, cassandra,"
+    echo "cdap, clickhouse, csv, debezium, elasticsearch, google-ads, google-cloud-platform,"
+    echo "hadoop-format, hbase, hcatalog, iceberg, influxdb, jdbc, jms, json, kafka, kinesis,"
+    echo "kudu, mongodb, mqtt, neo4j, parquet, pulsar, rabbitmq, redis, singlestore, snowflake,"
+    echo "solace, solr, sparkreceiver, splunk, synthetic, thrift, tika, xml"
+    return 1
+  fi
+
+  echo "✅ Available IO connectors:"
+  echo "${ios}" | tr '\n' ' ' | fold -s -w 80 | sed 's/^/  /'
+}
+
+# This function lists all available runners by querying Maven Central.
+function list_runners() {
+  echo "🚀 Fetching available Apache Beam runners for version ${BEAM_VERSION} from Maven Central..."
+  local search_url="https://search.maven.org/solrsearch/select?q=g:org.apache.beam+AND+a:beam-runners-*+AND+v:${BEAM_VERSION}&rows=100&wt=json"
+
+  if ! command -v curl &> /dev/null; then
+    echo "❌ Error: 'curl' is required to fetch the runner list." >&2
+    return 1
+  fi
+
+  # Fetch and parse the JSON response to extract runner names
+  local runners
+  runners=$(curl -sS "${search_url}" | \
+    grep -o '"a":"beam-runners-[^"]*"' | \
+    sed 's/"a":"beam-runners-\([^"]*\)"/\1/' | \
+    grep -v -E '(tests?|parent|core-construction|core-java|extensions|job-server|legacy-worker|windmill|examples|experimental|orchestrator|java-fn-execution|java-job-service|gcp-gcemd|gcp-gcsproxy|local-java-core|portability-java|prism-java|reference-java)' | \
+    sort -u)
+
+  if [ -z "${runners}" ]; then
+    echo "❌ Could not retrieve runners for version ${BEAM_VERSION}. Please check your internet connection or try again later." >&2
+    echo "📋 Here are the known runners for recent Beam versions (may not be complete):"
+    echo ""
+    echo "  direct           - DirectRunner (runs locally, good for development)"
+    echo "  dataflow         - DataflowRunner (runs on Google Cloud Dataflow)"
+    echo "  flink            - FlinkRunner (runs on Apache Flink)"
+    echo "  spark            - SparkRunner (runs on Apache Spark)"
+    echo "  samza            - SamzaRunner (runs on Apache Samza)"
+    echo "  jet              - JetRunner (runs on Hazelcast Jet)"
+    echo "  twister2         - Twister2Runner (runs on Twister2)"
+    echo ""
+    echo "💡 Usage: ./beam-sql.sh --runner <runner_name>"
+    echo "   Default: direct"
+    echo "   Note: Only 'direct' and 'dataflow' are currently supported by this script."
+    return 1
+  fi
+
+  echo "✅ Available runners for Beam ${BEAM_VERSION}:"
+  echo ""
+  
+  # Process each runner and provide descriptions
+  while IFS= read -r runner; do
+    case "$runner" in
+      "direct-java")
+        echo "  direct           - DirectRunner"
+        echo "                     Runs locally on your machine. Good for development and testing."
+        ;;
+      "google-cloud-dataflow-java")
+        echo "  dataflow         - DataflowRunner" 
+        echo "                     Runs on Google Cloud Dataflow for production workloads."
+        ;;
+      flink-*)
+        local version=$(echo "$runner" | sed 's/flink-//')
+        echo "  flink-${version} - FlinkRunner (Flink ${version})"
+        echo "                     Runs on Apache Flink ${version} clusters."
+        ;;
+      flink_*)
+        local version=$(echo "$runner" | sed 's/flink_//')
+        echo "  flink-${version} - FlinkRunner (Flink ${version})"
+        echo "                     Runs on Apache Flink ${version} clusters."
+        ;;
+      "spark")
+        echo "  spark            - SparkRunner"
+        echo "                     Runs on Apache Spark clusters."
+        ;;
+      "spark-3")
+        echo "  spark-3          - SparkRunner (Spark 3.x)"
+        echo "                     Runs on Apache Spark 3.x clusters."
+        ;;
+      "samza")
+        echo "  samza            - SamzaRunner"
+        echo "                     Runs on Apache Samza."
+        ;;
+      "jet")
+        echo "  jet              - JetRunner"
+        echo "                     Runs on Hazelcast Jet."
+        ;;
+      "twister2")
+        echo "  twister2         - Twister2Runner"
+        echo "                     Runs on Twister2."
+        ;;
+      "apex")
+        echo "  apex             - ApexRunner"
+        echo "                     Runs on Apache Apex."
+        ;;
+      "gearpump")
+        echo "  gearpump         - GearpumpRunner"
+        echo "                     Runs on Apache Gearpump."
+        ;;
+      "prism")
+        echo "  prism            - PrismRunner"
+        echo "                     Local runner for testing portable pipelines."
+        ;;
+      "reference")
+        echo "  reference        - ReferenceRunner"
+        echo "                     Reference implementation for testing."
+        ;;
+      "portability")
+        echo "  portability      - PortabilityRunner"
+        echo "                     For portable pipeline execution."
+        ;;
+      *)
+        # For any other runners, clean up the name and show it
+        local clean_name=$(echo "$runner" | sed -e 's/-java$//' -e 's/^gcp-//' -e 's/^local-//')
+        echo "  ${clean_name}    - ${runner}"
+        ;;
+    esac
+  done <<< "$runners"
+  
+  echo ""
+  echo "💡 Usage: ./beam-sql.sh --runner <runner_name>"
+  echo "   Default: direct"
+  echo "   Note: This script currently supports 'direct' and 'dataflow' runners."
+  echo "         Other runners may require additional setup and dependencies."
+}
+
 
 # --- Argument Parsing ---
 BEAM_VERSION="${DEFAULT_BEAM_VERSION}"
@@ -141,6 +300,8 @@ while [[ "$#" -gt 0 ]]; do
     --runner) BEAM_RUNNER=$(echo "$2" | tr '[:upper:]' '[:lower:]'); shift ;;
     --io) IO_CONNECTORS+=("$2"); shift ;;
     --list-versions) list_versions; exit 0 ;;
+    --list-ios) list_ios; exit 0 ;;
+    --list-runners) list_runners; exit 0 ;;
     --debug) DEBUG_MODE=true ;;
     -h|--help) usage ;;
     *) SQLLINE_ARGS+=("$1") ;;

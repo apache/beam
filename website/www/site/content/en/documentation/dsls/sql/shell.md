@@ -53,7 +53,7 @@ The script will automatically:
 
 #### Prerequisites
 
-- **Java**: Java 8 or higher must be installed and available in your PATH
+- **Java**: Java 11 or higher must be installed and available in your PATH
 - **curl**: Required for downloading the Maven wrapper and dependencies
 
 #### Command-line Options
@@ -61,14 +61,17 @@ The script will automatically:
 The `beam-sql.sh` script supports several options:
 
 ```bash
-./beam-sql.sh [--version <beam_version>] [--runner <runner_name>] [--io <io_connector>] [--list-versions] [-h|--help]
+./beam-sql.sh [--version <beam_version>] [--runner <runner_name>] [--io <io_connector>] [--list-versions] [--list-ios] [--list-runners] [--debug] [-h|--help]
 ```
 
 **Options:**
 - `--version <beam_version>`: Specify the Apache Beam version (a recent stable version is used by default).
-- `--runner <runner_name>`: Specify the Beam runner to use (default: direct). Supported: direct, dataflow
-- `--io <io_connector>`: Specify an IO connector to include (e.g., iceberg, kafka). Can be used multiple times
+- `--runner <runner_name>`: Specify the Beam runner to use (default: direct).
+- `--io <io_connector>`: Specify an IO connector to include. Can be used multiple times. Available connectors include: amazon-web-services2, amqp, azure, azure-cosmos, cassandra, cdap, clickhouse, csv, debezium, elasticsearch, google-ads, google-cloud-platform, hadoop-format, hbase, hcatalog, iceberg, influxdb, jdbc, jms, json, kafka, kinesis, kudu, mongodb, mqtt, neo4j, parquet, pulsar, rabbitmq, redis, singlestore, snowflake, solace, solr, sparkreceiver, splunk, synthetic, thrift, tika, xml
 - `--list-versions`: List all available Beam versions from Maven Central and exit
+- `--list-ios`: List all available IO connectors from Maven Central and exit (provides the most up-to-date list)
+- `--list-runners`: List all available runners from Maven Central for the specified Beam version with detailed descriptions and exit
+- `--debug`: Enable debug mode (sets bash -x flag)
 - `-h, --help`: Show help message
 
 **Examples:**
@@ -85,6 +88,15 @@ The `beam-sql.sh` script supports several options:
 
 # List available versions
 ./beam-sql.sh --list-versions
+
+# List available IO connectors
+./beam-sql.sh --list-ios
+
+# List available runners (for default version)
+./beam-sql.sh --list-runners
+
+# List available runners for a specific version
+./beam-sql.sh --version 2.66.0 --list-runners
 ```
 
 
@@ -170,7 +182,14 @@ By default, Beam uses the `DirectRunner` to run the pipeline on the machine wher
 
 ### Using beam-sql.sh Script
 
-When using the `beam-sql.sh` script, you can specify the runner directly via command-line options:
+### How Runner Values are Determined
+
+The `beam-sql.sh` script determines the runner in the following way:
+
+1. **Default**: If no `--runner` option is specified, it defaults to `direct` (DirectRunner)
+2. **Command-line**: The `--runner` option accepts case-insensitive values (`Direct`, `DATAFLOW`, etc.)
+
+For example, use the following commands for the Dataflow runner when using the `beam-sql.sh` script:
 
 ```bash
 # Use Dataflow runner
