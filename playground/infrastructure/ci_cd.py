@@ -20,6 +20,7 @@ import argparse
 import asyncio
 import logging
 import os
+import re
 from typing import List
 
 from constants import BEAM_ROOT_DIR_ENV_VAR_KEY, BEAM_EXAMPLE_CATEGORIES_ENV_VAR_KEY
@@ -98,6 +99,14 @@ def _run_ci_cd(step: str, raw_sdk: str, origin: Origin, project: str, namespace:
     load_supported_categories(categories_file)
     logging.info("Start of searching Playground examples ...")
     examples = find_examples(root_dir, subdirs, sdk)
+
+    # TODO: remove SqlTransformExample skip when vendor-calcite is on runtime CP (expected by Beam ≥ 2.69.0).
+    if sdk == SdkEnum.JAVA:
+      ignored = r"(?:^|/)SqlTransformExample\.java$"
+      examples = [
+        e for e in examples
+        if not (re.search(ignored, e.filepath) or re.search(ignored, str(e.url_vcs)))
+      ]
     validate_examples_for_duplicates_by_name(examples)
     validate_examples_for_conflicting_datasets(examples)
     logging.info("Finish of searching Playground examples")
