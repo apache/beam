@@ -136,13 +136,13 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    * <p>Overrides the schema if it exists.
    */
   void setSchema(String name, TableProvider tableProvider) {
-    BeamCalciteSchema beamCalciteSchema = new BeamCalciteSchema(this, tableProvider);
+    BeamCalciteSchema beamCalciteSchema = new BeamCalciteSchema(name, this, tableProvider);
     getRootSchema().add(name, beamCalciteSchema);
   }
 
   /** Like {@link #setSchema(String, TableProvider)} but using a {@link CatalogManager}. */
   void setSchema(String name, CatalogManager catalogManager) {
-    BeamCalciteSchema beamCalciteSchema = new BeamCalciteSchema(this, catalogManager);
-    getRootSchema().add(name, beamCalciteSchema);
+    CatalogManagerSchema catalogManagerSchema = new CatalogManagerSchema(this, catalogManager);
+    getRootSchema().add(name, catalogManagerSchema);
   }
 }
