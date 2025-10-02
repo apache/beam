@@ -82,7 +82,7 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef object requires_deterministic_step_label
   cdef bint warn_deterministic_fallback
   cdef bint force_use_dill
-  cdef bint skip_use_relative_filepaths
+  cdef bint use_relative_filepaths
 
   @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t,
                  unicode_value=unicode)

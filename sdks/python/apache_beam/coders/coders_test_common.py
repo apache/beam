@@ -252,6 +252,14 @@ class CodersTest(unittest.TestCase):
       param(compat_version="2.68.0"),
   ])
   def test_deterministic_coder(self, compat_version):
+    """ Test in process determinism for all special deterministic types
+
+    - In SDK version <= 2.67.0 dill is used to encode "special types"
+    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+    absolute filepaths in code objects and dynamic functions.
+    - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
+    relative filepaths in code objects and dynamic functions.
+    """
 
     typecoders.registry.update_compatibility_version = compat_version
     coder = coders.FastPrimitivesCoder()
@@ -329,6 +337,15 @@ class CodersTest(unittest.TestCase):
       param(compat_version="2.68.0"),
   ])
   def test_deterministic_map_coder_is_update_compatible(self, compat_version):
+    """ Test in process determinism for map coder including when a component
+    coder uses DeterministicFastPrimitivesCoder for "special types".
+
+    - In SDK version <= 2.67.0 dill is used to encode "special types"
+    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+    absolute filepaths in code objects and dynamic functions.
+    - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
+    relative file
+    """
     typecoders.registry.update_compatibility_version = compat_version
     values = [{
         MyTypedNamedTuple(i, 'a'): MyTypedNamedTuple('a', i)
@@ -688,7 +705,14 @@ class CodersTest(unittest.TestCase):
   ])
   def test_cross_process_encoding_of_special_types_is_deterministic(
       self, compat_version):
-    """Test cross-process determinism for all special deterministic types"""
+    """Test cross-process determinism for all special deterministic types
+
+    - In SDK version <= 2.67.0 dill is used to encode "special types"
+    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+    absolute filepaths in code objects and dynamic functions.
+    - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
+    relative filepaths in code objects and dynamic functions.
+    """
     is_using_dill = compat_version == "2.67.0"
     if is_using_dill:
       pytest.importorskip("dill")
@@ -806,6 +830,8 @@ class CodersTest(unittest.TestCase):
         continue
 
       if test_name == "named_tuple_simple" and not is_using_dill:
+        # The absense of a compat_version means we are using the most recent
+        # implementation of the coder, which uses relative paths.
         should_have_relative_path = not compat_version
         named_tuple_type = type(decoded1)
         self.assertEqual(

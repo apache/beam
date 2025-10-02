@@ -379,13 +379,13 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       fallback_coder_impl,
       requires_deterministic_step_label=None,
       force_use_dill=False,
-      skip_use_relative_filepaths=False):
+      use_relative_filepaths=True):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
     self.requires_deterministic_step_label = requires_deterministic_step_label
     self.warn_deterministic_fallback = True
     self.force_use_dill = force_use_dill
-    self.skip_use_relative_filepaths = skip_use_relative_filepaths
+    self.use_relative_filepaths = use_relative_filepaths
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -567,7 +567,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
           id_generator=None,
           skip_reset_dynamic_type_state=True,
           filepath_interceptor=cloudpickle.get_relative_path)
-      if self.skip_use_relative_filepaths:
+      if not self.use_relative_filepaths:
         config.filepath_interceptor = None
       _pickled_types[t] = cloudpickle_pickler.dumps(t, config=config)
     stream.write(_pickled_types[t], True)
