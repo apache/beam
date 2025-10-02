@@ -126,6 +126,55 @@ class JavaJarServerTest(unittest.TestCase):
       with open(os.path.join(temp_dir, 'file.jar')) as fin:
         self.assertEqual(fin.read(), 'data')
 
+  def test_local_jar_fallback_to_google_maven_mirror(self):
+    """Test that Google Maven mirror is used as fallback when Maven Central fails."""
+    class MavenCentralHandler(socketserver.BaseRequestHandler):
+      timeout = 1
+
+      def handle(self):
+        # Simulate Maven Central returning 403 Forbidden
+        self.request.sendall(b'HTTP/1.1 403 Forbidden\n\n')
+
+    # Set up Maven Central server (will return 403)
+    maven_port, = subprocess_server.pick_port(None)
+    maven_server = socketserver.TCPServer(('localhost', maven_port),
+                                          MavenCentralHandler)
+    maven_thread = threading.Thread(target=maven_server.handle_request)
+    maven_thread.daemon = True
+    maven_thread.start()
+
+    # Temporarily replace the Maven Central constant to use our test server
+    original_maven_central = (
+        subprocess_server.JavaJarServer.MAVEN_CENTRAL_REPOSITORY)
+
+    try:
+      subprocess_server.JavaJarServer.MAVEN_CENTRAL_REPOSITORY = (
+          f'http://localhost:{maven_port}/maven2')
+
+      with tempfile.TemporaryDirectory() as temp_dir:
+        # Use a Maven Central URL that will trigger the fallback to real
+        # Google mirror
+        maven_url = (
+            f'http://localhost:{maven_port}/maven2/org/apache/beam/'
+            f'beam-sdks-java-extensions-schemaio-expansion-service/2.63.0/'
+            f'beam-sdks-java-extensions-schemaio-expansion-service-2.63.0.jar')
+
+        # This should fail on our mock Maven Central and fallback to the
+        # real Google mirror
+        jar_path = subprocess_server.JavaJarServer.local_jar(
+            maven_url, temp_dir)
+
+        # Verify the file was downloaded successfully (from the real Google
+        # mirror)
+        self.assertTrue(os.path.exists(jar_path))
+        jar_size = os.path.getsize(jar_path)
+        self.assertTrue(jar_size > 0)  # Should have actual content
+
+    finally:
+      # Restore original constants
+      subprocess_server.JavaJarServer.MAVEN_CENTRAL_REPOSITORY = (
+          original_maven_central)
+
   @unittest.skipUnless(shutil.which('javac'), 'missing java jdk')
   def test_classpath_jar(self):
     with tempfile.TemporaryDirectory() as temp_dir:

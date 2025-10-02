@@ -281,6 +281,7 @@ class JavaJarServer(SubprocessServer):
 
   MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
   MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'  # pylint: disable=line-too-long
+  GOOGLE_MAVEN_MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2'
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
@@ -465,9 +466,41 @@ class JavaJarServer(SubprocessServer):
             # is already moved. Safe to ignore.
             pass
         except URLError as e:
-          raise RuntimeError(
-              f'Unable to fetch remote job server jar at {url}: {e}. If no '
-              f'Internet access at runtime, stage the jar at {cached_jar}')
+          # Try Google Maven mirror as fallback if the original URL is from
+          # Maven Central
+          if cls.MAVEN_CENTRAL_REPOSITORY in url:
+            fallback_url = url.replace(
+                cls.MAVEN_CENTRAL_REPOSITORY, cls.GOOGLE_MAVEN_MIRROR)
+            _LOGGER.info(
+                'Trying Google Maven mirror fallback: %s' % fallback_url)
+            try:
+              if user_agent is None:
+                user_agent = cls._DEFAULT_USER_AGENT
+              fallback_request = Request(
+                  fallback_url, headers={'User-Agent': user_agent})
+              url_read = urlopen(fallback_request)
+              with open(cached_jar + '.tmp', 'wb') as jar_write:
+                shutil.copyfileobj(url_read, jar_write, length=1 << 20)
+              try:
+                os.rename(cached_jar + '.tmp', cached_jar)
+              except FileNotFoundError:
+                # A race when multiple programs run in parallel and the
+                # cached_jar is already moved. Safe to ignore.
+                pass
+              _LOGGER.info(
+                  'Successfully downloaded from Google Maven mirror: %s' %
+                  fallback_url)
+            except URLError as fallback_e:
+              raise RuntimeError(
+                  f'Unable to fetch remote job server jar at {url}: {e}. '
+                  f'Also failed to fetch from Google Maven mirror at '
+                  f'{fallback_url}: {fallback_e}. '
+                  f'If no Internet access at runtime, stage the jar at '
+                  f'{cached_jar}')
+          else:
+            raise RuntimeError(
+                f'Unable to fetch remote job server jar at {url}: {e}. If no '
+                f'Internet access at runtime, stage the jar at {cached_jar}')
       return cached_jar
 
   @classmethod
