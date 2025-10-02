@@ -34,11 +34,13 @@ import zipfile
 from typing import Any
 from typing import Set
 from urllib.error import URLError
+from urllib.request import Request
 from urllib.request import urlopen
 
 import grpc
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.runners.internal.names import BEAM_SDK_NAME
 from apache_beam.version import __version__ as beam_version
 
 _LOGGER = logging.getLogger(__name__)
@@ -286,6 +288,8 @@ class JavaJarServer(SubprocessServer):
       'local', (threading.local, ),
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
+  _DEFAULT_USER_AGENT = f'{BEAM_SDK_NAME}/{beam_version}'
+
   def __init__(
       self,
       stub_class,
@@ -416,7 +420,18 @@ class JavaJarServer(SubprocessServer):
         artifact_id, cls.BEAM_GROUP_ID, version, maven_repo, appendix=appendix)
 
   @classmethod
-  def local_jar(cls, url, cache_dir=None):
+  def local_jar(cls, url, cache_dir=None, user_agent=None):
+    """Returns a local path to the given jar, downloading it if necessary.
+
+    Args:
+      url (str): A URL or local path to a jar file.
+      cache_dir (str): The directory to use for caching downloaded jars. If not
+        specified, a default temporary directory will be used.
+      user_agent (str): The user agent to use when downloading the jar.
+
+    Returns:
+      str: The local path to the jar file.
+    """
     if cache_dir is None:
       cache_dir = cls.JAR_CACHE
     # TODO: Verify checksum?
@@ -437,7 +452,10 @@ class JavaJarServer(SubprocessServer):
           try:
             url_read = FileSystems.open(url)
           except ValueError:
-            url_read = urlopen(url)
+            if user_agent is None:
+              user_agent = cls._DEFAULT_USER_AGENT
+            url_request = Request(url, headers={'User-Agent': user_agent})
+            url_read = urlopen(url_request)
           with open(cached_jar + '.tmp', 'wb') as jar_write:
             shutil.copyfileobj(url_read, jar_write, length=1 << 20)
           try:

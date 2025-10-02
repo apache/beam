@@ -108,8 +108,11 @@ class JavaJarServerTest(unittest.TestCase):
       timeout = 1
 
       def handle(self):
-        self.request.recv(1024)
-        self.request.sendall(b'HTTP/1.1 200 OK\n\ndata')
+        data = self.request.recv(1024)
+        if 'User-Agent: Apache Beam SDK for Python' in str(data):
+          self.request.sendall(b'HTTP/1.1 200 OK\n\ndata')
+        else:
+          self.request.sendall(b'HTTP/1.1 400 BAD REQUEST\n\n')
 
     port, = subprocess_server.pick_port(None)
     server = socketserver.TCPServer(('localhost', port), Handler)

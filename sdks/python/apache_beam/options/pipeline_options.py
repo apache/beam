@@ -1716,6 +1716,12 @@ class SetupOptions(PipelineOptions):
         help=(
             'Docker registry url to use for tagging and pushing the prebuilt '
             'sdk worker container image.'))
+    parser.add_argument(
+        '--user_agent',
+        default=None,
+        help=(
+            'A user agent string describing the pipeline to external services. '
+            'The format should follow RFC2616.'))
 
   def validate(self, validator):
     errors = []
