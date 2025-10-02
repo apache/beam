@@ -3,7 +3,7 @@
   "enabled": true,
   "options": {
     "properties": {
-      "java.security.properties": "/opt/apache/beam/options/java21-security.properties"
+      "java.security.properties": "/opt/apache/beam/options/java25-security.properties"
     }
   }
 }
