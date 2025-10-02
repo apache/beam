@@ -2071,8 +2071,8 @@ func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementM
 // buildProcessingTimeBundle for aggregation stages prepares bundles for after-processing-time triggers
 func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
 	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane) {
-		// TODO: how to deal with watermark holds for this implicit processing time timer
-		// holdsInBundle[e.holdTimestamp]++
+		// Different from `buildProcessingTimeBundle` for stateful stage,
+		// triggers don't hold back the watermark, so no holds are in the triggered bundle.
 		state := ss.state[LinkID{}][e.window][string(e.keyBytes)]
 		endOfWindowReached := e.window.MaxTimestamp() < ss.input
 		ready := ss.strat.IsTriggerReady(triggerInput{
@@ -2391,14 +2391,13 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 		if len(ss.pending) == 0 {
 			return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
 		}
-	} else {
-		if inputW == upstreamW && previousInputW == inputW {
-			slog.Debug("bundleReady: unchanged upstream watermark",
-				slog.String("stage", ss.ID),
-				slog.Group("watermark",
-					slog.Any("upstream == input == previousInput", inputW)))
-			return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
-		}
+	} else if inputW == upstreamW && previousInputW == inputW {
+		// Otherwise, use the progression of watermark to determine the bundle readiness.
+		slog.Debug("bundleReady: unchanged upstream watermark",
+			slog.String("stage", ss.ID),
+			slog.Group("watermark",
+				slog.Any("upstream == input == previousInput", inputW)))
+		return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
 	}
 
 	ready := true
