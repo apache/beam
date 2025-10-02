@@ -73,6 +73,49 @@ func (ws WinStrat) IsNeverTrigger() bool {
 	return ok
 }
 
+func getAfterProcessingTimeTriggers(t Trigger) []*TriggerAfterProcessingTime {
+	if t == nil {
+		return nil
+	}
+	var triggers []*TriggerAfterProcessingTime
+	switch at := t.(type) {
+	case *TriggerAfterProcessingTime:
+		return []*TriggerAfterProcessingTime{at}
+	case *TriggerAfterAll:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterAny:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterEach:
+		for _, st := range at.SubTriggers {
+			triggers = append(triggers, getAfterProcessingTimeTriggers(st)...)
+		}
+		return triggers
+	case *TriggerAfterEndOfWindow:
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Early)...)
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Late)...)
+		return triggers
+	case *TriggerOrFinally:
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Main)...)
+		triggers = append(triggers, getAfterProcessingTimeTriggers(at.Finally)...)
+		return triggers
+	case *TriggerRepeatedly:
+		return getAfterProcessingTimeTriggers(at.Repeated)
+	default:
+		return nil
+	}
+}
+
+// GetAfterProcessingTimeTriggers returns all AfterProcessingTime triggers within the trigger.
+func (ws WinStrat) GetAfterProcessingTimeTriggers() []*TriggerAfterProcessingTime {
+	return getAfterProcessingTimeTriggers(ws.Trigger)
+}
+
 func (ws WinStrat) String() string {
 	return fmt.Sprintf("WinStrat[AllowedLateness:%v Trigger:%v]", ws.AllowedLateness, ws.Trigger)
 }
