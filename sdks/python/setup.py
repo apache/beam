@@ -175,7 +175,7 @@ ml_base = [
     'tf2onnx',
     'torch',
     'transformers',
-],
+]
 
 
 def find_by_ext(root_dir, ext):
