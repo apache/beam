@@ -398,7 +398,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 
 			// If there are no changed stages, ready processing time events,
 			// or injected bundles available, we wait until there are.
-			for len(em.changedStages)+len(changedByProcessingTime)+len(em.injectedBundles)+(len(em.testStreamHandler.events)-em.testStreamHandler.nextEventIndex) == 0 {
+			for len(em.changedStages)+len(changedByProcessingTime)+len(em.injectedBundles) == 0 {
 				// Check to see if we must exit
 				select {
 				case <-ctx.Done():
@@ -1633,7 +1633,8 @@ func (ss *stageState) startTriggeredBundle(em *ElementManager, key string, win t
 	)
 	slog.Debug("started a triggered bundle", "stageID", ss.ID, "bundleID", rb.BundleID, "size", len(toProcess))
 
-	//ss.bundlesToInject = append(ss.bundlesToInject, rb)
+	// TODO: Use ss.bundlesToInject rather than em.injectedBundles
+	// ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
 	em.refreshCond.L.Lock()
 	em.injectedBundles = append(em.injectedBundles, rb)
