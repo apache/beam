@@ -1934,8 +1934,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputBuilder<OutputT> builder(OutputT value) {
-      return WindowedValues.builder(currentElement)
-          .withValue(value)
+      return WindowedValues.<OutputT>builder(currentElement)
           .setReceiver(
               windowedValue -> {
                 checkTimestamp(windowedValue.getTimestamp());
