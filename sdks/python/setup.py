@@ -162,6 +162,21 @@ dataframe_dependency = [
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 
+ml_base = [
+    'embeddings',
+    'onnxruntime',
+    'langchain',
+    'sentence-transformers',
+    'skl2onnx',
+    'pillow',
+    'pyod',
+    'tensorflow',
+    'tensorflow-hub',
+    'tf2onnx',
+    'torch',
+    'transformers',
+],
+
 
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
@@ -407,13 +422,13 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'dill': [
-            # Dill doesn't have forwards-compatibility guarantees within minor
-            # version. Pickles created with a new version of dill may not
-            # unpickle using older version of dill. It is best to use the same
-            # version of dill on client and server, therefore list of allowed
-            # versions is very narrow.
-            # See: https://github.com/uqfoundation/dill/issues/341.
-            'dill>=0.3.1.1,<0.3.2',
+              # Dill doesn't have forwards-compatibility guarantees within minor
+              # version. Pickles created with a new version of dill may not
+              # unpickle using older version of dill. It is best to use the same
+              # version of dill on client and server, therefore list of allowed
+              # versions is very narrow.
+              # See: https://github.com/uqfoundation/dill/issues/341.
+              'dill>=0.3.1.1,<0.3.2',
           ],
           'docs': [
               'jinja2>=3.0,<3.2',
@@ -521,56 +536,19 @@ if __name__ == '__main__':
           # can find out early when Beam doesn't work with new versions.
           'ml_test': [
               'datatable',
-              'embeddings',
-              'langchain',
-              'onnxruntime',
-              'sentence-transformers',
-              'skl2onnx',
-              'pillow',
-              'pyod',
-              'tensorflow',
-              'tensorflow-hub',
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',
               'tensorflow-transform',
-              'tf2onnx',
-              'torch',
-              'transformers',
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
-          ],
+          ] + ml_base,
           'p312_ml_test': [
               'datatable',
-              'embeddings',
-              'onnxruntime',
-              'langchain',
-              'sentence-transformers',
-              'skl2onnx',
-              'pillow',
-              'pyod',
-              'tensorflow',
-              'tensorflow-hub',
-              'tf2onnx',
-              'torch',
-              'transformers',
-          ],
-          'p313_ml_test': [
-              'embeddings',
-              'onnxruntime',
-              'langchain',
-              'sentence-transformers',
-              'skl2onnx',
-              'pillow',
-              'pyod',
-              'tensorflow',
-              'tensorflow-hub',
-              'tf2onnx',
-              'torch',
-              'transformers',
-          ],
+          ] + ml_base,
+          'p313_ml_test': ml_base,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -608,10 +586,12 @@ if __name__ == '__main__':
               'torch>=1.9.0'
           ],
           'tft': [
-            'tensorflow_transform>=1.14.0,<1.15.0'
-            # tensorflow-transform requires dill, but doesn't set dill as a
-            # hard requirement in setup.py.
-            , 'dill'],
+              'tensorflow_transform>=1.14.0,<1.15.0'
+              # tensorflow-transform requires dill, but doesn't set dill as a
+              # hard requirement in setup.py.
+              ,
+              'dill'
+          ],
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',
