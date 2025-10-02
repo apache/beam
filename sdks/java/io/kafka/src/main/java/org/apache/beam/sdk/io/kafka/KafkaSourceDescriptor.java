@@ -24,7 +24,6 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.kafka.common.TopicPartition;
@@ -105,27 +104,5 @@ public abstract class KafkaSourceDescriptor implements Serializable {
     checkArgument(
         stopReadOffset == null || stopReadTime == null,
         "stopReadOffset and stopReadTime are optional but mutually exclusive. Please set only one of them.");
-  }
-
-  @SchemaCreate
-  @SuppressWarnings("all")
-  // TODO(BEAM-10677): Remove this function after AutoValueSchema is fixed.
-  static KafkaSourceDescriptor create(
-      String topic,
-      Integer partition,
-      Long start_read_offset,
-      Instant start_read_time,
-      Long stop_read_offset,
-      Instant stop_read_time,
-      List<String> bootstrap_servers) {
-    checkArguments(start_read_offset, start_read_time, stop_read_offset, stop_read_time);
-    return new AutoValue_KafkaSourceDescriptor(
-        topic,
-        partition,
-        start_read_offset,
-        start_read_time,
-        stop_read_offset,
-        stop_read_time,
-        bootstrap_servers);
   }
 }
