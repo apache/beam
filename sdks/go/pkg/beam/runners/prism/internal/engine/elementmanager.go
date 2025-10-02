@@ -2383,7 +2383,15 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 	inputW := ss.input
 	_, upstreamW := ss.UpstreamWatermark()
 	previousInputW := ss.previousInput
-	if _, ok := ss.kind.(*ordinaryStageKind); !ok {
+
+	_, isOrdinaryStage := ss.kind.(*ordinaryStageKind)
+	if isOrdinaryStage && len(ss.sides) == 0 {
+		// For ordinary stage with no side inputs, we use whether there are pending elements to determine
+		// whether a bundle is ready or not.
+		if len(ss.pending) == 0 {
+			return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
+		}
+	} else {
 		if inputW == upstreamW && previousInputW == inputW {
 			slog.Debug("bundleReady: unchanged upstream watermark",
 				slog.String("stage", ss.ID),
@@ -2391,11 +2399,8 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 					slog.Any("upstream == input == previousInput", inputW)))
 			return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
 		}
-	} else {
-		if len(ss.pending) == 0 {
-			return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
-		}
 	}
+
 	ready := true
 	for _, side := range ss.sides {
 		pID, ok := em.pcolParents[side.Global]
