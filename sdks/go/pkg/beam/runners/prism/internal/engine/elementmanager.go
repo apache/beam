@@ -398,7 +398,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 
 			// If there are no changed stages, ready processing time events,
 			// or injected bundles available, we wait until there are.
-			for len(em.changedStages)+len(changedByProcessingTime)+len(em.injectedBundles) == 0 {
+			for len(em.changedStages)+len(changedByProcessingTime)+len(em.injectedBundles)+(len(em.testStreamHandler.events)-em.testStreamHandler.nextEventIndex) == 0 {
 				// Check to see if we must exit
 				select {
 				case <-ctx.Done():
@@ -1633,9 +1633,10 @@ func (ss *stageState) startTriggeredBundle(em *ElementManager, key string, win t
 	)
 	slog.Debug("started a triggered bundle", "stageID", ss.ID, "bundleID", rb.BundleID, "size", len(toProcess))
 
-	ss.bundlesToInject = append(ss.bundlesToInject, rb)
+	//ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
 	em.refreshCond.L.Lock()
+	em.injectedBundles = append(em.injectedBundles, rb)
 	em.inprogressBundles.insert(rb.BundleID)
 	em.refreshCond.L.Unlock()
 	return accumulationDiff
@@ -2381,12 +2382,18 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 	inputW := ss.input
 	_, upstreamW := ss.UpstreamWatermark()
 	previousInputW := ss.previousInput
-	if inputW == upstreamW && previousInputW == inputW {
-		slog.Debug("bundleReady: unchanged upstream watermark",
-			slog.String("stage", ss.ID),
-			slog.Group("watermark",
-				slog.Any("upstream == input == previousInput", inputW)))
-		return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
+	if _, ok := ss.kind.(*ordinaryStageKind); !ok {
+		if inputW == upstreamW && previousInputW == inputW {
+			slog.Debug("bundleReady: unchanged upstream watermark",
+				slog.String("stage", ss.ID),
+				slog.Group("watermark",
+					slog.Any("upstream == input == previousInput", inputW)))
+			return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
+		}
+	} else {
+		if len(ss.pending) == 0 {
+			return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
+		}
 	}
 	ready := true
 	for _, side := range ss.sides {
