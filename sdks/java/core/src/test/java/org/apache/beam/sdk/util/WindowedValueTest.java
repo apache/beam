@@ -80,7 +80,6 @@ public class WindowedValueTest {
   @Test
   public void testWindowedValueWithElementMetadataCoder() throws CoderException {
     WindowedValues.WindowedValueCoder.setMetadataSupported();
-    PaneInfo.PaneInfoCoder.setMetadataSupported();
     Instant timestamp = new Instant(1234);
     WindowedValue<String> value =
         WindowedValues.of(
