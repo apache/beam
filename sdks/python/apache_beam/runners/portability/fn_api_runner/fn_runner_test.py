@@ -78,7 +78,6 @@ from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
-from contextlib import contextmanager
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -153,7 +152,7 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
-    with patch_portable_runner_for_test():
+    with patch_portable_runner_for_test():  # pylint: disable=not-context-manager
       with self.assertRaisesRegex(Exception, 'Failed assert'):
         with self.create_pipeline() as p:
           assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
