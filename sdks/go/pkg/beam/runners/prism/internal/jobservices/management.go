@@ -314,10 +314,19 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 }
 
 func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
+	if tpb == nil {
+		return false
+	}
+
 	unsupported := false
 	switch at := tpb.GetTrigger().(type) {
-	case *pipepb.Trigger_AfterSynchronizedProcessingTime_:
-		return true
+	// stateless leaf trigger
+	case *pipepb.Trigger_Never_, *pipepb.Trigger_Always_, *pipepb.Trigger_Default_:
+		return false
+	// stateful leaf trigger
+	case *pipepb.Trigger_ElementCount_, *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+		return false
+	// composite trigger below
 	case *pipepb.Trigger_AfterAll_:
 		for _, st := range at.AfterAll.GetSubtriggers() {
 			unsupported = unsupported || hasUnsupportedTriggers(st)
@@ -342,7 +351,7 @@ func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
 	case *pipepb.Trigger_Repeat_:
 		return hasUnsupportedTriggers(at.Repeat.GetSubtrigger())
 	default:
-		return false
+		return true
 	}
 }
 
