@@ -846,7 +846,8 @@ public class WindowedValues {
         BeamFnApi.Elements.ElementMetadata.Builder builder =
             BeamFnApi.Elements.ElementMetadata.newBuilder();
         BeamFnApi.Elements.ElementMetadata em = builder.build();
-        em.writeDelimitedTo(outStream);
+        ByteArrayCoder.of().encode(em.toByteArray(), outStream);
+
       }
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
@@ -863,7 +864,7 @@ public class WindowedValues {
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
       if (isMetadataSupported() && paneInfo.isElementMetadata()) {
-        BeamFnApi.Elements.ElementMetadata.parseDelimitedFrom(inStream);
+        BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
       }
       T value = valueCoder.decode(inStream, context);
 

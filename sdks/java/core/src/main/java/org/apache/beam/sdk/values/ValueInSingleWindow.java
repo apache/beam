@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -64,6 +66,7 @@ public abstract class ValueInSingleWindow<T> {
 
   public abstract @Nullable Long getCurrentRecordOffset();
 
+  // todo #33176 specify additional metadata in the future
   public static <T> ValueInSingleWindow<T> of(
       T value,
       Instant timestamp,
@@ -110,7 +113,16 @@ public abstract class ValueInSingleWindow<T> {
         throws IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
-      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo(), outStream);
+      boolean metadataSupported = WindowedValues.WindowedValueCoder.isMetadataSupported();
+      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo().withElementMetadata(metadataSupported), outStream);
+      if(metadataSupported){
+        BeamFnApi.Elements.ElementMetadata.Builder builder =
+          BeamFnApi.Elements.ElementMetadata.newBuilder();
+        // todo #33176 specify additional metadata in the future
+        BeamFnApi.Elements.ElementMetadata metadata = builder.build();
+        ByteArrayCoder.of().encode(metadata.toByteArray(), outStream);
+      }
+
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -124,7 +136,12 @@ public abstract class ValueInSingleWindow<T> {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
+      if(WindowedValues.WindowedValueCoder.isMetadataSupported() && paneInfo.isElementMetadata()) {
+        BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+      }
+
       T value = valueCoder.decode(inStream, context);
+      // todo #33176 specify additional metadata in the future
       return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, paneInfo, null, null);
     }
 

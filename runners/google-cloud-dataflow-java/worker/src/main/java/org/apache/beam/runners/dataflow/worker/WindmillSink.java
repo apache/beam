@@ -121,7 +121,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
     windowsCoder.decode(inStream);
     if (paneInfo.isElementMetadata()) {
-      return BeamFnApi.Elements.ElementMetadata.parseDelimitedFrom(inStream);
+      return BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
     } else {
       // empty
       return BeamFnApi.Elements.ElementMetadata.newBuilder().build();
@@ -211,7 +211,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
-      // todo - add here all windowedValue metadata
+      // todo #33176 specify additional metadata in the future
       BeamFnApi.Elements.ElementMetadata additionalMetadata =
         BeamFnApi.Elements.ElementMetadata.newBuilder().build();
       ByteString metadata =
