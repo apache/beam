@@ -146,6 +146,37 @@ def get_signature(func):
 
     signature = inspect.Signature(params)
 
+  import typing
+  try:
+    global_namespace = func.__globals__
+
+    #    - Locals: Any free variables or cells (for closures/nested functions)
+    closure_vars = inspect.getclosurevars(func)
+    local_namespace = {
+        **closure_vars.nonlocals,
+        **closure_vars.globals,
+        **closure_vars.builtins
+    }
+    resolved_annotations: Dict[str, Any] = typing.get_type_hints(
+        func, globalns=global_namespace, localns=local_namespace)
+  except NameError as e:
+    print('Failed to resolve type hints for %s' % func, e)
+    pass
+  else:
+    new_parameters = []
+    for name, param in signature.parameters.items():
+      # Look up the resolved annotation for the parameter
+      resolved_annotation = resolved_annotations.get(name, param.annotation)
+
+      # Create a new Parameter object with the resolved annotation
+      new_param = param.replace(annotation=resolved_annotation)
+      new_parameters.append(new_param)
+    # 4. Determine the resolved return annotation
+    resolved_return_annotation = resolved_annotations.get(
+        'return', signature.return_annotation)
+    signature = signature.replace(
+        parameters=new_parameters, return_annotation=resolved_return_annotation)
+
   # This is a specialization to hint the first argument of certain builtins,
   # such as str.strip.
   if isinstance(func, _MethodDescriptorType):

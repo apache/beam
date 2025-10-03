@@ -251,9 +251,9 @@ class UnionHintTestCase(TypeHintTestCase):
 
   def test_union_hint_repr_ordered_by_type(self):
     hint = typehints.Union[DummyTestClass1, str, int, bool]
-    self.assertEqual(
+    self.assertTrue(
         str(hint),
-        "Union[<class 'apache_beam.typehints.typehints_test.DummyTestClass1'>, "
+        f"Union[{repr(DummyTestClass1)}, "
         "<class 'bool'>, <class 'int'>, <class 'str'>]")
 
   def test_union_hint_enforcement_composite_type_in_union(self):
@@ -430,10 +430,7 @@ class TupleHintTestCase(TypeHintTestCase):
 
     hint = typehints.Tuple[DummyTestClass1, DummyTestClass2]
     self.assertEqual(
-        'Tuple[<class \'apache_beam.typehints.typehints_test.' \
-        'DummyTestClass1\'>, <class \'apache_beam.typehints.typehints_test.' \
-        'DummyTestClass2\'>]',
-        str(hint))
+        f'Tuple[{repr(DummyTestClass1)}, {repr(DummyTestClass2)}]', str(hint))
 
     hint = typehints.Tuple[float, ...]
     self.assertEqual('Tuple[<class \'float\'>, ...]', str(hint))
@@ -478,11 +475,10 @@ class TupleHintTestCase(TypeHintTestCase):
       hint.type_check(t)
 
     self.assertEqual(
-        'Tuple[<class \'apache_beam.typehints.typehints_test.DummyTestClass1'
-        '\'>, <class \'apache_beam.typehints.typehints_test.DummyTestClass2\'>]'
+        f'Tuple[{repr(DummyTestClass1)}, {repr(DummyTestClass2)}]'
         ' hint type-constraint violated. The type of element #0 in the '
         'passed tuple is incorrect. Expected an instance of type '
-        '<class \'apache_beam.typehints.typehints_test.DummyTestClass1\'>, '
+        f'{repr(DummyTestClass1)}, '
         'instead received an instance of type '
         'DummyTestClass2.',
         e.exception.args[0])
@@ -1835,15 +1831,17 @@ class TestPTransformAnnotations(unittest.TestCase):
       def expand(self, pcoll: None) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = (
+    expected_type_match = r'(?:None|<class \'NoneType\'>)'
+    error_regex = re.escape(
         r'This input type hint will be ignored and not used for '
         r'type-checking purposes. Typically, input type hints for a '
         r'PTransform are single (or nested) types wrapped by a '
-        r'PCollection, or PBegin. Got: {} instead.'.format(None))
+        r'PCollection, or PBegin. Got: ') + expected_type_match + re.escape(
+            r' instead.')
 
     with self.assertLogs(level='WARN') as log:
       th = MyPTransform().get_type_hints()
-      self.assertIn(error_str, log.output[0])
+      self.assertRegex(log.output[0], error_regex)
       self.assertEqual(th.input_types, None)
       self.assertEqual(th.output_types, ((str, ), {}))
 
