@@ -281,7 +281,7 @@ class JavaJarServer(SubprocessServer):
 
   MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
   MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'  # pylint: disable=line-too-long
-  GOOGLE_MAVEN_MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2'
+  GOOGLE_MAVEN_MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2'  # pylint: disable=line-too-long
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 

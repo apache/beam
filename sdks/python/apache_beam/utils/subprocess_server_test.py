@@ -127,7 +127,8 @@ class JavaJarServerTest(unittest.TestCase):
         self.assertEqual(fin.read(), 'data')
 
   def test_local_jar_fallback_to_google_maven_mirror(self):
-    """Test that Google Maven mirror is used as fallback when Maven Central fails."""
+    """Test that Google Maven mirror is used as fallback 
+    when Maven Central fails."""
     class MavenCentralHandler(socketserver.BaseRequestHandler):
       timeout = 1
 
