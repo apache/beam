@@ -117,7 +117,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
       Collection<? extends BoundedWindow> windows =
           WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
       PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
-      if(WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+      if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
         WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
       }
       if (valueCoder instanceof KvCoder) {

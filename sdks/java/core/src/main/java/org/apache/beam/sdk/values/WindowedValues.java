@@ -847,7 +847,6 @@ public class WindowedValues {
             BeamFnApi.Elements.ElementMetadata.newBuilder();
         BeamFnApi.Elements.ElementMetadata em = builder.build();
         ByteArrayCoder.of().encode(em.toByteArray(), outStream);
-
       }
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }

@@ -114,10 +114,11 @@ public abstract class ValueInSingleWindow<T> {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
       boolean metadataSupported = WindowedValues.WindowedValueCoder.isMetadataSupported();
-      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo().withElementMetadata(metadataSupported), outStream);
-      if(metadataSupported){
+      PaneInfo.PaneInfoCoder.INSTANCE.encode(
+          windowedElem.getPaneInfo().withElementMetadata(metadataSupported), outStream);
+      if (metadataSupported) {
         BeamFnApi.Elements.ElementMetadata.Builder builder =
-          BeamFnApi.Elements.ElementMetadata.newBuilder();
+            BeamFnApi.Elements.ElementMetadata.newBuilder();
         // todo #33176 specify additional metadata in the future
         BeamFnApi.Elements.ElementMetadata metadata = builder.build();
         ByteArrayCoder.of().encode(metadata.toByteArray(), outStream);
@@ -136,7 +137,7 @@ public abstract class ValueInSingleWindow<T> {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
-      if(WindowedValues.WindowedValueCoder.isMetadataSupported() && paneInfo.isElementMetadata()) {
+      if (WindowedValues.WindowedValueCoder.isMetadataSupported() && paneInfo.isElementMetadata()) {
         BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
       }
 

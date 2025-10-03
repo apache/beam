@@ -108,7 +108,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                 Collection<? extends BoundedWindow> windows =
                     WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
                 PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
-                if(WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+                if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
                   WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
                 }
                 InputStream inputStream = message.getData().newInput();

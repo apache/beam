@@ -136,7 +136,7 @@ public class Reify {
       KvCoder<K, V> coder = (KvCoder<K, V>) input.getCoder();
       return input
           .apply(
-            // todo #33176 specify additional metadata in the future
+              // todo #33176 specify additional metadata in the future
               ParDo.of(
                   new DoFn<KV<K, V>, KV<K, ValueInSingleWindow<V>>>() {
                     @ProcessElement

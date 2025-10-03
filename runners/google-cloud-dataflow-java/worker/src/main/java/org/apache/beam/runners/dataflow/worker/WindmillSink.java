@@ -88,7 +88,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
         windowsCoder.encode(windows, stream);
         ByteArrayCoder.of().encode(metadata.toByteArray(), stream, Coder.Context.OUTER);
-      }else {
+      } else {
         PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
         windowsCoder.encode(windows, stream, Coder.Context.OUTER);
       }
@@ -213,9 +213,10 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       ByteString id = ByteString.EMPTY;
       // todo #33176 specify additional metadata in the future
       BeamFnApi.Elements.ElementMetadata additionalMetadata =
-        BeamFnApi.Elements.ElementMetadata.newBuilder().build();
+          BeamFnApi.Elements.ElementMetadata.newBuilder().build();
       ByteString metadata =
-          encodeMetadata(stream, windowsCoder, data.getWindows(), data.getPaneInfo(), additionalMetadata);
+          encodeMetadata(
+              stream, windowsCoder, data.getWindows(), data.getPaneInfo(), additionalMetadata);
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();
