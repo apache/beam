@@ -387,6 +387,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				wk := wks[s.envID]
 				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
+					j.Logger.Error("Bundle Failed.", slog.Any("error", err))
 					em.FailBundle(rb)
 					return err
 				}

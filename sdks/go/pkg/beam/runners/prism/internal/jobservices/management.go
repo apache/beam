@@ -314,6 +314,10 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 }
 
 func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
+	if tpb == nil {
+		return false
+	}
+
 	unsupported := false
 	switch at := tpb.GetTrigger().(type) {
 	// stateless leaf trigger

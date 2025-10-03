@@ -718,9 +718,11 @@ func (t *TriggerAfterProcessingTime) reset(state *StateData) {
 	// Not reaching the end of window yet.
 	// We keep the state (especially the next possible firing time) in case the trigger is called again
 	ts.finished = false
-	s := ts.extra.(afterProcessingTimeState)
-	s.firingTime = t.applyTimestampTransforms(s.emNow) // compute next possible firing time
-	ts.extra = s
+	if ts.extra != nil {
+		s := ts.extra.(afterProcessingTimeState)
+		s.firingTime = t.applyTimestampTransforms(s.emNow) // compute next possible firing time
+		ts.extra = s
+	}
 	state.setTriggerState(t, ts)
 }
 
