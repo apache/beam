@@ -166,7 +166,11 @@ ml_base = [
     'embeddings',
     'onnxruntime',
     'langchain',
-    'sentence-transformers',
+    # sentence-transformers 3.0+ requires transformers 4.34+
+    # which uses Python 3.10+ union syntax
+    # Use 2.x versions for Python 3.9 compatibility with transformers <4.55.0
+    'sentence-transformers>=2.2.2,<3.0.0; python_version < "3.10"',
+    'sentence-transformers>=2.2.2; python_version >= "3.10"',
     'skl2onnx',
     'pillow',
     'pyod',
