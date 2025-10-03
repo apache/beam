@@ -199,7 +199,6 @@ public final class PaneInfo {
   }
 
   /** Factory method to create a {@link PaneInfo} with the specified parameters. */
-  /** Factory method to create a {@link PaneInfo} with the specified parameters. */
   public static PaneInfo createPane(
       boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
     return createPane(isFirst, isLast, timing, index, onTimeIndex, false);

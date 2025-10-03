@@ -30,6 +30,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -81,8 +82,16 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       BeamFnApi.Elements.ElementMetadata metadata)
       throws IOException {
     try {
-      PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
-      windowsCoder.encode(windows, stream, Coder.Context.OUTER);
+      // element metadata is behind the experiment
+      boolean elementMetadata = WindowedValues.WindowedValueCoder.isMetadataSupported();
+      if (elementMetadata) {
+        PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
+        windowsCoder.encode(windows, stream);
+        ByteArrayCoder.of().encode(metadata.toByteArray(), stream, Coder.Context.OUTER);
+      }else {
+        PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
+        windowsCoder.encode(windows, stream, Coder.Context.OUTER);
+      }
       return stream.toByteStringAndReset();
     } catch (Exception e) {
       stream.reset();
@@ -93,10 +102,11 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   public static ByteString encodeMetadata(
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo)
+      PaneInfo paneInfo,
+      BeamFnApi.Elements.ElementMetadata metadata)
       throws IOException {
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    return encodeMetadata(stream, windowsCoder, windows, paneInfo);
+    return encodeMetadata(stream, windowsCoder, windows, paneInfo, metadata);
   }
 
   public static PaneInfo decodeMetadataPane(ByteString metadata) throws IOException {
@@ -110,7 +120,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     InputStream inStream = metadata.newInput();
     PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
     windowsCoder.decode(inStream);
-    if (paneInfo.isElementMetadata() && WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+    if (paneInfo.isElementMetadata()) {
       return BeamFnApi.Elements.ElementMetadata.parseDelimitedFrom(inStream);
     } else {
       // empty
@@ -201,8 +211,11 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
+      // todo - add here all windowedValue metadata
+      BeamFnApi.Elements.ElementMetadata additionalMetadata =
+        BeamFnApi.Elements.ElementMetadata.newBuilder().build();
       ByteString metadata =
-          encodeMetadata(stream, windowsCoder, data.getWindows(), data.getPaneInfo());
+          encodeMetadata(stream, windowsCoder, data.getWindows(), data.getPaneInfo(), additionalMetadata);
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();
