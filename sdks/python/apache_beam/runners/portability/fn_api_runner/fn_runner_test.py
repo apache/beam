@@ -44,7 +44,7 @@ from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
 from tenacity import retry
 from tenacity import stop_after_attempt
-
+from contextlib import contextmanager
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.coders.coders import StrUtf8Coder
