@@ -145,8 +145,8 @@ class JavaExternalTransformTest(object):
             ImplicitSchemaPayloadBuilder({'data': 'middle'}),
             expansion_service)
         | beam.ExternalTransform(TEST_COUNT_URN, None, expansion_service)
-        | "Map(<lambda at external_java.py:148>)" >> beam.Map(
-          lambda kv: '%s: %s' % kv))
+        | "Map(<lambda at external_java.py:148>)" >>
+        beam.Map(lambda kv: '%s: %s' % kv))
 
     assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
 

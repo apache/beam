@@ -2094,4 +2094,5 @@ class WaitOn(PTransform):
             | f"WaitOn{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
         for (ix, side) in enumerate(self._to_be_waited_on)
     ]
-    return pcoll | "Map(<lambda at util.py:1886>)" >> beam.Map(lambda x, *unused_sides: x, *sides)
+    return pcoll | "Map(<lambda at util.py:1886>)" >> beam.Map(
+        lambda x, *unused_sides: x, *sides)
