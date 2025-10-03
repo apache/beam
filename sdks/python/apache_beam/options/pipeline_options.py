@@ -1731,6 +1731,12 @@ class SetupOptions(PipelineOptions):
             'structured like: '
             '--encrypt=type:<secret_type>;<secret_param>:<value>, for example '
             '--encrypt=type:GcpSecret;version_name:my_secret/versions/latest'))
+    parser.add_argument(
+        '--user_agent',
+        default=None,
+        help=(
+            'A user agent string describing the pipeline to external services. '
+            'The format should follow RFC2616.'))
 
   def validate(self, validator):
     errors = []

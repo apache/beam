@@ -829,7 +829,7 @@ class JavaJarExpansionServiceTest(unittest.TestCase):
 
   @mock.patch.object(JavaJarServer, 'local_jar')
   def test_classpath_with_gradle_artifact(self, local_jar):
-    def _side_effect_fn(path):
+    def _side_effect_fn(path, user_agent=None):
       return path[path.rindex('/') + 1:]
 
     local_jar.side_effect = _side_effect_fn
