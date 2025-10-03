@@ -85,7 +85,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       // element metadata is behind the experiment
       boolean elementMetadata = WindowedValues.WindowedValueCoder.isMetadataSupported();
       if (elementMetadata) {
-        PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
+        PaneInfoCoder.INSTANCE.encode(paneInfo.withElementMetadata(elementMetadata), stream);
         windowsCoder.encode(windows, stream);
         ByteArrayCoder.of().encode(metadata.toByteArray(), stream, Coder.Context.OUTER);
       } else {
