@@ -76,7 +76,7 @@ this module defines two functions: 'enable_run_time_type_checking' and
 properly it must appear at the top of the module where all functions are
 defined, or before importing a module containing type-hinted functions.
 """
-
+import functools
 # pytype: skip-file
 
 import inspect
@@ -84,6 +84,7 @@ import itertools
 import logging
 import traceback
 import types
+import typing
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -126,6 +127,15 @@ _ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
 _disable_from_callable = False
 
 
+def _get_type_hints(obj):
+  if isinstance(obj, type):
+    resolved_annotations = typing.get_type_hints(obj.__init__)
+    resolved_annotations['return'] = obj
+  else:
+    resolved_annotations = typing.get_type_hints(obj)
+  return resolved_annotations
+
+
 def get_signature(func):
   """Like inspect.signature(), but supports Py2 as well.
 
@@ -146,13 +156,16 @@ def get_signature(func):
 
     signature = inspect.Signature(params)
 
-  import typing
   try:
     # note(jtran): if the function uses any types defined only in a
     # `if typing.TYPE_CHECKING:` block, this will fail.
-    resolved_annotations: Dict[str, Any] = typing.get_type_hints(func)
+    resolved_annotations: Dict[str, Any] = _get_type_hints(func)
   except NameError:
     pass
+  except TypeError:
+    # Just let functool.partials through.
+    if not isinstance(func, functools.partial):
+      raise
   else:
     new_parameters = []
     for name, param in signature.parameters.items():
@@ -165,6 +178,10 @@ def get_signature(func):
     # 4. Determine the resolved return annotation
     resolved_return_annotation = resolved_annotations.get(
         'return', signature.return_annotation)
+    if resolved_return_annotation is type(None):
+      # For backward compatibility, we just use None to represent the
+      # type of None
+      resolved_return_annotation = None
     signature = signature.replace(
         parameters=new_parameters, return_annotation=resolved_return_annotation)
 

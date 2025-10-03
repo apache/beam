@@ -53,7 +53,7 @@ class IOTypeHintsTest(unittest.TestCase):
   def test_get_signature_builtin(self):
     s = decorators.get_signature(list)
     self.assertListEqual(list(s.parameters), ['iterable'])
-    self.assertEqual(s.return_annotation, List[Any])
+    self.assertEqual(s.return_annotation, list)
 
   def test_from_callable_without_annotations(self):
     def fn(a, b=None, *args, **kwargs):
