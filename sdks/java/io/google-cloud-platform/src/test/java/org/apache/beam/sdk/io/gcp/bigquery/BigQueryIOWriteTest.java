@@ -2717,8 +2717,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Auto-sharding is only applicable to an unbounded PCollection, but the input PCollection is BOUNDED.");
+    thrown.expectMessage("Auto-sharding is only applicable to an unbounded PCollection.");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
@@ -3146,7 +3145,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     for (TableReference ref : tableRefs) {
       loggedWriteRename.verifyDebug("Deleting table " + toJsonString(ref));
-      checkState(datasetService.getTable(ref) == null, "Table " + ref + " was not deleted!");
+      checkState(datasetService.getTable(ref) == null, "Table %s was not deleted!", ref);
     }
   }
 
@@ -4441,5 +4440,30 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
+  }
+
+  @Test
+  public void testCustomGcsTempLocationNull() throws Exception {
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))))
+            .withMethod(Method.FILE_LOADS)
+            .withoutValidation()
+            .withTestServices(fakeBqServices)
+            .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(null));
+
+    p.apply(
+            Create.of(new TableRow().set("name", "a"), new TableRow().set("name", "b"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply("WriteToBQ", write);
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
   }
 }

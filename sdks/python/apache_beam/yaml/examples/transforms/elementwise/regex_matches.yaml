@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# This pipline creates a series of {plant: description} key pairs, matches all
+# This pipeline creates a series of {plant: description} key pairs, matches all
 # elements to a valid regex, filters out non-matching entries, then logs the
 # output.
 pipeline:

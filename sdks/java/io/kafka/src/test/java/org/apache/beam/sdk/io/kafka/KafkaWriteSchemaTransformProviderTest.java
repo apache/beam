@@ -24,9 +24,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
+import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.GenericRecordErrorCounterFn;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
@@ -53,6 +60,8 @@ public class KafkaWriteSchemaTransformProviderTest {
 
   private static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
       KafkaWriteSchemaTransformProvider.OUTPUT_TAG;
+  private static final TupleTag<KV<byte[], GenericRecord>> RECORD_OUTPUT_TAG =
+      KafkaWriteSchemaTransformProvider.RECORD_OUTPUT_TAG;
   private static final TupleTag<Row> ERROR_TAG = KafkaWriteSchemaTransformProvider.ERROR_TAG;
 
   private static final Schema BEAMSCHEMA =
@@ -126,7 +135,8 @@ public class KafkaWriteSchemaTransformProviderTest {
                   getClass().getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
               .getPath(),
           "MyMessage");
-
+  final SerializableFunction<Row, GenericRecord> recordValueMapper =
+      AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(BEAMSCHEMA));
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
@@ -197,6 +207,38 @@ public class KafkaWriteSchemaTransformProviderTest {
           + "  string name = 2;\n"
           + "  bool active = 3;\n"
           + "}";
+
+  @Test
+  public void testKafkaRecordErrorFnSuccess() throws Exception {
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(BEAMSCHEMA);
+
+    GenericRecord record1 = new GenericData.Record(avroSchema);
+    GenericRecord record2 = new GenericData.Record(avroSchema);
+    GenericRecord record3 = new GenericData.Record(avroSchema);
+    record1.put("name", "a");
+    record2.put("name", "b");
+    record3.put("name", "c");
+
+    List<KV<byte[], GenericRecord>> msg =
+        Arrays.asList(
+            KV.of(new byte[1], record1), KV.of(new byte[1], record2), KV.of(new byte[1], record3));
+
+    PCollection<Row> input = p.apply(Create.of(ROWS));
+    Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(
+                    new GenericRecordErrorCounterFn(
+                        "Kafka-write-error-counter", recordValueMapper, errorSchema, true))
+                .withOutputTags(RECORD_OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+    output
+        .get(RECORD_OUTPUT_TAG)
+        .setCoder(KvCoder.of(ByteArrayCoder.of(), AvroCoder.of(avroSchema)));
+    PAssert.that(output.get(RECORD_OUTPUT_TAG)).containsInAnyOrder(msg);
+    p.run().waitUntilFinish();
+  }
 
   @Test
   public void testBuildTransformWithManaged() {

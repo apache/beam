@@ -47,7 +47,7 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
     - name: Build and Load to docker
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v6
       with:
         context: ${{ env.working-directory }}
         load: true
@@ -57,7 +57,7 @@ jobs:
     - name: Push Docker image
       if: github.ref == 'refs/heads/master'
       id: docker_build
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v6
       with:
         context: ${{ env.working-directory }}
         push: true

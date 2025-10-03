@@ -115,14 +115,24 @@ final class ResettableThrowingStreamObserver<T> {
           logger.debug("Stream was shutdown during send.", cancellationException);
           return;
         }
+        if (delegateStreamObserver == delegate) {
+          if (isCurrentStreamClosed) {
+            logger.debug("Stream is already closed when encountering error with send.");
+            return;
+          }
+          isCurrentStreamClosed = true;
+        }
       }
 
+      // Either this was the active observer the current observer that requires closing, or this was
+      // a previous
+      // observer which we attempt to close and ignore possible exceptions.
       try {
         delegate.onError(cancellationException);
       } catch (IllegalStateException onErrorException) {
         // The delegate above was already terminated via onError or onComplete.
-        // Fallthrough since this is possibly due to queued onNext() calls that are being made from
-        // previously blocked threads.
+        // Fallthrough since this is possibly due to queued onNext() calls that are being made
+        // from previously blocked threads.
       } catch (RuntimeException onErrorException) {
         logger.warn(
             "Encountered unexpected error {} when cancelling due to error.",
@@ -134,14 +144,20 @@ final class ResettableThrowingStreamObserver<T> {
 
   public synchronized void onError(Throwable throwable)
       throws StreamClosedException, WindmillStreamShutdownException {
-    delegate().onError(throwable);
-    isCurrentStreamClosed = true;
+    try {
+      delegate().onError(throwable);
+    } finally {
+      isCurrentStreamClosed = true;
+    }
   }
 
   public synchronized void onCompleted()
       throws StreamClosedException, WindmillStreamShutdownException {
-    delegate().onCompleted();
-    isCurrentStreamClosed = true;
+    try {
+      delegate().onCompleted();
+    } finally {
+      isCurrentStreamClosed = true;
+    }
   }
 
   synchronized boolean isClosed() {

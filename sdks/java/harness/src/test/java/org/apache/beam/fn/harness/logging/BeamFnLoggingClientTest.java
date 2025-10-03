@@ -220,8 +220,9 @@ public class BeamFnLoggingClientTest {
               }
             });
       }
-      MDC.put("testMdcKey", "testMdcValue");
-      configuredLogger.log(TEST_RECORD);
+      try (MDC.MDCCloseable ignored = MDC.putCloseable("testMdcKey", "testMdcValue")) {
+        configuredLogger.log(TEST_RECORD);
+      }
 
       client.close();
 

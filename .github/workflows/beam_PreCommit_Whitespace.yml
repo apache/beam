@@ -86,3 +86,8 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :whitespacePreCommit
+      - name: validate CHANGES.md
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :validateChanges
+

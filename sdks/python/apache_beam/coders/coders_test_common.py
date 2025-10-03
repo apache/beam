@@ -59,6 +59,11 @@ try:
 except ImportError:
   dataclasses = None  # type: ignore
 
+try:
+  import dill
+except ImportError:
+  dill = None
+
 MyNamedTuple = collections.namedtuple('A', ['x', 'y'])  # type: ignore[name-match]
 AnotherNamedTuple = collections.namedtuple('AnotherNamedTuple', ['x', 'y'])
 MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
@@ -116,6 +121,7 @@ if dataclasses is not None:
 # These tests need to all be run in the same process due to the asserts
 # in tearDownClass.
 @pytest.mark.no_xdist
+@pytest.mark.uses_dill
 class CodersTest(unittest.TestCase):
 
   # These class methods ensure that we test each defined coder in both
@@ -173,6 +179,9 @@ class CodersTest(unittest.TestCase):
         coders.BigIntegerCoder,  # tested in DecimalCoder
         coders.TimestampPrefixingOpaqueWindowCoder,
     ])
+    if not dill:
+      standard -= set(
+          [coders.DillCoder, coders.DeterministicFastPrimitivesCoder])
     cls.seen_nested -= set(
         [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])
     assert not standard - cls.seen, str(standard - cls.seen)
@@ -241,8 +250,13 @@ class CodersTest(unittest.TestCase):
       param(compat_version="2.67.0"),
   ])
   def test_deterministic_coder(self, compat_version):
+
     typecoders.registry.update_compatibility_version = compat_version
     coder = coders.FastPrimitivesCoder()
+    if not dill and compat_version:
+      with self.assertRaises(RuntimeError):
+        coder.as_deterministic_coder(step_label="step")
+      self.skipTest('Dill not installed')
     deterministic_coder = coder.as_deterministic_coder(step_label="step")
 
     self.check_coder(deterministic_coder, *self.test_values_deterministic)
@@ -321,6 +335,11 @@ class CodersTest(unittest.TestCase):
     coder = coders.MapCoder(
         coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder())
 
+    if not dill and compat_version:
+      with self.assertRaises(RuntimeError):
+        coder.as_deterministic_coder(step_label="step")
+      self.skipTest('Dill not installed')
+
     deterministic_coder = coder.as_deterministic_coder(step_label="step")
 
     assert isinstance(
@@ -331,6 +350,11 @@ class CodersTest(unittest.TestCase):
     self.check_coder(deterministic_coder, *values)
 
   def test_dill_coder(self):
+    if not dill:
+      with self.assertRaises(RuntimeError):
+        coders.DillCoder()
+      self.skipTest('Dill not installed')
+
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
     self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
     self.check_coder(
@@ -661,6 +685,8 @@ class CodersTest(unittest.TestCase):
   def test_cross_process_encoding_of_special_types_is_deterministic(
       self, compat_version):
     """Test cross-process determinism for all special deterministic types"""
+    if compat_version:
+      pytest.importorskip("dill")
 
     if sys.executable is None:
       self.skipTest('No Python interpreter found')
