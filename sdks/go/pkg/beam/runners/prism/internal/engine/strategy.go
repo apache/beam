@@ -727,3 +727,33 @@ func (t *TriggerAfterProcessingTime) reset(state *StateData) {
 func (t *TriggerAfterProcessingTime) String() string {
 	return fmt.Sprintf("AfterProcessingTime[%v]", t.Transforms)
 }
+
+// TriggerAfterSynchronizedProcessingTime is supposed to fires once when processing
+// time across multiple workers synchronizes with the first element's processing time.
+// It is a no-op in the current prism single-node architecture, because we only have
+// one worker/machine. Therefore, the trigger just fires once it receives the data.
+type TriggerAfterSynchronizedProcessingTime struct{}
+
+func (t *TriggerAfterSynchronizedProcessingTime) onElement(triggerInput, *StateData) {}
+
+func (t *TriggerAfterSynchronizedProcessingTime) shouldFire(state *StateData) bool {
+	ts := state.getTriggerState(t)
+	return !ts.finished
+}
+
+func (t *TriggerAfterSynchronizedProcessingTime) onFire(state *StateData) {
+	if !t.shouldFire(state) {
+		return
+	}
+	ts := state.getTriggerState(t)
+	ts.finished = true
+	state.setTriggerState(t, ts)
+}
+
+func (t *TriggerAfterSynchronizedProcessingTime) reset(state *StateData) {
+	delete(state.Trigger, t)
+}
+
+func (t *TriggerAfterSynchronizedProcessingTime) String() string {
+	return "AfterSynchronizedProcessingTime"
+}

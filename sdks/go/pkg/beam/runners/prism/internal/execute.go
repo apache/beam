@@ -37,7 +37,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -498,7 +497,7 @@ func buildTrigger(tpb *pipepb.Trigger) engine.Trigger {
 			Transforms: transforms,
 		}
 	case *pipepb.Trigger_AfterSynchronizedProcessingTime_:
-		panic(fmt.Sprintf("unsupported trigger: %v", prototext.Format(tpb)))
+		return &engine.TriggerAfterSynchronizedProcessingTime{}
 	default:
 		return &engine.TriggerDefault{}
 	}
