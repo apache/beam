@@ -316,7 +316,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
 	unsupported := false
 	switch at := tpb.GetTrigger().(type) {
-	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+	case *pipepb.Trigger_AfterSynchronizedProcessingTime_:
 		return true
 	case *pipepb.Trigger_AfterAll_:
 		for _, st := range at.AfterAll.GetSubtriggers() {
