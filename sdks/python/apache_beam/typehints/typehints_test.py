@@ -561,9 +561,7 @@ class ListHintTestCase(TypeHintTestCase):
   def test_list_repr(self):
     hint = (typehints.List[typehints.Tuple[DummyTestClass1, DummyTestClass2]])
     self.assertEqual(
-        'List[Tuple[<class \'apache_beam.typehints.typehints_test.'
-        'DummyTestClass1\'>, <class \'apache_beam.typehints.typehints_test.'
-        'DummyTestClass2\'>]]',
+        f'List[Tuple[{repr(DummyTestClass1)}, {repr(DummyTestClass2)}]]',
         repr(hint))
 
   def test_enforce_list_type_constraint_valid_simple_type(self):

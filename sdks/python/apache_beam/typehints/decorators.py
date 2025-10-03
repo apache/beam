@@ -148,19 +148,10 @@ def get_signature(func):
 
   import typing
   try:
-    global_namespace = func.__globals__
-
-    #    - Locals: Any free variables or cells (for closures/nested functions)
-    closure_vars = inspect.getclosurevars(func)
-    local_namespace = {
-        **closure_vars.nonlocals,
-        **closure_vars.globals,
-        **closure_vars.builtins
-    }
-    resolved_annotations: Dict[str, Any] = typing.get_type_hints(
-        func, globalns=global_namespace, localns=local_namespace)
-  except NameError as e:
-    print('Failed to resolve type hints for %s' % func, e)
+    # note(jtran): if the function uses any types defined only in a
+    # `if typing.TYPE_CHECKING:` block, this will fail.
+    resolved_annotations: Dict[str, Any] = typing.get_type_hints(func)
+  except NameError:
     pass
   else:
     new_parameters = []
@@ -370,7 +361,7 @@ class IOTypeHints(NamedTuple):
                 strip_pcoll_helper(self.output_types,
                                    self.has_simple_output_type,
                                    'output_types',
-                                   [PDone, None],
+                                   [PDone, None, type(None)],
                                    'This output type hint will be ignored '
                                    'and not used for type-checking purposes. '
                                    'Typically, output type hints for a '
