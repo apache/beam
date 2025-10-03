@@ -2352,10 +2352,10 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
             return pcoll
 
       input_count_view = pcoll | 'CountTotal' >> (
-          MaybeWindow() | Map(lambda _: 1)
+          MaybeWindow() | "Map(<lambda at core.py:2346>)" >> Map(lambda _: 1)
           | CombineGlobally(sum).as_singleton_view())
       bad_count_pcoll = result[self._dead_letter_tag] | 'CountBad' >> (
-          MaybeWindow() | Map(lambda _: 1)
+          MaybeWindow() | "Map(<lambda at core.py:2349>)" >> Map(lambda _: 1)
           | CombineGlobally(sum).without_defaults())
 
       def check_threshold(bad, total, threshold, window=DoFn.WindowParam):
@@ -3521,7 +3521,8 @@ class GroupBy(PTransform):
     input_type = pcoll.element_type or typing.Any
     return (
         pcoll
-        | Map(lambda x: (self._key_func()(x), x)).with_output_types(
+        | "Map(<lambda at core.py:3503>)" >>
+        Map(lambda x: (self._key_func()(x), x)).with_output_types(
             typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
@@ -3578,7 +3579,8 @@ class _GroupAndAggregate(PTransform):
 
     return (
         pcoll
-        | Map(lambda x: (key_func(x), value_func(x))).with_output_types(
+        | "Map(<lambda at core.py:3560>)" >>
+        Map(lambda x: (key_func(x), value_func(x))).with_output_types(
             typehints.Tuple[key_type_hint, typing.Any])
         | CombinePerKey(
             TupleCombineFn(
@@ -3599,7 +3601,7 @@ class Select(PTransform):
 
   is the same as
 
-      pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
+      pcoll | 'label' >> beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
   def __init__(
       self,
@@ -3622,7 +3624,8 @@ class Select(PTransform):
 
   def expand(self, pcoll):
     return (
-        _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
+        _MaybePValueWithErrors(pcoll, self._exception_handling_args)
+        | "Map(<lambda at core.py:3604>)" >> Map(
             lambda x: pvalue.Row(
                 **{
                     name: expr(x)
