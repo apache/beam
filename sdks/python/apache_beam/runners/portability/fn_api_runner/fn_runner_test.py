@@ -18,11 +18,8 @@
 
 import collections
 import gc
-import hamcrest  # pylint: disable=ungrouped-imports
 import logging
-import numpy as np
 import os
-import pytest
 import random
 import re
 import shutil
@@ -34,10 +31,14 @@ import typing
 import unittest
 import uuid
 from contextlib import contextmanager
+from typing import Any, Dict, Iterator, List, Tuple, no_type_check
+
+import hamcrest  # pylint: disable=ungrouped-imports
+import numpy as np
+import pytest
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
 from tenacity import retry, stop_after_attempt
-from typing import Any, Dict, Iterator, List, Tuple, no_type_check
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -47,8 +48,9 @@ from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.options.pipeline_options import (
-    DebugOptions, DirectOptions, PipelineOptions, StandardOptions)
+from apache_beam.options.pipeline_options import (DebugOptions, DirectOptions,
+                                                  PipelineOptions,
+                                                  StandardOptions)
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import fn_api_runner
