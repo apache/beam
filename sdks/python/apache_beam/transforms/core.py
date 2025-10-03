@@ -4138,8 +4138,7 @@ class Create(PTransform):
         | "FlatMap(<lambda at core.py:4094>)" >>
         FlatMap(lambda _: serialized_values).with_output_types(bytes)
         | MaybeReshuffle().with_output_types(bytes)
-        | "Map(<lambda at core.py:4096>)" >> Map(
-            self._coder.decode).with_output_types(self.get_output_type()))
+        | Map(self._coder.decode).with_output_types(self.get_output_type()))
 
   def as_read(self):
     from apache_beam.io import iobase
