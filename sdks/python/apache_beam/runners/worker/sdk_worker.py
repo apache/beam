@@ -568,6 +568,7 @@ class BundleProcessorCache(object):
 
     # Perform the shutdown while not holding the lock.
     processor.shutdown()
+    self.data_channel_factory.cleanup(instruction_id)
 
   def release(self, instruction_id):
     # type: (str) -> None

@@ -502,7 +502,7 @@ class _GrpcDataChannel(DataChannel):
     instruction_id cannot be reused for new queue.
     """
     with self._receive_lock:
-      self._received.pop(instruction_id)
+      self._received.pop(instruction_id, None)
       self._cleaned_instruction_ids[instruction_id] = True
       while len(self._cleaned_instruction_ids) > _MAX_CLEANED_INSTRUCTIONS:
         self._cleaned_instruction_ids.popitem(last=False)
@@ -787,6 +787,12 @@ class DataChannelFactory(metaclass=abc.ABCMeta):
     """Close all channels that this factory owns."""
     raise NotImplementedError(type(self))
 
+  def cleanup(self, instruction_id):
+    # type: (str) -> None
+
+    """Clean up resources for a given instruction."""
+    pass
+
 
 class GrpcClientDataChannelFactory(DataChannelFactory):
   """A factory for ``GrpcClientDataChannel``.
@@ -854,6 +860,11 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
     for _, channel in self._data_channel_cache.items():
       channel.close()
     self._data_channel_cache.clear()
+
+  def cleanup(self, instruction_id):
+    # type: (str) -> None
+    for channel in self._data_channel_cache.values():
+      channel._clean_receiving_queue(instruction_id)
 
 
 class InMemoryDataChannelFactory(DataChannelFactory):
