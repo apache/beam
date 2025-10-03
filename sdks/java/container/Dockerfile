@@ -30,6 +30,8 @@ ADD target/jcl-over-slf4j.jar /opt/apache/beam/jars/
 ADD target/log4j-over-slf4j.jar /opt/apache/beam/jars/
 ADD target/log4j-to-slf4j.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
+ADD target/opentelemetry-gcp-auth-extension.jar /opt/opentelemetry/extensions/gcp-auth/
+ADD target/opentelemetry-javaagent.jar /opt/apache/beam/jars/
 
 # Required to use jamm as a javaagent to get accurate object size measuring
 # COPY fails if file is not found, so use a wildcard for open-module-agent.jar
