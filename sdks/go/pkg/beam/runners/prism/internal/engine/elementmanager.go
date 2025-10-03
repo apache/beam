@@ -384,6 +384,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 		defer func() {
 			// In case of panics in bundle generation, fail and cancel the job.
 			if e := recover(); e != nil {
+				slog.Error("panic in ElementManager.Bundles watermark evaluation goroutine", "error", e, "traceback", string(debug.Stack()))
 				upstreamCancelFn(fmt.Errorf("panic in ElementManager.Bundles watermark evaluation goroutine: %v\n%v", e, string(debug.Stack())))
 			}
 		}()
@@ -1366,7 +1367,9 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 				// TODO: how to deal with watermark holds for this implicit processing time timer
 				// ss.watermarkHolds.Add(timer.holdTimestamp, 1)
 				ss.processingTimeTimers.Persist(firingTime, timer, notYetHolds)
+				em.refreshCond.L.Lock()
 				em.processTimeEvents.Schedule(firingTime, ss.ID)
+				em.refreshCond.L.Unlock()
 				em.wakeUpAt(firingTime)
 			}
 		}
@@ -1566,6 +1569,13 @@ func (ss *stageState) savePanes(bundID string, panesInBundle []bundlePane) {
 func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win typex.Window) ([]element, int) {
 	var toProcess []element
 	dnt := ss.pendingByKeys[key]
+	if dnt == nil {
+		// If we set an after-processing-time trigger, but some other triggers fire or
+		// the end of window is reached before the first trigger could fire, then
+		// the pending elements are processed in other bundles, leaving a nil when
+		// we try to build this triggered bundle.
+		return toProcess, 0
+	}
 	var notYet []element
 
 	// Look at all elements for this key, and only for this window.
