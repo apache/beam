@@ -581,7 +581,11 @@ if __name__ == '__main__':
           'torch': ['torch>=1.9.0,<2.8.0'],
           'tensorflow': ['tensorflow>=2.12rc1,<2.21'],
           'transformers': [
-              'transformers>=4.28.0,<4.56.0',
+              # Restrict transformers to <4.55.0 for Python 3.9 compatibility
+              # Versions 4.55.0+ use Python 3.10+ union syntax (int | None)
+              # which causes TypeError on Python 3.9
+              'transformers>=4.28.0,<4.55.0; python_version < "3.10"',
+              'transformers>=4.28.0,<4.56.0; python_version >= "3.10"',
               'tensorflow>=2.12.0',
               'torch>=1.9.0'
           ],
