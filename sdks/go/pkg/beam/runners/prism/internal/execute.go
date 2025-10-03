@@ -37,7 +37,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -388,6 +387,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				wk := wks[s.envID]
 				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
+					j.Logger.Error("Bundle Failed.", slog.Any("error", err))
 					em.FailBundle(rb)
 					return err
 				}
@@ -498,7 +498,7 @@ func buildTrigger(tpb *pipepb.Trigger) engine.Trigger {
 			Transforms: transforms,
 		}
 	case *pipepb.Trigger_AfterSynchronizedProcessingTime_:
-		panic(fmt.Sprintf("unsupported trigger: %v", prototext.Format(tpb)))
+		return &engine.TriggerAfterSynchronizedProcessingTime{}
 	default:
 		return &engine.TriggerDefault{}
 	}
