@@ -1397,7 +1397,7 @@ def WithKeys(pcoll, k, *args, **kwargs):
         # changed without breaking update compat. Here, we pin to the transform
         # name used in the 2.68 release to avoid breaking changes when the line
         # number changes. Context: https://github.com/apache/beam/pull/36381
-        return pcoll | "Map(<lambda at util.py:1188>)" >> Map(
+        return pcoll | "Map(<lambda at util.py:1189>)" >> Map(
             lambda v, *args, **kwargs: (k(v, *args, **kwargs), v),
             *args,
             **kwargs)
@@ -1488,7 +1488,7 @@ class GroupIntoBatches(PTransform):
       # changed without breaking update compat. Here, we pin to the transform
       # name used in the 2.68 release to avoid breaking changes when the line
       # number changes. Context: https://github.com/apache/beam/pull/36381
-      sharded_pcoll = pcoll | "Map(<lambda at util.py:1274>)" >> Map(
+      sharded_pcoll = pcoll | "Map(<lambda at util.py:1275>)" >> Map(
           lambda key_value: (
               ShardedKey(
                   key_value[0],

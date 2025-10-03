@@ -3641,7 +3641,7 @@ class Select(PTransform):
     # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         _MaybePValueWithErrors(pcoll, self._exception_handling_args)
-        | "Map(<lambda at core.py:3604>)" >> Map(
+        | "Map(<lambda at core.py:3605>)" >> Map(
             lambda x: pvalue.Row(
                 **{
                     name: expr(x)
