@@ -145,6 +145,10 @@ class JavaExternalTransformTest(object):
             ImplicitSchemaPayloadBuilder({'data': 'middle'}),
             expansion_service)
         | beam.ExternalTransform(TEST_COUNT_URN, None, expansion_service)
+        # Map(lambda) produces a label formatted like this, but it cannot be
+        # changed without breaking update compat. Here, we pin to the transform
+        # name used in the 2.68 release to avoid breaking changes when the line
+        # number changes. Context: https://github.com/apache/beam/pull/36381
         | "Map(<lambda at external_java.py:148>)" >>
         beam.Map(lambda kv: '%s: %s' % kv))
 

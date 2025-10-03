@@ -1393,6 +1393,10 @@ def WithKeys(pcoll, k, *args, **kwargs):
       if all(isinstance(arg, AsSideInput)
              for arg in args) and all(isinstance(kwarg, AsSideInput)
                                       for kwarg in kwargs.values()):
+        # Map(lambda) produces a label formatted like this, but it cannot be
+        # changed without breaking update compat. Here, we pin to the transform
+        # name used in the 2.68 release to avoid breaking changes when the line
+        # number changes. Context: https://github.com/apache/beam/pull/36381
         return pcoll | "Map(<lambda at util.py:1188>)" >> Map(
             lambda v, *args, **kwargs: (k(v, *args, **kwargs), v),
             *args,
@@ -1480,6 +1484,10 @@ class GroupIntoBatches(PTransform):
 
     def expand(self, pcoll):
       key_type, value_type = pcoll.element_type.tuple_types
+      # Map(lambda) produces a label formatted like this, but it cannot be
+      # changed without breaking update compat. Here, we pin to the transform
+      # name used in the 2.68 release to avoid breaking changes when the line
+      # number changes. Context: https://github.com/apache/beam/pull/36381
       sharded_pcoll = pcoll | "Map(<lambda at util.py:1274>)" >> Map(
           lambda key_value: (
               ShardedKey(
@@ -1985,6 +1993,10 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return pcoll | "Map(<lambda at util.py:1779>)" >> Map(
         lambda elem: regex.sub(replacement, elem))
 
@@ -2002,6 +2014,10 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return pcoll | "Map(<lambda at util.py:1795>)" >> Map(
         lambda elem: regex.sub(replacement, elem, 1))
 
@@ -2094,5 +2110,9 @@ class WaitOn(PTransform):
             | f"WaitOn{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
         for (ix, side) in enumerate(self._to_be_waited_on)
     ]
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return pcoll | "Map(<lambda at util.py:1886>)" >> beam.Map(
         lambda x, *unused_sides: x, *sides)
