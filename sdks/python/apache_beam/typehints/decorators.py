@@ -157,10 +157,10 @@ def get_signature(func):
     signature = inspect.Signature(params)
 
   try:
-    # note(jtran): if the function uses any types defined only in a
-    # `if typing.TYPE_CHECKING:` block, this will fail.
     resolved_annotations: Dict[str, Any] = _get_type_hints(func)
   except NameError:
+    # note(jtran): if the function uses any types defined only in a
+    # `if typing.TYPE_CHECKING:` block, we'll get a NameError
     pass
   except TypeError:
     # Just let functool.partials through.
