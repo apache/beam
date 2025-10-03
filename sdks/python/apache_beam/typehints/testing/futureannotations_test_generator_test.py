@@ -19,13 +19,15 @@ import unittest
 
 from apache_beam.typehints import decorators_test
 from apache_beam.typehints import typehints_test
-from apache_beam.typehints.testing import typehints_test_generator
+from apache_beam.typehints.testing import futureannotations_test_generator
 
 
 class TestTypehintTestsInSync(unittest.TestCase):
   def test_generated_file_is_up_to_date(self):
-    typehints_test_generator.check_generated_file(typehints_test.__file__)
-    typehints_test_generator.check_generated_file(decorators_test.__file__)
+    futureannotations_test_generator.check_generated_file(
+        typehints_test.__file__)
+    futureannotations_test_generator.check_generated_file(
+        decorators_test.__file__)
 
 
 if __name__ == '__main__':
