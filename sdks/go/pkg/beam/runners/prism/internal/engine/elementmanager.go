@@ -1366,7 +1366,9 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 				// TODO: how to deal with watermark holds for this implicit processing time timer
 				// ss.watermarkHolds.Add(timer.holdTimestamp, 1)
 				ss.processingTimeTimers.Persist(firingTime, timer, notYetHolds)
+				em.refreshCond.L.Lock()
 				em.processTimeEvents.Schedule(firingTime, ss.ID)
+				em.refreshCond.L.Unlock()
 				em.wakeUpAt(firingTime)
 			}
 		}
