@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import java.util.Arrays;
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
@@ -141,6 +142,7 @@ public class GroupByEncryptedKey<K, V>
     private final Coder<V> valueCoder;
     private transient Mac mac;
     private transient Cipher cipher;
+    private transient SecretKeySpec secretKeySpec;
 
     EncryptMessage(Secret hmacKey, Coder<K> keyCoder, Coder<V> valueCoder) {
       this.hmacKey = hmacKey;
@@ -151,11 +153,11 @@ public class GroupByEncryptedKey<K, V>
     @Setup
     public void setup() {
       try {
+        byte[] secretBytes = this.hmacKey.getSecretBytes();
         this.mac = Mac.getInstance("HmacSHA256");
-        this.mac.init(new SecretKeySpec(this.hmacKey.getSecretBytes(), "HmacSHA256"));
-        this.cipher = Cipher.getInstance("AES");
-        this.cipher.init(
-            Cipher.ENCRYPT_MODE, new SecretKeySpec(this.hmacKey.getSecretBytes(), "AES"));
+        this.mac.init(new SecretKeySpec(secretBytes, "HmacSHA256"));
+        this.cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        this.secretKeySpec = new SecretKeySpec(secretBytes, "AES");
       } catch (Exception ex) {
         throw new RuntimeException(
             "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);
@@ -168,10 +170,25 @@ public class GroupByEncryptedKey<K, V>
       byte[] encodedValue = encode(this.valueCoder, c.element().getValue());
 
       byte[] hmac = this.mac.doFinal(encodedKey);
+
+      byte[] keyIv = new byte[12];
+      byte[] valueIv = new byte[12];
+      java.security.SecureRandom generator = new java.security.SecureRandom();
+      generator.nextBytes(keyIv);
+      generator.nextBytes(valueIv);
+      GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, keyIv);
+      this.cipher.init(Cipher.ENCRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
       byte[] encryptedKey = this.cipher.doFinal(encodedKey);
+      gcmParameterSpec = new GCMParameterSpec(128, valueIv);
+      this.cipher.init(Cipher.ENCRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
       byte[] encryptedValue = this.cipher.doFinal(encodedValue);
 
-      c.output(KV.of(hmac, KV.of(encryptedKey, encryptedValue)));
+      c.output(
+          KV.of(
+              hmac,
+              KV.of(
+                  com.google.common.primitives.Bytes.concat(keyIv, encryptedKey),
+                  com.google.common.primitives.Bytes.concat(valueIv, encryptedValue))));
     }
 
     private <T> byte[] encode(Coder<T> coder, T value) throws Exception {
@@ -200,6 +217,7 @@ public class GroupByEncryptedKey<K, V>
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
     private transient Cipher cipher;
+    private transient SecretKeySpec secretKeySpec;
 
     DecryptMessage(Secret hmacKey, Coder<K> keyCoder, Coder<V> valueCoder) {
       this.hmacKey = hmacKey;
@@ -210,9 +228,8 @@ public class GroupByEncryptedKey<K, V>
     @Setup
     public void setup() {
       try {
-        this.cipher = Cipher.getInstance("AES");
-        this.cipher.init(
-            Cipher.DECRYPT_MODE, new SecretKeySpec(this.hmacKey.getSecretBytes(), "AES"));
+        this.cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        this.secretKeySpec = new SecretKeySpec(this.hmacKey.getSecretBytes(), "AES");
       } catch (Exception ex) {
         throw new RuntimeException(
             "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);
@@ -223,14 +240,27 @@ public class GroupByEncryptedKey<K, V>
     public void processElement(ProcessContext c) throws Exception {
       java.util.Map<K, java.util.List<V>> decryptedKvs = new java.util.HashMap<>();
       for (KV<byte[], byte[]> encryptedKv : c.element().getValue()) {
-        byte[] decryptedKeyBytes = this.cipher.doFinal(encryptedKv.getKey());
+        byte[] iv = Arrays.copyOfRange(encryptedKv.getKey(), 0, 12);
+        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
+        this.cipher.init(Cipher.DECRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
+
+        byte[] encryptedKey =
+            Arrays.copyOfRange(encryptedKv.getKey(), 12, encryptedKv.getKey().length);
+        byte[] decryptedKeyBytes = this.cipher.doFinal(encryptedKey);
         K key = decode(this.keyCoder, decryptedKeyBytes);
 
         if (key != null) {
           if (!decryptedKvs.containsKey(key)) {
             decryptedKvs.put(key, new java.util.ArrayList<>());
           }
-          byte[] decryptedValueBytes = this.cipher.doFinal(encryptedKv.getValue());
+
+          iv = Arrays.copyOfRange(encryptedKv.getValue(), 0, 12);
+          gcmParameterSpec = new GCMParameterSpec(128, iv);
+          this.cipher.init(Cipher.DECRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
+
+          byte[] encryptedValue =
+              Arrays.copyOfRange(encryptedKv.getValue(), 12, encryptedKv.getValue().length);
+          byte[] decryptedValueBytes = this.cipher.doFinal(encryptedValue);
           V value = decode(this.valueCoder, decryptedValueBytes);
           decryptedKvs.get(key).add(value);
         } else {
