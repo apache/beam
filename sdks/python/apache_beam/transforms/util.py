@@ -357,7 +357,7 @@ class Secret():
       param_map[parts[0]] = parts[1]
 
     if 'type' not in param_map:
-      raise RuntimeError('Secret string must contain a valid type parameter')
+      raise ValueError('Secret string must contain a valid type parameter')
 
     secret_type = param_map['type'].lower()
     del param_map['type']
@@ -367,13 +367,13 @@ class Secret():
       secret_class = GcpSecret
       secret_params = ['version_name']
     else:
-      raise RuntimeError(
+      raise ValueError(
           f'Invalid secret type {secret_type}, currently only '
           'GcpSecret is supported')
 
     for param_name in param_map.keys():
       if param_name not in secret_params:
-        raise RuntimeError(
+        raise ValueError(
             f'Invalid secret parameter {param_name}, '
             f'{secret_type} only supports the following '
             f'parameters: {secret_params}')

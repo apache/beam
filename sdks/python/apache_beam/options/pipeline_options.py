@@ -1729,8 +1729,8 @@ class SetupOptions(PipelineOptions):
             'not unencrypted. Runners with this behavior include the '
             'Dataflow, Flink, and Spark runners. The option should be '
             'structured like: '
-            '--encrypt=type:<secret_type>;<secret_param>:<value>, for example '
-            '--encrypt=type:GcpSecret;version_name:my_secret/versions/latest'))
+            '--gbek=type:<secret_type>;<secret_param>:<value>, for example '
+            '--gbek=type:GcpSecret;version_name:my_secret/versions/latest'))
     parser.add_argument(
         '--user_agent',
         default=None,
