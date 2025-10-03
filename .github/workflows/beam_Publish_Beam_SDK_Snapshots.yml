@@ -67,10 +67,12 @@ jobs:
           - "python:container:py310:docker"
           - "python:container:py311:docker"
           - "python:container:py312:docker"
+          - "python:container:py313:docker"
           - "python:container:distroless:py39:docker"
           - "python:container:distroless:py310:docker"
           - "python:container:distroless:py311:docker"
           - "python:container:distroless:py312:docker"
+          - "python:container:distroless:py313:docker"
           - "java:expansion-service:container:docker"
     steps:
       - uses: actions/checkout@v4
