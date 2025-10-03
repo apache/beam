@@ -1570,6 +1570,10 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win t
 	var toProcess []element
 	dnt := ss.pendingByKeys[key]
 	if dnt == nil {
+		// If we set an after-processing-time trigger, but some other triggers fire or
+		// the end of window is reached before the first trigger could fire, then
+		// the pending elements are processed in other bundles, leaving a nil when
+		// we try to build this triggered bundle.
 		return toProcess, 0
 	}
 	var notYet []element
