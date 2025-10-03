@@ -45,7 +45,6 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
   private final TimestampCombiner timestampCombiner;
   private final StateNamespace namespace;
-  private final StateTag<WatermarkHoldState> address;
   private final ByteString stateKey;
   private final String stateFamily;
 
@@ -62,12 +61,12 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
   WindmillWatermarkHold(
       StateNamespace namespace,
       StateTag<WatermarkHoldState> address,
+      ByteString encodeKey,
       String stateFamily,
       TimestampCombiner timestampCombiner,
       boolean isNewKey) {
     this.namespace = namespace;
-    this.address = address;
-    this.stateKey = encodeKey(namespace, address);
+    this.stateKey = encodeKey;
     this.stateFamily = stateFamily;
     this.timestampCombiner = timestampCombiner;
     if (isNewKey) {
@@ -182,7 +181,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
           cleared = false;
           localAdditions = null;
           if (cachedValue != null) {
-            cache.put(namespace, address, WindmillWatermarkHold.this, estimatedByteSize);
+            cache.put(namespace, stateKey, WindmillWatermarkHold.this, estimatedByteSize);
           }
           return result1;
         });
