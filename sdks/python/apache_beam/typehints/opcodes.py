@@ -36,6 +36,7 @@ import types
 from functools import reduce
 
 from apache_beam.typehints import row_type
+from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
@@ -425,6 +426,29 @@ def load_attr(state, arg):
   state.stack.append(_getattr(o, name))
 
 
+def _isproperty(o, name):
+  """Returns true if `name` is a property of `o`."""
+  for cls in inspect.getmro(o if inspect.isclass(o) else type(o)):
+    if name in cls.__dict__:
+      return isinstance(cls.__dict__[name], property)
+  return False
+
+
+def _getprop_returnanno(o, name):
+  """Returns the fget function of property `name` of `o`, or None."""
+  for cls in inspect.getmro(o if inspect.isclass(o) else type(o)):
+    if name not in cls.__dict__:
+      continue
+    prop = cls.__dict__[name]
+    if isinstance(prop, property):
+      anno = prop.fget.__annotations__.get('return', None)
+      if anno is None:
+        return trivial_inference.infer_return_type_func(prop.fget, [o])
+      else:
+        return anno
+  return None
+
+
 def _getattr(o, name):
   if isinstance(o, Const) and hasattr(o.value, name):
     return Const(getattr(o.value, name))
@@ -434,6 +458,8 @@ def _getattr(o, name):
     # TODO(luke-zhu): Support other callable objects
     func = getattr(o, name)  # Python 3 has no unbound methods
     return Const(BoundMethod(func, o))
+  elif _isproperty(o, name):
+    return _getprop_returnanno(o, name)
   elif isinstance(o, row_type.RowTypeConstraint):
     return o.get_type_for(name)
   else:
