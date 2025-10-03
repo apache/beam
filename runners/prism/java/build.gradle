@@ -86,9 +86,8 @@ def sickbayTests = [
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedStringSetMetrics',
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics',
 
-    // negative WaitGroup counter when failing bundle
+    // Instead of 42, Prism got 84, which suggests two early panes of 42 are fired.
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-    'org.apache.beam.sdk.testing.TestStreamTest.testEarlyPanesOfWindow',
 
     // A regression introduced when we use number of pending elements rather than watermark to determine
     // the bundle readiness of a stateless stage.
