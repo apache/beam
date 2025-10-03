@@ -30,21 +30,16 @@ import traceback
 import typing
 import unittest
 import uuid
-from typing import Any
-from typing import Dict
-from typing import Iterator
-from typing import List
-from typing import Tuple
-from typing import no_type_check
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator, List, Tuple, no_type_check
 
 import hamcrest  # pylint: disable=ungrouped-imports
 import numpy as np
 import pytest
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
-from tenacity import retry
-from tenacity import stop_after_attempt
-from contextlib import contextmanager
+from tenacity import retry, stop_after_attempt
+
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.coders.coders import StrUtf8Coder
@@ -53,31 +48,22 @@ from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import DirectOptions
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import (
+    DebugOptions, DirectOptions, PipelineOptions, StandardOptions)
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import python_urns
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
-from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker import data_plane, statesampler
 from apache_beam.runners.worker.operations import InefficientExecutionWarning
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import has_at_least_one
+from apache_beam.testing.util import assert_that, equal_to, has_at_least_one
 from apache_beam.tools import utils
-from apache_beam.transforms import environments
-from apache_beam.transforms import trigger
-from apache_beam.transforms import userstate
-from apache_beam.transforms import window
+from apache_beam.transforms import environments, trigger, userstate, window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
-from apache_beam.utils import timestamp
-from apache_beam.utils import windowed_value
+from apache_beam.utils import timestamp, windowed_value
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
