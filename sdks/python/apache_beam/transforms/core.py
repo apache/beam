@@ -39,6 +39,7 @@ from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -3324,6 +3325,10 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
+  def __init__(self):
+    self._replaced_by_gbek = False
+    self._inside_gbek = False
+
   class ReifyWindows(DoFn):
     def process(
         self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
@@ -3341,7 +3346,29 @@ class GroupByKey(PTransform):
       return typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
 
+  def get_windowing(self, inputs):
+    # Switch to the continuation trigger associated with the current trigger.
+    windowing = inputs[0].windowing
+    triggerfn = windowing.triggerfn.get_continuation_trigger()
+    return Windowing(
+        windowfn=windowing.windowfn,
+        triggerfn=triggerfn,
+        accumulation_mode=windowing.accumulation_mode,
+        timestamp_combiner=windowing.timestamp_combiner,
+        allowed_lateness=windowing.allowed_lateness,
+        environment_id=windowing.environment_id)
+
   def expand(self, pcoll):
+    replace_with_gbek_secret = (
+        pcoll.pipeline._options.view_as(SetupOptions).gbek)
+    if replace_with_gbek_secret is not None and not self._inside_gbek:
+      self._replaced_by_gbek = True
+      from apache_beam.transforms.util import GroupByEncryptedKey
+      from apache_beam.transforms.util import Secret
+
+      secret = Secret.parse_secret_option(replace_with_gbek_secret)
+      return (pcoll | "Group by encrypted key" >> GroupByEncryptedKey(secret))
+
     from apache_beam.transforms.trigger import DataLossReason
     from apache_beam.transforms.trigger import DefaultTrigger
     windowing = pcoll.windowing
@@ -3388,7 +3415,11 @@ class GroupByKey(PTransform):
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> typing.Tuple[str, None]
+    # type: (PipelineContext) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
+    # if we're containing a GroupByEncryptedKey, don't allow runners to
+    # recognize this transform as a GBEK so that it doesn't get replaced.
+    if self._replaced_by_gbek:
+      return super().to_runner_api_parameter(unused_context)
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @staticmethod
