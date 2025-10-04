@@ -2764,7 +2764,8 @@ class StorageWriteToBigQuery(PTransform):
 
   class ConvertToBeamRows(PTransform):
     def __init__(self, schema, dynamic_destinations):
-      if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+      if not isinstance(schema,
+                        (bigquery.TableSchema, bigquery.TableFieldSchema)):
         schema = bigquery_tools.get_bq_tableschema(schema)
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
