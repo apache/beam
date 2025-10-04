@@ -184,6 +184,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                 public void processElement(
                     @Element KV<K, ValueInSingleWindow<V>> kv,
                     OutputReceiver<KV<K, V>> outputReceiver) {
+                  // todo #33176 specify additional metadata in the future
                   outputReceiver
                       .builder(KV.of(kv.getKey(), kv.getValue().getValue()))
                       .setTimestamp(kv.getValue().getTimestamp())
