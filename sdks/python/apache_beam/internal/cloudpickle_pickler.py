@@ -36,11 +36,15 @@ import threading
 import zlib
 
 from apache_beam.internal.cloudpickle import cloudpickle
+from apache_beam.internal import code_object_pickler
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
-    skip_reset_dynamic_type_state=True)
+    skip_reset_dynamic_type_state=True,
+    enable_stable_function_identifiers=False)
 NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
     id_generator=None, skip_reset_dynamic_type_state=True)
+STABLE_CODE_IDENTIFIER_PICKLING_CONFIG = cloudpickle.CloudPickleConfig(
+  get_code_object_identifier=code_object_pickler.get_code_object_identifier)
 
 try:
   from absl import flags
@@ -119,6 +123,7 @@ def dumps(
     enable_trace=True,
     use_zlib=False,
     enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   if enable_best_effort_determinism:
@@ -129,6 +134,8 @@ def dumps(
         'This has only been implemented for dill.')
   with _pickle_lock:
     with io.BytesIO() as file:
+      if enable_stable_code_identifier_pickling:
+        config = STABLE_CODE_IDENTIFIER_PICKLING_CONFIG
       pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
