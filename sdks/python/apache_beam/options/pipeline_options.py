@@ -1737,6 +1737,13 @@ class SetupOptions(PipelineOptions):
         help=(
             'A user agent string describing the pipeline to external services. '
             'The format should follow RFC2616.'))
+    parser.add_argument(
+        '--maven_repository_url',
+        default=None,
+        help=(
+            'Custom Maven repository URL to use for downloading JAR files. '
+            'If not specified, the default Maven Central repository will be '
+            'used.'))
 
   def validate(self, validator):
     errors = []
