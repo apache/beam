@@ -53,9 +53,19 @@ public class GroupByEncryptedKey<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
   private final Secret hmacKey;
+  private final PTransform<
+          PCollection<KV<byte[], KV<byte[], byte[]>>>,
+          PCollection<KV<byte[], Iterable<KV<byte[], byte[]>>>>>
+      gbk;
 
-  private GroupByEncryptedKey(Secret hmacKey) {
+  private GroupByEncryptedKey(
+      Secret hmacKey,
+      PTransform<
+              PCollection<KV<byte[], KV<byte[], byte[]>>>,
+              PCollection<KV<byte[], Iterable<KV<byte[], byte[]>>>>>
+          gbk) {
     this.hmacKey = hmacKey;
+    this.gbk = gbk;
   }
 
   /**
@@ -67,7 +77,26 @@ public class GroupByEncryptedKey<K, V>
    * @return A {@link GroupByEncryptedKey} transform.
    */
   public static <K, V> GroupByEncryptedKey<K, V> create(Secret hmacKey) {
-    return new GroupByEncryptedKey<>(hmacKey);
+    GroupByKey<byte[], KV<byte[], byte[]>> gbk = GroupByKey.create();
+    return new GroupByEncryptedKey<>(hmacKey, GroupByKey.create());
+  }
+
+  /**
+   * Creates a {@link GroupByEncryptedKey} transform with a custom GBK in the middle.
+   *
+   * @param hmacKey The {@link Secret} key to use for encryption.
+   * @param gbk The custom GBK transform to use in the middle of the GBEK.
+   * @param <K> The type of the keys in the input PCollection.
+   * @param <V> The type of the values in the input PCollection.
+   * @return A {@link GroupByEncryptedKey} transform.
+   */
+  public static <K, V> GroupByEncryptedKey<K, V> createWithCustomGbk(
+      Secret hmacKey,
+      PTransform<
+              PCollection<KV<byte[], KV<byte[], byte[]>>>,
+              PCollection<KV<byte[], Iterable<KV<byte[], byte[]>>>>>
+          gbk) {
+    return new GroupByEncryptedKey<>(hmacKey, gbk);
   }
 
   @Override
@@ -93,7 +122,7 @@ public class GroupByEncryptedKey<K, V>
             .apply(
                 "EncryptMessage",
                 ParDo.of(new EncryptMessage<>(this.hmacKey, keyCoder, valueCoder)))
-            .apply(GroupByKey.create());
+            .apply(this.gbk);
 
     return grouped
         .apply("DecryptMessage", ParDo.of(new DecryptMessage<>(this.hmacKey, keyCoder, valueCoder)))
