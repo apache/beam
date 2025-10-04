@@ -417,6 +417,9 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   def __call__(self, request: Union[Chunk, List[Chunk]], *args,
                **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:
     reqs = request if isinstance(request, list) else [request]
+    # Early return for empty requests to avoid unnecessary connection attempts
+    if not reqs:
+      return []
     search_result = self._search_documents(reqs)
     return self._get_call_response(reqs, search_result)
 
