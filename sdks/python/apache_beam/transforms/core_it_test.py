@@ -32,6 +32,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.util import GcpSecret
 from apache_beam.transforms.util import Secret
+
 try:
   from google.cloud import secretmanager
 except ImportError:
@@ -81,13 +82,12 @@ class GbekIT(unittest.TestCase):
     pipeline = TestPipeline(is_integration_test=True)
     pipeline.options.view_as(SetupOptions).gbek = self.secret_option
 
-    pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
-                                                    ('b', 3), ('c', 4)])
+    pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
+                                                   ('c', 4)])
     result = (pcoll_1) | beam.GroupByKey()
     sorted_result = result | beam.Map(lambda x: (x[0], sorted(x[1])))
     assert_that(
-        sorted_result,
-        equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+        sorted_result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
     pipeline.run().wait_until_finish()
 
@@ -97,12 +97,10 @@ class GbekIT(unittest.TestCase):
     pipeline = TestPipeline(is_integration_test=True)
     pipeline.options.view_as(SetupOptions).gbek = self.secret_option
 
-    pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
-                                                    ('b', 3), ('c', 4)])
+    pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
+                                                   ('c', 4)])
     result = (pcoll_1) | beam.CombinePerKey(sum)
-    assert_that(
-        result,
-        equal_to([('a', 3), ('b', 3), ('c', 4)]))
+    assert_that(result, equal_to([('a', 3), ('b', 3), ('c', 4)]))
 
     pipeline.run().wait_until_finish()
 
