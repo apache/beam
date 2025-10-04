@@ -114,6 +114,7 @@ public class GroupByEncryptedKey<K, V>
     private transient Mac mac;
     private transient Cipher cipher;
     private transient SecretKeySpec secretKeySpec;
+    private transient java.security.SecureRandom generator;
 
     EncryptMessage(Secret hmacKey, Coder<K> keyCoder, Coder<V> valueCoder) {
       this.hmacKey = hmacKey;
@@ -133,6 +134,7 @@ public class GroupByEncryptedKey<K, V>
         throw new RuntimeException(
             "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);
       }
+      this.generator = new java.security.SecureRandom();
     }
 
     @ProcessElement
@@ -144,9 +146,8 @@ public class GroupByEncryptedKey<K, V>
 
       byte[] keyIv = new byte[12];
       byte[] valueIv = new byte[12];
-      java.security.SecureRandom generator = new java.security.SecureRandom();
-      generator.nextBytes(keyIv);
-      generator.nextBytes(valueIv);
+      this.generator.nextBytes(keyIv);
+      this.generator.nextBytes(valueIv);
       GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, keyIv);
       this.cipher.init(Cipher.ENCRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
       byte[] encryptedKey = this.cipher.doFinal(encodedKey);
