@@ -1772,3 +1772,46 @@ def bundle_finalize():
       bundle_finalizer.register(my_callback_func)
 
   # [END BundleFinalize]
+
+  # [START SideInput SlowUpdate]
+import apache_beam as beam
+from apache_beam.transforms import core
+from apache_beam.transforms.window import GlobalWindows, WindowInto, Repeatedly, AfterCount, AccumulationMode
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.combiners import Latest
+import logging
+import time
+
+options = PipelineOptions()
+pipeline = beam.Pipeline(options=options)
+
+start_timestamp = time.time()
+main_input_fire_interval = 60
+side_input_fire_interval = 60
+
+def add_timestamp(element, timestamp=core.DoFn.TimestampParam):
+   return (element, timestamp)
+
+side_input = (
+pipeline
+| "SideInputImpulse" >> PeriodicImpulse(
+start_timestamp=start_timestamp,
+fire_interval=main_input_fire_interval,
+)
+| "SideInputWindow" >> WindowInto(
+GlobalWindows(),
+trigger=Repeatedly(AfterCount(1)),
+accumulation_mode=AccumulationMode.DISCARDING,
+)
+| "Add timestamp" >> core.ParDo(add_timestamp)
+)
+
+(
+side_input
+| "LocalLatest" >> Latest.Globally().without_defaults()
+| "Show latest" >> beam.Map(logging.info)
+)
+
+# [END SideInput SlowUpdate]
+
+
