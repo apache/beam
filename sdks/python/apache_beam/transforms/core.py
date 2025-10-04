@@ -2352,11 +2352,15 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
           else:
             return pcoll
 
+      # Map(lambda) produces a label formatted like this, but it cannot be
+      # changed without breaking update compat. Here, we pin to the transform
+      # name used in the 2.68 release to avoid breaking changes when the line
+      # number changes. Context: https://github.com/apache/beam/pull/36381
       input_count_view = pcoll | 'CountTotal' >> (
-          MaybeWindow() | Map(lambda _: 1)
+          MaybeWindow() | "Map(<lambda at core.py:2346>)" >> Map(lambda _: 1)
           | CombineGlobally(sum).as_singleton_view())
       bad_count_pcoll = result[self._dead_letter_tag] | 'CountBad' >> (
-          MaybeWindow() | Map(lambda _: 1)
+          MaybeWindow() | "Map(<lambda at core.py:2349>)" >> Map(lambda _: 1)
           | CombineGlobally(sum).without_defaults())
 
       def check_threshold(bad, total, threshold, window=DoFn.WindowParam):
@@ -3538,9 +3542,14 @@ class GroupBy(PTransform):
 
   def expand(self, pcoll):
     input_type = pcoll.element_type or typing.Any
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pcoll
-        | Map(lambda x: (self._key_func()(x), x)).with_output_types(
+        | "Map(<lambda at core.py:3503>)" >>
+        Map(lambda x: (self._key_func()(x), x)).with_output_types(
             typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
@@ -3595,14 +3604,19 @@ class _GroupAndAggregate(PTransform):
     key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint(
         pcoll.element_type)
 
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pcoll
-        | Map(lambda x: (key_func(x), value_func(x))).with_output_types(
+        | "Map(<lambda at core.py:3560>)" >>
+        Map(lambda x: (key_func(x), value_func(x))).with_output_types(
             typehints.Tuple[key_type_hint, typing.Any])
         | CombinePerKey(
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
-        | MapTuple(
+        | "MapTuple(<lambda at core.py:3565>)" >> MapTuple(
             lambda key, value: _dynamic_named_tuple('Result', result_fields)
             (*(key + value))))
 
@@ -3618,7 +3632,7 @@ class Select(PTransform):
 
   is the same as
 
-      pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
+      pcoll | 'label' >> beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
   def __init__(
       self,
@@ -3640,8 +3654,13 @@ class Select(PTransform):
     return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
 
   def expand(self, pcoll):
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
-        _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
+        _MaybePValueWithErrors(pcoll, self._exception_handling_args)
+        | "Map(<lambda at core.py:3605>)" >> Map(
             lambda x: pvalue.Row(
                 **{
                     name: expr(x)
@@ -4128,10 +4147,15 @@ class Create(PTransform):
         else:
           return pcoll
 
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pbegin
         | Impulse()
-        | FlatMap(lambda _: serialized_values).with_output_types(bytes)
+        | "FlatMap(<lambda at core.py:4094>)" >>
+        FlatMap(lambda _: serialized_values).with_output_types(bytes)
         | MaybeReshuffle().with_output_types(bytes)
         | Map(self._coder.decode).with_output_types(self.get_output_type()))
 
