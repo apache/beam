@@ -91,6 +91,9 @@ import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -2509,6 +2512,62 @@ public class KafkaIOTest {
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(15L);
     assertEquals(15, reader.getConsumerPollingTimeout());
+  }
+
+  // This test verifies that the schema for KafkaIO.ByteArrayKafkaRecord is correctly generated.
+  // This schema is used when Kafka records are serialized/deserialized with SchemaCoder.
+  @Test
+  public void testByteArrayKafkaRecordSchema() throws NoSuchSchemaException {
+    Schema schema = SchemaRegistry.createDefault().getSchema(KafkaIO.ByteArrayKafkaRecord.class);
+
+    assertEquals(9, schema.getFieldCount());
+    assertEquals(Schema.Field.of("topic", Schema.FieldType.STRING), schema.getField(0));
+    assertEquals(Schema.Field.of("partition", Schema.FieldType.INT32), schema.getField(1));
+    assertEquals(Schema.Field.of("offset", Schema.FieldType.INT64), schema.getField(2));
+    assertEquals(Schema.Field.of("timestamp", Schema.FieldType.INT64), schema.getField(3));
+    assertEquals(Schema.Field.nullable("key", Schema.FieldType.BYTES), schema.getField(4));
+    assertEquals(Schema.Field.nullable("value", Schema.FieldType.BYTES), schema.getField(5));
+    assertEquals(
+        Schema.Field.nullable(
+            "headers",
+            Schema.FieldType.array(
+                Schema.FieldType.row(
+                    Schema.of(
+                        Schema.Field.of("key", Schema.FieldType.STRING),
+                        Schema.Field.nullable("value", Schema.FieldType.BYTES))))),
+        schema.getField(6));
+    assertEquals(Schema.Field.of("timestampTypeId", Schema.FieldType.INT32), schema.getField(7));
+    assertEquals(Schema.Field.of("timestampTypeName", Schema.FieldType.STRING), schema.getField(8));
+  }
+
+  // This test verifies that the schema for KafkaSourceDescriptor is correctly generated.
+  @Test
+  public void testKafkaSourceDescriptorSchema() throws NoSuchSchemaException {
+    Schema schema = SchemaRegistry.createDefault().getSchema(KafkaSourceDescriptor.class);
+
+    assertEquals(7, schema.getFieldCount());
+    assertEquals(Schema.Field.of("topic", Schema.FieldType.STRING), schema.getField(0));
+    assertEquals(Schema.Field.of("partition", Schema.FieldType.INT32), schema.getField(1));
+    assertEquals(
+        Schema.Field.nullable("start_read_offset", Schema.FieldType.INT64), schema.getField(2));
+    assertEquals(
+        Schema.Field.nullable("start_read_time", Schema.FieldType.DATETIME), schema.getField(3));
+    assertEquals(
+        Schema.Field.nullable("stop_read_offset", Schema.FieldType.INT64), schema.getField(4));
+    assertEquals(
+        Schema.Field.nullable("stop_read_time", Schema.FieldType.DATETIME), schema.getField(5));
+    assertEquals(
+        Schema.Field.nullable("bootstrap_servers", Schema.FieldType.array(Schema.FieldType.STRING)),
+        schema.getField(6));
+  }
+
+  @Test
+  public void testKafkaHeaderSchema() throws NoSuchSchemaException {
+    Schema schema = SchemaRegistry.createDefault().getSchema(KafkaIO.KafkaHeader.class);
+
+    assertEquals(2, schema.getFieldCount());
+    assertEquals(Schema.Field.of("key", Schema.FieldType.STRING), schema.getField(0));
+    assertEquals(Schema.Field.nullable("value", Schema.FieldType.BYTES), schema.getField(1));
   }
 
   private static void verifyProducerRecords(

@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.kafka.common.TopicPartition;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -38,30 +39,37 @@ import org.joda.time.Instant;
 @AutoValue
 public abstract class KafkaSourceDescriptor implements Serializable {
   @SchemaFieldName("topic")
+  @SchemaFieldNumber("0")
   @Pure
   abstract String getTopic();
 
   @SchemaFieldName("partition")
+  @SchemaFieldNumber("1")
   @Pure
   abstract Integer getPartition();
 
   @SchemaFieldName("start_read_offset")
+  @SchemaFieldNumber("2")
   @Pure
   abstract @Nullable Long getStartReadOffset();
 
   @SchemaFieldName("start_read_time")
+  @SchemaFieldNumber("3")
   @Pure
   abstract @Nullable Instant getStartReadTime();
 
   @SchemaFieldName("stop_read_offset")
+  @SchemaFieldNumber("4")
   @Pure
   abstract @Nullable Long getStopReadOffset();
 
   @SchemaFieldName("stop_read_time")
+  @SchemaFieldNumber("5")
   @Pure
   abstract @Nullable Instant getStopReadTime();
 
   @SchemaFieldName("bootstrap_servers")
+  @SchemaFieldNumber("6")
   @Pure
   abstract @Nullable List<String> getBootStrapServers();
 
