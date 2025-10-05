@@ -199,7 +199,7 @@ class Tag(BaseModel):
     @validator("datasets")
     def dataset_file_name(cls, datasets):
         for dataset_id, dataset in datasets.items():
-            dataset.file_name = f"{dataset_id}.{dataset.format}"
+            dataset.file_name = f"{dataset_id}.{dataset.format.value}"
             if dataset.location == DatasetLocation.LOCAL:
                 dataset_path = os.path.join(
                     RepoProps.REPO_DATASETS_PATH, dataset.file_name

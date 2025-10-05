@@ -100,7 +100,9 @@ pipelines:
         - type: WriteToBigQuery
           config:
             table: "{BQ_TABLE_1}"
-
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR_0}"
   # New read from BQ to verify row restriction with nullable field and filter
   # out nullable record
   - pipeline:

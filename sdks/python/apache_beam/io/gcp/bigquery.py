@@ -2008,7 +2008,8 @@ class WriteToBigQuery(PTransform):
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
-      expansion_service=None):
+      expansion_service=None,
+      big_lake_configuration=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2229,6 +2230,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._num_streaming_keys = num_streaming_keys
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2391,6 +2393,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           num_storage_api_streams=self._num_storage_api_streams,
           use_cdc_writes=self._use_cdc_writes,
           primary_key=self._primary_key,
+          big_lake_configuration=self._big_lake_configuration,
           expansion_service=self.expansion_service)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
@@ -2639,6 +2642,7 @@ class StorageWriteToBigQuery(PTransform):
       num_storage_api_streams=0,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
+      big_lake_configuration=None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2652,6 +2656,7 @@ class StorageWriteToBigQuery(PTransform):
     self._num_storage_api_streams = num_storage_api_streams
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2746,6 +2751,7 @@ class StorageWriteToBigQuery(PTransform):
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
             clustering_fields=clustering_fields,
+            big_lake_configuration=self._big_lake_configuration,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
