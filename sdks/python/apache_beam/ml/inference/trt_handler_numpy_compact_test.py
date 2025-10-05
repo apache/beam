@@ -47,36 +47,39 @@ try:
 except ImportError:
   GCSFileSystem = None  # type: ignore
 
-
 # Test data
-SINGLE_FEATURE_EXAMPLES = np.array(
-    [[1.0], [5.0], [-3.0], [10.0]], dtype=np.float32
-)
+SINGLE_FEATURE_EXAMPLES = np.array([[1.0], [5.0], [-3.0], [10.0]],
+                                   dtype=np.float32)
 
 SINGLE_FEATURE_PREDICTIONS = [
     PredictionResult(
-        SINGLE_FEATURE_EXAMPLES[i],
-        [np.array([SINGLE_FEATURE_EXAMPLES[i][0] * 2.0 + 0.5], dtype=np.float32)]
-    ) for i in range(len(SINGLE_FEATURE_EXAMPLES))
+        SINGLE_FEATURE_EXAMPLES[i], [
+            np.array([SINGLE_FEATURE_EXAMPLES[i][0] * 2.0 + 0.5],
+                     dtype=np.float32)
+        ]) for i in range(len(SINGLE_FEATURE_EXAMPLES))
 ]
 
-TWO_FEATURES_EXAMPLES = np.array(
-    [[1, 5], [3, 10], [-14, 0], [0.5, 0.5]], dtype=np.float32
-)
+TWO_FEATURES_EXAMPLES = np.array([[1, 5], [3, 10], [-14, 0], [0.5, 0.5]],
+                                 dtype=np.float32)
 
 TWO_FEATURES_PREDICTIONS = [
     PredictionResult(
         TWO_FEATURES_EXAMPLES[i],
-        [np.array([TWO_FEATURES_EXAMPLES[i][0] * 2.0 + TWO_FEATURES_EXAMPLES[i][1] * 3 + 0.5], dtype=np.float32)]
-    ) for i in range(len(TWO_FEATURES_EXAMPLES))
+        [
+            np.array([
+                TWO_FEATURES_EXAMPLES[i][0] * 2.0 +
+                TWO_FEATURES_EXAMPLES[i][1] * 3 + 0.5
+            ],
+                     dtype=np.float32)
+        ]) for i in range(len(TWO_FEATURES_EXAMPLES))
 ]
 
 
 def _compare_prediction_result(a, b):
   """Compare two PredictionResult objects."""
   return ((a.example == b.example).all() and all(
-      np.array_equal(actual, expected)
-      for actual, expected in zip(a.inference, b.inference)))
+      np.array_equal(actual, expected) for actual,
+      expected in zip(a.inference, b.inference)))
 
 
 def _build_simple_onnx_model(input_size=1, output_path=None):
@@ -89,21 +92,18 @@ def _build_simple_onnx_model(input_size=1, output_path=None):
 
   # Create a simple linear model: y = 2*x + 0.5
   input_tensor = helper.make_tensor_value_info(
-      'input', TensorProto.FLOAT, [None, input_size]
-  )
+      'input', TensorProto.FLOAT, [None, input_size])
   output_tensor = helper.make_tensor_value_info(
-      'output', TensorProto.FLOAT, [None, input_size]
-  )
+      'output', TensorProto.FLOAT, [None, input_size])
 
   # Weight tensor: 2.0
   weight_init = helper.make_tensor(
-      'weight', TensorProto.FLOAT, [input_size, input_size],
-      [2.0] * (input_size * input_size)
-  )
+      'weight',
+      TensorProto.FLOAT, [input_size, input_size],
+      [2.0] * (input_size * input_size))
   # Bias tensor: 0.5
   bias_init = helper.make_tensor(
-      'bias', TensorProto.FLOAT, [input_size], [0.5] * input_size
-  )
+      'bias', TensorProto.FLOAT, [input_size], [0.5] * input_size)
 
   # MatMul node
   matmul_node = helper.make_node('MatMul', ['input', 'weight'], ['matmul_out'])
@@ -111,13 +111,9 @@ def _build_simple_onnx_model(input_size=1, output_path=None):
   add_node = helper.make_node('Add', ['matmul_out', 'bias'], ['output'])
 
   # Create graph
-  graph = helper.make_graph(
-      [matmul_node, add_node],
-      'simple_linear',
-      [input_tensor],
-      [output_tensor],
-      [weight_init, bias_init]
-  )
+  graph = helper.make_graph([matmul_node, add_node],
+                            'simple_linear', [input_tensor], [output_tensor],
+                            [weight_init, bias_init])
 
   # Create model
   model = helper.make_model(graph, producer_name='trt_test')
@@ -133,14 +129,10 @@ def _build_simple_onnx_model(input_size=1, output_path=None):
 @pytest.mark.uses_tensorrt
 class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
   """Tests for TensorRTEngineHandlerNumPy with TensorRT 10.x Tensor API."""
-
   def test_handler_initialization(self):
     """Test that handler initializes correctly with required parameters."""
     handler = TensorRTEngineHandlerNumPy(
-        min_batch_size=1,
-        max_batch_size=4,
-        engine_path='/tmp/test.engine'
-    )
+        min_batch_size=1, max_batch_size=4, engine_path='/tmp/test.engine')
     self.assertEqual(handler.min_batch_size, 1)
     self.assertEqual(handler.max_batch_size, 4)
     self.assertEqual(handler.engine_path, '/tmp/test.engine')
@@ -152,34 +144,24 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
           min_batch_size=1,
           max_batch_size=4,
           engine_path='/tmp/test.engine',
-          onnx_path='/tmp/test.onnx'
-      )
+          onnx_path='/tmp/test.onnx')
 
   def test_handler_initialization_no_path_error(self):
     """Test that providing neither engine_path nor onnx_path raises an error."""
     with self.assertRaises(ValueError):
-      TensorRTEngineHandlerNumPy(
-          min_batch_size=1,
-          max_batch_size=4
-      )
+      TensorRTEngineHandlerNumPy(min_batch_size=1, max_batch_size=4)
 
   def test_handler_initialization_invalid_engine_path(self):
     """Test that providing a non-.engine path raises an error."""
     with self.assertRaises(ValueError):
       TensorRTEngineHandlerNumPy(
-          min_batch_size=1,
-          max_batch_size=4,
-          engine_path='/tmp/test.onnx'
-      )
+          min_batch_size=1, max_batch_size=4, engine_path='/tmp/test.onnx')
 
   def test_handler_initialization_invalid_onnx_path(self):
     """Test that providing a .engine path as onnx_path raises an error."""
     with self.assertRaises(ValueError):
       TensorRTEngineHandlerNumPy(
-          min_batch_size=1,
-          max_batch_size=4,
-          onnx_path='/tmp/test.engine'
-      )
+          min_batch_size=1, max_batch_size=4, onnx_path='/tmp/test.engine')
 
   def test_batch_elements_kwargs(self):
     """Test that batch_elements_kwargs returns correct values."""
@@ -187,8 +169,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
         min_batch_size=2,
         max_batch_size=8,
         max_batch_duration_secs=10,
-        engine_path='/tmp/test.engine'
-    )
+        engine_path='/tmp/test.engine')
     kwargs = handler.batch_elements_kwargs()
     self.assertEqual(kwargs['min_batch_size'], 2)
     self.assertEqual(kwargs['max_batch_size'], 8)
@@ -197,10 +178,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
   def test_get_num_bytes_ndarray(self):
     """Test get_num_bytes with numpy ndarray."""
     handler = TensorRTEngineHandlerNumPy(
-        min_batch_size=1,
-        max_batch_size=4,
-        engine_path='/tmp/test.engine'
-    )
+        min_batch_size=1, max_batch_size=4, engine_path='/tmp/test.engine')
     batch = np.array([[1, 2], [3, 4]], dtype=np.float32)
     num_bytes = handler.get_num_bytes(batch)
     self.assertEqual(num_bytes, batch.nbytes)
@@ -208,13 +186,9 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
   def test_get_num_bytes_list(self):
     """Test get_num_bytes with list of ndarrays."""
     handler = TensorRTEngineHandlerNumPy(
-        min_batch_size=1,
-        max_batch_size=4,
-        engine_path='/tmp/test.engine'
-    )
+        min_batch_size=1, max_batch_size=4, engine_path='/tmp/test.engine')
     batch = [
-        np.array([1, 2], dtype=np.float32),
-        np.array([3, 4], dtype=np.float32)
+        np.array([1, 2], dtype=np.float32), np.array([3, 4], dtype=np.float32)
     ]
     num_bytes = handler.get_num_bytes(batch)
     expected = sum(a.nbytes for a in batch)
@@ -223,10 +197,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
   def test_get_metrics_namespace(self):
     """Test that metrics namespace is correct."""
     handler = TensorRTEngineHandlerNumPy(
-        min_batch_size=1,
-        max_batch_size=4,
-        engine_path='/tmp/test.engine'
-    )
+        min_batch_size=1, max_batch_size=4, engine_path='/tmp/test.engine')
     self.assertEqual(handler.get_metrics_namespace(), 'BeamML_TensorRT10')
 
   def test_share_model_across_processes(self):
@@ -235,8 +206,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
         min_batch_size=1,
         max_batch_size=4,
         engine_path='/tmp/test.engine',
-        large_model=True
-    )
+        large_model=True)
     self.assertTrue(handler.share_model_across_processes())
 
   def test_model_copies(self):
@@ -245,8 +215,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
         min_batch_size=1,
         max_batch_size=4,
         engine_path='/tmp/test.engine',
-        model_copies=3
-    )
+        model_copies=3)
     self.assertEqual(handler.model_copies(), 3)
 
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
@@ -260,8 +229,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
           min_batch_size=1,
           max_batch_size=4,
           onnx_path=onnx_path,
-          build_on_worker=True
-      )
+          build_on_worker=True)
 
       # Load model
       engine = handler.load_model()
@@ -275,9 +243,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
       self.assertEqual(len(predictions), 4)
       for i, pred in enumerate(predictions):
         expected = batch[i][0] * 2.0 + 0.5
-        np.testing.assert_allclose(
-            pred.inference[0], [expected], rtol=1e-5
-        )
+        np.testing.assert_allclose(pred.inference[0], [expected], rtol=1e-5)
 
   def test_env_vars_setting(self):
     """Test that environment variables are set correctly."""
@@ -285,8 +251,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
         min_batch_size=1,
         max_batch_size=4,
         engine_path='/tmp/test.engine',
-        env_vars={'TEST_VAR': 'test_value'}
-    )
+        env_vars={'TEST_VAR': 'test_value'})
 
     # Remove the variable if it exists
     os.environ.pop('TEST_VAR', None)
@@ -300,7 +265,6 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
 @pytest.mark.uses_tensorrt
 class TensorRTEngineTest(unittest.TestCase):
   """Tests for TensorRTEngine wrapper class."""
-
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_engine_initialization(self):
     """Test that TensorRTEngine initializes correctly."""
@@ -312,8 +276,7 @@ class TensorRTEngineTest(unittest.TestCase):
           min_batch_size=1,
           max_batch_size=4,
           onnx_path=onnx_path,
-          build_on_worker=True
-      )
+          build_on_worker=True)
 
       engine = handler.load_model()
 
@@ -330,7 +293,6 @@ class TensorRTEngineTest(unittest.TestCase):
 @pytest.mark.uses_tensorrt
 class TensorRTRunInferencePipelineTest(unittest.TestCase):
   """Integration tests for TensorRT handler in Beam pipelines."""
-
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_with_onnx_model(self):
     """Test full pipeline with ONNX model built on worker."""
@@ -343,8 +305,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
             min_batch_size=4,
             max_batch_size=4,
             onnx_path=onnx_path,
-            build_on_worker=True
-        )
+            build_on_worker=True)
 
         examples = [
             np.array([[1.0]], dtype=np.float32),
@@ -360,9 +321,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           self.assertEqual(len(predictions), 4)
           for i, pred in enumerate(predictions):
             expected = examples[i][0][0] * 2.0 + 0.5
-            np.testing.assert_allclose(
-                pred.inference[0], [expected], rtol=1e-5
-            )
+            np.testing.assert_allclose(pred.inference[0], [expected], rtol=1e-5)
 
         assert_that(predictions, check_predictions)
 
