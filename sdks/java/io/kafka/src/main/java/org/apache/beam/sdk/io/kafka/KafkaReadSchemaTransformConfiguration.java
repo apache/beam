@@ -160,6 +160,26 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   @Nullable
   public abstract ErrorHandling getErrorHandling();
 
+  @SchemaFieldDescription("If the Kafka read should be redistributed.")
+  @Nullable
+  public abstract Boolean getRedistributed();
+
+  @SchemaFieldDescription("If the Kafka read allows duplicates.")
+  @Nullable
+  public abstract Boolean getAllowDuplicates();
+
+  @SchemaFieldDescription("The number of keys for redistributing Kafka inputs.")
+  @Nullable
+  public abstract Integer getRedistributeNumKeys();
+
+  @SchemaFieldDescription("If the redistribute is using offset deduplication mode.")
+  @Nullable
+  public abstract Boolean getOffsetDeduplication();
+
+  @SchemaFieldDescription("If the redistribute keys by the Kafka record key.")
+  @Nullable
+  public abstract Boolean getRedistributeByRecordKey();
+
   /** Builder for the {@link KafkaReadSchemaTransformConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -189,6 +209,16 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     public abstract Builder setMaxReadTimeSeconds(Integer maxReadTimeSeconds);
 
     public abstract Builder setErrorHandling(ErrorHandling errorHandling);
+
+    public abstract Builder setRedistributed(Boolean redistribute);
+
+    public abstract Builder setAllowDuplicates(Boolean allowDuplicates);
+
+    public abstract Builder setRedistributeNumKeys(Integer redistributeNumKeys);
+
+    public abstract Builder setOffsetDeduplication(Boolean offsetDeduplication);
+
+    public abstract Builder setRedistributeByRecordKey(Boolean redistributeByRecordKey);
 
     /** Builds a {@link KafkaReadSchemaTransformConfiguration} instance. */
     public abstract KafkaReadSchemaTransformConfiguration build();
