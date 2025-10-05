@@ -350,7 +350,7 @@ class SchemaTranslation(object):
 
     try:
       if LogicalType.is_known_logical_type(type_):
-        logical_type = type_()
+        logical_type = type_
       else:
         logical_type = LogicalType.from_typing(type_)
     except ValueError:
@@ -552,9 +552,8 @@ class SchemaTranslation(object):
       if fieldtype_proto.logical_type.urn == PYTHON_ANY_URN:
         return Any
       else:
-        logical_type_instance = LogicalType.from_runner_api(
-            fieldtype_proto.logical_type)
-        return logical_type_instance.language_type()
+        return LogicalType.from_runner_api(
+            fieldtype_proto.logical_type).language_type()
 
     elif type_info == "iterable_type":
       return Sequence[self.typing_from_runner_api(
@@ -1060,9 +1059,6 @@ class FixedPrecisionDecimalLogicalType(
   @classmethod
   def _from_typing(cls, typ):
     return cls()
-
-
-
 
 
 # TODO(yathu,BEAM-10722): Investigate and resolve conflicts in logical type
