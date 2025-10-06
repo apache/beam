@@ -18714,6 +18714,7 @@ follow &lt;a href="/documentation/sdks/python-sdk-image-build">this guide&lt;/a>
 ./gradlew :sdks:python:container:py310:docker
 ./gradlew :sdks:python:container:py311:docker
 ./gradlew :sdks:python:container:py312:docker
+./gradlew :sdks:python:container:py313:docker
 # Shortcut for building all Python SDKs
 ./gradlew :sdks:python:container:buildAll
 &lt;/code>&lt;/pre>&lt;ol start="4">
