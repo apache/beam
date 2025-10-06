@@ -29,13 +29,13 @@ from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import GaugeData
+from apache_beam.metrics.cells import HistogramCell
+from apache_beam.metrics.cells import HistogramCellFactory
+from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.metrics.cells import _BoundedTrieNode
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.metrics.cells import HistogramCell
-from apache_beam.metrics.cells import HistogramCellFactory
-from apache_beam.metrics.cells import HistogramData
 from apache_beam.utils.histogram import Histogram
 from apache_beam.utils.histogram import LinearBucket
 

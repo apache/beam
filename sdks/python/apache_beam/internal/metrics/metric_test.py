@@ -19,11 +19,9 @@
 
 import unittest
 
-from mock import patch
-
-from apache_beam.metrics.cells import HistogramCellFactory
 from apache_beam.internal.metrics.metric import Metrics as InternalMetrics
 from apache_beam.internal.metrics.metric import MetricLogger
+from apache_beam.metrics.cells import HistogramCellFactory
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metric import Metrics
@@ -31,6 +29,7 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 from apache_beam.utils.histogram import LinearBucket
+from mock import patch
 
 
 class MetricLoggerTest(unittest.TestCase):
