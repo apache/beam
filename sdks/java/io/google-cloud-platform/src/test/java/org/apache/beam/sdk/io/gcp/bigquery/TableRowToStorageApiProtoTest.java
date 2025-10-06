@@ -1860,4 +1860,39 @@ public class TableRowToStorageApiProtoTest {
     assertEquals(
         Long.toHexString(42L), msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
+
+  @Test
+  public void testTableRowFromMessageWithFieldNamedF() throws Exception {
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setType("STRING").setName("stringValue"),
+                    new TableFieldSchema().setType("FLOAT64").setName("f")));
+
+    // Create a DynamicMessage directly to test the tableRowFromMessage fix
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, false, false);
+    DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+
+    // Set field values in the message
+    FieldDescriptor stringField = descriptor.findFieldByName("stringvalue");
+    FieldDescriptor fField = descriptor.findFieldByName("f");
+
+    builder.setField(stringField, "test");
+    builder.setField(fField, 3.14);
+
+    DynamicMessage msg = builder.build();
+
+    // Convert DynamicMessage to TableRow - this should not throw IllegalArgumentException
+    TableRow result = TableRowToStorageApiProto.tableRowFromMessage(msg, false, field -> true);
+
+    // Verify the conversion worked correctly
+    assertEquals("test", result.get("stringvalue")); // Field name is lowercase in the result
+    // For field "f", the value should be wrapped in a TableCell within a List
+    @SuppressWarnings("unchecked")
+    List<TableCell> fValue = (List<TableCell>) result.get("f");
+    assertEquals(1, fValue.size());
+    assertEquals(3.14, fValue.get(0).getV());
+  }
 }

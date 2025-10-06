@@ -1137,7 +1137,6 @@ public class TableRowToStorageApiProto {
       boolean includeCdcColumns,
       Predicate<String> includeField,
       String namePrefix) {
-    // TODO: Would be more correct to generate TableRows using setF.
     TableRow tableRow = new TableRow();
     for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
       StringBuilder fullName = new StringBuilder();
@@ -1147,10 +1146,24 @@ public class TableRowToStorageApiProto {
       Object fieldValue = field.getValue();
       if ((includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
           && includeField.test(fieldName)) {
-        tableRow.put(
-            fieldName,
+        Object convertedValue =
             jsonValueFromMessageValue(
-                fieldDescriptor, fieldValue, true, includeField, fullName.append(".").toString()));
+                fieldDescriptor, fieldValue, true, includeField, fullName.append(".").toString());
+
+        // Use setF when field name is "f" to avoid IllegalArgumentException with internal field
+        if ("f".equals(fieldName)) {
+          if (convertedValue instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<TableCell> tableCells = (List<TableCell>) convertedValue;
+            tableRow.setF(tableCells);
+          } else {
+            // For scalar values, wrap in a TableCell and create a single-element list
+            TableCell tableCell = new TableCell().setV(convertedValue);
+            tableRow.setF(ImmutableList.of(tableCell));
+          }
+        } else {
+          tableRow.put(fieldName, convertedValue);
+        }
       }
     }
     return tableRow;
