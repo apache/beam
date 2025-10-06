@@ -1027,3 +1027,10 @@ class HistogramData(object):
 
   def get_result(self) -> 'HistogramResult':
     return HistogramResult(self.get_cumulative())
+
+  def to_proto(self) -> metrics_pb2.HistogramValue:
+    return self.histogram.to_runner_api()
+
+  @classmethod
+  def from_proto(cls, proto: metrics_pb2.HistogramValue):
+    return cls(Histogram.from_runner_api(proto))
