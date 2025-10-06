@@ -47,12 +47,16 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -211,9 +215,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       startBundle();
     }
     try {
+      ValueInSingleWindow<InputT> templateElement =
+          ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING);
+      WindowedValue<InputT> templateWv =
+          WindowedValues.of(element, timestamp, window, PaneInfo.NO_FIRING);
       final DoFn<InputT, OutputT>.ProcessContext processContext =
-          createProcessContext(
-              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING, null, null));
+          createProcessContext(templateElement);
+      final OutputBuilderSupplier builderSupplier =
+          OutputBuilderSuppliers.supplierForElement(templateWv);
       fnInvoker.invokeProcessElement(
           new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
 
@@ -286,12 +295,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
             @Override
             public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-              return DoFnOutputReceivers.windowedReceiver(processContext, null);
+              return DoFnOutputReceivers.windowedReceiver(processContext, builderSupplier, null);
             }
 
             @Override
             public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-              return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
+              return DoFnOutputReceivers.windowedMultiReceiver(
+                  processContext, builderSupplier, null);
             }
 
             @Override

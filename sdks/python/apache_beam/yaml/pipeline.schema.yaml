@@ -45,6 +45,8 @@ $defs:
             properties: { __line__: {}}
             additionalProperties:
               type: string
+      output_schema:
+        type: object
     additionalProperties: true
     required:
       - type
@@ -129,6 +131,7 @@ $defs:
             name: {}
             input: {}
             output: {}
+            output_schema: { type: object }
             windowing: {}
             resource_hints: {}
             config: { type: object }

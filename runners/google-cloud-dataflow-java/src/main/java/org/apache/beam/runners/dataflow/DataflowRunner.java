@@ -1040,9 +1040,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             && !updated
             // don't update if the container image is already configured by DataflowRunner
             && !containerImage.equals(getContainerImageForJob(options))) {
+          String imageAndTag =
+              normalizeDataflowImageAndTag(
+                  containerImage.substring(containerImage.lastIndexOf("/")));
           containerImage =
               DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository()
-                  + containerImage.substring(containerImage.lastIndexOf("/"));
+                  + imageAndTag;
         }
         environmentBuilder.setPayload(
             RunnerApi.DockerPayload.newBuilder()
@@ -1053,6 +1056,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       componentsBuilder.putEnvironments(entry.getKey(), environmentBuilder.build());
     }
     return pipelineBuilder.build();
+  }
+
+  static String normalizeDataflowImageAndTag(String imageAndTag) {
+    if (imageAndTag.startsWith("/beam_java")
+        || imageAndTag.startsWith("/beam_python")
+        || imageAndTag.startsWith("/beam_go_")) {
+      int tagIdx = imageAndTag.lastIndexOf(":");
+      if (tagIdx > 0) {
+        // For release candidates, apache/beam_ images has rc tag while Dataflow does not
+        String tag = imageAndTag.substring(tagIdx); // e,g, ":2.xx.0rc1"
+        int mayRc = tag.toLowerCase().lastIndexOf("rc");
+        if (mayRc > 0) {
+          imageAndTag = imageAndTag.substring(0, tagIdx) + tag.substring(0, mayRc);
+        }
+      }
+    }
+    return imageAndTag;
   }
 
   @VisibleForTesting

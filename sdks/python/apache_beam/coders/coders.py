@@ -85,9 +85,7 @@ try:
   # occurs.
   from apache_beam.internal.dill_pickler import dill
 except ImportError:
-  # We fall back to using the stock dill library in tests that don't use the
-  # full Python SDK.
-  import dill
+  dill = None
 
 __all__ = [
     'Coder',
@@ -396,6 +394,15 @@ class Coder(object):
         return cls(*components)
       else:
         return cls()
+
+  def version_tag(self) -> str:
+    """For internal use. Appends a version tag to the coder key in the pipeline
+    proto. Some runners (e.g. DataflowRunner) use coder key/id to verify if a
+    pipeline is update compatible. If the implementation of a coder changed
+    in an update incompatible way a version tag can be added to fail
+    compatibility checks.
+    """
+    return ""
 
 
 @Coder.register_urn(
@@ -900,6 +907,13 @@ class PickleCoder(_PickleCoderBase):
 
 class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
+  def __init__(self):
+    if not dill:
+      raise RuntimeError(
+          "This pipeline contains a DillCoder which requires "
+          "the dill package. Install the dill package with the dill extra "
+          "e.g. apache-beam[dill]")
+
   def _create_impl(self):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 

@@ -48,6 +48,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     self._executable_jar = (
         options.view_as(
             pipeline_options.FlinkRunnerOptions).flink_job_server_jar)
+    self._user_agent = options.view_as(pipeline_options.SetupOptions).user_agent
     self._artifact_port = (
         options.view_as(pipeline_options.JobServerOptions).artifact_port)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-flink')
@@ -77,7 +78,8 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     else:
       url = job_server.JavaJarJobServer.path_to_beam_jar(
           ':runners:flink:%s:job-server:shadowJar' % self.flink_version())
-    return job_server.JavaJarJobServer.local_jar(url)
+    return job_server.JavaJarJobServer.local_jar(
+        url, user_agent=self._user_agent)
 
   def flink_version(self):
     full_version = requests.get(

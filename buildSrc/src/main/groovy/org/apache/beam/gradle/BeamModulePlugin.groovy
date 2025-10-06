@@ -617,7 +617,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def grpc_version = "1.71.0"
     def guava_version = "33.1.0-jre"
-    def hadoop_version = "3.4.1"
+    def hadoop_version = "3.4.2"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
@@ -980,10 +980,10 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
         // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
-      } else if (ver == '21') {
-        def java21Home = project.findProperty("java21Home")
+      } else if (ver == '21' || ver == '25') {
+        def javaVerHome = project.findProperty("java${ver}Home")
         options.fork = true
-        options.forkOptions.javaHome = java21Home as File
+        options.forkOptions.javaHome = javaVerHome as File
         options.compilerArgs += [
           '-Xlint:-path',
           '-Xlint:-this-escape'
@@ -993,7 +993,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
         // TODO(https://github.com/apache/beam/issues/28963)
-        // upgrade checkerFramework to enable it in Java 21
+        // upgrade checkerFramework to enable it in Java 21+
         project.checkerFramework {
           skipCheckerFramework = true
         }
@@ -1194,6 +1194,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       List<String> skipDefRegexes = []
       skipDefRegexes << "AutoValue_.*"
+      skipDefRegexes << "AutoBuilder_.*"
       skipDefRegexes << "AutoOneOf_.*"
       skipDefRegexes << ".*\\.jmh_generated\\..*"
       skipDefRegexes += configuration.generatedClassPatterns
@@ -1287,7 +1288,8 @@ class BeamModulePlugin implements Plugin<Project> {
         '**/org/apache/beam/gradle/**',
         '**/org/apache/beam/model/**',
         '**/org/apache/beam/runners/dataflow/worker/windmill/**',
-        '**/AutoValue_*'
+        '**/AutoValue_*',
+        '**/AutoBuilder_*',
       ]
 
       def jacocoEnabled = project.hasProperty('enableJacocoReport')
@@ -1437,6 +1439,8 @@ class BeamModulePlugin implements Plugin<Project> {
             include 'src/*/java/**/*.java'
             exclude '**/DefaultPackageTest.java'
           }
+          // For spotless:off and spotless:on
+          toggleOffOn()
         }
       }
 
@@ -1642,7 +1646,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (['8', '11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
+      if (['8', '11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 
@@ -1650,6 +1654,12 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
           project.ext.setJavaVerOptions(options, ver)
+          if (ver == '25') {
+            // TODO: Upgrade errorprone version to support Java25. Currently compile crashes
+            //  java.lang.NoSuchFieldError: Class com.sun.tools.javac.code.TypeTag does not have member field
+            //  'com.sun.tools.javac.code.TypeTag UNKNOWN'
+            options.errorprone.enabled = false
+          }
         }
         // redirect java runtime to specified version for running tests
         project.tasks.withType(Test).configureEach {
@@ -3199,6 +3209,16 @@ class BeamModulePlugin implements Plugin<Project> {
             testJavaHome = project.findProperty("java${testJavaVersion}Home")
           }
 
+          // Detect macOS and append '-macos' to tox environment to avoid pip check issues
+          def actualToxEnv = tox_env
+          def osName = System.getProperty("os.name").toLowerCase()
+          if (osName.contains("mac")) {
+            // Only append -macos for standard python environments (py39, py310, etc.)
+            if (tox_env.matches("py\\d+")) {
+              actualToxEnv = "${tox_env}-macos"
+            }
+          }
+
           if (project.hasProperty('useWheelDistribution')) {
             def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
@@ -3214,7 +3234,7 @@ class BeamModulePlugin implements Plugin<Project> {
                   environment "JAVA_HOME", testJavaHome
                 }
                 executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $actualToxEnv ${packageFilename} '$posargs' "
               }
             }
           } else {
@@ -3227,12 +3247,12 @@ class BeamModulePlugin implements Plugin<Project> {
                   environment "JAVA_HOME", testJavaHome
                 }
                 executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $actualToxEnv '$posargs'"
               }
             }
           }
           inputs.files project.pythonSdkDeps
-          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${actualToxEnv}/log/")
         }
       }
       // Run single or a set of integration tests with provided test options and pipeline options.

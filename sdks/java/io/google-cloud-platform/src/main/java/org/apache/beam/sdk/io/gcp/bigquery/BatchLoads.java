@@ -285,7 +285,7 @@ class BatchLoads<DestinationT, ElementT>
     PipelineOptions options = Preconditions.checkArgumentNotNull(maybeOptions);
     // We will use a BigQuery load job -- validate the temp location.
     String tempLocation;
-    if (customGcsTempLocation == null) {
+    if (customGcsTempLocation == null || customGcsTempLocation.get() == null) {
       tempLocation = options.getTempLocation();
     } else {
       if (!customGcsTempLocation.isAccessible()) {
@@ -589,7 +589,7 @@ class BatchLoads<DestinationT, ElementT>
                       @ProcessElement
                       public void getTempFilePrefix(ProcessContext c) {
                         String tempLocationRoot;
-                        if (customGcsTempLocation != null) {
+                        if (customGcsTempLocation != null && customGcsTempLocation.get() != null) {
                           tempLocationRoot = customGcsTempLocation.get();
                         } else {
                           tempLocationRoot = c.getPipelineOptions().getTempLocation();

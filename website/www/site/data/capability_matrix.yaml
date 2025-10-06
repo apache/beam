@@ -14,6 +14,8 @@ capability-matrix:
   columns:
     - class: dataflow
       name: Google Cloud Dataflow
+    - class: prism
+      name: Prism Local Runner
     - class: flink
       name: Apache Flink
     - class: spark-rdd
@@ -50,6 +52,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: Batch mode uses large bundle sizes. Streaming uses smaller bundle sizes.
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: Supported with per-element transformation.
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -90,6 +96,10 @@ capability-matrix:
           description: Grouping of key-value pairs per key, window, and pane. (See also other tabs.)
           values:
             - class: dataflow
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: prism
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -136,6 +146,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -178,6 +192,10 @@ capability-matrix:
             - class: dataflow
               l1: "Yes"
               l2: "efficient execution"
+              l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
               l3: ""
             - class: flink
               l1: "Yes"
@@ -222,6 +240,10 @@ capability-matrix:
               l1: "Partially"
               l2: supported via inlining
               l3: Currently composite transformations are inlined during execution. The structure is later recreated from the names, but other transform level information (if added to the model) will be lost.
+            - class: prism
+              l1: "Yes"
+              l2: supported via inlining
+              l3: ""
             - class: flink
               l1: "Partially"
               l2: supported via inlining
@@ -265,6 +287,10 @@ capability-matrix:
               l1: "Yes"
               l2: some size restrictions in streaming
               l3: Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: some size restrictions in streaming
@@ -308,6 +334,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: Support includes autotuning features (https://cloud.google.com/dataflow/service/dataflow-service-desc#autotuning-features).
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -351,6 +381,10 @@ capability-matrix:
               l1: "Partially"
               l2: ""
               l3: Gauge metrics are not supported. All other metric types are supported.
+            - class: prism
+              l1: "Partially"
+              l2: ""
+              l3: StringSet metrics are not supported. All other metric types are supported.
             - class: flink
               l1: "Partially"
               l2: All metrics types are supported.
@@ -394,6 +428,10 @@ capability-matrix:
               l1: "Partially"
               l2: non-merging windows
               l3: "State is supported for non-merging windows. The MapState, SetState, and MultimapState state types are supported in the following scenarios: Java pipelines that don't use Streaming Engine; Java pipelines that use Streaming Engine and version 2.58.0 or later of the Java SDK. SetState, MapState, and MultimapState are not supported for pipelines that use Runner v2."
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Partially"
               l2: non-merging windows
@@ -446,6 +484,10 @@ capability-matrix:
               l1: "Partially"
               l2: Only Dataflow Runner V2 supports this.
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Partially"
               l2: Only portable Flink Runner supports this.
@@ -488,6 +530,10 @@ capability-matrix:
             - class: dataflow
               l1: "Partially"
               l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
               l3: ""
             - class: flink
               l1: "Partially"
@@ -532,6 +578,10 @@ capability-matrix:
               l1: "Partially"
               l2: Only Dataflow Runner v2 supports this.
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Partially"
               l2: Only portable Flink Runner supports this.
@@ -575,6 +625,10 @@ capability-matrix:
               l1: "Partially"
               l2: Only Dataflow Runner V2 supports this.
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "No"
               l2:
@@ -617,6 +671,10 @@ capability-matrix:
             - class: dataflow
               l1: "Partially"
               l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
               l3: ""
             - class: flink
               l1: "No"
@@ -670,6 +728,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Partially"
               l2:
@@ -710,6 +772,10 @@ capability-matrix:
           description: ""
           values:
             - class: dataflow
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: prism
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -756,6 +822,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Partially"
               l2:
@@ -799,6 +869,10 @@ capability-matrix:
               l1: "No"
               l2:
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "No"
               l2:
@@ -841,6 +915,10 @@ capability-matrix:
             - class: dataflow
               l1: "Partially"
               l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
               l3: ""
             - class: flink
               l1: "No"
@@ -894,6 +972,10 @@ capability-matrix:
               l1: "Yes"
               l2: default
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: default
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: supported
@@ -928,6 +1010,10 @@ capability-matrix:
             - class: dataflow
               l1: "Yes"
               l2: built-in
+              l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
               l3: ""
             - class: flink
               l1: "Yes"
@@ -964,6 +1050,10 @@ capability-matrix:
               l1: "Yes"
               l2: built-in
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: supported
@@ -999,6 +1089,10 @@ capability-matrix:
               l1: "Yes"
               l2: built-in
               l3: ""
+            - class: prism
+              l1: "No"
+              l2:
+              l3:
             - class: flink
               l1: "Yes"
               l2: supported
@@ -1034,6 +1128,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: prism
+              l1: "No"
+              l2:
+              l3:
             - class: flink
               l1: "Yes"
               l2: supported
@@ -1069,6 +1167,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: prism
+              l1: "No"
+              l2:
+              l3:
             - class: flink
               l1: "Yes"
               l2: supported
@@ -1103,6 +1205,10 @@ capability-matrix:
             - class: dataflow
               l1: "Yes"
               l2: supported
+              l3: ""
+            - class: prism
+              l1: "No"
+              l2: "Not supported"
               l3: ""
             - class: flink
               l1: "Yes"
@@ -1149,6 +1255,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: Fully supported in streaming mode. In batch mode, intermediate trigger firings are effectively meaningless.
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -1185,6 +1295,10 @@ capability-matrix:
               l1: "Yes"
               l2: yes in streaming, fixed granularity in batch
               l3: Fully supported in streaming mode. In batch mode, currently watermark progress jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -1221,6 +1335,10 @@ capability-matrix:
               l1: "Yes"
               l2: yes in streaming, fixed granularity in batch
               l3: Fully supported in streaming mode. In batch mode, from the perspective of triggers, processing time currently jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -1257,6 +1375,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: Fully supported in streaming mode. In batch mode, elements are processed in the largest bundles possible, so count-based triggers are effectively meaningless.
+            - class: prism
+              l1: "No"
+              l2: partially supported
+              l3: "Prism will double fire on count triggers"
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -1290,6 +1412,10 @@ capability-matrix:
           description: Triggers which compose other triggers in more complex structures, such as logical AND, logical OR, early/on-time/late, etc.
           values:
             - class: dataflow
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: prism
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1329,6 +1455,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: Fully supported in streaming mode. In batch mode no data is ever late.
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -1365,6 +1495,10 @@ capability-matrix:
               l1: "Partially"
               l2: non-merging windows
               l3: Dataflow supports timers in non-merging windows.
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Partially"
               l2: non-merging windows
@@ -1410,6 +1544,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -1446,6 +1584,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: Requires that the accumulated pane fits in memory, after being passed through the combiner (if relevant)
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: flink
               l1: "Yes"
               l2: fully supported
@@ -1491,6 +1633,10 @@ capability-matrix:
               l1: "Partially"
               l2:
               l3: Dataflow has a native drain operation, but it does not work in the presence of event time timer loops. Final implemention pending model support.
+            - class: prism
+              l1: "No"
+              l2:
+              l3:
             - class: flink
               l1: "Partially"
               l2:
@@ -1523,6 +1669,10 @@ capability-matrix:
           description: APIs and semantics for saving a pipeline checkpoint are under discussion. This would be a runner-specific materialization of the pipeline state required to resume or duplicate the pipeline.
           values:
             - class: dataflow
+              l1: "No"
+              l2:
+              l3:
+            - class: prism
               l1: "No"
               l2:
               l3:
@@ -1561,6 +1711,14 @@ capability-matrix:
               l1: "Partially"
               l2:
               l3: Dataflow performs different shuffling algorithms for batch and streaming. Dataflow guarantees key-ordered delivery in streaming, though not in batch.
+            - class: prism
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: prism
+              l1: "Unverified"
+              l2:
+              l3:
             - class: flink
               l1: "Partially"
               l2:

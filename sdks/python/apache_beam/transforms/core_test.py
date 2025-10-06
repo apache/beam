@@ -30,6 +30,7 @@ import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.resources import ResourceHint
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
@@ -218,6 +219,61 @@ class PartitionTest(unittest.TestCase):
               p | beam.Create([input_value])
               | beam.Partition(lambda x, _: x, 2))
 
+  def test_partition_with_numpy_integers(self):
+    # Test that numpy integer types are correctly accepted by the
+    # ApplyPartitionFnFn class
+    import numpy as np
+
+    # Create an instance of the ApplyPartitionFnFn class
+    apply_partition_fn = beam.Partition.ApplyPartitionFnFn()
+
+    # Define a simple partition function
+    class SimplePartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return element % num_partitions
+
+    partition_fn = SimplePartitionFn()
+
+    # Test with numpy.int32
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(np.int32(1), partition_fn, 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '1')  # 1 % 3 = 1
+
+    # Test with numpy.int64
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(np.int64(2), partition_fn, 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '2')  # 2 % 3 = 2
+
+  def test_partition_fn_returning_numpy_integers(self):
+    # Test that partition functions can return numpy integer types
+    import numpy as np
+
+    # Create an instance of the ApplyPartitionFnFn class
+    apply_partition_fn = beam.Partition.ApplyPartitionFnFn()
+
+    # Define partition functions that return numpy integer types
+    class Int32PartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return np.int32(element % num_partitions)
+
+    class Int64PartitionFn(beam.PartitionFn):
+      def partition_for(self, element, num_partitions):
+        return np.int64(element % num_partitions)
+
+    # Test with partition function returning numpy.int32
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(1, Int32PartitionFn(), 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '1')  # 1 % 3 = 1
+
+    # Test with partition function returning numpy.int64
+    # This should not raise an exception
+    outputs = list(apply_partition_fn.process(2, Int64PartitionFn(), 3))
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].tag, '2')  # 2 % 3 = 2
+
   def test_partition_boundedness(self):
     def partition_fn(val, num_partitions):
       return val % num_partitions
@@ -360,6 +416,94 @@ class ExceptionHandlingTest(unittest.TestCase):
       bad_elements = bad | beam.Keys()
       assert_that(good, equal_to([0, 1, 2]), 'good')
       assert_that(bad_elements, equal_to([(1, 5), (1, 10)]), 'bad')
+
+  def test_tags_with_exception_handling_then_resource_hint(self):
+    class TagHint(ResourceHint):
+      urn = 'beam:resources:tags:v1'
+
+    ResourceHint.register_resource_hint('tags', TagHint)
+    with beam.Pipeline() as pipeline:
+      ok, unused_errors = (
+        pipeline
+        | beam.Create([1])
+        | beam.Map(lambda x: x)
+        .with_exception_handling()
+        .with_resource_hints(tags='test_tag')
+      )
+    pd = ok.producer.transform
+    self.assertIsInstance(pd, beam.transforms.core.ParDo)
+    while hasattr(pd.fn, 'fn'):
+      pd = pd.fn
+    self.assertEqual(
+        pd.get_resource_hints(),
+        {'beam:resources:tags:v1': b'test_tag'},
+    )
+
+  def test_tags_with_exception_handling_timeout_then_resource_hint(self):
+    class TagHint(ResourceHint):
+      urn = 'beam:resources:tags:v1'
+
+    ResourceHint.register_resource_hint('tags', TagHint)
+    with beam.Pipeline() as pipeline:
+      ok, unused_errors = (
+        pipeline
+        | beam.Create([1])
+        | beam.Map(lambda x: x)
+        .with_exception_handling(timeout=1)
+        .with_resource_hints(tags='test_tag')
+      )
+    pd = ok.producer.transform
+    self.assertIsInstance(pd, beam.transforms.core.ParDo)
+    while hasattr(pd.fn, 'fn'):
+      pd = pd.fn
+    self.assertEqual(
+        pd.get_resource_hints(),
+        {'beam:resources:tags:v1': b'test_tag'},
+    )
+
+  def test_tags_with_resource_hint_then_exception_handling(self):
+    class TagHint(ResourceHint):
+      urn = 'beam:resources:tags:v1'
+
+    ResourceHint.register_resource_hint('tags', TagHint)
+    with beam.Pipeline() as pipeline:
+      ok, unused_errors = (
+        pipeline
+        | beam.Create([1])
+        | beam.Map(lambda x: x)
+        .with_resource_hints(tags='test_tag')
+        .with_exception_handling()
+      )
+    pd = ok.producer.transform
+    self.assertIsInstance(pd, beam.transforms.core.ParDo)
+    while hasattr(pd.fn, 'fn'):
+      pd = pd.fn
+    self.assertEqual(
+        pd.get_resource_hints(),
+        {'beam:resources:tags:v1': b'test_tag'},
+    )
+
+  def test_tags_with_resource_hint_then_exception_handling_timeout(self):
+    class TagHint(ResourceHint):
+      urn = 'beam:resources:tags:v1'
+
+    ResourceHint.register_resource_hint('tags', TagHint)
+    with beam.Pipeline() as pipeline:
+      ok, unused_errors = (
+        pipeline
+        | beam.Create([1])
+        | beam.Map(lambda x: x)
+        .with_resource_hints(tags='test_tag')
+        .with_exception_handling(timeout=1)
+      )
+    pd = ok.producer.transform
+    self.assertIsInstance(pd, beam.transforms.core.ParDo)
+    while hasattr(pd.fn, 'fn'):
+      pd = pd.fn
+    self.assertEqual(
+        pd.get_resource_hints(),
+        {'beam:resources:tags:v1': b'test_tag'},
+    )
 
 
 def test_callablewrapper_typehint():

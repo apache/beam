@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -39,9 +40,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * containing one nullable field matching each input field, and one additional {@link
  * EnumerationType} logical type field that indicates which field is set.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   public static final String IDENTIFIER = "OneOf";
 
@@ -118,17 +116,17 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
-  public <T> Value createValue(String caseValue, T value) {
+  public <T extends @NonNull Object> Value createValue(String caseValue, T value) {
     return createValue(getCaseEnumType().valueOf(caseValue), value);
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
-  public <T> Value createValue(int caseValue, T value) {
+  public <T extends @NonNull Object> Value createValue(int caseValue, T value) {
     return createValue(getCaseEnumType().valueOf(caseValue), value);
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
-  public <T> Value createValue(EnumerationType.Value caseType, T value) {
+  public <T extends @NonNull Object> Value createValue(EnumerationType.Value caseType, T value) {
     return new Value(caseType, value);
   }
 
@@ -155,12 +153,13 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
     for (int i = 0; i < base.getFieldCount(); ++i) {
       Object value = base.getValue(i);
       if (value != null) {
-        checkArgument(caseType == null, "More than one field set in union " + this);
+        checkArgument(caseType == null, "More than one field set in union %s", this);
         caseType = enumerationType.valueOf(oneOfSchema.getField(i).getName());
         oneOfValue = value;
       }
     }
-    checkNotNull(oneOfValue, "No value set in union" + this);
+    checkArgumentNotNull(caseType, "No value set in union %s", this);
+    checkArgumentNotNull(oneOfValue, "No value set in union %s", this);
     return createValue(caseType, oneOfValue);
   }
 

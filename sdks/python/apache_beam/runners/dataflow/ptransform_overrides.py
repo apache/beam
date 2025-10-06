@@ -19,7 +19,68 @@
 
 # pytype: skip-file
 
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import PTransformOverride
+
+
+class StreamingPubSubWriteDoFnOverride(PTransformOverride):
+  """Override ParDo(_PubSubWriteDoFn) for streaming mode in DataflowRunner.
+
+  This override specifically targets the final ParDo step in WriteToPubSub
+  and replaces it with Write(sink) for streaming optimization.
+  """
+  def matches(self, applied_ptransform):
+    from apache_beam.transforms import ParDo
+    from apache_beam.io.gcp.pubsub import _PubSubWriteDoFn
+
+    if not isinstance(applied_ptransform.transform, ParDo):
+      return False
+
+    # Check if this ParDo uses _PubSubWriteDoFn
+    dofn = applied_ptransform.transform.dofn
+    return isinstance(dofn, _PubSubWriteDoFn)
+
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    from apache_beam.io.iobase import Write
+
+    # Get the WriteToPubSub transform from the DoFn constructor parameter
+    dofn = applied_ptransform.transform.dofn
+
+    # The DoFn was initialized with the WriteToPubSub transform
+    # We need to reconstruct the sink from the DoFn's stored properties
+    if hasattr(dofn, 'project') and hasattr(dofn, 'short_topic_name'):
+      from apache_beam.io.gcp.pubsub import _PubSubSink
+
+      # Create a sink with the same properties as the original
+      topic = f"projects/{dofn.project}/topics/{dofn.short_topic_name}"
+      sink = _PubSubSink(
+          topic=topic,
+          id_label=getattr(dofn, 'id_label', None),
+          timestamp_attribute=getattr(dofn, 'timestamp_attribute', None))
+      return Write(sink)
+    else:
+      # Fallback: return the original transform if we can't reconstruct it
+      return applied_ptransform.transform
+
+
+def get_dataflow_transform_overrides(pipeline_options):
+  """Returns DataflowRunner-specific transform overrides.
+
+  Args:
+    pipeline_options: Pipeline options to determine which overrides to apply.
+
+  Returns:
+    List of PTransformOverride objects for DataflowRunner.
+  """
+  overrides = []
+
+  # Only add streaming-specific overrides when in streaming mode
+  if pipeline_options.view_as(StandardOptions).streaming:
+    # Add PubSub ParDo streaming override that targets only the final step
+    overrides.append(StreamingPubSubWriteDoFnOverride())
+
+  return overrides
 
 
 class NativeReadPTransformOverride(PTransformOverride):
@@ -54,7 +115,7 @@ class NativeReadPTransformOverride(PTransformOverride):
         return pvalue.PCollection.from_(pbegin)
 
     # Use the source's coder type hint as this replacement's output. Otherwise,
-    # the typing information is not properly forwarded to the DataflowRunner and
-    # will choose the incorrect coder for this transform.
+    # the typing information is not properly forwarded to the DataflowRunner
+    # and will choose the incorrect coder for this transform.
     return Read(ptransform.source).with_output_types(
         ptransform.source.coder.to_type_hint())

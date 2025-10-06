@@ -325,7 +325,8 @@ public class Schema implements Serializable {
     for (Field field : this.fields) {
       Preconditions.checkArgument(
           fieldIndicesMutable.get(field.getName()) == null,
-          "Duplicate field " + field.getName() + " added to schema");
+          "Duplicate field %s added to schema",
+          field.getName());
       encodingPositions.put(field.getName(), index);
       fieldIndicesMutable.put(field.getName(), index++);
     }
@@ -491,21 +492,7 @@ public class Schema implements Serializable {
 
   @Override
   public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("Fields:");
-    builder.append(System.lineSeparator());
-    for (Field field : fields) {
-      builder.append(field);
-      builder.append(System.lineSeparator());
-    }
-    builder.append("Encoding positions:");
-    builder.append(System.lineSeparator());
-    builder.append(encodingPositions);
-    builder.append(System.lineSeparator());
-    builder.append("Options:");
-    builder.append(options);
-    builder.append("UUID: " + uuid);
-    return builder.toString();
+    return SchemaUtils.toPrettyString(this);
   }
 
   @Override

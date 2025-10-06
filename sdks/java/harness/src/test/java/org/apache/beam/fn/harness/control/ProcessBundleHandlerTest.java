@@ -236,6 +236,7 @@ public class ProcessBundleHandlerTest {
     }
   }
 
+  @SuppressWarnings("ExtendsAutoValue")
   private static class TestBundleProcessor extends BundleProcessor {
     static int resetCnt = 0;
 

@@ -36,6 +36,8 @@ ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for processing virtually any size data. This
 artifact includes all Apache Beam Java SDK examples."""
 
+apply from: "$projectDir/common.gradle"
+
 /** Define the list of runners which execute a precommit test.
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
@@ -71,9 +73,6 @@ dependencies {
   implementation project(":sdks:java:extensions:python")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
-  runtimeOnly project(":sdks:java:io:iceberg")
-  runtimeOnly project(":sdks:java:io:iceberg:bqms")
-  implementation project(":sdks:java:managed")
   implementation project(":sdks:java:extensions:ml")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
@@ -175,39 +174,6 @@ task preCommit() {
   for (String runner : preCommitRunners) {
     dependsOn runner + "PreCommit"
   }
-}
-
-/*
- * A convenient task to run individual example directly on Beam repo.
- *
- * Usage:
- * ./gradlew :examples:java:execute -PmainClass=org.apache.beam.examples.<ClassName>`\
- *  -Pexec.args="runner=[DataflowRunner|DirectRunner|FlinkRunner|SparkRunner|PrismRunner] \
- * <pipeline options>"
- */
-tasks.create(name:"execute", type:JavaExec) {
-  mainClass = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "NONE"
-  def execArgs =  project.findProperty("exec.args")
-  String runner
-  if (execArgs) {
-    // configure runner dependency from args
-    def runnerPattern = /runner[ =]([A-Za-z]+)/
-    def matcher = execArgs =~ runnerPattern
-    if (matcher) {
-      runner = matcher[0][1]
-      runner = runner.substring(0, 1).toLowerCase() + runner.substring(1);
-      if (!(runner in (preCommitRunners + nonPreCommitRunners))) {
-        throw new GradleException("Unsupported runner: " + runner)
-      }
-    }
-  }
-  if (runner) {
-    classpath = sourceSets.main.runtimeClasspath + configurations."${runner}PreCommit"
-  } else {
-    classpath = sourceSets.main.runtimeClasspath
-  }
-  systemProperties System.getProperties()
-  args execArgs ? execArgs.split() : []
 }
 
 // Run this task to validate the Java environment setup for contributors

@@ -28,6 +28,7 @@ import mock
 import pytest
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
@@ -177,7 +178,9 @@ class PipelineTest(unittest.TestCase):
         _ = pipeline | ParentTransform() | beam.Map(lambda x: x + 1)
 
   @mock.patch('logging.info')
+  @pytest.mark.uses_dill
   def test_runner_overrides_default_pickler(self, mock_info):
+    pytest.importorskip("dill")
     with mock.patch.object(PipelineRunner,
                            'default_pickle_library_override') as mock_fn:
       mock_fn.return_value = 'dill'
@@ -1073,6 +1076,38 @@ class RunnerApiTest(unittest.TestCase):
         common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
         proto.requirements)
 
+  def test_coder_version_tag_included_in_runner_api_key(self):
+    class MyClass:
+      def __init__(self, value: int):
+        self.value = value
+
+    class VersionedCoder(coders.Coder):
+      def encode(self, value):
+        return str(value.value).encode()
+
+      def decode(self, encoded):
+        return MyClass(int(encoded.decode()))
+
+      def version_tag(self):
+        return "v269"
+
+      def to_type_hint(self):
+        return MyClass
+
+    coders.registry.register_coder(MyClass, VersionedCoder)
+    p = beam.Pipeline()
+    _ = (p | beam.Impulse() | beam.Map(lambda _: MyClass(1)))
+    pipeline_proto = p.to_runner_api()
+    coder_keys = sorted(list(pipeline_proto.components.coders.keys()))
+
+    self.assertListEqual(
+        coder_keys,
+        [
+            'ref_Coder_BytesCoder_1',
+            'ref_Coder_GlobalWindowCoder_2',
+            'ref_Coder_VersionedCoder_v269_3'
+        ])
+
   def test_annotations(self):
     some_proto = BytesCoder().to_runner_api(None)
 
@@ -1561,6 +1596,59 @@ class RunnerApiTest(unittest.TestCase):
         proto.components.transforms['transform0'].environment_id)
 
     self.assertEqual(len(proto.components.environments), 6)
+
+  def test_multiple_outputs_composite_ptransform(self):
+    """
+    Test that a composite PTransform with multiple outputs is represented
+    correctly in the pipeline proto.
+    """
+    class SalesSplitter(beam.DoFn):
+      def process(self, element):
+        price = element['price']
+        if price > 100:
+          yield beam.pvalue.TaggedOutput('premium_sales', element)
+        else:
+          yield beam.pvalue.TaggedOutput('standard_sales', element)
+
+    class ParentSalesSplitter(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.ParDo(SalesSplitter()).with_outputs(
+            'premium_sales', 'standard_sales')
+
+    sales_data = [
+        {
+            'item': 'Laptop', 'price': 1200
+        },
+        {
+            'item': 'Mouse', 'price': 25
+        },
+        {
+            'item': 'Keyboard', 'price': 75
+        },
+        {
+            'item': 'Monitor', 'price': 350
+        },
+        {
+            'item': 'Headphones', 'price': 90
+        },
+    ]
+
+    with beam.Pipeline() as pipeline:
+      sales_records = pipeline | 'Create Sales' >> beam.Create(sales_data)
+      _ = sales_records | 'Split Sales' >> ParentSalesSplitter()
+    current_transforms = list(pipeline.transforms_stack)
+    all_applied_transforms = {
+        xform.full_label: xform
+        for xform in current_transforms
+    }
+    while current_transforms:
+      xform = current_transforms.pop()
+      all_applied_transforms[xform.full_label] = xform
+      current_transforms.extend(xform.parts)
+    xform = all_applied_transforms['Split Sales']
+    # Confirm that Split Sales correctly has two outputs as specified by
+    #  ParDo.with_outputs in ParentSalesSplitter.
+    assert len(xform.outputs) == 2
 
 
 if __name__ == '__main__':

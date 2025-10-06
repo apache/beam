@@ -39,6 +39,7 @@ from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -1678,7 +1679,8 @@ class ParDo(PTransformWithSideInputs):
         timeout,
         error_handler,
         on_failure_callback,
-        allow_unsafe_userstate_in_process)
+        allow_unsafe_userstate_in_process,
+        self.get_resource_hints())
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -2284,7 +2286,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       timeout,
       error_handler,
       on_failure_callback,
-      allow_unsafe_userstate_in_process):
+      allow_unsafe_userstate_in_process,
+      resource_hints):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2301,6 +2304,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._error_handler = error_handler
     self._on_failure_callback = on_failure_callback
     self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
+    self._resource_hints = resource_hints
 
   def expand(self, pcoll):
     if self._allow_unsafe_userstate_in_process:
@@ -2317,17 +2321,23 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       wrapped_fn = _TimeoutDoFn(self._fn, timeout=self._timeout)
     else:
       wrapped_fn = self._fn
-    result = pcoll | ParDo(
+    pardo = ParDo(
         _ExceptionHandlingWrapperDoFn(
             wrapped_fn,
             self._dead_letter_tag,
             self._exc_class,
             self._partial,
             self._on_failure_callback,
-            self._allow_unsafe_userstate_in_process),
+            self._allow_unsafe_userstate_in_process,
+        ),
         *self._args,
-        **self._kwargs).with_outputs(
-            self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+        **self._kwargs,
+    )
+    # This is the fix: propagate hints.
+    pardo.get_resource_hints().update(self._resource_hints)
+
+    result = pcoll | pardo.with_outputs(
+        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
     #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
     result[self._main_tag].element_type = self._fn.infer_output_type(
         pcoll.element_type)
@@ -3315,6 +3325,10 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
+  def __init__(self):
+    self._replaced_by_gbek = False
+    self._inside_gbek = False
+
   class ReifyWindows(DoFn):
     def process(
         self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
@@ -3332,7 +3346,29 @@ class GroupByKey(PTransform):
       return typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
 
+  def get_windowing(self, inputs):
+    # Switch to the continuation trigger associated with the current trigger.
+    windowing = inputs[0].windowing
+    triggerfn = windowing.triggerfn.get_continuation_trigger()
+    return Windowing(
+        windowfn=windowing.windowfn,
+        triggerfn=triggerfn,
+        accumulation_mode=windowing.accumulation_mode,
+        timestamp_combiner=windowing.timestamp_combiner,
+        allowed_lateness=windowing.allowed_lateness,
+        environment_id=windowing.environment_id)
+
   def expand(self, pcoll):
+    replace_with_gbek_secret = (
+        pcoll.pipeline._options.view_as(SetupOptions).gbek)
+    if replace_with_gbek_secret is not None and not self._inside_gbek:
+      self._replaced_by_gbek = True
+      from apache_beam.transforms.util import GroupByEncryptedKey
+      from apache_beam.transforms.util import Secret
+
+      secret = Secret.parse_secret_option(replace_with_gbek_secret)
+      return (pcoll | "Group by encrypted key" >> GroupByEncryptedKey(secret))
+
     from apache_beam.transforms.trigger import DataLossReason
     from apache_beam.transforms.trigger import DefaultTrigger
     windowing = pcoll.windowing
@@ -3379,7 +3415,11 @@ class GroupByKey(PTransform):
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> typing.Tuple[str, None]
+    # type: (PipelineContext) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
+    # if we're containing a GroupByEncryptedKey, don't allow runners to
+    # recognize this transform as a GBEK so that it doesn't get replaced.
+    if self._replaced_by_gbek:
+      return super().to_runner_api_parameter(unused_context)
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @staticmethod
@@ -3642,11 +3682,13 @@ class Partition(PTransformWithSideInputs):
     """A DoFn that applies a PartitionFn."""
     def process(self, element, partitionfn, n, *args, **kwargs):
       partition = partitionfn.partition_for(element, n, *args, **kwargs)
-      if isinstance(partition, bool) or not isinstance(partition, int):
+      import numbers
+      if isinstance(partition,
+                    bool) or not isinstance(partition, numbers.Integral):
         raise ValueError(
             f"PartitionFn yielded a '{type(partition).__name__}' "
             "when it should only yield integers")
-      if not 0 <= partition < n:
+      if not 0 <= int(partition) < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
             '%d not in [0, %d)' % (partition, n))

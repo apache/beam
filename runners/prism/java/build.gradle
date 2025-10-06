@@ -86,17 +86,23 @@ def sickbayTests = [
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedStringSetMetrics',
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics',
 
-    // ProcessingTime triggers not yet implemented in Prism.
-    // https://github.com/apache/beam/issues/31438
+    // Instead of 42, Prism got 84, which suggests two early panes of 42 are fired.
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-    'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime',
-    'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerEarly',
-    'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
-    'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating', // Uses processing time trigger for early firings.
+
+    // A regression introduced when we use number of pending elements rather than watermark to determine
+    // the bundle readiness of a stateless stage.
+    // Currently, Prism processes a bundle of [100, ..., 1000] when watermark is set to 100,
+    // and then a second bundle of [1, ... 99] when the watermark is set to +inf.
+    // As a result, it yields an output of [-999, 1, 1...], where -999 comes from the difference between 1000 and 1.
+    // According to https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.RequiresTimeSortedInput.html,
+    // the stateful dofn with `RequiresTimeSortedInput` annotation should buffer an element until the element's timestamp + allowed_lateness.
+    // This stateful dofn feature is not yet supported in Prism.
+    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
 
     // Triggered Side Inputs not yet implemented in Prism.
     // https://github.com/apache/beam/issues/31438
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
+    'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
 
     // Prism doesn't support multiple TestStreams.
     'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
@@ -106,6 +112,9 @@ def sickbayTests = [
     // GroupIntoBatchesTest tests that fail:
     // Teststream has bad KV encodings due to using an outer context.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow',
+    // sdk worker disconnected
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInGlobalWindow',
     // ShardedKey not yet implemented.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
 
@@ -193,10 +202,6 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       // Not supported in Portable Java SDK yet.
       // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState
       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
-
-      // Processing time with TestStream is unreliable without being able to control
-      // SDK side time portably. Ignore these tests.
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
 
       // Not yet supported in Prism.
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics'
