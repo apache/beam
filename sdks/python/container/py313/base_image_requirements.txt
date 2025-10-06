@@ -120,7 +120,7 @@ oracledb==3.3.0
 orjson==3.11.3
 overrides==7.7.0
 packaging==25.0
-pandas==2.2.3
+pandas==2.3.3
 parameterized==0.9.0
 pg8000==1.31.5
 pip==25.2
