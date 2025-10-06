@@ -1004,8 +1004,12 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     return Any
 
 
-def _should_force_use_dill(update_compat_version):
+def _should_force_use_dill(registry):
+  if getattr(registry, 'force_cloudpickle_deterministic_coders', False):
+    return False
+
   from apache_beam.transforms.util import is_v1_prior_to_v2
+  update_compat_version = registry.update_compatibility_version
   if not update_compat_version:
     return False
 
@@ -1035,11 +1039,11 @@ def _update_compatible_deterministic_fast_primitives_coder(coder, step_label):
    relative filepaths in code objects and dynamic functions.
   """
   from apache_beam.coders import typecoders
-  update_compat_version = typecoders.registry.update_compatibility_version
-  if _should_force_use_dill(update_compat_version):
+
+  if _should_force_use_dill(typecoders.registry):
     return DeterministicFastPrimitivesCoder(coder, step_label)
   return DeterministicFastPrimitivesCoderV2(
-      coder, step_label, update_compat_version)
+      coder, step_label, typecoders.registry.update_compatibility_version)
 
 
 class FastPrimitivesCoder(FastCoder):

@@ -497,7 +497,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
-  @pytest.mark.uses_dill
   def test_reshuffle_before_load(self, compat_version):
     maybe_skip(compat_version)
     destination = 'project1:dataset1.table1'
@@ -525,7 +524,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         temp_file_format=bigquery_tools.FileFormat.JSON)
 
-    options = PipelineOptions(update_compatibility_version=compat_version)
+    options = PipelineOptions(
+        update_compatibility_version=compat_version,
+        # Disable unrelated compatibility change.
+        force_cloudpickle_deterministic_coders=True)
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner', options=options) as p:
       _ = p | beam.Create(_ELEMENTS) | transform

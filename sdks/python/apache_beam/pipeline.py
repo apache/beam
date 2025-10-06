@@ -233,6 +233,9 @@ class Pipeline(HasDisplayData):
 
     typecoders.registry.update_compatibility_version = self._options.view_as(
         StreamingOptions).update_compatibility_version
+    typecoders.registry.force_cloudpickle_deterministic_coders = (
+        self._options.view_as(
+            TypeOptions).force_cloudpickle_deterministic_coders)
 
     # set default experiments for portable runners
     # (needs to occur prior to pipeline construction)

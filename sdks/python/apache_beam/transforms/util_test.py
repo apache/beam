@@ -1219,7 +1219,6 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
-  @pytest.mark.uses_dill
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves pane info."""
     maybe_skip(compat_version)
@@ -1287,7 +1286,10 @@ class ReshuffleTest(unittest.TestCase):
                           PANE_INFO_UNKNOWN)
     ])
 
-    options = PipelineOptions(update_compatibility_version=compat_version)
+    options = PipelineOptions(
+        update_compatibility_version=compat_version,
+        # Disable unrelated compatibility change.
+        force_cloudpickle_deterministic_coders=True)
     options.view_as(StandardOptions).streaming = True
 
     with beam.Pipeline(options=options) as p:
@@ -1322,7 +1324,6 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
-  @pytest.mark.uses_dill
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
@@ -1378,7 +1379,10 @@ class ReshuffleTest(unittest.TestCase):
         expected_preserved
         if compat_version is None else expected_not_preserved)
 
-    options = PipelineOptions(update_compatibility_version=compat_version)
+    options = PipelineOptions(
+        update_compatibility_version=compat_version,
+        # Disable unrelated compatibility change.
+        force_cloudpickle_deterministic_coders=True)
     with TestPipeline(options=options) as pipeline:
       # Create windowed values with specific metadata
       elements = [

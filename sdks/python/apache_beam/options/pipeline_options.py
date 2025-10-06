@@ -874,6 +874,18 @@ class TypeOptions(PipelineOptions):
         'their condition met. Some operations, such as GroupByKey, disallow '
         'this. This exists for cases where such loss is acceptable and for '
         'backwards compatibility. See BEAM-9487.')
+    parser.add_argument(
+        '--force_cloudpickle_deterministic_coders',
+        default=False,
+        action='store_true',
+        help=(
+            'Force the use of cloudpickle-based deterministic coders '
+            'instead of dill-based coders, even when '
+            'update_compatibility_version  would normally trigger dill usage '
+            'for backward compatibility. This flag overrides automatic coder '
+            'selection to always use the modern cloudpickle serialization '
+            ' path. Warning: May break pipeline update compatibility with '
+            ' SDK versions prior to 2.68.0.'))
 
   def validate(self, unused_validator):
     errors = []
