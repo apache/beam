@@ -988,6 +988,9 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Xlint:-path',
           '-Xlint:-this-escape'
         ]
+        if (ver == '25') {
+          options.compilerArgs += ['-Xlint:-dangling-doc-comments']
+        }
         // Error prone requires some packages to be exported/opened for Java 17+
         // Disabling checks since this property is only used for tests
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
