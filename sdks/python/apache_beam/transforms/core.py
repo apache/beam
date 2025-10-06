@@ -3083,7 +3083,7 @@ class CombinePerKey(PTransformWithSideInputs):
       self,
       context,  # type: PipelineContext
   ):
-    # type: (PipelineContext) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
+    # type: (...) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
     if getattr(self, '_using_gbek', False):
       return super().to_runner_api_parameter(context)
     if self.args or self.kwargs:
