@@ -257,8 +257,8 @@ class CodersTest(unittest.TestCase):
     - In SDK version <= 2.67.0 dill is used to encode "special types"
     - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
     absolute filepaths in code objects and dynamic functions.
-    - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
-    relative filepaths in code objects and dynamic functions.
+    - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
+    with relative filepaths in code objects and dynamic functions.
     """
 
     typecoders.registry.update_compatibility_version = compat_version
@@ -343,8 +343,8 @@ class CodersTest(unittest.TestCase):
     - In SDK version <= 2.67.0 dill is used to encode "special types"
     - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
     absolute filepaths in code objects and dynamic functions.
-    - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
-    relative file
+    - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
+    with relative file.
     """
     typecoders.registry.update_compatibility_version = compat_version
     values = [{
