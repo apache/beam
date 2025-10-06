@@ -110,6 +110,9 @@ def ensure_clean_state():
   import gc
   import threading
   import time
+  if "BEAM_SKIP_ENSURE_CLEAN_STATE_FIXTURE" in os.environ:
+    yield
+    return
 
   # Force garbage collection to clean up any lingering resources
   gc.collect()
