@@ -35,7 +35,7 @@ from typing import Optional
 from typing import Type
 from typing import Union
 
-from apache_beam.internal.metrics.cells import HistogramCellFactory
+from apache_beam.metrics.cells import HistogramCellFactory
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metric import Metrics as UserMetrics
