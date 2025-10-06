@@ -130,7 +130,12 @@ public class KafkaReadSchemaTransformProviderTest {
             "error_handling",
             "file_descriptor_path",
             "message_name",
-            "max_read_time_seconds"),
+            "max_read_time_seconds",
+            "redistributed",
+            "allow_duplicates",
+            "offset_deduplication",
+            "redistribute_num_keys",
+            "redistribute_by_record_key"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));

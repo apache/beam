@@ -106,9 +106,9 @@ jobs:
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         with:
-          gradle-command: :sdks:python:test-suites:portable:py312:flinkValidatesRunner
+          gradle-command: :sdks:python:test-suites:portable:py313:flinkValidatesRunner
           arguments: |
-            -PpythonVersion=3.12 \
+            -PpythonVersion=3.13 \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
