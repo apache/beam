@@ -461,8 +461,10 @@ class BeamModulePlugin implements Plugin<Project> {
       return 'java11'
     } else if (ver <= JavaVersion.VERSION_17) {
       return 'java17'
-    } else {
+    } else if (ver <= JavaVersion.VERSION_21) {
       return 'java21'
+    } else {
+      return 'java25'
     }
   }
 
@@ -989,7 +991,9 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Xlint:-this-escape'
         ]
         if (ver == '25') {
-          options.compilerArgs += ['-Xlint:-dangling-doc-comments']
+          options.compilerArgs += [
+            '-Xlint:-dangling-doc-comments'
+          ]
         }
         // Error prone requires some packages to be exported/opened for Java 17+
         // Disabling checks since this property is only used for tests
