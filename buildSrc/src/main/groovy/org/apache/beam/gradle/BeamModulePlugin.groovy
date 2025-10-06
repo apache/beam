@@ -699,7 +699,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_gcs_connector                    : "com.google.cloud.bigdataoss:gcs-connector:hadoop2-$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigdataoss_util_hadoop                      : "com.google.cloud.bigdataoss:util-hadoop:hadoop2-$google_cloud_bigdataoss_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.14.12",
+        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.17.7",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
