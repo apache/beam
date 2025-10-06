@@ -281,6 +281,7 @@ class JavaJarServer(SubprocessServer):
 
   MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
   MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'  # pylint: disable=line-too-long
+  GOOGLE_MAVEN_MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2'  # pylint: disable=line-too-long
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
@@ -420,6 +421,32 @@ class JavaJarServer(SubprocessServer):
         artifact_id, cls.BEAM_GROUP_ID, version, maven_repo, appendix=appendix)
 
   @classmethod
+  def _download_jar_to_cache(
+      cls, download_url, cached_jar_path, user_agent=None):
+    """Downloads a jar from the given URL to the specified cache path.
+    
+    Args:
+      download_url (str): The URL to download from.
+      cached_jar_path (str): The local path where the jar should be cached.
+      user_agent (str): The user agent to use when downloading.
+    """
+    try:
+      url_read = FileSystems.open(download_url)
+    except ValueError:
+      if user_agent is None:
+        user_agent = cls._DEFAULT_USER_AGENT
+      url_request = Request(download_url, headers={'User-Agent': user_agent})
+      url_read = urlopen(url_request)
+    with open(cached_jar_path + '.tmp', 'wb') as jar_write:
+      shutil.copyfileobj(url_read, jar_write, length=1 << 20)
+    try:
+      os.rename(cached_jar_path + '.tmp', cached_jar_path)
+    except FileNotFoundError:
+      # A race when multiple programs run in parallel and the cached_jar
+      # is already moved. Safe to ignore.
+      pass
+
+  @classmethod
   def local_jar(cls, url, cache_dir=None, user_agent=None):
     """Returns a local path to the given jar, downloading it if necessary.
 
@@ -449,25 +476,31 @@ class JavaJarServer(SubprocessServer):
           os.makedirs(cache_dir)
           # TODO: Clean up this cache according to some policy.
         try:
-          try:
-            url_read = FileSystems.open(url)
-          except ValueError:
-            if user_agent is None:
-              user_agent = cls._DEFAULT_USER_AGENT
-            url_request = Request(url, headers={'User-Agent': user_agent})
-            url_read = urlopen(url_request)
-          with open(cached_jar + '.tmp', 'wb') as jar_write:
-            shutil.copyfileobj(url_read, jar_write, length=1 << 20)
-          try:
-            os.rename(cached_jar + '.tmp', cached_jar)
-          except FileNotFoundError:
-            # A race when multiple programs run in parallel and the cached_jar
-            # is already moved. Safe to ignore.
-            pass
+          cls._download_jar_to_cache(url, cached_jar, user_agent)
         except URLError as e:
-          raise RuntimeError(
-              f'Unable to fetch remote job server jar at {url}: {e}. If no '
-              f'Internet access at runtime, stage the jar at {cached_jar}')
+          # Try Google Maven mirror as fallback if the original URL is from
+          # Maven Central
+          if url.startswith(cls.MAVEN_CENTRAL_REPOSITORY):
+            fallback_url = url.replace(
+                cls.MAVEN_CENTRAL_REPOSITORY, cls.GOOGLE_MAVEN_MIRROR)
+            _LOGGER.info(
+                'Trying Google Maven mirror fallback: %s' % fallback_url)
+            try:
+              cls._download_jar_to_cache(fallback_url, cached_jar, user_agent)
+              _LOGGER.info(
+                  'Successfully downloaded from Google Maven mirror: %s' %
+                  fallback_url)
+            except URLError as fallback_e:
+              raise RuntimeError(
+                  f'Unable to fetch remote job server jar at {url}: {e}. '
+                  f'Also failed to fetch from Google Maven mirror at '
+                  f'{fallback_url}: {fallback_e}. '
+                  f'If no Internet access at runtime, stage the jar at '
+                  f'{cached_jar}')
+          else:
+            raise RuntimeError(
+                f'Unable to fetch remote job server jar at {url}: {e}. If no '
+                f'Internet access at runtime, stage the jar at {cached_jar}')
       return cached_jar
 
   @classmethod
