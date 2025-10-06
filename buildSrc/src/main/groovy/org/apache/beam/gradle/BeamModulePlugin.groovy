@@ -3307,6 +3307,7 @@ class BeamModulePlugin implements Plugin<Project> {
             ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',
             ':sdks:python:container:py312:docker',
+            ':sdks:python:container:py313:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.
