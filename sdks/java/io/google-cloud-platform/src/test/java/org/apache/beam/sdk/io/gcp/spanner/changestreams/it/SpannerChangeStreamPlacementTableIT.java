@@ -71,15 +71,7 @@ import org.junit.runners.JUnit4;
         + "For now this test can only be exercised mannually.")
 public class SpannerChangeStreamPlacementTableIT {
 
-  // TODO change to spanner prod host once ready.
-  private static final String host = "https://staging-wrenchworks.sandbox.googleapis.com";
-
-  @ClassRule
-  public static final IntegrationTestEnv ENV =
-      new IntegrationTestEnv(
-          /*isPostgres=*/ false,
-          /*isPlacementTableBasedChangeStream=*/ true,
-          /*host=*/ Optional.of(host));
+  @ClassRule public static final IntegrationTestEnv ENV = new IntegrationTestEnv();
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -149,8 +141,7 @@ public class SpannerChangeStreamPlacementTableIT {
         SpannerConfig.create()
             .withProjectId(projectId)
             .withInstanceId(instanceId)
-            .withDatabaseId(databaseId)
-            .withHost(StaticValueProvider.of(host));
+            .withDatabaseId(databaseId);
     if (role != null) {
       spannerConfig = spannerConfig.withDatabaseRole(StaticValueProvider.of(role));
     }
@@ -210,8 +201,7 @@ public class SpannerChangeStreamPlacementTableIT {
         SpannerConfig.create()
             .withProjectId(projectId)
             .withInstanceId(instanceId)
-            .withDatabaseId(databaseId)
-            .withHost(StaticValueProvider.of(host));
+            .withDatabaseId(databaseId);
 
     // Filter records to only those from transactions with tag "app=beam;action=update"
     final PCollection<String> tokens =
