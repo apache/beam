@@ -39,8 +39,9 @@ This transform is available in Apache Beam 2.54.0 and later versions.
 The following examples demonstrate how to create a pipeline that use the enrichment transform to enrich data from external services.
 
 {{< table >}}
-| Service                            | Example                                                                                                                                                                      |
-|:-----------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Service                            | Example                                                                                                                        |
+|:-----------------------------------|:-------------------------------------------------------------------------------------------------------------------------------|
+| BigQuery Storage Read API           | [Enrichment with BigQuery Storage Read API](/documentation/transforms/python/elementwise/enrichment-bigquery-storage/#example)  |
 | Cloud Bigtable                     | [Enrichment with Bigtable](/documentation/transforms/python/elementwise/enrichment-bigtable/#example)                                                                        |
 | Cloud SQL (PostgreSQL, MySQL, SQLServer)                    | [Enrichment with CloudSQL](/documentation/transforms/python/elementwise/enrichment-cloudsql)                                                                        |
 | Vertex AI Feature Store            | [Enrichment with Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store)               |
@@ -94,7 +95,12 @@ from apache_beam.transforms.enrichment import Enrichment
 # Enrichment pipeline with Redis cache
 enriched_data = (input_data
                  | 'Enrich with Cache' >> Enrichment(my_enrichment_transform).with_redis_cache(host, port))
+```
 
+## FAQ: Advanced Options
+
+- **How do I use custom filtering logic or tune performance for BigQuery enrichment?**
+  See the [advanced example and FAQ](/documentation/transforms/python/elementwise/enrichment-bigquery-storage/#faq-advanced-options) in the BigQuery Storage Read API documentation for details on batching, custom filtering, performance tuning, and column aliasing.
 
 ## Related transforms
 
