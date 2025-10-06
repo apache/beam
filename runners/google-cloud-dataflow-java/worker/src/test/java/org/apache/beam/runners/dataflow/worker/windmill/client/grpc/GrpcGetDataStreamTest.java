@@ -316,16 +316,26 @@ public class GrpcGetDataStreamTest {
     assertNull(streamInfo.onDone.get());
 
     // Simulate an error on the grpc stream, this should trigger retrying the requests on a new
-    // stream
-    // which is half-closed.
+    // stream which is half-closed.
     streamInfo.responseObserver.onError(new IOException("test error"));
 
-    FakeWindmillGrpcService.GetDataStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
-    Windmill.StreamingGetDataRequest request2 = streamInfo2.requests.take();
-    assertThat(request2.getRequestIdList()).containsExactly(1L);
-    assertEquals(keyedGetDataRequest, request2.getStateRequest(0).getRequests(0));
-    assertNull(streamInfo2.onDone.get());
     Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo2;
+    while (true) {
+      streamInfo2 = waitForConnectionAndConsumeHeader();
+      streamInfo2.onDone.get();
+      Windmill.StreamingGetDataRequest request2 = streamInfo2.requests.poll(5, TimeUnit.SECONDS);
+      if (request2 == null) {
+        // Client half-closed but didn't send the request, this can happen due to race but
+        // should recover by resending stream with requests.
+        streamInfo2.responseObserver.onCompleted();
+        continue;
+      }
+      assertThat(request2.getRequestIdList()).containsExactly(1L);
+      assertEquals(keyedGetDataRequest, request2.getStateRequest(0).getRequests(0));
+      break;
+    }
+
     streamInfo2.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
