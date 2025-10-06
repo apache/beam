@@ -260,7 +260,6 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         table_data=cls._table_data,
         metadata=cls._metadata)
 
-
   @classmethod
   def get_columns(cls):
     """Returns fresh column objects each time it's called."""
