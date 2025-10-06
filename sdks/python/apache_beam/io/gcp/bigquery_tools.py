@@ -29,10 +29,13 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 import datetime
 import decimal
+import fastavro
 import io
 import json
 import logging
+import numpy as np
 import re
+import regex
 import sys
 import time
 import uuid
@@ -43,22 +46,18 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
-import fastavro
-import numpy as np
-import regex
-
 import apache_beam
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
-from apache_beam.metrics.metric import Metrics
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
@@ -70,10 +69,12 @@ from apache_beam.utils.histogram import LinearBucket
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpForbiddenError
   from apitools.base.py.transfer import Upload
-  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
-  from google.api_core.exceptions import ClientError, GoogleAPICallError
   from google.api_core.client_info import ClientInfo
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import GoogleAPICallError
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   gcp_bigquery = None

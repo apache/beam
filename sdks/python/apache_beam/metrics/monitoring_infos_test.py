@@ -18,11 +18,11 @@
 
 import unittest
 
-from apache_beam.metrics.cells import HistogramCell
-from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.cells import HistogramCell
+from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.utils.histogram import Histogram
 from apache_beam.utils.histogram import LinearBucket
