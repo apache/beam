@@ -167,6 +167,18 @@ abstract class AppendClientInfo {
     }
   }
 
+  public ByteString mergeNewFields(
+      ByteString payloadBytes, TableRow unknownFields, boolean ignoreUnknownValues)
+      throws TableRowToStorageApiProto.SchemaConversionException {
+    return TableRowToStorageApiProto.mergeNewFields(
+        payloadBytes,
+        getDescriptor(),
+        getTableSchema(),
+        getSchemaInformation(),
+        unknownFields,
+        ignoreUnknownValues);
+  }
+
   public TableRow toTableRow(ByteString protoBytes, Predicate<String> includeField) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
