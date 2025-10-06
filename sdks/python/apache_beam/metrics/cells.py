@@ -987,6 +987,10 @@ class HistogramResult(object):
   def p90(self):
     return self.data.histogram.p90()
 
+  @property
+  def histogram(self):
+    return self.data.histogram
+
 
 class HistogramData(object):
   """For internal use only; no backwards-compatibility guarantees.
@@ -1020,3 +1024,6 @@ class HistogramData(object):
   @staticmethod
   def identity_element(bucket_type) -> 'HistogramData':
     return HistogramData(Histogram(bucket_type))
+
+  def get_result(self) -> 'HistogramResult':
+    return HistogramResult(self.get_cumulative())

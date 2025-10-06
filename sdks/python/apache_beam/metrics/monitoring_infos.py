@@ -27,7 +27,7 @@ from typing import Union
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
-from apache_beam.internal.metrics.cells import HistogramData
+from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult

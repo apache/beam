@@ -316,7 +316,7 @@ class HistogramTest(unittest.TestCase):
 
     filter = MetricsFilter().with_name('latency_histogram_ms')
     query_result = result.metrics().query(filter)
-    histogram = query_result['histograms'][0].committed
+    histogram = query_result['histograms'][0].committed.histogram
     assert histogram._buckets == {1: 3, 6: 3}
     assert histogram.total_count() == 6
     assert 1 < histogram.get_linear_interpolation(0.50) < 3

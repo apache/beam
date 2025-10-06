@@ -42,8 +42,8 @@ from typing import Type
 from typing import Union
 from typing import cast
 
-from apache_beam.internal.metrics.cells import HistogramCellFactory
-from apache_beam.internal.metrics.cells import HistogramData
+from apache_beam.metrics.cells import HistogramCellFactory
+from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import BoundedTrieCell
 from apache_beam.metrics.cells import CounterCell
