@@ -1057,3 +1057,11 @@
   email: zhoufek@google.com
   permissions:
   - role: roles/editor
+- username: abdelrahman.ibrahim
+  email: abdelrahman.ibrahim@akvelon.us
+  permissions:
+  - role: roles/bigquery.admin
+  - role: roles/container.admin
+  - role: roles/editor
+  - role: roles/iam.serviceAccountUser
+  - role: roles/secretmanager.admin
