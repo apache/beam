@@ -53,7 +53,7 @@ from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
-from apache_beam.internal.metrics.metric import Metrics
+from apache_beam.metrics.metric import Metrics
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp import resource_identifiers
@@ -418,7 +418,7 @@ class BigQueryWrapper(object):
 
   def _get_temp_table_project(self, fallback_project_id):
     """Returns the project ID for temporary table operations.
-    
+
     If temp_table_ref exists, returns its projectId.
     Otherwise, returns the fallback_project_id.
     """
