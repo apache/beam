@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -152,6 +153,7 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 	}
 
 	// Extract URNs for the given transform.
+	slog.Debug("components in pipeline proto", "proto", prototext.Format(comps))
 
 	keptLeaves := maps.Keys(leaves)
 	sort.Strings(keptLeaves)

@@ -285,8 +285,8 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					//slog.Warn("teststream bytes", "value", string(v), "bytes", v)
 					return v
 				}
-				// Hack for Java Strings in test stream, since it doesn't encode them correctly.
-				forceLP := cID == "StringUtf8Coder" || cID != pyld.GetCoderId()
+				// the coder from teststream payload has to be LP'ed
+				forceLP := cID != pyld.GetCoderId()
 				if forceLP {
 					// slog.Warn("recoding TestStreamValue", "cID", cID, "newUrn", coders[cID].GetSpec().GetUrn(), "payloadCoder", pyld.GetCoderId(), "oldUrn", coders[pyld.GetCoderId()].GetSpec().GetUrn())
 					// The coder needed length prefixing. For simplicity, add a length prefix to each
