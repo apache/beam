@@ -50,8 +50,8 @@ fi
 
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
-"apache_beam/typehints/typehints_with_futureannotations_test.py".
-"apache_beam/typehints/decorators_with_futureannotations_test.py".
+"apache_beam/typehints/typehints_with_futureannotations_test.py"
+"apache_beam/typehints/decorators_with_futureannotations_test.py"
 "apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_client.py"
 "apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_messages.py"
 "apache_beam/runners/dataflow/internal/clients/dataflow/dataflow_v1b3_client.py"
