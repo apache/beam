@@ -423,25 +423,25 @@ public interface PipelineOptions extends HasDisplayData {
    * option should be structured like:
    *
    * <pre><code>
-   * --encrypt=type:<secret_type>;<secret_param>:<value>
+   * --gbek=type:<secret_type>;<secret_param>:<value>
    * </code></pre>
    *
    * for example:
    *
    * <pre><code>
-   * --encrypt=type:GcpSecret;version_name:my_secret/versions/latest"
+   * --gbek=type:GcpSecret;version_name:my_secret/versions/latest
    * </code></pre>
    *
    * All variables should use snake case to allow consistency across languages.
    */
   @Description(
-      "When set, will replace all GroupByKey transforms in the pipeline the option. Beam will"
-          + " infer the secret type and value based on the secret itself. This guarantees that"
+      "When set, will replace all GroupByKey transforms in the pipeline. Beam will infer"
+          + " the secret type and value based on the secret itself. This guarantees that"
           + " any data at rest during the performing a GBK, so this can be used to guarantee"
           + " that data is not unencrypted. Runners with this behavior include the Dataflow,"
           + " Flink, and Spark runners. The option should be structured like:"
-          + " --encrypt=type:<secret_type>;<secret_param>:<value>, for example "
-          + " --encrypt=type:GcpSecret;version_name:my_secret/versions/latest. All variables "
+          + " --gbek=type:<secret_type>;<secret_param>:<value>, for example "
+          + " --gbek=type:GcpSecret;version_name:my_secret/versions/latest. All variables "
           + " should use snake case to allow consistency across languages.")
   @Nullable
   String getGBEK();

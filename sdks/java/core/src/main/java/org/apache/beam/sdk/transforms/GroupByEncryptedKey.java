@@ -77,7 +77,6 @@ public class GroupByEncryptedKey<K, V>
    * @return A {@link GroupByEncryptedKey} transform.
    */
   public static <K, V> GroupByEncryptedKey<K, V> create(Secret hmacKey) {
-    GroupByKey<byte[], KV<byte[], byte[]>> gbk = GroupByKey.create();
     return new GroupByEncryptedKey<>(hmacKey, GroupByKey.create());
   }
 
