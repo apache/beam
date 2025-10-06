@@ -26,6 +26,8 @@ row selection.
 import concurrent.futures  # For parallel stream reading
 import logging
 import re
+import pyarrow as pa
+
 from collections.abc import Callable
 from collections.abc import Mapping
 from typing import Any
@@ -36,14 +38,11 @@ from typing import Optional
 from typing import Set
 from typing import Tuple
 from typing import Union
-import pyarrow as pa
+
 from google.api_core.exceptions import BadRequest
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.exceptions import NotFound
 from google.cloud.bigquery_storage import BigQueryReadClient
-
-from apache_beam.pvalue import Row as BeamRow
-from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 try:
   from google.cloud.bigquery_storage import types
@@ -55,6 +54,9 @@ except ImportError:
   ReadRowsResponse = types.ReadRowsResponse
   ReadSession = types.ReadSession
   DataFormat = types.DataFormat
+
+from apache_beam.pvalue import Row as BeamRow
+from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 # --- Configure Logging ---
 logger = logging.getLogger(__name__)

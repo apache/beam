@@ -30,7 +30,6 @@ from typing import Optional
 
 import mock
 import pytest
-from sqlalchemy.engine import Connection as DBAPIConnection
 
 # pylint: disable=unused-import
 try:
@@ -44,10 +43,6 @@ try:
       enrichment_with_bigquery_storage_basic,
       enrichment_with_bigquery_storage_custom_function,
   )
-except ImportError:
-  raise unittest.SkipTest("RequestResponseIO dependencies are not installed")
-  from sqlalchemy import (
-      Column, Integer, VARCHAR, Engine, MetaData, create_engine)
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
       enrichment_with_bigtable, enrichment_with_vertex_ai_legacy)
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
@@ -65,6 +60,9 @@ except ImportError:
       CloudSQLConnectionConfig,
       ExternalSQLDBConnectionConfig)
   from apache_beam.io.requestresponse import RequestResponseIO
+  from sqlalchemy.engine import Connection as DBAPIConnection
+  from sqlalchemy import (
+      Column, Integer, VARCHAR, Engine, MetaData, create_engine)
 except ImportError as e:
   raise unittest.SkipTest(f'RequestResponseIO dependencies not installed: {e}')
 

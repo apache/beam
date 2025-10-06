@@ -232,6 +232,8 @@ def enrichment_with_bigquery_storage_custom_function():
         | "Create Sales Data" >> beam.Create(sales_data)
         | "Enrich with Product Info (Advanced)" >> Enrichment(handler)
         | "Print Results" >> beam.Map(print))
+
+
   # [END enrichment_with_bigquery_storage_custom_function]
 def enrichment_with_google_cloudsql_pg():
   # [START enrichment_with_google_cloudsql_pg]
