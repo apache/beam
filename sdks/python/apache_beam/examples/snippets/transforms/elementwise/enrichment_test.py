@@ -134,7 +134,7 @@ class EnrichmentTest(unittest.TestCase):
     expected = sorted(validate_enrichment_with_vertex_ai())
 
     for i in range(len(expected)):
-      self.assertEqual(set(output[i].split(',')), set(expected[i].split(',')))
+      self.assertEqual(set(output[i][4:-1].split(',')), set(expected[i][4:-1].split(',')))
 
   def test_enrichment_with_vertex_ai_legacy(self, mock_stdout):
     enrichment_with_vertex_ai_legacy()
