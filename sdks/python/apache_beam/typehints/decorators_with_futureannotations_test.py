@@ -25,8 +25,11 @@ from __future__ import annotations
 # pytype: skip-file
 
 import functools
+import sys
 import typing
 import unittest
+
+import pytest
 
 from apache_beam import Map
 from apache_beam.typehints import Any
@@ -44,6 +47,13 @@ T = TypeVariable('T')
 # mypy requires that the name of the variable match, so we must ignore this.
 # pylint: disable=typevar-name-mismatch
 T_typing = typing.TypeVar('T')  # type: ignore
+
+
+@pytest.fixture(autouse=True)
+def skipif39_or_lower(request):
+  if sys.version_info < (3, 10) and "futureannotations" in str(
+      request.node.path):
+    pytest.skip("Skipping test on Python 3.9 or lower")
 
 
 class IOTypeHintsTest(unittest.TestCase):
