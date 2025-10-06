@@ -27,12 +27,12 @@ from typing import Union
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
-from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import BoundedTrieData
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
+from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import metrics_pb2

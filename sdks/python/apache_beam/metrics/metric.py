@@ -41,16 +41,16 @@ from typing import Type
 from typing import Union
 
 from apache_beam.metrics import cells
+from apache_beam.metrics.cells import HistogramCellFactory
 from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metricbase import BoundedTrie
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
-from apache_beam.metrics.metricbase import StringSet
-from apache_beam.metrics.cells import HistogramCellFactory
-from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metricbase import Histogram
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.metrics.metricbase import StringSet
 
 if TYPE_CHECKING:
   from apache_beam.metrics.execution import MetricKey

@@ -17,11 +17,10 @@
 
 # pytype: skip-file
 
-import unittest
-import re
-
 import hamcrest as hc
 import pytest
+import re
+import unittest
 
 import apache_beam as beam
 from apache_beam import metrics
