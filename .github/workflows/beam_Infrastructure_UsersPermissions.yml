@@ -73,10 +73,16 @@ jobs:
       - name: Create comment body
         if: github.event_name == 'pull_request_target'
         run: |
-          echo "### Terraform Plan for User Roles Changes" > comment_body.txt
-          echo '```' >> comment_body.txt
-          cat ./infra/iam/tfplan.txt >> comment_body.txt
-          echo '```' >> comment_body.txt
+          PLAN_SIZE=$(wc -c < ./infra/iam/tfplan.txt)
+          if [ "$PLAN_SIZE" -gt 60000 ]; then
+            echo "### Terraform Plan for User Roles Changes" > comment_body.txt
+            echo "Plan is too big, review in Github Action Logs" >> comment_body.txt
+          else
+            echo "### Terraform Plan for User Roles Changes" > comment_body.txt
+            echo '```' >> comment_body.txt
+            cat ./infra/iam/tfplan.txt >> comment_body.txt
+            echo '```' >> comment_body.txt
+          fi
 
       - name: Upload plan as a comment to PR
         if: github.event_name == 'pull_request_target'
