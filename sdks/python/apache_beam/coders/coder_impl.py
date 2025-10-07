@@ -57,6 +57,7 @@ from fastavro import schemaless_writer
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.internal import cloudpickle
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
@@ -377,12 +378,14 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self,
       fallback_coder_impl,
       requires_deterministic_step_label=None,
-      force_use_dill=False):
+      force_use_dill=False,
+      use_relative_filepaths=True):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
     self.requires_deterministic_step_label = requires_deterministic_step_label
     self.warn_deterministic_fallback = True
     self.force_use_dill = force_use_dill
+    self.use_relative_filepaths = use_relative_filepaths
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -560,8 +563,13 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return self.encode_type_2_67_0(t, stream)
 
     if t not in _pickled_types:
-      _pickled_types[t] = cloudpickle_pickler.dumps(
-          t, config=cloudpickle_pickler.NO_DYNAMIC_CLASS_TRACKING_CONFIG)
+      config = cloudpickle.CloudPickleConfig(
+          id_generator=None,
+          skip_reset_dynamic_type_state=True,
+          filepath_interceptor=cloudpickle.get_relative_path)
+      if not self.use_relative_filepaths:
+        config.filepath_interceptor = None
+      _pickled_types[t] = cloudpickle_pickler.dumps(t, config=config)
     stream.write(_pickled_types[t], True)
 
   def decode_type(self, stream):

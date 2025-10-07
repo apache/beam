@@ -28,7 +28,9 @@ import java.util.NoSuchElementException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.PeekingIterator;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -85,7 +87,8 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
   @Override
   public Iterator<Value> iterator() {
     return new Iterator<Value>() {
-      final Iterator<StorageApiWritePayload> underlyingIterator = underlying.iterator();
+      final PeekingIterator<StorageApiWritePayload> underlyingIterator =
+          Iterators.peekingIterator(underlying.iterator());
 
       @Override
       public boolean hasNext() {
@@ -103,6 +106,13 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
         ProtoRows.Builder inserts = ProtoRows.newBuilder();
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
+          // Make sure that we don't exceed the split-size length over multiple elements. A single
+          // element can exceed
+          // the split threshold, but in that case it should be the only element returned.
+          if ((bytesSize + underlyingIterator.peek().getPayload().length > splitSize)
+              && inserts.getSerializedRowsCount() > 0) {
+            break;
+          }
           StorageApiWritePayload payload = underlyingIterator.next();
           ByteString byteString = ByteString.copyFrom(payload.getPayload());
           @Nullable TableRow failsafeTableRow = null;
@@ -157,9 +167,6 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
           timestamps.add(timestamp);
           failsafeRows.add(failsafeTableRow);
           bytesSize += byteString.size();
-          if (bytesSize > splitSize) {
-            break;
-          }
         }
         return new AutoValue_SplittingIterable_Value(inserts.build(), timestamps, failsafeRows);
       }
