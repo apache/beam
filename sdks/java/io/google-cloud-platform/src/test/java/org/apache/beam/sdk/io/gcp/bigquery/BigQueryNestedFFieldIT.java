@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -126,8 +127,7 @@ public class BigQueryNestedFFieldIT {
     // Validate failed inserts using PAssert
     PCollection<BigQueryStorageApiInsertError> failedInserts = result.getFailedStorageApiInserts();
 
-    // Assert that we expect exactly 3 failed inserts (entire batch fails when one row exceeds size
-    // limit)
+    // Assert that we expect exactly 1 failed insert (only the large row should fail)
     // The test intentionally creates a batch with one row that exceeds BigQuery's size limit
     PAssert.that(failedInserts)
         .satisfies(
@@ -135,13 +135,17 @@ public class BigQueryNestedFFieldIT {
               int count = 0;
               for (BigQueryStorageApiInsertError error : errors) {
                 count++;
+                LOG.info(
+                    "Failed insert error: {}",
+                    error.getErrorMessage()); // Log the error for debugging
                 if (!error.getErrorMessage().contains("Row payload too large")) {
                   throw new AssertionError(
                       "Expected 'Row payload too large' error, got: " + error.getErrorMessage());
                 }
               }
-              if (count != 3) {
-                throw new AssertionError("Expected exactly 3 failed inserts, got: " + count);
+              LOG.info("Total failed inserts: {}", count);
+              if (count != 1) {
+                throw new AssertionError("Expected exactly 1 failed insert, got: " + count);
               }
               return null;
             });
@@ -154,12 +158,13 @@ public class BigQueryNestedFFieldIT {
     String testQuery =
         String.format("SELECT sub.a, sub.c, sub.f FROM [%s.%s];", DATASET_ID, TABLE_NAME);
 
-    try {
-      QueryResponse response = BQ_CLIENT.queryWithRetries(testQuery, project);
+    QueryResponse response = BQ_CLIENT.queryWithRetries(testQuery, project);
 
-      if (response.getRows() != null && response.getRows().size() > 0) {
-        LOG.info("Found {} successful inserts in BigQuery table", response.getRows().size());
+    if (response.getRows() != null) {
+      int actualRows = response.getRows().size();
+      LOG.info("Found {} successful inserts in BigQuery table", actualRows);
 
+      if (actualRows == 2) {
         // Verify the nested 'f' field value for all rows
         for (int i = 0; i < response.getRows().size(); i++) {
           TableRow resultRow = response.getRows().get(i);
@@ -173,11 +178,10 @@ public class BigQueryNestedFFieldIT {
                 + "Verified {} rows",
             response.getRows().size());
       } else {
-        LOG.info("No successful inserts found in BigQuery table - all rows may have failed");
+        fail("Expected exactly 2 successful inserts in BigQuery table, got: " + actualRows);
       }
-    } catch (Exception e) {
-      LOG.info("BigQuery table query failed (table may not exist)", e);
-      LOG.info("This suggests all inserts failed or the pipeline encountered an error");
+    } else {
+      fail("No successful inserts found in BigQuery table - all rows may have failed");
     }
   }
 
