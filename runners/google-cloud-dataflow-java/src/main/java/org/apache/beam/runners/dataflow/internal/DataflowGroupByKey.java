@@ -219,8 +219,7 @@ public class DataflowGroupByKey<K, V>
 
     @Override
     @SuppressWarnings("nullness")
-    @Nullable
-    public RunnerApi.FunctionSpec translate(
+    public RunnerApi.@Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, DataflowGroupByKey<?, ?>> transform, SdkComponents components) {
       if (transform.getTransform().surroundsGBEK()) {
         // Can use null for spec for empty composite.
