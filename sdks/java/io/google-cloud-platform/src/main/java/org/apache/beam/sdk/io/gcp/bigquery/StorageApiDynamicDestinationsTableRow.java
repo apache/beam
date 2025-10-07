@@ -27,7 +27,7 @@ import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -35,8 +35,11 @@ import org.joda.time.Duration;
 
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
-  private final SerializableFunction<T, TableRow> formatFunction;
-  private final @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction;
+  private final SerializableBiFunction<TableRowToStorageApiProto.SchemaInformation, T, TableRow>
+      formatFunction;
+  private final @Nullable SerializableBiFunction<
+          TableRowToStorageApiProto.SchemaInformation, T, TableRow>
+      formatRecordOnFailureFunction;
 
   private final boolean usesCdc;
   private final CreateDisposition createDisposition;
@@ -51,8 +54,11 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
 
   StorageApiDynamicDestinationsTableRow(
       DynamicDestinations<T, DestinationT> inner,
-      SerializableFunction<T, TableRow> formatFunction,
-      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
+      SerializableBiFunction<TableRowToStorageApiProto.SchemaInformation, T, TableRow>
+          formatFunction,
+      @Nullable
+          SerializableBiFunction<TableRowToStorageApiProto.SchemaInformation, T, TableRow>
+              formatRecordOnFailureFunction,
       boolean usesCdc,
       CreateDisposition createDisposition,
       boolean ignoreUnknownValues,
@@ -156,16 +162,16 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     @Override
     public TableRow toFailsafeTableRow(T element) {
       if (formatRecordOnFailureFunction != null) {
-        return formatRecordOnFailureFunction.apply(element);
+        return formatRecordOnFailureFunction.apply(schemaInformation, element);
       } else {
-        return formatFunction.apply(element);
+        return formatFunction.apply(schemaInformation, element);
       }
     }
 
     @Override
     public StorageApiWritePayload toMessage(
         T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
-      TableRow tableRow = formatFunction.apply(element);
+      TableRow tableRow = formatFunction.apply(schemaInformation, element);
 
       String changeType = null;
       String changeSequenceNum = null;

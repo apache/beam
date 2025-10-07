@@ -22,20 +22,23 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Storage API DynamicDestinations used when the input is a Beam Row. */
 class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final TableSchema tableSchema;
   private final SerializableFunction<T, Row> toRow;
-  private final @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction;
+  private final @Nullable SerializableBiFunction<
+          TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow>
+      formatRecordOnFailureFunction;
 
   private final boolean usesCdc;
 
@@ -43,7 +46,9 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       DynamicDestinations<T, DestinationT> inner,
       Schema schema,
       SerializableFunction<T, Row> toRow,
-      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
+      @Nullable
+          SerializableBiFunction<TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow>
+              formatRecordOnFailureFunction,
       boolean usesCdc) {
     super(inner);
     this.tableSchema = BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(schema);
@@ -108,7 +113,7 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     @Override
     public TableRow toFailsafeTableRow(T element) {
       if (formatRecordOnFailureFunction != null) {
-        return formatRecordOnFailureFunction.apply(element);
+        return formatRecordOnFailureFunction.apply(null, element);
       } else {
         return BigQueryUtils.toTableRow(toRow.apply(element));
       }
