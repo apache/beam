@@ -1138,34 +1138,30 @@ public class TableRowToStorageApiProto {
       Predicate<String> includeField,
       String namePrefix) {
     TableRow tableRow = new TableRow();
-    for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
+    List<TableCell> tableCells = Lists.newArrayList();
+
+    // Process fields in order they appear in the descriptor
+    for (FieldDescriptor fieldDescriptor : message.getDescriptorForType().getFields()) {
       StringBuilder fullName = new StringBuilder();
-      FieldDescriptor fieldDescriptor = field.getKey();
       String fieldName = fieldNameFromProtoFieldDescriptor(fieldDescriptor);
       fullName = fullName.append(namePrefix).append(fieldName);
-      Object fieldValue = field.getValue();
-      if ((includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
+
+      TableCell tableCell = new TableCell();
+
+      if (message.hasField(fieldDescriptor)
+          && (includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
           && includeField.test(fieldName)) {
-        Object convertedValue =
+        Object fieldValue = message.getField(fieldDescriptor);
+        Object jsonValue =
             jsonValueFromMessageValue(
                 fieldDescriptor, fieldValue, true, includeField, fullName.append(".").toString());
-
-        // Use setF when field name is "f" to avoid IllegalArgumentException with internal field
-        if ("f".equals(fieldName)) {
-          if (convertedValue instanceof List) {
-            @SuppressWarnings("unchecked")
-            List<TableCell> tableCells = (List<TableCell>) convertedValue;
-            tableRow.setF(tableCells);
-          } else {
-            // For scalar values, wrap in a TableCell and create a single-element list
-            TableCell tableCell = new TableCell().setV(convertedValue);
-            tableRow.setF(ImmutableList.of(tableCell));
-          }
-        } else {
-          tableRow.put(fieldName, convertedValue);
-        }
+        tableCell.setV(jsonValue);
       }
+
+      tableCells.add(tableCell);
     }
+
+    tableRow.setF(tableCells);
     return tableRow;
   }
 

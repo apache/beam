@@ -1887,12 +1887,10 @@ public class TableRowToStorageApiProtoTest {
     // Convert DynamicMessage to TableRow - this should not throw IllegalArgumentException
     TableRow result = TableRowToStorageApiProto.tableRowFromMessage(msg, false, field -> true);
 
-    // Verify the conversion worked correctly
-    assertEquals("test", result.get("stringvalue")); // Field name is lowercase in the result
-    // For field "f", the value should be wrapped in a TableCell within a List
-    @SuppressWarnings("unchecked")
-    List<TableCell> fValue = (List<TableCell>) result.get("f");
-    assertEquals(1, fValue.size());
-    assertEquals(3.14, fValue.get(0).getV());
+    // Verify the conversion worked correctly - all fields are now in the F list as TableCells
+    List<TableCell> tableCells = (List<TableCell>) result.getF();
+    assertEquals(2, tableCells.size()); // Should have 2 fields: stringvalue and f
+    assertEquals("test", tableCells.get(0).getV()); // First field (stringvalue)
+    assertEquals(3.14, tableCells.get(1).getV()); // Second field (f)
   }
 }
