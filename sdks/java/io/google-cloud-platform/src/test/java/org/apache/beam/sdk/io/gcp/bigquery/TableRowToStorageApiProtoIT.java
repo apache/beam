@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -25,6 +26,8 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +40,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -91,6 +95,29 @@ public class TableRowToStorageApiProtoIT {
                   .add(
                       new TableFieldSchema().setType("STRING").setName("123_IllegalProtoFieldName"))
                   .build());
+
+  private static final TableSchema PROTO_ENCODED_TABLE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema().setName("encoded_timestamp").setType("TIMESTAMP"),
+                  new TableFieldSchema().setName("encoded_date").setType("DATE"),
+                  new TableFieldSchema().setName("encoded_numeric").setType("NUMERIC"),
+                  new TableFieldSchema().setName("encoded_bignumeric").setType("BIGNUMERIC"),
+                  new TableFieldSchema().setName("encoded_packed_datetime").setType("DATETIME"),
+                  new TableFieldSchema().setName("encoded_packed_time").setType("TIME")));
+
+  private static final TableSchema PROTO_UNENCODED_TABLE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema().setName("timestamp").setType("TIMESTAMP"),
+                  new TableFieldSchema().setName("date").setType("DATE"),
+                  new TableFieldSchema().setName("numeric").setType("NUMERIC"),
+                  new TableFieldSchema().setName("bignumeric").setType("BIGNUMERIC"),
+                  new TableFieldSchema().setName("datetime").setType("DATETIME"),
+                  new TableFieldSchema().setName("time").setType("TIME"),
+                  new TableFieldSchema().setName("bytes").setType("BYTES")));
 
   private static final List<Object> REPEATED_BYTES =
       ImmutableList.of(
@@ -395,6 +422,135 @@ public class TableRowToStorageApiProtoIT {
     assertNull(actualTableRows.get(0).get("nestedValue3"));
   }
 
+  @Test
+  public void testWriteProtosEncodedTypes()
+      throws IOException, InterruptedException,
+          TableRowToStorageApiProto.SchemaConversionException {
+    String tableSpec = createTable(PROTO_ENCODED_TABLE_SCHEMA);
+    final String timestamp = "1970-01-01T00:00:00.000043";
+    final String date = "2019-08-16";
+    final String numeric = "23";
+    final String bignumeric = "123456789012345678";
+    final String datetime = "2019-08-16T00:52:07.123456";
+    final String time = "00:52:07.123456";
+
+    final Proto3SchemaMessages.PrimitiveEncodedFields baseRow =
+        Proto3SchemaMessages.PrimitiveEncodedFields.newBuilder()
+            .setEncodedTimestamp(
+                (long)
+                    TYPE_MAP_PROTO_CONVERTERS
+                        .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP)
+                        .apply("", timestamp))
+            .setEncodedDate(
+                (int)
+                    TYPE_MAP_PROTO_CONVERTERS
+                        .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.DATE)
+                        .apply("", date))
+            .setEncodedNumeric(
+                (ByteString)
+                    TYPE_MAP_PROTO_CONVERTERS
+                        .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.NUMERIC)
+                        .apply("", numeric))
+            .setEncodedBignumeric(
+                (ByteString)
+                    TYPE_MAP_PROTO_CONVERTERS
+                        .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.BIGNUMERIC)
+                        .apply("", bignumeric))
+            .setEncodedPackedDatetime(
+                (long)
+                    TYPE_MAP_PROTO_CONVERTERS
+                        .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.DATETIME)
+                        .apply("", datetime))
+            .setEncodedPackedTime(
+                (long)
+                    TYPE_MAP_PROTO_CONVERTERS
+                        .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIME)
+                        .apply("", time))
+            .build();
+
+    TableRow expected =
+        new TableRow()
+            .set("encoded_timestamp", timestamp)
+            .set("encoded_date", date)
+            .set("encoded_numeric", numeric)
+            .set("encoded_bignumeric", bignumeric)
+            .set("encoded_packed_datetime", datetime)
+            .set("encoded_packed_time", time);
+
+    runPipeline(
+        tableSpec,
+        Proto3SchemaMessages.PrimitiveEncodedFields.class,
+        PROTO_ENCODED_TABLE_SCHEMA,
+        Collections.singleton(baseRow));
+
+    final String timestampFormat = "\'%Y-%m-%dT%H:%M:%E6S\'";
+    List<TableRow> actualTableRows =
+        BQ_CLIENT.queryUnflattened(
+            String.format(
+                "SELECT FORMAT_TIMESTAMP(%s, encoded_timestamp) AS encoded_timestamp, * EXCEPT(encoded_timestamp) "
+                    + "FROM %s",
+                timestampFormat, tableSpec),
+            PROJECT,
+            true,
+            true,
+            bigQueryLocation);
+
+    assertEquals(1, actualTableRows.size());
+    assertEquals(expected, actualTableRows.get(0));
+  }
+
+  @Test
+  public void testWriteProtosStringTypes()
+      throws IOException, InterruptedException,
+          TableRowToStorageApiProto.SchemaConversionException {
+    String tableSpec = createTable(PROTO_UNENCODED_TABLE_SCHEMA);
+    final String timestamp = "1970-01-01T00:00:00.000043";
+    final String date = "2019-08-16";
+    final String numeric = "23";
+    final String bignumeric = "123456789012345678";
+    final String datetime = "2019-08-16T00:52:07.123456";
+    final String time = "00:52:07.123456";
+    Proto3SchemaMessages.PrimitiveUnEncodedFields baseRow =
+        Proto3SchemaMessages.PrimitiveUnEncodedFields.newBuilder()
+            .setTimestamp(timestamp)
+            .setDate(date)
+            .setNumeric(numeric)
+            .setBignumeric(bignumeric)
+            .setDatetime(datetime)
+            .setTime(time)
+            .build();
+
+    TableRow expected =
+        new TableRow()
+            .set("timestamp", timestamp)
+            .set("date", date)
+            .set("numeric", numeric)
+            .set("bignumeric", bignumeric)
+            .set("datetime", datetime)
+            .set("time", time);
+
+    runPipeline(
+        tableSpec,
+        Proto3SchemaMessages.PrimitiveUnEncodedFields.class,
+        PROTO_UNENCODED_TABLE_SCHEMA,
+        Collections.singleton(baseRow));
+
+    final String timestampFormat = "\'%Y-%m-%dT%H:%M:%E6S\'";
+    List<TableRow> actualTableRows =
+        BQ_CLIENT.queryUnflattened(
+            String.format(
+                "SELECT FORMAT_TIMESTAMP(%s, timestamp) AS timestamp, * EXCEPT(timestamp) "
+                    + "FROM %s",
+                timestampFormat, tableSpec),
+            PROJECT,
+            true,
+            true,
+            bigQueryLocation);
+
+    assertEquals(1, actualTableRows.size());
+    assertEquals(expected, actualTableRows.get(0));
+  }
+
   private static String createTable(TableSchema tableSchema)
       throws IOException, InterruptedException {
     String table = "table" + System.nanoTime();
@@ -420,6 +576,20 @@ public class TableRowToStorageApiProtoIT {
             BigQueryIO.<TableRow>write()
                 .to(tableSpec)
                 .withFormatFunction(SerializableFunctions.identity())
+                .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+    p.run().waitUntilFinish();
+  }
+
+  private static <T extends Message> void runPipeline(
+      String tableSpec, Class<T> protoClass, TableSchema tableSchema, Iterable<T> tableRows) {
+    Pipeline p = Pipeline.create();
+    p.apply("Create test cases", Create.of(tableRows))
+        .apply(
+            "Write using Storage Write API",
+            BigQueryIO.writeProtos(protoClass)
+                .to(tableSpec)
+                .withSchema(tableSchema)
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
     p.run().waitUntilFinish();
