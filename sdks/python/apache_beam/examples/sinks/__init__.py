@@ -14,10 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-# This should match the saved version of your trained model.
-# Beam's tests use saved models with sklearn 1.0.2, which supports py3.7-3.10
-# However, newer sklearn is needed for testing on newer Python version
-scikit-learn==1.0.2; python_version < '3.11'
-# bump sklearn version when new Python version is supported
-scikit-learn==1.7.1; python_version >= '3.11'

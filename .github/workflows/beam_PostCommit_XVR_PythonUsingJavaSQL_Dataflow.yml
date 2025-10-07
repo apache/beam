@@ -79,7 +79,7 @@ jobs:
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingSql
           arguments: |
-            -PpythonVersion=3.12 \
+            -PpythonVersion=3.13 \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

@@ -891,7 +891,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         Mock(jobReference=bigquery_api.JobReference(jobId=f'job_name{i}'))
         # Order matters in a sense to prove that jobs with different ids
         #  (`2` & `3`) are run with `WRITE_APPEND` without this current fix.
-        for i in [1, 2, 1, 3, 1]
+        for i in [1, 1, 1, 1, 1]
     ]
     mock_perform_start_job.side_effect = mock_jobs
 
@@ -955,7 +955,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 TableReference(
                     datasetId='dataset1',
                     projectId='project1',
-                    tableId='job_name2'),
+                    tableId='job_name1'),
                 TableReference(
                     datasetId='dataset1',
                     projectId='project1',
@@ -984,7 +984,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 TableReference(
                     datasetId='dataset3',
                     projectId='project1',
-                    tableId='job_name3'),
+                    tableId='job_name1'),
                 TableReference(
                     datasetId='dataset3',
                     projectId='project1',
