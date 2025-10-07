@@ -40,7 +40,7 @@ from apache_beam.internal import code_object_pickler
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
     skip_reset_dynamic_type_state=True,
-    enable_stable_function_identifier=False)
+    get_code_object_identifier=False)
 NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
     id_generator=None, skip_reset_dynamic_type_state=True)
 STABLE_CODE_IDENTIFIER_PICKLING_CONFIG = cloudpickle.CloudPickleConfig(
