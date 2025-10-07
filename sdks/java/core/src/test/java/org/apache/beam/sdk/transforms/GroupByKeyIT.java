@@ -82,7 +82,10 @@ public class GroupByKeyIT {
       byte[] secretBytes = new byte[32];
       new SecureRandom().nextBytes(secretBytes);
       client.addSecretVersion(
-          secretName, SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
+          secretName,
+          SecretPayload.newBuilder()
+              .setData(ByteString.copyFrom(java.util.Base64.getEncoder().encode(secretBytes)))
+              .build());
     }
     gcpSecretVersionName = secretName.toString() + "/versions/latest";
   }

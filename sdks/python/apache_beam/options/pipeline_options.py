@@ -1726,8 +1726,9 @@ class SetupOptions(PipelineOptions):
             'secret itself. This guarantees that any data at rest during the '
             'GBK will be encrypted. Many runners only store data at rest when '
             'performing a GBK, so this can be used to guarantee that data is '
-            'not unencrypted. Runners with this behavior include the '
-            'Dataflow, Flink, and Spark runners. The option should be '
+            'not unencrypted. The secret should be a base64 encoded 32 byte '
+            'value. Runners with this behavior include the Dataflow, Flink, '
+            'and Spark runners. The option should be '
             'structured like: '
             '--gbek=type:<secret_type>;<secret_param>:<value>, for example '
             '--gbek=type:GcpSecret;version_name:my_secret/versions/latest'))

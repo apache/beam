@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import com.google.cloud.secretmanager.v1.ProjectName;
+import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
+import com.google.cloud.secretmanager.v1.SecretName;
+import com.google.cloud.secretmanager.v1.SecretPayload;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.security.SecureRandom;
@@ -24,11 +29,13 @@ import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesJavaExpansionService;
 import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -43,6 +50,9 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
@@ -306,7 +316,7 @@ public class ValidateRunnerXlangTest {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @BeforeClass
-    public static void setUpClass() throws IOException {
+    public static void setUpClass() {
       secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
       SecretManagerServiceClient client;
       try {
@@ -334,19 +344,26 @@ public class ValidateRunnerXlangTest {
         byte[] secretBytes = new byte[32];
         new SecureRandom().nextBytes(secretBytes);
         client.addSecretVersion(
-            secretName, SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
+            secretName,
+            SecretPayload.newBuilder()
+                .setData(ByteString.copyFrom(java.util.Base64.getEncoder().encode(secretBytes)))
+                .build());
       }
       gcpSecretVersionName = secretName.toString() + "/versions/latest";
       expansionAddr =
-        String.format("localhost:%s", Integer.valueOf(System.getProperty("expansionPort")));
+          String.format("localhost:%s", Integer.valueOf(System.getProperty("expansionPort")));
     }
 
     @AfterClass
-    public static void tearDownClass() throws IOException {
+    public static void tearDownClass() {
       if (gcpSecretVersionName != null) {
-        SecretManagerServiceClient client = SecretManagerServiceClient.create();
-        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
-        client.deleteSecret(secretName);
+        try {
+          SecretManagerServiceClient client = SecretManagerServiceClient.create();
+          SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+          client.deleteSecret(secretName);
+        } catch (IOException e) {
+          // Do nothing.
+        }
       }
     }
 
@@ -361,10 +378,10 @@ public class ValidateRunnerXlangTest {
         // Skip test if we couldn't set up secret manager
         return;
       }
-      PipelineOptions options = testPipeline.testingPipelineOptions();
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
       options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
-      testPipeline = Pipeline.create(options);
-      groupByKeyTest(testPipeline);
+      TestPipeline updatedTestPipeline = TestPipeline.fromOptions(options);
+      groupByKeyTest(updatedTestPipeline);
     }
 
     @Test
@@ -378,11 +395,11 @@ public class ValidateRunnerXlangTest {
         // Skip test if we couldn't set up secret manager
         return;
       }
-      PipelineOptions options = testPipeline.testingPipelineOptions();
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
       options.setGbek(String.format("version_name:%s", gcpSecretVersionName));
-      testPipeline = Pipeline.create(options);
+      TestPipeline updatedTestPipeline = TestPipeline.fromOptions(options);
       thrown.expect(RuntimeException.class);
-      groupByKeyTest(testPipeline);
+      groupByKeyTest(updatedTestPipeline);
     }
   }
 

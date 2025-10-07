@@ -420,7 +420,7 @@ public interface PipelineOptions extends HasDisplayData {
    * <p>Beam will infer the secret type and value based on the secret itself. This guarantees that
    * any data at rest during the performing a GBK, so this can be used to guarantee that data is not
    * unencrypted. Runners with this behavior include the Dataflow, Flink, and Spark runners. The
-   * option should be structured like:
+   * secret should be a base64 encoded 32 byte value. The option should be structured like:
    *
    * <pre><code>
    * --gbek=type:<secret_type>;<secret_param>:<value>
@@ -439,7 +439,8 @@ public interface PipelineOptions extends HasDisplayData {
           + " infer the secret type and value based on the secret itself. This guarantees that"
           + " any data at rest during the performing a GBK, so this can be used to guarantee"
           + " that data is not unencrypted. Runners with this behavior include the Dataflow,"
-          + " Flink, and Spark runners. The option should be structured like:"
+          + " Flink, and Spark runners. The secret should be a base64 encoded 32 byte value."
+          + " The option should be structured like:"
           + " --gbek=type:<secret_type>;<secret_param>:<value>, for example "
           + " --gbek=type:GcpSecret;version_name:my_secret/versions/latest. All variables "
           + " should use snake case to allow consistency across languages.")
