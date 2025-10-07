@@ -199,11 +199,6 @@ tasks.register('preCommit') {
     }
 }
 
-tasks.register('verifyPortabilityApi') {
-    // TODO(BEAM-9668): Re-enable these tests once Dataflow worker container images are updated.
-    // dependsOn verifyFnApiWorker
-}
-
 afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
