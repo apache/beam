@@ -30,7 +30,8 @@ on:
       - main
     paths:
       - 'infra/iam/users.yml'
-  pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
     paths:
       - 'infra/iam/users.yml'
 
@@ -41,7 +42,7 @@ concurrency:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -51,6 +52,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v3
       - name: Install Terraform
@@ -85,6 +88,6 @@ jobs:
         run: gh pr comment ${{ github.event.pull_request.number }} --body-file comment_body.txt
 
       - name: Terraform Apply
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'apache/beam'
         working-directory: ./infra/iam
         run: terraform apply -auto-approve tfplan
