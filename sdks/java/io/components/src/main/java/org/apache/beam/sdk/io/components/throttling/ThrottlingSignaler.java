@@ -33,7 +33,7 @@ public class ThrottlingSignaler {
   }
 
   public ThrottlingSignaler() {
-    this("");
+    this(Metrics.THROTTLE_TIME_NAMESPACE);
   }
 
   /**
