@@ -197,6 +197,9 @@ final class GrpcGetDataStreamRequests {
      */
     void notifyFailed() {
       failed = true;
+      for (QueuedRequest request : requests) {
+        request.getResponseStream().cancel();
+      }
       sent.countDown();
     }
 
