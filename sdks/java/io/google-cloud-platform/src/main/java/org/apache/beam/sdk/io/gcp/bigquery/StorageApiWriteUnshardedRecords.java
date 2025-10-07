@@ -1008,15 +1008,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.bigLakeConfiguration = bigLakeConfiguration;
     }
 
-    boolean shouldFlush() {
-      return numPendingRecords > flushThresholdCount || numPendingRecordBytes > flushThresholdBytes;
+    boolean shouldFlush(int recordBytes) {
+      return numPendingRecords > flushThresholdCount
+          || (((numPendingRecordBytes + recordBytes) > flushThresholdBytes)
+              && numPendingRecords > 1);
     }
 
     void flushIfNecessary(
         OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
-        @Nullable OutputReceiver<TableRow> successfulRowsReceiver)
+        @Nullable OutputReceiver<TableRow> successfulRowsReceiver,
+        int recordBytes)
         throws Exception {
-      if (shouldFlush()) {
+      if (shouldFlush(recordBytes)) {
         forcedFlushes.inc();
         // Too much memory being used. Flush the state and wait for it to drain out.
         // TODO(reuvenlax): Consider waiting for memory usage to drop instead of waiting for all the
@@ -1172,10 +1175,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       @Nullable
       OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
-      flushIfNecessary(failedRowsReceiver, successfulRowsReceiver);
+
+      int recordBytes = element.getValue().getPayload().length;
+      flushIfNecessary(failedRowsReceiver, successfulRowsReceiver, recordBytes);
       state.addMessage(element.getValue(), elementTs, failedRowsReceiver);
       ++numPendingRecords;
-      numPendingRecordBytes += element.getValue().getPayload().length;
+      numPendingRecordBytes += recordBytes;
     }
 
     private OutputReceiver<TableRow> makeSuccessfulRowsreceiver(
