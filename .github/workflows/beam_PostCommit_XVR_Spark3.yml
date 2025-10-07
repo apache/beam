@@ -77,11 +77,9 @@ jobs:
           python-version: ${{ matrix.python_version }}
       - name: Clean cache
         run: |
-          rm -rf "$HOME/.apache_beam/cache/venvs/py-3.13-beam-2.68.0-"* || true
+          rm -rf "/home/runner/.apache_beam/cache/venvs/py-3.13-beam-2.68.0-"* || true
           # optional: clear cached wheels the bootstrapper might reuse
-          rm -rf "$HOME/.apache_beam/cache/pip/"* || true
-      - name: Check Beam version
-        run: python -c "import apache_beam as b; print(b.__version__)"
+          rm -rf "/home/runner/.apache_beam/cache/pip/"* || true
       - name: run PostCommit XVR Spark3 script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
