@@ -148,7 +148,7 @@ public class GroupByKeyIT {
 
   // Redistribute depends on GBK under the hood and can have runner-specific implementations
   @Test
-  public void redistributeWithValidGcpSecretOption() throws Exception {
+  public void testRedistributeWithValidGcpSecretOption() throws Exception {
     if (gcpSecretVersionName == null) {
       // Skip test if we couldn't set up secret manager
       return;
