@@ -128,7 +128,7 @@ class CloudPickleConfig:
         filepath_interceptor: Used to modify filepaths in `co_filename` and
             function.__globals__['__file__'].
         
-        enable_stable_function_identifiers: Use identifiers derived from code
+        enable_stable_function_identifier: Use identifiers derived from code
             location when pickling dynamic functions (e.g. lambdas). Enabling
             this setting results in pickled payloads becoming more stable to
             code changes: when a particular lambda function is slightly
