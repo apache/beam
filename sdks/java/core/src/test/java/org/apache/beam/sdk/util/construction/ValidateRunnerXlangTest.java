@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util.construction;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
@@ -282,6 +283,104 @@ public class ValidateRunnerXlangTest {
       UsesPythonExpansionService.class
     })
     public void test() {
+      groupByKeyTest(testPipeline);
+    }
+  }
+
+  /**
+   * Motivation behind GroupByKeyWithGbekTest.
+   *
+   * <p>Target transform – GroupByKey
+   * (https://beam.apache.org/documentation/programming-guide/#groupbykey) Test scenario – Grouping
+   * a collection of KV<K,V> to a collection of KV<K, Iterable<V>> by key Boundary conditions
+   * checked – –> PCollection<KV<?, ?>> to external transforms –> PCollection<KV<?, Iterable<?>>>
+   * from external transforms while using GroupByEncryptedKey overrides
+   */
+  @RunWith(JUnit4.class)
+  public static class GroupByKeyWithGbekTest extends ValidateRunnerXlangTestBase {
+    private static final String PROJECT_ID = "apache-beam-testing";
+    private static final String SECRET_ID = "gbek-test";
+    private static String gcpSecretVersionName;
+    private static String secretId;
+    @Rule public ExpectedException thrown = ExpectedException.none();
+
+    @BeforeClass
+    public static void setUpClass() throws IOException {
+      secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
+      SecretManagerServiceClient client;
+      try {
+        client = SecretManagerServiceClient.create();
+      } catch (IOException e) {
+        gcpSecretVersionName = null;
+        return;
+      }
+      ProjectName projectName = ProjectName.of(PROJECT_ID);
+      SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+
+      try {
+        client.getSecret(secretName);
+      } catch (Exception e) {
+        com.google.cloud.secretmanager.v1.Secret secret =
+            com.google.cloud.secretmanager.v1.Secret.newBuilder()
+                .setReplication(
+                    com.google.cloud.secretmanager.v1.Replication.newBuilder()
+                        .setAutomatic(
+                            com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
+                                .build())
+                        .build())
+                .build();
+        client.createSecret(projectName, secretId, secret);
+        byte[] secretBytes = new byte[32];
+        new SecureRandom().nextBytes(secretBytes);
+        client.addSecretVersion(
+            secretName, SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
+      }
+      gcpSecretVersionName = secretName.toString() + "/versions/latest";
+      expansionAddr =
+        String.format("localhost:%s", Integer.valueOf(System.getProperty("expansionPort")));
+    }
+
+    @AfterClass
+    public static void tearDownClass() throws IOException {
+      if (gcpSecretVersionName != null) {
+        SecretManagerServiceClient client = SecretManagerServiceClient.create();
+        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+        client.deleteSecret(secretName);
+      }
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
+    public void test() {
+      if (gcpSecretVersionName == null) {
+        // Skip test if we couldn't set up secret manager
+        return;
+      }
+      PipelineOptions options = testPipeline.testingPipelineOptions();
+      options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+      testPipeline = Pipeline.create(options);
+      groupByKeyTest(testPipeline);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
+    public void testFailure() {
+      if (gcpSecretVersionName == null) {
+        // Skip test if we couldn't set up secret manager
+        return;
+      }
+      PipelineOptions options = testPipeline.testingPipelineOptions();
+      options.setGbek(String.format("version_name:%s", gcpSecretVersionName));
+      testPipeline = Pipeline.create(options);
+      thrown.expect(RuntimeException.class);
       groupByKeyTest(testPipeline);
     }
   }
