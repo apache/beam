@@ -367,7 +367,7 @@
 - username: enriquecaol04
   email: enriquecaol04@gmail.com
   permissions:
-  - role: roles/viewer
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: eventarc-workflow-sa
   email: eventarc-workflow-sa@apache-beam-testing.iam.gserviceaccount.com
   permissions:
