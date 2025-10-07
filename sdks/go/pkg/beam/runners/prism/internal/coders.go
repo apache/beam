@@ -198,6 +198,31 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 	return cID, nil
 }
 
+// forceLpCoder always add a new LP-coder for a given coder into the "base" map
+func forceLpCoder(cID string, base map[string]*pipepb.Coder) (string, error) {
+	// First check if we've already added the LP version of this coder to coders already.
+	lpcID := cID + "_lp"
+	// Check if we've done this one before.
+	if _, ok := base[lpcID]; ok {
+		return lpcID, nil
+	}
+	// Look up the canonical location.
+	_, ok := base[cID]
+	if !ok {
+		// We messed up somewhere.
+		return "", fmt.Errorf("forceLpCoders: coder %q not present in base map", cID)
+	}
+
+	lpc := &pipepb.Coder{
+		Spec: &pipepb.FunctionSpec{
+			Urn: urns.CoderLengthPrefix,
+		},
+		ComponentCoderIds: []string{cID},
+	}
+	base[lpcID] = lpc
+	return lpcID, nil
+}
+
 // retrieveCoders recursively ensures that the coder along with all its direct
 // and indirect component coders, are present in the `bundle` map.
 // If a coder is already in `bundle`, it's skipped. Returns an error if any

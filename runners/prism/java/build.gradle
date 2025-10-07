@@ -106,14 +106,11 @@ def sickbayTests = [
 
     // Prism doesn't support multiple TestStreams.
     'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
-    // Sometimes fails missing a final 'AFTER'. Otherwise, Hangs in ElementManager.FailBundle due to a held stageState lock.
-    'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
 
     // GroupIntoBatchesTest tests that fail:
-    // Teststream has bad KV encodings due to using an outer context.
+    // Wrong number of elements in windows after GroupIntoBatches.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow',
-    // sdk worker disconnected
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInGlobalWindow',
     // ShardedKey not yet implemented.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
