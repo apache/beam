@@ -45,7 +45,8 @@ def _get_config(enable_stable_code_identifier_pickling):
 
 def pickle_depickle(obj, enable_stable_code_identifier_pickling):
   default_config = _get_config(
-      enable_stable_code_identifier_pickling=enable_stable_code_identifier_pickling
+      enable_stable_code_identifier_pickling=
+      enable_stable_code_identifier_pickling
   )
   return loads(cloudpickle_dumps(obj, config=default_config))
 
@@ -316,17 +317,18 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
         dumps(set1, enable_best_effort_determinism=False),
         dumps(set2, enable_best_effort_determinism=False))
 
-  def test_enable_lambda_name_pickling(self):
+  def test_enable_stable_code_identifier_pickling(self):
     pickler.set_library('cloudpickle')
     pickled = pickle_depickle(lambda x: x, True)
     pickled_type = type(pickled)
     self.assertIsInstance(pickled, pickled_type)
 
-  def test_disable_lambda_name_pickling(self):
+  def test_disable_stable_code_identifier_pickling(self):
     pickler.set_library('cloudpickle')
     pickled = pickle_depickle(lambda x: x, False)
     pickled_type = type(pickled)
     self.assertIsInstance(pickled, pickled_type)
+
 
 if __name__ == '__main__':
   unittest.main()

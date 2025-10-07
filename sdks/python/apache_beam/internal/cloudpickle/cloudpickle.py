@@ -128,7 +128,7 @@ class CloudPickleConfig:
         filepath_interceptor: Used to modify filepaths in `co_filename` and
             function.__globals__['__file__'].
         
-        enable_stable_function_identifier: Use identifiers derived from code
+        get_code_object_identifier: Use identifiers derived from code
             location when pickling dynamic functions (e.g. lambdas). Enabling
             this setting results in pickled payloads becoming more stable to
             code changes: when a particular lambda function is slightly
@@ -575,7 +575,8 @@ def _make_function(code, globals, name, argdefs, closure):
   return types.FunctionType(code, globals, name, argdefs, closure)
 
 
-def _make_function_from_identifier(get_code_from_identifier, code_path, globals, name, argdefs, closure):
+def _make_function_from_identifier(
+    get_code_from_identifier, code_path, globals, name, argdefs, closure):
   fcode = get_code_from_identifier(code_path)
   return _make_function(fcode, globals, name, argdefs, closure)
 
@@ -1318,7 +1319,6 @@ class Pickler(pickle.Pickler):
 
   dispatch_table = ChainMap(_dispatch_table, copyreg.dispatch_table)
 
-
   def _stable_identifier_function_reduce(self, func):
     code_path = self.config.get_code_object_identifier(func)
     if not code_path:
@@ -1332,7 +1332,6 @@ class Pickler(pickle.Pickler):
         None,
         None,
         _function_setstate)
-
 
   # function reducers are defined as instance methods of cloudpickle.Pickler
   # objects, as they rely on a cloudpickle.Pickler attribute (globals_ref)
@@ -1353,7 +1352,8 @@ class Pickler(pickle.Pickler):
         """
     if _should_pickle_by_reference(obj):
       return NotImplemented
-    elif self.config.get_code_object_identifier is not None and self.config.get_code_object_identifier(obj):
+    elif self.config.get_code_object_identifier is not None and
+         self.config.get_code_object_identifier(obj):
       return self._stable_identifier_function_reduce(obj)
     else:
       return self._dynamic_function_reduce(obj)
