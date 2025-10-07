@@ -18,6 +18,11 @@
 package org.apache.beam.sdk.util;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A secret management interface used for handling sensitive data.
@@ -33,4 +38,48 @@ public interface Secret extends Serializable {
    * @return The secret as a byte array.
    */
   byte[] getSecretBytes();
+
+  static Secret parseSecretOption(String secretOption) {
+    Map<String, String> paramMap = new HashMap<>();
+    for (String param : secretOption.split(";", -1)) {
+      String[] parts = param.split(":", 2);
+      if (parts.length == 2) {
+        paramMap.put(parts[0], parts[1]);
+      }
+    }
+
+    if (!paramMap.containsKey("type")) {
+      throw new RuntimeException("Secret string must contain a valid type parameter");
+    }
+
+    String secretType = paramMap.get("type");
+    paramMap.remove("type");
+
+    if (secretType == null) {
+      throw new RuntimeException("Secret string must contain a valid value for type parameter");
+    }
+
+    switch (secretType.toLowerCase()) {
+      case "gcpsecret":
+        Set<String> gcpSecretParams = new HashSet<>(Arrays.asList("version_name"));
+        for (String paramName : paramMap.keySet()) {
+          if (!gcpSecretParams.contains(paramName)) {
+            throw new RuntimeException(
+                String.format(
+                    "Invalid secret parameter %s, GcpSecret only supports the following parameters: %s",
+                    paramName, gcpSecretParams));
+          }
+        }
+        String versionName = paramMap.get("version_name");
+        if (versionName == null) {
+          throw new RuntimeException(
+              "version_name must contain a valid value for versionName parameter");
+        }
+        return new GcpSecret(versionName);
+      default:
+        throw new RuntimeException(
+            String.format(
+                "Invalid secret type %s, currently only GcpSecret is supported", secretType));
+    }
+  }
 }

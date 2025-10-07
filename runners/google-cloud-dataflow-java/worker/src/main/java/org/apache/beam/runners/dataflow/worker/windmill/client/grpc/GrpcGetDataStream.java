@@ -502,11 +502,9 @@ final class GrpcGetDataStream
         prevBatch.waitForSendOrFailNotification();
       }
       trySendBatch(batch);
-      // Since the above send may not succeed, we fall through to block on sending or failure.
+      // If the send fails, request.responseStream will be cancelled and
+      // reading responseStream will throw.
     }
-
-    // Wait for this batch to be sent before parsing the response.
-    batch.waitForSendOrFailNotification();
   }
 
   private synchronized void trySendBatch(QueuedBatch batch) throws WindmillStreamShutdownException {
