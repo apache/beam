@@ -76,6 +76,12 @@ python"${PY_VERSION}" -m venv "$ENV_PATH"
 source "$ENV_PATH"/bin/activate
 pip install --upgrade pip setuptools wheel
 
+if [[ $EXTRAS == *"vllm"* ]]; then
+  # Explicitly install torch to avoid https://github.com/facebookresearch/xformers/issues/740
+  # This should be overwritten later since the vllm extra is installed alongside torch
+  pip install --no-cache-dir torch
+fi
+
 # Install gcp extra deps since these deps are commonly used with Apache Beam.
 # Install dataframe deps to add have Dataframe support in released images.
 # Install test deps since some integration tests need dependencies,
