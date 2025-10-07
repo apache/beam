@@ -38,7 +38,7 @@ jobs:
       - name: Install libsnappy-dev
         run: sudo apt-get update && sudo apt-get install -y libsnappy-dev
       - name: Install python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.params.py_ver }}
       - name: Install base_image_requirements.txt
