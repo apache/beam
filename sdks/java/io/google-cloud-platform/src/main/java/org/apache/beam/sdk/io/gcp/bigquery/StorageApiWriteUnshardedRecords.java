@@ -1011,7 +1011,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     boolean shouldFlush(int recordBytes) {
       return numPendingRecords > flushThresholdCount
           || (((numPendingRecordBytes + recordBytes) > flushThresholdBytes)
-              && numPendingRecords > 1);
+              && numPendingRecords > 0);
     }
 
     void flushIfNecessary(
