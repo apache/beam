@@ -153,7 +153,7 @@ public class GroupByEncryptedKey<K, V>
     @Setup
     public void setup() {
       try {
-        byte[] secretBytes = java.util.Base64.getDecoder().decode(this.hmacKey.getSecretBytes());
+        byte[] secretBytes = java.util.Base64.getUrlDecoder().decode(this.hmacKey.getSecretBytes());
         this.mac = Mac.getInstance("HmacSHA256");
         this.mac.init(new SecretKeySpec(secretBytes, "HmacSHA256"));
         this.cipher = Cipher.getInstance("AES/GCM/NoPadding");
@@ -231,7 +231,7 @@ public class GroupByEncryptedKey<K, V>
         this.cipher = Cipher.getInstance("AES/GCM/NoPadding");
         this.secretKeySpec =
             new SecretKeySpec(
-                java.util.Base64.getDecoder().decode(this.hmacKey.getSecretBytes()), "AES");
+                java.util.Base64.getUrlDecoder().decode(this.hmacKey.getSecretBytes()), "AES");
       } catch (Exception ex) {
         throw new RuntimeException(
             "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);

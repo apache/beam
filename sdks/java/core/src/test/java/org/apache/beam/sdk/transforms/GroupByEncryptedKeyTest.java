@@ -58,7 +58,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
 
   private static class FakeSecret implements Secret {
     private final byte[] secret =
-        "YUt3STJQbXFZRnQycDV0TktDeUJTNXFZV0hoSHNHWmM=".getBytes(Charset.defaultCharset());
+        "YUt3STJQbXFZRnQycDV0TktDeUJTNXFZV0hoSHNHWmM".getBytes(Charset.defaultCharset());
 
     @Override
     public byte[] getSecretBytes() {
@@ -125,7 +125,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
       client.addSecretVersion(
           secretName,
           SecretPayload.newBuilder()
-              .setData(ByteString.copyFrom(java.util.Base64.getEncoder().encode(secretBytes)))
+              .setData(ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
               .build());
     }
     gcpSecret = new GcpSecret(secretName.toString() + "/versions/latest");
