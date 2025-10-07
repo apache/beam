@@ -46,8 +46,7 @@ def _get_config(enable_stable_code_identifier_pickling):
 def pickle_depickle(obj, enable_stable_code_identifier_pickling):
   default_config = _get_config(
       enable_stable_code_identifier_pickling=
-      enable_stable_code_identifier_pickling
-  )
+      enable_stable_code_identifier_pickling)
   return loads(cloudpickle_dumps(obj, config=default_config))
 
 def maybe_skip_if_no_dill(pickle_library):
