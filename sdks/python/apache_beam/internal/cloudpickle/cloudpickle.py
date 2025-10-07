@@ -1352,8 +1352,8 @@ class Pickler(pickle.Pickler):
         """
     if _should_pickle_by_reference(obj):
       return NotImplemented
-    elif self.config.get_code_object_identifier is not None and
-         self.config.get_code_object_identifier(obj):
+    elif (self.config.get_code_object_identifier is not None and
+          self.config.get_code_object_identifier(obj)):
       return self._stable_identifier_function_reduce(obj)
     else:
       return self._dynamic_function_reduce(obj)
