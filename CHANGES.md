@@ -96,6 +96,10 @@
 * PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
   function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java)
   ([#36141](https://github.com/apache/beam/issues/36141)).
+* (Python) Logical type and coder registry are saved for pipelines with `save_main_session` pipeline option enabled in
+  the case of default pickler. This fixes a side effect of switching to cloudpickle as default pickler in Beam 2.65.0.
+  Previously for cloudpickle `--save_main_session` pipeline option was not honored
+  ([#35738](https://github.com/apache/beam/issues/35738)).
 
 ## Known Issues
 
