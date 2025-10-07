@@ -108,7 +108,7 @@ jobs:
         run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
         working-directory: ./sdks/typescript
       - name: Install Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9
       - name: Setup Beam Python
@@ -171,7 +171,7 @@ jobs:
         run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
         working-directory: ./sdks/typescript
       - name: Install python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9
       - name: Setup Beam Python
