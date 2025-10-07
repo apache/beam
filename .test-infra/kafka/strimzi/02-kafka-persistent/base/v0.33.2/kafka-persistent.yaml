@@ -30,7 +30,7 @@ spec:
       requests:
         cpu: 8
         memory: 64Gi
-    version: 3.6.0
+    version: 3.9.1
     replicas: 3
     config:
       offsets.topic.replication.factor: 3
