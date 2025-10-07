@@ -52,8 +52,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v3
       - name: Install Terraform
@@ -68,12 +66,12 @@ jobs:
         run: terraform plan -out=tfplan
 
       - name: Convert plan to plaintext
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         working-directory: ./infra/iam
         run: terraform show -no-color tfplan > tfplan.txt
 
       - name: Create comment body
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         run: |
           echo "### Terraform Plan for User Roles Changes" > comment_body.txt
           echo '```' >> comment_body.txt
@@ -81,7 +79,7 @@ jobs:
           echo '```' >> comment_body.txt
 
       - name: Upload plan as a comment to PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
