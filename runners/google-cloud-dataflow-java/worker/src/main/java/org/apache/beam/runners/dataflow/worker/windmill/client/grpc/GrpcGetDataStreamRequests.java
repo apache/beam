@@ -192,8 +192,6 @@ final class GrpcGetDataStreamRequests {
 
     /**
      * Let waiting for threads know that a failure occurred.
-     *
-     * @implNote Thread safe.
      */
     void notifyFailed() {
       failed = true;
