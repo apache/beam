@@ -23,6 +23,7 @@ import collections
 import enum
 import logging
 import math
+import os
 import pickle
 import subprocess
 import sys
@@ -248,12 +249,21 @@ class CodersTest(unittest.TestCase):
   @parameterized.expand([
       param(compat_version=None),
       param(compat_version="2.67.0"),
+      param(compat_version="2.68.0"),
   ])
   def test_deterministic_coder(self, compat_version):
+    """ Test in process determinism for all special deterministic types
+
+    - In SDK version <= 2.67.0 dill is used to encode "special types"
+    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+    absolute filepaths in code objects and dynamic functions.
+    - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
+    with relative filepaths in code objects and dynamic functions.
+    """
 
     typecoders.registry.update_compatibility_version = compat_version
     coder = coders.FastPrimitivesCoder()
-    if not dill and compat_version:
+    if not dill and compat_version == "2.67.0":
       with self.assertRaises(RuntimeError):
         coder.as_deterministic_coder(step_label="step")
       self.skipTest('Dill not installed')
@@ -283,7 +293,7 @@ class CodersTest(unittest.TestCase):
     # Skip this test during cloudpickle. Dill monkey patches the __reduce__
     # method for anonymous named tuples (MyNamedTuple) which is not pickleable.
     # Since the test is parameterized the type gets colbbered.
-    if compat_version:
+    if compat_version == "2.67.0":
       self.check_coder(
           deterministic_coder, [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
 
@@ -324,8 +334,18 @@ class CodersTest(unittest.TestCase):
   @parameterized.expand([
       param(compat_version=None),
       param(compat_version="2.67.0"),
+      param(compat_version="2.68.0"),
   ])
   def test_deterministic_map_coder_is_update_compatible(self, compat_version):
+    """ Test in process determinism for map coder including when a component
+    coder uses DeterministicFastPrimitivesCoder for "special types".
+
+    - In SDK version <= 2.67.0 dill is used to encode "special types"
+    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+    absolute filepaths in code objects and dynamic functions.
+    - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
+    with relative file.
+    """
     typecoders.registry.update_compatibility_version = compat_version
     values = [{
         MyTypedNamedTuple(i, 'a'): MyTypedNamedTuple('a', i)
@@ -335,7 +355,7 @@ class CodersTest(unittest.TestCase):
     coder = coders.MapCoder(
         coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder())
 
-    if not dill and compat_version:
+    if not dill and compat_version == "2.67.0":
       with self.assertRaises(RuntimeError):
         coder.as_deterministic_coder(step_label="step")
       self.skipTest('Dill not installed')
@@ -344,8 +364,8 @@ class CodersTest(unittest.TestCase):
 
     assert isinstance(
         deterministic_coder._key_coder,
-        coders.DeterministicFastPrimitivesCoderV2
-        if not compat_version else coders.DeterministicFastPrimitivesCoder)
+        coders.DeterministicFastPrimitivesCoderV2 if compat_version
+        in (None, "2.68.0") else coders.DeterministicFastPrimitivesCoder)
 
     self.check_coder(deterministic_coder, *values)
 
@@ -681,11 +701,20 @@ class CodersTest(unittest.TestCase):
   @parameterized.expand([
       param(compat_version=None),
       param(compat_version="2.67.0"),
+      param(compat_version="2.68.0"),
   ])
   def test_cross_process_encoding_of_special_types_is_deterministic(
       self, compat_version):
-    """Test cross-process determinism for all special deterministic types"""
-    if compat_version:
+    """Test cross-process determinism for all special deterministic types
+
+    - In SDK version <= 2.67.0 dill is used to encode "special types"
+    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+    absolute filepaths in code objects and dynamic functions.
+    - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
+    relative filepaths in code objects and dynamic functions.
+    """
+    is_using_dill = compat_version == "2.67.0"
+    if is_using_dill:
       pytest.importorskip("dill")
 
     if sys.executable is None:
@@ -785,6 +814,7 @@ class CodersTest(unittest.TestCase):
     deterministic_coder = coder.as_deterministic_coder("step")
 
     for test_name in results1:
+
       data1 = results1[test_name]
       data2 = results2[test_name]
 
@@ -798,6 +828,19 @@ class CodersTest(unittest.TestCase):
       except Exception as e:
         logging.warning("Could not decode %s data due to %s", test_name, e)
         continue
+
+      if test_name == "named_tuple_simple" and not is_using_dill:
+        # The absense of a compat_version means we are using the most recent
+        # implementation of the coder, which uses relative paths.
+        should_have_relative_path = not compat_version
+        named_tuple_type = type(decoded1)
+        self.assertEqual(
+            os.path.isabs(named_tuple_type._make.__code__.co_filename),
+            not should_have_relative_path)
+        self.assertEqual(
+            os.path.isabs(
+                named_tuple_type.__getnewargs__.__globals__['__file__']),
+            not should_have_relative_path)
 
       self.assertEqual(
           decoded1, decoded2, f"Cross-process decoding differs for {test_name}")
