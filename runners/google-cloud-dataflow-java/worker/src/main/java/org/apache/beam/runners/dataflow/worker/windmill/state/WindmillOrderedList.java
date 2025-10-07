@@ -72,12 +72,13 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
   WindmillOrderedList(
       StateTable derivedStateTable,
       StateNamespace namespace,
+      ByteString encodeKey,
       StateTag<OrderedListState<T>> spec,
       String stateFamily,
       Coder<T> elemCoder,
       boolean isNewKey) {
 
-    this.stateKey = encodeKey(namespace, spec);
+    this.stateKey = encodeKey;
     this.stateFamily = stateFamily;
     this.elemCoder = elemCoder;
     this.complete = isNewKey;
