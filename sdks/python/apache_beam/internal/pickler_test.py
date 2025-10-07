@@ -37,17 +37,17 @@ from apache_beam.internal.pickler import dumps
 from apache_beam.internal.pickler import loads
 
 
-def _get_config(enable_stable_code_identifier_pickling):
-  return cloudpickle.CloudPickleConfig(
-      enable_stable_code_identifier_pickling=(
-          enable_stable_code_identifier_pickling))
+STABLE_CODE_IDENTIFIER_PICKLING_CONFIG = cloudpickle.CloudPickleConfig(
+    get_code_object_identifier=code_object_pickler.get_code_object_identifier)
+
+DEFAULT_CONFIG = cloudpickle.CloudPickleConfig()
 
 
 def pickle_depickle(obj, enable_stable_code_identifier_pickling):
-  default_config = _get_config(
-      enable_stable_code_identifier_pickling=
-      enable_stable_code_identifier_pickling)
-  return loads(cloudpickle_dumps(obj, config=default_config))
+  if enable_stable_code_identifier_pickling:
+    return loads(cloudpickle_dumps(obj, config=STABLE_CODE_IDENTIFIER_PICKLING_CONFIG))
+  else:
+    return loads(cloudpickle_dumps(obj, config=DEFAULT_CONFIG))
 
 def maybe_skip_if_no_dill(pickle_library):
   if pickle_library == 'dill':
