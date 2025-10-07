@@ -17,6 +17,8 @@
 
 # This workflow modifies the GCP User Roles when the infra/users.yml file is updated.
 # It applies the changes using Terraform to manage the IAM roles for users defined in the users.yml
+# If the workflow is triggered by a pull request, it will post the Terraform plan as a comment on the PR
+# as a code block for easy review.
 
 name: Modify the GCP User Roles according to the infra/users.yml file
 
@@ -28,6 +30,10 @@ on:
       - main
     paths:
       - 'infra/iam/users.yml'
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'infra/iam/users.yml'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -36,7 +42,8 @@ concurrency:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   beam_UserRoles:
@@ -57,6 +64,28 @@ jobs:
       - name: Terraform Plan
         working-directory: ./infra/iam
         run: terraform plan -out=tfplan
+
+      - name: Convert plan to plaintext
+        if: github.event_name == 'pull_request_target'
+        working-directory: ./infra/iam
+        run: terraform show -no-color tfplan > tfplan.txt
+
+      - name: Create comment body
+        if: github.event_name == 'pull_request_target'
+        run: |
+          echo "### Terraform Plan for User Roles Changes" > comment_body.txt
+          echo '```' >> comment_body.txt
+          cat ./infra/iam/tfplan.txt >> comment_body.txt
+          echo '```' >> comment_body.txt
+
+      - name: Upload plan as a comment to PR
+        if: github.event_name == 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body-file comment_body.txt
+
       - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'apache/beam'
         working-directory: ./infra/iam
         run: terraform apply -auto-approve tfplan

@@ -14,20 +14,12 @@
 # limitations under the License.
 
 # IAM policy for project apache-beam-testing
-# Generated on 2025-09-19 18:17:58 UTC
+# Generated on 2025-10-07 16:00:39 UTC
 
 - username: WhatWouldAustinDo
   email: WhatWouldAustinDo@gmail.com
   permissions:
   - role: roles/editor
-- username: a.khorbaladze
-  email: a.khorbaladze@akvelon.us
-  permissions:
-  - role: roles/bigquery.admin
-  - role: roles/container.admin
-  - role: roles/editor
-  - role: roles/iam.serviceAccountUser
-  - role: roles/secretmanager.admin
 - username: aaronleeiv
   email: aaronleeiv@google.com
   permissions:
@@ -84,6 +76,7 @@
   - role: roles/iam.serviceAccountTokenCreator
   - role: roles/iam.serviceAccountUser
   - role: roles/iam.workloadIdentityUser
+  - role: roles/storage.objectAdmin
   - role: roles/viewer
 - username: allows-impersonation-new
   email: allows-impersonation-new@apache-beam-testing.iam.gserviceaccount.com
@@ -197,6 +190,7 @@
   - role: roles/managedkafka.schemaRegistryEditor
   - role: roles/monitoring.metricWriter
   - role: roles/monitoring.viewer
+  - role: roles/secretmanager.admin
   - role: roles/spanner.databaseAdmin
   - role: roles/stackdriver.resourceMetadata.writer
   - role: roles/storage.admin
@@ -238,6 +232,7 @@
   - role: roles/iam.serviceAccountTokenCreator
   - role: roles/iam.serviceAccountUser
   - role: roles/pubsub.admin
+  - role: roles/secretmanager.admin
   - role: roles/spanner.admin
   - role: roles/storage.admin
   - role: roles/storage.folderAdmin
@@ -372,7 +367,7 @@
 - username: enriquecaol04
   email: enriquecaol04@gmail.com
   permissions:
-  - role: roles/viewer
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: eventarc-workflow-sa
   email: eventarc-workflow-sa@apache-beam-testing.iam.gserviceaccount.com
   permissions:
