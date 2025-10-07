@@ -42,6 +42,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
+import com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
 import com.google.gson.JsonArray;
@@ -119,6 +120,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -2297,10 +2299,79 @@ public class BigQueryIO {
     if (DynamicMessage.class.equals(protoMessageClass)) {
       throw new IllegalArgumentException("DynamicMessage is not supported.");
     }
-    return BigQueryIO.<T>write()
-        .withFormatFunction(
-            m -> TableRowToStorageApiProto.tableRowFromMessage(m, false, Predicates.alwaysTrue()))
-        .withWriteProtosClass(protoMessageClass);
+    try {
+      return BigQueryIO.<T>write()
+          .toBuilder()
+          .setFormatFunction(FormatProto.fromClass(protoMessageClass))
+          .build()
+          .withWriteProtosClass(protoMessageClass);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  abstract static class TableRowFormatFunction<T>
+      implements SerializableBiFunction<
+          TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow> {
+    static <T> TableRowFormatFunction<T> fromSerializableFunction(
+        SerializableFunction<T, TableRow> serializableFunction) {
+      return new TableRowFormatFunction<T>() {
+        @Override
+        public TableRow apply(
+            TableRowToStorageApiProto.@Nullable SchemaInformation schemaInformation, T t) {
+          return serializableFunction.apply(t);
+        }
+      };
+    }
+
+    SerializableFunction<T, TableRow> toSerializableFunction() {
+      return input -> apply(null, input);
+    }
+  }
+
+  private static class FormatProto<T extends Message> extends TableRowFormatFunction<T> {
+    transient TableRowToStorageApiProto.SchemaInformation inferredSchemaInformation;
+    final Class<T> protoMessageClass;
+
+    FormatProto(Class<T> protoMessageClass) {
+      this.protoMessageClass = protoMessageClass;
+    }
+
+    TableRowToStorageApiProto.SchemaInformation inferSchemaInformation() {
+      try {
+        if (inferredSchemaInformation == null) {
+          Descriptors.Descriptor descriptor =
+              (Descriptors.Descriptor)
+                  org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+                          protoMessageClass.getMethod("getDescriptor"))
+                      .invoke(null);
+          Descriptors.Descriptor convertedDescriptor =
+              TableRowToStorageApiProto.wrapDescriptorProto(
+                  ProtoSchemaConverter.convert(descriptor).getProtoDescriptor());
+          TableSchema tableSchema =
+              TableRowToStorageApiProto.protoSchemaToTableSchema(
+                  TableRowToStorageApiProto.tableSchemaFromDescriptor(convertedDescriptor));
+          this.inferredSchemaInformation =
+              TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
+        }
+        return inferredSchemaInformation;
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    static <T extends Message> FormatProto<T> fromClass(Class<T> protoMessageClass)
+        throws Exception {
+      return new FormatProto<>(protoMessageClass);
+    }
+
+    @Override
+    public TableRow apply(TableRowToStorageApiProto.SchemaInformation schemaInformation, T input) {
+      TableRowToStorageApiProto.SchemaInformation localSchemaInformation =
+          schemaInformation != null ? schemaInformation : inferSchemaInformation();
+      return TableRowToStorageApiProto.tableRowFromMessage(
+          localSchemaInformation, input, false, Predicates.alwaysTrue());
+    }
   }
 
   /** Implementation of {@link #write}. */
@@ -2354,9 +2425,9 @@ public class BigQueryIO {
     abstract @Nullable SerializableFunction<ValueInSingleWindow<T>, TableDestination>
         getTableFunction();
 
-    abstract @Nullable SerializableFunction<T, TableRow> getFormatFunction();
+    abstract @Nullable TableRowFormatFunction<T> getFormatFunction();
 
-    abstract @Nullable SerializableFunction<T, TableRow> getFormatRecordOnFailureFunction();
+    abstract @Nullable TableRowFormatFunction<T> getFormatRecordOnFailureFunction();
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
@@ -2467,10 +2538,10 @@ public class BigQueryIO {
       abstract Builder<T> setTableFunction(
           SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
 
-      abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
+      abstract Builder<T> setFormatFunction(TableRowFormatFunction<T> formatFunction);
 
       abstract Builder<T> setFormatRecordOnFailureFunction(
-          SerializableFunction<T, TableRow> formatFunction);
+          TableRowFormatFunction<T> formatFunction);
 
       abstract Builder<T> setAvroRowWriterFactory(
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
@@ -2718,7 +2789,9 @@ public class BigQueryIO {
 
     /** Formats the user's type into a {@link TableRow} to be written to BigQuery. */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
-      return toBuilder().setFormatFunction(formatFunction).build();
+      return toBuilder()
+          .setFormatFunction(TableRowFormatFunction.fromSerializableFunction(formatFunction))
+          .build();
     }
 
     /**
@@ -2733,7 +2806,10 @@ public class BigQueryIO {
      */
     public Write<T> withFormatRecordOnFailureFunction(
         SerializableFunction<T, TableRow> formatFunction) {
-      return toBuilder().setFormatRecordOnFailureFunction(formatFunction).build();
+      return toBuilder()
+          .setFormatRecordOnFailureFunction(
+              TableRowFormatFunction.fromSerializableFunction(formatFunction))
+          .build();
     }
 
     /**
@@ -3599,9 +3675,8 @@ public class BigQueryIO {
     private <DestinationT> WriteResult expandTyped(
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
       boolean optimizeWrites = getOptimizeWrites();
-      SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
-      SerializableFunction<T, TableRow> formatRecordOnFailureFunction =
-          getFormatRecordOnFailureFunction();
+      TableRowFormatFunction<T> formatFunction = getFormatFunction();
+      TableRowFormatFunction<T> formatRecordOnFailureFunction = getFormatRecordOnFailureFunction();
       RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT> avroRowWriterFactory =
           (RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT>) getAvroRowWriterFactory();
 
@@ -3623,7 +3698,9 @@ public class BigQueryIO {
           // If no format function set, then we will automatically convert the input type to a
           // TableRow.
           // TODO: it would be trivial to convert to avro records here instead.
-          formatFunction = BigQueryUtils.toTableRow(input.getToRowFunction());
+          formatFunction =
+              TableRowFormatFunction.fromSerializableFunction(
+                  BigQueryUtils.toTableRow(input.getToRowFunction()));
         }
         // Infer the TableSchema from the input Beam schema.
         // TODO: If the user provided a schema, we should use that. There are things that can be
@@ -3769,8 +3846,8 @@ public class BigQueryIO {
                     getCreateDisposition(),
                     dynamicDestinations,
                     elementCoder,
-                    tableRowWriterFactory.getToRowFn(),
-                    tableRowWriterFactory.getToFailsafeRowFn())
+                    tableRowWriterFactory.getToRowFn().toSerializableFunction(),
+                    tableRowWriterFactory.getToFailsafeRowFn().toSerializableFunction())
                 .withInsertRetryPolicy(retryPolicy)
                 .withTestServices(getBigQueryServices())
                 .withExtendedErrorInfo(getExtendedErrorInfo())
