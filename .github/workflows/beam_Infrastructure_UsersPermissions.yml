@@ -31,9 +31,6 @@ on:
     paths:
       - 'infra/iam/users.yml'
   pull_request_target:
-    types: [opened, synchronize, reopened]
-    paths:
-      - 'infra/iam/users.yml'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
