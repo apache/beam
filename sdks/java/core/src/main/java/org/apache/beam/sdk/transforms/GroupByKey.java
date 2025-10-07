@@ -265,7 +265,7 @@ public class GroupByKey<K, V>
     }
 
     PipelineOptions options = input.getPipeline().getOptions();
-    String gbekOveride = options.getGBEK();
+    String gbekOveride = options.getGbek();
     if (!this.insideGBEK && gbekOveride != null && !gbekOveride.trim().isEmpty()) {
       this.surroundsGBEK = true;
       Secret hmacSecret = Secret.parseSecretOption(gbekOveride);

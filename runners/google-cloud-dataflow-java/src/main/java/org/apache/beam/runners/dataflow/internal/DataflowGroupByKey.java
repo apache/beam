@@ -39,6 +39,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Specialized implementation of {@code GroupByKey} for translating Redistribute transform into
@@ -141,7 +142,7 @@ public class DataflowGroupByKey<K, V>
     }
 
     PipelineOptions options = input.getPipeline().getOptions();
-    String gbekOveride = options.getGBEK();
+    String gbekOveride = options.getGbek();
     if (!this.insideGBEK && gbekOveride != null && !gbekOveride.trim().isEmpty()) {
       this.surroundsGBEK = true;
       Secret hmacSecret = Secret.parseSecretOption(gbekOveride);
@@ -211,13 +212,14 @@ public class DataflowGroupByKey<K, V>
     @Override
     public String getUrn(DataflowGroupByKey<?, ?> transform) {
       if (transform.surroundsGBEK()) {
-        return "beam:transform:group_by_key_wrapper:v1";
+        return PTransformTranslation.GROUP_BY_KEY_WRAPPER_TRANSFORM_URN;
       }
       return PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
     }
 
     @Override
     @SuppressWarnings("nullness")
+    @Nullable
     public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, DataflowGroupByKey<?, ?>> transform, SdkComponents components) {
       if (transform.getTransform().surroundsGBEK()) {

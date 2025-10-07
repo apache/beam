@@ -694,7 +694,7 @@ public class GroupByKeyTest implements Serializable {
               Create.of(ungroupedPairs)
                   .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-      p.getOptions().setGBEK(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+      p.getOptions().setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
       PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
 
       SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> checker =
@@ -716,7 +716,7 @@ public class GroupByKeyTest implements Serializable {
         // Skip test if we couldn't set up secret manager
         return;
       }
-      p.getOptions().setGBEK("type:gcpsecret;version_name:bad_path/versions/latest");
+      p.getOptions().setGbek("type:gcpsecret;version_name:bad_path/versions/latest");
       p.apply(Create.of(KV.of("k1", 1))).apply(GroupByKey.create());
       assertThrows(RuntimeException.class, () -> p.run());
     }

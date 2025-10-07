@@ -103,7 +103,7 @@ public class GroupByKeyIT {
       return;
     }
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.setGBEK(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+    options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
     Pipeline p = Pipeline.create(options);
     List<KV<String, Integer>> ungroupedPairs =
         Arrays.asList(
@@ -139,7 +139,7 @@ public class GroupByKeyIT {
       return;
     }
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.setGBEK("type:gcpsecret;version_name:bad_path/versions/latest");
+    options.setGbek("type:gcpsecret;version_name:bad_path/versions/latest");
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(KV.of("k1", 1))).apply(GroupByKey.create());
     thrown.expect(RuntimeException.class);
@@ -154,7 +154,7 @@ public class GroupByKeyIT {
       return;
     }
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.setGBEK(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+    options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
     Pipeline p = Pipeline.create(options);
 
     List<KV<String, Integer>> ungroupedPairs =
@@ -183,7 +183,7 @@ public class GroupByKeyIT {
       return;
     }
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.setGBEK("type:gcpsecret;version_name:bad_path/versions/latest");
+    options.setGbek("type:gcpsecret;version_name:bad_path/versions/latest");
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(KV.of("k1", 1))).apply(Redistribute.byKey());
     thrown.expect(RuntimeException.class);
