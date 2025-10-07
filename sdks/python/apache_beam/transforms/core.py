@@ -3335,9 +3335,10 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
-  def __init__(self):
+  def __init__(self, label=None):
     self._replaced_by_gbek = False
     self._inside_gbek = False
+    super().__init__(label)
 
   class ReifyWindows(DoFn):
     def process(
