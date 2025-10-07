@@ -1617,7 +1617,7 @@ public class Combine {
     @Override
     public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       PipelineOptions options = input.getPipeline().getOptions();
-      String gbekOveride = options.getGBEK();
+      String gbekOveride = options.getGbek();
       if (gbekOveride != null && !gbekOveride.trim().isEmpty()) {
         // Don't replace this transform if we're using GBEK since the runner may insert
         // its own GBK which doesn't perform encryption.
