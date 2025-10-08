@@ -58,6 +58,8 @@ abstract class AppendClientInfo {
 
   abstract DescriptorProtos.DescriptorProto getDescriptor();
 
+  abstract boolean getUseEnhancedTableRowConversion();
+
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setStreamAppendClient(@Nullable BigQueryServices.StreamAppendClient value);
@@ -74,6 +76,8 @@ abstract class AppendClientInfo {
 
     abstract Builder setStreamName(@Nullable String name);
 
+    abstract Builder setUseEnhancedTableRowConversion(boolean value);
+
     abstract AppendClientInfo build();
   };
 
@@ -84,6 +88,15 @@ abstract class AppendClientInfo {
       DescriptorProtos.DescriptorProto descriptor,
       Consumer<BigQueryServices.StreamAppendClient> closeAppendClient)
       throws Exception {
+    return of(tableSchema, descriptor, closeAppendClient, false);
+  }
+
+  static AppendClientInfo of(
+      TableSchema tableSchema,
+      DescriptorProtos.DescriptorProto descriptor,
+      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient,
+      boolean useEnhancedTableRowConversion)
+      throws Exception {
     return new AutoValue_AppendClientInfo.Builder()
         .setTableSchema(tableSchema)
         .setCloseAppendClient(closeAppendClient)
@@ -91,6 +104,7 @@ abstract class AppendClientInfo {
         .setSchemaInformation(
             TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema))
         .setDescriptor(descriptor)
+        .setUseEnhancedTableRowConversion(useEnhancedTableRowConversion)
         .build();
   }
 
@@ -104,6 +118,20 @@ abstract class AppendClientInfo {
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
             tableSchema, true, includeCdcColumns),
         closeAppendClient);
+  }
+
+  static AppendClientInfo of(
+      TableSchema tableSchema,
+      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient,
+      boolean includeCdcColumns,
+      boolean useEnhancedTableRowConversion)
+      throws Exception {
+    return of(
+        tableSchema,
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            tableSchema, true, includeCdcColumns),
+        closeAppendClient,
+        useEnhancedTableRowConversion);
   }
 
   public AppendClientInfo withNoAppendClient() {
@@ -173,7 +201,9 @@ abstract class AppendClientInfo {
           DynamicMessage.parseFrom(
               TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
           true,
-          includeField);
+          includeField,
+          "",
+          getUseEnhancedTableRowConversion());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

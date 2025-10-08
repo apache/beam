@@ -2451,6 +2451,8 @@ public class BigQueryIO {
 
     abstract @Nullable String getWriteTempDataset();
 
+    abstract @Nullable Boolean getUseEnhancedTableRowConversion();
+
     abstract @Nullable SerializableFunction<T, RowMutationInformation>
         getRowMutationInformationFn();
 
@@ -2575,6 +2577,8 @@ public class BigQueryIO {
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
+
+      abstract Builder<T> setUseEnhancedTableRowConversion(Boolean useEnhancedTableRowConversion);
 
       abstract Write<T> build();
     }
@@ -3326,6 +3330,20 @@ public class BigQueryIO {
       return toBuilder().setWriteTempDataset(writeTempDataset).build();
     }
 
+    /**
+     * Enables enhanced table row conversion for better handling of nested fields and complex data
+     * types. When enabled, uses improved conversion logic that provides better compatibility with
+     * BigQuery's data model. When disabled (default), uses the legacy conversion behavior for
+     * backward compatibility.
+     *
+     * @param useEnhancedTableRowConversion true to enable enhanced conversion, false for legacy
+     *     behavior
+     * @return the updated Write transform
+     */
+    public Write<T> withEnhancedTableRowConversion(boolean useEnhancedTableRowConversion) {
+      return toBuilder().setUseEnhancedTableRowConversion(useEnhancedTableRowConversion).build();
+    }
+
     public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
       return toBuilder()
           .setBadRecordErrorHandler(errorHandler)
@@ -3939,7 +3957,8 @@ public class BigQueryIO {
                   getRowMutationInformationFn() != null,
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
-                  getAutoSchemaUpdate());
+                  getAutoSchemaUpdate(),
+                  getUseEnhancedTableRowConversion());
         }
 
         int numShards = getStorageApiNumStreams(bqOptions);

@@ -53,6 +53,10 @@ import org.slf4j.LoggerFactory;
  * Integration test for BigQuery Storage API write with nested structures containing 'f' field. This
  * test verifies the fix for IllegalArgumentException when setting a List field to Double in nested
  * TableRow structures, based on the scenario from BigQuerySetFPipeline.java.
+ *
+ * <p>This test requires enhanced table row conversion to be enabled to properly handle nested
+ * structures with 'f' fields. Without enhanced conversion, the legacy behavior treats 'f' fields
+ * specially, which can cause conflicts with nested structures containing 'f' fields.
  */
 @RunWith(JUnit4.class)
 public class BigQueryNestedFFieldIT {
@@ -83,6 +87,10 @@ public class BigQueryNestedFFieldIT {
    * Test case that reproduces the scenario from BigQuerySetFPipeline.java where a nested structure
    * contains an 'f' field with a float value. This tests the fix for the IllegalArgumentException
    * that occurred when TableRowToStorageApiProto tried to set a List field to a Double value.
+   *
+   * <p>This test uses enhanced table row conversion to properly handle the nested 'f' field.
+   * Enhanced conversion avoids the legacy special handling of 'f' fields that can cause conflicts
+   * in nested structures.
    */
   @Test
   public void testNestedFFieldWithFloat() throws IOException, InterruptedException {
@@ -122,7 +130,8 @@ public class BigQueryNestedFFieldIT {
                     .withSchema(schema)
                     .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
                     .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                    .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
+                    .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                    .withEnhancedTableRowConversion(true));
 
     // Validate failed inserts using PAssert
     PCollection<BigQueryStorageApiInsertError> failedInserts = result.getFailedStorageApiInserts();

@@ -42,6 +42,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   private final CreateDisposition createDisposition;
   private final boolean ignoreUnknownValues;
   private final boolean autoSchemaUpdates;
+  private final boolean useEnhancedTableRowConversion;
   private static final TableSchemaCache SCHEMA_CACHE =
       new TableSchemaCache(Duration.standardSeconds(1));
 
@@ -56,7 +57,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       boolean usesCdc,
       CreateDisposition createDisposition,
       boolean ignoreUnknownValues,
-      boolean autoSchemaUpdates) {
+      boolean autoSchemaUpdates,
+      boolean useEnhancedTableRowConversion) {
     super(inner);
     this.formatFunction = formatFunction;
     this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
@@ -64,10 +66,15 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     this.createDisposition = createDisposition;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.autoSchemaUpdates = autoSchemaUpdates;
+    this.useEnhancedTableRowConversion = useEnhancedTableRowConversion;
   }
 
   static void clearSchemaCache() throws ExecutionException, InterruptedException {
     SCHEMA_CACHE.clear();
+  }
+
+  public boolean getUseEnhancedTableRowConversion() {
+    return useEnhancedTableRowConversion;
   }
 
   @Override
@@ -189,7 +196,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
               allowMissingFields,
               unknownFields,
               changeType,
-              changeSequenceNum);
+              changeSequenceNum,
+              useEnhancedTableRowConversion);
       return StorageApiWritePayload.of(
           msg.toByteArray(),
           unknownFields,

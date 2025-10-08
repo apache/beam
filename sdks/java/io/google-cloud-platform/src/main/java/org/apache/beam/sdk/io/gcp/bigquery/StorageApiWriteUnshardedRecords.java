@@ -663,7 +663,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                               getAppendClientInfo(true, null).getDescriptor()),
                           rowBytes),
                       true,
-                      successfulRowsPredicate);
+                      successfulRowsPredicate,
+                      "",
+                      getEnhancedConversionFlag());
             }
             org.joda.time.Instant timestamp = insertTimestamps.get(i);
             failedRowsReceiver.outputWithTimestamp(
@@ -748,7 +750,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                                           .getDescriptor()),
                                   protoBytes),
                               true,
-                              Predicates.alwaysTrue());
+                              Predicates.alwaysTrue(),
+                              "",
+                              getEnhancedConversionFlag());
                     }
                     element =
                         new BigQueryStorageApiInsertError(
@@ -900,7 +904,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                           TableRowToStorageApiProto.tableRowFromMessage(
                               DynamicMessage.parseFrom(descriptor, rowBytes),
                               true,
-                              successfulRowsPredicate);
+                              successfulRowsPredicate,
+                              "",
+                              getEnhancedConversionFlag());
                       org.joda.time.Instant timestamp = c.timestamps.get(i);
                       successfulRowsReceiver.outputWithTimestamp(row, timestamp);
                     } catch (Exception e) {
@@ -966,6 +972,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final boolean useDefaultStream;
     private int streamAppendClientCount;
     private final @Nullable Map<String, String> bigLakeConfiguration;
+
+    private boolean getEnhancedConversionFlag() {
+      if (dynamicDestinations instanceof StorageApiDynamicDestinationsTableRow) {
+        return ((StorageApiDynamicDestinationsTableRow<?, ?>) dynamicDestinations)
+            .getUseEnhancedTableRowConversion();
+      }
+      return false;
+    }
 
     WriteRecordsDoFn(
         String operationName,

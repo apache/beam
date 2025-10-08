@@ -624,6 +624,34 @@ public class TableRowToStorageApiProto {
       @Nullable String changeType,
       @Nullable String changeSequenceNum)
       throws SchemaConversionException {
+    return messageFromTableRow(
+        schemaInformation,
+        descriptor,
+        tableRow,
+        ignoreUnknownValues,
+        allowMissingRequiredFields,
+        unknownFields,
+        changeType,
+        changeSequenceNum,
+        false);
+  }
+
+  /**
+   * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
+   * using the BigQuery Storage API.
+   */
+  @SuppressWarnings("nullness")
+  public static DynamicMessage messageFromTableRow(
+      SchemaInformation schemaInformation,
+      Descriptor descriptor,
+      TableRow tableRow,
+      boolean ignoreUnknownValues,
+      boolean allowMissingRequiredFields,
+      final @Nullable TableRow unknownFields,
+      @Nullable String changeType,
+      @Nullable String changeSequenceNum,
+      boolean useEnhancedTableRowConversion)
+      throws SchemaConversionException {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
       List<AbstractMap<String, Object>> cells = (List<AbstractMap<String, Object>>) fValue;
@@ -1129,7 +1157,7 @@ public class TableRowToStorageApiProto {
   @VisibleForTesting
   public static TableRow tableRowFromMessage(
       Message message, boolean includeCdcColumns, Predicate<String> includeField) {
-    return tableRowFromMessage(message, includeCdcColumns, includeField, "");
+    return tableRowFromMessage(message, includeCdcColumns, includeField, "", false);
   }
 
   public static TableRow tableRowFromMessage(
@@ -1137,31 +1165,71 @@ public class TableRowToStorageApiProto {
       boolean includeCdcColumns,
       Predicate<String> includeField,
       String namePrefix) {
+    return tableRowFromMessage(message, includeCdcColumns, includeField, namePrefix, false);
+  }
+
+  public static TableRow tableRowFromMessage(
+      Message message,
+      boolean includeCdcColumns,
+      Predicate<String> includeField,
+      String namePrefix,
+      boolean useEnhancedConversion) {
     TableRow tableRow = new TableRow();
-    List<TableCell> tableCells = Lists.newArrayList();
 
-    // Process fields in order they appear in the descriptor
-    for (FieldDescriptor fieldDescriptor : message.getDescriptorForType().getFields()) {
-      StringBuilder fullName = new StringBuilder();
-      String fieldName = fieldNameFromProtoFieldDescriptor(fieldDescriptor);
-      fullName = fullName.append(namePrefix).append(fieldName);
+    if (useEnhancedConversion) {
+      // New behavior: Process fields in descriptor order and use F list format
+      List<TableCell> tableCells = Lists.newArrayList();
 
-      TableCell tableCell = new TableCell();
+      for (FieldDescriptor fieldDescriptor : message.getDescriptorForType().getFields()) {
+        StringBuilder fullName = new StringBuilder();
+        String fieldName = fieldNameFromProtoFieldDescriptor(fieldDescriptor);
+        fullName = fullName.append(namePrefix).append(fieldName);
 
-      if (message.hasField(fieldDescriptor)
-          && (includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
-          && includeField.test(fieldName)) {
-        Object fieldValue = message.getField(fieldDescriptor);
-        Object jsonValue =
-            jsonValueFromMessageValue(
-                fieldDescriptor, fieldValue, true, includeField, fullName.append(".").toString());
-        tableCell.setV(jsonValue);
+        TableCell tableCell = new TableCell();
+
+        if (message.hasField(fieldDescriptor)
+            && (includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
+            && includeField.test(fieldName)) {
+          Object fieldValue = message.getField(fieldDescriptor);
+          Object jsonValue =
+              jsonValueFromMessageValue(
+                  fieldDescriptor,
+                  fieldValue,
+                  true,
+                  includeField,
+                  fullName.append(".").toString(),
+                  useEnhancedConversion);
+          tableCell.setV(jsonValue);
+        }
+
+        tableCells.add(tableCell);
       }
 
-      tableCells.add(tableCell);
+      tableRow.setF(tableCells);
+    } else {
+      // Original behavior: Set fields directly on TableRow by name
+      for (FieldDescriptor fieldDescriptor : message.getDescriptorForType().getFields()) {
+        StringBuilder fullName = new StringBuilder();
+        String fieldName = fieldNameFromProtoFieldDescriptor(fieldDescriptor);
+        fullName = fullName.append(namePrefix).append(fieldName);
+
+        if (message.hasField(fieldDescriptor)
+            && (includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
+            && includeField.test(fieldName)) {
+          Object fieldValue = message.getField(fieldDescriptor);
+          Object jsonValue =
+              jsonValueFromMessageValue(
+                  fieldDescriptor,
+                  fieldValue,
+                  true,
+                  includeField,
+                  fullName.append(".").toString(),
+                  useEnhancedConversion);
+          tableRow.set(fieldName, jsonValue);
+        }
+      }
     }
 
-    tableRow.setF(tableCells);
     return tableRow;
   }
 
@@ -1170,18 +1238,23 @@ public class TableRowToStorageApiProto {
       Object fieldValue,
       boolean expandRepeated,
       Predicate<String> includeField,
-      String prefix) {
+      String prefix,
+      boolean useEnhancedConversion) {
     if (expandRepeated && fieldDescriptor.isRepeated()) {
       List<Object> valueList = (List<Object>) fieldValue;
       return valueList.stream()
-          .map(v -> jsonValueFromMessageValue(fieldDescriptor, v, false, includeField, prefix))
+          .map(
+              v ->
+                  jsonValueFromMessageValue(
+                      fieldDescriptor, v, false, includeField, prefix, useEnhancedConversion))
           .collect(toList());
     }
 
     switch (fieldDescriptor.getType()) {
       case GROUP:
       case MESSAGE:
-        return tableRowFromMessage((Message) fieldValue, false, includeField, prefix);
+        return tableRowFromMessage(
+            (Message) fieldValue, false, includeField, prefix, useEnhancedConversion);
       case BYTES:
         return BaseEncoding.base64().encode(((ByteString) fieldValue).toByteArray());
       case ENUM:
@@ -1200,5 +1273,16 @@ public class TableRowToStorageApiProto {
         // JSON (due to JSON's float-based representation of all numbers).
         return fieldValue.toString();
     }
+  }
+
+  // Backward-compatible overload for jsonValueFromMessageValue
+  public static Object jsonValueFromMessageValue(
+      FieldDescriptor fieldDescriptor,
+      Object fieldValue,
+      boolean expandRepeated,
+      Predicate<String> includeField,
+      String prefix) {
+    return jsonValueFromMessageValue(
+        fieldDescriptor, fieldValue, expandRepeated, includeField, prefix, false);
   }
 }

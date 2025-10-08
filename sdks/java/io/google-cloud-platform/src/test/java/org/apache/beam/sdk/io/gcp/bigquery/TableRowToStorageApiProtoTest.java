@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -1884,13 +1885,49 @@ public class TableRowToStorageApiProtoTest {
 
     DynamicMessage msg = builder.build();
 
-    // Convert DynamicMessage to TableRow - this should not throw IllegalArgumentException
-    TableRow result = TableRowToStorageApiProto.tableRowFromMessage(msg, false, field -> true);
+    // Convert DynamicMessage to TableRow with enhanced conversion (new behavior)
+    TableRow result =
+        TableRowToStorageApiProto.tableRowFromMessage(msg, false, field -> true, "", true);
 
     // Verify the conversion worked correctly - all fields are now in the F list as TableCells
     List<TableCell> tableCells = (List<TableCell>) result.getF();
     assertEquals(2, tableCells.size()); // Should have 2 fields: stringvalue and f
     assertEquals("test", tableCells.get(0).getV()); // First field (stringvalue)
     assertEquals(3.14, tableCells.get(1).getV()); // Second field (f)
+  }
+
+  @Test
+  public void testTableRowFromMessageWithFieldNamedFBackwardCompatible() throws Exception {
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setType("STRING").setName("stringValue"),
+                    new TableFieldSchema().setType("FLOAT64").setName("floatField")));
+
+    // Create a DynamicMessage directly to test the tableRowFromMessage backward compatibility
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, false, false);
+    DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+
+    // Set field values in the message
+    FieldDescriptor stringField = descriptor.findFieldByName("stringvalue");
+    FieldDescriptor floatField = descriptor.findFieldByName("floatfield");
+
+    builder.setField(stringField, "test");
+    builder.setField(floatField, 3.14);
+
+    DynamicMessage msg = builder.build();
+
+    // Convert DynamicMessage to TableRow with backward compatible conversion (old behavior)
+    TableRow result =
+        TableRowToStorageApiProto.tableRowFromMessage(msg, false, field -> true, "", false);
+
+    // Verify the conversion worked correctly - fields are set by name on the TableRow
+    assertEquals("test", result.get("stringvalue"));
+    assertEquals(3.14, result.get("floatfield"));
+
+    // The F list should not be set in backward compatible mode
+    assertNull(result.getF());
   }
 }
