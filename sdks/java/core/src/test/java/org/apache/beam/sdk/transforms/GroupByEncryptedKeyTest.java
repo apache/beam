@@ -126,7 +126,8 @@ public class GroupByEncryptedKeyTest implements Serializable {
           secretName,
           SecretPayload.newBuilder()
               .setData(
-                  ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes))));
+                  ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
+              .build());
     }
     gcpSecret = new GcpSecret(secretName.toString() + "/versions/latest");
   }
