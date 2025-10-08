@@ -201,7 +201,7 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 // forceLpCoder always add a new LP-coder for a given coder into the "base" map
 func forceLpCoder(cID string, base map[string]*pipepb.Coder) (string, error) {
 	// First check if we've already added the LP version of this coder to coders already.
-	lpcID := cID + "_lp"
+	lpcID := cID + "_flp"
 	// Check if we've done this one before.
 	if _, ok := base[lpcID]; ok {
 		return lpcID, nil
