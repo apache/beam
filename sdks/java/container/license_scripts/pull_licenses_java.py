@@ -142,7 +142,8 @@ def pull_from_url(file_name, url, dep, no_list, use_cache=False):
 def pull_source_code(base_url, dir_name, dep):
     # base_url example: https://repo1.maven.org/maven2/org/mortbay/jetty/jsp-2.1/6.1.14/
     try:
-      soup = BeautifulSoup(urlopen(base_url).read(), "html.parser")
+      soup = BeautifulSoup(urlopen(Request(base_url, headers={
+        'User-Agent': 'Apache Beam'})).read(), "html.parser")
     except:
       logging.error('Error reading source base from {base_url}'.format(base_url=base_url))
       raise

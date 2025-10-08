@@ -209,6 +209,7 @@ class SQLEnrichmentTestHelper:
 
 
 class BaseTestSQLEnrichment(unittest.TestCase):
+  _cache_client_retries = 3
   _table_data = [
       {
           "id": 1, "name": "A", 'quantity': 2, 'distribution_center_id': 3
@@ -258,8 +259,6 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         columns=cls.get_columns(),
         table_data=cls._table_data,
         metadata=cls._metadata)
-
-    cls._cache_client_retries = 3
 
   @classmethod
   def get_columns(cls):

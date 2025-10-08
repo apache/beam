@@ -66,6 +66,7 @@
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 * (Python) Add YAML Editor and Visualization Panel ([#35772](https://github.com/apache/beam/issues/35772)).
+* (Java) Java 25 Support ([#35772](https://github.com/apache/beam/issues/35627)).
 
 ## I/Os
 
@@ -77,6 +78,7 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Python examples added for CloudSQL enrichment handler on [Beam website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-cloudsql/) (Python) ([#35473](https://github.com/apache/beam/issues/36095)).
 * Support for batch mode execution in WriteToPubSub transform added (Python) ([#35990](https://github.com/apache/beam/issues/35990)).
+* Added official support for Python 3.13 ([#34869](https://github.com/apache/beam/issues/34869)).
 
 ## Breaking Changes
 
@@ -84,6 +86,7 @@
 * (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls ([#30445](https://github.com/apache/beam/issues/30445)).
   This may break update compatibility if you don't provide a `--transform_name_mapping`.
 * Removed deprecated Hadoop versions (2.10.2 and 3.2.4) that are no longer supported for [Iceberg](https://github.com/apache/iceberg/issues/10940) from IcebergIO ([#36282](https://github.com/apache/beam/issues/36282)).
+* (Go) Coder construction on SDK side is more faithful to the specs from runners without stripping length-prefix. This may break streaming pipeline update as the underlying coder could be changed ([#36387](https://github.com/apache/beam/issues/36387)).
 
 ## Deprecations
 

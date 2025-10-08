@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
 /** The interface to handle CRUD of {@code BeamSql} table metadata. */
@@ -27,4 +28,9 @@ public interface MetaStore extends TableProvider {
    * @param provider
    */
   void registerProvider(TableProvider provider);
+
+  /**
+   * Returns all the registered {@link TableProvider}s in this {@link MetaStore}, organized by type.
+   */
+  Map<String, TableProvider> tableProviders();
 }

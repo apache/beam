@@ -190,13 +190,12 @@ final class GrpcGetDataStreamRequests {
       sent.countDown();
     }
 
-    /**
-     * Let waiting for threads know that a failure occurred.
-     *
-     * @implNote Thread safe.
-     */
+    /** Let waiting for threads know that a failure occurred. */
     void notifyFailed() {
       failed = true;
+      for (QueuedRequest request : requests) {
+        request.getResponseStream().cancel();
+      }
       sent.countDown();
     }
 
