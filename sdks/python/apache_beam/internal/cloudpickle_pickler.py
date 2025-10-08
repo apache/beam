@@ -27,7 +27,6 @@ dump_session and load_session are no-ops.
 
 # pytype: skip-file
 
-import base64
 import bz2
 import io
 import logging
@@ -154,25 +153,18 @@ def dumps(
   # representation change, and can break streaming job update compatibility on
   # runners such as Dataflow.
   if use_zlib:
-    c = zlib.compress(s, 9)
+    return zlib.compress(s, 9)
   else:
-    c = bz2.compress(s, compresslevel=9)
-  del s  # Free up some possibly large and no-longer-needed memory.
-
-  return base64.b64encode(c)
+    return bz2.compress(s, compresslevel=9)
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
-  c = base64.b64decode(encoded)
-
   if use_zlib:
-    s = zlib.decompress(c)
+    s = zlib.decompress(encoded)
   else:
-    s = bz2.decompress(c)
-
-  del c  # Free up some possibly large and no-longer-needed memory.
+    s = bz2.decompress(encoded)
 
   with _pickle_lock:
     unpickled = cloudpickle.loads(s)
