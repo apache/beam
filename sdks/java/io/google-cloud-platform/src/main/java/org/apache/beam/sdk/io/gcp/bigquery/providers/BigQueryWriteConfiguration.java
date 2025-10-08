@@ -197,6 +197,14 @@ public abstract class BigQueryWriteConfiguration {
   @SchemaFieldDescription("A list of columns to cluster the BigQuery table by.")
   public abstract @Nullable List<String> getClusteringFields();
 
+  @SchemaFieldDescription(
+      "Configuration for creating BigLake tables. The following options are available:"
+          + "\n - connectionId (REQUIRED): the name of your cloud resource connection,"
+          + "\n - storageUri (REQUIRED): the path to your GCS folder where data will be written to,"
+          + "\n - fileFormat (OPTIONAL): defaults to 'parquet',"
+          + "\n - tableFormat (OPTIONAL): defaults to 'iceberg'.")
+  public abstract java.util.@Nullable Map<String, String> getBigLakeConfiguration();
+
   /** Builder for {@link BigQueryWriteConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -230,6 +238,9 @@ public abstract class BigQueryWriteConfiguration {
     public abstract Builder setOnly(String only);
 
     public abstract Builder setClusteringFields(List<String> clusteringFields);
+
+    public abstract Builder setBigLakeConfiguration(
+        java.util.Map<String, String> bigLakeConfiguration);
 
     /** Builds a {@link BigQueryWriteConfiguration} instance. */
     public abstract BigQueryWriteConfiguration build();

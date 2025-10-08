@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files.getFileExtension;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -644,6 +645,28 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testAliasForLegacyWorkerHarnessContainerImage() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    String testImage = "image.url:worker";
+    options.setWorkerHarnessContainerImage(testImage);
+    DataflowRunner.validateWorkerSettings(options);
+    assertEquals(testImage, options.getWorkerHarnessContainerImage());
+    assertEquals(testImage, options.getSdkContainerImage());
+  }
+
+  @Test
+  public void testAliasForSdkContainerImage() {
+    DataflowPipelineWorkerPoolOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineWorkerPoolOptions.class);
+    String testImage = "image.url:sdk";
+    options.setSdkContainerImage("image.url:sdk");
+    DataflowRunner.validateWorkerSettings(options);
+    assertEquals(testImage, options.getWorkerHarnessContainerImage());
+    assertEquals(testImage, options.getSdkContainerImage());
+  }
+
+  @Test
   public void testRegionRequiredForServiceRunner() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setRegion(null);
@@ -1201,6 +1224,23 @@ public class DataflowRunnerTest implements Serializable {
     DataflowRunner.fromOptions(options);
   }
 
+  private static RunnerApi.Pipeline containerUrlToPipeline(String url) {
+    return RunnerApi.Pipeline.newBuilder()
+        .setComponents(
+            RunnerApi.Components.newBuilder()
+                .putEnvironments(
+                    "env",
+                    RunnerApi.Environment.newBuilder()
+                        .setUrn(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                        .setPayload(
+                            RunnerApi.DockerPayload.newBuilder()
+                                .setContainerImage(url)
+                                .build()
+                                .toByteString())
+                        .build()))
+        .build();
+  }
+
   @Test
   public void testApplySdkEnvironmentOverrides() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1208,38 +1248,8 @@ public class DataflowRunnerTest implements Serializable {
     String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest";
     options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    RunnerApi.Pipeline pipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(dockerHubPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
-    RunnerApi.Pipeline expectedPipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(gcrPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
     assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
   }
 
@@ -1249,38 +1259,19 @@ public class DataflowRunnerTest implements Serializable {
     String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:latest";
     String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.9_sdk:latest";
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    RunnerApi.Pipeline pipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(dockerHubPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
-    RunnerApi.Pipeline expectedPipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(gcrPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
+    assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
+  }
+
+  @Test
+  public void testApplySdkEnvironmentOverridesRcByDefault() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:2.68.0rc2";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.9_sdk:2.68.0";
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
     assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
   }
 
@@ -1713,7 +1704,7 @@ public class DataflowRunnerTest implements Serializable {
 
     p.apply(Create.of(Arrays.asList(1, 2, 3)));
 
-    String defaultSdkContainerImage = DataflowRunner.getV2SdkHarnessContainerImageForJob(options);
+    String defaultSdkContainerImage = DataflowRunner.getContainerImageForJob(options);
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(defaultSdkContainerImage);
@@ -2004,7 +1995,7 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testGetV2SdkHarnessContainerImageForJobFromOption() {
+  public void testGetContainerImageForJobFromOption() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
     String[] testCases = {
@@ -2019,14 +2010,14 @@ public class DataflowRunnerTest implements Serializable {
     for (String testCase : testCases) {
       // When image option is set, should use that exact image.
       options.setSdkContainerImage(testCase);
-      assertThat(DataflowRunner.getV2SdkHarnessContainerImageForJob(options), equalTo(testCase));
+      assertThat(getContainerImageForJob(options), equalTo(testCase));
     }
   }
 
   @Test
-  public void testGetV1WorkerContainerImageForJobFromOptionWithPlaceholder() {
+  public void testGetContainerImageForJobFromOptionWithPlaceholder() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
+    options.setSdkContainerImage("gcr.io/IMAGE/foo");
 
     for (Environments.JavaVersion javaVersion : Environments.JavaVersion.values()) {
       System.setProperty("java.specification.version", javaVersion.specification());
@@ -2034,37 +2025,28 @@ public class DataflowRunnerTest implements Serializable {
       options.setExperiments(null);
       options.setStreaming(false);
       assertThat(
-          DataflowRunner.getV1WorkerContainerImageForJob(options),
+          getContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam-%s-batch/foo", javaVersion.legacyName())));
 
       // streaming, legacy
       options.setExperiments(null);
       options.setStreaming(true);
       assertThat(
-          DataflowRunner.getV1WorkerContainerImageForJob(options),
+          getContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam-%s-streaming/foo", javaVersion.legacyName())));
-    }
-  }
 
-  @Test
-  public void testGetV2SdkHarnessContainerImageForJobFromOptionWithPlaceholder() {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setSdkContainerImage("gcr.io/IMAGE/foo");
-
-    for (Environments.JavaVersion javaVersion : Environments.JavaVersion.values()) {
-      System.setProperty("java.specification.version", javaVersion.specification());
       // batch, FnAPI
       options.setExperiments(ImmutableList.of("beam_fn_api"));
       options.setStreaming(false);
       assertThat(
-          DataflowRunner.getV2SdkHarnessContainerImageForJob(options),
+          getContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
 
       // streaming, FnAPI
       options.setExperiments(ImmutableList.of("beam_fn_api"));
       options.setStreaming(true);
       assertThat(
-          DataflowRunner.getV2SdkHarnessContainerImageForJob(options),
+          getContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
     }
   }

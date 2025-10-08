@@ -222,3 +222,69 @@ message OptionalPrimitive {
 message OptionalNested {
     optional OptionalPrimitive nested = 1;
 }
+
+// MapPrimitive and MapWrapped have the same Beam Schema.
+message MapWrapped {
+  map<string, google.protobuf.StringValue> string_string_map = 1;
+  map<string, google.protobuf.Int32Value> string_int_map = 2;
+  map<int32, google.protobuf.StringValue> int_string_map = 3;
+  map<string, google.protobuf.BytesValue> string_bytes_map = 4;
+}
+
+message OptionalEnumMessage {
+  enum Enum {
+    ZERO = 0;
+    TWO  = 2;
+    THREE = 3;
+  }
+  optional Enum enum = 1;
+}
+
+message OptionalPrimitive2 {
+  optional double primitive_double = 1;
+  optional float primitive_float = 2;
+  optional int32 primitive_int32 = 3;
+  optional int64 primitive_int64 = 4;
+  optional uint32 primitive_uint32 = 5;
+  optional uint64 primitive_uint64 = 6;
+  optional sint32 primitive_sint32 = 7;
+  optional sint64 primitive_sint64 = 8;
+  optional fixed32 primitive_fixed32 = 9;
+  optional fixed64 primitive_fixed64 = 10;
+  optional sfixed32 primitive_sfixed32 = 11;
+  optional sfixed64 primitive_sfixed64 = 12;
+  optional bool primitive_bool = 13;
+  optional string primitive_string = 14;
+  optional bytes primitive_bytes = 15;
+}
+
+message SimpleOneof {
+  oneof group {
+    int32 int32 = 3;
+    string string = 4;
+  }
+}
+
+message WrapPrimitive {
+  google.protobuf.DoubleValue double = 1;
+  google.protobuf.FloatValue float = 2;
+  google.protobuf.Int32Value int32 = 3;
+  google.protobuf.Int64Value int64 = 4;
+  google.protobuf.UInt32Value uint32 = 5;
+  google.protobuf.UInt64Value uint64 = 6;
+  google.protobuf.BoolValue bool = 13;
+  google.protobuf.StringValue string = 14;
+  google.protobuf.BytesValue bytes = 15;
+}
+
+message NoWrapPrimitive {
+  optional double double = 1;
+  optional float float = 2 ;
+  optional int32 int32 = 3;
+  optional int64 int64 = 4;
+  optional uint32  uint32 = 5;
+  optional uint64 uint64 = 6;
+  optional bool bool = 13;
+  optional string string = 14;
+  optional bytes bytes = 15;
+}

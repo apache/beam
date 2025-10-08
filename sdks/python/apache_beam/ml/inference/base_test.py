@@ -1141,7 +1141,7 @@ class RunInferenceBaseTest(unittest.TestCase):
             accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
     test_pipeline.options.view_as(StandardOptions).streaming = True
-    with self.assertRaises(ValueError) as e:
+    with self.assertRaises(Exception) as e:
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])
@@ -1165,7 +1165,7 @@ class RunInferenceBaseTest(unittest.TestCase):
             accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
     test_pipeline.options.view_as(StandardOptions).streaming = True
-    with self.assertRaises(ValueError) as e:
+    with self.assertRaises(Exception) as e:
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])

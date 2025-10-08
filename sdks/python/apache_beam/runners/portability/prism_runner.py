@@ -75,9 +75,9 @@ class PrismRunner(portable_runner.PortableRunner):
     debug_options = options.view_as(pipeline_options.DebugOptions)
     get_job_server = lambda: job_server.StopOnExitJobServer(
         PrismJobServer(options))
-    if debug_options.lookup_experiment("enable_prism_server_singleton"):
-      return PrismRunner.shared_handle.acquire(get_job_server)
-    return get_job_server()
+    if debug_options.lookup_experiment("disable_prism_server_singleton"):
+      return get_job_server()
+    return PrismRunner.shared_handle.acquire(get_job_server)
 
   def create_job_service_handle(self, job_service, options):
     return portable_runner.JobServiceHandle(

@@ -66,7 +66,7 @@ jobs:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
       - name: Install Java 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: |
@@ -120,7 +120,7 @@ jobs:
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
       - name: Install Java 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -276,7 +276,7 @@ jobs:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Install Java 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -285,14 +285,14 @@ jobs:
         with:
           python-version: '3.9'
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
         # settings.xml file
         run: rm ~/.m2/settings.xml || true
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -335,7 +335,7 @@ jobs:
         with:
           node-version: '16'
       - name: Install Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -449,7 +449,7 @@ jobs:
           then
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.24'
       - name: Import GPG key
@@ -570,7 +570,7 @@ jobs:
         with:
           python-version: '3.9'
       - name: Install Java 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '11'
