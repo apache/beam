@@ -79,6 +79,8 @@ import uuid
 import warnings
 import weakref
 
+from apache_beam.internal.code_object_pickler import get_code_from_identifier
+
 # The following import is required to be imported in the cloudpickle
 # namespace to be able to load pickle files generated with older versions of
 # cloudpickle. See: tests/test_backward_compat.py
@@ -575,8 +577,7 @@ def _make_function(code, globals, name, argdefs, closure):
   return types.FunctionType(code, globals, name, argdefs, closure)
 
 
-def _make_function_from_identifier(
-    get_code_from_identifier, code_path, globals, name, argdefs, closure):
+def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
   fcode = get_code_from_identifier(code_path)
   return _make_function(fcode, globals, name, argdefs, closure)
 
@@ -1323,7 +1324,13 @@ class Pickler(pickle.Pickler):
     code_path = self.config.get_code_object_identifier(func)
     if not code_path:
       return self._dynamic_function_reduce(func)
-    newargs = (code_path, )
+    newargs = (
+        code_path,
+        func.__globals__,
+        func.__name__,
+        func.__defaults__,
+        func.__closure__
+    )
     state = _function_getstate(func)
     return (
         _make_function_from_identifier,
