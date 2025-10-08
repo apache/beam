@@ -129,8 +129,8 @@ Full pipeline implementation is available [here](https://github.com/apache/beam/
 2. Create the benchmark implementation
 
 - Location: sdks/python/apache_beam/testing/benchmarks/inference (e.g., pytorch_sentiment_benchmarks.py)
-- Inherit from DataflowCostBenchmark  class.
-- Ensure the expected 'pcollection' parameter is passed to your builder. This parameter could be obtained from GCP Dataflow Jobs -> Your Job Page.
+- Inherit from DataflowCostBenchmark class.
+- Ensure the 'pcollection' parameter is passed to the `DataflowCostBenchmark` constructor. This is the name of the PCollection for which to measure throughput, and you can find this name in the Dataflow UI job graph.
 - Keep naming consistent with other benchmarks.
 
 3. Add an options txt file
@@ -150,7 +150,6 @@ Full pipeline implementation is available [here](https://github.com/apache/beam/
 --publish_to_big_query=true
 --metrics_dataset=beam_run_inference
 --metrics_table=your_table
---input_options={}
 --influx_measurement=your-measurement
 --device=CPU
 --runner=DataflowRunner
@@ -160,7 +159,7 @@ Full pipeline implementation is available [here](https://github.com/apache/beam/
 
 - Workflow: .github/workflows/beam_Inference_Python_Benchmarks_Dataflow.yml
 - Add your argument-file-path to the matrix.
-- Add a step that runs your <pipeline_name>_benchmarks.py with -PloadTest.args=$YOUR_ARGUMENTS.
+- Add a step that runs your <pipeline_name>_benchmarks.py with -PloadTest.args=$YOUR_ARGUMENTS. Which are the arguments created in previous step.
 
 5. Test on your fork
 
@@ -176,8 +175,8 @@ Full pipeline implementation is available [here](https://github.com/apache/beam/
 
 - Create: website/www/site/content/en/performance/<pipeline_name>/_index.md (short title/description).
 - Update: website/www/site/data/performance.yaml — add your pipeline and five chart entries with:
-- - looker_folder_id
-- - public_slug_id (from Looker, see below)
+  - looker_folder_id
+  - public_slug_id (from Looker, see below)
 
 8. Create Looker content (5 charts)
 
@@ -187,10 +186,12 @@ Full pipeline implementation is available [here](https://github.com/apache/beam/
 - Save changes → Publish to production.
 - From Explore, open each, set fields/filters for your pipeline, Run, then Save as Look (in your folder).
 - Open each Look:
-- - Copy Look ID
-- - Add Look IDs to .test-infra/tools/refresh_looker_metrics.py.
-- - Exit Development mode → Edit Settings → Allow public access.
-- - Copy public_slug_id and paste into website/performance.yml.
-- - Run .test-infra/tools/refresh_looker_metrics.py script or manually download as PNG via the public slug and upload to GCS: gs://public_looker_explores_us_a3853f40/FOLDER_ID/<look_slug>.png
+  - Copy Look ID
+  - Add Look IDs to .test-infra/tools/refresh_looker_metrics.py.
+  - Exit Development mode → Edit Settings → Allow public access.
+  - Copy public_slug_id and paste into website/performance.yml.
+  - Run .test-infra/tools/refresh_looker_metrics.py script or manually download as PNG via the public slug and upload to GCS: gs://public_looker_explores_us_a3853f40/FOLDER_ID/<look_slug>.png
 
 9. Open a PR
+
+- Example: https://github.com/apache/beam/pull/34577
