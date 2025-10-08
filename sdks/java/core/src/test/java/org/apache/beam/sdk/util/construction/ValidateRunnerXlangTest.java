@@ -29,16 +29,17 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesJavaExpansionService;
 import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -53,7 +54,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -390,10 +390,9 @@ public class ValidateRunnerXlangTest {
         return;
       }
       groupByKeyTest(testPipeline);
-      List<String> additionalArgs =
-          Lists.newArrayList(
-              String.format("--gbek=type:gcpsecret;version_name:%s", gcpSecretVersionName));
-      PipelineResult pipelineResult = testPipeline.runWithAdditionalOptionArgs(additionalArgs);
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
+      options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+      PipelineResult pipelineResult = testPipeline.run(options);
       pipelineResult.waitUntilFinish();
       assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
     }
@@ -421,9 +420,9 @@ public class ValidateRunnerXlangTest {
     public void test() {
       thrown.expect(Exception.class);
       groupByKeyTest(testPipeline);
-      List<String> additionalArgs =
-          Lists.newArrayList(String.format("--gbek=version_name:some_version"));
-      PipelineResult pipelineResult = testPipeline.runWithAdditionalOptionArgs(additionalArgs);
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
+      options.setGbek(String.format("version_name:some_version"));
+      PipelineResult pipelineResult = testPipeline.run(options);
       pipelineResult.waitUntilFinish();
       assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
     }
