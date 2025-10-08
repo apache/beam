@@ -71,9 +71,6 @@ _IO_EXPANSION_SERVICE_JAR_TARGET = "sdks:java:io:expansion-service:shadowJar"
 _GCP_EXPANSION_SERVICE_JAR_TARGET = (
     "sdks:java:io:google-cloud-platform:expansion-service:shadowJar")
 
-_SCHEMAIO_EXPANSION_SERVICE_JAR_TARGET = (
-    "sdks:java:extensions:schemaio-expansion-service:shadowJar")
-
 # A mapping from supported managed transforms URNs to expansion service jars
 # that include the corresponding transforms.
 MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING = {
@@ -84,12 +81,12 @@ MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING = {
     ManagedTransforms.Urns.KAFKA_WRITE.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
     ManagedTransforms.Urns.BIGQUERY_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
     ManagedTransforms.Urns.BIGQUERY_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
-    ManagedTransforms.Urns.POSTGRES_READ.urn: _SCHEMAIO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
-    ManagedTransforms.Urns.POSTGRES_WRITE.urn: _SCHEMAIO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
-    ManagedTransforms.Urns.MYSQL_READ.urn: _SCHEMAIO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
-    ManagedTransforms.Urns.MYSQL_WRITE.urn: _SCHEMAIO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
-    ManagedTransforms.Urns.SQL_SERVER_READ.urn: _SCHEMAIO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
-    ManagedTransforms.Urns.SQL_SERVER_WRITE.urn: _SCHEMAIO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.POSTGRES_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.POSTGRES_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.MYSQL_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.MYSQL_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.SQL_SERVER_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.SQL_SERVER_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
 }
 
 
