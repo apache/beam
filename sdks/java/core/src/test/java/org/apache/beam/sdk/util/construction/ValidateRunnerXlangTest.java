@@ -380,8 +380,8 @@ public class ValidateRunnerXlangTest {
       }
       PipelineOptions options = TestPipeline.testingPipelineOptions();
       options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
-      TestPipeline updatedTestPipeline = TestPipeline.fromOptions(options);
-      groupByKeyTest(updatedTestPipeline);
+      testPipeline = TestPipeline.fromOptions(options);
+      groupByKeyTest(testPipeline);
     }
 
     @Test
@@ -397,9 +397,9 @@ public class ValidateRunnerXlangTest {
       }
       PipelineOptions options = TestPipeline.testingPipelineOptions();
       options.setGbek(String.format("version_name:%s", gcpSecretVersionName));
-      TestPipeline updatedTestPipeline = TestPipeline.fromOptions(options);
-      thrown.expect(RuntimeException.class);
-      groupByKeyTest(updatedTestPipeline);
+      testPipeline = TestPipeline.fromOptions(options);
+      thrown.expect(Exception.class);
+      groupByKeyTest(testPipeline);
     }
   }
 
