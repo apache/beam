@@ -57,7 +57,7 @@ from fastavro import schemaless_writer
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
-from apache_beam.internal import cloudpickle
+from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
