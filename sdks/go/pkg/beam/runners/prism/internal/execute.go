@@ -277,35 +277,51 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				}
 
 				// Ensure awareness of the coder used for the teststream.
-				// This also adds a LP-coder for the original coder in comps.
-				cID, err := forceLpCoder(pyld.GetCoderId(), comps.GetCoders())
+				cID, err := lpUnknownCoders(pyld.GetCoderId(), coders, comps.GetCoders())
 				if err != nil {
 					panic(err)
 				}
-				slog.Debug("teststream: add coder", "coderId", cID)
-
-				// Always LP the teststream data elements
-				// slog.Warn("recoding TestStreamValue", "cID", cID, "newUrn", coders[cID].GetSpec().GetUrn(), "payloadCoder", pyld.GetCoderId(), "oldUrn", coders[pyld.GetCoderId()].GetSpec().GetUrn())
-				// The coder needed length prefixing. For simplicity, add a length prefix to each
-				// encoded element, since we will be sending a length prefixed coder to consume
-				// this anyway. This is simpler than trying to find all the re-written coders after the fact.
-				mustLP := func(v []byte) []byte {
-					var buf bytes.Buffer
-					if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
-						panic(err)
-					}
-					if _, err := buf.Write(v); err != nil {
-						panic(err)
-					}
-					//slog.Warn("teststream bytes - after LP", "value", string(v), "bytes", buf.Bytes())
-					return buf.Bytes()
+				mayLP := func(v []byte) []byte {
+					//slog.Warn("teststream bytes", "value", string(v), "bytes", v)
+					return v
 				}
+				// If the TestStream coder needs to be LP'ed or if it is a coder that has different
+				// behaviors between nested context and outer context (in Java SDK), then we must
+				// LP this coder and the TestStream data elements.
+				forceLP := cID != pyld.GetCoderId() ||
+					coders[cID].GetSpec().GetUrn() == urns.CoderStringUTF8 ||
+					coders[cID].GetSpec().GetUrn() == urns.CoderBytes ||
+					coders[cID].GetSpec().GetUrn() == urns.CoderKV
+				if forceLP {
+					// slog.Warn("recoding TestStreamValue", "cID", cID, "newUrn", coders[cID].GetSpec().GetUrn(), "payloadCoder", pyld.GetCoderId(), "oldUrn", coders[pyld.GetCoderId()].GetSpec().GetUrn())
+					// The coder needed length prefixing. For simplicity, add a length prefix to each
+					// encoded element, since we will be sending a length prefixed coder to consume
+					// this anyway. This is simpler than trying to find all the re-written coders after the fact.
+					// This also adds a LP-coder for the original coder in comps.
+					cID, err := forceLpCoder(pyld.GetCoderId(), comps.GetCoders())
+					if err != nil {
+						panic(err)
+					}
+					slog.Debug("teststream: add coder", "coderId", cID)
 
-				// we need to change Coder and Pcollection in comps directly before they are used to build descriptors
-				for _, col := range t.GetOutputs() {
-					oCID := comps.Pcollections[col].CoderId
-					comps.Pcollections[col].CoderId = cID
-					slog.Debug("teststream: rewrite coder for output pcoll", "colId", col, "oldId", oCID, "newId", cID)
+					mayLP = func(v []byte) []byte {
+						var buf bytes.Buffer
+						if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
+							panic(err)
+						}
+						if _, err := buf.Write(v); err != nil {
+							panic(err)
+						}
+						//slog.Warn("teststream bytes - after LP", "value", string(v), "bytes", buf.Bytes())
+						return buf.Bytes()
+					}
+
+					// we need to change Coder and Pcollection in comps directly before they are used to build descriptors
+					for _, col := range t.GetOutputs() {
+						oCID := comps.Pcollections[col].CoderId
+						comps.Pcollections[col].CoderId = cID
+						slog.Debug("teststream: rewrite coder for output pcoll", "colId", col, "oldId", oCID, "newId", cID)
+					}
 				}
 
 				tsb := em.AddTestStream(stage.ID, t.Outputs)
@@ -314,7 +330,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					case *pipepb.TestStreamPayload_Event_ElementEvent:
 						var elms []engine.TestStreamElement
 						for _, e := range ev.ElementEvent.GetElements() {
-							elms = append(elms, engine.TestStreamElement{Encoded: mustLP(e.GetEncodedElement()), EventTime: mtime.FromMilliseconds(e.GetTimestamp())})
+							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.FromMilliseconds(e.GetTimestamp())})
 						}
 						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
 					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
