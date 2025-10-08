@@ -121,6 +121,28 @@ def dumps(
     enable_best_effort_determinism=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
+  s = _dump(o, enable_best_effort_determinism, config)
+
+  # Compress as compactly as possible (compresslevel=9) to decrease peak memory
+  # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
+  # limits.
+  # WARNING: Be cautious about compressor change since it can lead to pipeline
+  # representation change, and can break streaming job update compatibility on
+  # runners such as Dataflow.
+  if use_zlib:
+    c = zlib.compress(s, 9)
+  else:
+    c = bz2.compress(s, compresslevel=9)
+  del s  # Free up some possibly large and no-longer-needed memory.
+
+  return base64.b64encode(c)
+
+
+def _dumps(
+    o,
+    enable_best_effort_determinism=False,
+    config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
+
   if enable_best_effort_determinism:
     # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
     # is merged in.
@@ -145,21 +167,7 @@ def dumps(
       if EnumDescriptor is not None:
         pickler.dispatch_table[EnumDescriptor] = _pickle_enum_descriptor
       pickler.dump(o)
-      s = file.getvalue()
-
-  # Compress as compactly as possible (compresslevel=9) to decrease peak memory
-  # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
-  # limits.
-  # WARNING: Be cautious about compressor change since it can lead to pipeline
-  # representation change, and can break streaming job update compatibility on
-  # runners such as Dataflow.
-  if use_zlib:
-    c = zlib.compress(s, 9)
-  else:
-    c = bz2.compress(s, compresslevel=9)
-  del s  # Free up some possibly large and no-longer-needed memory.
-
-  return base64.b64encode(c)
+      return file.getvalue()
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):
@@ -173,10 +181,18 @@ def loads(encoded, enable_trace=True, use_zlib=False):
     s = bz2.decompress(c)
 
   del c  # Free up some possibly large and no-longer-needed memory.
+  return _loads(s)
 
+
+def _loads(s):
   with _pickle_lock:
     unpickled = cloudpickle.loads(s)
     return unpickled
+
+
+def roundtrip(o):
+  """Internal utility for testing round-trip pickle serialization."""
+  return _loads(_dumps(o))
 
 
 def _pickle_absl_flags(obj):
