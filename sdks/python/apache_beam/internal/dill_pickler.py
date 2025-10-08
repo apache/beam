@@ -398,10 +398,7 @@ def dumps(
   return base64.b64encode(c)
 
 
-def _dumps(
-    o,
-    enable_trace=True,
-    enable_best_effort_determinism=False) -> bytes:
+def _dumps(o, enable_trace=True, enable_best_effort_determinism=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     if enable_best_effort_determinism:
