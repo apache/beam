@@ -29,6 +29,7 @@ import pytest
 from parameterized import param
 from parameterized import parameterized
 
+from apache_beam.internal import code_object_pickler
 from apache_beam.internal import module_test
 from apache_beam.internal import pickler
 from apache_beam.internal.cloudpickle import cloudpickle
