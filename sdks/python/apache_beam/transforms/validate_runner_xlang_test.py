@@ -348,7 +348,8 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     test_pipeline = test_pipeline or self.create_pipeline()
     nonexistent_secret = 'version_name:nonexistent_secret'
     test_pipeline.options.view_as(SetupOptions).gbek = nonexistent_secret
-    with self.assertRaisesRegex(Exception, 'Secret string must contain a valid type parameter'):
+    with self.assertRaisesRegex(
+        Exception, 'Secret string must contain a valid type parameter'):
       CrossLanguageTestPipelines().run_group_by_key_no_assert(test_pipeline)
 
   @pytest.mark.uses_java_expansion_service
