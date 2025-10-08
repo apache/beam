@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -50,28 +52,27 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class PythonExternalTransformTest implements Serializable {
+  @Rule public transient TestPipeline testPipeline = TestPipeline.create();
 
   @Test
   @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void trivialPythonTransform() {
-    Pipeline p = Pipeline.create();
     PCollection<String> output =
-        p.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
+        testPipeline.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
             .apply(
                 PythonExternalTransform
                     .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>
                         from("apache_beam.GroupByKey"))
             .apply(Keys.create());
     PAssert.that(output).containsInAnyOrder("A", "B");
-    // TODO: Run this on a multi-language supporting runner.
+    testPipeline.run();
   }
 
   @Test
   @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void pythonTransformWithDependencies() {
-    Pipeline p = Pipeline.create();
     PCollection<String> output =
-        p.apply(Create.of("elephant", "mouse", "sheep"))
+        testPipeline.apply(Create.of("elephant", "mouse", "sheep"))
             .apply(
                 PythonExternalTransform.<PCollection<String>, PCollection<String>>from(
                         "apache_beam.Map")
@@ -79,7 +80,7 @@ public class PythonExternalTransformTest implements Serializable {
                     .withExtraPackages(ImmutableList.of("inflection"))
                     .withOutputCoder(StringUtf8Coder.of()));
     PAssert.that(output).containsInAnyOrder("elephants", "mice", "sheep");
-    // TODO: Run this on a multi-language supporting runner.
+    testPipeline.run();
   }
 
   @Test
