@@ -84,8 +84,7 @@ public class GroupByKeyIT {
       client.addSecretVersion(
           secretName,
           SecretPayload.newBuilder()
-              .setData(
-                  ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
+              .setData(ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
               .build());
     }
     gcpSecretVersionName = secretName.toString() + "/versions/latest";
