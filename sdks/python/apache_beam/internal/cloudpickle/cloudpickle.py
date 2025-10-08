@@ -110,6 +110,12 @@ def uuid_generator(_):
 
 
 @dataclasses.dataclass
+class GetCodeObjectParams:
+  get_code_object_identifier: typing.Optional[callable]
+  get_code_from_identifier: typing.Optional[callable]
+
+
+@dataclasses.dataclass
 class CloudPickleConfig:
   """Configuration for cloudpickle behavior.
     
@@ -129,8 +135,8 @@ class CloudPickleConfig:
             
         filepath_interceptor: Used to modify filepaths in `co_filename` and
             function.__globals__['__file__'].
-        
-        get_code_object_identifier: Use identifiers derived from code
+
+        get_code_object_params: Use identifiers derived from code
             location when pickling dynamic functions (e.g. lambdas). Enabling
             this setting results in pickled payloads becoming more stable to
             code changes: when a particular lambda function is slightly
@@ -139,8 +145,8 @@ class CloudPickleConfig:
     """
   id_generator: typing.Optional[callable] = uuid_generator
   skip_reset_dynamic_type_state: bool = False
-  get_code_object_identifier: typing.Optional[callable] = None
   filepath_interceptor: typing.Optional[callable] = None
+  get_code_object_params: typing.Optional[GetCodeObjectParams] = None
 
 
 DEFAULT_CONFIG = CloudPickleConfig()
@@ -577,7 +583,8 @@ def _make_function(code, globals, name, argdefs, closure):
   return types.FunctionType(code, globals, name, argdefs, closure)
 
 
-def _make_function_from_identifier(code_path, globals, name, argdefs, closure):
+def _make_function_from_identifier(
+    get_code_from_identifier, code_path, globals, name, argdefs, closure):
   fcode = get_code_from_identifier(code_path)
   return _make_function(fcode, globals, name, argdefs, closure)
 
@@ -1321,19 +1328,16 @@ class Pickler(pickle.Pickler):
   dispatch_table = ChainMap(_dispatch_table, copyreg.dispatch_table)
 
   def _stable_identifier_function_reduce(self, func):
-    code_path = self.config.get_code_object_identifier(func)
+    code_path = self.config.get_code_object_params.get_code_object_identifier(
+        func)
     if not code_path:
       return self._dynamic_function_reduce(func)
-    newargs = (
-        code_path,
-        func.__globals__,
-        func.__name__,
-        func.__defaults__,
-        func.__closure__
-    )
+    newargs = (code_path, )
     state = _function_getstate(func)
     return (
-        _make_function_from_identifier,
+        functools.partial(
+            _make_function_from_identifier,
+            self.config.get_code_object_params.get_code_from_identifier),
         newargs,
         state,
         None,
@@ -1359,8 +1363,7 @@ class Pickler(pickle.Pickler):
         """
     if _should_pickle_by_reference(obj):
       return NotImplemented
-    elif (self.config.get_code_object_identifier is not None and
-          self.config.get_code_object_identifier(obj)):
+    elif self.config.get_code_object_params is not None:
       return self._stable_identifier_function_reduce(obj)
     else:
       return self._dynamic_function_reduce(obj)

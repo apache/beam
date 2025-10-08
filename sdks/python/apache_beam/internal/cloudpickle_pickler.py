@@ -42,8 +42,12 @@ DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
     skip_reset_dynamic_type_state=True)
 NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
     id_generator=None, skip_reset_dynamic_type_state=True)
-STABLE_CODE_IDENTIFIER_PICKLING_CONFIG = cloudpickle.CloudPickleConfig(
-    get_code_object_identifier=code_object_pickler.get_code_object_identifier)
+STABLE_CODE_IDENTIFIER_CONFIG = cloudpickle.CloudPickleConfig(
+    skip_reset_dynamic_type_state=True,
+    get_code_object_params=cloudpickle.GetCodeObjectParams(
+        get_code_object_identifier=code_object_pickler.
+        get_code_object_identifier,
+        get_code_from_identifier=code_object_pickler.get_code_from_identifier))
 
 try:
   from absl import flags
