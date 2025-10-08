@@ -3958,7 +3958,9 @@ public class BigQueryIO {
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
                   getAutoSchemaUpdate(),
-                  getUseEnhancedTableRowConversion());
+                  getUseEnhancedTableRowConversion() != null
+                      ? getUseEnhancedTableRowConversion()
+                      : false);
         }
 
         int numShards = getStorageApiNumStreams(bqOptions);
