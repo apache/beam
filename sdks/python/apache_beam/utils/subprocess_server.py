@@ -409,8 +409,7 @@ class JavaJarServer(SubprocessServer):
     if 'rc' in version:
       # Release candidate
       version = version.split('rc')[0]
-      if maven_repository_url is None:
-        maven_repo = cls.MAVEN_STAGING_REPOSITORY
+      maven_repo = cls.MAVEN_STAGING_REPOSITORY
     elif '.dev' in version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
