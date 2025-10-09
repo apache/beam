@@ -52,6 +52,9 @@ public interface WindowedValue<T> {
   @Nullable
   Long getRecordOffset();
 
+  @Nullable
+  Boolean isDraining();
+
   /**
    * A representation of each of the actual values represented by this compressed {@link
    * WindowedValue}, one per window.
