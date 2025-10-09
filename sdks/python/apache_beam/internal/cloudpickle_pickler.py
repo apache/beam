@@ -35,8 +35,8 @@ import sys
 import threading
 import zlib
 
-from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.internal import code_object_pickler
+from apache_beam.internal.cloudpickle import cloudpickle
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
     skip_reset_dynamic_type_state=True)

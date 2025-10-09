@@ -1332,9 +1332,23 @@ class Pickler(pickle.Pickler):
     code_path = code_object_params.get_code_object_identifier(func)
     if not code_path:
       return self._dynamic_function_reduce(func)
+    base_globals = self.globals_ref.setdefault(id(func.__globals__), {})
+
+    if base_globals == {}:
+      if "__file__" in func.__globals__:
+        # Apply normalization ONLY to the __file__ attribute
+        file_path = func.__globals__["__file__"]
+        if self.config.filepath_interceptor:
+          file_path = self.config.filepath_interceptor(file_path)
+        base_globals["__file__"] = file_path
+      # Add module attributes used to resolve relative imports
+      # instructions inside func.
+      for k in ["__package__", "__name__", "__path__"]:
+        if k in func.__globals__:
+          base_globals[k] = func.__globals__[k]
     newargs = (
         code_path,
-        func.__globals__,
+        base_globals,
         func.__name__,
         func.__defaults__,
         func.__closure__)
