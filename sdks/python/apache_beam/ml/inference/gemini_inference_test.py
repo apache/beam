@@ -21,7 +21,7 @@ import unittest
 try:
   from apache_beam.ml.inference.gemini_inference import _retry_on_appropriate_service_error
   from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
-  from apache_beam.ml.inference.gemini_inference import generate_from_string
+  from apache_beam.ml.inference.gemini_inference import generate_text_from_string
   from google.genai import errors
 except ImportError:
   raise unittest.SkipTest('Gemini dependencies are not installed')
@@ -47,7 +47,7 @@ class ModelHandlerArgConditions(unittest.TestCase):
         ValueError,
         GeminiModelHandler,
         model_name="gemini-model-123",
-        request_fn=generate_from_string,
+        request_fn=generate_text_from_string,
         api_key="123456789",
         project="testproject",
         location="us-central1",
@@ -58,7 +58,7 @@ class ModelHandlerArgConditions(unittest.TestCase):
         ValueError,
         GeminiModelHandler,
         model_name="gemini-model-123",
-        request_fn=generate_from_string,
+        request_fn=generate_text_from_string,
         project="testproject",
     )
 
@@ -67,7 +67,7 @@ class ModelHandlerArgConditions(unittest.TestCase):
         ValueError,
         GeminiModelHandler,
         model_name="gemini-model-123",
-        request_fn=generate_from_string,
+        request_fn=generate_text_from_string,
         location="us-central1",
     )
 
@@ -76,7 +76,7 @@ class ModelHandlerArgConditions(unittest.TestCase):
         ValueError,
         GeminiModelHandler,
         model_name="gemini-model-123",
-        request_fn=generate_from_string,
+        request_fn=generate_text_from_string,
     )
 
 
