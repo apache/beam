@@ -451,7 +451,7 @@ jobs:
           fi
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25'
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
