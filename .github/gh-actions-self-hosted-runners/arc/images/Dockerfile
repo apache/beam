@@ -69,7 +69,7 @@ RUN curl -OL https://dl.k8s.io/release/v1.28.1/bin/linux/amd64/kubectl && \
     chmod +x ./kubectl && \
     mv ./kubectl /usr/local/bin/kubectl
 #Install Apache Maven
-RUN curl -OL https://dlcdn.apache.org/maven/maven-3/3.9.4/binaries/apache-maven-3.9.4-bin.tar.gz && \
+RUN curl -OL https://archive.apache.org/dist/maven/maven-3/3.9.4/binaries/apache-maven-3.9.4-bin.tar.gz && \
     tar -xvf apache-maven-3.9.4-bin.tar.gz && \
     rm apache-maven-3.9.4-bin.tar.gz && \
     mv apache-maven-3.9.4 /usr/local/maven
