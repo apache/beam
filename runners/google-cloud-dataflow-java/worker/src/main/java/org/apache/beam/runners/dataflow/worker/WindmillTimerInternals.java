@@ -301,7 +301,10 @@ class WindmillTimerInternals implements TimerInternals {
   }
 
   public static TimerData windmillTimerToTimerData(
-      WindmillNamespacePrefix prefix, Timer timer, Coder<? extends BoundedWindow> windowCoder) {
+      WindmillNamespacePrefix prefix,
+      Timer timer,
+      Coder<? extends BoundedWindow> windowCoder,
+      boolean draining) {
 
     // The tag is a path-structure string but cheaper to parse than a proper URI. It follows
     // this pattern, where no component but the ID can contain a slash
@@ -395,6 +398,7 @@ class WindmillTimerInternals implements TimerInternals {
         timestamp,
         outputTimestamp,
         timerTypeToTimeDomain(timer.getType()));
+    // todo add draining
   }
 
   private static boolean useNewTimerTagEncoding(TimerData timerData) {
