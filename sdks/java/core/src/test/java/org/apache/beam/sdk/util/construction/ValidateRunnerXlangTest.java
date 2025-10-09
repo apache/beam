@@ -314,6 +314,7 @@ public class ValidateRunnerXlangTest {
    */
   @RunWith(JUnit4.class)
   public static class GroupByKeyWithGbekTest extends ValidateRunnerXlangTestBase {
+    @Rule public ExpectedException thrown = ExpectedException.none();
     private static final String PROJECT_ID = "apache-beam-testing";
     private static final String SECRET_ID = "gbek-test";
     private static String gcpSecretVersionName;
@@ -327,7 +328,8 @@ public class ValidateRunnerXlangTest {
         client = SecretManagerServiceClient.create();
       } catch (IOException e) {
         gcpSecretVersionName = null;
-        return;
+        // return;
+        throw new RuntimeException("test");
       }
       ProjectName projectName = ProjectName.of(PROJECT_ID);
       SecretName secretName = SecretName.of(PROJECT_ID, secretId);
@@ -350,7 +352,7 @@ public class ValidateRunnerXlangTest {
         client.addSecretVersion(
             secretName,
             SecretPayload.newBuilder()
-                .setData(ByteString.copyFrom(java.util.Base64.getEncoder().encode(secretBytes)))
+                .setData(ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
                 .build());
       }
       gcpSecretVersionName = secretName.toString() + "/versions/latest";
@@ -389,27 +391,14 @@ public class ValidateRunnerXlangTest {
         // Skip test if we couldn't set up secret manager
         return;
       }
-      groupByKeyTest(testPipeline);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
       options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
-      PipelineResult pipelineResult = testPipeline.run(options);
+      Pipeline pipeline = Pipeline.create(options);
+      groupByKeyTest(pipeline);
+      PipelineResult pipelineResult = pipeline.run();
       pipelineResult.waitUntilFinish();
       assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
     }
-  }
-
-  /**
-   * Motivation behind GroupByKeyWithGbekFailureCaseTest.
-   *
-   * <p>Target transform – GroupByKey
-   * (https://beam.apache.org/documentation/programming-guide/#groupbykey) Test scenario – Grouping
-   * a collection of KV<K,V> to a collection of KV<K, Iterable<V>> by key Boundary conditions
-   * checked – –> PCollection<KV<?, ?>> to external transforms –> PCollection<KV<?, Iterable<?>>>
-   * from external transforms while using GroupByEncryptedKey overrides
-   */
-  @RunWith(JUnit4.class)
-  public static class GroupByKeyWithGbekFailureCaseTest extends ValidateRunnerXlangTestBase {
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     @Category({
@@ -417,21 +406,15 @@ public class ValidateRunnerXlangTest {
       UsesJavaExpansionService.class,
       UsesPythonExpansionService.class
     })
-    public void test() {
+    public void testFailure() {
       thrown.expect(Exception.class);
-      groupByKeyTest(testPipeline);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
-      options.setGbek(String.format("version_name:some_version"));
-      PipelineResult pipelineResult = testPipeline.run(options);
+      options.setGbek("version_name:fake_secret");
+      Pipeline pipeline = Pipeline.create(options);
+      groupByKeyTest(pipeline);
+      PipelineResult pipelineResult = pipeline.run();
       pipelineResult.waitUntilFinish();
       assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
-    }
-
-    @After
-    @Override
-    public void tearDown() {
-      // Override tearDown since we're doing our own assertion instead of relying on base class
-      // assertions
     }
   }
 
