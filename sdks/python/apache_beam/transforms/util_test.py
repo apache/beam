@@ -93,11 +93,6 @@ from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
 
 try:
-  import dill
-except ImportError:
-  dill = None
-
-try:
   from google.cloud import secretmanager
 except ImportError:
   secretmanager = None  # type: ignore[assignment]
@@ -129,13 +124,6 @@ class _UnpicklableCoder(beam.coders.Coder):
 
   def is_deterministic(self):
     return True
-
-
-def maybe_skip(compat_version):
-  if compat_version and not dill:
-    raise unittest.SkipTest(
-        'Dill dependency not installed which is required for compat_version'
-        ' <= 2.67.0')
 
 
 class CoGroupByKeyTest(unittest.TestCase):
@@ -1221,7 +1209,6 @@ class ReshuffleTest(unittest.TestCase):
   ])
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves pane info."""
-    maybe_skip(compat_version)
     element_count = 12
     timestamp_value = timestamp.Timestamp(0)
     l = [
@@ -1285,11 +1272,9 @@ class ReshuffleTest(unittest.TestCase):
                           expected_timestamp, [GlobalWindow()],
                           PANE_INFO_UNKNOWN)
     ])
-
-    options = PipelineOptions(
-        update_compatibility_version=compat_version,
-        # Disable unrelated compatibility change.
-        force_cloudpickle_deterministic_coders=True)
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
+    options = PipelineOptions(update_compatibility_version=compat_version)
     options.view_as(StandardOptions).streaming = True
 
     with beam.Pipeline(options=options) as p:
@@ -1319,6 +1304,7 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected),
           label='CheckMetadataPreserved',
           reify_windows=True)
+    typecoders.registry.force_dill_deterministic_coders = False
 
   @parameterized.expand([
       param(compat_version=None),
@@ -1327,7 +1313,8 @@ class ReshuffleTest(unittest.TestCase):
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
-    maybe_skip(compat_version)
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
     no_firing = PaneInfo(
         is_first=True,
         is_last=True,
@@ -1379,10 +1366,7 @@ class ReshuffleTest(unittest.TestCase):
         expected_preserved
         if compat_version is None else expected_not_preserved)
 
-    options = PipelineOptions(
-        update_compatibility_version=compat_version,
-        # Disable unrelated compatibility change.
-        force_cloudpickle_deterministic_coders=True)
+    options = PipelineOptions(update_compatibility_version=compat_version)
     with TestPipeline(options=options) as pipeline:
       # Create windowed values with specific metadata
       elements = [
@@ -1404,6 +1388,7 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected),
           label='CheckMetadataPreserved',
           reify_windows=True)
+      typecoders.registry.force_dill_deterministic_coders = False
 
   @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):

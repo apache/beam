@@ -1005,8 +1005,12 @@ class DeterministicFastPrimitivesCoder(FastCoder):
 
 
 def _should_force_use_dill(registry):
-  if getattr(registry, 'force_cloudpickle_deterministic_coders', False):
-    return False
+  # force_dill_deterministic_coders is for testing purposes. If there is a
+  # DeterministicFastPrimitivesCoder in the pipeline graph but the dill
+  # encoding path is not really triggered dill does not have to be installed.
+  # and this check can be skipped.
+  if getattr(registry, 'force_dill_deterministic_coders', False):
+    return True
 
   from apache_beam.transforms.util import is_v1_prior_to_v2
   update_compat_version = registry.update_compatibility_version
