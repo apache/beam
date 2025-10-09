@@ -121,7 +121,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
     windowsCoder.decode(inStream);
     if (paneInfo.isElementMetadata()) {
-      return BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+      return BeamFnApi.Elements.ElementMetadata.parseFrom(
+          ByteArrayCoder.of().decode(inStream, Coder.Context.OUTER));
     } else {
       // empty
       return BeamFnApi.Elements.ElementMetadata.newBuilder().build();

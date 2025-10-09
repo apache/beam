@@ -133,6 +133,7 @@ public abstract class ValueInSingleWindow<T> {
     }
 
     @Override
+    @SuppressWarnings("IgnoredPureGetter")
     public ValueInSingleWindow<T> decode(InputStream inStream, Context context) throws IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
