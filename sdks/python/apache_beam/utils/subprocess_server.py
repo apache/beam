@@ -391,8 +391,7 @@ class JavaJarServer(SubprocessServer):
       gradle_target,
       appendix=None,
       version=beam_version,
-      artifact_id=None,
-      maven_repository_url=None):
+      artifact_id=None):
     if gradle_target in cls._BEAM_SERVICES.replacements:
       return cls._BEAM_SERVICES.replacements[gradle_target]
 
@@ -405,12 +404,11 @@ class JavaJarServer(SubprocessServer):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
 
-    maven_repo = maven_repository_url or cls.MAVEN_CENTRAL_REPOSITORY
+    maven_repo = cls.MAVEN_CENTRAL_REPOSITORY
     if 'rc' in version:
       # Release candidate
       version = version.split('rc')[0]
-      if not maven_repository_url:
-        maven_repo = cls.MAVEN_STAGING_REPOSITORY
+      maven_repo = cls.MAVEN_STAGING_REPOSITORY
     elif '.dev' in version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
