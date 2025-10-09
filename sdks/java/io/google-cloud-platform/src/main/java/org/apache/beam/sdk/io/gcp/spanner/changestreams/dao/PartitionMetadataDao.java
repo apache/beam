@@ -528,14 +528,23 @@ public class PartitionMetadataDao {
     }
 
     /**
-     * Update the partition watermark to the given timestamp.
+     * Update the partition watermark to the given timestamp if the given timestamp is larger than
+     * the existing value.
      *
      * @param partitionToken the partition unique identifier
      * @param watermark the new partition watermark
      * @return the commit timestamp of the read / write transaction
      */
     public Void updateWatermark(String partitionToken, Timestamp watermark) {
-      transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      final Struct partition = getPartition(partitionToken);
+      if (partition == null) {
+        LOG.debug("Partiton {} cannot find.", partitionToken);
+        return null;
+      }
+      final Timestamp currentWatermark = partition.getTimestamp(COLUMN_WATERMARK);
+      if (watermark.compareTo(currentWatermark) > 0) {
+        transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      }
       return null;
     }
 
