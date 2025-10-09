@@ -538,7 +538,7 @@ public class PartitionMetadataDao {
     public Void updateWatermark(String partitionToken, Timestamp watermark) {
       Timestamp currentWatermark = getWatermarkForPartition(partitionToken);
       if (currentWatermark == null) {
-        LOG.debug("Partiton {} cannot find.", partitionToken);
+        LOG.debug("Partiton {} cannot be found.", partitionToken);
         return null;
       }
       if (watermark.compareTo(currentWatermark) > 0) {
