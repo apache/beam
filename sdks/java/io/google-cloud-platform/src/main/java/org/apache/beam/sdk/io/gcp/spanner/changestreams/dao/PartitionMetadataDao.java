@@ -536,12 +536,11 @@ public class PartitionMetadataDao {
      * @return the commit timestamp of the read / write transaction
      */
     public Void updateWatermark(String partitionToken, Timestamp watermark) {
-      final Struct partition = getPartition(partitionToken);
-      if (partition == null) {
+      Timestamp currentWatermark = getWatermarkForPartition(partitionToken);
+      if (currentWatermark == null) {
         LOG.debug("Partiton {} cannot find.", partitionToken);
         return null;
       }
-      final Timestamp currentWatermark = partition.getTimestamp(COLUMN_WATERMARK);
       if (watermark.compareTo(currentWatermark) > 0) {
         transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
       }
@@ -586,6 +585,50 @@ public class PartitionMetadataDao {
               statement, Options.tag("getPartitionMetadataRowForGivenPartitionToken"))) {
         if (resultSet.next()) {
           return resultSet.getCurrentRowAsStruct();
+        }
+        return null;
+      }
+    }
+
+    /**
+     * Fetches the watermark for a given partition token.
+     *
+     * @param partitionToken the partition unique identifier
+     * @return the watermark for the given token if it exists. Otherwise, it returns null.
+     */
+    public @Nullable Timestamp getWatermarkForPartition(String partitionToken) {
+      final Statement statement;
+      if (this.dialect == Dialect.POSTGRESQL) {
+        statement =
+            Statement.newBuilder(
+                    "SELECT \""
+                        + COLUMN_WATERMARK
+                        + "\" FROM \""
+                        + metadataTableName
+                        + "\" WHERE \""
+                        + COLUMN_PARTITION_TOKEN
+                        + "\" = $1")
+                .bind("p1")
+                .to(partitionToken)
+                .build();
+      } else {
+        statement =
+            Statement.newBuilder(
+                    "SELECT "
+                        + COLUMN_WATERMARK
+                        + " FROM "
+                        + metadataTableName
+                        + " WHERE "
+                        + COLUMN_PARTITION_TOKEN
+                        + " = @partition")
+                .bind("partition")
+                .to(partitionToken)
+                .build();
+      }
+      try (ResultSet resultSet =
+          transaction.executeQuery(statement, Options.tag("query=getWatermarkForPartition"))) {
+        if (resultSet.next()) {
+          return resultSet.getTimestamp(COLUMN_WATERMARK);
         }
         return null;
       }
