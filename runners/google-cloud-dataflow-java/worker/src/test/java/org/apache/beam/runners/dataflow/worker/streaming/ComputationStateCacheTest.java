@@ -75,6 +75,7 @@ public class ComputationStateCacheTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
+            null,
             Instant::now),
         ignored -> {});
   }

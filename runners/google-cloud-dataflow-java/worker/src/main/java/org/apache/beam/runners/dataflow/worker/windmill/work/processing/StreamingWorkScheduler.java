@@ -210,10 +210,12 @@ public class StreamingWorkScheduler {
       long serializedWorkItemSize,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
+      @javax.annotation.Nullable Boolean drainMode,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     computationState.activateWork(
         ExecutableWork.create(
-            Work.create(workItem, serializedWorkItemSize, watermarks, processingContext, clock),
+            Work.create(
+                workItem, serializedWorkItemSize, watermarks, processingContext, drainMode, clock),
             work -> processWork(computationState, work, getWorkStreamLatencies)));
   }
 

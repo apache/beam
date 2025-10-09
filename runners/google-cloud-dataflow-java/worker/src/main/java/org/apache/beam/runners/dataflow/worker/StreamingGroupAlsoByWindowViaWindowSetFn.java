@@ -91,6 +91,7 @@ public class StreamingGroupAlsoByWindowViaWindowSetFn<K, InputT, OutputT, W exte
             output,
             sideInputReader,
             reduceFn,
+            null, // elements and timers have relevant information about draining
             options);
 
     reduceFnRunner.processElements(keyedWorkItem.elementsIterable());

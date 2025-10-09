@@ -74,6 +74,7 @@ public class StreamingApplianceWorkCommitterTest {
               throw new UnsupportedOperationException();
             },
             mock(HeartbeatSender.class)),
+        null,
         Instant::now);
   }
 

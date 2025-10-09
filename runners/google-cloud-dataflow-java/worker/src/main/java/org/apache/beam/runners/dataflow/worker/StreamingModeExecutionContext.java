@@ -195,6 +195,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return work != null && work.isFailed();
   }
 
+  public @javax.annotation.Nullable Boolean getDrainMode() {
+    return work != null ? work.getDrainMode() : null;
+  }
+
   public boolean offsetBasedDeduplicationSupported() {
     return activeReader != null
         && activeReader.getCurrentSource().offsetBasedDeduplicationSupported();
@@ -816,7 +820,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                 .transform(
                     timer ->
                         WindmillTimerInternals.windmillTimerToTimerData(
-                            WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX, timer, windowCoder))
+                            WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                            timer,
+                            windowCoder,
+                            getDrainMode()))
                 .iterator();
       }
 
@@ -876,7 +883,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                     .transform(
                         timer ->
                             WindmillTimerInternals.windmillTimerToTimerData(
-                                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX, timer, windowCoder))
+                                WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
+                                timer,
+                                windowCoder,
+                                getDrainMode()))
                     .iterator());
       }
 

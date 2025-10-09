@@ -203,6 +203,7 @@ final class GrpcGetWorkStream
         assembledWorkItem.computationMetadata().computationId(),
         assembledWorkItem.computationMetadata().inputDataWatermark(),
         assembledWorkItem.computationMetadata().synchronizedProcessingTime(),
+        assembledWorkItem.computationMetadata().drainMode(),
         assembledWorkItem.workItem(),
         assembledWorkItem.bufferedSize(),
         assembledWorkItem.latencyAttributions());

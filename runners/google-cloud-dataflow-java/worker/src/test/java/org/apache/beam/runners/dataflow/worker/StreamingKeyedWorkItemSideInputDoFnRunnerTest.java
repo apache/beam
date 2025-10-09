@@ -166,7 +166,8 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
         StateNamespaces.window(IntervalWindow.getCoder(), window),
         timestamp,
         timestamp,
-        type == Windmill.Timer.Type.WATERMARK ? TimeDomain.EVENT_TIME : TimeDomain.PROCESSING_TIME);
+        type == Windmill.Timer.Type.WATERMARK ? TimeDomain.EVENT_TIME : TimeDomain.PROCESSING_TIME,
+        null);
   }
 
   private IntervalWindow window(long start, long end) {

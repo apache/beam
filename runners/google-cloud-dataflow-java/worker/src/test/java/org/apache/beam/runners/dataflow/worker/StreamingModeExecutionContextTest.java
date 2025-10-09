@@ -143,6 +143,7 @@ public class StreamingModeExecutionContextTest {
         watermarks,
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+        null,
         Instant::now);
   }
 
@@ -172,7 +173,8 @@ public class StreamingModeExecutionContextTest {
             new StateNamespaceForTest("key"),
             new Instant(5000),
             new Instant(5000),
-            TimeDomain.EVENT_TIME));
+            TimeDomain.EVENT_TIME,
+            null));
     executionContext.flushState();
 
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);

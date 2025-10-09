@@ -156,7 +156,8 @@ public class StreamingGroupAlsoByWindowFnsTest {
                     timestamp,
                     type == Windmill.Timer.Type.WATERMARK
                         ? TimeDomain.EVENT_TIME
-                        : TimeDomain.PROCESSING_TIME)))
+                        : TimeDomain.PROCESSING_TIME,
+                    false)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp))
         .setType(type)
         .setStateFamily(STATE_FAMILY);
@@ -194,7 +195,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
     return new ValueInEmptyWindows<>(
         (KeyedWorkItem<String, T>)
             new WindmillKeyedWorkItem<>(
-                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
+                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder, false));
   }
 
   @Test

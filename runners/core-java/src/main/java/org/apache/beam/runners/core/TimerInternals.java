@@ -23,9 +23,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -188,6 +190,8 @@ public interface TimerInternals {
 
     public abstract boolean getDeleted();
 
+    public abstract @javax.annotation.Nullable Boolean getDraining();
+
     // When adding a new field, make sure to add it to the compareTo() method.
 
     /** Construct a {@link TimerData} for the given parameters. */
@@ -196,9 +200,10 @@ public interface TimerInternals {
         StateNamespace namespace,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain domain) {
+        TimeDomain domain,
+        @javax.annotation.Nullable Boolean draining) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, "", namespace, timestamp, outputTimestamp, domain, false);
+          timerId, "", namespace, timestamp, outputTimestamp, domain, false, draining);
     }
 
     /**
@@ -211,9 +216,10 @@ public interface TimerInternals {
         StateNamespace namespace,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain domain) {
+        TimeDomain domain,
+        @Nullable Boolean draining) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false);
+          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false, draining);
     }
 
     /**
@@ -221,9 +227,13 @@ public interface TimerInternals {
      * deterministically generated from the {@code timestamp} and {@code domain}.
      */
     public static TimerData of(
-        StateNamespace namespace, Instant timestamp, Instant outputTimestamp, TimeDomain domain) {
+        StateNamespace namespace,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain domain,
+        @Nullable Boolean draining) {
       String timerId = String.valueOf(domain.ordinal()) + ':' + timestamp.getMillis();
-      return of(timerId, namespace, timestamp, outputTimestamp, domain);
+      return of(timerId, namespace, timestamp, outputTimestamp, domain, draining);
     }
 
     public TimerData deleted() {
@@ -234,7 +244,8 @@ public interface TimerInternals {
           getTimestamp(),
           getOutputTimestamp(),
           getDomain(),
-          true);
+          true,
+          getDraining());
     }
 
     /**
@@ -272,7 +283,9 @@ public interface TimerInternals {
           + "/"
           + getTimerFamilyId()
           + ":"
-          + getTimerId();
+          + getTimerId()
+          + ":"
+          + getDraining();
     }
   }
 
@@ -280,6 +293,7 @@ public interface TimerInternals {
   class TimerDataCoderV2 extends StructuredCoder<TimerData> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();
+    private static final NullableCoder<Boolean> BOOLEAN_CODER = NullableCoder.of(BooleanCoder.of());
     private final Coder<? extends BoundedWindow> windowCoder;
 
     public static TimerDataCoderV2 of(Coder<? extends BoundedWindow> windowCoder) {
@@ -298,6 +312,7 @@ public interface TimerInternals {
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
       INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream);
+      // we don't need to serialize draining bit
     }
 
     @Override
@@ -309,7 +324,9 @@ public interface TimerInternals {
       Instant timestamp = INSTANT_CODER.decode(inStream);
       Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
+      // we don't need to serialize draining bit
+      return TimerData.of(
+          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false);
     }
 
     @Override
@@ -355,7 +372,7 @@ public interface TimerInternals {
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, namespace, timestamp, timestamp, domain);
+      return TimerData.of(timerId, namespace, timestamp, timestamp, domain, false);
     }
 
     @Override

@@ -94,7 +94,8 @@ public class TimerReceiverFactory {
                 namespace,
                 timer.getClearBit() ? BoundedWindow.TIMESTAMP_MAX_VALUE : timer.getFireTimestamp(),
                 timer.getClearBit() ? BoundedWindow.TIMESTAMP_MAX_VALUE : timer.getHoldTimestamp(),
-                timerSpec.getTimerSpec().getTimeDomain());
+                timerSpec.getTimerSpec().getTimeDomain(),
+                timer.getDraining());
         timerDataConsumer.accept(timer, timerData);
       }
     };

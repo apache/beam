@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -60,6 +61,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
 
   private final Windmill.WorkItem workItem;
   private final K key;
+  private final @javax.annotation.Nullable Boolean drainMode;
 
   private final transient Coder<? extends BoundedWindow> windowCoder;
   private final transient Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -70,12 +72,14 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
       Windmill.WorkItem workItem,
       Coder<? extends BoundedWindow> windowCoder,
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
-      Coder<ElemT> valueCoder) {
+      Coder<ElemT> valueCoder,
+      @javax.annotation.Nullable Boolean drainMode) {
     this.key = key;
     this.workItem = workItem;
     this.windowCoder = windowCoder;
     this.windowsCoder = windowsCoder;
     this.valueCoder = valueCoder;
+    this.drainMode = drainMode;
   }
 
   @Override
@@ -93,7 +97,10 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
         .transform(
             timer ->
                 WindmillTimerInternals.windmillTimerToTimerData(
-                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX, timer, windowCoder));
+                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
+                    timer,
+                    windowCoder,
+                    drainMode));
   }
 
   @Override
@@ -108,13 +115,22 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                 Collection<? extends BoundedWindow> windows =
                     WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
                 PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
+                // Draining value is based on upstream data
+                Boolean drainingValueFromUpstream = null;
                 if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
-                  WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
+                  BeamFnApi.Elements.ElementMetadata elementMetadata =
+                      WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
+                  drainingValueFromUpstream =
+                      elementMetadata.hasDrain()
+                          ? (elementMetadata.getDrain()
+                              == BeamFnApi.Elements.DrainMode.Enum.DRAINING)
+                          : null;
                 }
                 InputStream inputStream = message.getData().newInput();
                 ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
                 // todo #33176 specify additional metadata in the future
-                return WindowedValues.of(value, timestamp, windows, paneInfo);
+                return WindowedValues.of(
+                    value, timestamp, windows, paneInfo, null, null, drainingValueFromUpstream);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }

@@ -210,7 +210,8 @@ public class StreamingSideInputFetcherTest {
         StateNamespaces.window(IntervalWindow.getCoder(), createWindow(timestamp)),
         new Instant(timestamp),
         new Instant(timestamp),
-        TimeDomain.EVENT_TIME);
+        TimeDomain.EVENT_TIME,
+        null);
   }
 
   private IntervalWindow createWindow(long timestamp) {

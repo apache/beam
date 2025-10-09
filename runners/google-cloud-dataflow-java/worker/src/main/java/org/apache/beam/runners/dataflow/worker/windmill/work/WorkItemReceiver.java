@@ -30,6 +30,7 @@ public interface WorkItemReceiver {
       String computation,
       @Nullable Instant inputDataWatermark,
       @Nullable Instant synchronizedProcessingTime,
+      @Nullable Boolean drainMode,
       Windmill.WorkItem workItem,
       long serializedWorkItemSize,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies);

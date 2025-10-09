@@ -111,7 +111,8 @@ class WindmillTimerInternals implements TimerInternals {
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     TimerData timer =
-        TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain);
+        TimerData.of(
+            timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain, false);
     setTimer(timer);
   }
 
@@ -148,7 +149,8 @@ class WindmillTimerInternals implements TimerInternals {
             namespace,
             BoundedWindow.TIMESTAMP_MIN_VALUE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
-            timeDomain));
+            timeDomain,
+            false));
   }
 
   @Override
@@ -298,7 +300,10 @@ class WindmillTimerInternals implements TimerInternals {
   }
 
   public static TimerData windmillTimerToTimerData(
-      WindmillNamespacePrefix prefix, Timer timer, Coder<? extends BoundedWindow> windowCoder) {
+      WindmillNamespacePrefix prefix,
+      Timer timer,
+      Coder<? extends BoundedWindow> windowCoder,
+      @javax.annotation.Nullable Boolean draining) {
 
     // The tag is a path-structure string but cheaper to parse than a proper URI. It follows
     // this pattern, where no component but the ID can contain a slash
@@ -391,7 +396,8 @@ class WindmillTimerInternals implements TimerInternals {
         namespace,
         timestamp,
         outputTimestamp,
-        timerTypeToTimeDomain(timer.getType()));
+        timerTypeToTimeDomain(timer.getType()),
+        draining);
   }
 
   private static boolean useNewTimerTagEncoding(TimerData timerData) {

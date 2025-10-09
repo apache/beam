@@ -83,6 +83,7 @@ public class BoundedQueueExecutorTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
+            null,
             Instant::now),
         executeWorkFn);
   }

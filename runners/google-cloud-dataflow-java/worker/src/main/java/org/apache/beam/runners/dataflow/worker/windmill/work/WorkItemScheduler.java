@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work;
 
 import javax.annotation.CheckReturnValue;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -35,6 +36,7 @@ public interface WorkItemScheduler {
    * @param workItem {@link WorkItem} to be processed.
    * @param watermarks processing watermarks for the workItem.
    * @param processingContext for processing the workItem.
+   * @param drainMode is job is draining.
    * @param getWorkStreamLatencies Latencies per processing stage for the WorkItem for reporting
    *     back to Streaming Engine backend.
    */
@@ -43,5 +45,6 @@ public interface WorkItemScheduler {
       long serializedWorkItemSize,
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
+      @Nullable Boolean drainMode,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies);
 }

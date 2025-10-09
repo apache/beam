@@ -93,7 +93,7 @@ public class WindmillKeyedWorkItemTest {
 
     KeyedWorkItem<String, String> keyedWorkItem =
         new WindmillKeyedWorkItem<>(
-            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, false);
 
     assertThat(
         keyedWorkItem.elementsIterable(),
@@ -148,7 +148,7 @@ public class WindmillKeyedWorkItemTest {
             .build();
 
     KeyedWorkItem<String, String> keyedWorkItem =
-        new WindmillKeyedWorkItem<>(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+        new WindmillKeyedWorkItem<>(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, false);
 
     assertThat(
         keyedWorkItem.timersIterable(),
@@ -169,7 +169,8 @@ public class WindmillKeyedWorkItemTest {
                     ns,
                     new Instant(timestamp),
                     new Instant(timestamp),
-                    WindmillTimerInternals.timerTypeToTimeDomain(type))))
+                    WindmillTimerInternals.timerTypeToTimeDomain(type),
+                    false)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
@@ -177,7 +178,7 @@ public class WindmillKeyedWorkItemTest {
   }
 
   private static TimerData makeTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
-    return TimerData.of(ns, new Instant(timestamp), new Instant(timestamp), domain);
+    return TimerData.of(ns, new Instant(timestamp), new Instant(timestamp), domain, false);
   }
 
   @Test
