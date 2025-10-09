@@ -64,9 +64,9 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.util import GcpSecret
 from apache_beam.transforms.util import Secret
-from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 
 try:
   from google.cloud import secretmanager
