@@ -79,7 +79,6 @@ import uuid
 import warnings
 import weakref
 
-from apache_beam.internal.code_object_pickler import get_code_from_identifier
 
 # The following import is required to be imported in the cloudpickle
 # namespace to be able to load pickle files generated with older versions of

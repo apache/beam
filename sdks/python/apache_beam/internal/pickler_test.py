@@ -320,7 +320,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
 
   def test_enable_stable_code_identifier_pickling(self):
     pickler.set_library('cloudpickle')
-    pickled = pickle_depickle(lambda x: x, True)
+    pickled = pickler.loads(pickler.dumps(lambda x: x, enable_stable_code_identifier_pickling=True))
     pickled_type = type(pickled)
     self.assertIsInstance(pickled, pickled_type)
 

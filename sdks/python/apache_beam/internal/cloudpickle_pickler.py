@@ -138,7 +138,7 @@ def dumps(
   with _pickle_lock:
     with io.BytesIO() as file:
       if enable_stable_code_identifier_pickling:
-        config = STABLE_CODE_IDENTIFIER_PICKLING_CONFIG
+        config = STABLE_CODE_IDENTIFIER_CONFIG
       pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
