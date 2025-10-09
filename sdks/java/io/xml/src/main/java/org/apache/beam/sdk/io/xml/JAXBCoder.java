@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
-import javax.xml.XMLConstants;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
@@ -135,11 +134,11 @@ public class JAXBCoder<T> extends CustomCoder<T> {
         long limit = VarInt.decodeLong(inStream);
         inStream = ByteStreams.limit(inStream, limit);
       }
-      
+
       XMLInputFactory factory = getXMLInputFactory();
-      XMLStreamReader xmlStreamReader = factory.createXMLStreamReader(
-          new CloseIgnoringInputStream(inStream));
-      
+      XMLStreamReader xmlStreamReader =
+          factory.createXMLStreamReader(new CloseIgnoringInputStream(inStream));
+
       @SuppressWarnings("unchecked")
       T obj = (T) jaxbUnmarshaller.get().unmarshal(xmlStreamReader);
       return obj;
@@ -164,7 +163,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
       synchronized (this) {
         if (xmlInputFactory == null) {
           XMLInputFactory factory = XMLInputFactory.newInstance();
-          
+
           factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
           factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
           xmlInputFactory = factory;
