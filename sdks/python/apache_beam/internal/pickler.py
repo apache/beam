@@ -50,7 +50,7 @@ def dumps(
     enable_best_effort_determinism=False,
     enable_stable_code_identifier_pickling=False) -> bytes:
 
-  if (desired_pickle_lib == cloudpickle_pickle):
+  if (desired_pickle_lib == cloudpickle_pickler):
     return cloudpickle_pickler.dumps(
         o,
         enable_trace=enable_trace,
