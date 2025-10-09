@@ -596,17 +596,15 @@ class PipelineOptions(HasDisplayData):
         })
 
   @classmethod
-  def from_runner_api(cls, proto_options, original_options = None):
+  def from_runner_api(cls, proto_options, original_options=None):
     def from_urn(key):
       assert key.startswith('beam:option:')
       assert key.endswith(':v1')
       return key[12:-3]
 
-    parsed = {from_urn(key): value
-            for (key, value) in proto_options.items()}
+    parsed = {from_urn(key): value for (key, value) in proto_options.items()}
     if original_options is None:
-      return cls(
-          **parsed)
+      return cls(**parsed)
     for (key, value) in parsed.items():
       if value is not None and value and key not in cls.NON_OVERIDABLE_OPTIONS:
         original_options._all_options[key] = value
