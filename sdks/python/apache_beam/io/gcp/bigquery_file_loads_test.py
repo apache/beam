@@ -63,11 +63,6 @@ try:
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 
-try:
-  import dill
-except ImportError:
-  dill = None
-
 _LOGGER = logging.getLogger(__name__)
 
 _DESTINATION_ELEMENT_PAIRS = [
@@ -411,13 +406,6 @@ class TestPartitionFiles(unittest.TestCase):
           label='CheckSinglePartition')
 
 
-def maybe_skip(compat_version):
-  if compat_version and not dill:
-    raise unittest.SkipTest(
-        'Dill dependency not installed which is required for compat_version'
-        ' <= 2.67.0')
-
-
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_trigger_load_jobs_with_empty_files(self):
     destination = "project:dataset.table"
@@ -498,7 +486,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       param(compat_version="2.64.0"),
   ])
   def test_reshuffle_before_load(self, compat_version):
-    maybe_skip(compat_version)
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -534,6 +523,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     reshuffle_before_load = compat_version is None
     assert transform.reshuffle_before_load == reshuffle_before_load
+    typecoders.registry.force_dill_deterministic_coders = False
 
   def test_load_job_id_used(self):
     job_reference = bigquery_api.JobReference()
