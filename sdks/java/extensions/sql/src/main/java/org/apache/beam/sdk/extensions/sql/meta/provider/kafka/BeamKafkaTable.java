@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -52,6 +53,8 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 /**
  * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to extend to convert
  * between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
@@ -63,6 +66,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
 
   private TimestampPolicyFactory timestampPolicyFactory =
       TimestampPolicyFactory.withProcessingTime();
+  private SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn;
   private String bootstrapServers;
   private List<String> topics;
   private List<TopicPartition> topicPartitions;
@@ -81,15 +85,17 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   }
 
   public BeamKafkaTable(
-      Schema beamSchema,
-      String bootstrapServers,
-      List<String> topics,
-      TimestampPolicyFactory timestampPolicyFactory) {
+    Schema beamSchema,
+    String bootstrapServers,
+    List<String> topics,
+    TimestampPolicyFactory timestampPolicyFactory,
+    SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
     this.configUpdates = new HashMap<>();
     this.timestampPolicyFactory = timestampPolicyFactory;
+    this.consumerFactoryFn = consumerFactoryFn;
   }
 
   public BeamKafkaTable(
@@ -155,6 +161,10 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
     } else {
       throw new InvalidTableException("One of topics and topicPartitions must be configurated.");
     }
+    if (consumerFactoryFn != null) {
+      kafkaRead = kafkaRead.withConsumerFactoryFn(consumerFactoryFn);
+    }
+
     return kafkaRead;
   }
 

@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -41,6 +43,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
@@ -62,7 +65,8 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
         bootstrapServers,
         topics,
         payloadSerializer,
-        TimestampPolicyFactory.withLogAppendTime());
+        TimestampPolicyFactory.withLogAppendTime(),
+        null);
   }
 
   public NestedPayloadKafkaTable(
@@ -71,7 +75,23 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
       List<String> topics,
       Optional<PayloadSerializer> payloadSerializer,
       TimestampPolicyFactory timestampPolicyFactory) {
-    super(beamSchema, bootstrapServers, topics, timestampPolicyFactory);
+    this(
+        beamSchema,
+        bootstrapServers,
+        topics,
+        payloadSerializer,
+        timestampPolicyFactory,
+        /*consumerFactoryFn=*/null);
+  }
+
+  public NestedPayloadKafkaTable(
+      Schema beamSchema,
+      String bootstrapServers,
+      List<String> topics,
+      Optional<PayloadSerializer> payloadSerializer,
+      TimestampPolicyFactory timestampPolicyFactory,
+      SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
+    super(beamSchema, bootstrapServers, topics, timestampPolicyFactory, consumerFactoryFn);
 
     checkArgument(Schemas.isNestedSchema(schema));
     Schemas.validateNestedSchema(schema);
