@@ -1327,16 +1327,19 @@ class Pickler(pickle.Pickler):
   dispatch_table = ChainMap(_dispatch_table, copyreg.dispatch_table)
 
   def _stable_identifier_function_reduce(self, func):
-    code_path = self.config.get_code_object_params.get_code_object_identifier(
+    code_object_params = self.config.get_code_object_params
+    if code_object_params is None:
+      return self._dynamic_function_reduce(func)
+    code_path = code_object_params.get_code_object_identifier(
         func)
     if not code_path:
       return self._dynamic_function_reduce(func)
-    newargs = (code_path, )
+    newargs = (code_path, func.__globals__, func.__name__, func.__defaults__, func.__closure__)
     state = _function_getstate(func)
     return (
         functools.partial(
             _make_function_from_identifier,
-            self.config.get_code_object_params.get_code_from_identifier),
+            code_object_params.get_code_from_identifier),
         newargs,
         state,
         None,

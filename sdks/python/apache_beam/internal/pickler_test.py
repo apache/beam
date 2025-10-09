@@ -29,26 +29,10 @@ import pytest
 from parameterized import param
 from parameterized import parameterized
 
-from apache_beam.internal import code_object_pickler
 from apache_beam.internal import module_test
 from apache_beam.internal import pickler
-from apache_beam.internal.cloudpickle import cloudpickle
-from apache_beam.internal.cloudpickle_pickler import dumps as cloudpickle_dumps
 from apache_beam.internal.pickler import dumps
 from apache_beam.internal.pickler import loads
-
-STABLE_CODE_IDENTIFIER_PICKLING_CONFIG = cloudpickle.CloudPickleConfig(
-    get_code_object_identifier=code_object_pickler.get_code_object_identifier)
-
-DEFAULT_CONFIG = cloudpickle.CloudPickleConfig()
-
-
-def pickle_depickle(obj, enable_stable_code_identifier_pickling):
-  if enable_stable_code_identifier_pickling:
-    return loads(
-        cloudpickle_dumps(obj, config=STABLE_CODE_IDENTIFIER_PICKLING_CONFIG))
-  else:
-    return loads(cloudpickle_dumps(obj, config=DEFAULT_CONFIG))
 
 
 def maybe_skip_if_no_dill(pickle_library):
@@ -318,15 +302,33 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
         dumps(set1, enable_best_effort_determinism=False),
         dumps(set2, enable_best_effort_determinism=False))
 
+
+# still working on this
+  # def test_something(self):
+  #   pickler.set_library('cloudpickle')
+  #   self.config.get_code_object_params.get_code_object_identifier = (
+  #       code_object_pickler.get_code_object_identifier)
+  #   self.config.get_code_object_params.get_code_from_identifier = (
+  #       code_object_pickler.get_code_from_identifier)
+  #   lambda_name = pickler.function_reduce(self, lambda x: x)
+  #   self.assertEqual(
+  #       lambda_name,
+  #       '__main__.PicklerTest.test_enable_lambda_name_pickling.__code__.co_consts[<lambda>]'
+  #   )
+
+
   def test_enable_stable_code_identifier_pickling(self):
     pickler.set_library('cloudpickle')
-    pickled = pickler.loads(pickler.dumps(lambda x: x, enable_stable_code_identifier_pickling=True))
+    pickled = pickler.loads(
+        pickler.dumps(lambda x: x, enable_stable_code_identifier_pickling=True))
     pickled_type = type(pickled)
     self.assertIsInstance(pickled, pickled_type)
 
   def test_disable_stable_code_identifier_pickling(self):
     pickler.set_library('cloudpickle')
-    pickled = pickle_depickle(lambda x: x, False)
+    pickled = pickler.loads(
+        pickler.dumps(lambda x: x, enable_stable_code_identifier_pickling=False)
+    )
     pickled_type = type(pickled)
     self.assertIsInstance(pickled, pickled_type)
 
