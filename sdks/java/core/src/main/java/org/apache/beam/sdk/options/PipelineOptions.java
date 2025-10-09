@@ -37,7 +37,6 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -413,40 +412,6 @@ public interface PipelineOptions extends HasDisplayData {
   String getUserAgent();
 
   void setUserAgent(String userAgent);
-
-  /**
-   * A string defining whether GroupByKey transforms should be replaced by GroupByEncryptedKey
-   *
-   * <p>Beam will infer the secret type and value based on the secret itself. This guarantees that
-   * any data at rest during the performing a GBK, so this can be used to guarantee that data is not
-   * unencrypted. Runners with this behavior include the Dataflow, Flink, and Spark runners. The
-   * option should be structured like:
-   *
-   * <pre><code>
-   * --gbek=type:<secret_type>;<secret_param>:<value>
-   * </code></pre>
-   *
-   * for example:
-   *
-   * <pre><code>
-   * --gbek=type:GcpSecret;version_name:my_secret/versions/latest"
-   * </code></pre>
-   *
-   * All variables should use snake case to allow consistency across languages.
-   */
-  @Description(
-      "When set, will replace all GroupByKey transforms in the pipeline the option. Beam will"
-          + " infer the secret type and value based on the secret itself. This guarantees that"
-          + " any data at rest during the performing a GBK, so this can be used to guarantee"
-          + " that data is not unencrypted. Runners with this behavior include the Dataflow,"
-          + " Flink, and Spark runners. The option should be structured like:"
-          + " --gbek=type:<secret_type>;<secret_param>:<value>, for example "
-          + " --gbek=type:GcpSecret;version_name:my_secret/versions/latest. All variables "
-          + " should use snake case to allow consistency across languages.")
-  @Nullable
-  String getGbek();
-
-  void setGbek(String gbek);
 
   /**
    * Returns a user agent string constructed from {@link ReleaseInfo#getName()} and {@link

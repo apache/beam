@@ -55,13 +55,4 @@ public class GcpSecret implements Secret {
       throw new RuntimeException("Failed to retrieve secret bytes", e);
     }
   }
-
-  /**
-   * Returns the version name of the secret.
-   *
-   * @return The version name as a String.
-   */
-  public String getVersionName() {
-    return versionName;
-  }
 }

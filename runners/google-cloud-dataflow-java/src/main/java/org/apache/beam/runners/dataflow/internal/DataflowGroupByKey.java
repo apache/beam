@@ -25,13 +25,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.GroupByEncryptedKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
@@ -39,7 +36,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Specialized implementation of {@code GroupByKey} for translating Redistribute transform into
@@ -50,13 +46,9 @@ public class DataflowGroupByKey<K, V>
 
   // Plumbed from Redistribute transform.
   private final boolean allowDuplicates;
-  private boolean insideGBEK;
-  private boolean surroundsGBEK;
 
   private DataflowGroupByKey(boolean allowDuplicates) {
     this.allowDuplicates = allowDuplicates;
-    this.insideGBEK = false;
-    this.surroundsGBEK = false;
   }
 
   /**
@@ -85,22 +77,6 @@ public class DataflowGroupByKey<K, V>
   /** Returns whether it allows duplicated elements in the output. */
   public boolean allowDuplicates() {
     return allowDuplicates;
-  }
-
-  /**
-   * For Beam internal use only. Tells runner that this is an inner GBK inside of a
-   * GroupByEncryptedKey
-   */
-  public void setInsideGBEK() {
-    this.insideGBEK = true;
-  }
-
-  /**
-   * For Beam internal use only. Tells runner that this is a GBK wrapped around of a
-   * GroupByEncryptedKey
-   */
-  public boolean surroundsGBEK() {
-    return this.surroundsGBEK;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -139,20 +115,6 @@ public class DataflowGroupByKey<K, V>
     } catch (NonDeterministicException e) {
       throw new IllegalStateException(
           "the keyCoder of a DataflowGroupByKey must be deterministic", e);
-    }
-
-    PipelineOptions options = input.getPipeline().getOptions();
-    String gbekOveride = options.getGbek();
-    if (!this.insideGBEK && gbekOveride != null && !gbekOveride.trim().isEmpty()) {
-      this.surroundsGBEK = true;
-      Secret hmacSecret = Secret.parseSecretOption(gbekOveride);
-      DataflowGroupByKey<byte[], KV<byte[], byte[]>> gbk = DataflowGroupByKey.create();
-      if (this.allowDuplicates) {
-        gbk = DataflowGroupByKey.createWithAllowDuplicates();
-      }
-      gbk.setInsideGBEK();
-      GroupByEncryptedKey<K, V> gbek = GroupByEncryptedKey.createWithCustomGbk(hmacSecret, gbk);
-      return input.apply(gbek);
     }
 
     // This primitive operation groups by the combination of key and window,
@@ -210,21 +172,9 @@ public class DataflowGroupByKey<K, V>
     }
 
     @Override
-    public String getUrn(DataflowGroupByKey<?, ?> transform) {
-      if (transform.surroundsGBEK()) {
-        return PTransformTranslation.GROUP_BY_KEY_WRAPPER_TRANSFORM_URN;
-      }
-      return PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
-    }
-
-    @Override
     @SuppressWarnings("nullness")
-    public RunnerApi.@Nullable FunctionSpec translate(
+    public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, DataflowGroupByKey<?, ?>> transform, SdkComponents components) {
-      if (transform.getTransform().surroundsGBEK()) {
-        // Can use null for spec for empty composite.
-        return null;
-      }
       return RunnerApi.FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
     }
   }
