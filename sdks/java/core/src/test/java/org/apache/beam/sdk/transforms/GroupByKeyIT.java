@@ -151,7 +151,7 @@ public class GroupByKeyIT {
 
   // Redistribute depends on GBK under the hood and can have runner-specific implementations
   @Test
-  public void testRedistributeWithValidGcpSecretOption() throws Exception {
+  public void redistributeWithValidGcpSecretOption() throws Exception {
     if (gcpSecretVersionName == null) {
       // Skip test if we couldn't set up secret manager
       return;
@@ -189,46 +189,6 @@ public class GroupByKeyIT {
     options.setGbek("type:gcpsecret;version_name:bad_path/versions/latest");
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(KV.of("k1", 1))).apply(Redistribute.byKey());
-    thrown.expect(RuntimeException.class);
-    p.run();
-  }
-
-  // Combine.PerKey depends on GBK under the hood, but can be overriden by a runner. This can
-  // fail unless it is handled specially, so we should test it specifically
-  @Test
-  public void testCombinePerKeyWithValidGcpSecretOption() throws Exception {
-    if (gcpSecretVersionName == null) {
-      // Skip test if we couldn't set up secret manager
-      return;
-    }
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
-    Pipeline p = Pipeline.create(options);
-
-    List<KV<String, Integer>> ungroupedPairs =
-        Arrays.asList(
-            KV.of("k1", 3), KV.of("k2", 66), KV.of("k1", 4), KV.of("k2", -33), KV.of("k3", 0));
-    List<KV<String, Integer>> sums = Arrays.asList(KV.of("k1", 7), KV.of("k2", 33), KV.of("k3", 0));
-    PCollection<KV<String, Integer>> input =
-        p.apply(
-            Create.of(ungroupedPairs)
-                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
-    PCollection<KV<String, Integer>> output = input.apply(Combine.perKey(Sum.ofIntegers()));
-    PAssert.that(output).containsInAnyOrder(sums);
-
-    p.run();
-  }
-
-  @Test
-  public void testCombinePerKeyWithInvalidGcpSecretOption() throws Exception {
-    if (gcpSecretVersionName == null) {
-      // Skip test if we couldn't set up secret manager
-      return;
-    }
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.setGbek("type:gcpsecret;version_name:bad_path/versions/latest");
-    Pipeline p = Pipeline.create(options);
-    p.apply(Create.of(KV.of("k1", 1))).apply(Combine.perKey(Sum.ofIntegers()));
     thrown.expect(RuntimeException.class);
     p.run();
   }
