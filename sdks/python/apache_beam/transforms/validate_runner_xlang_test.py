@@ -161,7 +161,7 @@ class CrossLanguageTestPipelines(object):
      - PCollection<KV<?, Iterable<?>>> from external transforms
     """
     with pipeline as p:
-      (
+      _ = (
           p
           | beam.Create([(0, "1"), (0, "2"),
                          (1, "3")], reshuffle=False).with_output_types(
