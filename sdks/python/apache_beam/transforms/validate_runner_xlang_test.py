@@ -161,7 +161,7 @@ class CrossLanguageTestPipelines(object):
      - PCollection<KV<?, Iterable<?>>> from external transforms
     """
     with pipeline as p:
-      res = (
+      (
           p
           | beam.Create([(0, "1"), (0, "2"),
                          (1, "3")], reshuffle=False).with_output_types(
@@ -271,6 +271,66 @@ class CrossLanguageTestPipelines(object):
 class ValidateRunnerXlangTest(unittest.TestCase):
   _multiprocess_can_split_ = True
 
+  def create_pipeline(self):
+    test_pipeline = TestPipeline()
+    test_pipeline.not_use_test_runner_api = True
+    return test_pipeline
+
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
+  def test_prefix(self, test_pipeline=None):
+    CrossLanguageTestPipelines().run_prefix(
+        test_pipeline or self.create_pipeline())
+
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
+  def test_multi_input_output_with_sideinput(self, test_pipeline=None):
+    CrossLanguageTestPipelines().run_multi_input_output_with_sideinput(
+        test_pipeline or self.create_pipeline())
+
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
+  def test_group_by_key(self, test_pipeline=None):
+    CrossLanguageTestPipelines().run_group_by_key(
+        test_pipeline or self.create_pipeline())
+
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
+  def test_cogroup_by_key(self, test_pipeline=None):
+    CrossLanguageTestPipelines().run_cogroup_by_key(
+        test_pipeline or self.create_pipeline())
+
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
+  def test_combine_globally(self, test_pipeline=None):
+    CrossLanguageTestPipelines().run_combine_globally(
+        test_pipeline or self.create_pipeline())
+
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
+  def test_combine_per_key(self, test_pipeline=None):
+    CrossLanguageTestPipelines().run_combine_per_key(
+        test_pipeline or self.create_pipeline())
+
+  # TODO: enable after fixing BEAM-10507
+  # @pytest.mark.uses_java_expansion_service
+  # @pytest.mark.uses_python_expansion_service
+  def test_flatten(self, test_pipeline=None):
+    CrossLanguageTestPipelines().run_flatten(
+        test_pipeline or self.create_pipeline())
+
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
+  def test_partition(self, test_pipeline=None):
+    CrossLanguageTestPipelines().run_partition(
+        test_pipeline or self.create_pipeline())
+
+
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
+@unittest.skipIf(secretmanager is None, 'secretmanager not installed')
+class ValidateRunnerGBEKTest(unittest.TestCase):
   def setUp(self):
     if secretmanager is not None:
       self.project_id = 'apache-beam-testing'
@@ -312,76 +372,23 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     test_pipeline.not_use_test_runner_api = True
     return test_pipeline
 
-  @pytest.mark.uses_java_expansion_service
-  @pytest.mark.uses_python_expansion_service
-  def test_prefix(self, test_pipeline=None):
-    CrossLanguageTestPipelines().run_prefix(
-        test_pipeline or self.create_pipeline())
-
-  @pytest.mark.uses_java_expansion_service
-  @pytest.mark.uses_python_expansion_service
-  def test_multi_input_output_with_sideinput(self, test_pipeline=None):
-    CrossLanguageTestPipelines().run_multi_input_output_with_sideinput(
-        test_pipeline or self.create_pipeline())
-
-  @pytest.mark.uses_java_expansion_service
-  @pytest.mark.uses_python_expansion_service
-  def test_group_by_key(self, test_pipeline=None):
-    CrossLanguageTestPipelines().run_group_by_key(
-        test_pipeline or self.create_pipeline())
-
   # This test and test_group_by_key_gbek_bad_secret validate that the gbek
   # pipeline option is correctly passed through
   @pytest.mark.uses_java_expansion_service
   @pytest.mark.uses_python_expansion_service
-  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
   def test_group_by_key_gbek(self, test_pipeline=None):
     test_pipeline = test_pipeline or self.create_pipeline()
     good_secret = self.secret_option
     test_pipeline.options.view_as(SetupOptions).gbek = good_secret
     CrossLanguageTestPipelines().run_group_by_key(test_pipeline)
 
-  @pytest.mark.uses_java_expansion_service
-  @pytest.mark.uses_python_expansion_service
-  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
-  def test_group_by_key_gbek_bad_secret(self, test_pipeline=None):
-    test_pipeline = test_pipeline or self.create_pipeline()
+    # Verify actually using secret manager
+    test_pipeline = self.create_pipeline()
     nonexistent_secret = 'version_name:nonexistent_secret'
     test_pipeline.options.view_as(SetupOptions).gbek = nonexistent_secret
     with self.assertRaisesRegex(
         Exception, 'Secret string must contain a valid type parameter'):
       CrossLanguageTestPipelines().run_group_by_key_no_assert(test_pipeline)
-
-  @pytest.mark.uses_java_expansion_service
-  @pytest.mark.uses_python_expansion_service
-  def test_cogroup_by_key(self, test_pipeline=None):
-    CrossLanguageTestPipelines().run_cogroup_by_key(
-        test_pipeline or self.create_pipeline())
-
-  @pytest.mark.uses_java_expansion_service
-  @pytest.mark.uses_python_expansion_service
-  def test_combine_globally(self, test_pipeline=None):
-    CrossLanguageTestPipelines().run_combine_globally(
-        test_pipeline or self.create_pipeline())
-
-  @pytest.mark.uses_java_expansion_service
-  @pytest.mark.uses_python_expansion_service
-  def test_combine_per_key(self, test_pipeline=None):
-    CrossLanguageTestPipelines().run_combine_per_key(
-        test_pipeline or self.create_pipeline())
-
-  # TODO: enable after fixing BEAM-10507
-  # @pytest.mark.uses_java_expansion_service
-  # @pytest.mark.uses_python_expansion_service
-  def test_flatten(self, test_pipeline=None):
-    CrossLanguageTestPipelines().run_flatten(
-        test_pipeline or self.create_pipeline())
-
-  @pytest.mark.uses_java_expansion_service
-  @pytest.mark.uses_python_expansion_service
-  def test_partition(self, test_pipeline=None):
-    CrossLanguageTestPipelines().run_partition(
-        test_pipeline or self.create_pipeline())
 
 
 if __name__ == '__main__':

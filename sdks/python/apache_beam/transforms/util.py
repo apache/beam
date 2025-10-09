@@ -506,9 +506,7 @@ class _DecryptMessage(DoFn):
         continue
       seen_keys.add(encoded_key)
       real_key = self.key_coder.decode(encoded_key)
-      abc = (
-          real_key,
-          list(self.filter_elements_by_key(encoded_key, encoded_elements)))
+
       yield (
           real_key,
           list(self.filter_elements_by_key(encoded_key, encoded_elements)))
