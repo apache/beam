@@ -58,7 +58,8 @@ public class PythonExternalTransformTest implements Serializable {
   @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void trivialPythonTransform() {
     PCollection<String> output =
-        testPipeline.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
+        testPipeline
+            .apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
             .apply(
                 PythonExternalTransform
                     .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>
@@ -72,7 +73,8 @@ public class PythonExternalTransformTest implements Serializable {
   @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void pythonTransformWithDependencies() {
     PCollection<String> output =
-        testPipeline.apply(Create.of("elephant", "mouse", "sheep"))
+        testPipeline
+            .apply(Create.of("elephant", "mouse", "sheep"))
             .apply(
                 PythonExternalTransform.<PCollection<String>, PCollection<String>>from(
                         "apache_beam.Map")
