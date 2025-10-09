@@ -153,9 +153,7 @@ public class GroupByKeyTest implements Serializable {
         new SecureRandom().nextBytes(secretBytes);
         client.addSecretVersion(
             secretName,
-            SecretPayload.newBuilder()
-                .setData(ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
-                .build());
+            SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
       }
       gcpSecretVersionName = secretName.toString() + "/versions/latest";
     }
