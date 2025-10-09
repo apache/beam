@@ -486,6 +486,7 @@ createCrossLanguageValidatesRunnerTask(
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
     "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
+    "--customBeamRequirement=${project.project(":sdks:python").projectDir}/build/apache-beam.tar.gz",
   ],
   pytestOptions: [
     "--capture=no",
