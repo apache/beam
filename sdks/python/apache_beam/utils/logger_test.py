@@ -15,12 +15,17 @@
 # limitations under the License.
 #
 
-import unittest
 import logging
+import unittest
 from unittest.mock import patch
-from apache_beam.utils.logger import log_first_n, log_every_n, log_every_n_seconds, _LOG_COUNTER, _LOG_TIMER
 
 import pytest
+
+from apache_beam.utils.logger import _LOG_COUNTER
+from apache_beam.utils.logger import _LOG_TIMER
+from apache_beam.utils.logger import log_every_n
+from apache_beam.utils.logger import log_every_n_seconds
+from apache_beam.utils.logger import log_first_n
 
 
 @pytest.mark.no_xdist
@@ -34,7 +39,8 @@ class TestLogFirstN(unittest.TestCase):
     mock_logger = mock_get_logger.return_value
     for _ in range(5):
       log_first_n(logging.INFO, "Test message %s", "arg", n=1)
-    mock_logger.log.assert_called_once_with(logging.INFO, "Test message %s", "arg")
+    mock_logger.log.assert_called_once_with(
+        logging.INFO, "Test message %s", "arg")
 
   @patch('apache_beam.utils.logger.logging.getLogger')
   def test_log_first_n_multiple(self, mock_get_logger):

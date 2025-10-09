@@ -28,8 +28,9 @@ import os
 import sys
 import time
 from collections import Counter
-
-from typing import Optional, Union
+from types import FrameType
+from typing import Optional
+from typing import Union
 
 
 def _find_caller() -> tuple[str, tuple]:
@@ -38,7 +39,7 @@ def _find_caller() -> tuple[str, tuple]:
         str: module name of the caller
         tuple: a hashable key to be used to identify different callers
     """
-  frame = sys._getframe(2)
+  frame: Optional[FrameType] = sys._getframe(2)
   while frame:
     code = frame.f_code
     if os.path.join("utils", "logger.") not in code.co_filename:
@@ -47,6 +48,9 @@ def _find_caller() -> tuple[str, tuple]:
         mod_name = "apache_beam"
       return mod_name, (code.co_filename, frame.f_lineno, code.co_name)
     frame = frame.f_back
+
+  # To appease mypy. Code returns earlier in practice.
+  return "unknown", ("unknown", 0, "unknown")
 
 
 _LOG_COUNTER = Counter()
@@ -80,15 +84,14 @@ def log_first_n(
             function will not log only if the same caller has logged the same
             message before.
     """
-  if isinstance(key, str):
-    key = (key, )
-  assert len(key) > 0
+  key_tuple = (key, ) if isinstance(key, str) else key
+  assert len(key_tuple) > 0
 
   caller_module, caller_key = _find_caller()
-  hash_key = ()
-  if "caller" in key:
+  hash_key: tuple = ()
+  if "caller" in key_tuple:
     hash_key = hash_key + caller_key
-  if "message" in key:
+  if "message" in key_tuple:
     hash_key = hash_key + (msg, )
 
   _LOG_COUNTER[hash_key] += 1
