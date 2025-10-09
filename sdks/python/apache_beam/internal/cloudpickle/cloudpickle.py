@@ -79,7 +79,6 @@ import uuid
 import warnings
 import weakref
 
-
 # The following import is required to be imported in the cloudpickle
 # namespace to be able to load pickle files generated with older versions of
 # cloudpickle. See: tests/test_backward_compat.py
@@ -1330,11 +1329,15 @@ class Pickler(pickle.Pickler):
     code_object_params = self.config.get_code_object_params
     if code_object_params is None:
       return self._dynamic_function_reduce(func)
-    code_path = code_object_params.get_code_object_identifier(
-        func)
+    code_path = code_object_params.get_code_object_identifier(func)
     if not code_path:
       return self._dynamic_function_reduce(func)
-    newargs = (code_path, func.__globals__, func.__name__, func.__defaults__, func.__closure__)
+    newargs = (
+        code_path,
+        func.__globals__,
+        func.__name__,
+        func.__defaults__,
+        func.__closure__)
     state = _function_getstate(func)
     return (
         functools.partial(

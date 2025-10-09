@@ -302,21 +302,6 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
         dumps(set1, enable_best_effort_determinism=False),
         dumps(set2, enable_best_effort_determinism=False))
 
-
-# still working on this
-  # def test_something(self):
-  #   pickler.set_library('cloudpickle')
-  #   self.config.get_code_object_params.get_code_object_identifier = (
-  #       code_object_pickler.get_code_object_identifier)
-  #   self.config.get_code_object_params.get_code_from_identifier = (
-  #       code_object_pickler.get_code_from_identifier)
-  #   lambda_name = pickler.function_reduce(self, lambda x: x)
-  #   self.assertEqual(
-  #       lambda_name,
-  #       '__main__.PicklerTest.test_enable_lambda_name_pickling.__code__.co_consts[<lambda>]'
-  #   )
-
-
   def test_enable_stable_code_identifier_pickling(self):
     pickler.set_library('cloudpickle')
     pickled = pickler.loads(
@@ -327,8 +312,8 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
   def test_disable_stable_code_identifier_pickling(self):
     pickler.set_library('cloudpickle')
     pickled = pickler.loads(
-        pickler.dumps(lambda x: x, enable_stable_code_identifier_pickling=False)
-    )
+        pickler.dumps(
+            lambda x: x, enable_stable_code_identifier_pickling=False))
     pickled_type = type(pickled)
     self.assertIsInstance(pickled, pickled_type)
 
