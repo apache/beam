@@ -86,7 +86,7 @@ jobs:
           python-version: ${{ matrix.python_version }}
           go-version: default
       - name: Setup Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           install: true
           driver: 'docker'

@@ -86,9 +86,8 @@ def sickbayTests = [
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedStringSetMetrics',
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics',
 
-    // negative WaitGroup counter when failing bundle
+    // Instead of 42, Prism got 84, which suggests two early panes of 42 are fired.
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-    'org.apache.beam.sdk.testing.TestStreamTest.testEarlyPanesOfWindow',
 
     // A regression introduced when we use number of pending elements rather than watermark to determine
     // the bundle readiness of a stateless stage.
@@ -107,14 +106,11 @@ def sickbayTests = [
 
     // Prism doesn't support multiple TestStreams.
     'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
-    // Sometimes fails missing a final 'AFTER'. Otherwise, Hangs in ElementManager.FailBundle due to a held stageState lock.
-    'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
 
     // GroupIntoBatchesTest tests that fail:
-    // Teststream has bad KV encodings due to using an outer context.
+    // Wrong number of elements in windows after GroupIntoBatches.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow',
-    // sdk worker disconnected
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInGlobalWindow',
     // ShardedKey not yet implemented.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',

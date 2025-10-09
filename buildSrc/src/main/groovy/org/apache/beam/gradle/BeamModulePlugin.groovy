@@ -461,8 +461,10 @@ class BeamModulePlugin implements Plugin<Project> {
       return 'java11'
     } else if (ver <= JavaVersion.VERSION_17) {
       return 'java17'
-    } else {
+    } else if (ver <= JavaVersion.VERSION_21) {
       return 'java21'
+    } else {
+      return 'java25'
     }
   }
 
@@ -697,7 +699,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_gcs_connector                    : "com.google.cloud.bigdataoss:gcs-connector:hadoop2-$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigdataoss_util_hadoop                      : "com.google.cloud.bigdataoss:util-hadoop:hadoop2-$google_cloud_bigdataoss_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.14.12",
+        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.17.7",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
@@ -988,6 +990,11 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Xlint:-path',
           '-Xlint:-this-escape'
         ]
+        if (ver == '25') {
+          options.compilerArgs += [
+            '-Xlint:-dangling-doc-comments'
+          ]
+        }
         // Error prone requires some packages to be exported/opened for Java 17+
         // Disabling checks since this property is only used for tests
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
@@ -3307,6 +3314,7 @@ class BeamModulePlugin implements Plugin<Project> {
             ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',
             ':sdks:python:container:py312:docker',
+            ':sdks:python:container:py313:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

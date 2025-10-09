@@ -30,13 +30,13 @@ require (
 	cloud.google.com/go/datastore v1.20.0
 	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/pubsub v1.50.1
-	cloud.google.com/go/spanner v1.85.1
+	cloud.google.com/go/spanner v1.86.0
 	cloud.google.com/go/storage v1.57.0
-	github.com/aws/aws-sdk-go-v2 v1.39.1
-	github.com/aws/aws-sdk-go-v2/config v1.31.10
-	github.com/aws/aws-sdk-go-v2/credentials v1.18.14
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.19.6
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.2
+	github.com/aws/aws-sdk-go-v2 v1.39.2
+	github.com/aws/aws-sdk-go-v2/config v1.31.12
+	github.com/aws/aws-sdk-go-v2/credentials v1.18.16
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.19.12
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.4
 	github.com/aws/smithy-go v1.23.0
 	github.com/docker/go-connections v0.6.0
 	github.com/dustin/go-humanize v1.0.1
@@ -55,10 +55,10 @@ require (
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
 	go.mongodb.org/mongo-driver v1.17.4
-	golang.org/x/net v0.43.0
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/net v0.45.0
+	golang.org/x/oauth2 v0.31.0
 	golang.org/x/sync v0.17.0
-	golang.org/x/sys v0.36.0
+	golang.org/x/sys v0.37.0
 	golang.org/x/text v0.29.0
 	google.golang.org/api v0.249.0
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822
@@ -147,23 +147,23 @@ require (
 	github.com/apache/thrift v0.21.0 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.1 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.8 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.8 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.8 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.9 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.9 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.9 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.8 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.8.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.29.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.38.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.29.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.38.6 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
-	github.com/docker/docker v28.4.0+incompatible // but required to resolve issue docker has with go1.20
+	github.com/docker/docker v28.5.0+incompatible // but required to resolve issue docker has with go1.20
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
