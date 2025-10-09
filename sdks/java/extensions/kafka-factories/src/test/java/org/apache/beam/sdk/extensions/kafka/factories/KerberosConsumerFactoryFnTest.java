@@ -49,6 +49,7 @@ public class KerberosConsumerFactoryFnTest {
   private KerberosConsumerFactoryFn factory;
   private String originalKrb5Conf;
   private static final String KRB5_GCS_PATH = "gs://sec-bucket/kerberos/krb5.conf";
+  private static final String KRB5_S3_PATH = "s3://sec-bucket/kerberos/krb5.conf";
   private static final String LOCAL_FACTORY_TYPE = "kerberos";
 
   @Before
@@ -61,8 +62,6 @@ public class KerberosConsumerFactoryFnTest {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-
-    factory = spy(new KerberosConsumerFactoryFn(KRB5_GCS_PATH));
     originalKrb5Conf = System.getProperty("java.security.krb5.conf");
   }
 
@@ -86,8 +85,7 @@ public class KerberosConsumerFactoryFnTest {
 
   @Test
   @SuppressWarnings("rawtypes")
-  public void testHappyPath() {
-    // Arrange
+  public void testHappyGcsPath() {
     String keytabGcsPath = "gs://sec-bucket/keytabs/my.keytab";
     String expectedKrb5LocalPath = "/tmp/kerberos/krb5.conf";
     String expectedKeytabLocalPath = "/tmp/kerberos/sec-bucket/keytabs/my.keytab";
@@ -99,6 +97,7 @@ public class KerberosConsumerFactoryFnTest {
             + keytabGcsPath
             + "\" principal=\"user@REALM\";");
 
+    factory = spy(new KerberosConsumerFactoryFn(KRB5_GCS_PATH));
     try (MockedStatic<FileAwareFactoryFn> mockedStaticFactory =
             Mockito.mockStatic(FileAwareFactoryFn.class);
         MockedStatic<Configuration> mockedConfiguration = Mockito.mockStatic(Configuration.class);
@@ -107,12 +106,74 @@ public class KerberosConsumerFactoryFnTest {
             Mockito.mockConstruction(KafkaConsumer.class)) {
 
       Assert.assertNotNull(mockedConsumer);
-      // Mock the static downloadGcsFile method to prevent any GCS interaction
+      // Mock the static downloadExternalFile method to prevent any GCS interaction
       mockedStaticFactory
-          .when(() -> FileAwareFactoryFn.downloadGcsFile(KRB5_GCS_PATH, expectedKrb5LocalPath))
+          .when(() -> FileAwareFactoryFn.downloadExternalFile(KRB5_GCS_PATH, expectedKrb5LocalPath))
           .thenReturn(expectedKrb5LocalPath);
       mockedStaticFactory
-          .when(() -> FileAwareFactoryFn.downloadGcsFile(keytabGcsPath, expectedKeytabLocalPath))
+          .when(
+              () -> FileAwareFactoryFn.downloadExternalFile(keytabGcsPath, expectedKeytabLocalPath))
+          .thenReturn(expectedKeytabLocalPath);
+
+      Configuration mockConf = Mockito.mock(Configuration.class);
+      mockedConfiguration.when(Configuration::getConfiguration).thenReturn(mockConf);
+      mockedFiles
+          .when(
+              () ->
+                  Files.setPosixFilePermissions(
+                      ArgumentMatchers.any(Path.class), ArgumentMatchers.any(Set.class)))
+          .thenReturn(null);
+      mockedFiles
+          .when(() -> Files.createDirectories(ArgumentMatchers.any(Path.class)))
+          .thenReturn(null);
+
+      // Act
+      factory.apply(config);
+
+      // Assert
+      // 1. Verify that the krb5.conf system property was set correctly.
+      Assert.assertEquals(expectedKrb5LocalPath, System.getProperty("java.security.krb5.conf"));
+
+      // 2. Capture the config passed to createObject and verify the keytab path was replaced.
+      ArgumentCaptor<Map<String, Object>> configCaptor = ArgumentCaptor.forClass(Map.class);
+      Mockito.verify(factory).createObject(configCaptor.capture());
+      Map<String, Object> capturedConfig = configCaptor.getValue();
+      String processedJaasConfig = (String) capturedConfig.get("sasl.jaas.config");
+      Assert.assertTrue(processedJaasConfig.contains("keyTab=\"" + expectedKeytabLocalPath + "\""));
+
+      // 3. Verify that the JAAS configuration was refreshed.
+      Mockito.verify(mockConf).refresh();
+    }
+  }
+
+  @Test
+  @SuppressWarnings("rawtypes")
+  public void testHappyS3Path() {
+    String keytabPath = "s3://sec-bucket/keytabs/my.keytab";
+    String expectedKrb5LocalPath = "/tmp/kerberos/krb5.conf";
+    String expectedKeytabLocalPath = "/tmp/kerberos/sec-bucket/keytabs/my.keytab";
+
+    Map<String, Object> config = new HashMap<>();
+    config.put(
+        "sasl.jaas.config",
+        "com.sun.security.auth.module.Krb5LoginModule required keyTab=\""
+            + keytabPath
+            + "\" principal=\"user@REALM\";");
+    factory = spy(new KerberosConsumerFactoryFn(KRB5_S3_PATH));
+    try (MockedStatic<FileAwareFactoryFn> mockedStaticFactory =
+            Mockito.mockStatic(FileAwareFactoryFn.class);
+        MockedStatic<Configuration> mockedConfiguration = Mockito.mockStatic(Configuration.class);
+        MockedStatic<Files> mockedFiles = Mockito.mockStatic(Files.class);
+        MockedConstruction<KafkaConsumer> mockedConsumer =
+            Mockito.mockConstruction(KafkaConsumer.class)) {
+
+      Assert.assertNotNull(mockedConsumer);
+      // Mock the static downloadExternalFile method to prevent any GCS interaction
+      mockedStaticFactory
+          .when(() -> FileAwareFactoryFn.downloadExternalFile(KRB5_S3_PATH, expectedKrb5LocalPath))
+          .thenReturn(expectedKrb5LocalPath);
+      mockedStaticFactory
+          .when(() -> FileAwareFactoryFn.downloadExternalFile(keytabPath, expectedKeytabLocalPath))
           .thenReturn(expectedKeytabLocalPath);
 
       Configuration mockConf = Mockito.mock(Configuration.class);

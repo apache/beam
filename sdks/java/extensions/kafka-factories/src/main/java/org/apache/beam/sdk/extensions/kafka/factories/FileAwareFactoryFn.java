@@ -45,11 +45,11 @@ import org.slf4j.LoggerFactory;
 public abstract class FileAwareFactoryFn<T>
     implements SerializableFunction<Map<String, Object>, T> {
 
-  public static final String GCS_PATH_PREFIX = "gs://";
+  public static String externalBucketPrefix = "";
   public static final String SECRET_VALUE_PREFIX = "secretValue:";
   public static final String DIRECTORY_PREFIX = "/tmp";
   private static final Pattern PATH_PATTERN =
-      Pattern.compile("(gs://[^\"]+)|(secretValue:[^\"]+)|(secretFile:[^\"]+)");
+      Pattern.compile("([a-zA-Z0-9]+://[^\"]+)|(secretValue:[^\"]+)|(secretFile:[^\"]+)");
 
   private static final Map<String, byte[]> secretCache = new ConcurrentHashMap<>();
 
@@ -86,18 +86,18 @@ public abstract class FileAwareFactoryFn<T>
             StringBuffer sb = new StringBuffer();
 
             while (matcher.find()) {
-              String gcsPath = matcher.group(1);
+              String externalPath = matcher.group(1);
               String secretValue = matcher.group(2);
               String secretFile = matcher.group(3);
 
-              if (gcsPath != null) {
+              if (externalPath != null) {
                 try {
-                  String tmpPath = replacePathWithLocal(gcsPath);
-                  String localPath = downloadGcsFile(gcsPath, tmpPath);
+                  String tmpPath = replacePathWithLocal(externalPath);
+                  String localPath = downloadExternalFile(externalPath, tmpPath);
                   matcher.appendReplacement(sb, Matcher.quoteReplacement(localPath));
-                  LOG.info("Downloaded {} to {}", gcsPath, localPath);
+                  LOG.info("Downloaded {} to {}", externalPath, localPath);
                 } catch (IOException io) {
-                  throw new IOException("Failed to download file : " + gcsPath, io);
+                  throw new IOException("Failed to download file : " + externalPath, io);
                 }
               } else if (secretValue != null) {
                 try {
@@ -131,16 +131,16 @@ public abstract class FileAwareFactoryFn<T>
   }
 
   /**
-   * A function to download files from their specified gcs path and copy them to the provided local
-   * filepath. The local filepath is provided by the replacePathWithLocal.
+   * A function to download files from their specified external storage path and copy them to the
+   * provided local filepath. The local filepath is provided by the replacePathWithLocal.
    *
-   * @param gcsFilePath
+   * @param externalFilePath
    * @param outputFileString
    * @return
    * @throws IOException
    */
-  protected static synchronized String downloadGcsFile(String gcsFilePath, String outputFileString)
-      throws IOException {
+  protected static synchronized String downloadExternalFile(
+      String externalFilePath, String outputFileString) throws IOException {
     // create the file only if it doesn't exist
     if (new File(outputFileString).exists()) {
       return outputFileString;
@@ -150,14 +150,15 @@ public abstract class FileAwareFactoryFn<T>
     if (parentDir != null) {
       Files.createDirectories(parentDir);
     }
-    LOG.info("Staging GCS file [{}] to [{}]", gcsFilePath, outputFileString);
+    LOG.info("Staging external file [{}] to [{}]", externalFilePath, outputFileString);
     Set<StandardOpenOption> options = new HashSet<>(2);
     options.add(StandardOpenOption.CREATE);
     options.add(StandardOpenOption.WRITE);
 
-    // Copy the GCS file into a local file and will throw an I/O exception in case file not found.
+    // Copy the external file into a local file and will throw an I/O exception in case file not
+    // found.
     try (ReadableByteChannel readerChannel =
-        FileSystems.open(FileSystems.matchSingleFileSpec(gcsFilePath).resourceId())) {
+        FileSystems.open(FileSystems.matchSingleFileSpec(externalFilePath).resourceId())) {
       try (FileChannel writeChannel = FileChannel.open(outputFilePath, options)) {
         writeChannel.transferFrom(readerChannel, 0, Long.MAX_VALUE);
       }
@@ -170,16 +171,25 @@ public abstract class FileAwareFactoryFn<T>
   }
 
   /**
-   * A helper method to create a new string with the gcs paths replaced with their local path and
-   * subdirectory based on the factory type in the /tmp directory. For example, the kerberos factory
-   * type will replace the file paths with /tmp/kerberos/file.path
+   * A helper method to create a new string with the external paths replaced with their local path
+   * and subdirectory based on the factory type in the /tmp directory. For example, the kerberos
+   * factory type will replace the file paths with /tmp/kerberos/file.path
    *
-   * @param gcsPath
-   * @return a string with all instances of GCS paths converted to the local paths where the files
-   *     sit.
+   * @param externalPath
+   * @return a string with all instances of external paths converted to the local paths where the
+   *     files sit.
    */
-  private String replacePathWithLocal(String gcsPath) throws IOException {
-    return DIRECTORY_PREFIX + "/" + factoryType + "/" + gcsPath.substring(GCS_PATH_PREFIX.length());
+  private String replacePathWithLocal(String externalPath) throws IOException {
+    String externalBucketPrefixIdentifier = "://";
+    int externalBucketPrefixIndex = externalPath.lastIndexOf(externalBucketPrefixIdentifier);
+    if (externalBucketPrefixIndex == -1) {
+      // if we don't find a known bucket prefix then we will error early.
+      throw new RuntimeException(
+          "The provided external bucket could not be matched to a known source.");
+    }
+
+    int prefixLength = externalBucketPrefixIndex + externalBucketPrefixIdentifier.length();
+    return DIRECTORY_PREFIX + "/" + factoryType + "/" + externalPath.substring(prefixLength);
   }
 
   /**

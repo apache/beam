@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[], byte[]>> {
   private static final String LOCAL_FACTORY_TYPE = "kerberos";
-  private String krb5ConfigGcsPath = "";
+  private String krb5ConfigPath = "";
   private static volatile String localKrb5ConfPath = "";
 
   private static final Object lock = new Object();
@@ -51,16 +51,16 @@ public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[
 
   private static final Logger LOG = LoggerFactory.getLogger(KerberosConsumerFactoryFn.class);
 
-  public KerberosConsumerFactoryFn(String krb5ConfigGcsPath) {
+  public KerberosConsumerFactoryFn(String krb5ConfigPath) {
     super("kerberos");
-    this.krb5ConfigGcsPath = krb5ConfigGcsPath;
+    this.krb5ConfigPath = krb5ConfigPath;
   }
 
   @Override
   protected Consumer<byte[], byte[]> createObject(Map<String, Object> config) {
     // This will be called after the config map processing has occurred. Therefore, we know that the
     // property will have had it's value replaced with a local directory.
-    // We don't need to worry about the GCS prefix in this case.
+    // We don't need to worry about the external bucket prefix in this case.
     try {
       String jaasConfig = (String) config.get(JAAS_CONFIG_PROPERTY);
       String localKeytabPath = "";
@@ -90,10 +90,10 @@ public class KerberosConsumerFactoryFn extends FileAwareFactoryFn<Consumer<byte[
     synchronized (lock) {
       // we only want a new krb5 file if there is not already one present.
       if (localKrb5ConfPath.isEmpty()) {
-        if (this.krb5ConfigGcsPath != null && !this.krb5ConfigGcsPath.isEmpty()) {
+        if (this.krb5ConfigPath != null && !this.krb5ConfigPath.isEmpty()) {
           String localPath =
               super.getBaseDirectory() + "/" + LOCAL_FACTORY_TYPE + "/" + "krb5.conf";
-          localKrb5ConfPath = downloadGcsFile(this.krb5ConfigGcsPath, localPath);
+          localKrb5ConfPath = downloadExternalFile(this.krb5ConfigPath, localPath);
 
           System.setProperty("java.security.krb5.conf", localKrb5ConfPath);
           Configuration.getConfiguration().refresh();

@@ -72,7 +72,7 @@ public class FileAwareFactoryFnTest {
   }
 
   @Test
-  public void testHappyPathReplacesGcsPath() {
+  public void testHappyPathReplacesExternalPath() {
     // Arrange
     String gcsPath = "gs://test-bucket/config-file.json";
     String expectedLocalPath =
@@ -118,7 +118,6 @@ public class FileAwareFactoryFnTest {
       mockedFileSystems
           .when(() -> FileSystems.matchSingleFileSpec(gcsPath))
           .thenThrow(new IOException("GCS file not found"));
-
       // Act & Assert
       RuntimeException exception =
           Assert.assertThrows(RuntimeException.class, () -> factory.apply(config));
@@ -129,7 +128,7 @@ public class FileAwareFactoryFnTest {
   }
 
   @Test
-  public void testApplyHappyPathIgnoresNonGcsValues() {
+  public void testApplyHappyPathIgnoresNonExternalValues() {
     // Arrange
     Map<String, Object> config = new HashMap<>();
     config.put("some.string", "/local/path/file.txt");
@@ -144,7 +143,7 @@ public class FileAwareFactoryFnTest {
   }
 
   @Test
-  public void testApplyEdgeCaseMultipleGcsPathsInSingleValue() {
+  public void testApplyEdgeCaseMultipleExternalPathsInSingleValue() {
     // Arrange
     String gcsPath1 = "gs://bucket/keytab.keytab";
     String gcsPath2 = "gs://bucket/trust.jks";
