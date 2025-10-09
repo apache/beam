@@ -20,11 +20,11 @@
 import unittest
 from unittest import mock
 
-from apache_beam.options.pipeline_options import (PipelineOptions, SetupOptions)
-from apache_beam.transforms.external import (
-    BeamJarExpansionService,
-    JavaJarExpansionService,
-    MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING)
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.transforms.external import MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING  # pylint: disable=line-too-long
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import JavaJarExpansionService
 from apache_beam.transforms.managed import _resolve_expansion_service
 from apache_beam.utils.subprocess_server import JavaJarServer
 

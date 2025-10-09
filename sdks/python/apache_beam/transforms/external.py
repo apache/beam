@@ -1032,7 +1032,12 @@ class JavaJarExpansionService(object):
     append_args: arguments to be provided when starting up the
       expansion service using the jar file. These arguments will be appended to
       the default arguments.
-    user_agent: the user agent to use when downloading the jar.
+    user_agent: HTTP user agent string used when downloading jars via
+      `JavaJarServer.local_jar`, including the main jar and any classpath
+      dependencies.
+    maven_repository_url: Maven repository base URL to resolve artifacts when
+      classpath entries or jars are specified as Maven coordinates
+      (`group:artifact:version`). Defaults to Maven Central if not provided.
   """
   def __init__(
       self,
@@ -1155,6 +1160,11 @@ class BeamJarExpansionService(JavaJarExpansionService):
     append_args: arguments to be provided when starting up the
       expansion service using the jar file. These arguments will be appended to
       the default arguments.
+    user_agent: HTTP user agent string used when downloading the Beam jar and
+      any classpath dependencies.
+    maven_repository_url: Maven repository base URL to resolve the Beam jar
+      for the provided Gradle target. Defaults to Maven Central if not
+      provided.
   """
   def __init__(
       self,
