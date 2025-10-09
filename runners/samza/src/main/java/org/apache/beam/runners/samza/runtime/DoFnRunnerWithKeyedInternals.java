@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** This class wraps a DoFnRunner with keyed StateInternals and TimerInternals access. */
@@ -66,14 +67,15 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      @Nullable Boolean draining) {
     // Note: wrap with KV.of(key, null) as a special use case of setKeyedInternals() to set key
     // directly.
     setKeyedInternals(KV.of(key, null));
 
     try {
       underlying.onTimer(
-          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
     } finally {
       clearKeyedInternals();
     }

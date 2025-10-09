@@ -22,6 +22,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -61,11 +62,12 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      @Nullable Boolean draining) {
     withMetrics(
         () ->
             underlying.onTimer(
-                timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain),
+                timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining),
         false);
   }
 

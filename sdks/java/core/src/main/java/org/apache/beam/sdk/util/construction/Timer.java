@@ -65,9 +65,10 @@ public abstract class Timer<K> {
       Collection<? extends BoundedWindow> windows,
       Instant fireTimestamp,
       Instant holdTimestamp,
-      PaneInfo paneInfo) {
+      PaneInfo paneInfo,
+      Boolean draining) {
     return new AutoValue_Timer(
-        userKey, dynamicTimerTag, windows, false, fireTimestamp, holdTimestamp, paneInfo);
+        userKey, dynamicTimerTag, windows, false, fireTimestamp, holdTimestamp, paneInfo, draining);
   }
 
   /**
@@ -76,7 +77,7 @@ public abstract class Timer<K> {
    */
   public static <K> Timer<K> cleared(
       K userKey, String dynamicTimerTag, Collection<? extends BoundedWindow> windows) {
-    return new AutoValue_Timer(userKey, dynamicTimerTag, windows, true, null, null, null);
+    return new AutoValue_Timer(userKey, dynamicTimerTag, windows, true, null, null, null, false);
   }
 
   /** Returns the key that the timer is set on. */
@@ -115,6 +116,8 @@ public abstract class Timer<K> {
    * timer is being cleared.
    */
   public abstract @Nullable PaneInfo getPaneInfo();
+
+  public abstract @Nullable Boolean getDraining();
 
   @Override
   public final boolean equals(@Nullable Object other) {
@@ -201,7 +204,7 @@ public abstract class Timer<K> {
       Instant fireTimestamp = InstantCoder.of().decode(inStream);
       Instant holdTimestamp = InstantCoder.of().decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
-      return Timer.of(userKey, dynamicTimerTag, windows, fireTimestamp, holdTimestamp, paneInfo);
+      return Timer.of(userKey, dynamicTimerTag, windows, fireTimestamp, holdTimestamp, paneInfo, false);
     }
 
     @Override

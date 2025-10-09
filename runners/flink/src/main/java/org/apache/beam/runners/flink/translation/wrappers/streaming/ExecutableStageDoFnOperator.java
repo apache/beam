@@ -592,7 +592,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
         Instant outputTimestamp,
         TimeDomain timeDomain) {
       setTimer(
-          TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
+          TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain, false));
     }
 
     @Override
@@ -1001,7 +1001,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        @Nullable Boolean draining) {
       Object timerKey = keyForTimer.get();
       Preconditions.checkNotNull(timerKey, "Key for timer needs to be set before calling onTimer");
       Preconditions.checkNotNull(remoteBundle, "Call to onTimer outside of a bundle");
@@ -1034,7 +1035,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
                 timestamp,
                 outputTimestamp,
                 // TODO: Support propagating the PaneInfo through.
-                PaneInfo.NO_FIRING);
+                PaneInfo.NO_FIRING, draining);
         try {
           timerReceiver.accept(timerValue);
         } catch (Exception e) {

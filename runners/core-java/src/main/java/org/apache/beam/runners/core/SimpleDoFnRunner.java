@@ -201,11 +201,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      @Nullable Boolean draining) {
     Preconditions.checkNotNull(outputTimestamp, "outputTimestamp");
 
     OnTimerArgumentProvider<KeyT> argumentProvider =
-        new OnTimerArgumentProvider<>(timerId, key, window, timestamp, outputTimestamp, timeDomain);
+        new OnTimerArgumentProvider<>(timerId, key, window, timestamp, outputTimestamp, timeDomain, draining);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
@@ -363,7 +364,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                 Collections.singletonList(window),
                 PaneInfo.NO_FIRING,
                 currentRecordId,
-                currentRecordOffset));
+                currentRecordOffset, null));
       }
     }
 
@@ -428,6 +429,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public InputT element() {
       return elem.getValue();
     }
+
+    @Override
+    public Boolean draining() { return elem.isDraining(); }
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
@@ -524,7 +528,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       SimpleDoFnRunner.this.outputWindowedValue(
           tag,
           WindowedValues.of(
-              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, elem.isDraining()));
     }
 
     @Override
@@ -725,6 +729,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final TimeDomain timeDomain;
     private final String timerId;
     private final KeyT key;
+    private final Boolean draining;
     private final OutputBuilderSupplier builderSupplier;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
@@ -750,7 +755,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         BoundedWindow window,
         Instant fireTimestamp,
         Instant timestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        Boolean draining) {
       fn.super();
       this.timerId = timerId;
       this.window = window;
@@ -758,19 +764,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
       this.key = key;
+      this.draining = draining;
       this.builderSupplier =
           OutputBuilderSuppliers.supplierForElement(
               WindowedValues.builder()
                   .setValue(null)
                   .setTimestamp(timestamp)
                   .setWindow(window)
-                  .setPaneInfo(PaneInfo.NO_FIRING));
+                  .setPaneInfo(PaneInfo.NO_FIRING)
+                .setDraining(draining));
     }
 
     @Override
     public Instant timestamp() {
       return timestamp;
     }
+
+    @Override
+    public Boolean draining() { return draining; }
 
     @Override
     public Instant fireTimestamp() {
@@ -1026,7 +1037,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       SimpleDoFnRunner.this.outputWindowedValue(
           tag,
           WindowedValues.of(
-              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, null));
     }
 
     @Override
@@ -1304,7 +1315,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       SimpleDoFnRunner.this.outputWindowedValue(
           tag,
           WindowedValues.of(
-              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, null));
     }
 
     @Override

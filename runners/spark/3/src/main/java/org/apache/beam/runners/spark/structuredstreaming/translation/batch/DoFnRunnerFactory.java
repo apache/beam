@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import scala.Serializable;
 
@@ -266,7 +267,8 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
           BoundedWindow window,
           Instant timestamp,
           Instant outputTimestamp,
-          TimeDomain timeDomain) {
+          TimeDomain timeDomain,
+          @Nullable Boolean draining) {
         throw new UnsupportedOperationException();
       }
 

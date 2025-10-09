@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -252,7 +253,8 @@ public class SparkInputDataProcessorTest {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {}
+        TimeDomain timeDomain,
+        @Nullable Boolean draining) {}
 
     @Override
     public void finishBundle() {}

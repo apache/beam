@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -81,7 +82,8 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      @Nullable Boolean draining) {
     throw new UnsupportedOperationException(
         String.format("Timers are not supported by %s", GroupAlsoByWindowFn.class.getSimpleName()));
   }

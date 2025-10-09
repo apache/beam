@@ -507,7 +507,8 @@ public class DoFnOperatorTest {
                   BoundedWindow window,
                   Instant timestamp,
                   Instant outputTimestamp,
-                  TimeDomain timeDomain) {
+                  TimeDomain timeDomain,
+                  @Nullable Boolean draining) {
 
                 if ("cleanup".equals(timerId)) {
                   holdState.clear();

@@ -42,6 +42,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -208,7 +209,8 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      @Nullable Boolean draining) {
 
     if (timerId.equals(SORT_FLUSH_TIMER)) {
       onSortFlushTimer(window, stepContext.timerInternals().currentInputWatermarkTime());
@@ -232,7 +234,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             stepContext.timerInternals().currentInputWatermarkTime());
       } else {
         doFnRunner.onTimer(
-            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
       }
     }
   }
