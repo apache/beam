@@ -1739,7 +1739,7 @@ class SetupOptions(PipelineOptions):
             'not unencrypted. The secret should be a url safe base64 encoded '
             '32 byte value. To generate a secret in this format, you can use '
             'Secret.generate_secret_bytes(). For an example of this, see '
-            'https://github.com/apache/beam/blob/c8df4da229da49d533491857e1bb4ab5dbf4fd37/sdks/python/apache_beam/transforms/util_test.py#L356. '
+            'https://github.com/apache/beam/blob/c8df4da229da49d533491857e1bb4ab5dbf4fd37/sdks/python/apache_beam/transforms/util_test.py#L356. '  # pylint: disable=line-too-long
             'Runners with this behavior include the Dataflow, '
             'Flink, and Spark runners. The option should be '
             'structured like: '
