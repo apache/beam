@@ -95,6 +95,7 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed passing of pipeline options to x-lang transforms when called from the Java SDK (Java) ([#36443](https://github.com/apache/beam/issues/36443)).
 * PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
   function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java)
   ([#36141](https://github.com/apache/beam/issues/36141)).
