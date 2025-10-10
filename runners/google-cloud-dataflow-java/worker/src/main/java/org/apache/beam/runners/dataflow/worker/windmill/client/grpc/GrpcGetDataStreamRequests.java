@@ -19,18 +19,18 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
-import com.google.auto.value.AutoOneOf;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,15 +46,38 @@ final class GrpcGetDataStreamRequests {
     return String.format("%016x", value);
   }
 
+  static class ComputationAndKeyRequest {
+    private final String computation;
+    private final KeyedGetDataRequest request;
+
+    ComputationAndKeyRequest(String computation, KeyedGetDataRequest request) {
+      this.computation = computation;
+      this.request = request;
+    }
+
+    String getComputation() {
+      return computation;
+    }
+
+    KeyedGetDataRequest getKeyedGetDataRequest() {
+      return request;
+    }
+  }
+
   static class QueuedRequest {
     private final long id;
-    private final ComputationOrGlobalDataRequest dataRequest;
+    private final @Nullable ComputationAndKeyRequest computationAndKeyRequest;
+    private final @Nullable GlobalDataRequest globalDataRequest;
     private AppendableInputStream responseStream;
 
     private QueuedRequest(
-        long id, ComputationOrGlobalDataRequest dataRequest, long deadlineSeconds) {
+        long id,
+        @Nullable ComputationAndKeyRequest computationAndKeyRequest,
+        @Nullable GlobalDataRequest globalDataRequest,
+        long deadlineSeconds) {
       this.id = id;
-      this.dataRequest = dataRequest;
+      this.computationAndKeyRequest = computationAndKeyRequest;
+      this.globalDataRequest = globalDataRequest;
       responseStream = new AppendableInputStream(deadlineSeconds);
     }
 
@@ -63,27 +86,22 @@ final class GrpcGetDataStreamRequests {
         String computation,
         KeyedGetDataRequest keyedGetDataRequest,
         long deadlineSeconds) {
-      ComputationGetDataRequest computationGetDataRequest =
-          ComputationGetDataRequest.newBuilder()
-              .setComputationId(computation)
-              .addRequests(keyedGetDataRequest)
-              .build();
       return new QueuedRequest(
           id,
-          ComputationOrGlobalDataRequest.computation(computationGetDataRequest),
+          new ComputationAndKeyRequest(computation, keyedGetDataRequest),
+          null,
           deadlineSeconds);
     }
 
     static QueuedRequest global(
         long id, GlobalDataRequest globalDataRequest, long deadlineSeconds) {
-      return new QueuedRequest(
-          id, ComputationOrGlobalDataRequest.global(globalDataRequest), deadlineSeconds);
+      return new QueuedRequest(id, null, globalDataRequest, deadlineSeconds);
     }
 
     static Comparator<QueuedRequest> globalRequestsFirst() {
       return (QueuedRequest r1, QueuedRequest r2) -> {
-        boolean r1gd = r1.dataRequest.isGlobal();
-        boolean r2gd = r2.dataRequest.isGlobal();
+        boolean r1gd = r1.getKind() == Kind.GLOBAL;
+        boolean r2gd = r2.getKind() == Kind.GLOBAL;
         return r1gd == r2gd ? 0 : (r1gd ? -1 : 1);
       };
     }
@@ -93,7 +111,13 @@ final class GrpcGetDataStreamRequests {
     }
 
     long byteSize() {
-      return dataRequest.serializedSize();
+      if (globalDataRequest != null) {
+        return globalDataRequest.getSerializedSize();
+      }
+      Preconditions.checkStateNotNull(computationAndKeyRequest);
+      return 10L
+          + computationAndKeyRequest.request.getSerializedSize()
+          + computationAndKeyRequest.getComputation().length();
     }
 
     AppendableInputStream getResponseStream() {
@@ -104,22 +128,56 @@ final class GrpcGetDataStreamRequests {
       this.responseStream = new AppendableInputStream(responseStream.getDeadlineSeconds());
     }
 
-    public ComputationOrGlobalDataRequest getDataRequest() {
-      return dataRequest;
+    enum Kind {
+      COMPUTATION_AND_KEY_REQUEST,
+      GLOBAL
+    }
+
+    Kind getKind() {
+      return computationAndKeyRequest != null ? Kind.COMPUTATION_AND_KEY_REQUEST : Kind.GLOBAL;
+    }
+
+    ComputationAndKeyRequest getComputationAndKeyRequest() {
+      return Preconditions.checkStateNotNull(computationAndKeyRequest);
+    }
+
+    GlobalDataRequest getGlobalDataRequest() {
+      return Preconditions.checkStateNotNull(globalDataRequest);
     }
 
     void addToStreamingGetDataRequest(Windmill.StreamingGetDataRequest.Builder builder) {
       builder.addRequestId(id);
-      if (dataRequest.isForComputation()) {
-        builder.addStateRequest(dataRequest.computation());
-      } else {
-        builder.addGlobalDataRequest(dataRequest.global());
+      switch (getKind()) {
+        case COMPUTATION_AND_KEY_REQUEST:
+          ComputationAndKeyRequest request = getComputationAndKeyRequest();
+          builder
+              .addStateRequestBuilder()
+              .setComputationId(request.getComputation())
+              .addRequests(request.request);
+          break;
+        case GLOBAL:
+          builder.addGlobalDataRequest(getGlobalDataRequest());
+          break;
       }
     }
 
     @Override
     public final String toString() {
-      return "QueuedRequest{" + "dataRequest=" + dataRequest + ", id=" + id + '}';
+      StringBuilder result = new StringBuilder("QueuedRequest{id=").append(id).append(", ");
+      if (getKind() == Kind.GLOBAL) {
+        result.append("GetSideInput=").append(getGlobalDataRequest());
+      } else {
+        KeyedGetDataRequest key = getComputationAndKeyRequest().request;
+        result
+            .append("KeyedGetState=[shardingKey=")
+            .append(debugFormat(key.getShardingKey()))
+            .append("cacheToken=")
+            .append(debugFormat(key.getCacheToken()))
+            .append("workToken")
+            .append(debugFormat(key.getWorkToken()))
+            .append("]");
+      }
+      return result.append('}').toString();
     }
   }
 
@@ -128,13 +186,14 @@ final class GrpcGetDataStreamRequests {
    */
   static class QueuedBatch {
     private final List<QueuedRequest> requests = new ArrayList<>();
+    private final HashSet<Long> workTokens = new HashSet<>();
     private final CountDownLatch sent = new CountDownLatch(1);
     private long byteSize = 0;
     private volatile boolean finalized = false;
     private volatile boolean failed = false;
 
     /** Returns a read-only view of requests. */
-    List<QueuedRequest> requestsReadOnly() {
+    List<QueuedRequest> requestsView() {
       return Collections.unmodifiableList(requests);
     }
 
@@ -155,16 +214,8 @@ final class GrpcGetDataStreamRequests {
       return builder.build();
     }
 
-    boolean isEmpty() {
-      return requests.isEmpty();
-    }
-
     int requestsCount() {
       return requests.size();
-    }
-
-    long byteSize() {
-      return byteSize;
     }
 
     boolean isFinalized() {
@@ -176,9 +227,26 @@ final class GrpcGetDataStreamRequests {
     }
 
     /** Adds a request to the batch. */
-    void addRequest(QueuedRequest request) {
+    boolean tryAddRequest(QueuedRequest request, int countLimit, long byteLimit) {
+      if (finalized) {
+        return false;
+      }
+      if (requests.size() >= countLimit) {
+        return false;
+      }
+      long estimatedBytes = request.byteSize();
+      if (byteSize + estimatedBytes >= byteLimit) {
+        return false;
+      }
+
+      if (request.getKind() == QueuedRequest.Kind.COMPUTATION_AND_KEY_REQUEST
+          && !workTokens.add(request.getComputationAndKeyRequest().request.getWorkToken())) {
+        return false;
+      }
+      // At this point we have added to work items so we must accept the item.
       requests.add(request);
-      byteSize += request.byteSize();
+      byteSize += estimatedBytes;
+      return true;
     }
 
     /**
@@ -227,75 +295,9 @@ final class GrpcGetDataStreamRequests {
 
     private ImmutableList<String> createStreamCancelledErrorMessages() {
       return requests.stream()
-          .flatMap(
-              request -> {
-                switch (request.getDataRequest().getKind()) {
-                  case GLOBAL:
-                    return Stream.of("GetSideInput=" + request.getDataRequest().global());
-                  case COMPUTATION:
-                    return request.getDataRequest().computation().getRequestsList().stream()
-                        .map(
-                            keyedRequest ->
-                                "KeyedGetState=["
-                                    + "shardingKey="
-                                    + debugFormat(keyedRequest.getShardingKey())
-                                    + "cacheToken="
-                                    + debugFormat(keyedRequest.getCacheToken())
-                                    + "workToken"
-                                    + debugFormat(keyedRequest.getWorkToken())
-                                    + "]");
-                  default:
-                    // Will never happen switch is exhaustive.
-                    throw new IllegalStateException();
-                }
-              })
+          .map(QueuedRequest::toString)
           .limit(STREAM_CANCELLED_ERROR_LOG_LIMIT)
           .collect(toImmutableList());
-    }
-  }
-
-  @AutoOneOf(ComputationOrGlobalDataRequest.Kind.class)
-  abstract static class ComputationOrGlobalDataRequest {
-    static ComputationOrGlobalDataRequest computation(
-        ComputationGetDataRequest computationGetDataRequest) {
-      return AutoOneOf_GrpcGetDataStreamRequests_ComputationOrGlobalDataRequest.computation(
-          computationGetDataRequest);
-    }
-
-    static ComputationOrGlobalDataRequest global(GlobalDataRequest globalDataRequest) {
-      return AutoOneOf_GrpcGetDataStreamRequests_ComputationOrGlobalDataRequest.global(
-          globalDataRequest);
-    }
-
-    abstract Kind getKind();
-
-    abstract ComputationGetDataRequest computation();
-
-    abstract GlobalDataRequest global();
-
-    boolean isGlobal() {
-      return getKind() == Kind.GLOBAL;
-    }
-
-    boolean isForComputation() {
-      return getKind() == Kind.COMPUTATION;
-    }
-
-    long serializedSize() {
-      switch (getKind()) {
-        case GLOBAL:
-          return global().getSerializedSize();
-        case COMPUTATION:
-          return computation().getSerializedSize();
-          // this will never happen since the switch is exhaustive.
-        default:
-          throw new UnsupportedOperationException("unknown dataRequest type.");
-      }
-    }
-
-    enum Kind {
-      COMPUTATION,
-      GLOBAL
     }
   }
 }

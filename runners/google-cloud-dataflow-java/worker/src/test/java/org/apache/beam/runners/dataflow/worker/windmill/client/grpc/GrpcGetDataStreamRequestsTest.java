@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -80,7 +81,7 @@ public class GrpcGetDataStreamRequestsTest {
     requests.sort(GrpcGetDataStreamRequests.QueuedRequest.globalRequestsFirst());
 
     // First one should be the global request.
-    assertTrue(requests.get(0).getDataRequest().isGlobal());
+    assertTrue(requests.get(0).getKind() == GrpcGetDataStreamRequests.QueuedRequest.Kind.GLOBAL);
   }
 
   @Test
@@ -95,9 +96,12 @@ public class GrpcGetDataStreamRequestsTest {
             .setWorkToken(1L)
             .setMaxBytes(Long.MAX_VALUE)
             .build();
-    queuedBatch.addRequest(
-        GrpcGetDataStreamRequests.QueuedRequest.forComputation(
-            1, "computation1", keyedGetDataRequest1, DEADLINE_SECONDS));
+    assertTrue(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                1, "computation1", keyedGetDataRequest1, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            Long.MAX_VALUE));
 
     Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
         Windmill.KeyedGetDataRequest.newBuilder()
@@ -107,9 +111,12 @@ public class GrpcGetDataStreamRequestsTest {
             .setWorkToken(2L)
             .setMaxBytes(Long.MAX_VALUE)
             .build();
-    queuedBatch.addRequest(
-        GrpcGetDataStreamRequests.QueuedRequest.forComputation(
-            2, "computation2", keyedGetDataRequest2, DEADLINE_SECONDS));
+    assertTrue(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                2, "computation2", keyedGetDataRequest2, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            Long.MAX_VALUE));
 
     Windmill.GlobalDataRequest globalDataRequest =
         Windmill.GlobalDataRequest.newBuilder()
@@ -120,12 +127,15 @@ public class GrpcGetDataStreamRequestsTest {
                     .build())
             .setComputationId("computation1")
             .build();
-    queuedBatch.addRequest(
-        GrpcGetDataStreamRequests.QueuedRequest.global(3, globalDataRequest, DEADLINE_SECONDS));
+    assertTrue(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.global(3, globalDataRequest, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            Long.MAX_VALUE));
 
     Windmill.StreamingGetDataRequest getDataRequest = queuedBatch.asGetDataRequest();
 
-    assertThat(getDataRequest.getRequestIdCount()).isEqualTo(3);
+    assertThat(getDataRequest.getRequestIdList()).containsExactly(3L, 1L, 2L);
     assertThat(getDataRequest.getGlobalDataRequestList()).containsExactly(globalDataRequest);
     assertThat(getDataRequest.getStateRequestList())
         .containsExactly(
@@ -152,5 +162,120 @@ public class GrpcGetDataStreamRequestsTest {
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     queuedBatch.notifyFailed();
     waitFuture.join();
+  }
+
+  @Test
+  public void testQueuedBatch_tryAddRequest_exceedsMaxCount() {
+    GrpcGetDataStreamRequests.QueuedBatch queuedBatch = new GrpcGetDataStreamRequests.QueuedBatch();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setCacheToken(1L)
+            .setShardingKey(1L)
+            .setWorkToken(1L)
+            .build();
+
+    // Add one request successfully.
+    assertTrue(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                1, "computation1", keyedGetDataRequest, DEADLINE_SECONDS),
+            1,
+            Long.MAX_VALUE));
+
+    // Adding another request should fail due to max count.
+    assertFalse(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                2, "computation1", keyedGetDataRequest, DEADLINE_SECONDS),
+            1,
+            Long.MAX_VALUE));
+  }
+
+  @Test
+  public void testQueuedBatch_tryAddRequest_exceedsMaxBytes() {
+    GrpcGetDataStreamRequests.QueuedBatch queuedBatch = new GrpcGetDataStreamRequests.QueuedBatch();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setCacheToken(1L)
+            .setShardingKey(1L)
+            .setWorkToken(1L)
+            .build();
+
+    // Add one request successfully.
+    assertTrue(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                1, "computation1", keyedGetDataRequest, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            Long.MAX_VALUE));
+
+    // Adding another request should fail due to max bytes.
+    assertFalse(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                2, "computation1", keyedGetDataRequest, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            10L));
+  }
+
+  @Test
+  public void testQueuedBatch_tryAddRequest_duplicateWorkToken() {
+    GrpcGetDataStreamRequests.QueuedBatch queuedBatch = new GrpcGetDataStreamRequests.QueuedBatch();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest1 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setCacheToken(1L)
+            .setShardingKey(1L)
+            .setWorkToken(1L)
+            .build();
+
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setCacheToken(2L)
+            .setShardingKey(2L)
+            .setWorkToken(1L)
+            .build();
+
+    // Add one request successfully.
+    assertTrue(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                1, "computation1", keyedGetDataRequest1, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            Long.MAX_VALUE));
+
+    // Adding another request with same work token should fail.
+    assertFalse(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                2, "computation1", keyedGetDataRequest2, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            Long.MAX_VALUE));
+  }
+
+  @Test
+  public void testQueuedBatch_tryAddRequest_afterFinalized() {
+    GrpcGetDataStreamRequests.QueuedBatch queuedBatch = new GrpcGetDataStreamRequests.QueuedBatch();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setCacheToken(1L)
+            .setShardingKey(1L)
+            .setWorkToken(1L)
+            .setMaxBytes(Long.MAX_VALUE)
+            .build();
+
+    queuedBatch.markFinalized();
+
+    // Adding request after finalization should fail.
+    assertFalse(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.forComputation(
+                1, "computation1", keyedGetDataRequest, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            Long.MAX_VALUE));
   }
 }
