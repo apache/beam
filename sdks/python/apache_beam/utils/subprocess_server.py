@@ -446,11 +446,13 @@ class JavaJarServer(SubprocessServer):
           "   This may pose security risks or cause instability due to "
           "repository availability.\n"
           "   URL: %s\n"
+          "   Destination: %s\n"
           "   Consider pre-staging dependencies or using a private repository "
           "mirror.\n"
           "   For more information, see: "
           "https://beam.apache.org/documentation/sdks/python-dependencies/",
-          download_url)
+          download_url,
+          cached_jar_path)
     try:
       url_read = FileSystems.open(download_url)
     except ValueError:
