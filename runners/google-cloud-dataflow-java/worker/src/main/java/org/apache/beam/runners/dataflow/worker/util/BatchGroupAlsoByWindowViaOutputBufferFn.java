@@ -88,7 +88,6 @@ public class BatchGroupAlsoByWindowViaOutputBufferFn<K, InputT, OutputT, W exten
             output,
             NullSideInputReader.empty(),
             reduceFn,
-            null,
             options);
 
     // Process the elements.

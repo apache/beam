@@ -198,8 +198,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final PaneInfoTracker paneInfoTracker;
 
-  private final @Nullable Boolean draining;
-
   /**
    * Store whether we've seen any elements for a window since the last pane was emitted.
    *
@@ -221,9 +219,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       WindowedValueReceiver<KV<K, OutputT>> outputter,
       @Nullable SideInputReader sideInputReader,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
-      @Nullable Boolean draining,
       @Nullable PipelineOptions options) {
-    this.draining = draining;
     this.key = key;
     this.timerInternals = timerInternals;
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
@@ -252,7 +248,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             this.activeWindows,
             timerInternals,
             sideInputReader,
-            draining,
             options);
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
@@ -379,7 +374,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (W window : windowsToFire) {
       emit(
           contextFactory.base(window, StateStyle.DIRECT),
-          contextFactory.base(window, StateStyle.RENAMED));
+          contextFactory.base(window, StateStyle.RENAMED),
+          null);
     }
 
     // We're all done with merging and emitting elements so can compress the activeWindow state.
@@ -652,12 +648,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // garbage collect the window.  We'll consider any timer at or after the
     // end-of-window time to be a signal to garbage collect.
     public final boolean isGarbageCollection;
+    public final Boolean draining;
 
     WindowActivation(
         ReduceFn<K, InputT, OutputT, W>.Context directContext,
-        ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
+        ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
+        Boolean draining) {
       this.directContext = directContext;
       this.renamedContext = renamedContext;
+      this.draining = draining;
       W window = directContext.window();
 
       // The output watermark is before the end of the window if it is either unknown
@@ -714,12 +713,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       WindowTracing.debug(
           "ReduceFnRunner: Received timer key:{}; window:{}; data:{} with "
-              + "inputWatermark:{}; outputWatermark:{}",
+              + "inputWatermark:{}; outputWatermark:{}; draining:{}",
           key,
           window,
           timer,
           timerInternals.currentInputWatermarkTime(),
-          timerInternals.currentOutputWatermarkTime());
+          timerInternals.currentOutputWatermarkTime(),
+          timer.getDraining());
 
       // Processing time timers for an expired window are ignored, just like elements
       // that show up too late. Window GC is management by an event time timer
@@ -740,7 +740,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           contextFactory.base(window, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
           contextFactory.base(window, StateStyle.RENAMED);
-      WindowActivation windowActivation = new WindowActivation(directContext, renamedContext);
+      WindowActivation windowActivation =
+          new WindowActivation(directContext, renamedContext, timer.getDraining());
       windowActivations.put(window, windowActivation);
 
       // Perform prefetching of state to determine if the trigger should fire.
@@ -771,11 +772,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       if (windowActivation.isGarbageCollection) {
         WindowTracing.debug(
-            "ReduceFnRunner: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
+            "ReduceFnRunner: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}; draining:{}",
             key,
             directContext.window(),
             timerInternals.currentInputWatermarkTime(),
-            timerInternals.currentOutputWatermarkTime());
+            timerInternals.currentOutputWatermarkTime(),
+            windowActivation.draining);
 
         boolean windowIsActiveAndOpen = windowActivation.windowIsActiveAndOpen();
         if (windowIsActiveAndOpen) {
@@ -788,7 +790,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                   directContext,
                   renamedContext,
                   true /* isFinished */,
-                  windowActivation.isEndOfWindow);
+                  windowActivation.isEndOfWindow,
+                  windowActivation.draining);
           checkState(newHold == null, "Hold placed at %s despite isFinished being true.", newHold);
         }
 
@@ -806,7 +809,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         if (windowActivation.windowIsActiveAndOpen()
             && triggerRunner.shouldFire(
                 directContext.window(), directContext.timers(), directContext.state())) {
-          emit(directContext, renamedContext);
+          emit(directContext, renamedContext, windowActivation.draining);
         }
 
         if (windowActivation.isEndOfWindow) {
@@ -929,7 +932,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   /** Emit if a trigger is ready to fire or timers require it, and cleanup state. */
   private void emit(
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
-      ReduceFn<K, InputT, OutputT, W>.Context renamedContext)
+      ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
+      Boolean draining)
       throws Exception {
     checkState(
         triggerRunner.shouldFire(
@@ -945,7 +949,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Run onTrigger to produce the actual pane contents.
     // As a side effect it will clear all element holds, but not necessarily any
     // end-of-window or garbage collection holds.
-    onTrigger(directContext, renamedContext, isFinished, false /*isEndOfWindow*/);
+    onTrigger(directContext, renamedContext, isFinished, false /*isEndOfWindow*/, draining);
 
     // Now that we've triggered, the pane is empty.
     nonEmptyPanes.clearPane(renamedContext.state());
@@ -1003,7 +1007,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
       final boolean isFinished,
-      boolean isEndOfWindow)
+      boolean isEndOfWindow,
+      Boolean draining)
       throws Exception {
     // Extract the window hold, and as a side effect clear it.
     final WatermarkHold.OldAndNewHolds pair =
@@ -1075,10 +1080,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                     .setValue(KV.of(key, toOutput))
                     .setTimestamp(outputTimestamp)
                     .setWindows(windows)
+                    .setDraining(draining)
                     .setPaneInfo(paneInfo)
                     .setReceiver(outputter)
                     .output();
-              });
+              },
+              draining);
 
       reduceFn.onTrigger(renamedTriggerContext);
     }

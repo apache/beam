@@ -59,7 +59,7 @@ public class WindowMatchers {
       Matcher<? super Collection<? extends BoundedWindow>> windowsMatcher,
       Matcher<? super PaneInfo> paneInfoMatcher) {
     return new WindowedValueMatcher<>(
-        valueMatcher, timestampMatcher, windowsMatcher, paneInfoMatcher);
+        valueMatcher, timestampMatcher, windowsMatcher, paneInfoMatcher, Matchers.anything());
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
@@ -67,19 +67,27 @@ public class WindowMatchers {
       Matcher<? super Instant> timestampMatcher,
       Matcher<? super Collection<? extends BoundedWindow>> windowsMatcher) {
     return new WindowedValueMatcher<>(
-        valueMatcher, timestampMatcher, windowsMatcher, Matchers.anything());
+        valueMatcher, timestampMatcher, windowsMatcher, Matchers.anything(), Matchers.anything());
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
       Matcher<? super T> valueMatcher, Matcher<? super Instant> timestampMatcher) {
     return new WindowedValueMatcher<>(
-        valueMatcher, timestampMatcher, Matchers.anything(), Matchers.anything());
+        valueMatcher,
+        timestampMatcher,
+        Matchers.anything(),
+        Matchers.anything(),
+        Matchers.anything());
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
       Matcher<? super T> valueMatcher) {
     return new WindowedValueMatcher<>(
-        valueMatcher, Matchers.anything(), Matchers.anything(), Matchers.anything());
+        valueMatcher,
+        Matchers.anything(),
+        Matchers.anything(),
+        Matchers.anything(),
+        Matchers.anything());
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
@@ -143,7 +151,25 @@ public class WindowMatchers {
       Matcher<? super Instant> timestampMatcher,
       Matcher<? super BoundedWindow> windowMatcher) {
     return new WindowedValueMatcher<>(
-        valueMatcher, timestampMatcher, Matchers.contains(windowMatcher), Matchers.anything());
+        valueMatcher,
+        timestampMatcher,
+        Matchers.contains(windowMatcher),
+        Matchers.anything(),
+        Matchers.anything());
+  }
+
+  public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
+      Matcher<? super T> valueMatcher,
+      Matcher<? super Instant> timestampMatcher,
+      Matcher<? super BoundedWindow> windowMatcher,
+      Matcher<? super PaneInfo> paneInfoMatcher,
+      Matcher<? super Boolean> drainMatcher) {
+    return new WindowedValueMatcher<>(
+        valueMatcher,
+        timestampMatcher,
+        Matchers.contains(windowMatcher),
+        paneInfoMatcher,
+        drainMatcher);
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
@@ -152,7 +178,11 @@ public class WindowMatchers {
       Matcher<? super BoundedWindow> windowMatcher,
       Matcher<? super PaneInfo> paneInfoMatcher) {
     return new WindowedValueMatcher<>(
-        valueMatcher, timestampMatcher, Matchers.contains(windowMatcher), paneInfoMatcher);
+        valueMatcher,
+        timestampMatcher,
+        Matchers.contains(windowMatcher),
+        paneInfoMatcher,
+        Matchers.anything());
   }
 
   public static Matcher<IntervalWindow> intervalWindow(long start, long end) {
@@ -203,16 +233,19 @@ public class WindowMatchers {
     private Matcher<? super Instant> timestampMatcher;
     private Matcher<? super Collection<? extends BoundedWindow>> windowsMatcher;
     private Matcher<? super PaneInfo> paneInfoMatcher;
+    private Matcher<? super Boolean> drainMatcher;
 
     private WindowedValueMatcher(
         Matcher<? super T> valueMatcher,
         Matcher<? super Instant> timestampMatcher,
         Matcher<? super Collection<? extends BoundedWindow>> windowsMatcher,
-        Matcher<? super PaneInfo> paneInfoMatcher) {
+        Matcher<? super PaneInfo> paneInfoMatcher,
+        Matcher<? super Boolean> drainMatcher) {
       this.valueMatcher = valueMatcher;
       this.timestampMatcher = timestampMatcher;
       this.windowsMatcher = windowsMatcher;
       this.paneInfoMatcher = paneInfoMatcher;
+      this.drainMatcher = drainMatcher;
     }
 
     @Override
@@ -226,6 +259,8 @@ public class WindowMatchers {
           .appendValue(windowsMatcher)
           .appendText(", ")
           .appendValue(paneInfoMatcher)
+          .appendText(", ")
+          .appendValue(drainMatcher)
           .appendText(")");
     }
 
@@ -234,7 +269,8 @@ public class WindowMatchers {
       return valueMatcher.matches(windowedValue.getValue())
           && timestampMatcher.matches(windowedValue.getTimestamp())
           && windowsMatcher.matches(windowedValue.getWindows())
-          && paneInfoMatcher.matches(windowedValue.getPaneInfo());
+          && paneInfoMatcher.matches(windowedValue.getPaneInfo())
+          && drainMatcher.matches(windowedValue.isDraining());
     }
   }
 }

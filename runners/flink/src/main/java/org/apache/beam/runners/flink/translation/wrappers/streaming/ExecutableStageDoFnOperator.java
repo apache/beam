@@ -592,8 +592,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
         Instant outputTimestamp,
         TimeDomain timeDomain) {
       setTimer(
-          TimerData.of(
-              timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
+          TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
     }
 
     @Override

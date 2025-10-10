@@ -44,8 +44,6 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** The window that is being processed. */
     public abstract W window();
 
-    public abstract Boolean draining();
-
     /** Access the current {@link WindowingStrategy}. */
     public abstract WindowingStrategy<?, W> windowingStrategy();
 
@@ -61,6 +59,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** Return the actual value being processed. */
     public abstract InputT value();
 
+    public abstract Boolean draining();
     /** Return the timestamp associated with the value. */
     public abstract Instant timestamp();
   }
@@ -77,6 +76,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** Returns the {@link PaneInfo} for the trigger firing being processed. */
     public abstract PaneInfo paneInfo();
 
+    public abstract Boolean draining();
     /** Output the given value in the current window. */
     public abstract void output(OutputT value);
   }

@@ -49,7 +49,6 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private final K key;
-  private final @Nullable Boolean draining;
   private final ReduceFn<K, InputT, OutputT, W> reduceFn;
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateInternals stateInternals;
@@ -66,9 +65,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       ActiveWindowSet<W> activeWindows,
       TimerInternals timerInternals,
       @Nullable SideInputReader sideInputReader,
-      @Nullable Boolean draining,
       @Nullable PipelineOptions options) {
-    this.draining = draining;
     this.key = key;
     this.reduceFn = reduceFn;
     this.windowingStrategy = windowingStrategy;
@@ -97,7 +94,12 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   public ReduceFn<K, InputT, OutputT, W>.Context base(W window, StateStyle style) {
-    return new ContextImpl(stateAccessor(window, style));
+    return new ContextImpl(stateAccessor(window, style), null);
+  }
+
+  public ReduceFn<K, InputT, OutputT, W>.Context base(
+      W window, StateStyle style, Boolean draining) {
+    return new ContextImpl(stateAccessor(window, style), draining);
   }
 
   public ReduceFn<K, InputT, OutputT, W>.ProcessValueContext forValue(
@@ -106,8 +108,12 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnTriggerContext forTrigger(
-      W window, PaneInfo paneInfo, StateStyle style, OnTriggerCallbacks<OutputT> callbacks) {
-    return new OnTriggerContextImpl(stateAccessor(window, style), paneInfo, callbacks);
+      W window,
+      PaneInfo paneInfo,
+      StateStyle style,
+      OnTriggerCallbacks<OutputT> callbacks,
+      Boolean draining) {
+    return new OnTriggerContextImpl(stateAccessor(window, style), paneInfo, callbacks, draining);
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnMergeContext forMerge(
@@ -321,21 +327,18 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   private class ContextImpl extends ReduceFn<K, InputT, OutputT, W>.Context {
     private final StateAccessorImpl<K, W> state;
     private final TimersImpl timers;
+    private final Boolean draining;
 
-    private ContextImpl(StateAccessorImpl<K, W> state) {
+    private ContextImpl(StateAccessorImpl<K, W> state, @Nullable Boolean draining) {
       reduceFn.super();
       this.state = state;
       this.timers = new TimersImpl(state.namespace());
+      this.draining = draining;
     }
 
     @Override
     public K key() {
       return key;
-    }
-
-    @Override
-    public Boolean draining() {
-      return draining;
     }
 
     @Override
@@ -423,14 +426,19 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private final PaneInfo paneInfo;
     private final OnTriggerCallbacks<OutputT> callbacks;
     private final TimersImpl timers;
+    private final Boolean draining;
 
     private OnTriggerContextImpl(
-        StateAccessorImpl<K, W> state, PaneInfo paneInfo, OnTriggerCallbacks<OutputT> callbacks) {
+        StateAccessorImpl<K, W> state,
+        PaneInfo paneInfo,
+        OnTriggerCallbacks<OutputT> callbacks,
+        Boolean draining) {
       reduceFn.super();
       this.state = state;
       this.paneInfo = paneInfo;
       this.callbacks = callbacks;
       this.timers = new TimersImpl(state.namespace());
+      this.draining = draining;
     }
 
     @Override
@@ -490,11 +498,6 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public Boolean draining() {
-      return draining;
-    }
-
-    @Override
     public WindowingStrategy<?, W> windowingStrategy() {
       return windowingStrategy;
     }
@@ -528,11 +531,6 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public K key() {
       return key;
-    }
-
-    @Override
-    public Boolean draining() {
-      return draining;
     }
 
     @Override

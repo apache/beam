@@ -89,8 +89,6 @@ import org.joda.time.Instant;
 })
 public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private static final String KEY = "TEST_KEY";
-  private static final Boolean DRAINING = null;
-
   private final TestInMemoryStateInternals<String> stateInternals =
       new TestInMemoryStateInternals<>(KEY);
   private final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
@@ -303,7 +301,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         testOutputter,
         sideInputReader,
         reduceFn,
-        DRAINING,
         options);
   }
 

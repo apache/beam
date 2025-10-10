@@ -230,7 +230,8 @@ public class WindowedValues {
     }
 
     public WindowedValue<T> build() {
-      return WindowedValues.of(getValue(), getTimestamp(), getWindows(), getPaneInfo());
+      return WindowedValues.of(
+          getValue(), getTimestamp(), getWindows(), getPaneInfo(), null, null, isDraining());
     }
 
     @Override
@@ -240,6 +241,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("windows", getWindows())
           .add("paneInfo", getPaneInfo())
+          .add("draining", isDraining())
           .add("receiver", receiver)
           .toString();
     }
@@ -263,7 +265,7 @@ public class WindowedValues {
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo);
+      return of(value, timestamp, windows.iterator().next(), paneInfo, draining);
     } else {
       return new TimestampedValueInMultipleWindows<>(
           value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, draining);
@@ -287,14 +289,26 @@ public class WindowedValues {
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
+    return of(value, timestamp, window, paneInfo, null);
+  }
+
+  /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
+  public static <T> WindowedValue<T> of(
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      @Nullable Boolean draining) {
+    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
+
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value, paneInfo);
     } else if (isGlobal) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null, null);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null, draining);
     } else {
       return new TimestampedValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, null);
+          value, timestamp, window, paneInfo, null, null, draining);
     }
   }
 
@@ -540,6 +554,7 @@ public class WindowedValues {
       return MoreObjects.toStringHelper(getClass())
           .add("value", getValue())
           .add("paneInfo", getPaneInfo())
+          .add("draining", isDraining())
           .toString();
     }
   }
@@ -625,6 +640,7 @@ public class WindowedValues {
           .add("value", getValue())
           .add("timestamp", getTimestamp())
           .add("paneInfo", getPaneInfo())
+          .add("draining", isDraining())
           .toString();
     }
   }
@@ -701,6 +717,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("window", window)
           .add("paneInfo", getPaneInfo())
+          .add("draining", isDraining())
           .toString();
     }
   }
@@ -773,6 +790,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("windows", windows)
           .add("paneInfo", getPaneInfo())
+          .add("draining", isDraining())
           .toString();
     }
 
