@@ -154,7 +154,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	ts := comps.GetTransforms()
 	pcols := comps.GetPcollections()
 
-	config := engine.Config{EnableRTC: true}
+	config := engine.Config{EnableRTC: false}
 	m := j.PipelineOptions().AsMap()
 	if experimentsSlice, ok := m["beam:option:experiments:v1"].([]interface{}); ok {
 		for _, exp := range experimentsSlice {
@@ -342,6 +342,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 						} else {
 							tsb.AddProcessingTimeEvent(time.Duration(ev.ProcessingTimeEvent.GetAdvanceDuration()) * time.Millisecond)
 						}
+
 					default:
 						return fmt.Errorf("prism error building stage %v - unknown TestStream event type: %T", stage.ID, ev)
 					}
