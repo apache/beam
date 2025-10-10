@@ -107,7 +107,7 @@ public class AbstractInOutIteratorTest {
             mockWindow,
             TEST_TIMESTAMP,
             TEST_OUTPUT_TIMESTAMP,
-            TEST_TIME_DOMAIN);
+            TEST_TIME_DOMAIN, null);
 
     // Verify that timer data iterator deletion was not called (no timer iterator was set in this
     // test)
@@ -133,7 +133,7 @@ public class AbstractInOutIteratorTest {
             mockWindow,
             TEST_TIMESTAMP,
             TEST_OUTPUT_TIMESTAMP,
-            TEST_TIME_DOMAIN);
+            TEST_TIME_DOMAIN,null);
 
     // Verify that the timer data iterator's deleteTimer method was called
     verify(mockTimerDataIterator).deleteTimer(mockTimer);
