@@ -96,7 +96,8 @@ public class WindmillTimerInternalsTest {
                     WindmillTimerInternals.windmillTimerToTimerData(
                         prefix,
                         WindmillTimerInternals.timerDataToWindmillTimer(stateFamily, prefix, timer),
-                        coder);
+                        coder,
+                        null);
                 // The function itself bounds output, so we dont expect the original input as the
                 // output, we expect it to be bounded
                 TimerData expected =
@@ -145,7 +146,8 @@ public class WindmillTimerInternalsTest {
                           prefix,
                           WindmillTimerInternals.timerDataToWindmillTimer(
                               stateFamily, prefix, timer),
-                          coder),
+                          coder,
+                          null),
                       equalTo(expected));
                 }
               }
