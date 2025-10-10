@@ -123,49 +123,49 @@ public class GroupByKeyTest implements Serializable {
     public static String gcpSecretVersionName;
     private static String secretId;
 
-    @BeforeClass
-    public static void setup() throws IOException {
-      secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
-      SecretManagerServiceClient client;
-      try {
-        client = SecretManagerServiceClient.create();
-      } catch (IOException e) {
-        gcpSecretVersionName = null;
-        return;
-      }
-      ProjectName projectName = ProjectName.of(PROJECT_ID);
-      SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+    // @BeforeClass
+    // public static void setup() throws IOException {
+    //   secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
+    //   SecretManagerServiceClient client;
+    //   try {
+    //     client = SecretManagerServiceClient.create();
+    //   } catch (IOException e) {
+    //     gcpSecretVersionName = null;
+    //     return;
+    //   }
+    //   ProjectName projectName = ProjectName.of(PROJECT_ID);
+    //   SecretName secretName = SecretName.of(PROJECT_ID, secretId);
 
-      try {
-        client.getSecret(secretName);
-      } catch (Exception e) {
-        com.google.cloud.secretmanager.v1.Secret secret =
-            com.google.cloud.secretmanager.v1.Secret.newBuilder()
-                .setReplication(
-                    com.google.cloud.secretmanager.v1.Replication.newBuilder()
-                        .setAutomatic(
-                            com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
-                                .build())
-                        .build())
-                .build();
-        client.createSecret(projectName, secretId, secret);
-        byte[] secretBytes = new byte[32];
-        new SecureRandom().nextBytes(secretBytes);
-        client.addSecretVersion(
-            secretName,
-            SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
-      }
-      gcpSecretVersionName = secretName.toString() + "/versions/latest";
-    }
+    //   try {
+    //     client.getSecret(secretName);
+    //   } catch (Exception e) {
+    //     com.google.cloud.secretmanager.v1.Secret secret =
+    //         com.google.cloud.secretmanager.v1.Secret.newBuilder()
+    //             .setReplication(
+    //                 com.google.cloud.secretmanager.v1.Replication.newBuilder()
+    //                     .setAutomatic(
+    //                         com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
+    //                             .build())
+    //                     .build())
+    //             .build();
+    //     client.createSecret(projectName, secretId, secret);
+    //     byte[] secretBytes = new byte[32];
+    //     new SecureRandom().nextBytes(secretBytes);
+    //     client.addSecretVersion(
+    //         secretName,
+    //         SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
+    //   }
+    //   gcpSecretVersionName = secretName.toString() + "/versions/latest";
+    // }
 
-    @AfterClass
-    public static void tearDown() throws IOException {
-      if (gcpSecretVersionName != null) {
-        SecretManagerServiceClient client = SecretManagerServiceClient.create();
-        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
-        client.deleteSecret(secretName);
-      }
-    }
+  //   @AfterClass
+  //   public static void tearDown() throws IOException {
+  //     if (gcpSecretVersionName != null) {
+  //       SecretManagerServiceClient client = SecretManagerServiceClient.create();
+  //       SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+  //       client.deleteSecret(secretName);
+  //     }
+  //   }
   }
 
   /** Tests validating basic {@link GroupByKey} scenarios. */
