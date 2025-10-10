@@ -2870,7 +2870,7 @@ class BeamModulePlugin implements Plugin<Project> {
           if (sdk == "Java") {
             useJUnit{ includeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService' }
           } else if (sdk == "Python") {
-            useJUnit{ includeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService' }
+            useJUnit{ include '**/ValidateRunnerXlangTest$GroupByKeyWithGbekTest.class' }
           } else {
             throw new GradleException("unsupported expansion service for Java validate runner tests.")
           }

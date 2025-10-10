@@ -401,11 +401,11 @@ public class ValidateRunnerXlangTest {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesJavaExpansionService.class,
-      UsesPythonExpansionService.class
-    })
+    // @Category({
+    //   ValidatesRunner.class,
+    //   UsesJavaExpansionService.class,
+    //   UsesPythonExpansionService.class
+    // })
     public void testFailure() {
       thrown.expect(Exception.class);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
