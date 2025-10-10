@@ -154,13 +154,13 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	ts := comps.GetTransforms()
 	pcols := comps.GetPcollections()
 
-	config := engine.Config{}
+	config := engine.Config{EnableRTC: true}
 	m := j.PipelineOptions().AsMap()
 	if experimentsSlice, ok := m["beam:option:experiments:v1"].([]interface{}); ok {
 		for _, exp := range experimentsSlice {
 			if expStr, ok := exp.(string); ok {
-				if expStr == "prism_enable_rtc" {
-					config.EnableRTC = true
+				if expStr == "prism_disable_rtc" {
+					config.EnableRTC = false
 					break // Found it, no need to check the rest of the slice
 				}
 			}
