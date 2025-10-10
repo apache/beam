@@ -1009,6 +1009,29 @@ message StateKey {
     bytes key = 4;
   }
 
+  // Represents a request for all of the entries of a multimap associated with a
+  // specified user key and window for a PTransform. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // Can only be used to perform StateGetRequests and StateClearRequests on the
+  // user state.
+  //
+  // The response data stream will be a concatenation of pairs, where the first
+  // component is the map key and the second component is a concatenation of
+  // values associated with that map key.
+  message MultimapEntriesUserState {
+    // (Required) The id of the PTransform containing user state.
+    string transform_id = 1;
+    // (Required) The id of the user state.
+    string user_state_id = 2;
+    // (Required) The window encoded in a nested context.
+    bytes window = 3;
+    // (Required) The key of the currently executing element encoded in a
+    // nested context.
+    bytes key = 4;
+  }
+
   // Represents a request for the values of the map key associated with a
   // specified user key and window for a PTransform. See
   // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
@@ -1064,6 +1087,7 @@ message StateKey {
     MultimapKeysSideInput multimap_keys_side_input = 5;
     MultimapKeysValuesSideInput multimap_keys_values_side_input = 8;
     MultimapKeysUserState multimap_keys_user_state = 6;
+    MultimapEntriesUserState multimap_entries_user_state = 10;
     MultimapUserState multimap_user_state = 7;
     OrderedListUserState ordered_list_user_state = 9;
   }

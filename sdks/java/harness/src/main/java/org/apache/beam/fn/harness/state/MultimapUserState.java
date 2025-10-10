@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
@@ -38,13 +39,19 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /**
  * An implementation of a multimap user state that utilizes the Beam Fn State API to fetch, clear
@@ -52,9 +59,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
  *
  * <p>Calling {@link #asyncClose()} schedules any required persistence changes. This object should
  * no longer be used after it is closed.
- *
- * <p>TODO: Move to an async persist model where persistence is signalled based upon cache memory
- * pressure and its need to flush.
  */
 public class MultimapUserState<K, V> {
 
@@ -63,8 +67,10 @@ public class MultimapUserState<K, V> {
   private final Coder<K> mapKeyCoder;
   private final Coder<V> valueCoder;
   private final StateRequest keysStateRequest;
+  private final StateRequest entriesStateRequest;
   private final StateRequest userStateRequest;
   private final CachingStateIterable<K> persistedKeys;
+  private final CachingStateIterable<KV<K, Iterable<V>>> persistedEntries;
 
   private boolean isClosed;
   private boolean isCleared;
@@ -90,6 +96,8 @@ public class MultimapUserState<K, V> {
     this.mapKeyCoder = mapKeyCoder;
     this.valueCoder = valueCoder;
 
+    // Note: These StateRequest protos are constructed even if we never try to read the
+    // corresponding state type. Consider constructing them lazily, as needed.
     this.keysStateRequest =
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.persistedKeys =
@@ -106,6 +114,23 @@ public class MultimapUserState<K, V> {
         .setWindow(stateKey.getMultimapKeysUserState().getWindow())
         .setKey(stateKey.getMultimapKeysUserState().getKey());
     this.userStateRequest = userStateRequestBuilder.build();
+
+    StateRequest.Builder entriesStateRequestBuilder = StateRequest.newBuilder();
+    entriesStateRequestBuilder
+        .setInstructionId(instructionId)
+        .getStateKeyBuilder()
+        .getMultimapEntriesUserStateBuilder()
+        .setTransformId(stateKey.getMultimapKeysUserState().getTransformId())
+        .setUserStateId(stateKey.getMultimapKeysUserState().getUserStateId())
+        .setWindow(stateKey.getMultimapKeysUserState().getWindow())
+        .setKey(stateKey.getMultimapKeysUserState().getKey());
+    this.entriesStateRequest = entriesStateRequestBuilder.build();
+    this.persistedEntries =
+        StateFetchingIterators.readAllAndDecodeStartingFrom(
+            Caches.subCache(this.cache, "AllEntries"),
+            beamFnStateClient,
+            entriesStateRequest,
+            KvCoder.of(mapKeyCoder, IterableCoder.of(valueCoder)));
   }
 
   public void clear() {
@@ -200,7 +225,7 @@ public class MultimapUserState<K, V> {
               nextKey = persistedKeysIterator.next();
               Object nextKeyStructuralValue = mapKeyCoder.structuralValue(nextKey);
               if (!pendingRemovesNow.contains(nextKeyStructuralValue)) {
-                // Remove all keys that we will visit when passing over the persistedKeysIterator
+                // Remove all keys that we will visit when passing over the persistedKeysIterator,
                 // so we do not revisit them when passing over the pendingAddsNowIterator
                 if (pendingAddsNow.containsKey(nextKeyStructuralValue)) {
                   pendingAddsNow.remove(nextKeyStructuralValue);
@@ -229,6 +254,112 @@ public class MultimapUserState<K, V> {
             }
             hasNext = false;
             return nextKey;
+          }
+        };
+      }
+    };
+  }
+
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/21068)
+  })
+  /*
+   * Returns an Iterable containing all <K, V> entries in this multimap.
+   */
+  public PrefetchableIterable<Map.Entry<K, V>> entries() {
+    checkState(
+        !isClosed,
+        "Multimap user state is no longer usable because it is closed for %s",
+        keysStateRequest.getStateKey());
+    // Make a deep copy of pendingAdds so this iterator represents a snapshot of state at the time
+    // it was created.
+    Map<Object, KV<K, List<V>>> pendingAddsNow = ImmutableMap.copyOf(pendingAdds);
+    if (isCleared) {
+      return PrefetchableIterables.maybePrefetchable(
+          Iterables.concat(
+              Iterables.transform(
+                  pendingAddsNow.entrySet(),
+                  entry ->
+                      Iterables.transform(
+                          entry.getValue().getValue(),
+                          value -> Maps.immutableEntry(entry.getValue().getKey(), value)))));
+    }
+
+    Set<Object> pendingRemovesNow = ImmutableSet.copyOf(pendingRemoves.keySet());
+    return new PrefetchableIterables.Default<Map.Entry<K, V>>() {
+      @Override
+      public PrefetchableIterator<Map.Entry<K, V>> createIterator() {
+        return new PrefetchableIterator<Map.Entry<K, V>>() {
+          // We can get the same key multiple times from persistedEntries in the case that its
+          // values are paginated across multiple pages. Keep track of which keys we've seen, so we
+          // only add in pendingAdds once (with the first page). We'll also use it to return all
+          // keys not on the backend at the end of the iterator.
+          Set<Object> seenKeys = Sets.newHashSet();
+          final PrefetchableIterator<Map.Entry<K, V>> allEntries =
+              PrefetchableIterables.concat(
+                      Iterables.concat(
+                          Iterables.filter(
+                              Iterables.transform(
+                                  persistedEntries,
+                                  entry -> {
+                                    final Object structuralKey =
+                                        mapKeyCoder.structuralValue(entry.getKey());
+                                    if (pendingRemovesNow.contains(structuralKey)) {
+                                      return null;
+                                    }
+                                    // add returns true if we haven't seen this key yet.
+                                    if (seenKeys.add(structuralKey)
+                                        && pendingAddsNow.containsKey(structuralKey)) {
+                                      return PrefetchableIterables.concat(
+                                          Iterables.transform(
+                                              pendingAddsNow.get(structuralKey).getValue(),
+                                              pendingAdd ->
+                                                  Maps.immutableEntry(entry.getKey(), pendingAdd)),
+                                          Iterables.transform(
+                                              entry.getValue(),
+                                              value -> Maps.immutableEntry(entry.getKey(), value)));
+                                    }
+                                    return Iterables.transform(
+                                        entry.getValue(),
+                                        value -> Maps.immutableEntry(entry.getKey(), value));
+                                  }),
+                              Objects::nonNull)),
+                      Iterables.concat(
+                          Iterables.filter(
+                              Iterables.transform(
+                                  pendingAddsNow.entrySet(),
+                                  entry -> {
+                                    if (seenKeys.contains(entry.getKey())) {
+                                      return null;
+                                    }
+                                    return Iterables.transform(
+                                        entry.getValue().getValue(),
+                                        value ->
+                                            Maps.immutableEntry(entry.getValue().getKey(), value));
+                                  }),
+                              Objects::nonNull)))
+                  .iterator();
+
+          @Override
+          public boolean isReady() {
+            return allEntries.isReady();
+          }
+
+          @Override
+          public void prefetch() {
+            if (!isReady()) {
+              allEntries.prefetch();
+            }
+          }
+
+          @Override
+          public boolean hasNext() {
+            return allEntries.hasNext();
+          }
+
+          @Override
+          public Map.Entry<K, V> next() {
+            return allEntries.next();
           }
         };
       }
