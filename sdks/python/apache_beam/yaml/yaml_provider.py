@@ -68,6 +68,8 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class NotAvailableWithReason:
   """A False value that provides additional content.
