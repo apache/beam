@@ -39,8 +39,8 @@ import org.apache.beam.sdk.values.PCollection;
  * the output. This is useful when the keys contain sensitive data that should not be stored at rest
  * by the runner.
  *
- * <p>The transform requires a {@link Secret} which returns a base64 encoded 32 byte secret which
- * can be used to generate a {@link SecretKeySpec} object using the HmacSHA256 algorithm.
+ * <p>The transform requires a {@link Secret} which returns a 32 byte secret which can be used to
+ * generate a {@link SecretKeySpec} object using the HmacSHA256 algorithm.
  *
  * <p>Note the following caveats: 1) Runners can implement arbitrary materialization steps, so this
  * does not guarantee that the whole pipeline will not have unencrypted data at rest by itself. 2)
@@ -153,7 +153,7 @@ public class GroupByEncryptedKey<K, V>
     @Setup
     public void setup() {
       try {
-        byte[] secretBytes = java.util.Base64.getUrlDecoder().decode(this.hmacKey.getSecretBytes());
+        byte[] secretBytes = this.hmacKey.getSecretBytes();
         this.mac = Mac.getInstance("HmacSHA256");
         this.mac.init(new SecretKeySpec(secretBytes, "HmacSHA256"));
         this.cipher = Cipher.getInstance("AES/GCM/NoPadding");
@@ -229,9 +229,7 @@ public class GroupByEncryptedKey<K, V>
     public void setup() {
       try {
         this.cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        this.secretKeySpec =
-            new SecretKeySpec(
-                java.util.Base64.getUrlDecoder().decode(this.hmacKey.getSecretBytes()), "AES");
+        this.secretKeySpec = new SecretKeySpec(this.hmacKey.getSecretBytes(), "AES");
       } catch (Exception ex) {
         throw new RuntimeException(
             "Failed to initialize cryptography libraries needed for GroupByEncryptedKey", ex);

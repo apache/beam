@@ -420,7 +420,7 @@ public interface PipelineOptions extends HasDisplayData {
    * <p>Beam will infer the secret type and value based on the secret itself. This guarantees that
    * any data at rest during the performing a GBK, so this can be used to guarantee that data is not
    * unencrypted. Runners with this behavior include the Dataflow, Flink, and Spark runners. The
-   * secret should be a url safe base64 encoded 32 byte value. The option should be structured like:
+   * option should be structured like:
    *
    * <pre><code>
    * --gbek=type:<secret_type>;<secret_param>:<value>
@@ -432,19 +432,14 @@ public interface PipelineOptions extends HasDisplayData {
    * --gbek=type:GcpSecret;version_name:my_secret/versions/latest"
    * </code></pre>
    *
-   * All variables should use snake case to allow consistency across languages. For an example of
-   * generating a properly formatted secret, see
-   * https://github.com/apache/beam/blob/c8df4da229da49d533491857e1bb4ab5dbf4fd37/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/GroupByKeyIT.java#L82
+   * All variables should use snake case to allow consistency across languages.
    */
   @Description(
       "When set, will replace all GroupByKey transforms in the pipeline the option. Beam will"
           + " infer the secret type and value based on the secret itself. This guarantees that"
           + " any data at rest during the performing a GBK, so this can be used to guarantee"
           + " that data is not unencrypted. Runners with this behavior include the Dataflow,"
-          + " Flink, and Spark runners. The secret should be a url safe base64 encoded 32 byte"
-          + " value. For an example of generating a properly formatted secret, see"
-          + " https://github.com/apache/beam/blob/c8df4da229da49d533491857e1bb4ab5dbf4fd37/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/GroupByKeyIT.java#L82"
-          + " When passing in the gbek option, it should be structured like:"
+          + " Flink, and Spark runners. The option should be structured like:"
           + " --gbek=type:<secret_type>;<secret_param>:<value>, for example "
           + " --gbek=type:GcpSecret;version_name:my_secret/versions/latest. All variables "
           + " should use snake case to allow consistency across languages.")

@@ -56,11 +56,11 @@ buildCache {
     url = uri("https://beam-cache.apache.org/cache/")
     isAllowUntrustedServer = false
     credentials {
-      username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
-      password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+      username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME_DISABLED")
+      password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD_DISABLED")
     }
-    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME_DISABLED").isNullOrBlank()
+    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME_DISABLED").isNullOrBlank()
   }
 }
 
