@@ -116,7 +116,9 @@ public class TimerUtils {
     }
 
     @Override
-    public @Nullable Boolean isDraining() { return null; }
+    public @Nullable Boolean isDraining() {
+      return null;
+    }
 
     @Override
     public @Nullable Long getRecordOffset() {
