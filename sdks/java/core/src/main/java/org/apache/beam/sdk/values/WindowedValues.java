@@ -275,12 +275,16 @@ public class WindowedValues {
   /** @deprecated for use only in compatibility with old broken code */
   @Deprecated
   static <T> WindowedValue<T> createWithoutValidation(
-      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      @Nullable Boolean draining) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo);
+      return of(value, timestamp, windows.iterator().next(), paneInfo, draining);
     } else {
       return new TimestampedValueInMultipleWindows<>(
-          value, timestamp, windows, paneInfo, null, null, null);
+          value, timestamp, windows, paneInfo, null, null, draining);
     }
   }
 
@@ -906,7 +910,16 @@ public class WindowedValues {
       if (metadataSupported) {
         BeamFnApi.Elements.ElementMetadata.Builder builder =
             BeamFnApi.Elements.ElementMetadata.newBuilder();
-        BeamFnApi.Elements.ElementMetadata em = builder.build();
+        BeamFnApi.Elements.ElementMetadata em =
+            builder
+                .setDrain(
+                    windowedElem.isDraining() != null
+                        ? (Boolean.TRUE.equals(windowedElem.isDraining())
+                            ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                            : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+                        : BeamFnApi.Elements.DrainMode.Enum.UNSPECIFIED)
+                .build();
+
         ByteArrayCoder.of().encode(em.toByteArray(), outStream);
       }
       valueCoder.encode(windowedElem.getValue(), outStream, context);
@@ -923,14 +936,21 @@ public class WindowedValues {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+      Boolean draining = null;
       if (isMetadataSupported() && paneInfo.isElementMetadata()) {
-        BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+        BeamFnApi.Elements.ElementMetadata elementMetadata =
+            BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+        boolean b = elementMetadata.hasDrain();
+        draining =
+            b
+                ? elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
+                : null;
       }
       T value = valueCoder.decode(inStream, context);
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
       // we call this deprecated no-validation path when decoding
-      return WindowedValues.createWithoutValidation(value, timestamp, windows, paneInfo);
+      return WindowedValues.createWithoutValidation(value, timestamp, windows, paneInfo, draining);
     }
 
     @Override
