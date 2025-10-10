@@ -75,7 +75,7 @@ public abstract class AbstractInOutIterator<K, InputT, OutputT>
               window,
               timer.getTimestamp(),
               timer.getOutputTimestamp(),
-              timer.getDomain());
+              timer.getDomain(), null);
     } finally {
       if (this.ctx.getTimerDataIterator()
           instanceof ParDoStateUpdateFn.SparkTimerInternalsIterator) {
