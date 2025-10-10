@@ -1122,8 +1122,12 @@ public class CassandraIOTest implements Serializable {
 
     @Override
     public boolean equals(@Nullable Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       ReservedKeywordEntity that = (ReservedKeywordEntity) o;
       return Objects.equal(trueColumn, that.trueColumn)
           && Objects.equal(keyColumn, that.keyColumn)
@@ -1159,8 +1163,12 @@ public class CassandraIOTest implements Serializable {
 
     @Override
     public boolean equals(@Nullable Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       CustomQueryEntity that = (CustomQueryEntity) o;
       return Objects.equal(fromColumn, that.fromColumn)
           && Objects.equal(whereColumn, that.whereColumn)
@@ -1192,8 +1200,12 @@ public class CassandraIOTest implements Serializable {
 
     @Override
     public boolean equals(@Nullable Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       MultiPartitionEntity that = (MultiPartitionEntity) o;
       return Objects.equal(tableColumn, that.tableColumn)
           && Objects.equal(indexColumn, that.indexColumn)
