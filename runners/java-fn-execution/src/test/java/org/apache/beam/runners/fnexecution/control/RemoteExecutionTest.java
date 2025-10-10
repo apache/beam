@@ -2254,6 +2254,7 @@ public class RemoteExecutionTest implements Serializable {
         Collections.singletonList(GlobalWindow.INSTANCE),
         BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(fireTimestamp)),
         BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(holdTimestamp)),
-        PaneInfo.NO_FIRING);
+        PaneInfo.NO_FIRING,
+        null);
   }
 }

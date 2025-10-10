@@ -326,7 +326,8 @@ public class CommonCoderTest {
           windows,
           new Instant(((Number) kvMap.get("fireTimestamp")).longValue()),
           new Instant(((Number) kvMap.get("holdTimestamp")).longValue()),
-          paneInfo);
+          paneInfo,
+          null);
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());
