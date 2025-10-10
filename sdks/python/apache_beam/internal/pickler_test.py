@@ -302,6 +302,21 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
         dumps(set1, enable_best_effort_determinism=False),
         dumps(set2, enable_best_effort_determinism=False))
 
+  def test_enable_stable_code_identifier_pickling(self):
+    pickler.set_library('cloudpickle')
+    pickled = pickler.loads(
+        pickler.dumps(lambda x: x, enable_stable_code_identifier_pickling=True))
+    pickled_type = type(pickled)
+    self.assertIsInstance(pickled, pickled_type)
+
+  def test_disable_stable_code_identifier_pickling(self):
+    pickler.set_library('cloudpickle')
+    pickled = pickler.loads(
+        pickler.dumps(
+            lambda x: x, enable_stable_code_identifier_pickling=False))
+    pickled_type = type(pickled)
+    self.assertIsInstance(pickled, pickled_type)
+
 
 if __name__ == '__main__':
   unittest.main()
