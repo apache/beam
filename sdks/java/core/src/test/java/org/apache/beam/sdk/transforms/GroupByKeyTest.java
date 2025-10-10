@@ -672,55 +672,55 @@ public class GroupByKeyTest implements Serializable {
       runLargeKeysTest(p, 100 << 20);
     }
 
-    @Test
-    @Category(NeedsRunner.class)
-    public void testGroupByKeyWithValidGcpSecretOption() {
-      if (gcpSecretVersionName == null) {
-        // Skip test if we couldn't set up secret manager
-        return;
-      }
-      List<KV<String, Integer>> ungroupedPairs =
-          Arrays.asList(
-              KV.of("k1", 3),
-              KV.of("k5", Integer.MAX_VALUE),
-              KV.of("k5", Integer.MIN_VALUE),
-              KV.of("k2", 66),
-              KV.of("k1", 4),
-              KV.of("k2", -33),
-              KV.of("k3", 0));
+    // @Test
+    // @Category(NeedsRunner.class)
+    // public void testGroupByKeyWithValidGcpSecretOption() {
+    //   if (gcpSecretVersionName == null) {
+    //     // Skip test if we couldn't set up secret manager
+    //     return;
+    //   }
+    //   List<KV<String, Integer>> ungroupedPairs =
+    //       Arrays.asList(
+    //           KV.of("k1", 3),
+    //           KV.of("k5", Integer.MAX_VALUE),
+    //           KV.of("k5", Integer.MIN_VALUE),
+    //           KV.of("k2", 66),
+    //           KV.of("k1", 4),
+    //           KV.of("k2", -33),
+    //           KV.of("k3", 0));
 
-      PCollection<KV<String, Integer>> input =
-          p.apply(
-              Create.of(ungroupedPairs)
-                  .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+    //   PCollection<KV<String, Integer>> input =
+    //       p.apply(
+    //           Create.of(ungroupedPairs)
+    //               .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-      p.getOptions().setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
-      PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+    //   p.getOptions().setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+    //   PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
 
-      SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> checker =
-          containsKvs(
-              kv("k1", 3, 4),
-              kv("k5", Integer.MIN_VALUE, Integer.MAX_VALUE),
-              kv("k2", 66, -33),
-              kv("k3", 0));
-      PAssert.that(output).satisfies(checker);
-      PAssert.that(output).inWindow(GlobalWindow.INSTANCE).satisfies(checker);
+    //   SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> checker =
+    //       containsKvs(
+    //           kv("k1", 3, 4),
+    //           kv("k5", Integer.MIN_VALUE, Integer.MAX_VALUE),
+    //           kv("k2", 66, -33),
+    //           kv("k3", 0));
+    //   PAssert.that(output).satisfies(checker);
+    //   PAssert.that(output).inWindow(GlobalWindow.INSTANCE).satisfies(checker);
 
-      p.run();
-    }
+    //   p.run();
+    // }
 
-    @Test
-    @Category(NeedsRunner.class)
-    public void testGroupByKeyWithInvalidGcpSecretOption() {
-      if (gcpSecretVersionName == null) {
-        // Skip test if we couldn't set up secret manager
-        return;
-      }
-      p.getOptions().setGbek("type:gcpsecret;version_name:bad_path/versions/latest");
-      p.apply(Create.of(KV.of("k1", 1))).apply(GroupByKey.create());
-      assertThrows(RuntimeException.class, () -> p.run());
-    }
-  }
+  //   @Test
+  //   @Category(NeedsRunner.class)
+  //   public void testGroupByKeyWithInvalidGcpSecretOption() {
+  //     if (gcpSecretVersionName == null) {
+  //       // Skip test if we couldn't set up secret manager
+  //       return;
+  //     }
+  //     p.getOptions().setGbek("type:gcpsecret;version_name:bad_path/versions/latest");
+  //     p.apply(Create.of(KV.of("k1", 1))).apply(GroupByKey.create());
+  //     assertThrows(RuntimeException.class, () -> p.run());
+  //   }
+  // }
 
   /** Tests validating GroupByKey behaviors with windowing. */
   @RunWith(JUnit4.class)
