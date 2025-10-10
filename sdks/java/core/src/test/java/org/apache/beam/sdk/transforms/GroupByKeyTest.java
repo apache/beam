@@ -614,6 +614,7 @@ public class GroupByKeyTest implements Serializable {
     public void testLargeKeys100MB() throws Exception {
       runLargeKeysTest(p, 100 << 20);
     }
+  }
 
   /** Tests validating GroupByKey behaviors with windowing. */
   @RunWith(JUnit4.class)
