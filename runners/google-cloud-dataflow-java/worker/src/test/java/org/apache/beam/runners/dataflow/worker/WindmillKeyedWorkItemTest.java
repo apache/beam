@@ -93,7 +93,7 @@ public class WindmillKeyedWorkItemTest {
 
     KeyedWorkItem<String, String> keyedWorkItem =
         new WindmillKeyedWorkItem<>(
-            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, null);
 
     assertThat(
         keyedWorkItem.elementsIterable(),
