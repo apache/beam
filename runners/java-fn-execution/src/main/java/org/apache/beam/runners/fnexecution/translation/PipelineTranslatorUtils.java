@@ -156,7 +156,8 @@ public final class PipelineTranslatorUtils {
             Collections.singletonList(window),
             timestamp,
             outputTimestamp,
-            PaneInfo.NO_FIRING);
+            PaneInfo.NO_FIRING,
+            null);
     KV<String, String> transformAndTimerId =
         TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerFamilyId());
     FnDataReceiver<Timer> fnTimerReceiver = timerReceivers.get(transformAndTimerId);

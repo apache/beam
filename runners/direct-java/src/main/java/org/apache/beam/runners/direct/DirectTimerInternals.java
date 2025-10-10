@@ -67,7 +67,8 @@ class DirectTimerInternals implements TimerInternals {
       Instant target,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-    setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
+    setTimer(
+        TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain, null));
   }
 
   /**
@@ -92,7 +93,8 @@ class DirectTimerInternals implements TimerInternals {
             namespace,
             BoundedWindow.TIMESTAMP_MIN_VALUE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
-            timeDomain));
+            timeDomain,
+            null));
   }
 
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */

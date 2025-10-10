@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -65,6 +64,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -318,7 +318,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
                 timestamp,
                 timestamp,
-                TimeDomain.EVENT_TIME)));
+                TimeDomain.EVENT_TIME,
+                null)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -361,7 +362,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
               StateNamespaces.window(IntervalWindow.getCoder(), (IntervalWindow) window),
               timestamp,
               outputTimestamp,
-              timeDomain, draining));
+              timeDomain,
+              draining));
     }
 
     @Override

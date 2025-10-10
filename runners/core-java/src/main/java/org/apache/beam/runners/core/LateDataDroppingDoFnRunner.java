@@ -92,7 +92,8 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
       Instant outputTimestamp,
       TimeDomain timeDomain,
       @Nullable Boolean draining) {
-    doFnRunner.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
+    doFnRunner.onTimer(
+        timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
   }
 
   @Override

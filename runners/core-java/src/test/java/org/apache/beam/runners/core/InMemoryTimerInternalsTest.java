@@ -41,9 +41,9 @@ public class InMemoryTimerInternalsTest {
   public void testFiringEventTimers() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTimer1 =
-        TimerData.of(ID1, NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME);
+        TimerData.of(ID1, NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME, null);
     TimerData eventTimer2 =
-        TimerData.of(ID2, NS1, new Instant(29), new Instant(29), TimeDomain.EVENT_TIME);
+        TimerData.of(ID2, NS1, new Instant(29), new Instant(29), TimeDomain.EVENT_TIME, null);
 
     underTest.setTimer(eventTimer1);
     underTest.setTimer(eventTimer2);
@@ -82,7 +82,9 @@ public class InMemoryTimerInternalsTest {
     underTest.advanceInputWatermark(laterTimestamp.plus(Duration.millis(1L)));
     assertThat(
         underTest.removeNextEventTimer(),
-        equalTo(TimerData.of(ID1, "", NS1, laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME)));
+        equalTo(
+            TimerData.of(
+                ID1, "", NS1, laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME, null)));
   }
 
   @Test
@@ -111,9 +113,9 @@ public class InMemoryTimerInternalsTest {
   public void testFiringProcessingTimeTimers() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData processingTime1 =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME);
+        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME, null);
     TimerData processingTime2 =
-        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.PROCESSING_TIME);
+        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.PROCESSING_TIME, null);
 
     underTest.setTimer(processingTime1);
     underTest.setTimer(processingTime2);
@@ -142,19 +144,19 @@ public class InMemoryTimerInternalsTest {
   public void testTimerOrdering() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTime1 =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME);
+        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME, null);
     TimerData processingTime1 =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME);
+        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME, null);
     TimerData synchronizedProcessingTime1 =
         TimerData.of(
-            NS1, new Instant(19), new Instant(19), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            NS1, new Instant(19), new Instant(19), TimeDomain.SYNCHRONIZED_PROCESSING_TIME, null);
     TimerData eventTime2 =
-        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.EVENT_TIME);
+        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.EVENT_TIME, null);
     TimerData processingTime2 =
-        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.PROCESSING_TIME);
+        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.PROCESSING_TIME, null);
     TimerData synchronizedProcessingTime2 =
         TimerData.of(
-            NS1, new Instant(29), new Instant(29), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            NS1, new Instant(29), new Instant(29), TimeDomain.SYNCHRONIZED_PROCESSING_TIME, null);
 
     underTest.setTimer(processingTime1);
     underTest.setTimer(eventTime1);
@@ -188,9 +190,9 @@ public class InMemoryTimerInternalsTest {
   public void testDeduplicate() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTime =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME);
+        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME, null);
     TimerData processingTime =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME);
+        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME, null);
     underTest.setTimer(eventTime);
     underTest.setTimer(eventTime);
     underTest.setTimer(processingTime);

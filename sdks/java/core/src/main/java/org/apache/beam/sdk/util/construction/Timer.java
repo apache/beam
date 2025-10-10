@@ -204,7 +204,8 @@ public abstract class Timer<K> {
       Instant fireTimestamp = InstantCoder.of().decode(inStream);
       Instant holdTimestamp = InstantCoder.of().decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
-      return Timer.of(userKey, dynamicTimerTag, windows, fireTimestamp, holdTimestamp, paneInfo, false);
+      return Timer.of(
+          userKey, dynamicTimerTag, windows, fireTimestamp, holdTimestamp, paneInfo, false);
     }
 
     @Override

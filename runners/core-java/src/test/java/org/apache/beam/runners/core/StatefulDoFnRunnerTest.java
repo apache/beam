@@ -468,7 +468,8 @@ public class StatefulDoFnRunnerTest {
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
-          timer.getDomain());
+          timer.getDomain(),
+          timer.getDraining());
     }
   }
 

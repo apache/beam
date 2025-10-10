@@ -140,7 +140,8 @@ public class SimpleDoFnRunnerTest {
         GlobalWindow.INSTANCE,
         new Instant(0),
         new Instant(0),
-        TimeDomain.EVENT_TIME);
+        TimeDomain.EVENT_TIME,
+        null);
   }
 
   /**
@@ -265,7 +266,8 @@ public class SimpleDoFnRunnerTest {
         GlobalWindow.INSTANCE,
         currentTime.plus(offset),
         currentTime.plus(offset),
-        TimeDomain.EVENT_TIME);
+        TimeDomain.EVENT_TIME,
+        null);
 
     assertThat(
         fn.onTimerInvocations,
@@ -276,7 +278,8 @@ public class SimpleDoFnRunnerTest {
                 StateNamespaces.window(windowFn.windowCoder(), GlobalWindow.INSTANCE),
                 currentTime.plus(offset),
                 currentTime.plus(offset),
-                TimeDomain.EVENT_TIME)));
+                TimeDomain.EVENT_TIME,
+                null)));
   }
 
   /**
@@ -592,7 +595,8 @@ public class SimpleDoFnRunnerTest {
         GlobalWindow.INSTANCE,
         new Instant(0),
         new Instant(0),
-        TimeDomain.EVENT_TIME);
+        TimeDomain.EVENT_TIME,
+        null);
   }
 
   @Test
@@ -624,7 +628,8 @@ public class SimpleDoFnRunnerTest {
                   GlobalWindow.INSTANCE,
                   new Instant(0),
                   new Instant(0),
-                  TimeDomain.EVENT_TIME);
+                  TimeDomain.EVENT_TIME,
+                  null);
             });
 
     assertThat(exception.getCause(), isA(IllegalArgumentException.class));
@@ -701,7 +706,8 @@ public class SimpleDoFnRunnerTest {
               StateNamespaces.window(windowCoder, (W) context.window()),
               context.fireTimestamp(),
               context.timestamp(),
-              context.timeDomain()));
+              context.timeDomain(),
+              null));
     }
   }
 

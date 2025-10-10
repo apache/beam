@@ -123,7 +123,8 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
           Collections.singletonList(GlobalWindow.INSTANCE),
           fireTimestamp,
           holdTimestamp,
-          PaneInfo.NO_FIRING);
+          PaneInfo.NO_FIRING,
+          null);
     }
 
     private <T> WindowedValue<T> valueInWindows(
