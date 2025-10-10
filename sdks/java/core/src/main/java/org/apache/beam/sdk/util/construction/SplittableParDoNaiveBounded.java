@@ -537,6 +537,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public Boolean draining() {
+        return outerContext.draining();
+      }
+
+      @Override
       public Object sideInput(String tagId) {
         PCollectionView<?> view = sideInputMapping.get(tagId);
         if (view == null) {

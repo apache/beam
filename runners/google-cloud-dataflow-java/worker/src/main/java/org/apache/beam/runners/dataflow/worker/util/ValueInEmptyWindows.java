@@ -60,6 +60,11 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   }
 
   @Override
+  public @Nullable Boolean isDraining() {
+    return null;
+  }
+
+  @Override
   public Iterable<WindowedValue<T>> explodeWindows() {
     return Collections.emptyList();
   }

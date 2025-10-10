@@ -361,6 +361,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     @Pure
     public abstract Long currentRecordOffset();
+
+    @Pure
+    public abstract Boolean draining();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
@@ -377,6 +380,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     /** Returns the time domain of the current timer. */
     public abstract TimeDomain timeDomain();
+
+    @Pure
+    public abstract Boolean draining();
   }
 
   public abstract class OnWindowExpirationContext extends WindowedContext {
@@ -857,6 +863,15 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
   public @interface Element {}
+
+  /**
+   * Parameter annotation for the drain information for {@link ProcessElement} and {@link OnTimer}
+   * methods.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface Draining {}
 
   /**
    * Parameter annotation for the restriction for {@link GetSize}, {@link SplitRestriction}, {@link

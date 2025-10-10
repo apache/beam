@@ -198,6 +198,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final PaneInfoTracker paneInfoTracker;
 
+  private final @Nullable Boolean draining;
+
   /**
    * Store whether we've seen any elements for a window since the last pane was emitted.
    *
@@ -219,7 +221,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       WindowedValueReceiver<KV<K, OutputT>> outputter,
       @Nullable SideInputReader sideInputReader,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
+      @Nullable Boolean draining,
       @Nullable PipelineOptions options) {
+    this.draining = draining;
     this.key = key;
     this.timerInternals = timerInternals;
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
@@ -248,6 +252,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             this.activeWindows,
             timerInternals,
             sideInputReader,
+            draining,
             options);
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
@@ -583,7 +588,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext directContext =
           contextFactory.forValue(
-              window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
+              window,
+              value.getValue(),
+              value.getTimestamp(),
+              StateStyle.DIRECT,
+              value.isDraining());
       if (triggerRunner.isClosed(directContext.state())) {
         // This window has already been closed.
         droppedDueToClosedWindow.inc();
@@ -601,7 +610,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       activeWindows.ensureWindowIsActive(window);
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext renamedContext =
           contextFactory.forValue(
-              window, value.getValue(), value.getTimestamp(), StateStyle.RENAMED);
+              window,
+              value.getValue(),
+              value.getTimestamp(),
+              StateStyle.RENAMED,
+              value.isDraining());
 
       nonEmptyPanes.recordContent(renamedContext.state());
       scheduleGarbageCollectionTimer(directContext);
@@ -722,6 +735,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         continue;
       }
 
+      // pass draining bit
       ReduceFn<K, InputT, OutputT, W>.Context directContext =
           contextFactory.base(window, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =

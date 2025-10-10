@@ -179,6 +179,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               new BundleWindowedValueReceiver<>(bundle),
               new UnsupportedSideInputReader(DirectGroupAlsoByWindow.class.getSimpleName()),
               reduceFn,
+              element.isDraining(),
               options);
 
       // Drop any elements within expired windows

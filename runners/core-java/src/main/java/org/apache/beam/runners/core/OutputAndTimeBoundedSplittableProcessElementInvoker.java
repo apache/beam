@@ -387,6 +387,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public Boolean draining() {
+      return element.isDraining();
+    }
+
+    @Override
     public String currentRecordId() {
       return element.getRecordId();
     }
@@ -439,7 +444,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       outputReceiver.output(
           mainOutputTag,
           WindowedValues.of(
-              value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+              value,
+              timestamp,
+              windows,
+              paneInfo,
+              currentRecordId,
+              currentRecordOffset,
+              element.isDraining()));
     }
 
     @Override
@@ -450,7 +461,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
       outputReceiver.output(
-          tag, WindowedValues.of(value, timestamp, element.getWindows(), element.getPaneInfo()));
+          tag,
+          WindowedValues.of(
+              value,
+              timestamp,
+              element.getWindows(),
+              element.getPaneInfo(),
+              element.getRecordId(),
+              element.getRecordOffset(),
+              element.isDraining()));
     }
 
     @Override
@@ -479,7 +498,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       outputReceiver.output(
           tag,
           WindowedValues.of(
-              value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+              value,
+              timestamp,
+              windows,
+              paneInfo,
+              currentRecordId,
+              currentRecordOffset,
+              element.isDraining()));
     }
 
     private void noteOutput() {

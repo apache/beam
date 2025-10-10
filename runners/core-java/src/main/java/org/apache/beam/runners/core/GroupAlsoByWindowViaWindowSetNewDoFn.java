@@ -107,6 +107,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
             windowedValue -> outputManager.output(mainTag, windowedValue),
             sideInputReader,
             reduceFn,
+            c.draining(),
             c.getPipelineOptions());
 
     reduceFnRunner.processElements(keyedWorkItem.elementsIterable());

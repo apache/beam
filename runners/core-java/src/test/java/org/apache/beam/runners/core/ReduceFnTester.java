@@ -89,6 +89,7 @@ import org.joda.time.Instant;
 })
 public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private static final String KEY = "TEST_KEY";
+  private static final Boolean DRAINING = null;
 
   private final TestInMemoryStateInternals<String> stateInternals =
       new TestInMemoryStateInternals<>(KEY);
@@ -302,6 +303,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         testOutputter,
         sideInputReader,
         reduceFn,
+        DRAINING,
         options);
   }
 
@@ -574,7 +576,11 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     ArrayList<TimerData> timers = new ArrayList<>(1);
     timers.add(
         TimerData.of(
-            StateNamespaces.window(windowFn.windowCoder(), window), timestamp, timestamp, domain));
+            StateNamespaces.window(windowFn.windowCoder(), window),
+            timestamp,
+            timestamp,
+            domain,
+            null));
     runner.onTimers(timers);
     runner.persist();
   }
@@ -588,7 +594,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
               StateNamespaces.window(windowFn.windowCoder(), window),
               timer.getTimestamp(),
               timer.getTimestamp(),
-              timer.getValue()));
+              timer.getValue(),
+              null));
     }
     runner.onTimers(timerData);
     runner.persist();

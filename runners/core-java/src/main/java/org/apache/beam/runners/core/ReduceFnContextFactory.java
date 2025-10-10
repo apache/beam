@@ -49,6 +49,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private final K key;
+  private final @Nullable Boolean draining;
   private final ReduceFn<K, InputT, OutputT, W> reduceFn;
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateInternals stateInternals;
@@ -65,7 +66,9 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       ActiveWindowSet<W> activeWindows,
       TimerInternals timerInternals,
       @Nullable SideInputReader sideInputReader,
+      @Nullable Boolean draining,
       @Nullable PipelineOptions options) {
+    this.draining = draining;
     this.key = key;
     this.reduceFn = reduceFn;
     this.windowingStrategy = windowingStrategy;
@@ -98,8 +101,8 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   public ReduceFn<K, InputT, OutputT, W>.ProcessValueContext forValue(
-      W window, InputT value, Instant timestamp, StateStyle style) {
-    return new ProcessValueContextImpl(stateAccessor(window, style), value, timestamp);
+      W window, InputT value, Instant timestamp, StateStyle style, Boolean draining) {
+    return new ProcessValueContextImpl(stateAccessor(window, style), value, timestamp, draining);
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnTriggerContext forTrigger(
@@ -135,17 +138,21 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public void setTimer(Instant timestamp, TimeDomain timeDomain) {
-      timerInternals.setTimer(TimerData.of(namespace, timestamp, timestamp, timeDomain));
+      // todo radoslaws@ should we pass draining bit to timerdata
+      timerInternals.setTimer(TimerData.of(namespace, timestamp, timestamp, timeDomain, false));
     }
 
     @Override
     public void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
-      timerInternals.setTimer(TimerData.of(namespace, timestamp, outputTimestamp, timeDomain));
+      // todo radoslaws@ should we pass draining bit to timerdata
+      timerInternals.setTimer(
+          TimerData.of(namespace, timestamp, outputTimestamp, timeDomain, false));
     }
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
-      timerInternals.deleteTimer(TimerData.of(namespace, timestamp, timestamp, timeDomain));
+      // todo radoslaws@ should we pass draining bit to timerdata
+      timerInternals.deleteTimer(TimerData.of(namespace, timestamp, timestamp, timeDomain, false));
     }
 
     @Override
@@ -328,6 +335,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
+    public Boolean draining() {
+      return draining;
+    }
+
+    @Override
     public W window() {
       return state.window();
     }
@@ -354,19 +366,26 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private final Instant timestamp;
     private final StateAccessorImpl<K, W> state;
     private final TimersImpl timers;
+    private final Boolean draining;
 
     private ProcessValueContextImpl(
-        StateAccessorImpl<K, W> state, InputT value, Instant timestamp) {
+        StateAccessorImpl<K, W> state, InputT value, Instant timestamp, Boolean draining) {
       reduceFn.super();
       this.state = state;
       this.value = value;
       this.timestamp = timestamp;
       this.timers = new TimersImpl(state.namespace());
+      this.draining = draining;
     }
 
     @Override
     public K key() {
       return key;
+    }
+
+    @Override
+    public Boolean draining() {
+      return draining;
     }
 
     @Override
@@ -421,6 +440,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
+    public Boolean draining() {
+      return draining;
+    }
+
+    @Override
     public W window() {
       return state.window();
     }
@@ -467,6 +491,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
+    public Boolean draining() {
+      return draining;
+    }
+
+    @Override
     public WindowingStrategy<?, W> windowingStrategy() {
       return windowingStrategy;
     }
@@ -500,6 +529,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public K key() {
       return key;
+    }
+
+    @Override
+    public Boolean draining() {
+      return draining;
     }
 
     @Override

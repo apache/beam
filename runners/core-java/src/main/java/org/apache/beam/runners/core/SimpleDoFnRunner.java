@@ -206,7 +206,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     Preconditions.checkNotNull(outputTimestamp, "outputTimestamp");
 
     OnTimerArgumentProvider<KeyT> argumentProvider =
-        new OnTimerArgumentProvider<>(timerId, key, window, timestamp, outputTimestamp, timeDomain, draining);
+        new OnTimerArgumentProvider<>(
+            timerId, key, window, timestamp, outputTimestamp, timeDomain, draining);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
@@ -364,7 +365,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                 Collections.singletonList(window),
                 PaneInfo.NO_FIRING,
                 currentRecordId,
-                currentRecordOffset, null));
+                currentRecordOffset,
+                null));
       }
     }
 
@@ -431,7 +433,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Boolean draining() { return elem.isDraining(); }
+    public Boolean draining() {
+      return elem.isDraining();
+    }
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
@@ -528,7 +532,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       SimpleDoFnRunner.this.outputWindowedValue(
           tag,
           WindowedValues.of(
-              output, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, elem.isDraining()));
+              output,
+              timestamp,
+              windows,
+              paneInfo,
+              currentRecordId,
+              currentRecordOffset,
+              elem.isDraining()));
     }
 
     @Override
@@ -772,7 +782,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                   .setTimestamp(timestamp)
                   .setWindow(window)
                   .setPaneInfo(PaneInfo.NO_FIRING)
-                .setDraining(draining));
+                  .setDraining(draining));
     }
 
     @Override
@@ -781,7 +791,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Boolean draining() { return draining; }
+    public Boolean draining() {
+      return draining;
+    }
 
     @Override
     public Instant fireTimestamp() {

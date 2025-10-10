@@ -490,7 +490,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           getMutableOutput(tag)
               .add(
                   ValueInSingleWindow.of(
-                      output, timestamp, window, PaneInfo.NO_FIRING, null, null));
+                      output, timestamp, window, PaneInfo.NO_FIRING, null, null, null));
         }
 
         @Override
@@ -519,7 +519,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                       window,
                       PaneInfo.NO_FIRING,
                       currentRecordId,
-                      currentRecordOffset));
+                      currentRecordOffset,
+                      null));
         }
       };
     }
@@ -609,6 +610,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public Boolean draining() {
+      return element.isDraining();
+    }
+
+    @Override
     public String currentRecordId() {
       return element.getCurrentRecordId();
     }
@@ -670,7 +676,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       getMutableOutput(tag)
           .add(
               ValueInSingleWindow.of(
-                  output, timestamp, element.getWindow(), element.getPaneInfo(), null, null));
+                  output, timestamp, element.getWindow(), element.getPaneInfo(), null, null, null));
     }
 
     @Override
@@ -682,7 +688,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         PaneInfo paneInfo) {
       for (BoundedWindow w : windows) {
         getMutableOutput(tag)
-            .add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, null, null));
+            .add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, null, null, null));
       }
     }
 
@@ -699,7 +705,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         getMutableOutput(tag)
             .add(
                 ValueInSingleWindow.of(
-                    output, timestamp, w, paneInfo, currentRecordId, currentRecordOffset));
+                    output, timestamp, w, paneInfo, currentRecordId, currentRecordOffset, null));
       }
     }
   }

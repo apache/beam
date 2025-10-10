@@ -44,6 +44,8 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** The window that is being processed. */
     public abstract W window();
 
+    public abstract Boolean draining();
+
     /** Access the current {@link WindowingStrategy}. */
     public abstract WindowingStrategy<?, W> windowingStrategy();
 
