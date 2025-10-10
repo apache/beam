@@ -80,7 +80,7 @@ final class GrpcGetDataStream
 
   static final FluentBackoff BACK_OFF_FACTORY =
       FluentBackoff.DEFAULT
-          .withInitialBackoff(Duration.millis(10))
+          .withInitialBackoff(Duration.millis(1))
           .withMaxBackoff(Duration.standardSeconds(10));
 
   /**
@@ -439,22 +439,23 @@ final class GrpcGetDataStream
       try {
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
-      } catch (AppendableInputStream.InvalidInputStreamStateException | CancellationException e) {
+      } catch (CancellationException e) {
         throwIfShutdown(request, e);
-        if (!(e instanceof CancellationException)) {
-          throw e;
-        }
+      } catch (AppendableInputStream.InvalidInputStreamStateException e) {
+        throwIfShutdown(request, e);
+        throw e;
       } catch (IOException e) {
         LOG.error("Parsing GetData response failed: ", e);
-        try {
-          BackOffUtils.next(Sleeper.DEFAULT, backoff);
-        } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
-        }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throwIfShutdown(request, e);
         throw new RuntimeException(e);
+      }
+      // In all cases we are going to retry, perform some backoff
+      try {
+        BackOffUtils.next(Sleeper.DEFAULT, backoff);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
       }
     }
   }
