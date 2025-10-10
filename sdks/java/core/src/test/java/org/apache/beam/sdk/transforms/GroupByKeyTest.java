@@ -720,7 +720,7 @@ public class GroupByKeyTest implements Serializable {
   //     p.apply(Create.of(KV.of("k1", 1))).apply(GroupByKey.create());
   //     assertThrows(RuntimeException.class, () -> p.run());
   //   }
-  // }
+  }
 
   /** Tests validating GroupByKey behaviors with windowing. */
   @RunWith(JUnit4.class)

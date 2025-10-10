@@ -122,7 +122,7 @@ public class GroupByKey<K, V>
   private GroupByKey(boolean fewKeys) {
     this.fewKeys = fewKeys;
     this.insideGBEK = false;
-    surroundsGBEK = false;
+    this.surroundsGBEK = false;
   }
 
   /**
