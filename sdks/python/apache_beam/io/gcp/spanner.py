@@ -684,8 +684,7 @@ class ReadChangeStreamFromSpanner(ExternalTransform):
   Example:
 
   with beam.Pipeline(options=pipeline_options) as p:
-    p | 
-    "ReadFromSpannerChangeStream" >> beam_spanner.ReadChangeStreamFromSpanner( 
+    p | "ReadFromSpannerChangeStream" >> beam_spanner.ReadChangeStreamFromSpanner( 
         project_id="spanner-project-id", 
         instance_id="spanner-instance-id", 
         database_id="spanner-database-id", 
