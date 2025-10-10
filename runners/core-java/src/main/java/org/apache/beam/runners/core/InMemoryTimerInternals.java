@@ -119,8 +119,7 @@ public class InMemoryTimerInternals implements TimerInternals {
       Instant target,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-    setTimer(
-        TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain, null));
+    setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
   }
 
   /**

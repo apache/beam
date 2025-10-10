@@ -318,8 +318,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
                 timestamp,
                 timestamp,
-                TimeDomain.EVENT_TIME,
-                null)));
+                TimeDomain.EVENT_TIME)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -357,13 +356,13 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         @Nullable Boolean draining) {
       firedTimers.add(
           TimerData.of(
-              timerId,
-              timerFamilyId,
-              StateNamespaces.window(IntervalWindow.getCoder(), (IntervalWindow) window),
-              timestamp,
-              outputTimestamp,
-              timeDomain,
-              draining));
+                  timerId,
+                  timerFamilyId,
+                  StateNamespaces.window(IntervalWindow.getCoder(), (IntervalWindow) window),
+                  timestamp,
+                  outputTimestamp,
+                  timeDomain)
+              .draining(draining));
     }
 
     @Override

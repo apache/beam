@@ -445,7 +445,8 @@ public class SamzaDoFnRunners {
               timestamp,
               outputTimestamp,
               // TODO: Support propagating the PaneInfo through.
-              PaneInfo.NO_FIRING, draining);
+              PaneInfo.NO_FIRING,
+              draining);
       try {
         timerReceiver.accept(timerValue);
       } catch (Exception e) {

@@ -601,7 +601,7 @@ public class SplittableParDoViaKeyedWorkItems {
       // todo radoslws@ decide if draining should be set on timer
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
-              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME, false));
+              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(

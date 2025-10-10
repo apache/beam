@@ -81,7 +81,8 @@ class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunnerWithTeardown<InT, Ou
       final TimeDomain timeDomain,
       @Nullable Boolean draining) {
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metrics)) {
-      delegate.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
+      delegate.onTimer(
+          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

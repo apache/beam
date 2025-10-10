@@ -200,10 +200,9 @@ public interface TimerInternals {
         StateNamespace namespace,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain domain,
-        @javax.annotation.Nullable Boolean draining) {
+        TimeDomain domain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, "", namespace, timestamp, outputTimestamp, domain, false, draining);
+          timerId, "", namespace, timestamp, outputTimestamp, domain, false, null);
     }
 
     /**
@@ -216,10 +215,9 @@ public interface TimerInternals {
         StateNamespace namespace,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain domain,
-        @Nullable Boolean draining) {
+        TimeDomain domain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false, draining);
+          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false, null);
     }
 
     /**
@@ -227,13 +225,9 @@ public interface TimerInternals {
      * deterministically generated from the {@code timestamp} and {@code domain}.
      */
     public static TimerData of(
-        StateNamespace namespace,
-        Instant timestamp,
-        Instant outputTimestamp,
-        TimeDomain domain,
-        @Nullable Boolean draining) {
+        StateNamespace namespace, Instant timestamp, Instant outputTimestamp, TimeDomain domain) {
       String timerId = String.valueOf(domain.ordinal()) + ':' + timestamp.getMillis();
-      return of(timerId, namespace, timestamp, outputTimestamp, domain, draining);
+      return of(timerId, namespace, timestamp, outputTimestamp, domain);
     }
 
     public TimerData deleted() {
@@ -246,6 +240,18 @@ public interface TimerInternals {
           getDomain(),
           true,
           getDraining());
+    }
+
+    public TimerData draining(@Nullable Boolean draining) {
+      return new AutoValue_TimerInternals_TimerData(
+          getTimerId(),
+          getTimerFamilyId(),
+          getNamespace(),
+          getTimestamp(),
+          getOutputTimestamp(),
+          getDomain(),
+          getDeleted(),
+          draining);
     }
 
     /**
@@ -325,8 +331,7 @@ public interface TimerInternals {
       Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
       // we don't need to serialize draining bit
-      return TimerData.of(
-          timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain, false);
+      return TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
     }
 
     @Override
@@ -372,7 +377,7 @@ public interface TimerInternals {
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, namespace, timestamp, timestamp, domain, false);
+      return TimerData.of(timerId, namespace, timestamp, timestamp, domain);
     }
 
     @Override

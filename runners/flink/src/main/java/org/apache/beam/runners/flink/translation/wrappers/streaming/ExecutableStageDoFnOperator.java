@@ -592,7 +592,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
         Instant outputTimestamp,
         TimeDomain timeDomain) {
       setTimer(
-          TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain, false));
+          TimerData.of(
+              timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
     }
 
     @Override
@@ -1035,7 +1036,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
                 timestamp,
                 outputTimestamp,
                 // TODO: Support propagating the PaneInfo through.
-                PaneInfo.NO_FIRING, draining);
+                PaneInfo.NO_FIRING,
+                draining);
         try {
           timerReceiver.accept(timerValue);
         } catch (Exception e) {

@@ -139,20 +139,19 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public void setTimer(Instant timestamp, TimeDomain timeDomain) {
       // todo radoslaws@ should we pass draining bit to timerdata
-      timerInternals.setTimer(TimerData.of(namespace, timestamp, timestamp, timeDomain, false));
+      timerInternals.setTimer(TimerData.of(namespace, timestamp, timestamp, timeDomain));
     }
 
     @Override
     public void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
       // todo radoslaws@ should we pass draining bit to timerdata
-      timerInternals.setTimer(
-          TimerData.of(namespace, timestamp, outputTimestamp, timeDomain, false));
+      timerInternals.setTimer(TimerData.of(namespace, timestamp, outputTimestamp, timeDomain));
     }
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
       // todo radoslaws@ should we pass draining bit to timerdata
-      timerInternals.deleteTimer(TimerData.of(namespace, timestamp, timestamp, timeDomain, false));
+      timerInternals.deleteTimer(TimerData.of(namespace, timestamp, timestamp, timeDomain));
     }
 
     @Override

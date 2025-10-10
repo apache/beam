@@ -111,8 +111,7 @@ class WindmillTimerInternals implements TimerInternals {
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     TimerData timer =
-        TimerData.of(
-            timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain, false);
+        TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain);
     setTimer(timer);
   }
 
@@ -149,8 +148,7 @@ class WindmillTimerInternals implements TimerInternals {
             namespace,
             BoundedWindow.TIMESTAMP_MIN_VALUE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
-            timeDomain,
-            false));
+            timeDomain));
   }
 
   @Override
@@ -391,13 +389,13 @@ class WindmillTimerInternals implements TimerInternals {
 
     StateNamespace namespace = StateNamespaces.fromString(namespaceString, windowCoder);
     return TimerData.of(
-        timerId,
-        timerFamily,
-        namespace,
-        timestamp,
-        outputTimestamp,
-        timerTypeToTimeDomain(timer.getType()),
-        draining);
+            timerId,
+            timerFamily,
+            namespace,
+            timestamp,
+            outputTimestamp,
+            timerTypeToTimeDomain(timer.getType()))
+        .draining(draining);
   }
 
   private static boolean useNewTimerTagEncoding(TimerData timerData) {

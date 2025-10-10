@@ -48,8 +48,7 @@ public class KeyedWorkItemCoderTest {
                 StateNamespaces.global(),
                 new Instant(500L),
                 new Instant(500L),
-                TimeDomain.EVENT_TIME,
-                null));
+                TimeDomain.EVENT_TIME));
     Iterable<WindowedValue<Integer>> elements =
         ImmutableList.of(
             WindowedValues.valueInGlobalWindow(1),

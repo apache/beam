@@ -156,7 +156,8 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
       Instant outputTimestamp,
       TimeDomain timeDomain,
       @Nullable Boolean draining) {
-    underlying.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
+    underlying.onTimer(
+        timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
   }
 
   @Override

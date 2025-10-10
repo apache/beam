@@ -278,8 +278,7 @@ public class SimpleDoFnRunnerTest {
                 StateNamespaces.window(windowFn.windowCoder(), GlobalWindow.INSTANCE),
                 currentTime.plus(offset),
                 currentTime.plus(offset),
-                TimeDomain.EVENT_TIME,
-                null)));
+                TimeDomain.EVENT_TIME)));
   }
 
   /**
@@ -706,8 +705,7 @@ public class SimpleDoFnRunnerTest {
               StateNamespaces.window(windowCoder, (W) context.window()),
               context.fireTimestamp(),
               context.timestamp(),
-              context.timeDomain(),
-              null));
+              context.timeDomain()));
     }
   }
 

@@ -80,7 +80,8 @@ public class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT
       final TimeDomain timeDomain,
       @Nullable Boolean draining) {
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
-      delegate.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
+      delegate.onTimer(
+          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, draining);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

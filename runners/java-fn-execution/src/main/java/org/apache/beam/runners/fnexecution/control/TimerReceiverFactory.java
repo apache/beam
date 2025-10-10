@@ -89,13 +89,17 @@ public class TimerReceiverFactory {
         StateNamespace namespace = StateNamespaces.window(windowCoder, (BoundedWindow) window);
         TimerInternals.TimerData timerData =
             TimerInternals.TimerData.of(
-                timer.getDynamicTimerTag(),
-                encodeToTimerDataTimerId(timerSpec.transformId(), timerSpec.timerId()),
-                namespace,
-                timer.getClearBit() ? BoundedWindow.TIMESTAMP_MAX_VALUE : timer.getFireTimestamp(),
-                timer.getClearBit() ? BoundedWindow.TIMESTAMP_MAX_VALUE : timer.getHoldTimestamp(),
-                timerSpec.getTimerSpec().getTimeDomain(),
-                timer.getDraining());
+                    timer.getDynamicTimerTag(),
+                    encodeToTimerDataTimerId(timerSpec.transformId(), timerSpec.timerId()),
+                    namespace,
+                    timer.getClearBit()
+                        ? BoundedWindow.TIMESTAMP_MAX_VALUE
+                        : timer.getFireTimestamp(),
+                    timer.getClearBit()
+                        ? BoundedWindow.TIMESTAMP_MAX_VALUE
+                        : timer.getHoldTimestamp(),
+                    timerSpec.getTimerSpec().getTimeDomain())
+                .draining(timer.getDraining());
         timerDataConsumer.accept(timer, timerData);
       }
     };

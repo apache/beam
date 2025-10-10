@@ -84,13 +84,9 @@ public class WindmillTimerInternalsTest {
             for (Instant timestamp : TEST_TIMESTAMPS) {
               List<TimerData> anonymousTimers =
                   ImmutableList.of(
-                      TimerData.of(namespace, timestamp, timestamp, timeDomain, null),
+                      TimerData.of(namespace, timestamp, timestamp, timeDomain),
                       TimerData.of(
-                          namespace,
-                          timestamp,
-                          timestamp.minus(Duration.millis(1)),
-                          timeDomain,
-                          null));
+                          namespace, timestamp, timestamp.minus(Duration.millis(1)), timeDomain));
               for (TimerData timer : anonymousTimers) {
                 Instant expectedTimestamp =
                     timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
@@ -100,17 +96,12 @@ public class WindmillTimerInternalsTest {
                     WindmillTimerInternals.windmillTimerToTimerData(
                         prefix,
                         WindmillTimerInternals.timerDataToWindmillTimer(stateFamily, prefix, timer),
-                        coder,
-                        null);
+                        coder);
                 // The function itself bounds output, so we dont expect the original input as the
                 // output, we expect it to be bounded
                 TimerData expected =
                     TimerData.of(
-                        timer.getNamespace(),
-                        timestamp,
-                        expectedTimestamp,
-                        timer.getDomain(),
-                        null);
+                        timer.getNamespace(), timestamp, expectedTimestamp, timer.getDomain());
 
                 assertThat(computed, equalTo(expected));
               }
@@ -118,24 +109,22 @@ public class WindmillTimerInternalsTest {
               for (String timerId : TEST_TIMER_IDS) {
                 List<TimerData> timers =
                     ImmutableList.of(
-                        TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain, null),
+                        TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain),
                         TimerData.of(
-                            timerId, "family", namespace, timestamp, timestamp, timeDomain, null),
+                            timerId, "family", namespace, timestamp, timestamp, timeDomain),
                         TimerData.of(
                             timerId,
                             namespace,
                             timestamp,
                             timestamp.minus(Duration.millis(1)),
-                            timeDomain,
-                            null),
+                            timeDomain),
                         TimerData.of(
                             timerId,
                             "family",
                             namespace,
                             timestamp,
                             timestamp.minus(Duration.millis(1)),
-                            timeDomain,
-                            null));
+                            timeDomain));
 
                 for (TimerData timer : timers) {
                   Instant expectedTimestamp =
@@ -150,15 +139,13 @@ public class WindmillTimerInternalsTest {
                           timer.getNamespace(),
                           timer.getTimestamp(),
                           expectedTimestamp,
-                          timer.getDomain(),
-                          null);
+                          timer.getDomain());
                   assertThat(
                       WindmillTimerInternals.windmillTimerToTimerData(
                           prefix,
                           WindmillTimerInternals.timerDataToWindmillTimer(
                               stateFamily, prefix, timer),
-                          coder,
-                          null),
+                          coder),
                       equalTo(expected));
                 }
               }

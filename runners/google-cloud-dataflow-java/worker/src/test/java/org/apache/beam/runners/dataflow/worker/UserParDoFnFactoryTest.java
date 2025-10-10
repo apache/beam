@@ -462,8 +462,7 @@ public class UserParDoFnFactoryTest {
                 globalWindowNamespace,
                 BoundedWindow.TIMESTAMP_MAX_VALUE,
                 BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
-                TimeDomain.EVENT_TIME,
-                null))
+                TimeDomain.EVENT_TIME))
         .thenReturn(null);
 
     // Set up non-empty state. We don't mock + verify calls to clear() but instead
@@ -538,8 +537,7 @@ public class UserParDoFnFactoryTest {
                 firstWindowNamespace,
                 firstWindow.maxTimestamp().plus(Duration.millis(1L)),
                 firstWindow.maxTimestamp().plus(Duration.millis(1L)),
-                TimeDomain.EVENT_TIME,
-                null))
+                TimeDomain.EVENT_TIME))
         .thenReturn(null);
 
     // This should fire the timer to clean up the first window
@@ -555,8 +553,7 @@ public class UserParDoFnFactoryTest {
                 secondWindowNamespace,
                 secondWindow.maxTimestamp().plus(Duration.millis(1L)),
                 secondWindow.maxTimestamp().plus(Duration.millis(1L)),
-                TimeDomain.EVENT_TIME,
-                null))
+                TimeDomain.EVENT_TIME))
         .thenReturn(null);
 
     // And this should clean up the second window
