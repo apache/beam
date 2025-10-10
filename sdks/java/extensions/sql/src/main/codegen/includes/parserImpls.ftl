@@ -27,6 +27,15 @@ boolean IfExistsOpt() :
     { return false; }
 }
 
+boolean CascadeOpt() :
+{
+}
+{
+    <CASCADE> { return true; }
+|
+    { return false; }
+}
+
 SqlNodeList Options() :
 {
     final Span s;
@@ -255,6 +264,74 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
     }
 }
 
+/**
+ * CREATE DATABASE ( IF NOT EXISTS )? ( catalog_name '.' )? database_name
+ */
+SqlCreate SqlCreateDatabase(Span s, boolean replace) :
+{
+    final boolean ifNotExists;
+    final SqlIdentifier databaseName;
+}
+{
+    <DATABASE> {
+        s.add(this);
+    }
+
+    ifNotExists = IfNotExistsOpt()
+    databaseName = CompoundIdentifier()
+
+    {
+        return new SqlCreateDatabase(
+            s.end(this),
+            replace,
+            ifNotExists,
+            databaseName);
+    }
+}
+
+/**
+ * USE DATABASE ( catalog_name '.' )? database_name
+ */
+SqlCall SqlUseDatabase(Span s, String scope) :
+{
+    final SqlIdentifier databaseName;
+}
+{
+    <USE> {
+        s.add(this);
+    }
+    <DATABASE>
+    databaseName = CompoundIdentifier()
+    {
+        return new SqlUseDatabase(
+            s.end(this),
+            scope,
+            databaseName);
+    }
+}
+
+/**
+ * DROP DATABASE [ IF EXISTS ] database_name [ RESTRICT | CASCADE ]
+ */
+SqlDrop SqlDropDatabase(Span s, boolean replace) :
+{
+    final boolean ifExists;
+    final SqlIdentifier databaseName;
+    final boolean cascade;
+}
+{
+    <DATABASE>
+    ifExists = IfExistsOpt()
+    databaseName = CompoundIdentifier()
+
+    cascade = CascadeOpt()
+
+    {
+        return new SqlDropDatabase(s.end(this), ifExists, databaseName, cascade);
+    }
+}
+
+
 SqlNodeList PartitionFieldList() :
 {
     final List<SqlNode> list = new ArrayList<SqlNode>();
@@ -274,7 +351,7 @@ SqlNodeList PartitionFieldList() :
  * Note: This example is probably out of sync with the code.
  *
  * CREATE EXTERNAL TABLE ( IF NOT EXISTS )?
- *   ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
+ *   ( catalog_name '.' )? ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
  *   TYPE type_name
  *   ( PARTITIONED BY '(' partition_field ( ',' partition_field )* ')' )?
  *   ( COMMENT comment_string )?

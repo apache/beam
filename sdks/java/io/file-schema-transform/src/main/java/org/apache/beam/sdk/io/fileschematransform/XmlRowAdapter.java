@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.Row;
  * XmlRowAdapter} exposes the String key and Object value pairs of the {@link Row} to the {@link
  * javax.xml.bind.Marshaller}.
  */
+// return value used for assignment
 @XmlRootElement(name = "row")
 @XmlAccessorType(XmlAccessType.PROPERTY)
 class XmlRowAdapter implements Serializable {

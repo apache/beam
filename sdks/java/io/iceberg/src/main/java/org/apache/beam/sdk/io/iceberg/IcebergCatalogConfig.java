@@ -21,15 +21,24 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -83,26 +92,111 @@ public abstract class IcebergCatalogConfig implements Serializable {
     return cachedCatalog;
   }
 
+  private void checkSupportsNamespaces() {
+    Preconditions.checkState(
+        catalog() instanceof SupportsNamespaces,
+        "Catalog '%s' does not support handling namespaces.",
+        catalog().name());
+  }
+
+  public boolean createNamespace(String namespace) {
+    checkSupportsNamespaces();
+    String[] components = Iterables.toArray(Splitter.on('.').split(namespace), String.class);
+
+    try {
+      ((SupportsNamespaces) catalog()).createNamespace(Namespace.of(components));
+      return true;
+    } catch (AlreadyExistsException e) {
+      return false;
+    }
+  }
+
+  public boolean namespaceExists(String namespace) {
+    checkSupportsNamespaces();
+    return ((SupportsNamespaces) catalog()).namespaceExists(Namespace.of(namespace));
+  }
+
+  public Set<String> listNamespaces() {
+    checkSupportsNamespaces();
+
+    return ((SupportsNamespaces) catalog())
+        .listNamespaces().stream().map(Namespace::toString).collect(Collectors.toSet());
+  }
+
+  public boolean dropNamespace(String namespace, boolean cascade) {
+    checkSupportsNamespaces();
+
+    String[] components = Iterables.toArray(Splitter.on('.').split(namespace), String.class);
+    Namespace ns = Namespace.of(components);
+
+    if (!((SupportsNamespaces) catalog()).namespaceExists(ns)) {
+      return false;
+    }
+
+    // Cascade will delete all contained tables first
+    if (cascade) {
+      catalog().listTables(ns).forEach(catalog()::dropTable);
+    }
+
+    // Drop the namespace
+    return ((SupportsNamespaces) catalog()).dropNamespace(Namespace.of(components));
+  }
+
   public void createTable(
       String tableIdentifier, Schema tableSchema, @Nullable List<String> partitionFields) {
     TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
     org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
     PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
-      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
       LOG.info(
-          "Created table '{}' with schema: {}\n, partition spec: {}",
+          "Attempting to create table '{}', with schema: {}, partition spec: {}.",
           icebergIdentifier,
           icebergSchema,
           icebergSpec);
+      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
+      LOG.info("Successfully created table '{}'.", icebergIdentifier);
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);
     }
   }
 
+  public @Nullable IcebergTableInfo loadTable(String tableIdentifier) {
+    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    try {
+      Table table = catalog().loadTable(icebergIdentifier);
+      return IcebergTableInfo.create(
+          tableIdentifier,
+          IcebergUtils.icebergSchemaToBeamSchema(table.schema()),
+          table.properties());
+    } catch (NoSuchTableException ignored) {
+      return null;
+    }
+  }
+
+  // Helper class to pass information to Beam SQL module without relying on Iceberg deps
+  @AutoValue
+  public abstract static class IcebergTableInfo {
+    public abstract String getIdentifier();
+
+    public abstract Schema getSchema();
+
+    public abstract Map<String, String> getProperties();
+
+    static IcebergTableInfo create(
+        String identifier, Schema schema, Map<String, String> properties) {
+      return new AutoValue_IcebergCatalogConfig_IcebergTableInfo(identifier, schema, properties);
+    };
+  }
+
   public boolean dropTable(String tableIdentifier) {
     TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
     return catalog().dropTable(icebergIdentifier);
+  }
+
+  public Set<String> listTables(String namespace) {
+    return catalog().listTables(Namespace.of(namespace)).stream()
+        .map(TableIdentifier::name)
+        .collect(Collectors.toSet());
   }
 
   @AutoValue.Builder

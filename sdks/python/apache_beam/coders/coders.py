@@ -85,9 +85,7 @@ try:
   # occurs.
   from apache_beam.internal.dill_pickler import dill
 except ImportError:
-  # We fall back to using the stock dill library in tests that don't use the
-  # full Python SDK.
-  import dill
+  dill = None
 
 __all__ = [
     'Coder',
@@ -396,6 +394,15 @@ class Coder(object):
         return cls(*components)
       else:
         return cls()
+
+  def version_tag(self) -> str:
+    """For internal use. Appends a version tag to the coder key in the pipeline
+    proto. Some runners (e.g. DataflowRunner) use coder key/id to verify if a
+    pipeline is update compatible. If the implementation of a coder changed
+    in an update incompatible way a version tag can be added to fail
+    compatibility checks.
+    """
+    return ""
 
 
 @Coder.register_urn(
@@ -900,6 +907,13 @@ class PickleCoder(_PickleCoderBase):
 
 class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
+  def __init__(self):
+    if not dill:
+      raise RuntimeError(
+          "This pipeline contains a DillCoder which requires "
+          "the dill package. Install the dill package with the dill extra "
+          "e.g. apache-beam[dill]")
+
   def _create_impl(self):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 
@@ -911,16 +925,26 @@ class CloudpickleCoder(_PickleCoderBase):
         cloudpickle_pickler.dumps, cloudpickle_pickler.loads)
 
 
-class DeterministicFastPrimitivesCoder(FastCoder):
+class DeterministicFastPrimitivesCoderV2(FastCoder):
   """Throws runtime errors when encoding non-deterministic values."""
-  def __init__(self, coder, step_label):
+  def __init__(self, coder, step_label, update_compatibility_version=None):
     self._underlying_coder = coder
     self._step_label = step_label
+    self._use_relative_filepaths = True
+    self._version_tag = "v2_69"
+    from apache_beam.transforms.util import is_v1_prior_to_v2
+    # Versions prior to 2.69.0 did not use relative filepaths.
+    if update_compatibility_version and is_v1_prior_to_v2(
+        v1=update_compatibility_version, v2="2.69.0"):
+      self._version_tag = ""
+      self._use_relative_filepaths = False
 
   def _create_impl(self):
     return coder_impl.FastPrimitivesCoderImpl(
         self._underlying_coder.get_impl(),
-        requires_deterministic_step_label=self._step_label)
+        requires_deterministic_step_label=self._step_label,
+        force_use_dill=False,
+        use_relative_filepaths=self._use_relative_filepaths)
 
   def is_deterministic(self):
     # type: () -> bool
@@ -938,6 +962,84 @@ class DeterministicFastPrimitivesCoder(FastCoder):
 
   def to_type_hint(self):
     return Any
+
+  def to_runner_api_parameter(self, context):
+    # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
+    return (
+        python_urns.PICKLED_CODER,
+        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        ())
+
+  def version_tag(self):
+    return self._version_tag
+
+
+class DeterministicFastPrimitivesCoder(FastCoder):
+  """Throws runtime errors when encoding non-deterministic values."""
+  def __init__(self, coder, step_label):
+    self._underlying_coder = coder
+    self._step_label = step_label
+
+  def _create_impl(self):
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(),
+        requires_deterministic_step_label=self._step_label,
+        force_use_dill=True)
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def is_kv_coder(self):
+    # type: () -> bool
+    return True
+
+  def key_coder(self):
+    return self
+
+  def value_coder(self):
+    return self
+
+  def to_type_hint(self):
+    return Any
+
+
+def _should_force_use_dill(update_compat_version):
+  from apache_beam.transforms.util import is_v1_prior_to_v2
+  if not update_compat_version:
+    return False
+
+  if not is_v1_prior_to_v2(v1=update_compat_version, v2="2.68.0"):
+    return False
+
+  try:
+    import dill
+    assert dill.__version__ == "0.3.1.1"
+  except Exception as e:
+    raise RuntimeError("This pipeline runs with the pipeline option " \
+    "--update_compatibility_version=2.67.0 or earlier. When running with " \
+    "this option on SDKs 2.68.0 or later, you must ensure dill==0.3.1.1 " \
+    f"is installed. Error {e}")
+  return True
+
+
+def _update_compatible_deterministic_fast_primitives_coder(coder, step_label):
+  """ Returns the update compatible version of DeterministicFastPrimitivesCoder
+   The differences are in how "special types" e.g. NamedTuples, Dataclasses are
+   deterministically encoded.
+
+   - In SDK version <= 2.67.0 dill is used to encode "special types"
+   - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+   absolute filepaths in code objects and dynamic functions.
+   - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
+   relative filepaths in code objects and dynamic functions.
+  """
+  from apache_beam.coders import typecoders
+  update_compat_version = typecoders.registry.update_compatibility_version
+  if _should_force_use_dill(update_compat_version):
+    return DeterministicFastPrimitivesCoder(coder, step_label)
+  return DeterministicFastPrimitivesCoderV2(
+      coder, step_label, update_compat_version)
 
 
 class FastPrimitivesCoder(FastCoder):
@@ -960,7 +1062,8 @@ class FastPrimitivesCoder(FastCoder):
     if self.is_deterministic():
       return self
     else:
-      return DeterministicFastPrimitivesCoder(self, step_label)
+      return _update_compatible_deterministic_fast_primitives_coder(
+          self, step_label)
 
   def to_type_hint(self):
     return Any

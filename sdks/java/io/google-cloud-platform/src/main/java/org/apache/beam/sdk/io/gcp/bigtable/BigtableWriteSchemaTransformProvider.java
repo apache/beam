@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -84,6 +85,20 @@ public class BigtableWriteSchemaTransformProvider
   }
 
   @Override
+  public String description() {
+    return "Writes data to a Google Cloud Bigtable table.\n"
+        + "This transform requires the Google Cloud project ID, Bigtable instance ID, and table ID.\n"
+        + "The input PCollection should be schema-compliant mutations or keyed rows.\n"
+        + "Example usage:\n"
+        + "  - type: WriteToBigTable\n"
+        + "    input: input\n"
+        + "    config:\n"
+        + "      project: \"my-gcp-project\"\n"
+        + "      instance: \"my-bigtable-instance\"\n"
+        + "      table: \"my-table\"\n";
+  }
+
+  @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(INPUT_TAG);
   }
@@ -108,10 +123,13 @@ public class BigtableWriteSchemaTransformProvider
       checkArgument(!this.getProjectId().isEmpty(), String.format(invalidConfigMessage, "project"));
     }
 
+    @SchemaFieldDescription("Bigtable table ID to write data into.")
     public abstract String getTableId();
 
+    @SchemaFieldDescription("Bigtable instance ID where the table is located.")
     public abstract String getInstanceId();
 
+    @SchemaFieldDescription("Google Cloud project ID containing the Bigtable instance.")
     public abstract String getProjectId();
 
     /** Builder for the {@link BigtableWriteSchemaTransformConfiguration}. */
@@ -168,7 +186,7 @@ public class BigtableWriteSchemaTransformProvider
           validateField(inputSchema, "column_qualifier", Schema.TypeName.BYTES);
         }
         if (inputSchema.hasField("family_name")) {
-          validateField(inputSchema, "family_name", Schema.TypeName.BYTES);
+          validateField(inputSchema, "family_name", Schema.TypeName.STRING);
         }
         if (inputSchema.hasField("timestamp_micros")) {
           validateField(inputSchema, "timestamp_micros", Schema.TypeName.INT64);
@@ -189,7 +207,7 @@ public class BigtableWriteSchemaTransformProvider
                 + "\"type\": String\n"
                 + "\"value\": ByteString\n"
                 + "\"column_qualifier\": ByteString\n"
-                + "\"family_name\": ByteString\n"
+                + "\"family_name\": String\n"
                 + "\"timestamp_micros\": Long\n"
                 + "\"start_timestamp_micros\": Long\n"
                 + "\"end_timestamp_micros\": Long\n"
@@ -259,11 +277,10 @@ public class BigtableWriteSchemaTransformProvider
                                             Preconditions.checkStateNotNull(
                                                 input.getBytes("column_qualifier"),
                                                 "Encountered SetCell mutation with null 'column_qualifier' property. ")))
-                                    .setFamilyNameBytes(
-                                        ByteString.copyFrom(
-                                            Preconditions.checkStateNotNull(
-                                                input.getBytes("family_name"),
-                                                "Encountered SetCell mutation with null 'family_name' property.")));
+                                    .setFamilyName(
+                                        Preconditions.checkStateNotNull(
+                                            input.getString("family_name"),
+                                            "Encountered SetCell mutation with null 'family_name' property."));
                             // Use timestamp if provided, else default to -1 (current
                             // Bigtable
                             // server time)
@@ -284,11 +301,10 @@ public class BigtableWriteSchemaTransformProvider
                                             Preconditions.checkStateNotNull(
                                                 input.getBytes("column_qualifier"),
                                                 "Encountered DeleteFromColumn mutation with null 'column_qualifier' property.")))
-                                    .setFamilyNameBytes(
-                                        ByteString.copyFrom(
-                                            Preconditions.checkStateNotNull(
-                                                input.getBytes("family_name"),
-                                                "Encountered DeleteFromColumn mutation with null 'family_name' property.")));
+                                    .setFamilyName(
+                                        Preconditions.checkStateNotNull(
+                                            input.getString("family_name"),
+                                            "Encountered DeleteFromColumn mutation with null 'family_name' property."));
 
                             // if start or end timestamp provided
                             // Timestamp Range (optional, assuming Long type in Row schema)
@@ -322,11 +338,10 @@ public class BigtableWriteSchemaTransformProvider
                                 Mutation.newBuilder()
                                     .setDeleteFromFamily(
                                         Mutation.DeleteFromFamily.newBuilder()
-                                            .setFamilyNameBytes(
-                                                ByteString.copyFrom(
-                                                    Preconditions.checkStateNotNull(
-                                                        input.getBytes("family_name"),
-                                                        "Encountered DeleteFromFamily mutation with null 'family_name' property.")))
+                                            .setFamilyName(
+                                                Preconditions.checkStateNotNull(
+                                                    input.getString("family_name"),
+                                                    "Encountered DeleteFromFamily mutation with null 'family_name' property."))
                                             .build())
                                     .build();
                             break;

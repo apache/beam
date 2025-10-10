@@ -108,6 +108,19 @@ func clampTick(dur time.Duration) time.Duration {
 	}
 }
 
+func (s *stage) LogValue() slog.Value {
+	var outAttrs []any
+	for k, v := range s.OutputsToCoders {
+		outAttrs = append(outAttrs, slog.Any(k, v))
+	}
+	return slog.GroupValue(
+		slog.String("ID", s.ID),
+		slog.Any("transforms", s.transforms),
+		slog.Any("inputInfo", s.inputInfo),
+		slog.Group("outputInfo", outAttrs...),
+	)
+}
+
 func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) (err error) {
 	if s.baseProgTick.Load() == nil {
 		s.baseProgTick.Store(minimumProgTick)
@@ -161,7 +174,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 		s.prepareSides(b, rb.Watermark)
 
-		slog.Debug("Execute: processing", "bundle", rb)
+		slog.Debug("Execute: sdk worker transform(s)", "bundle", rb)
 		defer b.Cleanup(wk)
 		dataReady = b.ProcessOn(ctx, wk)
 	default:
@@ -221,7 +234,7 @@ progress:
 
 			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
 			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
-			if slow && unsplit {
+			if slow && unsplit && b.EstimatedInputElements > 0 {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
@@ -341,7 +354,7 @@ progress:
 			slog.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
 			panic(err)
 		}
-		slog.Info("finalized bundle", "bundle", rb)
+		slog.Debug("finalized bundle", "bundle", rb)
 	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil

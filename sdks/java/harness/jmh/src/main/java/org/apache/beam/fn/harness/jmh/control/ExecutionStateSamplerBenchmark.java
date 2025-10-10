@@ -122,7 +122,7 @@ public class ExecutionStateSamplerBenchmark {
   public static class HarnessStateSampler {
     public final org.apache.beam.fn.harness.control.ExecutionStateSampler sampler =
         new org.apache.beam.fn.harness.control.ExecutionStateSampler(
-            PipelineOptionsFactory.create(), System::currentTimeMillis);
+            PipelineOptionsFactory.create(), System::currentTimeMillis, null);
 
     @TearDown(Level.Trial)
     public void tearDown() {

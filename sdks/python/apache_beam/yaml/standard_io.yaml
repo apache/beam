@@ -45,9 +45,15 @@
       type: beamJar
       transforms:
         'ReadFromBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
-        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_write:v1'
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+        managed_replacement:
+          # Following transforms may be replaced with equivalent managed transforms,
+          # if the pipelines 'updateCompatibilityBeamVersion' match the provided
+          # version.
+          'ReadFromBigQuery': '2.69.0'
+          'WriteToBigQuery': '2.69.0'
 
 # Kafka
 - type: renaming
@@ -169,6 +175,7 @@
         path: 'path'
         delimiter: 'sep'
         comment: 'comment'
+        filename_column: 'filename_column'
       'WriteToCsv':
         path: 'path'
         delimiter: 'sep'
@@ -375,15 +382,16 @@
 #BigTable
 - type: renaming
   transforms:
-    #'ReadFromBigTable': 'ReadFromBigTable'
+    'ReadFromBigTable': 'ReadFromBigTable'
     'WriteToBigTable': 'WriteToBigTable'
   config:
     mappings:
       #Temp removing read from bigTable IO
-#      'ReadFromBigTable':
-#        project: 'project_id'
-#        instance: 'instance_id'
-#        table: 'table_id'
+      'ReadFromBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+        flatten: "flatten"
       'WriteToBigTable':
         project: 'project_id'
         instance: 'instance_id'
@@ -391,7 +399,7 @@
     underlying_provider:
       type: beamJar
       transforms:
-#        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
+        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
         'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'

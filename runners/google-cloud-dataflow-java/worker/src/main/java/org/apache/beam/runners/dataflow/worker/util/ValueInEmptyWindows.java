@@ -50,6 +50,16 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   }
 
   @Override
+  public @Nullable String getRecordId() {
+    return null;
+  }
+
+  @Override
+  public @Nullable Long getRecordOffset() {
+    return null;
+  }
+
+  @Override
   public Iterable<WindowedValue<T>> explodeWindows() {
     return Collections.emptyList();
   }

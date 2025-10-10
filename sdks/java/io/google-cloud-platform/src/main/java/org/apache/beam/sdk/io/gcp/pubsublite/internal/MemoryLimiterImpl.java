@@ -82,6 +82,7 @@ class MemoryLimiterImpl implements MemoryLimiter {
     }
 
     @Override
+    @SuppressWarnings("Finalize")
     public void finalize() {
       if (!released) {
         LOG.error("Failed to release memory block- likely SDF implementation error.");

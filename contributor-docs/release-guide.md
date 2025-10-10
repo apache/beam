@@ -561,7 +561,8 @@ and update all the JSON configuration fields with "yes" if it is the first time 
 5. Build javadoc, pydoc, typedocs for a PR to update beam-site.
     - **NOTE**: Do not merge this PR until after an RC has been approved (see
       "Finalize the Release").
-6. Build Prism binaries for various platforms, and upload them into [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam)
+6. Build and create PR to update beam Managed IO documentation.
+7. Build Prism binaries for various platforms, and upload them into [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam)
    and the Github Release with the matching RC tag.
 
 ### Verify source and artifact distributions
@@ -638,8 +639,9 @@ __Attention:__ Verify that:
 Beam publishes API reference manuals for each release on the website.  For Java
 and Python SDKs, that’s Javadoc and PyDoc, respectively.  The final step of
 building the candidate is to propose website pull requests that update these
-manuals. The first pr will get created by the build_release_candidate action,
-you will need to create the second one manually
+manuals. `beam-site release-docs` PR and `beam managed-io` update PR will get
+created by the build_release_candidate action, you will need to create the
+`beam release-docs` update PR manually.
 
 Merge the pull requests only after finalizing the release.  To avoid invalid
 redirects for the 'current' version, merge these PRs in the order listed.  Once
@@ -657,15 +659,20 @@ created by the `build_release_candidate` workflow (see above).
 
 **PR 2: apache/beam**
 
+This pull request is against the `apache/beam` repo, to update the  `managed-io.md`.
+It is created by the `build_release_candidate` workflow and updates the documentation for Managed IOs.
+
+**PR 3: apache/beam**
+
 This pull request is against the `apache/beam` repo, on the `master` branch
 ([example](https://github.com/apache/beam/pull/17378)).
 
 - Update `CHANGES.md` to update release date and remove template.
 - Update release version in `website/www/site/config.toml`.
 - Add new release in `website/www/site/content/en/get-started/downloads.md`.
+   - For the current release, use `closer.lua` script for download links (e.g., `https://www.apache.org/dyn/closer.lua/beam/{{< param release_latest >}}/apache-beam-{{< param release_latest >}}-source-release.zip`)
    - Download links will not work until the release is finalized.
-- Update links to prior releases to point to https://archive.apache.org (see
-  example PR).
+- Move the previous release to the "Archived releases" section and update its links to point to https://archive.apache.org (see example PR).
 - Create the Blog post:
 
 #### Blog post
@@ -846,6 +853,7 @@ template; please adjust as you see fit.
     * Docker images published to Docker Hub [11].
     * PR to run tests against release branch [12].
     * Github Release pre-release page for v1.2.3-RC3 [13].
+    * pull request to apache/beam updating the managed-io docs[15]
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -868,6 +876,7 @@ template; please adjust as you see fit.
     [12] https://github.com/apache/beam/pull/...
     [13] https://github.com/apache/beam/releases/tag/v1.2.3-RC3
     [14] https://github.com/apache/beam/blob/master/contributor-docs/rc-testing-guide.md
+    [15] https://github.com/apache/beam/pull/...
 
 If there are any issues found in the release candidate, reply on the vote
 thread to cancel the vote.  There’s no need to wait 72 hours. Go back to
@@ -1043,7 +1052,7 @@ svn rm $OLD_RELEASE_VERSION   # Delete all artifacts from old releases.
 svn commit -m "Adding artifacts for the ${RELEASE_VERSION} release and removing old artifacts"
 ```
 
-Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
+Make sure the old release's artifacts have been copied to [archive.apache.org](https://archive.apache.org/dist/beam/).
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
 
 #### Recordkeeping with ASF

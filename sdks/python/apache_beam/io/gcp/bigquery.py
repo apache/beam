@@ -850,7 +850,8 @@ class _CustomBigQuerySource(BoundedSource):
       return
     location = bq.get_query_location(
         self._get_project(), self.query.get(), self.use_legacy_sql)
-    bq.create_temporary_dataset(self._get_project(), location)
+    bq.create_temporary_dataset(
+        self._get_project(), location, kms_key=self.kms_key)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
@@ -1062,7 +1063,10 @@ class _CustomBigQueryStorageSource(BoundedSource):
         self._get_parent_project(), self.query.get(), self.use_legacy_sql)
     _LOGGER.warning("### Labels: %s", str(self.bigquery_dataset_labels))
     bq.create_temporary_dataset(
-        self._get_parent_project(), location, self.bigquery_dataset_labels)
+        self._get_parent_project(),
+        location,
+        self.bigquery_dataset_labels,
+        kms_key=self.kms_key)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
@@ -1768,11 +1772,14 @@ class BigQueryWriteFn(DoFn):
             'Errors were {}'.format(("" if should_retry else " not"), errors))
 
         # The log level is:
-        # - WARNING when we are continuing to retry, and have a deadline.
-        # - ERROR when we will no longer retry, or MAY retry forever.
-        log_level = (
-            logging.WARN if should_retry or self._retry_strategy
-            != RetryStrategy.RETRY_ALWAYS else logging.ERROR)
+        # - WARNING when should_retry is true, else ERROR.
+
+        if (should_retry and
+            self._retry_strategy in [RetryStrategy.RETRY_ON_TRANSIENT_ERROR,
+                                     RetryStrategy.RETRY_ALWAYS]):
+          log_level = logging.WARN
+        else:
+          log_level = logging.ERROR
 
         _LOGGER.log(log_level, message)
 
@@ -1988,7 +1995,8 @@ class WriteToBigQuery(PTransform):
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
-      expansion_service=None):
+      expansion_service=None,
+      big_lake_configuration=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2209,6 +2217,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._num_streaming_keys = num_streaming_keys
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2371,6 +2380,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           num_storage_api_streams=self._num_storage_api_streams,
           use_cdc_writes=self._use_cdc_writes,
           primary_key=self._primary_key,
+          big_lake_configuration=self._big_lake_configuration,
           expansion_service=self.expansion_service)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
@@ -2619,6 +2629,7 @@ class StorageWriteToBigQuery(PTransform):
       num_storage_api_streams=0,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
+      big_lake_configuration=None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2632,6 +2643,7 @@ class StorageWriteToBigQuery(PTransform):
     self._num_storage_api_streams = num_storage_api_streams
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2731,6 +2743,7 @@ class StorageWriteToBigQuery(PTransform):
             primary_key=self._primary_key,
             clustering_fields=clustering_fields,
             time_partitioning_config=time_partitioning_config,
+            big_lake_configuration=self._big_lake_configuration,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
@@ -2741,11 +2754,12 @@ class StorageWriteToBigQuery(PTransform):
         lambda row_and_error: row_and_error[0])
     if not is_rows:
       # return back from Beam Rows to Python dict elements
-      failed_rows = failed_rows | beam.Map(lambda row: row.as_dict())
+      failed_rows = failed_rows | beam.Map(lambda row: row._asdict())
+
       failed_rows_with_errors = failed_rows_with_errors | beam.Map(
           lambda row: {
               "error_message": row.error_message, "failed_row": row.failed_row.
-              as_dict()
+              _asdict()
           })
 
     return WriteResult(
@@ -2755,6 +2769,9 @@ class StorageWriteToBigQuery(PTransform):
 
   class ConvertToBeamRows(PTransform):
     def __init__(self, schema, dynamic_destinations):
+      if not isinstance(schema,
+                        (bigquery.TableSchema, bigquery.TableFieldSchema)):
+        schema = bigquery_tools.get_bq_tableschema(schema)
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
 

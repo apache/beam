@@ -131,7 +131,7 @@ public class BeamFnLoggingClientTest {
   @Test
   public void testLogging() throws Exception {
     ExecutionStateSampler sampler =
-        new ExecutionStateSampler(PipelineOptionsFactory.create(), null);
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), null, null);
     ExecutionStateSampler.ExecutionStateTracker stateTracker = sampler.create();
     ExecutionStateSampler.ExecutionState state =
         stateTracker.create("shortId", "ptransformId", "ptransformIdName", "process");
@@ -220,8 +220,9 @@ public class BeamFnLoggingClientTest {
               }
             });
       }
-      MDC.put("testMdcKey", "testMdcValue");
-      configuredLogger.log(TEST_RECORD);
+      try (MDC.MDCCloseable ignored = MDC.putCloseable("testMdcKey", "testMdcValue")) {
+        configuredLogger.log(TEST_RECORD);
+      }
 
       client.close();
 

@@ -1,0 +1,256 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The pipeline first reads the YouTube comments .csv dataset from GCS bucket
+# and performs necessary clean-up before writing it to a Kafka topic.
+# The pipeline then reads from that Kafka topic and applies various transformation
+# logic before RunInference transform performs remote inference with the Vertex AI
+# model handler.
+# The inference result is then written to a BigQuery table.
+
+pipeline:
+  transforms:
+    # The YouTube comments dataset contains rows that
+    # have unexpected schema (e.g. rows with more fields,
+    # rows with fields that contain string instead of
+    # integer, etc...). PyTransform helps construct
+    # the logic to properly read in the csv dataset as
+    # a schema'd PCollection.
+    - type: PyTransform
+      name: ReadFromGCS
+      input: {}
+      config:
+        constructor: __callable__
+        kwargs:
+          source: |
+            def ReadYoutubeCommentsCsv(pcoll, file_pattern):
+              def _to_int(x):
+                try:
+                  return int(x)
+                except (ValueError):
+                  return None
+
+              return (
+                  pcoll
+                  | beam.io.ReadFromCsv(
+                        file_pattern,
+                        names=['video_id', 'comment_text', 'likes', 'replies'],
+                        on_bad_lines='skip',
+                        converters={'likes': _to_int, 'replies': _to_int})
+                  | beam.Filter(lambda row:
+                        None not in list(row._asdict().values()))
+                  | beam.Map(lambda row: beam.Row(
+                        video_id=str(row.video_id),
+                        comment_text=str(row.comment_text),
+                        likes=int(row.likes),
+                        replies=int(row.replies)))
+              )
+          file_pattern: "{{ GCS_PATH }}"
+
+    # Send the rows as Kafka records to an existing
+    # Kafka topic.
+    - type: WriteToKafka
+      name: SendRecordsToKafka
+      input: ReadFromGCS
+      config:
+        format: "JSON"
+        topic: "{{ TOPIC }}"
+        bootstrap_servers: "{{ BOOTSTRAP_SERVERS }}"
+        producer_config_updates:
+          sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
+            username={{ USERNAME }} \
+            password={{ PASSWORD }};"
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+
+    # Read Kafka records from an existing Kafka topic.
+    - type: ReadFromKafka
+      name: ReadFromMyTopic
+      config:
+        format: "JSON"
+        schema: |
+          {
+            "type": "object",
+            "properties": {
+              "video_id": { "type": "string" },
+              "comment_text": { "type": "string" },
+              "likes": { "type": "integer" },
+              "replies": { "type": "integer" }
+            }
+          }
+        topic: "{{ TOPIC }}"
+        bootstrap_servers: "{{ BOOTSTRAP_SERVERS }}"
+        auto_offset_reset_config: earliest
+        consumer_config:
+          sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
+            username={{ USERNAME }} \
+            password={{ PASSWORD }};"
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+
+    # Remove unexpected characters from the YouTube
+    # comment string, e.g. emojis, ascii characters
+    # outside the common day-to-day English.
+    - type: MapToFields
+      name: RemoveWeirdCharacters
+      input: ReadFromMyTopic
+      config:
+        language: python
+        fields:
+          video_id: video_id
+          comment_text:
+            callable: |
+              import re
+              def filter(row):
+                # regex match and keep letters, digits, whitespace and common punctuations,
+                # i.e. remove non printable ASCII characters (character codes not in
+                # the range 32 - 126, or \x20 - \x7E).
+                return re.sub(r'[^\x20-\x7E]', '', row.comment_text).strip()
+          likes: likes
+          replies: replies
+
+    # Remove rows that have empty comment text
+    # after previously removing unexpected characters.
+    - type: Filter
+      name: FilterForProperComments
+      input: RemoveWeirdCharacters
+      config:
+        language: python
+        keep:
+          callable: |
+            def filter(row):
+              return len(row.comment_text) > 0
+
+    # HuggingFace's distilbert-base-uncased is used for inference,
+    # which accepts string with a maximum limit of 250 tokens.
+    # Some of the comment strings can be large and are well over
+    # this limit after tokenization.
+    # This transform truncates the comment string and ensure
+    # every comment satisfy the maximum token limit.
+    - type: MapToFields
+      name: Truncating
+      input: FilterForProperComments
+      config:
+        language: python
+        dependencies:
+          - 'transformers>=4.48.0,<4.49.0'
+        fields:
+          video_id: video_id
+          comment_text:
+            callable: |
+              from transformers import AutoTokenizer
+
+              tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
+
+              def truncate_sentence(row):
+                tokens = tokenizer(
+                    row.comment_text,
+                    max_length=512,
+                    padding='max_length',
+                    truncation=True)
+                truncated_sentence = tokenizer.decode(tokens["input_ids"], skip_special_tokens=True)
+                return truncated_sentence
+          likes: likes
+          replies: replies
+
+    # HuggingFace's distilbert-base-uncased does not distinguish
+    # between upper and lower case tokens.
+    # This pipeline makes the same point by converting all words
+    # into lowercase.
+    - type: MapToFields
+      name: LowerCase
+      input: Truncating
+      config:
+        language: python
+        fields:
+          video_id: video_id
+          comment_text: "comment_text.lower()"
+          likes: likes
+          replies: replies
+
+    # With VertexAIModelHandlerJSON model handler,
+    # RunInference transform performs remote inferences by
+    # sending POST requests to the Vertex AI endpoint that
+    # our distilbert-base-uncased model is being deployed to.
+    - type: RunInference
+      name: DistilBERTRemoteInference
+      input: LowerCase
+      config:
+        inference_tag: "inference"
+        model_handler:
+          type: "VertexAIModelHandlerJSON"
+          config:
+            endpoint_id: "{{ ENDPOINT }}"
+            project: "{{ PROJECT }}"
+            location: "{{ LOCATION }}"
+            preprocess:
+              callable: 'lambda x: x.comment_text'
+
+    # Parse inference results output
+    - type: MapToFields
+      name: FormatInferenceOutput
+      input: DistilBERTRemoteInference
+      config:
+        language: python
+        fields:
+          video_id:
+            expression: video_id
+            output_type: string
+          comment_text:
+            callable: "lambda x: x.comment_text"
+            output_type: string
+          label:
+            callable: "lambda x: x.inference.inference[0]['label']"
+            output_type: string
+          score:
+            callable: "lambda x: x.inference.inference[0]['score']"
+            output_type: number
+          likes:
+            expression: likes
+            output_type: integer
+          replies:
+            expression: replies
+            output_type: integer
+
+    # Assign windows to each element of the unbounded PCollection.
+    - type: WindowInto
+      name: Windowing
+      input: FormatInferenceOutput
+      config:
+        windowing:
+          type: fixed
+          size: 30s
+
+    # Write all inference results to a BigQuery table.
+    - type: WriteToBigQuery
+      name: WriteInferenceResultsToBQ
+      input: Windowing
+      config:
+        table: "{{ BQ_TABLE }}"
+        create_disposition: CREATE_IF_NEEDED
+        write_disposition: WRITE_APPEND
+
+options:
+  yaml_experimental_features: ML
+
+# Expected:
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='I AM HAPPY', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='I AM SAD', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='§ÁĐ', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='i am happy', label='POSITIVE', score=0.95, likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='i am sad', label='NEGATIVE', score=0.95, likes=1, replies=1)

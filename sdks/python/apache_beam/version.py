@@ -17,4 +17,4 @@
 
 """Apache Beam SDK version information and utilities."""
 
-__version__ = '2.67.0.dev'
+__version__ = '2.69.0.dev'

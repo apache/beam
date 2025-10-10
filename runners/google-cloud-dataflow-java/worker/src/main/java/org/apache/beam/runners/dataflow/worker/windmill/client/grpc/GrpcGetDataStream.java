@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -90,7 +91,9 @@ final class GrpcGetDataStream
   @GuardedBy("this")
   private final Deque<QueuedBatch> batches;
 
-  private final Supplier<Integer> batchesDebugSizeSupplier;
+  // Size of the batches that may be read without synchronization.  If it is under synchronized
+  // block it is guaranteed to be correct.
+  private final Supplier<Integer> batchesSizeSupplier;
 
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
@@ -112,16 +115,19 @@ final class GrpcGetDataStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses,
+      java.time.Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executorService) {
     super(
         LOG,
-        "GetDataStream",
         startGetDataRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        halfClosePhysicalStreamAfter,
+        executorService);
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
@@ -129,7 +135,7 @@ final class GrpcGetDataStream
     // Otherwise the deque is accessed via batches which has a guardedby annotation.
     ConcurrentLinkedDeque<QueuedBatch> batches = new ConcurrentLinkedDeque<>();
     this.batches = batches;
-    this.batchesDebugSizeSupplier = batches::size;
+    this.batchesSizeSupplier = batches::size;
     this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
     this.processHeartbeatResponses = processHeartbeatResponses;
   }
@@ -146,7 +152,9 @@ final class GrpcGetDataStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses,
+      java.time.Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     return new GrpcGetDataStream(
         backendWorkerToken,
         startGetDataRpcFn,
@@ -158,7 +166,9 @@ final class GrpcGetDataStream
         idGenerator,
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
-        processHeartbeatResponses);
+        processHeartbeatResponses,
+        halfClosePhysicalStreamAfter,
+        executor);
   }
 
   private static WindmillStreamShutdownException shutdownExceptionFor(QueuedBatch batch) {
@@ -189,7 +199,7 @@ final class GrpcGetDataStream
       }
 
       if (!trySend(batch.asGetDataRequest())) {
-        // The stream broke before this call went through; onNewStream will retry the fetch.
+        // The stream broke before this call went through; onFlushPending will retry the fetch.
         LOG.debug("GetData stream broke before call started.");
       }
     }
@@ -216,7 +226,7 @@ final class GrpcGetDataStream
 
     @Override
     public boolean hasPendingRequests() {
-      return !pending.isEmpty();
+      return !pending.isEmpty() || batchesSizeSupplier.get() > 0;
     }
 
     @Override
@@ -260,12 +270,17 @@ final class GrpcGetDataStream
   }
 
   @Override
-  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
-    trySend(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
+  protected synchronized void onFlushPending(boolean isNewStream)
+      throws WindmillStreamShutdownException {
+    if (isNewStream) {
+      trySend(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
+    }
     while (!batches.isEmpty()) {
       QueuedBatch batch = checkNotNull(batches.peekFirst());
       verify(!batch.isEmpty());
-      if (!batch.isFinalized()) break;
+      if (!batch.isFinalized()) {
+        break;
+      }
       try {
         verify(
             batch == batches.pollFirst(),
@@ -392,6 +407,12 @@ final class GrpcGetDataStream
       }
       currentGetDataStream.pending.clear();
     }
+    for (PhysicalStreamHandler handler : closingPhysicalStreams) {
+      for (AppendableInputStream ais : ((GetDataPhysicalStreamHandler) handler).pending.values()) {
+        ais.cancel();
+      }
+      ((GetDataPhysicalStreamHandler) handler).pending.clear();
+    }
     batches.forEach(
         batch -> {
           batch.markFinalized();
@@ -402,7 +423,12 @@ final class GrpcGetDataStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    writer.format("GetDataStream: %d queued batches", batchesDebugSizeSupplier.get());
+    int batches = batchesSizeSupplier.get();
+    if (batches > 0) {
+      writer.format("GetDataStream: %d queued batches ", batches);
+    } else {
+      writer.append("GetDataStream: no queued batches ");
+    }
   }
 
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn)
@@ -476,9 +502,8 @@ final class GrpcGetDataStream
         prevBatch.waitForSendOrFailNotification();
       }
       trySendBatch(batch);
-    } else {
-      // Wait for this batch to be sent before parsing the response.
-      batch.waitForSendOrFailNotification();
+      // If the send fails, request.responseStream will be cancelled and
+      // reading responseStream will throw.
     }
   }
 
@@ -493,9 +518,9 @@ final class GrpcGetDataStream
     }
     final @Nullable GetDataPhysicalStreamHandler currentGetDataPhysicalStream =
         (GetDataPhysicalStreamHandler) currentPhysicalStream;
-    if (currentGetDataPhysicalStream == null) {
-      // Leave the batch finalized but in the batches queue.  Finalized batches will be sent on the
-      // new stream in onNewStream.
+    if (currentGetDataPhysicalStream == null || clientClosed) {
+      // Leave the batch finalized but in the batches queue.  Finalized batches will be sent on a
+      // new stream in onFlushPending.
       return;
     }
 

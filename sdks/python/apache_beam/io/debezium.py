@@ -155,7 +155,7 @@ class ReadFromDebezium(PTransform):
         username=username,
         password=password,
         host=host,
-        port=port,
+        port=str(port),
         max_number_of_records=max_number_of_records,
         connection_properties=connection_properties)
     self.expansion_service = expansion_service or default_io_expansion_service()

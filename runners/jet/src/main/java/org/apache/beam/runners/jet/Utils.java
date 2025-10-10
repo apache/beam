@@ -110,10 +110,8 @@ public class Utils {
     return Iterables.getOnlyElement(getOutputs(appliedTransform).entrySet());
   }
 
-  static <T> boolean isBounded(AppliedPTransform<?, ?, ?> appliedTransform) {
-    return ((PCollection) getOutput(appliedTransform).getValue())
-        .isBounded()
-        .equals(PCollection.IsBounded.BOUNDED);
+  static boolean isBounded(AppliedPTransform<?, ?, ?> appliedTransform) {
+    return getOutput(appliedTransform).getValue().isBounded().equals(PCollection.IsBounded.BOUNDED);
   }
 
   static boolean isKeyedValueCoder(Coder coder) {

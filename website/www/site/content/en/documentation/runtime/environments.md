@@ -121,6 +121,7 @@ This method requires building image artifacts from Beam source. For additional i
   ./gradlew :sdks:python:container:py310:docker
   ./gradlew :sdks:python:container:py311:docker
   ./gradlew :sdks:python:container:py312:docker
+  ./gradlew :sdks:python:container:py313:docker
 
   # Shortcut for building all Python SDKs
   ./gradlew :sdks:python:container:buildAll

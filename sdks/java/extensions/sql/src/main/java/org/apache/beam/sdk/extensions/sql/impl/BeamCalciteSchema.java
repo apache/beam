@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,45 +26,41 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaVersion;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schemas;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaVersion;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schemas;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Adapter from {@link TableProvider} to {@link Schema}. */
+/**
+ * A Calcite {@link Schema} that corresponds to a {@link TableProvider} or {@link
+ * org.apache.beam.sdk.extensions.sql.meta.store.MetaStore}. In Beam SQL, a DATABASE refers to a
+ * {@link BeamCalciteSchema}.
+ */
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class BeamCalciteSchema implements Schema {
   private JdbcConnection connection;
-  private @Nullable TableProvider tableProvider;
-  private @Nullable CatalogManager catalogManager;
+  private TableProvider tableProvider;
   private Map<String, BeamCalciteSchema> subSchemas;
+  private final String name;
 
-  BeamCalciteSchema(JdbcConnection jdbcConnection, TableProvider tableProvider) {
+  /** Creates a {@link BeamCalciteSchema} representing a {@link TableProvider}. */
+  BeamCalciteSchema(String name, JdbcConnection jdbcConnection, TableProvider tableProvider) {
     this.connection = jdbcConnection;
     this.tableProvider = tableProvider;
     this.subSchemas = new HashMap<>();
+    this.name = name;
   }
 
-  /**
-   * Creates a {@link BeamCalciteSchema} representing a {@link CatalogManager}. This will typically
-   * be the root node of a pipeline.
-   */
-  BeamCalciteSchema(JdbcConnection jdbcConnection, CatalogManager catalogManager) {
-    this.connection = jdbcConnection;
-    this.catalogManager = catalogManager;
-    this.subSchemas = new HashMap<>();
+  public String name() {
+    return name;
   }
 
   public TableProvider getTableProvider() {
-    return resolveMetastore();
-  }
-
-  public @Nullable CatalogManager getCatalogManager() {
-    return catalogManager;
+    return tableProvider;
   }
 
   public Map<String, String> getPipelineOptions() {
@@ -106,7 +100,7 @@ public class BeamCalciteSchema implements Schema {
 
   @Override
   public Set<String> getTableNames() {
-    return resolveMetastore().getTables().keySet();
+    return tableProvider.getTables().keySet();
   }
 
   @Override
@@ -120,15 +114,15 @@ public class BeamCalciteSchema implements Schema {
   }
 
   @Override
-  public org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table getTable(
+  public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Table getTable(
       String name) {
-    Table table = resolveMetastore().getTable(name);
+    Table table = tableProvider.getTable(name);
     if (table == null) {
       return null;
     }
     return new BeamCalciteTable(
-        resolveMetastore().buildBeamSqlTable(table),
-        getPipelineOptions(),
+        tableProvider.buildBeamSqlTable(table),
+        connection.getPipelineOptionsMap(),
         connection.getPipelineOptions());
   }
 
@@ -144,7 +138,7 @@ public class BeamCalciteSchema implements Schema {
 
   @Override
   public Set<String> getSubSchemaNames() {
-    return resolveMetastore().getSubProviders();
+    return tableProvider.getSubProviders();
   }
 
   /**
@@ -157,23 +151,11 @@ public class BeamCalciteSchema implements Schema {
   public Schema getSubSchema(String name) {
     if (!subSchemas.containsKey(name)) {
       BeamCalciteSchema subSchema;
-      if (tableProvider != null) {
-        @Nullable TableProvider subProvider = tableProvider.getSubProvider(name);
-        subSchema = subProvider != null ? new BeamCalciteSchema(connection, subProvider) : null;
-      } else {
-        @Nullable Catalog catalog = checkStateNotNull(catalogManager).getCatalog(name);
-        subSchema = catalog != null ? new BeamCalciteSchema(connection, catalog.metaStore()) : null;
-      }
+      @Nullable TableProvider subProvider = tableProvider.getSubProvider(name);
+      subSchema = subProvider != null ? new BeamCalciteSchema(name, connection, subProvider) : null;
       subSchemas.put(name, subSchema);
     }
 
     return subSchemas.get(name);
-  }
-
-  public TableProvider resolveMetastore() {
-    if (tableProvider != null) {
-      return tableProvider;
-    }
-    return checkStateNotNull(catalogManager).currentCatalog().metaStore();
   }
 }

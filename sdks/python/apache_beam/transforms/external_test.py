@@ -377,7 +377,7 @@ java.lang.RuntimeException: ACTUAL \n MULTILINE \n ERROR
 \tat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
 \tat java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
 \tat java.lang.Thread.run(Thread.java:748)
-Caused by: java.lang.IllegalArgumentException: Received unknown SQL Dialect 'X'. Known dialects: [zetasql, calcite]
+Caused by: java.lang.IllegalArgumentException: Received unknown SQL Dialect 'X'. Known dialects: [calcite]
 \tat org.apache.beam.sdk.extensions.sql.expansion.ExternalSqlTransformRegistrar$Builder.buildExternal(ExternalSqlTransformRegistrar.java:73)
 \tat org.apache.beam.sdk.extensions.sql.expansion.ExternalSqlTransformRegistrar$Builder.buildExternal(ExternalSqlTransformRegistrar.java:63)
 \tat org.apache.beam.sdk.expansion.service.ExpansionService$TransformProviderForBuilder.getTransform(ExpansionService.java:303)
@@ -829,7 +829,7 @@ class JavaJarExpansionServiceTest(unittest.TestCase):
 
   @mock.patch.object(JavaJarServer, 'local_jar')
   def test_classpath_with_gradle_artifact(self, local_jar):
-    def _side_effect_fn(path):
+    def _side_effect_fn(path, user_agent=None):
       return path[path.rindex('/') + 1:]
 
     local_jar.side_effect = _side_effect_fn

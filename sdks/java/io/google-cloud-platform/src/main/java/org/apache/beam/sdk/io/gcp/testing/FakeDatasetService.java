@@ -84,7 +84,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "LockOnNonEnclosingClassLiteral"
 })
 public class FakeDatasetService implements DatasetService, WriteStreamService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of

@@ -28,8 +28,8 @@ import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.TableNameExtractionUtils;
 import org.apache.beam.sdk.extensions.sql.meta.CustomTableResolver;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Utils to wire up the custom table resolution into Calcite's planner. */
@@ -168,7 +168,7 @@ class TableResolutionUtils {
    */
   private static class SchemaWithName {
     String name;
-    org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema schema;
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema schema;
 
     static SchemaWithName create(JdbcConnection connection, String name) {
       SchemaWithName schemaWithName = new SchemaWithName();

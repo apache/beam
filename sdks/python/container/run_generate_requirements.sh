@@ -39,11 +39,12 @@ fi
 PY_VERSION=$1
 SDK_TARBALL=$2
 REQUIREMENTS_FILE_NAME=$3
-EXTRAS=$4
+BASE_PATH=$4
+EXTRAS=$5
 # Use the PIP_EXTRA_OPTIONS environment variable to pass additional flags to the pip install command.
 # For example, you can include the --pre flag in $PIP_EXTRA_OPTIONS to download pre-release versions of packages.
 # Note that you can modify the behavior of the pip install command in this script by passing in your own $PIP_EXTRA_OPTIONS.
-PIP_EXTRA_OPTIONS=$5
+PIP_EXTRA_OPTIONS=$6
 
 if ! python"$PY_VERSION" --version > /dev/null 2>&1 ; then
   echo "Please install a python${PY_VERSION} interpreter. See s.apache.org/beam-python-dev-wiki for Python installation tips."
@@ -57,6 +58,10 @@ fi
 
 if [ -z "$REQUIREMENTS_FILE_NAME" ]; then
   REQUIREMENTS_FILE_NAME="base_image_requirements.txt"
+fi
+
+if [ -z "$BASE_PATH" ]; then
+  BASE_PATH="container"
 fi
 
 if [ -z "$EXTRAS" ]; then
@@ -85,7 +90,7 @@ echo "Installed dependencies:"
 pip freeze --all
 
 PY_IMAGE="py${PY_VERSION//.}"
-REQUIREMENTS_FILE=$PWD/sdks/python/container/$PY_IMAGE/$REQUIREMENTS_FILE_NAME
+REQUIREMENTS_FILE=$PWD/sdks/python/$BASE_PATH/$PY_IMAGE/$REQUIREMENTS_FILE_NAME
 cat <<EOT > "$REQUIREMENTS_FILE"
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with

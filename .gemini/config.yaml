@@ -46,7 +46,7 @@ code_review:
 
     # Post code review on PR open.
     # Type boolean, default: true.
-    code_review: true
+    code_review: false
 
 # List of glob patterns to ignore (files and directories).
 # Type: array of string, default: [].

@@ -47,6 +47,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
+import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
@@ -60,12 +61,15 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataReq
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
@@ -92,6 +96,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
   private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
   private final List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
   private final Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private StreamObserver<WorkerMetadataResponse> workerMetadataObserver = null;
+
   private int commitsRequested = 0;
   private boolean dropStreamingCommits = false;
 
@@ -253,7 +259,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
           Windmill.GetWorkResponse response = workToOffer.get(null);
           if (response == null) {
             try {
-              sleepMillis(500);
+              sleepMillis(100);
             } catch (InterruptedException e) {
               halfClose();
               Thread.currentThread().interrupt();
@@ -515,9 +521,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> waitForDroppedCommits(
       int droppedCommits) {
     LOG.debug("waitForDroppedCommits: {}", droppedCommits);
-    int maxTries = 10;
+    int maxTries = 100;
     while (maxTries-- > 0 && droppedStreamingCommits.size() < droppedCommits) {
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
     assertEquals(droppedCommits, droppedStreamingCommits.size());
     return droppedStreamingCommits;
@@ -551,6 +557,47 @@ public final class FakeWindmillServer extends WindmillServerStub {
   @Override
   public synchronized void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
     this.dispatcherEndpoints = ImmutableSet.copyOf(endpoints);
+  }
+
+  public void injectWorkerMetadata(WorkerMetadataResponse response) {
+    if (workerMetadataObserver != null) {
+      workerMetadataObserver.onNext(response);
+    }
+  }
+
+  private void setWorkerMetadataObserver(
+      StreamObserver<WorkerMetadataResponse> workerMetadataObserver) {
+    this.workerMetadataObserver = workerMetadataObserver;
+  }
+
+  public static class FakeWindmillMetadataService
+      extends CloudWindmillMetadataServiceV1Alpha1Grpc
+          .CloudWindmillMetadataServiceV1Alpha1ImplBase {
+    private final FakeWindmillServer server;
+
+    public FakeWindmillMetadataService(FakeWindmillServer server) {
+      this.server = server;
+    }
+
+    @Override
+    public StreamObserver<WorkerMetadataRequest> getWorkerMetadata(
+        StreamObserver<WorkerMetadataResponse> responseObserver) {
+      server.setWorkerMetadataObserver(responseObserver);
+      return new StreamObserver<WorkerMetadataRequest>() {
+        @Override
+        public void onNext(WorkerMetadataRequest value) {}
+
+        @Override
+        public void onError(Throwable t) {
+          responseObserver.onError(t);
+        }
+
+        @Override
+        public void onCompleted() {
+          responseObserver.onCompleted();
+        }
+      };
+    }
   }
 
   public static class ResponseQueue<T, U> {

@@ -25,7 +25,6 @@ graph of transformations belonging to a pipeline on the local machine.
 
 import itertools
 import logging
-import time
 import typing
 
 from google.protobuf import wrappers_pb2
@@ -137,6 +136,14 @@ class SwitchingDirectRunner(PipelineRunner):
           self.supported_by_prism_runner = False
         else:
           pipeline.visit(self)
+        # Avoid circular import
+        from apache_beam.pipeline import ExternalTransformFinder
+        if ExternalTransformFinder.contains_external_transforms(pipeline):
+          # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+          # seems to not be able to consistently bring up external transforms.
+          # It does sometimes, but at volume suites start to fail. We will try
+          # to enable this in a future release.
+          self.supported_by_prism_runner = False
         return self.supported_by_prism_runner
 
       def visit_transform(self, applied_ptransform):
@@ -144,12 +151,6 @@ class SwitchingDirectRunner(PipelineRunner):
         # Python SDK assumes the direct runner TestStream implementation is
         # being used.
         if isinstance(transform, TestStream):
-          self.supported_by_prism_runner = False
-        if isinstance(transform, beam.ExternalTransform):
-          # TODO(https://github.com/apache/beam/issues/33623): Prism currently
-          # seems to not be able to consistently bring up external transforms.
-          # It does sometimes, but at volume suites start to fail. We will try
-          # to enable this in a future release.
           self.supported_by_prism_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn
@@ -184,6 +185,13 @@ class SwitchingDirectRunner(PipelineRunner):
             for state in state_specs:
               if isinstance(state, userstate.CombiningValueStateSpec):
                 self.supported_by_prism_runner = False
+          if isinstance(
+              dofn,
+              beam.transforms.combiners._PartialGroupByKeyCombiningValues):
+            if len(transform.side_inputs) > 0:
+              # Prism doesn't support side input combiners (this is within spec)
+              self.supported_by_prism_runner = False
+
         # TODO(https://github.com/apache/beam/issues/33623): Prism seems to
         # not handle session windows correctly. Examples are:
         # util_test.py::ReshuffleTest::test_reshuffle_window_fn_preserved
@@ -196,20 +204,8 @@ class SwitchingDirectRunner(PipelineRunner):
     runner = BundleBasedDirectRunner()
 
     # Check whether all transforms used in the pipeline are supported by the
-    # FnApiRunner, and the pipeline was not meant to be run as streaming.
-    if _FnApiRunnerSupportVisitor().accept(pipeline):
-      from apache_beam.portability.api import beam_provision_api_pb2
-      from apache_beam.runners.portability.fn_api_runner import fn_runner
-      from apache_beam.runners.portability.portable_runner import JobServiceHandle
-      all_options = options.get_all_options()
-      encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
-      provision_info = fn_runner.ExtendedProvisionInfo(
-          beam_provision_api_pb2.ProvisionInfo(
-              pipeline_options=encoded_options))
-      runner = fn_runner.FnApiRunner(provision_info=provision_info)
-    # Check whether all transforms used in the pipeline are supported by the
     # PrismRunner
-    elif _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
+    if _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
       _LOGGER.info('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
       runner = prism_runner.PrismRunner()
@@ -232,6 +228,19 @@ class SwitchingDirectRunner(PipelineRunner):
         _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
         _LOGGER.info('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
+
+    # Check whether all transforms used in the pipeline are supported by the
+    # FnApiRunner, and the pipeline was not meant to be run as streaming.
+    if _FnApiRunnerSupportVisitor().accept(pipeline):
+      from apache_beam.portability.api import beam_provision_api_pb2
+      from apache_beam.runners.portability.fn_api_runner import fn_runner
+      from apache_beam.runners.portability.portable_runner import JobServiceHandle
+      all_options = options.get_all_options()
+      encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
+      provision_info = fn_runner.ExtendedProvisionInfo(
+          beam_provision_api_pb2.ProvisionInfo(
+              pipeline_options=encoded_options))
+      runner = fn_runner.FnApiRunner(provision_info=provision_info)
 
     return runner.run_pipeline(pipeline, options)
 
@@ -389,7 +398,7 @@ def _get_transform_overrides(pipeline_options):
 
   # Importing following locally to avoid a circular dependency.
   from apache_beam.pipeline import PTransformOverride
-  from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
+  from apache_beam.transforms.combiners import LiftedCombinePerKey
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
   from apache_beam.runners.direct.sdf_direct_runner import SplittableParDoOverride
 
@@ -511,59 +520,6 @@ class _DirectReadFromPubSub(PTransform):
     return PCollection(self.pipeline, is_bounded=self._source.is_bounded())
 
 
-class _DirectWriteToPubSubFn(DoFn):
-  BUFFER_SIZE_ELEMENTS = 100
-  FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
-
-  def __init__(self, transform):
-    self.project = transform.project
-    self.short_topic_name = transform.topic_name
-    self.id_label = transform.id_label
-    self.timestamp_attribute = transform.timestamp_attribute
-    self.with_attributes = transform.with_attributes
-
-    # TODO(https://github.com/apache/beam/issues/18939): Add support for
-    # id_label and timestamp_attribute.
-    if transform.id_label:
-      raise NotImplementedError(
-          'DirectRunner: id_label is not supported for '
-          'PubSub writes')
-    if transform.timestamp_attribute:
-      raise NotImplementedError(
-          'DirectRunner: timestamp_attribute is not '
-          'supported for PubSub writes')
-
-  def start_bundle(self):
-    self._buffer = []
-
-  def process(self, elem):
-    self._buffer.append(elem)
-    if len(self._buffer) >= self.BUFFER_SIZE_ELEMENTS:
-      self._flush()
-
-  def finish_bundle(self):
-    self._flush()
-
-  def _flush(self):
-    from google.cloud import pubsub
-    pub_client = pubsub.PublisherClient()
-    topic = pub_client.topic_path(self.project, self.short_topic_name)
-
-    if self.with_attributes:
-      futures = [
-          pub_client.publish(topic, elem.data, **elem.attributes)
-          for elem in self._buffer
-      ]
-    else:
-      futures = [pub_client.publish(topic, elem) for elem in self._buffer]
-
-    timer_start = time.time()
-    for future in futures:
-      remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
-      future.result(remaining)
-    self._buffer = []
-
-
 def _get_pubsub_transform_overrides(pipeline_options):
   from apache_beam.io.gcp import pubsub as beam_pubsub
   from apache_beam.pipeline import PTransformOverride
@@ -581,19 +537,9 @@ def _get_pubsub_transform_overrides(pipeline_options):
             '(use the --streaming flag).')
       return _DirectReadFromPubSub(applied_ptransform.transform._source)
 
-  class WriteToPubSubOverride(PTransformOverride):
-    def matches(self, applied_ptransform):
-      return isinstance(applied_ptransform.transform, beam_pubsub.WriteToPubSub)
-
-    def get_replacement_transform_for_applied_ptransform(
-        self, applied_ptransform):
-      if not pipeline_options.view_as(StandardOptions).streaming:
-        raise Exception(
-            'PubSub I/O is only available in streaming mode '
-            '(use the --streaming flag).')
-      return beam.ParDo(_DirectWriteToPubSubFn(applied_ptransform.transform))
-
-  return [ReadFromPubSubOverride(), WriteToPubSubOverride()]
+  # WriteToPubSub no longer needs an override - it works by default for both
+  # batch and streaming
+  return [ReadFromPubSubOverride()]
 
 
 class BundleBasedDirectRunner(PipelineRunner):

@@ -33,9 +33,12 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import check_accessible
+from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
+DEFAULT_WINDOW_SHARD_NAME_TEMPLATE = '-W-SSSSS-of-NNNNN'
+DEFAULT_TRIGGERING_FREQUENCY = 0
 
 __all__ = ['FileBasedSink']
 
@@ -71,7 +74,9 @@ class FileBasedSink(iobase.Sink):
       *,
       max_records_per_shard=None,
       max_bytes_per_shard=None,
-      skip_if_empty=False):
+      skip_if_empty=False,
+      convert_fn=None,
+      triggering_frequency=None):
     """
      Raises:
       TypeError: if file path parameters are not a :class:`str` or
@@ -98,6 +103,8 @@ class FileBasedSink(iobase.Sink):
       shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
     elif shard_name_template == '':
       num_shards = 1
+    if triggering_frequency is None:
+      triggering_frequency = DEFAULT_TRIGGERING_FREQUENCY
     if isinstance(file_path_prefix, str):
       file_path_prefix = StaticValueProvider(str, file_path_prefix)
     if isinstance(file_name_suffix, str):
@@ -106,6 +113,7 @@ class FileBasedSink(iobase.Sink):
     self.file_name_suffix = file_name_suffix
     self.num_shards = num_shards
     self.coder = coder
+    self.shard_name_template = shard_name_template
     self.shard_name_format = self._template_to_format(shard_name_template)
     self.shard_name_glob_format = self._template_to_glob_format(
         shard_name_template)
@@ -114,6 +122,8 @@ class FileBasedSink(iobase.Sink):
     self.max_records_per_shard = max_records_per_shard
     self.max_bytes_per_shard = max_bytes_per_shard
     self.skip_if_empty = skip_if_empty
+    self.convert_fn = convert_fn
+    self.triggering_frequency = triggering_frequency
 
   def display_data(self):
     return {
@@ -202,19 +212,39 @@ class FileBasedSink(iobase.Sink):
     return FileBasedSinkWriter(self, writer_path)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
-  def _get_final_name(self, shard_num, num_shards):
+  def _get_final_name(self, shard_num, num_shards, w=None):
+    if w is None or isinstance(w, window.GlobalWindow):
+      window_utc = None
+    else:
+      window_utc = (
+          '[' + w.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ', ' +
+          w.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ')')
     return ''.join([
         self.file_path_prefix.get(),
-        self.shard_name_format %
-        dict(shard_num=shard_num, num_shards=num_shards),
+        self.shard_name_format % dict(
+            shard_num=shard_num,
+            num_shards=num_shards,
+            uuid=(uuid.uuid4()),
+            window=w,
+            window_utc=window_utc),
         self.file_name_suffix.get()
     ])
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
-  def _get_final_name_glob(self, num_shards):
+  def _get_final_name_glob(self, num_shards, w=None):
+    if w is None or isinstance(w, window.GlobalWindow):
+      window_utc = None
+    else:
+      window_utc = (
+          '[' + w.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ', ' +
+          w.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ')')
     return ''.join([
         self.file_path_prefix.get(),
-        self.shard_name_glob_format % dict(num_shards=num_shards),
+        self.shard_name_glob_format % dict(
+            num_shards=num_shards,
+            uuid=(uuid.uuid4()),
+            window=w,
+            window_utc=window_utc),
         self.file_name_suffix.get()
     ])
 
@@ -233,7 +263,23 @@ class FileBasedSink(iobase.Sink):
           self.shard_name_glob_format)
       FileSystems.delete(dst_glob_files)
 
-  def _check_state_for_finalize_write(self, writer_results, num_shards):
+  def pre_finalize_windowed(self, init_result, writer_results, window=None):
+    num_shards = len(list(writer_results))
+    dst_glob = self._get_final_name_glob(num_shards, window)
+    dst_glob_files = [
+        file_metadata.path for mr in FileSystems.match([dst_glob])
+        for file_metadata in mr.metadata_list
+    ]
+
+    if dst_glob_files:
+      _LOGGER.warning(
+          'Deleting %d existing files in target path matching: %s',
+          len(dst_glob_files),
+          self.shard_name_glob_format)
+      FileSystems.delete(dst_glob_files)
+
+  def _check_state_for_finalize_write(
+      self, writer_results, num_shards, window=None):
     """Checks writer output files' states.
 
     Returns:
@@ -248,7 +294,7 @@ class FileBasedSink(iobase.Sink):
       return [], [], [], 0
 
     src_glob = FileSystems.join(FileSystems.split(writer_results[0])[0], '*')
-    dst_glob = self._get_final_name_glob(num_shards)
+    dst_glob = self._get_final_name_glob(num_shards, window)
     src_glob_files = set(
         file_metadata.path for mr in FileSystems.match([src_glob])
         for file_metadata in mr.metadata_list)
@@ -261,7 +307,7 @@ class FileBasedSink(iobase.Sink):
     delete_files = []
     num_skipped = 0
     for shard_num, src in enumerate(writer_results):
-      final_name = self._get_final_name(shard_num, num_shards)
+      final_name = self._get_final_name(shard_num, num_shards, window)
       dst = final_name
       src_exists = src in src_glob_files
       dst_exists = dst in dst_glob_files
@@ -300,11 +346,19 @@ class FileBasedSink(iobase.Sink):
   @check_accessible(['file_path_prefix'])
   def finalize_write(
       self, init_result, writer_results, unused_pre_finalize_results):
+    #Legacy finalize_write now has shares the implementation with
+    #finalize_windowed_write when window is None.
+    return self.finalize_windowed_write(
+        init_result, writer_results, unused_pre_finalize_results, None)
+
+  @check_accessible(['file_path_prefix'])
+  def finalize_windowed_write(
+      self, init_result, writer_results, unused_pre_finalize_results, w=None):
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
 
     src_files, dst_files, delete_files, num_skipped = (
-        self._check_state_for_finalize_write(writer_results, num_shards))
+        self._check_state_for_finalize_write(writer_results, num_shards, w))
     num_skipped += len(delete_files)
     FileSystems.delete(delete_files)
     num_shards_to_finalize = len(src_files)
@@ -322,16 +376,8 @@ class FileBasedSink(iobase.Sink):
     ]
 
     if num_shards_to_finalize:
-      _LOGGER.info(
-          'Starting finalize_write threads with num_shards: %d (skipped: %d), '
-          'batches: %d, num_threads: %d',
-          num_shards_to_finalize,
-          num_skipped,
-          len(source_file_batch),
-          num_threads)
       start_time = time.time()
 
-      # Use a thread pool for renaming operations.
       def _rename_batch(batch):
         """_rename_batch executes batch rename operations."""
         source_files, destination_files = batch
@@ -355,19 +401,36 @@ class FileBasedSink(iobase.Sink):
               _LOGGER.debug('Rename successful: %s -> %s', src, dst)
           return exceptions
 
-      exception_batches = util.run_using_threadpool(
-          _rename_batch,
-          list(zip(source_file_batch, destination_file_batch)),
-          num_threads)
+      if w is None or isinstance(w, window.GlobalWindow):
+        # bounded input was handled by finalize_write legacy method
+        # the implementation here should be called by finalize_write
+        # Use a thread pool for renaming operations.
+        exception_batches = util.run_using_threadpool(
+            _rename_batch,
+            list(zip(source_file_batch, destination_file_batch)),
+            num_threads)
 
-      all_exceptions = [
-          e for exception_batch in exception_batches for e in exception_batch
-      ]
-      if all_exceptions:
-        raise Exception(
-            'Encountered exceptions in finalize_write: %s' % all_exceptions)
+        all_exceptions = [
+            e for exception_batch in exception_batches for e in exception_batch
+        ]
+        if all_exceptions:
+          raise Exception(
+              'Encountered exceptions in finalize_write: %s' % all_exceptions)
 
-      yield from dst_files
+        yield from dst_files
+      else:
+        # unbounded input
+        batch = list([src_files, dst_files])
+        exception_batches = _rename_batch(batch)
+
+        all_exceptions = [
+            e for exception_batch in exception_batches for e in exception_batch
+        ]
+        if all_exceptions:
+          raise Exception(
+              'Encountered exceptions in finalize_write: %s' % all_exceptions)
+
+        yield from dst_files
 
       _LOGGER.info(
           'Renamed %d shards in %.2f seconds.',
@@ -386,6 +449,26 @@ class FileBasedSink(iobase.Sink):
       _LOGGER.info('Unable to delete file: %s', init_result)
 
   @staticmethod
+  def _template_replace_window(shard_name_template):
+    match = re.search('W+', shard_name_template)
+    if match:
+      shard_name_template = shard_name_template.replace(
+          match.group(0), '%%(window)0%ds' % len(match.group(0)))
+    match = re.search('V+', shard_name_template)
+    if match:
+      shard_name_template = shard_name_template.replace(
+          match.group(0), '%%(window_utc)0%ds' % len(match.group(0)))
+    return shard_name_template
+
+  @staticmethod
+  def _template_replace_uuid(shard_name_template):
+    match = re.search('U+', shard_name_template)
+    if match:
+      shard_name_template = shard_name_template.replace(
+          match.group(0), '%%(uuid)0%dd' % len(match.group(0)))
+    return shard_name_template
+
+  @staticmethod
   def _template_replace_num_shards(shard_name_template):
     match = re.search('N+', shard_name_template)
     if match:
@@ -394,17 +477,30 @@ class FileBasedSink(iobase.Sink):
     return shard_name_template
 
   @staticmethod
-  def _template_to_format(shard_name_template):
-    if not shard_name_template:
-      return ''
+  def _template_replace_shard_num(shard_name_template):
     match = re.search('S+', shard_name_template)
     if match is None:
+      # shard name is required in the template.
       raise ValueError(
           "Shard number pattern S+ not found in shard_name_template: %s" %
           shard_name_template)
-    shard_name_format = shard_name_template.replace(
+    return shard_name_template.replace(
         match.group(0), '%%(shard_num)0%dd' % len(match.group(0)))
-    return FileBasedSink._template_replace_num_shards(shard_name_format)
+
+  @staticmethod
+  def _template_to_format(shard_name_template):
+    if not shard_name_template:
+      return ''
+    # shard_num is required in the template, while others are optional.
+    replace_funcs = [
+        FileBasedSink._template_replace_shard_num,
+        FileBasedSink._template_replace_num_shards,
+        FileBasedSink._template_replace_uuid,
+        FileBasedSink._template_replace_window
+    ]
+    for func in replace_funcs:
+      shard_name_template = func(shard_name_template)
+    return shard_name_template
 
   @staticmethod
   def _template_to_glob_format(shard_name_template):

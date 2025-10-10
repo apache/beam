@@ -41,6 +41,7 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "${project.ext.pythonVersion} " +
               "${files(configurations.sdkSourceTarball.files).singleFile} " +
               "base_image_requirements.txt " +
+              "container " +
               "[gcp,dataframe,test] " +
               "${pipExtraOptions}"
     }
@@ -51,6 +52,7 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "${project.ext.pythonVersion} " +
               "${files(configurations.sdkSourceTarball.files).singleFile} " +
               "ml_image_requirements.txt " +
+              "container/ml " +
               "[gcp,dataframe,test,tensorflow,torch,transformers] " +
               "${pipExtraOptions}"
     }

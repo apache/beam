@@ -215,7 +215,7 @@ public class GroupingShuffleReaderTest {
     return records;
   }
 
-  @SuppressWarnings("ReturnValueIgnored")
+  @SuppressWarnings({"ReturnValueIgnored"})
   private List<KV<Integer, List<KV<Integer, Integer>>>> runIterationOverGroupingShuffleReader(
       BatchModeExecutionContext context,
       TestShuffleReader shuffleReader,

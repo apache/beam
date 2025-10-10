@@ -30,6 +30,7 @@ import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -168,6 +169,7 @@ import org.slf4j.LoggerFactory;
  * Tests of {@link KafkaIO}. Run with 'mvn test -Dkafka.clients.version=0.10.1.1', to test with a
  * specific Kafka version.
  */
+@SuppressWarnings("UnnecessaryLongToIntConversion") // for assert
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
 
@@ -392,7 +394,9 @@ public class KafkaIOTest {
         false, /*redistribute*/
         false, /*allowDuplicates*/
         0, /*numKeys*/
-        null /*offsetDeduplication*/);
+        null, /*offsetDeduplication*/
+        null, /*topics*/
+        null /*redistributeByRecordKey*/);
   }
 
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithOffsetDedup(
@@ -404,7 +408,41 @@ public class KafkaIOTest {
         true, /*redistribute*/
         false, /*allowDuplicates*/
         100, /*numKeys*/
-        true /*offsetDeduplication*/);
+        true, /*offsetDeduplication*/
+        null, /*topics*/
+        null /*redistributeByRecordKey*/);
+  }
+
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithRedistributeByRecordKey(
+      int numElements,
+      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
+      boolean byRecordKey) {
+    return mkKafkaReadTransform(
+        numElements,
+        numElements,
+        timestampFn,
+        true, /*redistribute*/
+        false, /*allowDuplicates*/
+        100, /*numKeys*/
+        true, /*offsetDeduplication*/
+        null, /*topics*/
+        byRecordKey /*redistributeByRecordKey*/);
+  }
+
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithTopics(
+      int numElements,
+      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
+      List<String> topics) {
+    return mkKafkaReadTransform(
+        numElements,
+        numElements,
+        timestampFn,
+        false, /*redistribute*/
+        false, /*allowDuplicates*/
+        0, /*numKeys*/
+        null, /*offsetDeduplication*/
+        topics, /*topics*/
+        null /*redistributeByRecordKey*/);
   }
 
   /**
@@ -418,15 +456,22 @@ public class KafkaIOTest {
       @Nullable Boolean redistribute,
       @Nullable Boolean withAllowDuplicates,
       @Nullable Integer numKeys,
-      @Nullable Boolean offsetDeduplication) {
+      @Nullable Boolean offsetDeduplication,
+      @Nullable List<String> topics,
+      @Nullable Boolean redistributeByRecordKey) {
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers(mkKafkaServers)
-            .withTopics(mkKafkaTopics)
+            .withTopics(topics != null ? topics : mkKafkaTopics)
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
-                    mkKafkaTopics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
+                    topics != null
+                        ? topics.stream().distinct().collect(Collectors.toList())
+                        : mkKafkaTopics,
+                    10,
+                    numElements,
+                    OffsetResetStrategy.EARLIEST)) // 20 partitions
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class);
     if (maxNumRecords != null) {
@@ -448,7 +493,10 @@ public class KafkaIOTest {
         reader = reader.withRedistributeNumKeys(numKeys);
       }
       if (offsetDeduplication != null && offsetDeduplication) {
-        reader.withOffsetDeduplication(offsetDeduplication);
+        reader = reader.withOffsetDeduplication(offsetDeduplication);
+      }
+      if (redistributeByRecordKey != null && redistributeByRecordKey) {
+        reader = reader.withRedistributeByRecordKey(redistributeByRecordKey);
       }
     }
     return reader;
@@ -610,7 +658,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testDeserializationWithHeaders() throws Exception {
+  public void testDeserializationWithHeaders() {
     // To assert that we continue to prefer the Deserializer API with headers in Kafka API 2.1.0
     // onwards
     int numElements = 1000;
@@ -642,6 +690,21 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithDuplicateTopics() {
+    int numElements = 1000;
+    List<String> topics = ImmutableList.of("topic_a", "topic_b", "topic_a");
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransformWithTopics(numElements, new ValueAsTimestampFn(), topics)
+                    .withoutMetadata())
             .apply(Values.create());
 
     addCountingAsserts(input, numElements);
@@ -682,7 +745,9 @@ public class KafkaIOTest {
                         true, /*redistribute*/
                         true, /*allowDuplicates*/
                         0, /*numKeys*/
-                        null /*offsetDeduplication*/)
+                        null, /*offsetDeduplication*/
+                        null, /*topics*/
+                        null /*redistributeByRecordKey*/)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
@@ -709,7 +774,9 @@ public class KafkaIOTest {
                         true, /*redistribute*/
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
-                        null /*offsetDeduplication*/)
+                        null, /*offsetDeduplication*/
+                        null, /*topics*/
+                        null /*redistributeByRecordKey*/)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
@@ -737,7 +804,9 @@ public class KafkaIOTest {
                         false, /*redistribute*/
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
-                        null /*offsetDeduplication*/)
+                        null, /*offsetDeduplication*/
+                        null, /*topics*/
+                        null /*redistributeByRecordKey*/)
                     .withRedistributeNumKeys(100)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
@@ -748,6 +817,56 @@ public class KafkaIOTest {
     addCountingAsserts(input, numElements);
 
     p.run();
+  }
+
+  @Test
+  public void testDefaultRedistributeNumKeys() {
+    int numElements = 1000;
+    // Redistribute is not used and does not modify the read transform further.
+    KafkaIO.Read<Integer, Long> read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            false, /*redistribute*/
+            false, /*allowDuplicates*/
+            null, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null, /*topics*/
+            null /*redistributeByRecordKey*/);
+    assertFalse(read.isRedistributed());
+    assertEquals(0, read.getRedistributeNumKeys());
+
+    // Redistribute is used and defaulted the number of keys due to no user setting.
+    read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            true, /*redistribute*/
+            false, /*allowDuplicates*/
+            null, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null, /*topics*/
+            null /*redistributeByRecordKey*/);
+    assertTrue(read.isRedistributed());
+    // Default is defined by DEFAULT_REDISTRIBUTE_NUM_KEYS in KafkaIO.
+    assertEquals(32768, read.getRedistributeNumKeys());
+
+    // Redistribute is set with user-specified the number of keys.
+    read =
+        mkKafkaReadTransform(
+            numElements,
+            numElements,
+            new ValueAsTimestampFn(),
+            true, /*redistribute*/
+            false, /*allowDuplicates*/
+            10, /*numKeys*/
+            null, /*offsetDeduplication*/
+            null, /*topics*/
+            null /*redistributeByRecordKey*/);
+    assertTrue(read.isRedistributed());
+    assertEquals(10, read.getRedistributeNumKeys());
   }
 
   @Test
@@ -1021,7 +1140,7 @@ public class KafkaIOTest {
 
   private static class ElementValueDiff extends DoFn<Long, Long> {
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
+    public void processElement(ProcessContext c) {
       c.output(c.element() - c.timestamp().getMillis());
     }
   }
@@ -1563,7 +1682,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSink() throws Exception {
+  public void testSink() {
     // Simply read from kafka source and write to kafka sink. Then verify the records
     // are correctly published to mock kafka producer.
 
@@ -1619,7 +1738,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkWithSerializationErrors() throws Exception {
+  public void testSinkWithSerializationErrors() {
     // Attempt to write 10 elements to Kafka, but they will all fail to serialize, and be sent to
     // the DLQ
 
@@ -1660,7 +1779,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testValuesSink() throws Exception {
+  public void testValuesSink() {
     // similar to testSink(), but use values()' interface.
 
     int numElements = 1000;
@@ -1691,7 +1810,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testRecordsSink() throws Exception {
+  public void testRecordsSink() {
     // Simply read from kafka source and write to kafka sink using ProducerRecord transform. Then
     // verify the records are correctly published to mock kafka producer.
 
@@ -1725,7 +1844,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkToMultipleTopics() throws Exception {
+  public void testSinkToMultipleTopics() {
     // Set different output topic names
     int numElements = 1000;
 
@@ -1770,7 +1889,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testKafkaWriteHeaders() throws Exception {
+  public void testKafkaWriteHeaders() {
     // Set different output topic names
     int numElements = 1;
     SimpleEntry<String, String> header = new SimpleEntry<>("header_key", "header_value");
@@ -1814,7 +1933,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkProducerRecordsWithCustomTS() throws Exception {
+  public void testSinkProducerRecordsWithCustomTS() {
     int numElements = 1000;
 
     try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
@@ -1853,7 +1972,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkProducerRecordsWithCustomPartition() throws Exception {
+  public void testSinkProducerRecordsWithCustomPartition() {
     int numElements = 1000;
 
     try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
@@ -2109,7 +2228,9 @@ public class KafkaIOTest {
                         false, /*redistribute*/
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
-                        null /*offsetDeduplication*/)
+                        null, /*offsetDeduplication*/
+                        null, /*topics*/
+                        null /*redistributeByRecordKey*/)
                     .withStartReadTime(new Instant(startTime))
                     .withoutMetadata())
             .apply(Values.create());
@@ -2125,6 +2246,36 @@ public class KafkaIOTest {
     PCollection<Long> input =
         p.apply(
                 mkKafkaReadTransformWithOffsetDedup(numElements, new ValueAsTimestampFn())
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements, numElements, 0, numElements - 1);
+    p.run();
+  }
+
+  @Test
+  public void testRedistributeByRecordKeyOn() {
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransformWithRedistributeByRecordKey(
+                        numElements, new ValueAsTimestampFn(), true)
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements, numElements, 0, numElements - 1);
+    p.run();
+  }
+
+  @Test
+  public void testRedistributeByRecordKeyOff() {
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransformWithRedistributeByRecordKey(
+                        numElements, new ValueAsTimestampFn(), false)
                     .withoutMetadata())
             .apply(Values.create());
 
@@ -2154,7 +2305,9 @@ public class KafkaIOTest {
                     false, /*redistribute*/
                     false, /*allowDuplicates*/
                     0, /*numKeys*/
-                    null /*offsetDeduplication*/)
+                    null, /*offsetDeduplication*/
+                    null, /*topics*/
+                    null /*redistributeByRecordKey*/)
                 .withStartReadTime(new Instant(startTime))
                 .withoutMetadata())
         .apply(Values.create());
@@ -2299,7 +2452,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkMetrics() throws Exception {
+  public void testSinkMetrics() {
     // Simply read from kafka source and write to kafka sink. Then verify the metrics are reported.
 
     int numElements = 1000;

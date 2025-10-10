@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -46,8 +48,10 @@ import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -79,14 +83,20 @@ public class ExecutionStateSampler {
           .toFormatter();
   private final int periodMs;
   private final MillisProvider clock;
+  private final long userSpecifiedLullTimeMsForRestart;
+  private final boolean userSpecifiedTimeoutForRestart;
 
   @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
 
   private final Future<Void> stateSamplingThread;
+  private final @Nullable Consumer<String> onTimeoutExceededCallback;
 
   @SuppressWarnings("methodref.receiver.bound" /* Synchronization ensures proper initialization */)
-  public ExecutionStateSampler(PipelineOptions options, MillisProvider clock) {
+  public ExecutionStateSampler(
+      PipelineOptions options,
+      MillisProvider clock,
+      @Nullable Consumer<String> onTimeoutExceededCallback) {
     String samplingPeriodMills =
         ExperimentalOptions.getExperimentValue(
             options, ExperimentalOptions.STATE_SAMPLING_PERIOD_MILLIS);
@@ -96,6 +106,17 @@ public class ExecutionStateSampler {
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
+
+    int timeoutOption = options.as(SdkHarnessOptions.class).getElementProcessingTimeoutMinutes();
+    if (timeoutOption <= 0) {
+      this.userSpecifiedTimeoutForRestart = false;
+      this.userSpecifiedLullTimeMsForRestart = 0L;
+    } else {
+      this.userSpecifiedTimeoutForRestart = true;
+      this.userSpecifiedLullTimeMsForRestart = TimeUnit.MINUTES.toMillis(timeoutOption);
+    }
+    this.onTimeoutExceededCallback = onTimeoutExceededCallback;
+
     // We specifically synchronize to ensure that this object can complete
     // being published before the state sampler thread starts.
     synchronized (this) {
@@ -148,6 +169,16 @@ public class ExecutionStateSampler {
     }
   }
 
+  @VisibleForTesting
+  public boolean getUserSpecifiedTimeoutForRestart() {
+    return this.userSpecifiedTimeoutForRestart;
+  }
+
+  @VisibleForTesting
+  public long getUserSpecifiedLullTimeMsForRestart() {
+    return this.userSpecifiedLullTimeMsForRestart;
+  }
+
   /** Entry point for the state sampling thread. */
   private Void stateSampler() throws Exception {
     // Ensure the object finishes being published safely.
@@ -166,10 +197,16 @@ public class ExecutionStateSampler {
         Thread.sleep(difference);
       } else {
         long millisSinceLastSample = currentTimeMillis - lastSampleTimeMillis;
+        Optional<String> timeoutMsg = Optional.empty();
         synchronized (activeStateTrackers) {
           for (ExecutionStateTracker activeTracker : activeStateTrackers) {
-            activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
+            if (!timeoutMsg.isPresent()) {
+              timeoutMsg = activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
+            }
           }
+        }
+        if (timeoutMsg.isPresent() && this.onTimeoutExceededCallback != null) {
+          this.onTimeoutExceededCallback.accept(timeoutMsg.get());
         }
         lastSampleTimeMillis = currentTimeMillis;
         targetTimeMillis = lastSampleTimeMillis + periodMs;
@@ -343,7 +380,7 @@ public class ExecutionStateSampler {
      * @param millisSinceLastSample the time since the last sample was reported. As an
      *     approximation, all of that time should be associated with this state.
      */
-    private void takeSample(long currentTimeMillis, long millisSinceLastSample) {
+    private Optional<String> takeSample(long currentTimeMillis, long millisSinceLastSample) {
       ExecutionStateImpl currentExecutionState = currentStateLazy.get();
       if (currentExecutionState != null) {
         currentExecutionState.takeSample(millisSinceLastSample);
@@ -356,6 +393,44 @@ public class ExecutionStateSampler {
         transitionsAtLastSample = transitionsAtThisSample;
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
+
+        if (userSpecifiedTimeoutForRestart && lullTimeMs > userSpecifiedLullTimeMsForRestart) {
+          String timeoutMessage = "";
+          Thread thread = trackedThread.get();
+          if (thread == null) {
+            timeoutMessage =
+                String.format(
+                    "Processing of an element in bundle %s has exceeded the specified timeout of %s "
+                        + "(stack trace unable to be generated). The SDK worker will be terminated.",
+                    processBundleId.get(),
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()));
+          } else if (currentExecutionState == null) {
+            timeoutMessage =
+                String.format(
+                    "Processing of an element in bundle %s has exceeded the specified timeout of %s "
+                        + "without outputting or completing:%n  at %s. The SDK worker will be terminated.",
+                    processBundleId.get(),
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()),
+                    Joiner.on("\n  at ").join(thread.getStackTrace()));
+          } else {
+            timeoutMessage =
+                String.format(
+                    "Processing of an element in bundle %s for PTransform{id=%s, name=%s, state=%s} "
+                        + "has exceeded the specified timeout of %s without outputting or completing:%n  at %s. "
+                        + "The SDK worker will be terminated.",
+                    processBundleId.get(),
+                    currentExecutionState.ptransformId,
+                    currentExecutionState.ptransformUniqueName,
+                    currentExecutionState.stateName,
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()),
+                    Joiner.on("\n  at ").join(thread.getStackTrace()));
+          }
+          return Optional.of(timeoutMessage);
+        }
+
         if (lullTimeMs > MAX_LULL_TIME_MS) {
           if (lullTimeMs < lastLullReport // This must be a new report.
               || lullTimeMs > 1.2 * lastLullReport // Exponential backoff.
@@ -394,6 +469,7 @@ public class ExecutionStateSampler {
           }
         }
       }
+      return Optional.empty();
     }
 
     /** Returns status information related to this tracker or null if not tracking a bundle. */

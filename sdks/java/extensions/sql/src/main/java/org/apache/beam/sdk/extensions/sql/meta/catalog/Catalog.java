@@ -19,7 +19,9 @@ package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Represents a named and configurable container for managing tables. Is defined with a type and
@@ -28,15 +30,65 @@ import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
  */
 @Internal
 public interface Catalog {
+  // Default database name
+  String DEFAULT = "default";
+
   /** A type that defines this catalog. */
   String type();
 
-  /** The underlying {@link MetaStore} that actually manages tables. */
-  MetaStore metaStore();
+  /**
+   * Returns the underlying {@link MetaStore} for this database. Creates a new {@link MetaStore} if
+   * one does not exist yet.
+   */
+  MetaStore metaStore(String database);
+
+  /**
+   * Produces the currently active database. Can be null if no database is active.
+   *
+   * @return the current active database
+   */
+  @Nullable
+  String currentDatabase();
+
+  /**
+   * Creates a database with this name.
+   *
+   * @param databaseName
+   * @return true if the database was created, false otherwise.
+   */
+  boolean createDatabase(String databaseName);
+
+  /** Returns true if the database exists. */
+  boolean databaseExists(String db);
+
+  /**
+   * Switches to use the specified database.
+   *
+   * @param databaseName
+   */
+  void useDatabase(String databaseName);
+
+  /**
+   * Drops the database with this name. If cascade is true, the catalog should first drop all tables
+   * contained in this database.
+   *
+   * @param databaseName
+   * @param cascade
+   * @return true if the database was dropped, false otherwise.
+   */
+  boolean dropDatabase(String databaseName, boolean cascade);
 
   /** The name of this catalog, specified by the user. */
   String name();
 
   /** User-specified configuration properties. */
   Map<String, String> properties();
+
+  /** Registers this {@link TableProvider} and propagates it to underlying {@link MetaStore}s. */
+  void registerTableProvider(TableProvider provider);
+
+  /**
+   * Returns all the {@link TableProvider}s available to this {@link Catalog}, organized by type.
+   */
+  Map<String, TableProvider> tableProviders();
 }

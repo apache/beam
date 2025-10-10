@@ -990,7 +990,7 @@ public class GcsUtil {
 
     try {
       try {
-        MoreFutures.get(MoreFutures.allAsList(futures));
+        MoreFutures.get(MoreFutures.allOf(futures));
       } catch (ExecutionException e) {
         if (e.getCause() instanceof FileNotFoundException) {
           throw (FileNotFoundException) e.getCause();

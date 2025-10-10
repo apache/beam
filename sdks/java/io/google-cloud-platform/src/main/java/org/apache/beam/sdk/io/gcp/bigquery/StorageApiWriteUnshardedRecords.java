@@ -73,12 +73,15 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -1005,15 +1008,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.bigLakeConfiguration = bigLakeConfiguration;
     }
 
-    boolean shouldFlush() {
-      return numPendingRecords > flushThresholdCount || numPendingRecordBytes > flushThresholdBytes;
+    boolean shouldFlush(int recordBytes) {
+      return numPendingRecords > flushThresholdCount
+          || (((numPendingRecordBytes + recordBytes) > flushThresholdBytes)
+              && numPendingRecords > 0);
     }
 
     void flushIfNecessary(
         OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
-        @Nullable OutputReceiver<TableRow> successfulRowsReceiver)
+        @Nullable OutputReceiver<TableRow> successfulRowsReceiver,
+        int recordBytes)
         throws Exception {
-      if (shouldFlush()) {
+      if (shouldFlush(recordBytes)) {
         forcedFlushes.inc();
         // Too much memory being used. Flush the state and wait for it to drain out.
         // TODO(reuvenlax): Consider waiting for memory usage to drop instead of waiting for all the
@@ -1169,41 +1175,67 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       @Nullable
       OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
-      flushIfNecessary(failedRowsReceiver, successfulRowsReceiver);
+
+      int recordBytes = element.getValue().getPayload().length;
+      flushIfNecessary(failedRowsReceiver, successfulRowsReceiver, recordBytes);
       state.addMessage(element.getValue(), elementTs, failedRowsReceiver);
       ++numPendingRecords;
-      numPendingRecordBytes += element.getValue().getPayload().length;
+      numPendingRecordBytes += recordBytes;
+    }
+
+    private OutputReceiver<TableRow> makeSuccessfulRowsreceiver(
+        FinishBundleContext context, TupleTag<TableRow> successfulRowsTag) {
+      return new OutputReceiver<TableRow>() {
+        @Override
+        public OutputBuilder<TableRow> builder(TableRow value) {
+          return WindowedValues.<TableRow>builder()
+              .setValue(value)
+              .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+              .setWindow(GlobalWindow.INSTANCE)
+              .setPaneInfo(PaneInfo.NO_FIRING)
+              .setReceiver(
+                  windowedValue -> {
+                    for (BoundedWindow window : windowedValue.getWindows()) {
+                      context.output(
+                          successfulRowsTag,
+                          windowedValue.getValue(),
+                          windowedValue.getTimestamp(),
+                          window);
+                    }
+                  });
+        }
+      };
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
+
       OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver =
           new OutputReceiver<BigQueryStorageApiInsertError>() {
             @Override
-            public void output(BigQueryStorageApiInsertError output) {
-              outputWithTimestamp(output, GlobalWindow.INSTANCE.maxTimestamp());
-            }
-
-            @Override
-            public void outputWithTimestamp(
-                BigQueryStorageApiInsertError output, org.joda.time.Instant timestamp) {
-              context.output(failedRowsTag, output, timestamp, GlobalWindow.INSTANCE);
+            public OutputBuilder<BigQueryStorageApiInsertError> builder(
+                BigQueryStorageApiInsertError value) {
+              return WindowedValues.<BigQueryStorageApiInsertError>builder()
+                  .setValue(value)
+                  .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+                  .setWindow(GlobalWindow.INSTANCE)
+                  .setPaneInfo(PaneInfo.NO_FIRING)
+                  .setReceiver(
+                      windowedValue -> {
+                        for (BoundedWindow window : windowedValue.getWindows()) {
+                          context.output(
+                              failedRowsTag,
+                              windowedValue.getValue(),
+                              windowedValue.getTimestamp(),
+                              window);
+                        }
+                      });
             }
           };
+
       @Nullable OutputReceiver<TableRow> successfulRowsReceiver = null;
       if (successfulRowsTag != null) {
-        successfulRowsReceiver =
-            new OutputReceiver<TableRow>() {
-              @Override
-              public void output(TableRow output) {
-                outputWithTimestamp(output, GlobalWindow.INSTANCE.maxTimestamp());
-              }
-
-              @Override
-              public void outputWithTimestamp(TableRow output, org.joda.time.Instant timestamp) {
-                context.output(successfulRowsTag, output, timestamp, GlobalWindow.INSTANCE);
-              }
-            };
+        successfulRowsReceiver = makeSuccessfulRowsreceiver(context, successfulRowsTag);
       }
 
       flushAll(failedRowsReceiver, successfulRowsReceiver);

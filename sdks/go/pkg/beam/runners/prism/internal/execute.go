@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"runtime/debug"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -36,7 +37,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -76,6 +76,14 @@ func RunPipeline(j *jobservices.Job) {
 	// any related job resources.
 	defer func() {
 		j.CancelFn(fmt.Errorf("runPipeline returned, cleaning up"))
+		j.WaitForCleanUp()
+	}()
+
+	// Add this defer function to capture and log panics.
+	defer func() {
+		if e := recover(); e != nil {
+			j.Failed(fmt.Errorf("pipeline panicked: %v\nStacktrace: %s", e, string(debug.Stack())))
+		}
 	}()
 
 	j.SendMsg("running " + j.String())
@@ -95,7 +103,7 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("pipeline completed " + j.String())
 
 	j.SendMsg("terminating " + j.String())
-	j.Done()
+	j.PendingDone()
 }
 
 type transformExecuter interface {
@@ -144,6 +152,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
+	pcols := comps.GetPcollections()
 
 	config := engine.Config{}
 	m := j.PipelineOptions().AsMap()
@@ -155,6 +164,18 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					break // Found it, no need to check the rest of the slice
 				}
 			}
+		}
+	}
+
+	if streaming, ok := m["beam:option:streaming:v1"].(bool); ok {
+		config.StreamingMode = streaming
+	}
+
+	// Set StreamingMode to true if there is any unbounded PCollection.
+	for _, pcoll := range pcols {
+		if pcoll.GetIsBounded() == pipepb.IsBounded_UNBOUNDED {
+			config.StreamingMode = true
+			break
 		}
 	}
 
@@ -264,13 +285,25 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					//slog.Warn("teststream bytes", "value", string(v), "bytes", v)
 					return v
 				}
-				// Hack for Java Strings in test stream, since it doesn't encode them correctly.
-				forceLP := cID == "StringUtf8Coder" || cID != pyld.GetCoderId()
+				// If the TestStream coder needs to be LP'ed or if it is a coder that has different
+				// behaviors between nested context and outer context (in Java SDK), then we must
+				// LP this coder and the TestStream data elements.
+				forceLP := cID != pyld.GetCoderId() ||
+					coders[cID].GetSpec().GetUrn() == urns.CoderStringUTF8 ||
+					coders[cID].GetSpec().GetUrn() == urns.CoderBytes ||
+					coders[cID].GetSpec().GetUrn() == urns.CoderKV
 				if forceLP {
 					// slog.Warn("recoding TestStreamValue", "cID", cID, "newUrn", coders[cID].GetSpec().GetUrn(), "payloadCoder", pyld.GetCoderId(), "oldUrn", coders[pyld.GetCoderId()].GetSpec().GetUrn())
 					// The coder needed length prefixing. For simplicity, add a length prefix to each
 					// encoded element, since we will be sending a length prefixed coder to consume
 					// this anyway. This is simpler than trying to find all the re-written coders after the fact.
+					// This also adds a LP-coder for the original coder in comps.
+					cID, err := forceLpCoder(pyld.GetCoderId(), comps.GetCoders())
+					if err != nil {
+						panic(err)
+					}
+					slog.Debug("teststream: add coder", "coderId", cID)
+
 					mayLP = func(v []byte) []byte {
 						var buf bytes.Buffer
 						if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
@@ -281,6 +314,13 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 						}
 						//slog.Warn("teststream bytes - after LP", "value", string(v), "bytes", buf.Bytes())
 						return buf.Bytes()
+					}
+
+					// we need to change Coder and Pcollection in comps directly before they are used to build descriptors
+					for _, col := range t.GetOutputs() {
+						oCID := comps.Pcollections[col].CoderId
+						comps.Pcollections[col].CoderId = cID
+						slog.Debug("teststream: rewrite coder for output pcoll", "colId", col, "oldId", oCID, "newId", cID)
 					}
 				}
 
@@ -318,7 +358,6 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				return fmt.Errorf("prism error building stage %v: \n%w", stage.ID, err)
 			}
 			stages[stage.ID] = stage
-			j.Logger.Debug("pipelineBuild", slog.Group("stage", slog.String("ID", stage.ID), slog.String("transformName", t.GetUniqueName())))
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
 			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
@@ -359,7 +398,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		case rb, ok := <-bundles:
 			if !ok {
 				err := eg.Wait()
-				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.Any("topo", topo))
+				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.String("stages", em.DumpStages()))
 				return err
 			}
 			eg.Go(func() error {
@@ -367,6 +406,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				wk := wks[s.envID]
 				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
+					j.Logger.Error("Bundle Failed.", slog.Any("error", err))
 					em.FailBundle(rb)
 					return err
 				}
@@ -456,8 +496,28 @@ func buildTrigger(tpb *pipepb.Trigger) engine.Trigger {
 		}
 	case *pipepb.Trigger_Repeat_:
 		return &engine.TriggerRepeatedly{Repeated: buildTrigger(at.Repeat.GetSubtrigger())}
-	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
-		panic(fmt.Sprintf("unsupported trigger: %v", prototext.Format(tpb)))
+	case *pipepb.Trigger_AfterProcessingTime_:
+		var transforms []engine.TimestampTransform
+		for _, ts := range at.AfterProcessingTime.GetTimestampTransforms() {
+			var delay, period, offset time.Duration
+			if d := ts.GetDelay(); d != nil {
+				delay = time.Duration(d.GetDelayMillis()) * time.Millisecond
+			}
+			if align := ts.GetAlignTo(); align != nil {
+				period = time.Duration(align.GetPeriod()) * time.Millisecond
+				offset = time.Duration(align.GetOffset()) * time.Millisecond
+			}
+			transforms = append(transforms, engine.TimestampTransform{
+				Delay:         delay,
+				AlignToPeriod: period,
+				AlignToOffset: offset,
+			})
+		}
+		return &engine.TriggerAfterProcessingTime{
+			Transforms: transforms,
+		}
+	case *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+		return &engine.TriggerAfterSynchronizedProcessingTime{}
 	default:
 		return &engine.TriggerDefault{}
 	}

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermark
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -180,7 +181,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
               @Override
               public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedReceiver(processContext, null);
+                return DoFnOutputReceivers.windowedReceiver(
+                    processContext, OutputBuilderSuppliers.supplierForElement(element), null);
               }
 
               @Override
@@ -190,7 +192,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
               @Override
               public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
+                return DoFnOutputReceivers.windowedMultiReceiver(
+                    processContext, OutputBuilderSuppliers.supplierForElement(element));
               }
 
               @Override
@@ -384,6 +387,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public String currentRecordId() {
+      return element.getRecordId();
+    }
+
+    @Override
+    public Long currentRecordOffset() {
+      return element.getRecordOffset();
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return pipelineOptions;
     }
@@ -412,6 +425,24 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
+      }
+      outputReceiver.output(
+          mainOutputTag,
+          WindowedValues.of(
+              value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T value) {
       outputWithTimestamp(tag, value, element.getTimestamp());
     }
@@ -429,11 +460,26 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
+      outputWindowedValue(tag, value, timestamp, windows, paneInfo, null, null);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        @Nullable String currentRecordId,
+        @Nullable Long currentRecordOffset) {
       noteOutput();
       if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
-      outputReceiver.output(tag, WindowedValues.of(value, timestamp, windows, paneInfo));
+      outputReceiver.output(
+          tag,
+          WindowedValues.of(
+              value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
     }
 
     private void noteOutput() {

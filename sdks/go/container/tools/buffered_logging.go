@@ -78,7 +78,7 @@ func (b *BufferedLogger) FlushAtError(ctx context.Context) {
 		return
 	}
 	for _, message := range b.logs {
-		b.logger.Errorf(ctx, message)
+		b.logger.Errorf(ctx, "%s", message)
 	}
 	b.logs = nil
 	b.lastFlush = time.Now()
@@ -91,7 +91,7 @@ func (b *BufferedLogger) FlushAtDebug(ctx context.Context) {
 		return
 	}
 	for _, message := range b.logs {
-		b.logger.Printf(ctx, message)
+		b.logger.Printf(ctx, "%s", message)
 	}
 	b.logs = nil
 	b.lastFlush = time.Now()

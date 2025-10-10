@@ -262,7 +262,7 @@ func WaitForCompletion(ctx context.Context, client *df.Service, project, region,
 		if err != nil {
 			return err
 		}
-		log.Infof(ctx, msg)
+		log.Infof(ctx, "%s", msg)
 		if terminal {
 			return nil
 		}

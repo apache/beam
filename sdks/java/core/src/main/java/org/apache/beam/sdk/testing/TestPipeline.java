@@ -24,7 +24,9 @@ import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -82,7 +84,11 @@ import org.junit.runners.model.Statement;
  * </ul>
  *
  * <p>Use {@link PAssert} for tests, as it integrates with this test harness in both direct and
- * remote execution modes. For example:
+ * remote execution modes.
+ *
+ * <h3>JUnit 4 Usage</h3>
+ *
+ * For JUnit 4 tests, use this class as a TestRule:
  *
  * <pre><code>
  * {@literal @Rule}
@@ -95,6 +101,25 @@ import org.junit.runners.model.Statement;
  *    PAssert.that(pCollection).containsInAnyOrder(...);
  *    pipeline.run();
  *  }
+ * </code></pre>
+ *
+ * <h3>JUnit5 Usage</h3>
+ *
+ * For JUnit5 tests, use {@link TestPipelineExtension} from the module <code>
+ * sdks/java/testing/junit</code> (artifact <code>org.apache.beam:beam-sdks-java-testing-junit
+ * </code>):
+ *
+ * <pre><code>
+ * {@literal @ExtendWith}(TestPipelineExtension.class)
+ * class MyPipelineTest {
+ *   {@literal @Test}
+ *   {@literal @Category}(NeedsRunner.class)
+ *   void myPipelineTest(TestPipeline pipeline) {
+ *     final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
+ *     PAssert.that(pCollection).containsInAnyOrder(...);
+ *     pipeline.run();
+ *   }
+ * }
  * </code></pre>
  *
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
@@ -273,6 +298,13 @@ public class TestPipeline extends Pipeline implements TestRule {
     return fromOptions(testingPipelineOptions());
   }
 
+  /** */
+  static TestPipeline createWithEnforcement() {
+    TestPipeline p = create();
+
+    return p;
+  }
+
   public static TestPipeline fromOptions(PipelineOptions options) {
     return new TestPipeline(options);
   }
@@ -287,49 +319,55 @@ public class TestPipeline extends Pipeline implements TestRule {
     return this.options;
   }
 
+  // package private for JUnit5 TestPipelineExtension
+  void setDeducedEnforcementLevel(Collection<Annotation> annotations) {
+    // if the enforcement level has not been set by the user do auto-inference
+    if (!enforcement.isPresent()) {
+
+      final boolean annotatedWithNeedsRunner =
+          FluentIterable.from(annotations)
+              .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
+              .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
+
+      final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
+
+      checkState(
+          !(annotatedWithNeedsRunner && crashingRunner),
+          "The test was annotated with a [@%s] / [@%s] while the runner "
+              + "was set to [%s]. Please re-check your configuration.",
+          NeedsRunner.class.getSimpleName(),
+          ValidatesRunner.class.getSimpleName(),
+          CrashingRunner.class.getSimpleName());
+
+      enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+    }
+  }
+
+  // package private for JUnit5 TestPipelineExtension
+  void afterUserCodeFinished() {
+    enforcement.get().afterUserCodeFinished();
+  }
+
   @Override
   public Statement apply(final Statement statement, final Description description) {
     return new Statement() {
-
-      private void setDeducedEnforcementLevel() {
-        // if the enforcement level has not been set by the user do auto-inference
-        if (!enforcement.isPresent()) {
-
-          final boolean annotatedWithNeedsRunner =
-              FluentIterable.from(description.getAnnotations())
-                  .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
-                  .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
-
-          final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
-
-          checkState(
-              !(annotatedWithNeedsRunner && crashingRunner),
-              "The test was annotated with a [@%s] / [@%s] while the runner "
-                  + "was set to [%s]. Please re-check your configuration.",
-              NeedsRunner.class.getSimpleName(),
-              ValidatesRunner.class.getSimpleName(),
-              CrashingRunner.class.getSimpleName());
-
-          enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
-        }
-      }
 
       @Override
       public void evaluate() throws Throwable {
         options.as(ApplicationNameOptions.class).setAppName(getAppName(description));
 
-        setDeducedEnforcementLevel();
+        setDeducedEnforcementLevel(description.getAnnotations());
 
         // statement.evaluate() essentially runs the user code contained in the unit test at hand.
         // Exceptions thrown during the execution of the user's test code will propagate here,
         // unless the user explicitly handles them with a "catch" clause in his code. If the
-        // exception is handled by a user's "catch" clause, is does not interrupt the flow and
+        // exception is handled by a user's "catch" clause, it does not interrupt the flow, and
         // we move on to invoking the configured enforcements.
         // If the user does not handle a thrown exception, it will propagate here and interrupt
         // the flow, preventing the enforcement(s) from being activated.
         // The motivation for this is avoiding enforcements over faulty pipelines.
         statement.evaluate();
-        enforcement.get().afterUserCodeFinished();
+        afterUserCodeFinished();
       }
     };
   }

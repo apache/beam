@@ -16,7 +16,10 @@
 #
 
 """This module defines yaml wrappings for some ML transforms."""
+import logging
+import pkgutil
 from collections.abc import Callable
+from importlib import import_module
 from typing import Any
 from typing import Optional
 
@@ -25,17 +28,42 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import RunInference
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import options
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
+
+def _list_submodules(package):
+  """
+  Lists all submodules within a given package.
+  """
+  submodules = []
+  skip_modules = ['base', 'handlers', 'test', 'utils']
+  for _, module_name, _ in pkgutil.walk_packages(
+      package.__path__, package.__name__ + '.'):
+    if any(skip_name in module_name for skip_name in skip_modules):
+      continue
+    submodules.append(module_name)
+  return submodules
+
+
+_transform_constructors = {}
 try:
-  from apache_beam.ml.transforms import tft
   from apache_beam.ml.transforms.base import MLTransform
-  # TODO(robertwb): Is this all of them?
-  _transform_constructors = tft.__dict__
+  # Load all available ML Transform modules
+  for module_name in _list_submodules(beam.ml.transforms):
+    try:
+      module = import_module(module_name)
+      _transform_constructors |= module.__dict__
+    except ImportError as e:
+      logging.warning(
+          'Could not load ML transform module %s: %s.  Please '
+          'install the necessary module dependencies',
+          module_name,
+          e)
 except ImportError:
-  tft = None  # type: ignore
+  MLTransform = None  # type: ignore
 
 
 class ModelHandlerProvider:
@@ -244,11 +272,6 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
                                           ('model_id', Optional[str])])
 
 
-def get_user_schema_fields(user_type):
-  return [(name, type(typ) if not isinstance(typ, type) else typ)
-          for (name, typ) in user_type._fields] if user_type else []
-
-
 @beam.ptransform.ptransform_fn
 def run_inference(
     pcoll,
@@ -441,9 +464,8 @@ def run_inference(
 
   model_handler_provider = ModelHandlerProvider.create_handler(model_handler)
   model_handler_provider.validate(model_handler['config'])
-  user_type = RowTypeConstraint.from_user_type(pcoll.element_type.user_type)
   schema = RowTypeConstraint.from_fields(
-      get_user_schema_fields(user_type) +
+      named_fields_from_element_type(pcoll.element_type) +
       [(str(inference_tag), model_handler_provider.inference_output_type())])
 
   return (
@@ -477,17 +499,41 @@ def ml_transform(
     write_artifact_location: Optional[str] = None,
     read_artifact_location: Optional[str] = None,
     transforms: Optional[list[Any]] = None):
-  if tft is None:
+  if MLTransform is None:
     raise ValueError(
-        'tensorflow-transform must be installed to use this MLTransform')
+        'No MLTransform found. Please install tensorflow-transform or '
+        'sentence-transformers to use this transform.')
   options.YamlOptions.check_enabled(pcoll.pipeline, 'ML')
-  # TODO(robertwb): Perhaps _config_to_obj could be pushed into MLTransform
-  # itself for better cross-language support?
-  return pcoll | MLTransform(
+  result_ml_transform = MLTransform(
       write_artifact_location=write_artifact_location,
       read_artifact_location=read_artifact_location,
       transforms=[_config_to_obj(t) for t in transforms] if transforms else [])
 
+  if transforms:
+    embedding_transforms = [
+        t for t in transforms if t.get('type', '').endswith('Embeddings')
+    ]
+    if embedding_transforms:
+      from apache_beam.typehints import List
+      try:
+        if pcoll.element_type:
+          columns_to_change = {
+              col
+              for t_spec in embedding_transforms
+              for col in t_spec.get('config', {}).get('columns', [])
+          }
+          new_fields = named_fields_from_element_type(pcoll.element_type)
+          final_fields = [
+              (name, List[float] if name in columns_to_change else typ)
+              for name, typ in new_fields
+          ]
+          output_schema = RowTypeConstraint.from_fields(final_fields)
+          return pcoll | result_ml_transform.with_output_types(output_schema)
+      except TypeError:
+        # If we can't get a schema, just return the result.
+        pass
+  return pcoll | result_ml_transform
 
-if tft is not None:
+
+if MLTransform is not None:
   ml_transform.__doc__ = MLTransform.__doc__

@@ -34,18 +34,6 @@ from typing import cast
 
 import pytest
 import yaml
-from pymilvus import CollectionSchema
-from pymilvus import DataType
-from pymilvus import FieldSchema
-from pymilvus import Function
-from pymilvus import FunctionType
-from pymilvus import MilvusClient
-from pymilvus import RRFRanker
-from pymilvus.milvus_client import IndexParams
-from testcontainers.core.config import MAX_TRIES as TC_MAX_TRIES
-from testcontainers.core.config import testcontainers_config
-from testcontainers.core.generic import DbContainer
-from testcontainers.milvus import MilvusContainer
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -54,7 +42,21 @@ from apache_beam.ml.rag.types import Embedding
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 
+# pylint: disable=ungrouped-imports
 try:
+  from pymilvus import (
+      CollectionSchema,
+      DataType,
+      FieldSchema,
+      Function,
+      FunctionType,
+      MilvusClient,
+      RRFRanker)
+  from pymilvus.milvus_client import IndexParams
+  from testcontainers.core.config import MAX_TRIES as TC_MAX_TRIES
+  from testcontainers.core.config import testcontainers_config
+  from testcontainers.core.generic import DbContainer
+  from testcontainers.milvus import MilvusContainer
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.ml.rag.enrichment.milvus_search import (
       MilvusSearchEnrichmentHandler,
@@ -295,7 +297,7 @@ class CustomMilvusContainer(MilvusContainer):
 class MilvusEnrichmentTestHelper:
   @staticmethod
   def start_db_container(
-      image="milvusdb/milvus:v2.5.10",
+      image="milvusdb/milvus:v2.6.2",
       max_vec_fields=5,
       vector_client_max_retries=3,
       tc_max_retries=TC_MAX_TRIES) -> Optional[MilvusDBContainerInfo]:
@@ -467,7 +469,7 @@ class MilvusEnrichmentTestHelper:
         os.remove(path)
 
 
-@pytest.mark.uses_testcontainer
+@pytest.mark.require_docker_in_docker
 @unittest.skipUnless(
     platform.system() == "Linux",
     "Test runs only on Linux due to lack of support, as yet, for nested "
@@ -483,22 +485,16 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls):
-    try:
-      cls._db = MilvusEnrichmentTestHelper.start_db_container(
-          cls._version, vector_client_max_retries=1, tc_max_retries=1)
-      cls._connection_params = MilvusConnectionParameters(
-          uri=cls._db.uri,
-          user=cls._db.user,
-          password=cls._db.password,
-          db_id=cls._db.id,
-          token=cls._db.token)
-      cls._collection_load_params = MilvusCollectionLoadParameters()
-      cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
-          cls._connection_params)
-    except Exception as e:
-      pytest.skip(
-          f"Skipping all tests in {cls.__name__} due to DB startup failure: {e}"
-      )
+    cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
+    cls._connection_params = MilvusConnectionParameters(
+        uri=cls._db.uri,
+        user=cls._db.user,
+        password=cls._db.password,
+        db_id=cls._db.id,
+        token=cls._db.token)
+    cls._collection_load_params = MilvusCollectionLoadParameters()
+    cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
+        cls._connection_params)
 
   @classmethod
   def tearDownClass(cls):
@@ -578,7 +574,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
     expected_chunks = []
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -706,7 +702,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -811,7 +807,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding())
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -952,7 +948,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1092,7 +1088,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1157,7 +1153,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
                 sparse_embedding=([1, 2, 3, 4], [0.05, 0.41, 0.05, 0.41])))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1230,7 +1226,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]))
     ]
 
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,

@@ -21,19 +21,25 @@
 # pylint: disable=too-many-function-args
 
 import collections
+import hashlib
+import hmac
 import importlib
 import logging
 import math
 import random
 import re
+import string
 import time
 import unittest
 import warnings
 from collections.abc import Mapping
 from datetime import datetime
 
+import mock
 import pytest
 import pytz
+from cryptography.fernet import Fernet
+from cryptography.fernet import InvalidToken
 from parameterized import param
 from parameterized import parameterized
 
@@ -44,6 +50,7 @@ from apache_beam import WindowInto
 from apache_beam.coders import coders
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
@@ -65,6 +72,8 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import FlatMapTuple
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.util import GcpSecret
+from apache_beam.transforms.util import Secret
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
@@ -83,8 +92,50 @@ from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
 
+try:
+  import dill
+except ImportError:
+  dill = None
+
+try:
+  from google.cloud import secretmanager
+except ImportError:
+  secretmanager = None  # type: ignore[assignment]
+
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
+
+
+class _Unpicklable(object):
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    raise NotImplementedError()
+
+  def __setstate__(self, state):
+    raise NotImplementedError()
+
+
+class _UnpicklableCoder(beam.coders.Coder):
+  def encode(self, value):
+    return str(value.value).encode()
+
+  def decode(self, encoded):
+    return _Unpicklable(int(encoded.decode()))
+
+  def to_type_hint(self):
+    return _Unpicklable
+
+  def is_deterministic(self):
+    return True
+
+
+def maybe_skip(compat_version):
+  if compat_version and not dill:
+    raise unittest.SkipTest(
+        'Dill dependency not installed which is required for compat_version'
+        ' <= 2.67.0')
 
 
 class CoGroupByKeyTest(unittest.TestCase):
@@ -185,6 +236,216 @@ class CoGroupByKeyTest(unittest.TestCase):
                   | beam.MapTuple(lambda k, v: (k, (v['tag'], ))),
                   equal_to(expected),
                   label='AssertOneDict')
+
+  def test_co_group_by_key_on_unpickled(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+    values = [_Unpicklable(i) for i in range(5)]
+    with TestPipeline() as pipeline:
+      xs = pipeline | beam.Create(values) | beam.WithKeys(lambda x: x)
+      pcoll = ({
+          'x': xs
+      }
+               | beam.CoGroupByKey()
+               | beam.FlatMapTuple(
+                   lambda k, tagged: (k.value, tagged['x'][0].value * 2)))
+      expected = [0, 0, 1, 2, 2, 4, 3, 6, 4, 8]
+      assert_that(pcoll, equal_to(expected))
+
+
+class FakeSecret(beam.Secret):
+  def __init__(self, version_name=None, should_throw=False):
+    self._secret = b'aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE='
+    self._should_throw = should_throw
+
+  def get_secret_bytes(self) -> bytes:
+    if self._should_throw:
+      raise RuntimeError('Exception retrieving secret')
+    return self._secret
+
+
+class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
+  def __init__(self, hmac_key_secret, key_coder, value_coder):
+    hmac_key = hmac_key_secret.get_secret_bytes()
+    self.fernet_tester = Fernet(hmac_key)
+    self.known_hmacs = []
+    for key in ['a', 'b', 'c']:
+      self.known_hmacs.append(
+          hmac.new(hmac_key, key_coder.encode(key), hashlib.sha256).digest())
+    super().__init__(hmac_key_secret, key_coder, value_coder)
+
+  def process(self, element):
+    final_elements = list(super().process(element))
+    # Check if we're looking at the actual elements being encoded/decoded
+    # There is also a gbk on assertEqual, which uses None as the key type.
+    final_element_keys = [e for e in final_elements if e[0] in ['a', 'b', 'c']]
+    if len(final_element_keys) == 0:
+      return final_elements
+    hmac_key, actual_elements = element
+    if hmac_key not in self.known_hmacs:
+      raise ValueError(f'GBK produced unencrypted value {hmac_key}')
+    for e in actual_elements:
+      try:
+        self.fernet_tester.decrypt(e[0], None)
+      except InvalidToken:
+        raise ValueError(f'GBK produced unencrypted value {e[0]}')
+      try:
+        self.fernet_tester.decrypt(e[1], None)
+      except InvalidToken:
+        raise ValueError(f'GBK produced unencrypted value {e[1]}')
+
+    return final_elements
+
+
+class SecretTest(unittest.TestCase):
+  @parameterized.expand([
+      param(
+          secret_string='type:GcpSecret;version_name:my_secret/versions/latest',
+          secret=GcpSecret('my_secret/versions/latest')),
+      param(
+          secret_string='type:GcpSecret;version_name:foo',
+          secret=GcpSecret('foo')),
+      param(
+          secret_string='type:gcpsecreT;version_name:my_secret/versions/latest',
+          secret=GcpSecret('my_secret/versions/latest')),
+  ])
+  def test_secret_manager_parses_correctly(self, secret_string, secret):
+    self.assertEqual(secret, Secret.parse_secret_option(secret_string))
+
+  @parameterized.expand([
+      param(
+          secret_string='version_name:foo',
+          exception_str='must contain a valid type parameter'),
+      param(
+          secret_string='type:gcpsecreT',
+          exception_str='missing 1 required positional argument'),
+      param(
+          secret_string='type:gcpsecreT;version_name:foo;extra:val',
+          exception_str='Invalid secret parameter extra'),
+  ])
+  def test_secret_manager_throws_on_invalid(self, secret_string, exception_str):
+    with self.assertRaisesRegex(Exception, exception_str):
+      Secret.parse_secret_option(secret_string)
+
+
+class GroupByEncryptedKeyTest(unittest.TestCase):
+  def setUp(self):
+    if secretmanager is not None:
+      self.project_id = 'apache-beam-testing'
+      secret_postfix = ''.join(random.choice(string.digits) for _ in range(6))
+      self.secret_id = 'gbek_secret_tests_' + secret_postfix
+      self.client = secretmanager.SecretManagerServiceClient()
+      self.project_path = f'projects/{self.project_id}'
+      self.secret_path = f'{self.project_path}/secrets/{self.secret_id}'
+      try:
+        self.client.get_secret(request={'name': self.secret_path})
+      except Exception:
+        self.client.create_secret(
+            request={
+                'parent': self.project_path,
+                'secret_id': self.secret_id,
+                'secret': {
+                    'replication': {
+                        'automatic': {}
+                    }
+                }
+            })
+        self.client.add_secret_version(
+            request={
+                'parent': self.secret_path,
+                'payload': {
+                    'data': Secret.generate_secret_bytes()
+                }
+            })
+      version_name = f'{self.secret_path}/versions/latest'
+      self.gcp_secret = GcpSecret(version_name)
+      self.secret_option = f'type:GcpSecret;version_name:{version_name}'
+
+  def tearDown(self):
+    if secretmanager is not None:
+      self.client.delete_secret(request={'name': self.secret_path})
+
+  def test_gbek_fake_secret_manager_roundtrips(self):
+    fakeSecret = FakeSecret()
+
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbk_with_gbek_option_fake_secret_manager_roundtrips(self):
+    options = PipelineOptions()
+    options.view_as(SetupOptions).gbek = self.secret_option
+
+    with beam.Pipeline(options=options) as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByKey()
+      sorted_result = result | beam.Map(lambda x: (x[0], sorted(x[1])))
+      assert_that(
+          sorted_result,
+          equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
+  def test_gbek_fake_secret_manager_actually_does_encryption(self):
+    fakeSecret = FakeSecret()
+
+    with TestPipeline('FnApiRunner') as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
+  @mock.patch('apache_beam.transforms.util.GcpSecret', FakeSecret)
+  def test_gbk_actually_does_encryption(self):
+    options = PipelineOptions()
+    # Version of GcpSecret doesn't matter since it is replaced by FakeSecret
+    options.view_as(SetupOptions).gbek = 'type:GcpSecret;version_name:Foo'
+
+    with TestPipeline('FnApiRunner', options=options) as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)],
+                                                    reshuffle=False)
+      result = pcoll_1 | beam.GroupByKey()
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  def test_gbek_fake_secret_manager_throws(self):
+    fakeSecret = FakeSecret(None, True)
+
+    with self.assertRaisesRegex(RuntimeError, r'Exception retrieving secret'):
+      with TestPipeline() as pipeline:
+        pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                       ('b', 3), ('c', 4)])
+        result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+        assert_that(
+            result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbek_gcp_secret_manager_roundtrips(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(self.gcp_secret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbek_gcp_secret_manager_throws(self):
+    gcp_secret = GcpSecret('bad_path/versions/latest')
+
+    with self.assertRaisesRegex(RuntimeError,
+                                r'Failed to retrieve secret bytes'):
+      with TestPipeline() as pipeline:
+        pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                       ('b', 3), ('c', 4)])
+        result = (pcoll_1) | beam.GroupByEncryptedKey(gcp_secret)
+        assert_that(
+            result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
 
 class FakeClock(object):
@@ -958,8 +1219,10 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
+  @pytest.mark.uses_dill
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves pane info."""
+    maybe_skip(compat_version)
     element_count = 12
     timestamp_value = timestamp.Timestamp(0)
     l = [
@@ -1059,10 +1322,11 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
+  @pytest.mark.uses_dill
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
-
+    maybe_skip(compat_version)
     no_firing = PaneInfo(
         is_first=True,
         is_last=True,
@@ -1204,32 +1468,6 @@ class ReshuffleTest(unittest.TestCase):
           formatted_after_reshuffle,
           equal_to(expected_data),
           label="formatted_after_reshuffle")
-
-  global _Unpicklable
-  global _UnpicklableCoder
-
-  class _Unpicklable(object):
-    def __init__(self, value):
-      self.value = value
-
-    def __getstate__(self):
-      raise NotImplementedError()
-
-    def __setstate__(self, state):
-      raise NotImplementedError()
-
-  class _UnpicklableCoder(beam.coders.Coder):
-    def encode(self, value):
-      return str(value.value).encode()
-
-    def decode(self, encoded):
-      return _Unpicklable(int(encoded.decode()))
-
-    def to_type_hint(self):
-      return _Unpicklable
-
-    def is_deterministic(self):
-      return True
 
   def reshuffle_unpicklable_in_global_window_helper(
       self, update_compatibility_version=None):
@@ -2178,6 +2416,68 @@ class WaitOnTest(unittest.TestCase):
           result,
           equal_to([(None, 'result', 6), (None, 'result', 7)]),
           label='result')
+
+
+class CompatCheckTest(unittest.TestCase):
+  def test_is_v1_prior_to_v2(self):
+    test_cases = [
+        # Basic comparison cases
+        ("1.0.0", "2.0.0", True),  # v1 < v2 in major
+        ("2.0.0", "1.0.0", False),  # v1 > v2 in major
+        ("1.1.0", "1.2.0", True),  # v1 < v2 in minor
+        ("1.2.0", "1.1.0", False),  # v1 > v2 in minor
+        ("1.0.1", "1.0.2", True),  # v1 < v2 in patch
+        ("1.0.2", "1.0.1", False),  # v1 > v2 in patch
+
+        # Equal versions
+        ("1.0.0", "1.0.0", False),  # Identical
+        ("0.0.0", "0.0.0", False),  # Both zero
+
+        # Different lengths - shorter vs longer
+        ("1.0", "1.0.0", False),  # Should be equal (1.0 = 1.0.0)
+        ("1.0", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.2", "1.2.0", False),  # Should be equal (1.2 = 1.2.0)
+        ("1.2", "1.2.3", True),  # 1.2.0 < 1.2.3
+        ("2", "2.0.0", False),  # Should be equal (2 = 2.0.0)
+        ("2", "2.0.1", True),  # 2.0.0 < 2.0.1
+        ("1", "2.0", True),  # 1.0.0 < 2.0.0
+
+        # Different lengths - longer vs shorter
+        ("1.0.0", "1.0", False),  # Should be equal
+        ("1.0.1", "1.0", False),  # 1.0.1 > 1.0.0
+        ("1.2.0", "1.2", False),  # Should be equal
+        ("1.2.3", "1.2", False),  # 1.2.3 > 1.2.0
+        ("2.0.0", "2", False),  # Should be equal
+        ("2.0.1", "2", False),  # 2.0.1 > 2.0.0
+        ("2.0", "1", False),  # 2.0.0 > 1.0.0
+
+        # Mixed length comparisons
+        ("1.0", "2.0.0", True),  # 1.0.0 < 2.0.0
+        ("2.0", "1.0.0", False),  # 2.0.0 > 1.0.0
+        ("1", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.1", "1.0.9", False),  # 1.1.0 > 1.0.9
+
+        # Large numbers
+        ("1.9.9", "2.0.0", True),  # 1.9.9 < 2.0.0
+        ("10.0.0", "9.9.9", False),  # 10.0.0 > 9.9.9
+        ("1.10.0", "1.9.0", False),  # 1.10.0 > 1.9.0
+        ("1.2.10", "1.2.9", False),  # 1.2.10 > 1.2.9
+
+        # Sequential versions
+        ("1.0.0", "1.0.1", True),
+        ("1.0.1", "1.0.2", True),
+        ("1.0.9", "1.1.0", True),
+        ("1.9.9", "2.0.0", True),
+
+        # Null/None cases
+        (None, "1.0.0", False),  # v1 is None
+    ]
+
+    for v1, v2, expected in test_cases:
+      self.assertEqual(
+          util.is_v1_prior_to_v2(v1=v1, v2=v2),
+          expected,
+          msg=f"Failed {v1} < {v2} == {expected}")
 
 
 if __name__ == '__main__':

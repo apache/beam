@@ -1685,8 +1685,7 @@ public class PipelineOptionsFactory {
         if (strictParsing) {
           throw e;
         } else {
-          LOG.warn(
-              "Strict parsing is disabled, ignoring option '{}' because {}", arg, e.getMessage());
+          LOG.warn("Strict parsing is disabled, ignoring option '{}'", arg, e);
         }
       }
     }
@@ -1954,10 +1953,10 @@ public class PipelineOptionsFactory {
           throw e;
         } else {
           LOG.warn(
-              "Strict parsing is disabled, ignoring option '{}' with value '{}' because {}",
+              "Strict parsing is disabled, ignoring option '{}' with value '{}'",
               entry.getKey(),
               entry.getValue(),
-              e.getMessage());
+              e);
         }
       }
     }
