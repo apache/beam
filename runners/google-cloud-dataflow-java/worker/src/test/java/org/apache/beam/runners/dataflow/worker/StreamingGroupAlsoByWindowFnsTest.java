@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -176,7 +177,12 @@ public class StreamingGroupAlsoByWindowFnsTest {
     valueCoder.encode(value, dataOutput, Context.OUTER);
     messageBundle
         .addMessagesBuilder()
-        .setMetadata(WindmillSink.encodeMetadata(windowsCoder, windows, PaneInfo.NO_FIRING))
+        .setMetadata(
+            WindmillSink.encodeMetadata(
+                windowsCoder,
+                windows,
+                PaneInfo.NO_FIRING,
+                BeamFnApi.Elements.ElementMetadata.newBuilder().build()))
         .setData(dataOutput.toByteString())
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp));
   }

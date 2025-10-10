@@ -146,10 +146,10 @@ public final class PaneInfo {
     ImmutableMap.Builder<Byte, PaneInfo> decodingBuilder = ImmutableMap.builder();
     for (Timing timing : Timing.values()) {
       long onTimeIndex = timing == Timing.EARLY ? -1 : 0;
-      register(decodingBuilder, new PaneInfo(true, true, timing, 0, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(true, false, timing, 0, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(false, true, timing, -1, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(false, false, timing, -1, onTimeIndex));
+      register(decodingBuilder, new PaneInfo(true, true, timing, 0, onTimeIndex, false));
+      register(decodingBuilder, new PaneInfo(true, false, timing, 0, onTimeIndex, false));
+      register(decodingBuilder, new PaneInfo(false, true, timing, -1, onTimeIndex, false));
+      register(decodingBuilder, new PaneInfo(false, false, timing, -1, onTimeIndex, false));
     }
     BYTE_TO_PANE_INFO = decodingBuilder.build();
   }
@@ -159,7 +159,7 @@ public final class PaneInfo {
   }
 
   private final byte encodedByte;
-
+  private final boolean containsElementMetadata;
   private final boolean isFirst;
   private final boolean isLast;
   private final Timing timing;
@@ -177,13 +177,20 @@ public final class PaneInfo {
   public static final PaneInfo ON_TIME_AND_ONLY_FIRING =
       PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0);
 
-  private PaneInfo(boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
+  private PaneInfo(
+      boolean isFirst,
+      boolean isLast,
+      Timing timing,
+      long index,
+      long onTimeIndex,
+      boolean containsElementMetadata) {
     this.encodedByte = encodedByte(isFirst, isLast, timing);
     this.isFirst = isFirst;
     this.isLast = isLast;
     this.timing = timing;
     this.index = index;
     this.nonSpeculativeIndex = onTimeIndex;
+    this.containsElementMetadata = containsElementMetadata;
   }
 
   public static PaneInfo createPane(boolean isFirst, boolean isLast, Timing timing) {
@@ -194,10 +201,21 @@ public final class PaneInfo {
   /** Factory method to create a {@link PaneInfo} with the specified parameters. */
   public static PaneInfo createPane(
       boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
+    return createPane(isFirst, isLast, timing, index, onTimeIndex, false);
+  }
+
+  /** Factory method to create a {@link PaneInfo} with the specified parameters. */
+  public static PaneInfo createPane(
+      boolean isFirst,
+      boolean isLast,
+      Timing timing,
+      long index,
+      long onTimeIndex,
+      boolean containsElementMetadata) {
     if (isFirst || timing == Timing.UNKNOWN) {
       return checkNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
     } else {
-      return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex);
+      return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex, containsElementMetadata);
     }
   }
 
@@ -217,6 +235,15 @@ public final class PaneInfo {
   /** Return true if this is the first pane produced for the associated window. */
   public boolean isFirst() {
     return isFirst;
+  }
+
+  public boolean isElementMetadata() {
+    return containsElementMetadata;
+  }
+
+  public PaneInfo withElementMetadata(boolean elementMetadata) {
+    return new PaneInfo(
+        this.isFirst, this.isLast, this.timing, index, nonSpeculativeIndex, elementMetadata);
   }
 
   /** Return true if this is the last pane that will be produced in the associated window. */
@@ -295,6 +322,8 @@ public final class PaneInfo {
 
   /** A Coder for encoding PaneInfo instances. */
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
+    private static final byte ELEMENT_METADATA_MASK = (byte) 0x80;
+
     private enum Encoding {
       FIRST,
       ONE_INDEX,
@@ -337,16 +366,17 @@ public final class PaneInfo {
     public void encode(PaneInfo value, final OutputStream outStream)
         throws CoderException, IOException {
       Encoding encoding = chooseEncoding(value);
+      byte elementMetadata = value.containsElementMetadata ? ELEMENT_METADATA_MASK : 0x00;
       switch (chooseEncoding(value)) {
         case FIRST:
-          outStream.write(value.encodedByte);
+          outStream.write(value.encodedByte | elementMetadata);
           break;
         case ONE_INDEX:
-          outStream.write(value.encodedByte | encoding.tag);
+          outStream.write(value.encodedByte | encoding.tag | elementMetadata);
           VarInt.encode(value.index, outStream);
           break;
         case TWO_INDICES:
-          outStream.write(value.encodedByte | encoding.tag);
+          outStream.write(value.encodedByte | encoding.tag | elementMetadata);
           VarInt.encode(value.index, outStream);
           VarInt.encode(value.nonSpeculativeIndex, outStream);
           break;
@@ -360,9 +390,10 @@ public final class PaneInfo {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F)));
       long index, onTimeIndex;
-      switch (Encoding.fromTag(keyAndTag)) {
+      boolean elementMetadata = (keyAndTag & ELEMENT_METADATA_MASK) != 0;
+      switch (Encoding.fromTag((byte) (keyAndTag & ~ELEMENT_METADATA_MASK))) {
         case FIRST:
-          return base;
+          return base.withElementMetadata(elementMetadata);
         case ONE_INDEX:
           index = VarInt.decodeLong(inStream);
           onTimeIndex = base.timing == Timing.EARLY ? -1 : index;
@@ -374,7 +405,8 @@ public final class PaneInfo {
         default:
           throw new CoderException("Unknown encoding " + (keyAndTag & 0xF0));
       }
-      return new PaneInfo(base.isFirst, base.isLast, base.timing, index, onTimeIndex);
+      return new PaneInfo(
+          base.isFirst, base.isLast, base.timing, index, onTimeIndex, elementMetadata);
     }
 
     @Override

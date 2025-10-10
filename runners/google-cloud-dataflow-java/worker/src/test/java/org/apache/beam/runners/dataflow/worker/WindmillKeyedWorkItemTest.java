@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -107,10 +108,14 @@ public class WindmillKeyedWorkItemTest {
       long timestamp,
       String value,
       IntervalWindow window,
-      PaneInfo paneInfo)
+      PaneInfo pane)
       throws IOException {
     ByteString encodedMetadata =
-        WindmillSink.encodeMetadata(WINDOWS_CODER, Collections.singletonList(window), paneInfo);
+        WindmillSink.encodeMetadata(
+            WINDOWS_CODER,
+            Collections.singletonList(window),
+            pane,
+            BeamFnApi.Elements.ElementMetadata.newBuilder().build());
     chunk
         .addMessagesBuilder()
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
