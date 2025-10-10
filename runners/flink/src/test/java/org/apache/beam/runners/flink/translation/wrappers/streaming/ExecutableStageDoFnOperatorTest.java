@@ -534,7 +534,8 @@ public class ExecutableStageDoFnOperatorTest {
                     windowedValue.getWindows(),
                     timestamp,
                     timestamp,
-                    PaneInfo.NO_FIRING),
+                    PaneInfo.NO_FIRING,
+                    null),
                 TimerInternals.TimerData.of(
                     "",
                     TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
@@ -875,7 +876,8 @@ public class ExecutableStageDoFnOperatorTest {
             windowedValue.getWindows(),
             window.maxTimestamp(),
             window.maxTimestamp(),
-            PaneInfo.NO_FIRING),
+            PaneInfo.NO_FIRING,
+            null),
         userTimer2);
     assertThat(testHarness.numEventTimeTimers(), is(1));
 

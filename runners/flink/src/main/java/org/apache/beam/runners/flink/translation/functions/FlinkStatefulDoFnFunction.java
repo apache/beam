@@ -250,7 +250,8 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
         window,
         timer.getTimestamp(),
         timer.getOutputTimestamp(),
-        timer.getDomain());
+        timer.getDomain(),
+        null);
   }
 
   @Override

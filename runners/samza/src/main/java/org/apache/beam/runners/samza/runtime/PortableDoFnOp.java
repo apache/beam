@@ -425,7 +425,8 @@ public class PortableDoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         window,
         timer.getTimestamp(),
         timer.getOutputTimestamp(),
-        timer.getDomain());
+        timer.getDomain(),
+        null);
   }
 
   // todo: should this go through bundle manager to start and finish the bundle?
