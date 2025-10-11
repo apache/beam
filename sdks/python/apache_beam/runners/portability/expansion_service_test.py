@@ -137,7 +137,13 @@ class MutltiTransform(ptransform.PTransform):
 @ptransform.PTransform.register_urn(TEST_GBK_URN, None)
 class GBKTransform(ptransform.PTransform):
   def expand(self, pcoll):
-    return pcoll | 'TestLabel' >> beam.GroupByKey()
+    def key_fn(x):
+      return x
+    return pcoll | 'TestLabel' >> beam.GroupByKey() | beam.Map(key_fn).with_output_types(
+               typing.Tuple[int, typing.Iterable[str]])
+    # Just the output types on GBK does not work yet, investigate why
+    # return pcoll | 'TestLabel' >> beam.GroupByKey().with_output_types(
+    #            typing.Tuple[int, typing.Iterable[str]])
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_GBK_URN, None
