@@ -106,9 +106,9 @@ jobs:
           arguments: |
             -Pposargs="${{
               contains(matrix.os, 'self-hosted') &&
-              'apache_beam/internal/ apache_beam/ml/ apache_beam/transforms/ apache_beam/typehints/ apache_beam/runners/portability/ -m (uses_dill and not require_docker_in_docker)' ||
-                'apache_beam/internal/ apache_beam/ml/ apache_beam/transforms/ apache_beam/typehints/ apache_beam/runners/portability/ -m (uses_dill and require_docker_in_docker)'
-            }}"  \
+              'apache_beam/internal/pickler_test.py apache_beam/io/gcp/bigquery_file_loads_test.py apache_beam/options/pipeline_options_validator_test.py apache_beam/transforms/combinefn_lifecycle_test.py apache_beam/transforms/util_test.py apache_beam/transforms/ptransform_test.py apache_beam/typehints/schemas_test.py apache_beam/runners/portability/stager_test.py -m (uses_dill and not require_docker_in_docker)' ||
+                'apache_beam/internal/pickler_test.py apache_beam/io/gcp/bigquery_file_loads_test.py apache_beam/options/pipeline_options_validator_test.py apache_beam/transforms/combinefn_lifecycle_test.py apache_beam/transforms/util_test.py apache_beam/transforms/ptransform_test.py apache_beam/typehints/schemas_test.py apache_beam/runners/portability/stager_test.py -m (uses_dill and require_docker_in_docker)'
+            }}" \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
