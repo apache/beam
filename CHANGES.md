@@ -92,7 +92,7 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Fixed TensorRT compatibility with version 10.x by implementing new Tensor API (Python) ([#36309](https://github.com/apache/beam/pull/36309)).
+* Fixed TensorRT compatibility with version 10.x by implementing new Tensor API (Python) ([#36306](https://github.com/apache/beam/issues/36306)).
 * PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
   function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java)
   ([#36141](https://github.com/apache/beam/issues/36141)).
