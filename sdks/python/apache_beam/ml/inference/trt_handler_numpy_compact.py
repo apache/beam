@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -58,7 +59,8 @@ def _require_tensorrt_10() -> None:
 
   # TRT 10.x indicators:
   #  - Engine exposes the Tensor API (num_io_tensors / get_tensor_name)
-  #  - ExecutionContext exposes execute_async_v3 / set_input_shape / set_tensor_address
+  #  - ExecutionContext exposes execute_async_v3 / set_input_shape /
+  #    set_tensor_address
   engine_reqs = ("num_io_tensors", "get_tensor_name")
   ctx_reqs = ("execute_async_v3", "set_input_shape", "set_tensor_address")
 
@@ -178,7 +180,7 @@ def _resolve_output_shape(shape: Sequence[int] | None,
   if shape is None:
     return None
   shp = list(shape)
-  if len(shp) > 0 and shp[0] < 0:
+  if shp and shp[0] < 0:
     shp[0] = int(batch_size)
   if any(d < 0 for d in shp[1:]):
     raise RuntimeError(f"Unresolved non-batch dims in output shape: {shape}")
@@ -186,9 +188,10 @@ def _resolve_output_shape(shape: Sequence[int] | None,
 
 
 def _to_contiguous_batch(x: Sequence[np.ndarray] | np.ndarray) -> np.ndarray:
-  """
-    Accept either an ndarray (already a batch) or a list of ndarrays (concat on axis 0).
-    This avoids accidental rank-5 shapes from upstream batching.
+  """Accept either an ndarray (already a batch) or a list of ndarrays.
+
+    Concatenates on axis 0. This avoids accidental rank-5 shapes from
+    upstream batching.
     """
   if isinstance(x, np.ndarray):
     return np.ascontiguousarray(x)
@@ -203,13 +206,13 @@ def _to_contiguous_batch(x: Sequence[np.ndarray] | np.ndarray) -> np.ndarray:
         if len(a.shape) != len(first) or any(
             sa != sb for sa, sb in zip(a.shape[1:], first[1:])):
           raise ValueError(
-              f"Inconsistent element shapes for concatenation: {first} vs {a.shape}"
-          )
+              f"Inconsistent element shapes for concatenation: "
+              f"{first} vs {a.shape}")
       return np.ascontiguousarray(np.concatenate(x, axis=0))
 
   raise ValueError(
-      "Batch must be ndarray or sequence of ndarrays of same rank/shape (except batch)."
-  )
+      "Batch must be ndarray or sequence of ndarrays of same "
+      "rank/shape (except batch).")
 
 
 # ---------------------------------------------------------------------
@@ -269,7 +272,7 @@ class TensorRTEngine:
       self.context.set_optimization_profile(self.profile_index)
 
   def _check_shape_in_profile(self, name: str, shape: Sequence[int]) -> None:
-    mi, _oi, ma = self.engine.get_tensor_profile_shape(name, self.profile_index)
+    mi, _, ma = self.engine.get_tensor_profile_shape(name, self.profile_index)
 
     def ok(dim: int, lo: int, hi: int) -> bool:
       if lo < 0:
@@ -285,7 +288,8 @@ class TensorRTEngine:
     for i, dim in enumerate(shape):
       if not ok(dim, mi[i], ma[i]):
         raise RuntimeError(
-            f"Input '{name}' dim {i}={dim} outside profile[{self.profile_index}] bounds "
+            f"Input '{name}' dim {i}={dim} outside "
+            f"profile[{self.profile_index}] bounds "
             f"[min={mi[i]}, max={ma[i]}]. Given={tuple(shape)}, "
             f"min={tuple(mi)}, max={tuple(ma)}")
 
@@ -310,8 +314,8 @@ class TensorRTEngine:
       if not input_shapes:
         raise RuntimeError(
             f"Engine expects multiple inputs {self.input_names}; "
-            "provide shapes via inference_args={'input_shapes': {name: shape, ...}}"
-        )
+            "provide shapes via "
+            "inference_args={'input_shapes': {name: shape, ...}}")
       for name in self.input_names:
         if name not in input_shapes:
           raise RuntimeError(f"Missing shape for input tensor '{name}'")
@@ -396,7 +400,8 @@ def _trt10_inference_fn(
     ok = ctx.execute_async_v3(engine_obj._stream)
     if not ok:
       eng = engine_obj.engine
-      mi, oi, ma = eng.get_tensor_profile_shape(in_name, engine_obj.profile_index)
+      mi, oi, ma = eng.get_tensor_profile_shape(
+          in_name, engine_obj.profile_index)
       raise RuntimeError(
           "TensorRT execute_async_v3 failed. "
           f"Batch shape={tuple(batch_arr.shape)}; "
@@ -496,8 +501,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     if not self.build_on_worker:
       raise RuntimeError(
           "onnx_path provided but build_on_worker=False. "
-          "Enable build_on_worker=True to compile ONNX on workers, or prebuild an engine."
-      )
+          "Enable build_on_worker=True to compile ONNX on workers, "
+          "or prebuild an engine.")
 
     eng = _load_onnx_build_engine(self.onnx_path)  # type: ignore[arg-type]
     return TensorRTEngine(eng)

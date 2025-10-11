@@ -27,13 +27,10 @@ import pytest
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 # Protect against environments where TensorRT python library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  import tensorrt as trt
-  from apache_beam.ml.inference import utils
   from apache_beam.ml.inference.base import PredictionResult, RunInference
   from apache_beam.ml.inference.trt_handler_numpy_compact import (
       TensorRTEngine,
@@ -85,7 +82,6 @@ def _compare_prediction_result(a, b):
 def _build_simple_onnx_model(input_size=1, output_path=None):
   """Build a simple ONNX model for testing: y = 2x + 0.5"""
   try:
-    import onnx
     from onnx import helper, TensorProto
   except ImportError:
     raise unittest.SkipTest('ONNX dependencies are not installed')
