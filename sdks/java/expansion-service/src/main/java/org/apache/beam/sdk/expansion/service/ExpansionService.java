@@ -43,7 +43,6 @@ import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformRe
 import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformResponse;
 import org.apache.beam.model.expansion.v1.ExpansionApi.SchemaTransformConfig;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -85,7 +84,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.alts.AltsServerBuilder;
@@ -631,19 +629,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         assert allowList != null;
         transformProvider = new JavaClassLookupTransformProvider(allowList);
       } else if (getUrn(SCHEMA_TRANSFORM).equals(urn)) {
-        try {
-          String underlyingIdentifier =
-              ExternalTransforms.SchemaTransformPayload.parseFrom(
-                      request.getTransform().getSpec().getPayload())
-                  .getIdentifier();
-          transformProvider = getRegisteredTransforms().get(underlyingIdentifier);
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException(e);
-        }
-        transformProvider =
-            transformProvider != null
-                ? transformProvider
-                : ExpansionServiceSchemaTransformProvider.of();
+        // For SchemaTransform requests, use ExpansionServiceSchemaTransformProvider
+        // which properly loads SchemaTransformProvider implementations via ServiceLoader
+        transformProvider = ExpansionServiceSchemaTransformProvider.of();
       } else {
         throw new UnsupportedOperationException("Unknown urn: " + urn);
       }
