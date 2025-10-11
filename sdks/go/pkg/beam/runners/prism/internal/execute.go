@@ -154,7 +154,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	ts := comps.GetTransforms()
 	pcols := comps.GetPcollections()
 
-	config := engine.Config{EnableRTC: false}
+	config := engine.Config{EnableRTC: true}
 	m := j.PipelineOptions().AsMap()
 	if experimentsSlice, ok := m["beam:option:experiments:v1"].([]interface{}); ok {
 		for _, exp := range experimentsSlice {
