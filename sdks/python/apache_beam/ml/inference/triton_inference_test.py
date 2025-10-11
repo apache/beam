@@ -18,17 +18,12 @@
 # pytype: skip-file
 
 import unittest
-from unittest.mock import Mock, MagicMock, patch
-
-import apache_beam as beam
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from unittest.mock import Mock, patch
 
 # Protect against environments where tritonserver library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from apache_beam.ml.inference.base import PredictionResult, RunInference
+  from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.TritonModelHandler import TritonModelHandler
   from apache_beam.ml.inference.TritonModelHandler import TritonModelWrapper
 except ImportError:
@@ -235,6 +230,36 @@ class TritonModelHandlerTest(unittest.TestCase):
     wrapper = TritonModelWrapper(server=mock_server, model=mock_model)
     wrapper.__del__()
 
+    mock_server.stop.assert_called_once()
+
+  def test_wrapper_explicit_cleanup(self):
+    """Test explicit cleanup method."""
+    mock_server = Mock()
+    mock_model = Mock()
+
+    wrapper = TritonModelWrapper(server=mock_server, model=mock_model)
+    wrapper.cleanup()
+
+    mock_server.stop.assert_called_once()
+    self.assertTrue(wrapper._cleaned_up)
+
+    # Calling cleanup again should not call stop again
+    wrapper.cleanup()
+    mock_server.stop.assert_called_once()
+
+  def test_wrapper_cleanup_idempotent(self):
+    """Test that cleanup after __del__ doesn't cause double cleanup."""
+    mock_server = Mock()
+    mock_model = Mock()
+
+    wrapper = TritonModelWrapper(server=mock_server, model=mock_model)
+
+    # Call cleanup explicitly first
+    wrapper.cleanup()
+    mock_server.stop.assert_called_once()
+
+    # __del__ should not call stop again
+    wrapper.__del__()
     mock_server.stop.assert_called_once()
 
 

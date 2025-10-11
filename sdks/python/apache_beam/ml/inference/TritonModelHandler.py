@@ -20,7 +20,6 @@
 from typing import Sequence, Dict, Any, Iterable, Optional
 import logging
 import json
-import atexit
 
 from apache_beam.ml.inference.base import ModelHandler, PredictionResult
 
@@ -38,14 +37,37 @@ class TritonModelWrapper:
   def __init__(self, server: 'Server', model: 'Model'):
     self.server = server
     self.model = model
+    self._cleaned_up = False
 
-  def __del__(self):
-    """Cleanup server when model is garbage collected."""
+  def cleanup(self):
+    """Explicitly cleanup server resources.
+
+    This method should be called when the model is no longer needed.
+    It's safe to call multiple times.
+    """
+    if self._cleaned_up:
+      return
+
     try:
       if self.server:
         self.server.stop()
+        self._cleaned_up = True
     except Exception as e:
-      LOGGER.warning(f"Error stopping Triton server: {e}")
+      LOGGER.warning("Error stopping Triton server: %s", e)
+      raise
+
+  def __del__(self):
+    """Cleanup server when model is garbage collected.
+
+    Note: __del__ is not guaranteed to be called. Prefer using cleanup()
+    explicitly when possible.
+    """
+    if not self._cleaned_up:
+      try:
+        if self.server:
+          self.server.stop()
+      except Exception as e:
+        LOGGER.warning("Error stopping Triton server in __del__: %s", e)
 
 
 class TritonModelHandler(ModelHandler[Any, PredictionResult,
@@ -187,8 +209,10 @@ class TritonModelHandler(ModelHandler[Any, PredictionResult,
 
     if len(predictions) != len(batch):
       LOGGER.warning(
-          f"Prediction count ({len(predictions)}) doesn't match "
-          f"batch size ({len(batch)}). Truncating or padding.")
+          "Prediction count (%d) doesn't match "
+          "batch size (%d). Truncating or padding.",
+          len(predictions),
+          len(batch))
 
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
