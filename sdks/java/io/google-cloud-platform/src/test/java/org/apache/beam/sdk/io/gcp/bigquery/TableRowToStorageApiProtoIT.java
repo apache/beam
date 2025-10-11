@@ -527,8 +527,7 @@ public class TableRowToStorageApiProtoIT {
             .set("numeric", numeric)
             .set("bignumeric", bignumeric)
             .set("datetime", datetime)
-            .set("time", time)
-            .set("bytes", bytes);
+            .set("time", time);
 
     runPipeline(
         tableSpec,
