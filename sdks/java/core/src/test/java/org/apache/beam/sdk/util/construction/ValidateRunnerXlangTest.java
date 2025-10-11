@@ -329,7 +329,7 @@ public class ValidateRunnerXlangTest {
       } catch (IOException e) {
         gcpSecretVersionName = null;
         // return;
-        throw new RuntimeException("test");
+        throw new RuntimeException("An unexpected error occurred during operation.", e);
       }
       ProjectName projectName = ProjectName.of(PROJECT_ID);
       SecretName secretName = SecretName.of(PROJECT_ID, secretId);
