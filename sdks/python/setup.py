@@ -537,6 +537,7 @@ if __name__ == '__main__':
               'tf2onnx',
               'torch',
               'transformers',
+              'tritonserver',
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
@@ -556,6 +557,7 @@ if __name__ == '__main__':
               'tf2onnx',
               'torch',
               'transformers',
+              'tritonserver',
           ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
