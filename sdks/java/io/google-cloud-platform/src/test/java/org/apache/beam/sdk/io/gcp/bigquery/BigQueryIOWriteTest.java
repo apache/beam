@@ -4046,9 +4046,9 @@ public class BigQueryIOWriteTest implements Serializable {
     Function<Integer, TableRow> getPrimitiveRow =
         (Integer i) ->
             new TableRow()
-                .set("primitive_double", Double.valueOf(i))
-                .set("primitive_float", Float.valueOf(i).doubleValue())
-                .set("primitive_int32", i.intValue())
+                .set("primitive_double", i.toString())
+                .set("primitive_float", i.toString())
+                .set("primitive_int32", i.toString())
                 .set("primitive_int64", i.toString())
                 .set("primitive_uint32", i.toString())
                 .set("primitive_uint64", i.toString())
@@ -4056,7 +4056,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("primitive_sint64", i.toString())
                 .set("primitive_fixed32", i.toString())
                 .set("primitive_fixed64", i.toString())
-                .set("primitive_bool", true)
+                .set("primitive_bool", "true")
                 .set("primitive_string", i.toString())
                 .set(
                     "primitive_bytes",
