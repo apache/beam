@@ -1726,8 +1726,12 @@ class SetupOptions(PipelineOptions):
             'secret itself. This guarantees that any data at rest during the '
             'GBK will be encrypted. Many runners only store data at rest when '
             'performing a GBK, so this can be used to guarantee that data is '
-            'not unencrypted. Runners with this behavior include the '
-            'Dataflow, Flink, and Spark runners. The option should be '
+            'not unencrypted. The secret should be a url safe base64 encoded '
+            '32 byte value. To generate a secret in this format, you can use '
+            'Secret.generate_secret_bytes(). For an example of this, see '
+            'https://github.com/apache/beam/blob/c8df4da229da49d533491857e1bb4ab5dbf4fd37/sdks/python/apache_beam/transforms/util_test.py#L356. '  # pylint: disable=line-too-long
+            'Runners with this behavior include the Dataflow, '
+            'Flink, and Spark runners. The option should be '
             'structured like: '
             '--gbek=type:<secret_type>;<secret_param>:<value>, for example '
             '--gbek=type:GcpSecret;version_name:my_secret/versions/latest'))
@@ -1737,6 +1741,13 @@ class SetupOptions(PipelineOptions):
         help=(
             'A user agent string describing the pipeline to external services. '
             'The format should follow RFC2616.'))
+    parser.add_argument(
+        '--maven_repository_url',
+        default=None,
+        help=(
+            'Custom Maven repository URL to use for downloading JAR files. '
+            'If not specified, the default Maven Central repository will be '
+            'used.'))
 
   def validate(self, validator):
     errors = []
