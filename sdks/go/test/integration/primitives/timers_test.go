@@ -41,3 +41,8 @@ func TestTimers_ProcessingTime_Bounded(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TimersProcessingTime_Bounded)
 }
+
+func TestTimers_ProcessingTime_Unbounded(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TimersProcessingTime_Unbounded)
+}
