@@ -75,8 +75,8 @@ TWO_FEATURES_PREDICTIONS = [
 def _compare_prediction_result(a, b):
   """Compare two PredictionResult objects."""
   return ((a.example == b.example).all() and all(
-      np.array_equal(actual, expected) for actual,
-      expected in zip(a.inference, b.inference)))
+      np.array_equal(actual, expected)
+      for actual, expected in zip(a.inference, b.inference)))
 
 
 def _build_simple_onnx_model(input_size=1, output_path=None):
