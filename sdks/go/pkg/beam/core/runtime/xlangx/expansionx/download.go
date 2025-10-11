@@ -21,6 +21,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -104,6 +105,15 @@ func getLocalJar(url string) (string, error) {
 
 	if jarExists(jarPath) {
 		return jarPath, nil
+	}
+
+	// Issue warning when downloading from public repositories
+	if strings.Contains(url, "repo.maven.apache.org") ||
+		strings.Contains(url, "repo1.maven.org") ||
+		strings.Contains(url, "maven.google.com") ||
+		strings.Contains(url, "maven-central.storage-download.googleapis.com") {
+		log.Printf("WARNING: Downloading JAR file from public repository: %s. "+
+			"This may pose security risks or cause instability due to repository availability. Consider pre-staging dependencies or using private mirrors.", url)
 	}
 
 	resp, err := http.Get(string(url))
@@ -332,6 +342,16 @@ func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
 	if strings.Contains(version, ".dev") {
 		return "", fmt.Errorf("cannot pull dev versions of JARs, please run \"gradlew %v\" to start your expansion service",
 			gradleTarget)
+	}
+
+	// Issue warning when downloading from public repositories
+	fullURLStr := string(fullURL)
+	if strings.Contains(fullURLStr, "repo.maven.apache.org") ||
+		strings.Contains(fullURLStr, "repo1.maven.org") ||
+		strings.Contains(fullURLStr, "maven.google.com") ||
+		strings.Contains(fullURLStr, "maven-central.storage-download.googleapis.com") {
+		log.Printf("WARNING: Downloading JAR file from public repository: %s. "+
+			"This may pose security risks or cause instability due to repository availability. Consider pre-staging dependencies or using private mirrors.", fullURLStr)
 	}
 
 	resp, err := http.Get(string(fullURL))
