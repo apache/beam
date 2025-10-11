@@ -1229,6 +1229,10 @@ public class TableRowToStorageApiProto {
       boolean includeCdcColumns,
       Predicate<String> includeField,
       String namePrefix) {
+    // We first try to create a map-style TableRow for backwards compatibility with existing usage.
+    // However this will
+    // fail if there is a column name "f". If it fails, we then instead create a list-style
+    // TableRow.
     Optional<TableRow> tableRow =
         tableRowFromMessageNoF(
             schemaInformation, message, includeCdcColumns, includeField, namePrefix);
@@ -1250,6 +1254,9 @@ public class TableRowToStorageApiProto {
       FieldDescriptor fieldDescriptor = field.getKey();
       String fieldName = fieldNameFromProtoFieldDescriptor(fieldDescriptor);
       if ("f".equals(fieldName)) {
+        // TableRow.put won't work as expected if the fields in named "f." Fail the call, and force
+        // a retry using
+        // the setF codepath.
         return Optional.empty();
       }
       fullName = fullName.append(namePrefix).append(fieldName);
@@ -1269,6 +1276,7 @@ public class TableRowToStorageApiProto {
         if (convertedFieldValue instanceof Optional) {
           Optional<?> optional = (Optional<?>) convertedFieldValue;
           if (!optional.isPresent()) {
+            // Some nested message had a field named "f." Fail.
             return Optional.empty();
           } else {
             convertedFieldValue = optional.get();
@@ -1291,7 +1299,6 @@ public class TableRowToStorageApiProto {
 
     for (FieldDescriptor fieldDescriptor : message.getDescriptorForType().getFields()) {
       TableCell tableCell = new TableCell();
-
       boolean isPresent =
           (fieldDescriptor.isRepeated() && message.getRepeatedFieldCount(fieldDescriptor) > 0)
               || (!fieldDescriptor.isRepeated() && message.hasField(fieldDescriptor));
@@ -1325,8 +1332,7 @@ public class TableRowToStorageApiProto {
   }
 
   // Our process for generating descriptors modifies the names of nested descriptors for wrapper
-  // types, so we record
-  // them here.
+  // types, so we record them here.
   private static String FLOAT_VALUE_DESCRIPTOR_NAME = "google_protobuf_FloatValue";
   private static String DOUBLE_VALUE_DESCRIPTOR_NAME = "google_protobuf_DoubleValue";
   private static String BOOL_VALUE_DESCRIPTOR_NAME = "google_protobuf_BoolValue";
@@ -1361,6 +1367,7 @@ public class TableRowToStorageApiProto {
         if (!useSetF && translatedValue instanceof Optional) {
           Optional<?> optional = (Optional<?>) translatedValue;
           if (!optional.isPresent()) {
+            // A nested element contained an "f" column. Fail the call.
             return Optional.empty();
           }
           translatedValue = optional.get();
@@ -1370,6 +1377,15 @@ public class TableRowToStorageApiProto {
       return expanded;
     }
 
+    // BigQueryIO supports direct proto writes - i.e. we allow the user to pass in their own proto
+    // and skip our
+    // conversion layer, as long as the proto conforms to the types supported by the BigQuery
+    // Storage Write API.
+    // For many schema types, the Storage Write API supports different proto field types (often with
+    // different
+    // encodings), so the mapping of schema type -> proto type is one to many. To read the data out
+    // of the proto,
+    // we need to examine both the schema type and the proto field type.
     switch (schemaInformation.getType()) {
       case DOUBLE:
         switch (fieldDescriptor.getType()) {
@@ -1380,6 +1396,7 @@ public class TableRowToStorageApiProto {
                 .stripTrailingZeros()
                 .toString();
           case MESSAGE:
+            // Handle the various number wrapper types.
             Message doubleMessage = (Message) fieldValue;
             if (fieldDescriptor.getMessageType().getName().equals(FLOAT_VALUE_DESCRIPTOR_NAME)) {
               float floatValue =
@@ -1412,6 +1429,7 @@ public class TableRowToStorageApiProto {
             return fieldValue.toString();
         }
       case BOOL:
+        // Wrapper type.
         if (fieldDescriptor.getType().equals(FieldDescriptor.Type.MESSAGE)) {
           Message boolMessage = (Message) fieldValue;
           if (fieldDescriptor.getMessageType().getName().equals(BOOL_VALUE_DESCRIPTOR_NAME)) {
@@ -1433,6 +1451,7 @@ public class TableRowToStorageApiProto {
       case INT64:
         switch (fieldDescriptor.getType()) {
           case MESSAGE:
+            // Wrapper types.
             Message message = (Message) fieldValue;
             if (fieldDescriptor.getMessageType().getName().equals(INT32_VALUE_DESCRIPTOR_NAME)) {
               return message
@@ -1471,7 +1490,6 @@ public class TableRowToStorageApiProto {
           case BYTES:
             return BaseEncoding.base64().encode(((ByteString) fieldValue).toByteArray());
           case STRING:
-            // TODO: Is this what's expected? Or are string values expected to be base64 already?
             return BaseEncoding.base64()
                 .encode(((String) fieldValue).getBytes(StandardCharsets.UTF_8));
           case MESSAGE:

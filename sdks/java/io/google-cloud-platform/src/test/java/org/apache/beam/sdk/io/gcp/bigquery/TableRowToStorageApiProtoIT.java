@@ -116,7 +116,8 @@ public class TableRowToStorageApiProtoIT {
                   new TableFieldSchema().setName("numeric").setType("NUMERIC"),
                   new TableFieldSchema().setName("bignumeric").setType("BIGNUMERIC"),
                   new TableFieldSchema().setName("datetime").setType("DATETIME"),
-                  new TableFieldSchema().setName("time").setType("TIME")));
+                  new TableFieldSchema().setName("time").setType("TIME"),
+                  new TableFieldSchema().setName("bytes").setType("BYTES")));
 
   private static final List<Object> REPEATED_BYTES =
       ImmutableList.of(
@@ -509,7 +510,6 @@ public class TableRowToStorageApiProtoIT {
     final String bignumeric = "123456789012345678";
     final String datetime = "2019-08-16T00:52:07.123456";
     final String time = "00:52:07.123456";
-
     Proto3SchemaMessages.PrimitiveUnEncodedFields base_row =
         Proto3SchemaMessages.PrimitiveUnEncodedFields.newBuilder()
             .setTimestamp(timestamp)
@@ -527,7 +527,8 @@ public class TableRowToStorageApiProtoIT {
             .set("numeric", numeric)
             .set("bignumeric", bignumeric)
             .set("datetime", datetime)
-            .set("time", time);
+            .set("time", time)
+            .set("bytes", bytes);
 
     runPipeline(
         tableSpec,

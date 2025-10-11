@@ -55,7 +55,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableBiFunctions;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
@@ -642,17 +642,16 @@ public class BigQueryIOTranslation {
         if (formatFunctionBytes != null) {
           builder =
               builder.setFormatFunction(
-                  SerializableBiFunctions.ignore1st(
-                      (SerializableFunction<?, TableRow>) fromByteArray(formatFunctionBytes)));
+                  (SerializableBiFunction<TableRowToStorageApiProto.SchemaInformation, ?, TableRow>)
+                      fromByteArray(formatFunctionBytes));
         }
         byte[] formatRecordOnFailureFunctionBytes =
             configRow.getBytes("format_record_on_failure_function");
         if (formatRecordOnFailureFunctionBytes != null) {
           builder =
               builder.setFormatRecordOnFailureFunction(
-                  SerializableBiFunctions.ignore1st(
-                      (SerializableFunction<?, TableRow>)
-                          fromByteArray(formatRecordOnFailureFunctionBytes)));
+                  (SerializableBiFunction<TableRowToStorageApiProto.SchemaInformation, ?, TableRow>)
+                      fromByteArray(formatRecordOnFailureFunctionBytes));
         }
         byte[] avroRowWriterFactoryBytes = configRow.getBytes("avro_row_writer_factory");
         if (avroRowWriterFactoryBytes != null) {

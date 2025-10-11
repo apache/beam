@@ -37,7 +37,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   private final SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord;
   private final SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
-  private final @javax.annotation.Nullable SerializableBiFunction<
+  private final @Nullable SerializableBiFunction<
           TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow>
       formatRecordOnFailureFunction;
 
