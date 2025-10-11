@@ -21,6 +21,7 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
+import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.DATETIME_SPACE_FORMATTER;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -34,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -747,7 +749,11 @@ public class BigQueryUtils {
           return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(value);
         } catch (NumberFormatException e) {
           // Handle as a String, ie. "2023-02-16 12:00:00"
-          return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
+          try {
+            return LocalDateTime.parse(jsonBQString);
+          } catch (DateTimeParseException e2) {
+            return LocalDateTime.parse(jsonBQString, DATETIME_SPACE_FORMATTER);
+          }
         }
       } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
         return LocalDate.parse(jsonBQString);
