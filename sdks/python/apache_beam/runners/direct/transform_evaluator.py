@@ -822,7 +822,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
     # TODO(aaltay): Consider storing the serialized form as an optimization.
     dofn = (
-        pickler.loads(pickler.dumps(transform.dofn))
+        pickler.roundtrip(transform.dofn)
         if self._perform_dofn_pickle_test else transform.dofn)
 
     args = transform.args if hasattr(transform, 'args') else []
