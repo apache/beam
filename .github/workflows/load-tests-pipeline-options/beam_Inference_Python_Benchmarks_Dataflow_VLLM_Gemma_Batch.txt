@@ -20,7 +20,7 @@
 --input=gs://apache-beam-ml/testing/inputs/sentences_50k.txt
 --machine_type=n1-standard-8
 --worker_zone=us-central1-b
---disk_size_gb=50
+--disk_size_gb=200
 --input_options={}
 --num_workers=8
 --max_num_workers=25

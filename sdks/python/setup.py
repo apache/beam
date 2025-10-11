@@ -610,7 +610,8 @@ if __name__ == '__main__':
           ],
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
-          'milvus': milvus_dependency
+          'milvus': milvus_dependency,
+          'vllm': ['openai>=1.52.2', 'vllm>=0.6.3', 'triton>=3.1.0']
       },
       zip_safe=False,
       # PyPI package information.
