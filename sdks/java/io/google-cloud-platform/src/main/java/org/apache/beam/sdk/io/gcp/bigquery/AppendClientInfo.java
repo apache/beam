@@ -170,6 +170,7 @@ abstract class AppendClientInfo {
   public TableRow toTableRow(ByteString protoBytes, Predicate<String> includeField) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
+          getSchemaInformation(),
           DynamicMessage.parseFrom(
               TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
           true,
