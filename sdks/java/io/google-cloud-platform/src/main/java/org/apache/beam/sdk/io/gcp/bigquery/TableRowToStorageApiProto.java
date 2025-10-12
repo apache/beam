@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.DATETIME_SPACE_FORMATTER;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
 
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
@@ -50,8 +52,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -81,42 +81,6 @@ import org.joda.time.Days;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
-
-  // Custom formatter that accepts "2022-05-09 18:04:59.123456"
-  // The old dremel parser accepts this format, and so does insertall. We need to accept it
-  // for backwards compatibility, and it is based on UTC time.
-  static final DateTimeFormatter DATETIME_SPACE_FORMATTER =
-      new DateTimeFormatterBuilder()
-          .append(DateTimeFormatter.ISO_LOCAL_DATE)
-          .optionalStart()
-          .appendLiteral(' ')
-          .optionalEnd()
-          .optionalStart()
-          .appendLiteral('T')
-          .optionalEnd()
-          .append(DateTimeFormatter.ISO_LOCAL_TIME)
-          .toFormatter()
-          .withZone(ZoneOffset.UTC);
-
-  static final DateTimeFormatter TIMESTAMP_FORMATTER =
-      new DateTimeFormatterBuilder()
-          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS'
-          .append(DATETIME_SPACE_FORMATTER)
-          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:mm:ss|Z)'
-          .optionalStart()
-          .appendOffsetId()
-          .optionalEnd()
-          .optionalStart()
-          .appendOffset("+HH:mm", "+00:00")
-          .optionalEnd()
-          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS [time_zone]', time_zone -> UTC, Asia/Kolkata, etc
-          // if both an offset and a time zone are provided, the offset takes precedence
-          .optionalStart()
-          .appendLiteral(' ')
-          .parseCaseSensitive()
-          .appendZoneRegionId()
-          .toFormatter();
-
   abstract static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
       super(msg);
@@ -220,8 +184,8 @@ public class TableRowToStorageApiProto {
           .build();
 
   @FunctionalInterface
-  public interface ThrowingBiFunction<T, U, R> {
-    R apply(T t, U u) throws SchemaConversionException;
+  public interface ThrowingBiFunction<FirstInputT, SecondInputT, OutputT> {
+    OutputT apply(FirstInputT t, SecondInputT u) throws SchemaConversionException;
   }
 
   // Map of functions to convert json values into the value expected in the Vortex proto object.
@@ -1333,15 +1297,15 @@ public class TableRowToStorageApiProto {
 
   // Our process for generating descriptors modifies the names of nested descriptors for wrapper
   // types, so we record them here.
-  private static String FLOAT_VALUE_DESCRIPTOR_NAME = "google_protobuf_FloatValue";
-  private static String DOUBLE_VALUE_DESCRIPTOR_NAME = "google_protobuf_DoubleValue";
-  private static String BOOL_VALUE_DESCRIPTOR_NAME = "google_protobuf_BoolValue";
-  private static String INT32_VALUE_DESCRIPTOR_NAME = "google_protobuf_Int32Value";
-  private static String INT64_VALUE_DESCRIPTOR_NAME = "google_protobuf_Int64Value";
-  private static String UINT32_VALUE_DESCRIPTOR_NAME = "google_protobuf_UInt32Value";
-  private static String UINT64_VALUE_DESCRIPTOR_NAME = "google_protobuf_UInt64Value";
-  private static String BYTES_VALUE_DESCRIPTOR_NAME = "google_protobuf_BytesValue";
-  private static String TIMESTAMP_VALUE_DESCRIPTOR_NAME = "google_protobuf_Timestamp";
+  private static final String FLOAT_VALUE_DESCRIPTOR_NAME = "google_protobuf_FloatValue";
+  private static final String DOUBLE_VALUE_DESCRIPTOR_NAME = "google_protobuf_DoubleValue";
+  private static final String BOOL_VALUE_DESCRIPTOR_NAME = "google_protobuf_BoolValue";
+  private static final String INT32_VALUE_DESCRIPTOR_NAME = "google_protobuf_Int32Value";
+  private static final String INT64_VALUE_DESCRIPTOR_NAME = "google_protobuf_Int64Value";
+  private static final String UINT32_VALUE_DESCRIPTOR_NAME = "google_protobuf_UInt32Value";
+  private static final String UINT64_VALUE_DESCRIPTOR_NAME = "google_protobuf_UInt64Value";
+  private static final String BYTES_VALUE_DESCRIPTOR_NAME = "google_protobuf_BytesValue";
+  private static final String TIMESTAMP_VALUE_DESCRIPTOR_NAME = "google_protobuf_Timestamp";
 
   // Translate a proto message value into a json value. If useSetF==false, this will fail with
   // Optional.empty() if
@@ -1551,7 +1515,7 @@ public class TableRowToStorageApiProto {
         if (isProtoFieldTypeInteger(fieldDescriptor.getType())) {
           long packedDateTime = Long.valueOf(fieldValue.toString());
           return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(packedDateTime)
-              .format(DATETIME_SPACE_FORMATTER);
+              .format(BigQueryUtils.BIGQUERY_DATETIME_FORMATTER);
         } else {
           return fieldValue.toString();
         }

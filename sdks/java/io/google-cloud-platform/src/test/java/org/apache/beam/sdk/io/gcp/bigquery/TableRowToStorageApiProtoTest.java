@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.DATETIME_SPACE_FORMATTER;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.DATETIME_SPACE_FORMATTER;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1414,8 +1415,7 @@ public class TableRowToStorageApiProtoTest {
           long epochSeconds = timestampLongValue / 1_000_000L;
           long nanoAdjustment = (timestampLongValue % 1_000_000L) * 1_000L;
           Instant instant = Instant.ofEpochSecond(epochSeconds, nanoAdjustment);
-          return LocalDateTime.ofInstant(instant, ZoneOffset.UTC)
-              .format(TableRowToStorageApiProto.TIMESTAMP_FORMATTER);
+          return LocalDateTime.ofInstant(instant, ZoneOffset.UTC).format(TIMESTAMP_FORMATTER);
         case DATE:
           int daysInt = (int) convertedValue;
           return LocalDate.ofEpochDay(daysInt).toString();

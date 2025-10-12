@@ -22,13 +22,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Useful {@link SerializableFunction} overrides. */
 public class SerializableBiFunctions {
   /** Always returns the first argument. */
-  public static <T, U, R> SerializableBiFunction<T, U, T> Select1st(
+  public static <T, U, R> SerializableBiFunction<T, U, T> select1st(
       SerializableBiFunction<@Nullable T, @Nullable U, R> biFunction) {
     return (t, u) -> t;
   }
 
   /** Always returns the second argument. */
-  public static <T, U, R> SerializableBiFunction<T, U, U> Select2nd(
+  public static <T, U, R> SerializableBiFunction<T, U, U> select2nd(
       SerializableBiFunction<@Nullable T, @Nullable U, R> biFunction) {
     return (t, u) -> u;
   }

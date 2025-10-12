@@ -21,7 +21,6 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.DATETIME_SPACE_FORMATTER;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -35,6 +34,7 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -171,10 +171,45 @@ public class BigQueryUtils {
   }
 
   private static final String BIGQUERY_TIME_PATTERN = "HH:mm:ss[.SSSSSS]";
-  private static final java.time.format.DateTimeFormatter BIGQUERY_TIME_FORMATTER =
+  static final java.time.format.DateTimeFormatter BIGQUERY_TIME_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern(BIGQUERY_TIME_PATTERN);
-  private static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
+  static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd'T'" + BIGQUERY_TIME_PATTERN);
+
+  // Custom formatter that accepts "2022-05-09 18:04:59.123456"
+  // The old dremel parser accepts this format, and so does insertall. We need to accept it
+  // for backwards compatibility, and it is based on UTC time.
+  static final java.time.format.DateTimeFormatter DATETIME_SPACE_FORMATTER =
+      new java.time.format.DateTimeFormatterBuilder()
+          .append(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+          .optionalStart()
+          .appendLiteral(' ')
+          .optionalEnd()
+          .optionalStart()
+          .appendLiteral('T')
+          .optionalEnd()
+          .append(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME)
+          .toFormatter()
+          .withZone(ZoneOffset.UTC);
+
+  static final java.time.format.DateTimeFormatter TIMESTAMP_FORMATTER =
+      new java.time.format.DateTimeFormatterBuilder()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS'
+          .append(DATETIME_SPACE_FORMATTER)
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:mm:ss|Z)'
+          .optionalStart()
+          .appendOffsetId()
+          .optionalEnd()
+          .optionalStart()
+          .appendOffset("+HH:mm", "+00:00")
+          .optionalEnd()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS [time_zone]', time_zone -> UTC, Asia/Kolkata, etc
+          // if both an offset and a time zone are provided, the offset takes precedence
+          .optionalStart()
+          .appendLiteral(' ')
+          .parseCaseSensitive()
+          .appendZoneRegionId()
+          .toFormatter();
 
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
