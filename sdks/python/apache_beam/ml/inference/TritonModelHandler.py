@@ -19,7 +19,7 @@
 
 import json
 import logging
-from typing import Any, Dict, Iterable, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence
 
 from apache_beam.ml.inference.base import ModelHandler, PredictionResult
 
@@ -103,7 +103,7 @@ class TritonModelHandler(ModelHandler[Any, PredictionResult,
       model_name: str,
       input_tensor_name: str = "INPUT",
       output_tensor_name: str = "OUTPUT",
-      parse_output_fn: Optional[callable] = None,
+      parse_output_fn: Optional[Callable] = None,
   ):
     if tritonserver is None:
       raise ImportError(
