@@ -34,11 +34,13 @@ import zipfile
 from typing import Any
 from typing import Set
 from urllib.error import URLError
+from urllib.request import Request
 from urllib.request import urlopen
 
 import grpc
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.runners.internal.names import BEAM_SDK_NAME
 from apache_beam.version import __version__ as beam_version
 
 _LOGGER = logging.getLogger(__name__)
@@ -279,12 +281,15 @@ class JavaJarServer(SubprocessServer):
 
   MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
   MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'  # pylint: disable=line-too-long
+  GOOGLE_MAVEN_MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2'  # pylint: disable=line-too-long
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
   _BEAM_SERVICES = type(
       'local', (threading.local, ),
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
+
+  _DEFAULT_USER_AGENT = f'{BEAM_SDK_NAME}/{beam_version}'
 
   def __init__(
       self,
@@ -386,7 +391,8 @@ class JavaJarServer(SubprocessServer):
       gradle_target,
       appendix=None,
       version=beam_version,
-      artifact_id=None):
+      artifact_id=None,
+      maven_repository_url=None):
     if gradle_target in cls._BEAM_SERVICES.replacements:
       return cls._BEAM_SERVICES.replacements[gradle_target]
 
@@ -399,7 +405,7 @@ class JavaJarServer(SubprocessServer):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
 
-    maven_repo = cls.MAVEN_CENTRAL_REPOSITORY
+    maven_repo = maven_repository_url or cls.MAVEN_CENTRAL_REPOSITORY
     if 'rc' in version:
       # Release candidate
       version = version.split('rc')[0]
@@ -416,7 +422,44 @@ class JavaJarServer(SubprocessServer):
         artifact_id, cls.BEAM_GROUP_ID, version, maven_repo, appendix=appendix)
 
   @classmethod
-  def local_jar(cls, url, cache_dir=None):
+  def _download_jar_to_cache(
+      cls, download_url, cached_jar_path, user_agent=None):
+    """Downloads a jar from the given URL to the specified cache path.
+    
+    Args:
+      download_url (str): The URL to download from.
+      cached_jar_path (str): The local path where the jar should be cached.
+      user_agent (str): The user agent to use when downloading.
+    """
+    try:
+      url_read = FileSystems.open(download_url)
+    except ValueError:
+      if user_agent is None:
+        user_agent = cls._DEFAULT_USER_AGENT
+      url_request = Request(download_url, headers={'User-Agent': user_agent})
+      url_read = urlopen(url_request)
+    with open(cached_jar_path + '.tmp', 'wb') as jar_write:
+      shutil.copyfileobj(url_read, jar_write, length=1 << 20)
+    try:
+      os.rename(cached_jar_path + '.tmp', cached_jar_path)
+    except FileNotFoundError:
+      # A race when multiple programs run in parallel and the cached_jar
+      # is already moved. Safe to ignore.
+      pass
+
+  @classmethod
+  def local_jar(cls, url, cache_dir=None, user_agent=None):
+    """Returns a local path to the given jar, downloading it if necessary.
+
+    Args:
+      url (str): A URL or local path to a jar file.
+      cache_dir (str): The directory to use for caching downloaded jars. If not
+        specified, a default temporary directory will be used.
+      user_agent (str): The user agent to use when downloading the jar.
+
+    Returns:
+      str: The local path to the jar file.
+    """
     if cache_dir is None:
       cache_dir = cls.JAR_CACHE
     # TODO: Verify checksum?
@@ -434,22 +477,31 @@ class JavaJarServer(SubprocessServer):
           os.makedirs(cache_dir)
           # TODO: Clean up this cache according to some policy.
         try:
-          try:
-            url_read = FileSystems.open(url)
-          except ValueError:
-            url_read = urlopen(url)
-          with open(cached_jar + '.tmp', 'wb') as jar_write:
-            shutil.copyfileobj(url_read, jar_write, length=1 << 20)
-          try:
-            os.rename(cached_jar + '.tmp', cached_jar)
-          except FileNotFoundError:
-            # A race when multiple programs run in parallel and the cached_jar
-            # is already moved. Safe to ignore.
-            pass
+          cls._download_jar_to_cache(url, cached_jar, user_agent)
         except URLError as e:
-          raise RuntimeError(
-              f'Unable to fetch remote job server jar at {url}: {e}. If no '
-              f'Internet access at runtime, stage the jar at {cached_jar}')
+          # Try Google Maven mirror as fallback if the original URL is from
+          # Maven Central
+          if url.startswith(cls.MAVEN_CENTRAL_REPOSITORY):
+            fallback_url = url.replace(
+                cls.MAVEN_CENTRAL_REPOSITORY, cls.GOOGLE_MAVEN_MIRROR)
+            _LOGGER.info(
+                'Trying Google Maven mirror fallback: %s' % fallback_url)
+            try:
+              cls._download_jar_to_cache(fallback_url, cached_jar, user_agent)
+              _LOGGER.info(
+                  'Successfully downloaded from Google Maven mirror: %s' %
+                  fallback_url)
+            except URLError as fallback_e:
+              raise RuntimeError(
+                  f'Unable to fetch remote job server jar at {url}: {e}. '
+                  f'Also failed to fetch from Google Maven mirror at '
+                  f'{fallback_url}: {fallback_e}. '
+                  f'If no Internet access at runtime, stage the jar at '
+                  f'{cached_jar}')
+          else:
+            raise RuntimeError(
+                f'Unable to fetch remote job server jar at {url}: {e}. If no '
+                f'Internet access at runtime, stage the jar at {cached_jar}')
       return cached_jar
 
   @classmethod

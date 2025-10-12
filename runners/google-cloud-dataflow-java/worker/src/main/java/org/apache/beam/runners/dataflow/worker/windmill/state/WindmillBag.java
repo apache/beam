@@ -63,10 +63,11 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
       StateTag<BagState<T>> address,
       String stateFamily,
       Coder<T> elemCoder,
-      boolean isNewKey) {
+      boolean isNewKey,
+      WindmillStateTagUtil windmillStateTagUtil) {
     this.namespace = namespace;
     this.address = address;
-    this.stateKey = WindmillStateUtil.encodeKey(namespace, address);
+    this.stateKey = windmillStateTagUtil.encodeKey(namespace, address);
     this.stateFamily = stateFamily;
     this.elemCoder = elemCoder;
     if (isNewKey) {

@@ -461,8 +461,10 @@ class BeamModulePlugin implements Plugin<Project> {
       return 'java11'
     } else if (ver <= JavaVersion.VERSION_17) {
       return 'java17'
-    } else {
+    } else if (ver <= JavaVersion.VERSION_21) {
       return 'java21'
+    } else {
+      return 'java25'
     }
   }
 
@@ -697,7 +699,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_gcs_connector                    : "com.google.cloud.bigdataoss:gcs-connector:hadoop2-$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigdataoss_util_hadoop                      : "com.google.cloud.bigdataoss:util-hadoop:hadoop2-$google_cloud_bigdataoss_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.14.12",
+        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.17.7",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
@@ -980,20 +982,25 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
         // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
-      } else if (ver == '21') {
-        def java21Home = project.findProperty("java21Home")
+      } else if (ver == '21' || ver == '25') {
+        def javaVerHome = project.findProperty("java${ver}Home")
         options.fork = true
-        options.forkOptions.javaHome = java21Home as File
+        options.forkOptions.javaHome = javaVerHome as File
         options.compilerArgs += [
           '-Xlint:-path',
           '-Xlint:-this-escape'
         ]
+        if (ver == '25') {
+          options.compilerArgs += [
+            '-Xlint:-dangling-doc-comments'
+          ]
+        }
         // Error prone requires some packages to be exported/opened for Java 17+
         // Disabling checks since this property is only used for tests
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
         // TODO(https://github.com/apache/beam/issues/28963)
-        // upgrade checkerFramework to enable it in Java 21
+        // upgrade checkerFramework to enable it in Java 21+
         project.checkerFramework {
           skipCheckerFramework = true
         }
@@ -1646,7 +1653,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (['8', '11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
+      if (['8', '11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 
@@ -1654,6 +1661,12 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
           project.ext.setJavaVerOptions(options, ver)
+          if (ver == '25') {
+            // TODO: Upgrade errorprone version to support Java25. Currently compile crashes
+            //  java.lang.NoSuchFieldError: Class com.sun.tools.javac.code.TypeTag does not have member field
+            //  'com.sun.tools.javac.code.TypeTag UNKNOWN'
+            options.errorprone.enabled = false
+          }
         }
         // redirect java runtime to specified version for running tests
         project.tasks.withType(Test).configureEach {
@@ -2324,7 +2337,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.24.4"
+      project.ext.goVersion = "go1.25.2"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -3203,6 +3216,16 @@ class BeamModulePlugin implements Plugin<Project> {
             testJavaHome = project.findProperty("java${testJavaVersion}Home")
           }
 
+          // Detect macOS and append '-macos' to tox environment to avoid pip check issues
+          def actualToxEnv = tox_env
+          def osName = System.getProperty("os.name").toLowerCase()
+          if (osName.contains("mac")) {
+            // Only append -macos for standard python environments (py39, py310, etc.)
+            if (tox_env.matches("py\\d+")) {
+              actualToxEnv = "${tox_env}-macos"
+            }
+          }
+
           if (project.hasProperty('useWheelDistribution')) {
             def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
@@ -3218,7 +3241,7 @@ class BeamModulePlugin implements Plugin<Project> {
                   environment "JAVA_HOME", testJavaHome
                 }
                 executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $actualToxEnv ${packageFilename} '$posargs' "
               }
             }
           } else {
@@ -3231,12 +3254,12 @@ class BeamModulePlugin implements Plugin<Project> {
                   environment "JAVA_HOME", testJavaHome
                 }
                 executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
+                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $actualToxEnv '$posargs'"
               }
             }
           }
           inputs.files project.pythonSdkDeps
-          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${actualToxEnv}/log/")
         }
       }
       // Run single or a set of integration tests with provided test options and pipeline options.
@@ -3291,6 +3314,7 @@ class BeamModulePlugin implements Plugin<Project> {
             ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',
             ':sdks:python:container:py312:docker',
+            ':sdks:python:container:py313:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.
