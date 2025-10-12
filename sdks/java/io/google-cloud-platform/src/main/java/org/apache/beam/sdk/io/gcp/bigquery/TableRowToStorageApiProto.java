@@ -1380,14 +1380,7 @@ public class TableRowToStorageApiProto {
               return BigDecimal.valueOf(doubleValue).stripTrailingZeros().toString();
             } else {
               throw new RuntimeException(
-                  "Not implemented yet "
-                      + fieldDescriptor.getMessageType().getName()
-                      + " PARTIAL NAME "
-                      + fieldDescriptor.getMessageType().getName()
-                      + " FIELD NAME "
-                      + prefix
-                      + " CLASS TYPE "
-                      + fieldValue.getClass());
+                  "Not implemented yet " + fieldDescriptor.getMessageType().getName());
             }
           default:
             return fieldValue.toString();

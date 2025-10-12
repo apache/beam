@@ -3679,7 +3679,6 @@ public class BigQueryIOWriteTest implements Serializable {
     expectedFailedRows.addAll(
         goodRows.stream().filter(shouldFailRow::apply).collect(Collectors.toList()));
 
-    deadRows.apply(ParDo.of(new PrintingDoFn()));
     PAssert.that(deadRows).containsInAnyOrder(expectedFailedRows);
     PAssert.that(successfulRows)
         .containsInAnyOrder(
@@ -3692,13 +3691,6 @@ public class BigQueryIOWriteTest implements Serializable {
         containsInAnyOrder(
             Iterables.toArray(
                 Iterables.filter(goodRows, r -> !shouldFailRow.apply(r)), TableRow.class)));
-  }
-
-  private static class PrintingDoFn extends DoFn<TableRow, Void> {
-    @ProcessElement
-    public void processElement(@Element TableRow element) {
-      System.err.println("FAILED " + element);
-    }
   }
 
   @Test
