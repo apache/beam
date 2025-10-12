@@ -632,6 +632,24 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Read} that will skip the large rows while reading. This
+     * function will switch the base BigtableIO.Reader class to using the
+     * BigtableReaderWithExperimentalOptions. If
+     *
+     * <p>Does not modify this object.
+     *
+     * <p>This is incompatible with withMaxBufferElementCount()
+     */
+    public Read withExperimentalSkipLargeRows(@Nullable Boolean skipLargeRows) {
+      BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
+
+      return toBuilder()
+          .setBigtableReadOptions(
+              bigtableReadOptions.toBuilder().setExperimentalSkipLargeRows(skipLargeRows).build())
+          .build();
+    }
+
+    /**
      * Returns a new {@link BigtableIO.Read} that will read only rows in the specified range.
      *
      * <p>Does not modify this object.

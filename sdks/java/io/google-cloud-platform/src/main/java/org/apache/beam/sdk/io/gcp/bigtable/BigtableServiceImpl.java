@@ -142,6 +142,7 @@ class BigtableServiceImpl implements BigtableService {
     private ServerStream<Row> stream;
 
     private boolean exhausted;
+    private BigtableReadOptions bigtableReadOptions;
 
     @VisibleForTesting
     BigtableReaderImpl(
@@ -150,13 +151,15 @@ class BigtableServiceImpl implements BigtableService {
         String instanceId,
         String tableId,
         List<ByteKeyRange> ranges,
-        @Nullable RowFilter rowFilter) {
+        @Nullable RowFilter rowFilter,
+        BigtableReadOptions bigtableReadOptions) {
       this.client = client;
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
       this.ranges = ranges;
       this.rowFilter = rowFilter;
+      this.bigtableReadOptions = bigtableReadOptions;
     }
 
     @Override
@@ -174,10 +177,18 @@ class BigtableServiceImpl implements BigtableService {
         query.filter(Filters.FILTERS.fromProto(rowFilter));
       }
       try {
-        stream =
-            client
-                .readRowsCallable(new BigtableRowProtoAdapter())
-                .call(query, GrpcCallContext.createDefault());
+        if (bigtableReadOptions != null
+            && Boolean.TRUE.equals(bigtableReadOptions.getExperimentalSkipLargeRows())) {
+          stream =
+              client
+                  .skipLargeRowsCallable(new BigtableRowProtoAdapter())
+                  .call(query, GrpcCallContext.createDefault());
+        } else {
+          stream =
+              client
+                  .readRowsCallable(new BigtableRowProtoAdapter())
+                  .call(query, GrpcCallContext.createDefault());
+        }
         results = stream.iterator();
         serviceCallMetric.call("ok");
       } catch (StatusRuntimeException e) {
@@ -667,7 +678,8 @@ class BigtableServiceImpl implements BigtableService {
           instanceId,
           source.getTableId().get(),
           source.getRanges(),
-          source.getRowFilter());
+          source.getRowFilter(),
+          source.getReadOptions());
     }
   }
 
