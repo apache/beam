@@ -48,7 +48,7 @@ For instance, the following code sample uses a `Map` to create a `DoFn`. The `Ma
 {{< /highlight >}}
 
 {{< highlight py >}}
-No sample present.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
 {{< /highlight >}}
 
 
