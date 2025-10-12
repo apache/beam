@@ -66,6 +66,7 @@ class TritonModelWrapper:
       try:
         if self.server:
           self.server.stop()
+          self._cleaned_up = True
       except Exception as e:
         LOGGER.warning("Error stopping Triton server in __del__: %s", e)
 
@@ -198,7 +199,7 @@ class TritonModelHandler(ModelHandler[Any, PredictionResult,
                 json.loads(val)
                 for val in output_tensor.to_string_array().tolist()
             ]
-          except Exception:
+          except (json.JSONDecodeError, TypeError, AttributeError):
             # If JSON parsing fails, return raw output
             parsed = output_tensor.to_bytes_array().tolist()
 
