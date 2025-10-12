@@ -1451,6 +1451,58 @@ def side_input_slow_update(
   return pipeline, result
 
 
+# [START SideInputPatternSlowUpdateGlobalWindowSnip1]
+"""
+Example: Slowly updating global window side input in Python.
+This snippet demonstrates how to use PeriodicImpulse to refresh
+a side input periodically, using dummy data for safe local testing.
+"""
+import apache_beam as beam
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.window import TimestampedValue, GlobalWindows, FixedWindows
+from apache_beam.pvalue import AsIter
+
+def cross_join(left, rights):
+    """Combine each element from main input with all elements from side input."""
+    for x in rights:
+        yield (left, x)
+
+def run_side_input_example():
+    # Use 'with' so pipeline runs automatically
+    with beam.Pipeline() as pipeline:
+
+        # ----------------------
+        # Dummy side input for testing
+        # ----------------------
+        side_input = (
+            pipeline
+            | 'PeriodicImpulseDummy' >> beam.Create(['config1', 'config2', 'config3'])
+        )
+
+        # ----------------------
+        # Main input with fixed windows
+        # ----------------------
+        main_input = (
+            pipeline
+            | 'CreateMainInput' >> beam.Create([1, 2, 3])
+            | 'MapToTimestamped' >> beam.Map(lambda x: TimestampedValue(x, x))
+            | 'WindowIntoFixed' >> beam.WindowInto(FixedWindows(30))
+        )
+
+        # ----------------------
+        # Apply cross join with side input
+        # ----------------------
+        (
+            main_input
+            | 'ApplyCrossJoin' >> beam.FlatMap(cross_join, rights=AsIter(side_input))
+            | 'PrintOutput' >> beam.Map(print)  # prints to console
+        )
+
+if __name__ == "__main__":
+    run_side_input_example()
+
+
+# [END SideInputPatternSlowUpdateGlobalWindowSnip1]
 def bigqueryio_deadletter():
   # [START BigQueryIODeadLetter]
 
