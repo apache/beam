@@ -17,13 +17,21 @@
 from __future__ import annotations
 
 import logging
-import numpy as np
 import threading
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
+
+import numpy as np
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
-from apache_beam.ml.inference.base import ModelHandler, PredictionResult
+from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import PredictionResult
 
 LOGGER = logging.getLogger("TensorRTEngineHandlerNumPy_TRT10")
 
