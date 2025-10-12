@@ -50,6 +50,7 @@ from apache_beam import WindowInto
 from apache_beam.coders import coders
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
@@ -252,7 +253,7 @@ class CoGroupByKeyTest(unittest.TestCase):
 
 
 class FakeSecret(beam.Secret):
-  def __init__(self, should_throw=False):
+  def __init__(self, version_name=None, should_throw=False):
     self._secret = b'aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE='
     self._should_throw = should_throw
 
@@ -273,6 +274,12 @@ class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
     super().__init__(hmac_key_secret, key_coder, value_coder)
 
   def process(self, element):
+    final_elements = list(super().process(element))
+    # Check if we're looking at the actual elements being encoded/decoded
+    # There is also a gbk on assertEqual, which uses None as the key type.
+    final_element_keys = [e for e in final_elements if e[0] in ['a', 'b', 'c']]
+    if len(final_element_keys) == 0:
+      return final_elements
     hmac_key, actual_elements = element
     if hmac_key not in self.known_hmacs:
       raise ValueError(f'GBK produced unencrypted value {hmac_key}')
@@ -286,7 +293,38 @@ class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
       except InvalidToken:
         raise ValueError(f'GBK produced unencrypted value {e[1]}')
 
-    return super().process(element)
+    return final_elements
+
+
+class SecretTest(unittest.TestCase):
+  @parameterized.expand([
+      param(
+          secret_string='type:GcpSecret;version_name:my_secret/versions/latest',
+          secret=GcpSecret('my_secret/versions/latest')),
+      param(
+          secret_string='type:GcpSecret;version_name:foo',
+          secret=GcpSecret('foo')),
+      param(
+          secret_string='type:gcpsecreT;version_name:my_secret/versions/latest',
+          secret=GcpSecret('my_secret/versions/latest')),
+  ])
+  def test_secret_manager_parses_correctly(self, secret_string, secret):
+    self.assertEqual(secret, Secret.parse_secret_option(secret_string))
+
+  @parameterized.expand([
+      param(
+          secret_string='version_name:foo',
+          exception_str='must contain a valid type parameter'),
+      param(
+          secret_string='type:gcpsecreT',
+          exception_str='missing 1 required positional argument'),
+      param(
+          secret_string='type:gcpsecreT;version_name:foo;extra:val',
+          exception_str='Invalid secret parameter extra'),
+  ])
+  def test_secret_manager_throws_on_invalid(self, secret_string, exception_str):
+    with self.assertRaisesRegex(Exception, exception_str):
+      Secret.parse_secret_option(secret_string)
 
 
 class GroupByEncryptedKeyTest(unittest.TestCase):
@@ -318,7 +356,9 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
                     'data': Secret.generate_secret_bytes()
                 }
             })
-      self.gcp_secret = GcpSecret(f'{self.secret_path}/versions/latest')
+      version_name = f'{self.secret_path}/versions/latest'
+      self.gcp_secret = GcpSecret(version_name)
+      self.secret_option = f'type:GcpSecret;version_name:{version_name}'
 
   def tearDown(self):
     if secretmanager is not None:
@@ -334,6 +374,20 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
       assert_that(
           result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbk_with_gbek_option_fake_secret_manager_roundtrips(self):
+    options = PipelineOptions()
+    options.view_as(SetupOptions).gbek = self.secret_option
+
+    with beam.Pipeline(options=options) as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByKey()
+      sorted_result = result | beam.Map(lambda x: (x[0], sorted(x[1])))
+      assert_that(
+          sorted_result,
+          equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
   @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
   def test_gbek_fake_secret_manager_actually_does_encryption(self):
     fakeSecret = FakeSecret()
@@ -345,8 +399,23 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
       assert_that(
           result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
+  @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
+  @mock.patch('apache_beam.transforms.util.GcpSecret', FakeSecret)
+  def test_gbk_actually_does_encryption(self):
+    options = PipelineOptions()
+    # Version of GcpSecret doesn't matter since it is replaced by FakeSecret
+    options.view_as(SetupOptions).gbek = 'type:GcpSecret;version_name:Foo'
+
+    with TestPipeline('FnApiRunner', options=options) as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)],
+                                                    reshuffle=False)
+      result = pcoll_1 | beam.GroupByKey()
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
   def test_gbek_fake_secret_manager_throws(self):
-    fakeSecret = FakeSecret(True)
+    fakeSecret = FakeSecret(None, True)
 
     with self.assertRaisesRegex(RuntimeError, r'Exception retrieving secret'):
       with TestPipeline() as pipeline:

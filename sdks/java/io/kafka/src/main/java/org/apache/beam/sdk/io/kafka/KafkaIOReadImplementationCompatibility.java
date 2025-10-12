@@ -139,6 +139,12 @@ class KafkaIOReadImplementationCompatibility {
     },
     OFFSET_DEDUPLICATION(LEGACY),
     LOG_TOPIC_VERIFICATION,
+    REDISTRIBUTE_BY_RECORD_KEY {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    },
     ;
 
     private final @NonNull ImmutableSet<KafkaIOReadImplementation> supportedImplementations;

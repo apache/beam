@@ -171,6 +171,7 @@ var flinkFilters = []string{
 	"TestBigQueryIO.*",
 	"TestBigtableIO.*",
 	"TestSpannerIO.*",
+	"TestTriggerAfterProcessingTime",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateUtil.encodeKey;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -75,9 +73,10 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
       StateTag<OrderedListState<T>> spec,
       String stateFamily,
       Coder<T> elemCoder,
-      boolean isNewKey) {
+      boolean isNewKey,
+      WindmillStateTagUtil windmillStateTagUtil) {
 
-    this.stateKey = encodeKey(namespace, spec);
+    this.stateKey = windmillStateTagUtil.encodeKey(namespace, spec);
     this.stateFamily = stateFamily;
     this.elemCoder = elemCoder;
     this.complete = isNewKey;

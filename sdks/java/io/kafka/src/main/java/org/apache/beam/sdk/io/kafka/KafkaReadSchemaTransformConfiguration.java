@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
@@ -98,16 +99,20 @@ public abstract class KafkaReadSchemaTransformConfiguration {
           + " Kafka cluster. The client will make use of all servers irrespective of which servers are specified"
           + " here for bootstrapping—this list only impacts the initial hosts used to discover the full set"
           + " of servers. This list should be in the form `host1:port1,host2:port2,...`")
+  @SchemaFieldNumber("0")
   public abstract String getBootstrapServers();
 
+  @SchemaFieldNumber("1")
   @Nullable
   public abstract String getConfluentSchemaRegistryUrl();
 
   @SchemaFieldDescription(
       "The encoding format for the data stored in Kafka. Valid options are: " + VALID_FORMATS_STR)
+  @SchemaFieldNumber("2")
   @Nullable
   public abstract String getFormat();
 
+  @SchemaFieldNumber("3")
   @Nullable
   public abstract String getConfluentSchemaRegistrySubject();
 
@@ -118,18 +123,21 @@ public abstract class KafkaReadSchemaTransformConfiguration {
           + "For JSON data, this is a schema defined with JSON-schema syntax (https://json-schema.org/). "
           + "If a URL to Confluent Schema Registry is provided, then this field is ignored, and the schema "
           + "is fetched from Confluent Schema Registry.")
+  @SchemaFieldNumber("4")
   @Nullable
   public abstract String getSchema();
 
   @SchemaFieldDescription(
       "The path to the Protocol Buffer File Descriptor Set file. This file is used for schema"
           + " definition and message serialization.")
+  @SchemaFieldNumber("5")
   @Nullable
   public abstract String getFileDescriptorPath();
 
   @SchemaFieldDescription(
       "The name of the Protocol Buffer message to be used for schema"
           + " extraction and data conversion.")
+  @SchemaFieldNumber("6")
   @Nullable
   public abstract String getMessageName();
 
@@ -138,6 +146,7 @@ public abstract class KafkaReadSchemaTransformConfiguration {
           + " does not exist any more on the server. (1) earliest: automatically reset the offset to the earliest"
           + " offset. (2) latest: automatically reset the offset to the latest offset"
           + " (3) none: throw exception to the consumer if no previous offset is found for the consumer’s group")
+  @SchemaFieldNumber("7")
   @Nullable
   public abstract String getAutoOffsetResetConfig();
 
@@ -146,19 +155,43 @@ public abstract class KafkaReadSchemaTransformConfiguration {
           + " Most of these configurations will not be needed, but if you need to customize your Kafka consumer,"
           + " you may use this. See a detailed list:"
           + " https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html")
+  @SchemaFieldNumber("8")
   @Nullable
   public abstract Map<String, String> getConsumerConfigUpdates();
 
   /** Sets the topic from which to read. */
+  @SchemaFieldNumber("9")
   public abstract String getTopic();
 
   @SchemaFieldDescription("Upper bound of how long to read from Kafka.")
+  @SchemaFieldNumber("10")
   @Nullable
   public abstract Integer getMaxReadTimeSeconds();
 
   @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+  @SchemaFieldNumber("11")
   @Nullable
   public abstract ErrorHandling getErrorHandling();
+
+  @SchemaFieldDescription("If the Kafka read should be redistributed.")
+  @Nullable
+  public abstract Boolean getRedistributed();
+
+  @SchemaFieldDescription("If the Kafka read allows duplicates.")
+  @Nullable
+  public abstract Boolean getAllowDuplicates();
+
+  @SchemaFieldDescription("The number of keys for redistributing Kafka inputs.")
+  @Nullable
+  public abstract Integer getRedistributeNumKeys();
+
+  @SchemaFieldDescription("If the redistribute is using offset deduplication mode.")
+  @Nullable
+  public abstract Boolean getOffsetDeduplication();
+
+  @SchemaFieldDescription("If the redistribute keys by the Kafka record key.")
+  @Nullable
+  public abstract Boolean getRedistributeByRecordKey();
 
   /** Builder for the {@link KafkaReadSchemaTransformConfiguration}. */
   @AutoValue.Builder
@@ -189,6 +222,16 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     public abstract Builder setMaxReadTimeSeconds(Integer maxReadTimeSeconds);
 
     public abstract Builder setErrorHandling(ErrorHandling errorHandling);
+
+    public abstract Builder setRedistributed(Boolean redistribute);
+
+    public abstract Builder setAllowDuplicates(Boolean allowDuplicates);
+
+    public abstract Builder setRedistributeNumKeys(Integer redistributeNumKeys);
+
+    public abstract Builder setOffsetDeduplication(Boolean offsetDeduplication);
+
+    public abstract Builder setRedistributeByRecordKey(Boolean redistributeByRecordKey);
 
     /** Builds a {@link KafkaReadSchemaTransformConfiguration} instance. */
     public abstract KafkaReadSchemaTransformConfiguration build();
