@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 import logging
+import numpy as np
 import threading
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
-
-import numpy as np
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
@@ -64,7 +63,6 @@ def _require_tensorrt_10() -> None:
   engine_reqs = ("num_io_tensors", "get_tensor_name")
   ctx_reqs = ("execute_async_v3", "set_input_shape", "set_tensor_address")
 
-  import tensorrt as trt  # type: ignore
   missing_engine = [m for m in engine_reqs if not hasattr(trt.ICudaEngine, m)]
   missing_ctx = [m for m in ctx_reqs if not hasattr(trt.IExecutionContext, m)]
 
@@ -143,11 +141,11 @@ def _load_onnx_build_engine(onnx_path: str):
 
       if len(shp) == 4:
         # Assume NCHW; supply defaults where dims are dynamic.
-        min_shape = (
+        min_shape: Tuple[int, ...] = (
             _d(shp[0], 1), _d(shp[1], 3), _d(shp[2], 224), _d(shp[3], 224))
-        opt_shape = (
+        opt_shape: Tuple[int, ...] = (
             _d(shp[0], 4), _d(shp[1], 3), _d(shp[2], 224), _d(shp[3], 224))
-        max_shape = (
+        max_shape: Tuple[int, ...] = (
             _d(shp[0], 8), _d(shp[1], 3), _d(shp[2], 224), _d(shp[3], 224))
       else:
         # Fallback: make batch dynamic, keep others as-is or 1.
@@ -221,7 +219,7 @@ def _to_contiguous_batch(x: Sequence[np.ndarray] | np.ndarray) -> np.ndarray:
 class TensorRTEngine:
   """TRT 10.x engine wrapper using the Tensor API."""
   def __init__(self, engine: Any):
-    import tensorrt as trt  # type: ignore
+    import tensorrt as trt
 
     self.engine = engine
     self.context = engine.create_execution_context()
