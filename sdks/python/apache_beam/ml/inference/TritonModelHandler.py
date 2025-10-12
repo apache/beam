@@ -17,9 +17,9 @@
 
 """Apache Beam ModelHandler implementation for Triton Inference Server."""
 
-from typing import Sequence, Dict, Any, Iterable, Optional
-import logging
 import json
+import logging
+from typing import Any, Dict, Iterable, Optional, Sequence
 
 from apache_beam.ml.inference.base import ModelHandler, PredictionResult
 
@@ -27,7 +27,7 @@ try:
   import tritonserver
   from tritonserver import Model, Server
 except ImportError:
-  tritonserver = None  # type: ignore
+  tritonserver = None
 
 LOGGER = logging.getLogger(__name__)
 
