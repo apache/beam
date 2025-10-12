@@ -65,7 +65,7 @@ type concreteLogger struct {
 }
 
 func init() {
-	logger.Store(&concreteLogger{&Standard{}})
+	logger.Store(&concreteLogger{&Structural{}})
 }
 
 // SetLogger sets the global Logger. Intended to be called during initialization
