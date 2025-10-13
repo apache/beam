@@ -550,7 +550,8 @@ class GroupByEncryptedKey(PTransform):
       try:
         coder = coder.as_deterministic_coder()
       except ValueError:
-        logging.warning(f'GroupByEncryptedKey {self.label}: '
+        logging.warning(
+            f'GroupByEncryptedKey {self.label}: '
             'The key coder is not deterministic. This may result in incorrect '
             'pipeline output. This can be fixed by adding a type hint to the '
             'operation preceding the GroupByKey step, and for custom key '
