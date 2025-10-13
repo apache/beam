@@ -1000,7 +1000,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   ])
   def test_triggering_frequency(
       self, is_streaming, with_auto_sharding, compat_version):
-    maybe_skip(compat_version)
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
+
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -1105,6 +1107,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           equal_to(expected_destinations),
           label='CheckDestinations')
       assert_that(jobs, equal_to(expected_jobs), label='CheckJobs')
+
+    typecoders.registry.force_dill_deterministic_coders = False
 
 
 class BigQueryFileLoadsIT(unittest.TestCase):
