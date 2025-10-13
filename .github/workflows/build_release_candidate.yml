@@ -414,7 +414,7 @@ jobs:
             git config user.email actions@"$RUNNER_NAME".local
             git add -A
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
-            git push https://github.com/apache/beam $BRANCH_NAME
+          git push -f --set-upstream origin $BRANCH_NAME
       - name: Create beam-site PR
         working-directory: beam-site
         env:
