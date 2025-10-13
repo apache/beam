@@ -40,6 +40,7 @@ apply from: "$projectDir/common.gradle"
 
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation library.java.google_cloud_secret_manager
   implementation library.java.vendored_guava_32_1_2_jre
   if (project.findProperty('testJavaVersion') == '21' || JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
     // this dependency is a provided dependency for kafka-avro-serializer. It is not needed to compile with Java<=17
