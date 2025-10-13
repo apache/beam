@@ -857,6 +857,7 @@ public class WindowedValues {
     }
 
     @Override
+    @SuppressWarnings("IgnoredPureGetter")
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
