@@ -607,7 +607,8 @@ jobs:
           git config user.email actions@"$RUNNER_NAME".local
           git add ${{ env.MANAGED_IO_DOCS_PATH }}
           git commit --allow-empty -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}."
-          git push https://github.com/apache/beam $BRANCH_NAME
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/apache/beam
+          git push -f --set-upstream origin $BRANCH_NAME
       - name: Create beam PR
         working-directory: beam
         env:
