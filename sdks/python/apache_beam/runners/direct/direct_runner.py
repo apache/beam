@@ -285,9 +285,6 @@ class _GroupIntoBatches(PTransform):
 
   @staticmethod
   def _batch_elements(key_values: tuple, batch_size: int):
-    """
-    Batch the structures by multisim key up to a specified batch size.
-    """
     k, values = key_values
     return ((k, batch) for batch in more_itertools.batched(values, batch_size))
 
