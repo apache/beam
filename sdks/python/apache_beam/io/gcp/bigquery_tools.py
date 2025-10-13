@@ -26,6 +26,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 # pytype: skip-file
+# pylint: disable=wrong-import-order, wrong-import-position
 
 import datetime
 import decimal
@@ -67,7 +68,6 @@ from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
 
 # Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError
   from apitools.base.py.exceptions import HttpForbiddenError
