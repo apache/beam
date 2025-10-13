@@ -137,8 +137,6 @@ class MutltiTransform(ptransform.PTransform):
 @ptransform.PTransform.register_urn(TEST_GBK_URN, None)
 class GBKTransform(ptransform.PTransform):
   def expand(self, pcoll):
-    def key_fn(x):
-      return x
     return pcoll | 'TestLabel' >> beam.GroupByKey()
 
   def to_runner_api_parameter(self, unused_context):

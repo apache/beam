@@ -328,8 +328,7 @@ public class ValidateRunnerXlangTest {
         client = SecretManagerServiceClient.create();
       } catch (IOException e) {
         gcpSecretVersionName = null;
-        // return;
-        throw new RuntimeException("An unexpected error occurred during operation.", e);
+        return;
       }
       ProjectName projectName = ProjectName.of(PROJECT_ID);
       SecretName secretName = SecretName.of(PROJECT_ID, secretId);
@@ -401,11 +400,11 @@ public class ValidateRunnerXlangTest {
     }
 
     @Test
-    // @Category({
-    //   ValidatesRunner.class,
-    //   UsesJavaExpansionService.class,
-    //   UsesPythonExpansionService.class
-    // })
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void testFailure() {
       thrown.expect(Exception.class);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
