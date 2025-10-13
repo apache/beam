@@ -193,7 +193,7 @@ final class GrpcGetDataStream
     public void sendBatch(QueuedBatch batch) throws WindmillStreamShutdownException {
       // Synchronization of pending inserts is necessary with send to ensure duplicates are not
       // sent on stream reconnect.
-      for (QueuedRequest request : batch.requestsReadOnly()) {
+      for (QueuedRequest request : batch.requestsView()) {
         boolean alreadyPresent = pending.put(request.id(), request.getResponseStream()) != null;
         verify(!alreadyPresent, "Request already sent, id: %s", request.id());
       }
@@ -277,7 +277,7 @@ final class GrpcGetDataStream
     }
     while (!batches.isEmpty()) {
       QueuedBatch batch = checkNotNull(batches.peekFirst());
-      verify(!batch.isEmpty());
+      verify(batch.requestsCount() > 0);
       if (!batch.isFinalized()) {
         break;
       }
@@ -482,17 +482,15 @@ final class GrpcGetDataStream
 
       batch = batches.isEmpty() ? null : batches.getLast();
       if (batch == null
-          || batch.isFinalized()
-          || batch.requestsCount() >= streamingRpcBatchLimit
-          || batch.byteSize() + request.byteSize() > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
-        if (batch != null) {
-          prevBatch = batch;
-        }
+          || !batch.tryAddRequest(
+              request, streamingRpcBatchLimit, AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE)) {
+        // We need a new batch.
+        prevBatch = batch; // may be null
         batch = new QueuedBatch();
         batches.addLast(batch);
         responsibleForSend = true;
+        verify(batch.tryAddRequest(request, Integer.MAX_VALUE, Long.MAX_VALUE));
       }
-      batch.addRequest(request);
     }
     if (responsibleForSend) {
       if (prevBatch == null) {
@@ -532,7 +530,7 @@ final class GrpcGetDataStream
       // an error and will
       // resend requests (possibly with new batching).
       verify(batch == batches.pollFirst());
-      verify(!batch.isEmpty());
+      verify(batch.requestsCount() > 0);
       currentGetDataPhysicalStream.sendBatch(batch);
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
