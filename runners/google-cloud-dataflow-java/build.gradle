@@ -166,7 +166,8 @@ def legacyPipelineOptions = [
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-  "--experiments=enable_lineage"
+  "--experiments=enable_lineage",
+  "--gbek=type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest",
 ]
 
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
@@ -183,7 +184,8 @@ def runnerV2CommonPipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
-  "--experiments=enable_lineage"
+  "--experiments=enable_lineage",
+  "--gbek=type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest"
 ]
 
 def runnerV2PipelineOptions = runnerV2CommonPipelineOptions + [
@@ -486,6 +488,7 @@ createCrossLanguageValidatesRunnerTask(
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
     "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
+    "--gbek=type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest"
   ],
   pytestOptions: [
     "--capture=no",
@@ -600,6 +603,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
           "--firestoreDb=${firestoreDb}",
+          "--gbek=type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest",
   ])
 
   include '**/*IT.class'
@@ -637,6 +641,7 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
           "--workerHarnessContainerImage=",
           "--dataflowKmsKey=${dataflowKmsKey}",
           "--firestoreDb=${firestoreDb}",
+          "--gbek=type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest",
   ])
 
   include '**/*IT.class'
@@ -737,6 +742,7 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
+          "--gbek=type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest",
   ])
 
   include '**/*IT.class'

@@ -391,6 +391,7 @@ task validatesDistrolessContainer() {
               "project"            : "apache-beam-testing",
               "region"             : "us-central1",
               "runner"             : "TestDataflowRunner",
+              "gbek"               : "type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest",
               "sdk_container_image": "${imageURL}",
               "sdk_location"       : "container",
               "staging_location"   : "gs://temp-storage-for-end-to-end-tests/staging-it",
@@ -438,6 +439,7 @@ def tensorRTTests = tasks.create("tensorRTtests") {
     "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
     "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
     "engine_path":  "gs://apache-beam-ml/models/ssd_mobilenet_v2_320x320_coco17_tpu-8.trt",
+    "gbek": "type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest",
     "disk_size_gb": 75
   ]
   def cmdArgs = mapToArgString(argMap)
@@ -466,6 +468,7 @@ def vllmTests = tasks.create("vllmTests") {
     "region": "us-central1",
     "model": "facebook/opt-125m",
     "output": "gs://apache-beam-ml/outputs/vllm_predictions.txt",
+    "gbek": "type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest",
     "disk_size_gb": 75
   ]
   def cmdArgs = mapToArgString(argMap)
@@ -499,7 +502,8 @@ task vertexAIInferenceTest {
           "suite": "VertexAITests-df-py${pythonVersionSuffix}",
           "collect": "vertex_ai_postcommit" ,
           "runner": "TestDataflowRunner",
-          "requirements_file": "$requirementsFile"
+          "requirements_file": "$requirementsFile",
+          "gbek": "type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest"
       ]
       def cmdArgs = mapToArgString(argMap)
       exec {
@@ -527,6 +531,7 @@ task geminiInferenceTest {
           "suite": "GeminiTests-df-py${pythonVersionSuffix}",
           "collect": "gemini_postcommit" ,
           "runner": "TestDataflowRunner",
+          "gbek": "type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest",
           "requirements_file": "$requirementsFile"
       ]
       def cmdArgs = mapToArgString(argMap)
@@ -629,7 +634,8 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--project=${gcpProject}",
         "--region=${gcpRegion}",
         "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
-        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest"
+        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest",
+        "--gbek=type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest"
       ],
       pytestOptions: basicPytestOpts,
       additionalDeps: taskMetadata.additionalDeps,

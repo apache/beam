@@ -142,6 +142,7 @@ pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
+    --gbek=type:GcpSecret;version_name:projects/apache-beam-testing/secrets/gbek_secret_tests_dannystest/versions/latest \
     $MACHINE_TYPE_ARGS \
     --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
