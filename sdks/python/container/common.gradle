@@ -43,7 +43,6 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "base_image_requirements.txt " +
               "container " +
               "[gcp,dataframe,test] " +
-              "base_image_requirements_manual.txt " +
               "${pipExtraOptions}"
     }
     // Generate versions for ML dependencies
@@ -55,7 +54,6 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "ml_image_requirements.txt " +
               "container/ml " +
               "[gcp,dataframe,test,tensorflow,torch,transformers] " +
-              "base_image_requirements_manual.txt " +
               "${pipExtraOptions}"
     }
     // GPU requirements not used for any containers directly due to licensing,
@@ -68,7 +66,6 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "gpu_image_requirements.txt " +
               "container/ml " +
               "[gcp,dataframe,test,tensorflow,torch,transformers,vllm] " +
-              "base_gpu_image_requirements_manual.txt " +
               "${pipExtraOptions}"
     }
   }

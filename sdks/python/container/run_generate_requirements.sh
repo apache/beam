@@ -41,11 +41,10 @@ SDK_TARBALL=$2
 REQUIREMENTS_FILE_NAME=$3
 BASE_PATH=$4
 EXTRAS=$5
-MANUAL_REQUIREMENTS=$6
 # Use the PIP_EXTRA_OPTIONS environment variable to pass additional flags to the pip install command.
 # For example, you can include the --pre flag in $PIP_EXTRA_OPTIONS to download pre-release versions of packages.
 # Note that you can modify the behavior of the pip install command in this script by passing in your own $PIP_EXTRA_OPTIONS.
-PIP_EXTRA_OPTIONS=$7
+PIP_EXTRA_OPTIONS=$6
 
 if ! python"$PY_VERSION" --version > /dev/null 2>&1 ; then
   echo "Please install a python${PY_VERSION} interpreter. See s.apache.org/beam-python-dev-wiki for Python installation tips."
@@ -69,10 +68,6 @@ if [ -z "$EXTRAS" ]; then
   EXTRAS="[gcp,dataframe,test]"
 fi
 
-if [ -z "$MANUAL_REQUIREMENTS" ]; then
-  MANUAL_REQUIREMENTS="base_image_requirements_manual.txt"
-fi
-
 set -ex
 
 ENV_PATH="$PWD/build/python${PY_VERSION/./}_requirements_gen"
@@ -92,7 +87,7 @@ fi
 # Install test deps since some integration tests need dependencies,
 # such as pytest, installed in the runner environment.
 pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS"
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/$MANUAL_REQUIREMENTS
+pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
 
 pip uninstall -y apache-beam
 echo "Checking for broken dependencies:"
