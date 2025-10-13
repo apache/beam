@@ -323,38 +323,37 @@ public class ValidateRunnerXlangTest {
     @BeforeClass
     public static void setUpClass() {
       secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
-      SecretManagerServiceClient client;
-      try {
-        client = SecretManagerServiceClient.create();
+      try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
+        ProjectName projectName = ProjectName.of(PROJECT_ID);
+        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+
+        try {
+          client.getSecret(secretName);
+        } catch (Exception e) {
+          com.google.cloud.secretmanager.v1.Secret secret =
+              com.google.cloud.secretmanager.v1.Secret.newBuilder()
+                  .setReplication(
+                      com.google.cloud.secretmanager.v1.Replication.newBuilder()
+                          .setAutomatic(
+                              com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
+                                  .build())
+                          .build())
+                  .build();
+          client.createSecret(projectName, secretId, secret);
+          byte[] secretBytes = new byte[32];
+          new SecureRandom().nextBytes(secretBytes);
+          client.addSecretVersion(
+              secretName,
+              SecretPayload.newBuilder()
+                  .setData(
+                      ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
+                  .build());
+        }
+        gcpSecretVersionName = secretName.toString() + "/versions/latest";
       } catch (IOException e) {
         gcpSecretVersionName = null;
         return;
       }
-      ProjectName projectName = ProjectName.of(PROJECT_ID);
-      SecretName secretName = SecretName.of(PROJECT_ID, secretId);
-
-      try {
-        client.getSecret(secretName);
-      } catch (Exception e) {
-        com.google.cloud.secretmanager.v1.Secret secret =
-            com.google.cloud.secretmanager.v1.Secret.newBuilder()
-                .setReplication(
-                    com.google.cloud.secretmanager.v1.Replication.newBuilder()
-                        .setAutomatic(
-                            com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
-                                .build())
-                        .build())
-                .build();
-        client.createSecret(projectName, secretId, secret);
-        byte[] secretBytes = new byte[32];
-        new SecureRandom().nextBytes(secretBytes);
-        client.addSecretVersion(
-            secretName,
-            SecretPayload.newBuilder()
-                .setData(ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
-                .build());
-      }
-      gcpSecretVersionName = secretName.toString() + "/versions/latest";
       expansionAddr =
           String.format("localhost:%s", Integer.valueOf(System.getProperty("expansionPort")));
     }
@@ -362,8 +361,7 @@ public class ValidateRunnerXlangTest {
     @AfterClass
     public static void tearDownClass() {
       if (gcpSecretVersionName != null) {
-        try {
-          SecretManagerServiceClient client = SecretManagerServiceClient.create();
+        try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
           SecretName secretName = SecretName.of(PROJECT_ID, secretId);
           client.deleteSecret(secretName);
         } catch (IOException e) {
