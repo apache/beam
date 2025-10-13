@@ -611,7 +611,7 @@ class PipelineOptions(HasDisplayData):
     if original_options is None:
       return cls(**parsed)
     for (key, value) in parsed.items():
-      if value is not None and value and key not in _NON_OVERIDABLE_XLANG_OPTIONS:
+      if value and key not in _NON_OVERIDABLE_XLANG_OPTIONS:
         original_options._all_options[key] = value
     return original_options
 
