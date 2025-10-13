@@ -414,7 +414,7 @@ jobs:
             git config user.email actions@"$RUNNER_NAME".local
             git add -A
             git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${RELEASE_COMMIT}."
-            git push -f --set-upstream origin $BRANCH_NAME
+            git push https://github.com/apache/beam $BRANCH_NAME
       - name: Create beam-site PR
         working-directory: beam-site
         env:
@@ -564,6 +564,7 @@ jobs:
           repository: apache/beam
           path: beam
           token: ${{ github.event.inputs.REPO_TOKEN }}
+          persist-credentials: false
       - name: Install Python 3.9
         uses: actions/setup-python@v5
         with:
@@ -606,8 +607,7 @@ jobs:
           git config user.email actions@"$RUNNER_NAME".local
           git add ${{ env.MANAGED_IO_DOCS_PATH }}
           git commit --allow-empty -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}."
-          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/apache/beam
-          git push -f --set-upstream origin $BRANCH_NAME
+          git push https://github.com/apache/beam $BRANCH_NAME
       - name: Create beam PR
         working-directory: beam
         env:
