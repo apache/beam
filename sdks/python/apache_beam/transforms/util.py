@@ -548,7 +548,7 @@ class GroupByEncryptedKey(PTransform):
     if kv_type_hint and kv_type_hint != typehints.Any:
       coder = coders.registry.get_coder(kv_type_hint)
       try:
-        coder = coder.as_deterministic_coder()
+        coder = coder.as_deterministic_coder(self.label)
       except ValueError:
         logging.warning(f'GroupByEncryptedKey {self.label}: '
             'The key coder is not deterministic. This may result in incorrect '
