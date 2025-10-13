@@ -270,11 +270,7 @@ class _GroupByKeyOnly(PTransform):
 @typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _GroupIntoBatches(PTransform):
   """
-  PTransform that batches the input into desired batch size after
-  grouping by key.
-
-  Identical behavior to Beam's GroupIntoBatches but doesn't use
-  Beam timer's (which are unsupported by the SeamRunner).
+  Non-timer based implementation of GroupIntoBatches.
   """
   def __init__(self, batch_size: int):
     if batch_size <= 0:
