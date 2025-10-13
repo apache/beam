@@ -70,14 +70,18 @@ final class GrpcGetDataStreamRequests {
     private final @Nullable GlobalDataRequest globalDataRequest;
     private AppendableInputStream responseStream;
 
+    private QueuedRequest(long id, GlobalDataRequest globalDataRequest, long deadlineSeconds) {
+      this.id = id;
+      this.computationAndKeyRequest = null;
+      this.globalDataRequest = globalDataRequest;
+      responseStream = new AppendableInputStream(deadlineSeconds);
+    }
+
     private QueuedRequest(
-        long id,
-        @Nullable ComputationAndKeyRequest computationAndKeyRequest,
-        @Nullable GlobalDataRequest globalDataRequest,
-        long deadlineSeconds) {
+        long id, ComputationAndKeyRequest computationAndKeyRequest, long deadlineSeconds) {
       this.id = id;
       this.computationAndKeyRequest = computationAndKeyRequest;
-      this.globalDataRequest = globalDataRequest;
+      this.globalDataRequest = null;
       responseStream = new AppendableInputStream(deadlineSeconds);
     }
 
@@ -87,15 +91,12 @@ final class GrpcGetDataStreamRequests {
         KeyedGetDataRequest keyedGetDataRequest,
         long deadlineSeconds) {
       return new QueuedRequest(
-          id,
-          new ComputationAndKeyRequest(computation, keyedGetDataRequest),
-          null,
-          deadlineSeconds);
+          id, new ComputationAndKeyRequest(computation, keyedGetDataRequest), deadlineSeconds);
     }
 
     static QueuedRequest global(
         long id, GlobalDataRequest globalDataRequest, long deadlineSeconds) {
-      return new QueuedRequest(id, null, globalDataRequest, deadlineSeconds);
+      return new QueuedRequest(id, globalDataRequest, deadlineSeconds);
     }
 
     static Comparator<QueuedRequest> globalRequestsFirst() {

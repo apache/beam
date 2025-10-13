@@ -209,7 +209,7 @@ public class GrpcGetDataStreamRequestsTest {
             GrpcGetDataStreamRequests.QueuedRequest.forComputation(
                 1, "computation1", keyedGetDataRequest, DEADLINE_SECONDS),
             Integer.MAX_VALUE,
-            Long.MAX_VALUE));
+            80L));
 
     // Adding another request should fail due to max bytes.
     assertFalse(
@@ -217,7 +217,22 @@ public class GrpcGetDataStreamRequestsTest {
             GrpcGetDataStreamRequests.QueuedRequest.forComputation(
                 2, "computation1", keyedGetDataRequest, DEADLINE_SECONDS),
             Integer.MAX_VALUE,
-            10L));
+            80L));
+
+    Windmill.GlobalDataRequest globalDataRequest =
+        Windmill.GlobalDataRequest.newBuilder()
+            .setDataId(
+                Windmill.GlobalDataId.newBuilder()
+                    .setTag("globalData")
+                    .setVersion(ByteString.EMPTY)
+                    .build())
+            .setComputationId("computation1")
+            .build();
+    assertFalse(
+        queuedBatch.tryAddRequest(
+            GrpcGetDataStreamRequests.QueuedRequest.global(3, globalDataRequest, DEADLINE_SECONDS),
+            Integer.MAX_VALUE,
+            80));
   }
 
   @Test
