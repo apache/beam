@@ -597,6 +597,8 @@ jobs:
           python gen_managed_doc.py --output_location ${{ runner.temp }}/managed-io.md
       - name: Create commit on beam branch
         working-directory: beam
+        env:
+          GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN }}
         run: |
           git fetch origin master
           git checkout -b $BRANCH_NAME origin/master
@@ -605,6 +607,7 @@ jobs:
           git config user.email actions@"$RUNNER_NAME".local
           git add ${{ env.MANAGED_IO_DOCS_PATH }}
           git commit --allow-empty -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}."
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/apache/beam
           git push -f --set-upstream origin $BRANCH_NAME
       - name: Create beam PR
         working-directory: beam
