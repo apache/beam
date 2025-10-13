@@ -94,8 +94,9 @@ def check_generated_file(source_file_path):
 
   err_msg = (
       f"Generated file {generated_file} is out of date. Please run "
-      f"`python3 -m apache_beam.typehints.testing.typehints_test_generator "
-      f"{source_file_path}` to regenerate it.")
+      f"`python3 -m "
+      "apache_beam.typehints.testing.futureannotations_test_generator "
+      f"to regenerate it.")
 
   assert existing_contents == expected_contents, err_msg
 

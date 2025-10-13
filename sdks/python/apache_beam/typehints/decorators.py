@@ -468,6 +468,11 @@ class IOTypeHints(NamedTuple):
           origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
     yielded_type = typehints.get_yielded_type(output_type)
+    if isinstance(yielded_type, typehints.TypeVariable):
+      # For backwards compatibility, we cast TypeVars to  Any.
+      return self._replace(
+          output_types=((typehints.Any, ), {}),
+          origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
     return self._replace(
         output_types=((yielded_type, ), {}),
         origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))

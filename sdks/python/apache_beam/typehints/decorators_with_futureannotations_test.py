@@ -52,7 +52,7 @@ T_typing = typing.TypeVar('T')  # type: ignore
 @pytest.fixture(autouse=True)
 def skipif39_or_lower(request):
   if sys.version_info < (3, 10) and "futureannotations" in str(
-      request.node.path):
+      request.node.name):
     pytest.skip("Skipping test on Python 3.9 or lower")
 
 
