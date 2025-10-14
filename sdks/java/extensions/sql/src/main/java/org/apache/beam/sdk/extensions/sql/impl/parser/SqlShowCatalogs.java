@@ -87,12 +87,12 @@ public class SqlShowCatalogs extends SqlSetOption implements BeamSqlParser.Execu
   private static void print(Collection<Catalog> catalogs, @Nullable String pattern) {
     SqlFunctions.LikeFunction calciteLike = new SqlFunctions.LikeFunction();
 
-    final String HEADER_NAME = "Catalog Name";
-    final String HEADER_TYPE = "Type";
-    final String SEPARATOR_CHAR = "-";
+    final String headerName = "Catalog Name";
+    final String headerType = "Type";
+    final String separatorChar = "-";
 
-    int nameWidth = HEADER_NAME.length();
-    int typeWidth = HEADER_TYPE.length();
+    int nameWidth = headerName.length();
+    int typeWidth = headerType.length();
 
     // find the longest string in each column
     for (Catalog catalog : catalogs) {
@@ -111,11 +111,11 @@ public class SqlShowCatalogs extends SqlSetOption implements BeamSqlParser.Execu
     int separatorWidth = nameWidth + typeWidth + 5;
     String separator =
         String.format(
-            "+" + new String(new char[separatorWidth]).replace("\0", SEPARATOR_CHAR) + "+%n");
+            "+" + new String(new char[separatorWidth]).replace("\0", separatorChar) + "+%n");
 
     // printing the table
     System.out.printf(separator);
-    System.out.printf(format, HEADER_NAME, HEADER_TYPE);
+    System.out.printf(format, headerName, headerType);
     System.out.printf(separator);
     for (Catalog catalog :
         catalogs.stream()

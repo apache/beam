@@ -104,10 +104,10 @@ public class SqlShowDatabases extends SqlSetOption implements BeamSqlParser.Exec
       @Nullable Collection<String> databases, String path, @Nullable String pattern) {
     SqlFunctions.LikeFunction calciteLike = new SqlFunctions.LikeFunction();
 
-    final String HEADER_NAME = "Databases in " + path;
-    final String SEPARATOR_CHAR = "-";
+    final String headerName = "Databases in " + path;
+    final String separatorChar = "-";
 
-    int nameWidth = HEADER_NAME.length();
+    int nameWidth = headerName.length();
 
     if (databases != null) {
       for (String dbName : databases) {
@@ -121,10 +121,10 @@ public class SqlShowDatabases extends SqlSetOption implements BeamSqlParser.Exec
     int separatorWidth = nameWidth + 2;
     String separator =
         String.format(
-            "+" + new String(new char[separatorWidth]).replace("\0", SEPARATOR_CHAR) + "+%n");
+            "+" + new String(new char[separatorWidth]).replace("\0", separatorChar) + "+%n");
 
     System.out.printf(separator);
-    System.out.printf(format, HEADER_NAME);
+    System.out.printf(format, headerName);
     System.out.printf(separator);
     if (databases != null) {
       for (String dbName : databases.stream().sorted().collect(Collectors.toList())) {
