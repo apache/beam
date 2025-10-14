@@ -564,7 +564,7 @@ jobs:
           repository: apache/beam
           path: beam
           token: ${{ github.event.inputs.REPO_TOKEN }}
-          persist-credentials: false
+          persist-credentials: true
       - name: Install Python 3.9
         uses: actions/setup-python@v5
         with:
