@@ -239,8 +239,9 @@ public class GroupByEncryptedKey<K, V>
     }
 
     @ProcessElement
+    @SuppressWarnings("nullness")
     public void processElement(ProcessContext c) throws Exception {
-      java.util.Map<K, java.util.List<V>> decryptedKvs = new java.util.HashMap<>();
+      java.util.HashMap<K, java.util.List<V>> decryptedKvs = new java.util.HashMap<>();
       for (KV<byte[], byte[]> encryptedKv : c.element().getValue()) {
         byte[] iv = Arrays.copyOfRange(encryptedKv.getKey(), 0, 12);
         GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
