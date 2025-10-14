@@ -597,6 +597,8 @@ public class PartitionMetadataDao {
      * @return the watermark for the given token if it exists. Otherwise, it returns null.
      */
     public @Nullable Timestamp getWatermarkForPartition(String partitionToken) {
+      Struct row =
+   *             transaction.readRow(metadataTableName, Key.of(singerId), Collections.singleton(column));
       final Statement statement;
       if (this.dialect == Dialect.POSTGRESQL) {
         statement =
