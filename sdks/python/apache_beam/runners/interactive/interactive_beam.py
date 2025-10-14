@@ -991,7 +991,7 @@ def collect(
 
   if n == float('inf'):
     n = None
-  
+
   if raw_records:
     result_tuple = tuple(computed.get(pcoll, [])[:n] for pcoll in pcolls)
   else:

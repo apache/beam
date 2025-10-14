@@ -317,13 +317,19 @@ class InteractiveBeamTest(unittest.TestCase):
 
     result = ib.collect(pcoll)
     self.assertNotIsInstance(result, list)
-    self.assertTrue(hasattr(result, 'columns'), "Result should have 'columns' attribute")
-    self.assertTrue(hasattr(result, 'values'), "Result should have 'values' attribute")
+    self.assertTrue(
+        hasattr(result, 'columns'), "Result should have 'columns' attribute")
+    self.assertTrue(
+        hasattr(result, 'values'), "Result should have 'values' attribute")
 
     result_n = ib.collect(pcoll, n=3)
     self.assertNotIsInstance(result_n, list)
-    self.assertTrue(hasattr(result_n, 'columns'), "Result (n=3) should have 'columns' attribute")
-    self.assertTrue(hasattr(result_n, 'values'), "Result (n=3) should have 'values' attribute")
+    self.assertTrue(
+        hasattr(result_n, 'columns'),
+        "Result (n=3) should have 'columns' attribute")
+    self.assertTrue(
+        hasattr(result_n, 'values'),
+        "Result (n=3) should have 'values' attribute")
 
   def test_collect_raw_records_true_multiple_pcolls(self):
     p = beam.Pipeline(ir.InteractiveRunner())
@@ -371,6 +377,7 @@ class InteractiveBeamTest(unittest.TestCase):
     self.assertEqual(len(result), 1)
     self.assertIsInstance(result[0], list)
     self.assertEqual(result[0], data)
+
 
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
