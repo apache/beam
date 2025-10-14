@@ -252,25 +252,19 @@ public class GroupByEncryptedKey<K, V>
         byte[] decryptedKeyBytes = this.cipher.doFinal(encryptedKey);
         K key = decode(this.keyCoder, decryptedKeyBytes);
 
-        // If somehow the key was decoded to null, but the byte string is non-empty, throw.
-        if (key != null || decryptedKeyBytes == null || decryptedKeyBytes.length == 0) {
-          if (!decryptedKvs.containsKey(key)) {
-            decryptedKvs.put(key, new java.util.ArrayList<>());
-          }
-
-          iv = Arrays.copyOfRange(encryptedKv.getValue(), 0, 12);
-          gcmParameterSpec = new GCMParameterSpec(128, iv);
-          this.cipher.init(Cipher.DECRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
-
-          byte[] encryptedValue =
-              Arrays.copyOfRange(encryptedKv.getValue(), 12, encryptedKv.getValue().length);
-          byte[] decryptedValueBytes = this.cipher.doFinal(encryptedValue);
-          V value = decode(this.valueCoder, decryptedValueBytes);
-          decryptedKvs.get(key).add(value);
-        } else {
-          throw new RuntimeException(
-              "Found null key when decoding " + Arrays.toString(decryptedKeyBytes));
+        if (!decryptedKvs.containsKey(key)) {
+          decryptedKvs.put(key, new java.util.ArrayList<>());
         }
+
+        iv = Arrays.copyOfRange(encryptedKv.getValue(), 0, 12);
+        gcmParameterSpec = new GCMParameterSpec(128, iv);
+        this.cipher.init(Cipher.DECRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
+
+        byte[] encryptedValue =
+            Arrays.copyOfRange(encryptedKv.getValue(), 12, encryptedKv.getValue().length);
+        byte[] decryptedValueBytes = this.cipher.doFinal(encryptedValue);
+        V value = decode(this.valueCoder, decryptedValueBytes);
+        decryptedKvs.get(key).add(value);
       }
 
       for (java.util.Map.Entry<K, java.util.List<V>> entry : decryptedKvs.entrySet()) {

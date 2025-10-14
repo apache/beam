@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.util.GcpSecret;
 import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -141,7 +143,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testGroupByKeyGcpSecret() {
-    List<KV<String, Integer>> ungroupedPairs =
+    List<KV<@Nullable String, Integer>> ungroupedPairs =
         Arrays.asList(
             KV.of(null, 3),
             KV.of("k1", 3),
@@ -156,7 +158,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
     PCollection<KV<String, Integer>> input =
         p.apply(
             Create.of(ungroupedPairs)
-                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+                .withCoder(KvCoder.of(NullableCoder.of(StringUtf8Coder.of()), VarIntCoder.of())));
 
     PCollection<KV<String, Iterable<Integer>>> output =
         input.apply(GroupByEncryptedKey.<String, Integer>create(gcpSecret));
