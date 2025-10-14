@@ -152,13 +152,21 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	ts := comps.GetTransforms()
 	pcols := comps.GetPcollections()
 
-	config := engine.Config{EnableRTC: true}
+	config := engine.Config{EnableRTC: true, EnableSDFSplit: true}
 	m := j.PipelineOptions().AsMap()
 	if experimentsSlice, ok := m["beam:option:experiments:v1"].([]interface{}); ok {
 		for _, exp := range experimentsSlice {
 			if expStr, ok := exp.(string); ok {
 				if expStr == "prism_disable_rtc" {
 					config.EnableRTC = false
+					break // Found it, no need to check the rest of the slice
+				}
+			}
+		}
+		for _, exp := range experimentsSlice {
+			if expStr, ok := exp.(string); ok {
+				if expStr == "prism_disable_sdf_split" {
+					config.EnableSDFSplit = false
 					break // Found it, no need to check the rest of the slice
 				}
 			}
@@ -324,6 +332,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			if len(stage.processingTimeTimers) > 0 {
 				em.StageProcessingTimeTimers(stage.ID, stage.processingTimeTimers)
 			}
+			stage.sdfSplittable = config.EnableSDFSplit
 		default:
 			return fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
 		}
