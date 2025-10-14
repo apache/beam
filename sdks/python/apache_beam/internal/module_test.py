@@ -29,6 +29,7 @@ GLOBAL_DICT = {}
 def mutable_test_function():
   def dynamic_function():
     return 'version1'
+
   return dynamic_function
 
 
