@@ -2770,23 +2770,33 @@ class StorageWriteToBigQuery(PTransform):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
 
+    class ConvertToBeamRowsFn(DoFn):
+      def __init__(self, schema, dynamic_destinations):
+        self.schema = schema
+        self.dynamic_destinations = dynamic_destinations
+
+      def setup(self):
+        # optimize schema
+        if not isinstance(self.schema,
+                          (bigquery.TableSchema, bigquery.TableFieldSchema)):
+          self.schema = bigquery_tools.get_bq_tableschema(self.schema)
+
+      def process(self, row):
+        if self.dynamic_destinations:
+          yield beam.Row(
+              **{
+                  StorageWriteToBigQuery.DESTINATION: row[0],
+                  StorageWriteToBigQuery.RECORD: bigquery_tools.
+                  beam_row_from_dict(row[1], self.schema)
+              })
+        else:
+          yield bigquery_tools.beam_row_from_dict(row, self.schema)
+
     def expand(self, input_dicts):
-      if self.dynamic_destinations:
-        return (
-            input_dicts
-            | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.DESTINATION: row[
-                            0], StorageWriteToBigQuery.RECORD: bigquery_tools.
-                        beam_row_from_dict(row[1], self.schema)
-                    })))
-      else:
-        return (
-            input_dicts
-            | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: bigquery_tools.beam_row_from_dict(row, self.schema))
-        )
+      return (
+          input_dicts
+          | "Convert dict to Beam Row" >> beam.ParDo(
+              ConvertToBeamRowsFn(self.schema, self.dynamic_destinations)))
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
