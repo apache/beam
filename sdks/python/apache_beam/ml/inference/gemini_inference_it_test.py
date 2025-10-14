@@ -69,12 +69,14 @@ class GeminiInference(unittest.TestCase):
         'cloud_project': _TEST_PROJECT,
         'cloud_region': _TEST_REGION
     }
-    gemini_image_generation.run(test_pipeline.get_full_options_as_args(**extra_opts))
+    gemini_image_generation.run(
+        test_pipeline.get_full_options_as_args(**extra_opts))
     matches: MatchResult = FileSystems().match([output_dir + '/*'])
     self.assertGreater(len(matches), 0)
     for match in matches:
       for file in match.metadata_list:
         self.assertTrue(file.path.endswith(".png"))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)

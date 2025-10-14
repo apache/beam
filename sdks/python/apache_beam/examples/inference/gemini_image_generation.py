@@ -31,6 +31,7 @@ from PIL import Image
 from typing import Optional
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
@@ -108,9 +109,9 @@ class _WriteImageFn(beam.DoFn):
 
   def setup(self):
     """
-        Ensures the output directory exists on each worker.
+        Ensures the output directory exists.
     """
-    os.makedirs(self._output_dir, exist_ok=True)
+    FileSystems().mkdirs(self._output_dir)
 
   def process(self, image: Image.Image):
     """
@@ -126,7 +127,8 @@ class _WriteImageFn(beam.DoFn):
 
     try:
       logging.debug("Writing image to %s", output_path)
-      image.save(output_path, "PNG")
+      with FileSystems().create(output_path) as image_file:
+        image.save(image_file, "PNG")
     except Exception as e:
       logging.error("Failed to write image to %s: %s", output_path, e)
       raise
