@@ -2763,14 +2763,19 @@ class StorageWriteToBigQuery(PTransform):
         failed_rows_with_errors=failed_rows_with_errors)
 
   class ConvertToBeamRowsSetupSchema:
-    def __init__(self, value):
-      self._value = value
+    def __init__(self, schema):
+      self._value = schema
 
     def __enter__(self):
       if not isinstance(self._value,
                         (bigquery.TableSchema, bigquery.TableFieldSchema)):
-        yield bigquery_tools.get_bq_tableschema(self._value)
-      yield self._value
+
+        s = bigquery_tools.get_bq_tableschema(self._value)
+        return s
+      return self._value
+
+    def __exit__(self, *args):
+      pass
 
   class ConvertToBeamRows(PTransform):
     def __init__(self, schema, dynamic_destinations):
@@ -2784,7 +2789,7 @@ class StorageWriteToBigQuery(PTransform):
             | "Convert dict to Beam Row" >> beam.Map(
                 lambda row, schema=DoFn.SetupContextParam(
                     StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
-                    (self.schema)): beam.Row(
+                    [self.schema]): beam.Row(
                         **{
                             StorageWriteToBigQuery.DESTINATION: row[0],
                             StorageWriteToBigQuery.RECORD: bigquery_tools.
@@ -2795,9 +2800,9 @@ class StorageWriteToBigQuery(PTransform):
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
                 lambda row, schema=DoFn.SetupContextParam(
-                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
-                    (self.schema)): bigquery_tools.beam_row_from_dict(
-                        row, schema)))
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=[
+                        self.schema
+                    ]): bigquery_tools.beam_row_from_dict(row, schema)))
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
