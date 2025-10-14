@@ -309,40 +309,38 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     func_v1 = module_test.mutable_test_function()
 
     pickled_stable = pickler.dumps(
-          func_v1,
-          enable_stable_code_identifier_pickling=True)
+        func_v1, enable_stable_code_identifier_pickling=True)
 
     pickled_frozen = pickler.dumps(
-          func_v1,
-          enable_stable_code_identifier_pickling=False)
+        func_v1, enable_stable_code_identifier_pickling=False)
 
     # Save original function for cleanup
     original_function = module_test.mutable_test_function
 
     try:
-        # Monkey patch: Replace the entire outer function with v2
-        code_v2 = """
+      # Monkey patch: Replace the entire outer function with v2
+      code_v2 = """
   def mutable_test_function():
       def dynamic_function():
           return "version2"
       return dynamic_function
   """
-        namespace = {}
-        exec(code_v2, namespace)
-        module_test.mutable_test_function = namespace['mutable_test_function']
+      namespace = {}
+      exec(code_v2, namespace)
+      module_test.mutable_test_function = namespace['mutable_test_function']
 
-        # Unpickle both
-        func_stable = pickler.loads(pickled_stable)
-        func_frozen = pickler.loads(pickled_frozen)
+      # Unpickle both
+      func_stable = pickler.loads(pickled_stable)
+      func_frozen = pickler.loads(pickled_frozen)
 
-        # Stable identifier resolves to NEW code (version2)
-        self.assertEqual('version2', func_stable())
+      # Stable identifier resolves to NEW code (version2)
+      self.assertEqual('version2', func_stable())
 
-        # Frozen bytecode uses OLD code (version1)
-        self.assertEqual('version1', func_frozen())
+      # Frozen bytecode uses OLD code (version1)
+      self.assertEqual('version1', func_frozen())
 
     finally:
-        # Restore original function
+      # Restore original function
       module_test.mutable_test_function = original_function
 
 
