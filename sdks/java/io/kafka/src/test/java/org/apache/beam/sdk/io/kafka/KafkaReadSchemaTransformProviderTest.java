@@ -380,7 +380,7 @@ public class KafkaReadSchemaTransformProviderTest {
     Schema schema =
         SchemaRegistry.createDefault().getSchema(KafkaReadSchemaTransformConfiguration.class);
 
-    assertEquals(12, schema.getFieldCount());
+    assertEquals(17, schema.getFieldCount());
 
     // Check field name, type, and nullability. Descriptions are not checked as they are not
     // critical for serialization.
@@ -453,5 +453,30 @@ public class KafkaReadSchemaTransformProviderTest {
                                 actualRowSchemaForErrorHandling.getField(0).getDescription()))))
             .withDescription(schema.getField(11).getDescription()),
         schema.getField(11));
+
+    assertEquals(
+        Schema.Field.nullable("redistributed", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(12).getDescription()),
+        schema.getField(12));
+
+    assertEquals(
+        Schema.Field.nullable("allowDuplicates", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(13).getDescription()),
+        schema.getField(13));
+
+    assertEquals(
+        Schema.Field.nullable("redistributeNumKeys", Schema.FieldType.INT32)
+            .withDescription(schema.getField(14).getDescription()),
+        schema.getField(14));
+
+    assertEquals(
+        Schema.Field.nullable("offsetDeduplication", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(15).getDescription()),
+        schema.getField(15));
+
+    assertEquals(
+        Schema.Field.nullable("redistributeByRecordKey", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(16).getDescription()),
+        schema.getField(16));
   }
 }

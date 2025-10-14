@@ -174,22 +174,27 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   public abstract ErrorHandling getErrorHandling();
 
   @SchemaFieldDescription("If the Kafka read should be redistributed.")
+  @SchemaFieldNumber("12")
   @Nullable
   public abstract Boolean getRedistributed();
 
   @SchemaFieldDescription("If the Kafka read allows duplicates.")
+  @SchemaFieldNumber("13")
   @Nullable
   public abstract Boolean getAllowDuplicates();
 
   @SchemaFieldDescription("The number of keys for redistributing Kafka inputs.")
+  @SchemaFieldNumber("14")
   @Nullable
   public abstract Integer getRedistributeNumKeys();
 
   @SchemaFieldDescription("If the redistribute is using offset deduplication mode.")
+  @SchemaFieldNumber("15")
   @Nullable
   public abstract Boolean getOffsetDeduplication();
 
   @SchemaFieldDescription("If the redistribute keys by the Kafka record key.")
+  @SchemaFieldNumber("16")
   @Nullable
   public abstract Boolean getRedistributeByRecordKey();
 
