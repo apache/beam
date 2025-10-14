@@ -264,26 +264,13 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
     }
 }
 
-
-boolean OnlyCurrentCatalog() :
-{
-}
-{
-    <CURRENT> <CATALOG> { return true; }
-|
-    <CATALOGS> { return false; }
-}
-
 SqlCall SqlShowCatalogs(Span s, String scope) :
 {
-    final boolean showCurrentOnly;
 }
 {
-    <SHOW>
-    showCurrentOnly = OnlyCurrentCatalog()
-
+    <SHOW> <CATALOGS> { s.add(this); }
     {
-        return new SqlShowCatalogs(s.end(this), scope, showCurrentOnly);
+        return new SqlShowCatalogs(s.end(this), scope, false);
     }
 }
 
@@ -356,25 +343,30 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 }
 
 
-boolean OnlyCurrentDatabase() :
-{
-}
-{
-    <CURRENT> <DATABASE> { return true; }
-|
-    <DATABASES> { return false; }
-}
-
 SqlCall SqlShowDatabases(Span s, String scope) :
 {
-    final boolean showCurrentDatabase;
 }
 {
-    <SHOW>
-    showCurrentDatabase = OnlyCurrentDatabase()
+    <SHOW> <DATABASES> { s.add(this); }
     {
-        return new SqlShowDatabases(s.end(this), scope, showCurrentDatabase);
+        return new SqlShowDatabases(s.end(this), scope, false);
     }
+}
+
+SqlCall SqlShowCurrent(Span s, String scope) :
+{
+}
+{
+    <SHOW> <CURRENT> { s.add(this); }
+    (
+        <CATALOG> {
+            return new SqlShowCatalogs(s.end(this), scope, true);
+        }
+    |
+        <DATABASE> {
+            return new SqlShowDatabases(s.end(this), scope, true);
+        }
+    )
 }
 
 
@@ -507,8 +499,7 @@ SqlCall SqlShowTables(Span s, String scope) :
 {
 }
 {
-    <SHOW>
-    <TABLES>
+    <SHOW> <TABLES> { s.add(this); }
     {
         return new SqlShowTables(s.end(this), scope);
     }

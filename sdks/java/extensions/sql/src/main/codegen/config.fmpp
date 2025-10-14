@@ -431,6 +431,7 @@ data: {
         "SqlShowTables(Span.of(), null)"
         "SqlShowDatabases(Span.of(), null)"
         "SqlShowCatalogs(Span.of(), null)"
+        "SqlShowCurrent(Span.of(), null)"
         "SqlUseCatalog(Span.of(), null)"
         "SqlUseDatabase(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"
