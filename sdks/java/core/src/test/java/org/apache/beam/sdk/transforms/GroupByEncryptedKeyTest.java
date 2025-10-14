@@ -143,11 +143,13 @@ public class GroupByEncryptedKeyTest implements Serializable {
   public void testGroupByKeyGcpSecret() {
     List<KV<String, Integer>> ungroupedPairs =
         Arrays.asList(
+            KV.of(null, 3),
             KV.of("k1", 3),
             KV.of("k5", Integer.MAX_VALUE),
             KV.of("k5", Integer.MIN_VALUE),
             KV.of("k2", 66),
             KV.of("k1", 4),
+            KV.of(null, 5),
             KV.of("k2", -33),
             KV.of("k3", 0));
 
@@ -162,6 +164,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
     PAssert.that(output.apply("Sort", MapElements.via(new SortValues())))
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
+            KV.of(null, Arrays.asList(3, 5)),
             KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
             KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
