@@ -64,29 +64,6 @@
   identifier: beam:schematransform:org.apache.beam:tfrecord_write:v1
   name: TfrecordWrite
 - default_service: sdks:java:io:expansion-service:shadowJar
-  description: ''
-  destinations:
-    python: apache_beam/io
-  fields:
-  - description: Decompression type to use when reading input files.
-    name: compression
-    nullable: false
-    type: str
-  - description: This option specifies whether and where to output unwritable rows.
-    name: error_handling
-    nullable: true
-    type: Row(output=<class 'str'>)
-  - description: Filename or file pattern used to find input files.
-    name: file_pattern
-    nullable: false
-    type: str
-  - description: Validate file pattern.
-    name: validate
-    nullable: false
-    type: boolean
-  identifier: beam:schematransform:org.apache.beam:tfrecord_read:v1
-  name: TfrecordRead
-- default_service: sdks:java:io:expansion-service:shadowJar
   description: 'Outputs a PCollection of Beam Rows, each containing a single INT64
     number called "value". The count is produced from the given "start" value and
     either up to the given "end" or until 2^63 - 1.
@@ -115,3 +92,26 @@
     type: int64
   identifier: beam:schematransform:org.apache.beam:generate_sequence:v1
   name: GenerateSequence
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: ''
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: Decompression type to use when reading input files.
+    name: compression
+    nullable: false
+    type: str
+  - description: This option specifies whether and where to output unwritable rows.
+    name: error_handling
+    nullable: true
+    type: Row(output=<class 'str'>)
+  - description: Filename or file pattern used to find input files.
+    name: file_pattern
+    nullable: false
+    type: str
+  - description: Validate file pattern.
+    name: validate
+    nullable: false
+    type: boolean
+  identifier: beam:schematransform:org.apache.beam:tfrecord_read:v1
+  name: TfrecordRead
