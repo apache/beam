@@ -156,8 +156,11 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.CREDIT_CARD],
           json_dict[FieldNames.CITY],
           json_dict[FieldNames.STATE],
-          nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
-          json_dict[FieldNames.EXTRA])
+          nexmark_json_util.millis_to_timestamp(
+              json_dict[FieldNames.DATE_TIME]
+          ),
+          json_dict[FieldNames.EXTRA],
+      )
     elif FieldNames.ITEM_NAME in json_dict:
       if type(json_dict[FieldNames.EXPIRES]) is dict:
         json_dict[FieldNames.EXPIRES] = json_dict[FieldNames.EXPIRES]['millis']
@@ -167,18 +170,24 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.DESCRIPTION],
           json_dict[FieldNames.INITIAL_BID],
           json_dict[FieldNames.RESERVE],
-          nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          nexmark_json_util.millis_to_timestamp(
+              json_dict[FieldNames.DATE_TIME]
+          ),
           nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.EXPIRES]),
           json_dict[FieldNames.SELLER],
           json_dict[FieldNames.CATEGORY],
-          json_dict[FieldNames.EXTRA])
+          json_dict[FieldNames.EXTRA],
+      )
     elif FieldNames.AUCTION in json_dict:
       yield nexmark_model.Bid(
           json_dict[FieldNames.AUCTION],
           json_dict[FieldNames.BIDDER],
           json_dict[FieldNames.PRICE],
-          nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
-          json_dict[FieldNames.EXTRA])
+          nexmark_json_util.millis_to_timestamp(
+              json_dict[FieldNames.DATE_TIME]
+          ),
+          json_dict[FieldNames.EXTRA],
+      )
     else:
       raise ValueError('Invalid event: %s.' % str(json_dict))
 
