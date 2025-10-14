@@ -28,6 +28,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
+  from apache_beam.examples.inference import gemini_image_generation
   from apache_beam.examples.inference import gemini_text_classification
 except ImportError as e:
   raise unittest.SkipTest("Gemini model handler dependencies are not installed")
@@ -52,6 +53,21 @@ class GeminiInference(unittest.TestCase):
         test_pipeline.get_full_options_as_args(**extra_opts))
     self.assertEqual(FileSystems().exists(output_file), True)
 
+  @pytest.mark.gemini_postcommit
+  def test_gemini_image_generation(self):
+    output_dir = '/'.join([_OUTPUT_DIR, str(uuid.uuid4())])
+    test_pipeline = TestPipeline(is_integration_test=True)
+    extra_opts = {
+        'output': output_dir,
+        'cloud_project': _TEST_PROJECT,
+        'cloud_region': _TEST_REGION
+    }
+    gemini_image_generation.run(test_pipeline.get_full_options_as_args(**extra_opts))
+    files = FileSystems().match([output_dir + '/*'])
+    self.assertGreater(len(files), 0)
+    for filename in files:
+      self.assertTrue(filename.startswith("gemini_image"))
+      self.assertTrue(filename.endswith(".png"))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
