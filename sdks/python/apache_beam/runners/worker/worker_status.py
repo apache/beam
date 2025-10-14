@@ -259,23 +259,23 @@ class FnApiWorkerStatusHandler(object):
   def close(self):
     self._responses.put(DONE, timeout=5)
 
-  def _log_lull_in_bundle_processor(self, bundle_process_cache):
+  def _log_lull_in_bundle_processor(self, bundle_processor_cache):
     while True:
       time.sleep(2 * 60)
-      if not bundle_process_cache:
+      if not bundle_processor_cache:
         continue
 
-      if bundle_process_cache.active_bundle_processors:
+      if bundle_processor_cache.active_bundle_processors:
         for instruction in list(
-            bundle_process_cache.active_bundle_processors.keys()):
-          processor = bundle_process_cache.lookup(instruction)
+            bundle_processor_cache.active_bundle_processors.keys()):
+          processor = bundle_processor_cache.lookup(instruction)
           if processor:
             info = processor.state_sampler.get_info()
             self._log_lull_sampler_info(info, instruction)
 
-      if bundle_process_cache.processors_being_created:
+      if bundle_processor_cache.processors_being_created:
         for instruction, (bundle_id, thread, creation_time) in list(
-            bundle_process_cache.processors_being_created.items()):
+            bundle_processor_cache.processors_being_created.items()):
           self._log_lull_in_creating_bundle_decriptor(
               instruction, bundle_id, thread, creation_time)
 
