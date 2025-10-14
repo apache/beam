@@ -77,7 +77,6 @@ class PostProcessor(beam.DoFn):
   def process(self, element: PredictionResult) -> Iterable[Image.Image]:
     try:
       response: GenerateContentResponse = element.inference
-      print("response is: ", response)
       for part in response.candidates[0].content.parts:
         if part.text is not None:
           print(part.text)
