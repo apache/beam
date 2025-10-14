@@ -2769,9 +2769,8 @@ class StorageWriteToBigQuery(PTransform):
     def __enter__(self):
       if not isinstance(self._value,
                         (bigquery.TableSchema, bigquery.TableFieldSchema)):
+        return bigquery_tools.get_bq_tableschema(self._value)
 
-        s = bigquery_tools.get_bq_tableschema(self._value)
-        return s
       return self._value
 
     def __exit__(self, *args):
