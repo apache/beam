@@ -2761,7 +2761,7 @@ class StorageWriteToBigQuery(PTransform):
         method=WriteToBigQuery.Method.STORAGE_WRITE_API,
         failed_rows=failed_rows,
         failed_rows_with_errors=failed_rows_with_errors)
-  
+
   class ConvertToBeamRowsFn(DoFn):
     def __init__(self, schema, dynamic_destinations):
       self.schema = schema
