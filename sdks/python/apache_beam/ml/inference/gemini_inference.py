@@ -206,7 +206,7 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     """
     if inference_args is None:
       inference_args = {}
-    # Wrap the responses in a list to prevent zip() call from treating the response
-    # itself as an iterable of individual responses.
+    # Wrap the responses in a list to prevent zip() call from treating the
+    # response itself as an iterable of individual responses.
     responses = [self.request_fn(self.model_name, batch, model, inference_args)]
     return utils._convert_to_result(batch, responses, self.model_name)
