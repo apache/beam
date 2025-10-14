@@ -1283,6 +1283,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       options.as(SdkHarnessOptions.class).setEnableLogViaFnApi(true);
     }
 
+    // Add use_gbek to dataflow_service_options if gbek is set.
+    List<String> dataflowServiceOptions = options.getDataflowServiceOptions();
+    if (dataflowServiceOptions == null) {
+      dataflowServiceOptions = new ArrayList<>();
+    }
+    if (!Strings.isNullOrEmpty(options.as(DataflowPipelineDebugOptions.class).getGbek())) {
+      if (!dataflowServiceOptions.contains("use_gbek")) {
+        dataflowServiceOptions.add("use_gbek");
+      }
+    } else if (dataflowServiceOptions.contains("use_gbek")) {
+      throw new IllegalArgumentException(
+          "Do not set use_gbek directly, pass in the --gbek pipeline option "
+              + "with a valid secret instead.");
+    }
+    options.setDataflowServiceOptions(dataflowServiceOptions);
+
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
     logWarningIfBigqueryDLQUnused(pipeline);
     if (shouldActAsStreaming(pipeline)) {

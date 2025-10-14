@@ -27,6 +27,7 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -233,6 +234,56 @@ public class GrpcGetDataStreamTest {
             .isInstanceOf(WindmillStreamShutdownException.class);
       }
     }
+  }
+
+  @Test
+  public void testRequestKeyedData_multipleRequestsSameWorkItemSeparateBatches()
+      throws InterruptedException {
+    GrpcGetDataStream getDataStream = createGetDataStream();
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    final CountDownLatch requestStarter = new CountDownLatch(1);
+
+    // Get a bunch of threads ready to send a request with the same work token. These should racily
+    // attempt to batch but be prevented due to work token separation logic.
+    // These will block until they are successfully sent.
+    List<CompletableFuture<Windmill.KeyedGetDataResponse>> futures = new ArrayList<>();
+    final Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
+    for (int i = 0; i < 10; ++i) {
+      futures.add(
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  requestStarter.await();
+                  return getDataStream.requestKeyedData("computationId", keyedGetDataRequest);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }));
+    }
+
+    // Unblock and verify that 10 requests are made and not batched.
+    requestStarter.countDown();
+    for (int i = 0; i < 10; ++i) {
+      Windmill.StreamingGetDataRequest request = streamInfo.requests.take();
+      assertEquals(1, request.getRequestIdCount());
+      assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
+    }
+
+    // Send the responses.
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
+    for (int i = 0; i < 10; ++i) {
+      streamInfo.responseObserver.onNext(
+          Windmill.StreamingGetDataResponse.newBuilder()
+              .addRequestId(i + 1)
+              .addSerializedResponse(keyedGetDataResponse.toByteString())
+              .build());
+    }
+
+    for (CompletableFuture<Windmill.KeyedGetDataResponse> future : futures) {
+      assertThat(future.join()).isEqualTo(keyedGetDataResponse);
+    }
+    getDataStream.shutdown();
   }
 
   @Test

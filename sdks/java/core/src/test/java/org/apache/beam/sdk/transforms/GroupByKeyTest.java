@@ -117,55 +117,6 @@ public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
     @Rule public transient TestPipeline p = TestPipeline.create();
-
-    private static final String PROJECT_ID = "apache-beam-testing";
-    private static final String SECRET_ID = "gbek-test";
-    public static String gcpSecretVersionName;
-    private static String secretId;
-
-    @BeforeClass
-    public static void setup() throws IOException {
-      secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
-      SecretManagerServiceClient client;
-      try {
-        client = SecretManagerServiceClient.create();
-      } catch (IOException e) {
-        gcpSecretVersionName = null;
-        return;
-      }
-      ProjectName projectName = ProjectName.of(PROJECT_ID);
-      SecretName secretName = SecretName.of(PROJECT_ID, secretId);
-
-      try {
-        client.getSecret(secretName);
-      } catch (Exception e) {
-        com.google.cloud.secretmanager.v1.Secret secret =
-            com.google.cloud.secretmanager.v1.Secret.newBuilder()
-                .setReplication(
-                    com.google.cloud.secretmanager.v1.Replication.newBuilder()
-                        .setAutomatic(
-                            com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
-                                .build())
-                        .build())
-                .build();
-        client.createSecret(projectName, secretId, secret);
-        byte[] secretBytes = new byte[32];
-        new SecureRandom().nextBytes(secretBytes);
-        client.addSecretVersion(
-            secretName,
-            SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
-      }
-      gcpSecretVersionName = secretName.toString() + "/versions/latest";
-    }
-
-    @AfterClass
-    public static void tearDown() throws IOException {
-      if (gcpSecretVersionName != null) {
-        SecretManagerServiceClient client = SecretManagerServiceClient.create();
-        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
-        client.deleteSecret(secretName);
-      }
-    }
   }
 
   /** Tests validating basic {@link GroupByKey} scenarios. */
@@ -670,6 +621,61 @@ public class GroupByKeyTest implements Serializable {
     @Category({ValidatesRunner.class, LargeKeys.Above100MB.class})
     public void testLargeKeys100MB() throws Exception {
       runLargeKeysTest(p, 100 << 20);
+    }
+  }
+
+  /** Tests validating GroupByKey behaviors with the gbek flag set. */
+  @RunWith(JUnit4.class)
+  public static class GbekTests extends SharedTestBase {
+    private static final String PROJECT_ID = "apache-beam-testing";
+    private static final String SECRET_ID = "gbek-test";
+    public static String gcpSecretVersionName;
+    private static String secretId;
+
+    @BeforeClass
+    public static void setup() throws IOException {
+      secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
+      SecretManagerServiceClient client;
+      try {
+        client = SecretManagerServiceClient.create();
+      } catch (IOException e) {
+        gcpSecretVersionName = null;
+        return;
+      }
+      ProjectName projectName = ProjectName.of(PROJECT_ID);
+      SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+
+      try {
+        client.getSecret(secretName);
+      } catch (Exception e) {
+        com.google.cloud.secretmanager.v1.Secret secret =
+            com.google.cloud.secretmanager.v1.Secret.newBuilder()
+                .setReplication(
+                    com.google.cloud.secretmanager.v1.Replication.newBuilder()
+                        .setAutomatic(
+                            com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
+                                .build())
+                        .build())
+                .build();
+        client.createSecret(projectName, secretId, secret);
+        byte[] secretBytes = new byte[32];
+        new SecureRandom().nextBytes(secretBytes);
+        client.addSecretVersion(
+            secretName,
+            SecretPayload.newBuilder()
+                .setData(ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
+                .build());
+      }
+      gcpSecretVersionName = secretName.toString() + "/versions/latest";
+    }
+
+    @AfterClass
+    public static void tearDown() throws IOException {
+      if (gcpSecretVersionName != null) {
+        SecretManagerServiceClient client = SecretManagerServiceClient.create();
+        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
+        client.deleteSecret(secretName);
+      }
     }
 
     @Test

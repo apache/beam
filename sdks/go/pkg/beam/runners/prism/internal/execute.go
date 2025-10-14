@@ -16,7 +16,6 @@
 package internal
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -27,7 +26,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -154,13 +152,13 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	ts := comps.GetTransforms()
 	pcols := comps.GetPcollections()
 
-	config := engine.Config{}
+	config := engine.Config{EnableRTC: true}
 	m := j.PipelineOptions().AsMap()
 	if experimentsSlice, ok := m["beam:option:experiments:v1"].([]interface{}); ok {
 		for _, exp := range experimentsSlice {
 			if expStr, ok := exp.(string); ok {
-				if expStr == "prism_enable_rtc" {
-					config.EnableRTC = true
+				if expStr == "prism_disable_rtc" {
+					config.EnableRTC = false
 					break // Found it, no need to check the rest of the slice
 				}
 			}
@@ -270,39 +268,11 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			case urns.TransformTestStream:
 				// Add a synthetic stage that should largely be unused.
 				em.AddStage(stage.ID, nil, maps.Values(t.GetOutputs()), nil)
+
 				// Decode the test stream, and convert it to the various events for the ElementManager.
 				var pyld pipepb.TestStreamPayload
 				if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pyld); err != nil {
 					return fmt.Errorf("prism error building stage %v - decoding TestStreamPayload: \n%w", stage.ID, err)
-				}
-
-				// Ensure awareness of the coder used for the teststream.
-				cID, err := lpUnknownCoders(pyld.GetCoderId(), coders, comps.GetCoders())
-				if err != nil {
-					panic(err)
-				}
-				mayLP := func(v []byte) []byte {
-					//slog.Warn("teststream bytes", "value", string(v), "bytes", v)
-					return v
-				}
-				// Hack for Java Strings in test stream, since it doesn't encode them correctly.
-				forceLP := cID == "StringUtf8Coder" || cID != pyld.GetCoderId()
-				if forceLP {
-					// slog.Warn("recoding TestStreamValue", "cID", cID, "newUrn", coders[cID].GetSpec().GetUrn(), "payloadCoder", pyld.GetCoderId(), "oldUrn", coders[pyld.GetCoderId()].GetSpec().GetUrn())
-					// The coder needed length prefixing. For simplicity, add a length prefix to each
-					// encoded element, since we will be sending a length prefixed coder to consume
-					// this anyway. This is simpler than trying to find all the re-written coders after the fact.
-					mayLP = func(v []byte) []byte {
-						var buf bytes.Buffer
-						if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
-							panic(err)
-						}
-						if _, err := buf.Write(v); err != nil {
-							panic(err)
-						}
-						//slog.Warn("teststream bytes - after LP", "value", string(v), "bytes", buf.Bytes())
-						return buf.Bytes()
-					}
 				}
 
 				tsb := em.AddTestStream(stage.ID, t.Outputs)
@@ -311,7 +281,8 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					case *pipepb.TestStreamPayload_Event_ElementEvent:
 						var elms []engine.TestStreamElement
 						for _, e := range ev.ElementEvent.GetElements() {
-							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.FromMilliseconds(e.GetTimestamp())})
+							// Encoded bytes are already handled in handleTestStream if needed.
+							elms = append(elms, engine.TestStreamElement{Encoded: e.GetEncodedElement(), EventTime: mtime.FromMilliseconds(e.GetTimestamp())})
 						}
 						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
 					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
@@ -323,6 +294,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 						} else {
 							tsb.AddProcessingTimeEvent(time.Duration(ev.ProcessingTimeEvent.GetAdvanceDuration()) * time.Millisecond)
 						}
+
 					default:
 						return fmt.Errorf("prism error building stage %v - unknown TestStream event type: %T", stage.ID, ev)
 					}
