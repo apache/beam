@@ -42,6 +42,7 @@ import apache_beam as beam
 from apache_beam.metrics import MetricsFilter
 from apache_beam.runners.runner import PipelineResult  # pylint: disable=unused-import
 from apache_beam.testing.benchmarks.nexmark.models import auction_bid
+from apache_beam.testing.benchmarks.nexmark.models import nexmark_json_util
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
 from apache_beam.transforms import window
@@ -155,7 +156,7 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.CREDIT_CARD],
           json_dict[FieldNames.CITY],
           json_dict[FieldNames.STATE],
-          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
           json_dict[FieldNames.EXTRA])
     elif FieldNames.ITEM_NAME in json_dict:
       if type(json_dict[FieldNames.EXPIRES]) is dict:
@@ -166,8 +167,8 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.DESCRIPTION],
           json_dict[FieldNames.INITIAL_BID],
           json_dict[FieldNames.RESERVE],
-          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
-          millis_to_timestamp(json_dict[FieldNames.EXPIRES]),
+          nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.EXPIRES]),
           json_dict[FieldNames.SELLER],
           json_dict[FieldNames.CATEGORY],
           json_dict[FieldNames.EXTRA])
@@ -176,7 +177,7 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.AUCTION],
           json_dict[FieldNames.BIDDER],
           json_dict[FieldNames.PRICE],
-          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
           json_dict[FieldNames.EXTRA])
     else:
       raise ValueError('Invalid event: %s.' % str(json_dict))
@@ -199,29 +200,6 @@ def log_count_info(count):
 def display(elm):
   logging.debug(elm)
   return elm
-
-
-def model_to_json(model):
-  return json.dumps(construct_json_dict(model), separators=(',', ':'))
-
-
-def construct_json_dict(model):
-  return {k: unnest_to_json(v) for k, v in model.__dict__.items()}
-
-
-def unnest_to_json(cand):
-  if isinstance(cand, Timestamp):
-    return cand.micros // 1000
-  elif isinstance(
-      cand, (nexmark_model.Auction, nexmark_model.Bid, nexmark_model.Person)):
-    return construct_json_dict(cand)
-  else:
-    return cand
-
-
-def millis_to_timestamp(millis: int) -> Timestamp:
-  micro_second = millis * 1000
-  return Timestamp(micros=micro_second)
 
 
 def get_counter_metric(
