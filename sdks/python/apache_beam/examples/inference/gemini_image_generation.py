@@ -36,7 +36,8 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import PredictionResult, RunInference
 from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
 from apache_beam.ml.inference.gemini_inference import generate_image_from_strings_and_images
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
 
