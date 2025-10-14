@@ -2761,6 +2761,28 @@ class StorageWriteToBigQuery(PTransform):
         method=WriteToBigQuery.Method.STORAGE_WRITE_API,
         failed_rows=failed_rows,
         failed_rows_with_errors=failed_rows_with_errors)
+  
+  class ConvertToBeamRowsFn(DoFn):
+    def __init__(self, schema, dynamic_destinations):
+      self.schema = schema
+      self.dynamic_destinations = dynamic_destinations
+
+    def setup(self):
+      # optimize schema
+      if not isinstance(self.schema,
+                        (bigquery.TableSchema, bigquery.TableFieldSchema)):
+        self.schema = bigquery_tools.get_bq_tableschema(self.schema)
+
+    def process(self, row):
+      if self.dynamic_destinations:
+        yield beam.Row(
+            **{
+                StorageWriteToBigQuery.DESTINATION: row[0],
+                StorageWriteToBigQuery.RECORD: bigquery_tools.
+                beam_row_from_dict(row[1], self.schema)
+            })
+      else:
+        yield bigquery_tools.beam_row_from_dict(row, self.schema)
 
   class ConvertToBeamRows(PTransform):
     def __init__(self, schema, dynamic_destinations):
@@ -2769,28 +2791,6 @@ class StorageWriteToBigQuery(PTransform):
         schema = bigquery_tools.get_bq_tableschema(schema)
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
-
-    class ConvertToBeamRowsFn(DoFn):
-      def __init__(self, schema, dynamic_destinations):
-        self.schema = schema
-        self.dynamic_destinations = dynamic_destinations
-
-      def setup(self):
-        # optimize schema
-        if not isinstance(self.schema,
-                          (bigquery.TableSchema, bigquery.TableFieldSchema)):
-          self.schema = bigquery_tools.get_bq_tableschema(self.schema)
-
-      def process(self, row):
-        if self.dynamic_destinations:
-          yield beam.Row(
-              **{
-                  StorageWriteToBigQuery.DESTINATION: row[0],
-                  StorageWriteToBigQuery.RECORD: bigquery_tools.
-                  beam_row_from_dict(row[1], self.schema)
-              })
-        else:
-          yield bigquery_tools.beam_row_from_dict(row, self.schema)
 
     def expand(self, input_dicts):
       return (
