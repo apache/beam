@@ -34,9 +34,9 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.options.value_provider import RuntimeValueProvider
