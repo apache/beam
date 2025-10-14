@@ -251,7 +251,8 @@ public class GroupByEncryptedKey<K, V>
         byte[] decryptedKeyBytes = this.cipher.doFinal(encryptedKey);
         K key = decode(this.keyCoder, decryptedKeyBytes);
 
-        if (key != null) {
+        // If somehow the key was decoded to null, but the byte string is non-empty, throw.
+        if (key != null || decryptedKeyBytes == null || decryptedKeyBytes.length == 0) {
           if (!decryptedKvs.containsKey(key)) {
             decryptedKvs.put(key, new java.util.ArrayList<>());
           }
