@@ -19,12 +19,14 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class IcebergCatalog extends InMemoryCatalog {
   // TODO(ahmedabu98): extend this to the IO implementation so
@@ -69,6 +71,11 @@ public class IcebergCatalog extends InMemoryCatalog {
   @Override
   public boolean createDatabase(String database) {
     return catalogConfig.createNamespace(database);
+  }
+
+  @Override
+  public @Nullable Collection<String> databases() {
+    return catalogConfig.listNamespaces();
   }
 
   @Override

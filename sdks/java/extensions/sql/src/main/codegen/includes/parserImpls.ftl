@@ -264,6 +264,19 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
     }
 }
 
+
+SqlCall SqlShowCatalogs(Span s, String scope) :
+{
+}
+{
+    <SHOW>
+    <CATALOGS>
+    {
+        return new SqlShowCatalogs(s.end(this), scope);
+    }
+}
+
+
 /**
  * CREATE DATABASE ( IF NOT EXISTS )? ( catalog_name '.' )? database_name
  */
@@ -328,6 +341,18 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 
     {
         return new SqlDropDatabase(s.end(this), ifExists, databaseName, cascade);
+    }
+}
+
+
+SqlCall SqlShowDatabases(Span s, String scope) :
+{
+}
+{
+    <SHOW>
+    <DATABASES>
+    {
+        return new SqlShowDatabases(s.end(this), scope);
     }
 }
 
@@ -455,6 +480,19 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
         return SqlDdlNodes.dropTable(s.end(this), ifExists, id);
     }
 }
+
+
+SqlCall SqlShowTables(Span s, String scope) :
+{
+}
+{
+    <SHOW>
+    <TABLES>
+    {
+        return new SqlShowTables(s.end(this), scope);
+    }
+}
+
 
 Schema.FieldType FieldType() :
 {

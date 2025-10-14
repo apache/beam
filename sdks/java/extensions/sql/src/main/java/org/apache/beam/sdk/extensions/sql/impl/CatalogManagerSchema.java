@@ -222,7 +222,11 @@ public class CatalogManagerSchema implements Schema {
 
   @Override
   public Set<String> getSubSchemaNames() {
-    return catalogManager.catalogs().stream().map(Catalog::name).collect(Collectors.toSet());
+    return catalogs().stream().map(Catalog::name).collect(Collectors.toSet());
+  }
+
+  public Collection<Catalog> catalogs() {
+    return catalogManager.catalogs();
   }
 
   public void setPipelineOption(String key, String value) {

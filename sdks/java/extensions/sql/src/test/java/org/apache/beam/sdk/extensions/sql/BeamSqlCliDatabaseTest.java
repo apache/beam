@@ -24,6 +24,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
@@ -208,5 +210,31 @@ public class BeamSqlCliDatabaseTest {
     // drop table, overriding the current database
     cli.execute("DROP TABLE db_1.person");
     assertNull(catalogManager.currentCatalog().metaStore("db_1").getTable("person"));
+  }
+
+  @Test
+  public void testShowDatabases() {
+    cli.execute("CREATE DATABASE should_not_show_up");
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
+    cli.execute("USE CATALOG my_catalog");
+    cli.execute("CREATE DATABASE my_db");
+    cli.execute("CREATE DATABASE my_other_db");
+    cli.execute("CREATE DATABASE my_database_that_has_a_very_long_name");
+    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outputStreamCaptor));
+    cli.execute("SHOW DATABASES");
+    @SuppressWarnings("DefaultCharset")
+    String printOutput = outputStreamCaptor.toString().trim();
+
+    assertEquals(
+        "+-----------------------------------------+\n"
+            + "| Databases in my_catalog                 |\n"
+            + "+-----------------------------------------+\n"
+            + "| default                                 |\n"
+            + "| my_database_that_has_a_very_long_name   |\n"
+            + "| my_db                                   |\n"
+            + "| my_other_db                             |\n"
+            + "+-----------------------------------------+",
+        printOutput);
   }
 }

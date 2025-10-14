@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
+import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -49,6 +50,9 @@ public interface Catalog {
    */
   @Nullable
   String currentDatabase();
+
+  @Nullable
+  Collection<String> databases();
 
   /**
    * Creates a database with this name.
