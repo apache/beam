@@ -41,8 +41,11 @@ public class SqlShowCatalogs extends SqlSetOption implements BeamSqlParser.Execu
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("SHOW CATALOGS", SqlKind.OTHER);
 
-  public SqlShowCatalogs(SqlParserPos pos, String scope) {
+  private final boolean showCurrentOnly;
+
+  public SqlShowCatalogs(SqlParserPos pos, String scope, boolean showCurrentOnly) {
     super(pos, scope, new SqlIdentifier("", pos), null);
+    this.showCurrentOnly = showCurrentOnly;
   }
 
   @Override
@@ -66,8 +69,13 @@ public class SqlShowCatalogs extends SqlSetOption implements BeamSqlParser.Execu
               "Attempting execute 'SHOW CATALOGS' with unexpected Calcite Schema of type "
                   + schema.getClass()));
     }
-
-    Collection<Catalog> catalogs = ((CatalogManagerSchema) schema).catalogs();
+    CatalogManagerSchema managerSchema = ((CatalogManagerSchema) schema);
+    if (showCurrentOnly) {
+      Catalog currentCatalog = managerSchema.getCurrentCatalogSchema().getCatalog();
+      System.out.printf("%s (type: %s)", currentCatalog.name(), currentCatalog.type());
+      return;
+    }
+    Collection<Catalog> catalogs = managerSchema.catalogs();
     print(catalogs);
   }
 

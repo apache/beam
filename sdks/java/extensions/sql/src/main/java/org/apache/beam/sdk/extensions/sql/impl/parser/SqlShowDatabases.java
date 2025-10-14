@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
@@ -41,8 +42,11 @@ public class SqlShowDatabases extends SqlSetOption implements BeamSqlParser.Exec
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("SHOW DATABASES", SqlKind.OTHER);
 
-  public SqlShowDatabases(SqlParserPos pos, String scope) {
+  private final boolean showCurrentOnly;
+
+  public SqlShowDatabases(SqlParserPos pos, String scope, boolean showCurrentOnly) {
     super(pos, scope, new SqlIdentifier("", pos), null);
+    this.showCurrentOnly = showCurrentOnly;
   }
 
   @Override
@@ -63,11 +67,18 @@ public class SqlShowDatabases extends SqlSetOption implements BeamSqlParser.Exec
       throw SqlUtil.newContextException(
           pos,
           RESOURCE.internal(
-              "Attempting execute 'SHOW DATABASES' with unexpected Calcite Schema of type "
+              "Attempting to execute 'SHOW DATABASES' with unexpected Calcite Schema of type "
                   + schema.getClass()));
     }
 
     CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCurrentCatalogSchema();
+    if (showCurrentOnly) {
+      @Nullable BeamCalciteSchema currentDatabase = catalogSchema.getCurrentDatabaseSchema();
+      String output =
+          currentDatabase == null ? "No database is currently set" : currentDatabase.name();
+      System.out.println(output);
+      return;
+    }
     Collection<String> databases = catalogSchema.databases();
     print(databases, catalogSchema.getCatalog().name());
   }

@@ -213,6 +213,39 @@ public class BeamSqlCliDatabaseTest {
   }
 
   @Test
+  public void testShowCurrentDatabase() {
+    cli.execute("CREATE DATABASE should_not_show_up");
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
+    cli.execute("USE CATALOG my_catalog");
+    cli.execute("CREATE DATABASE my_db");
+    cli.execute("CREATE DATABASE my_other_db");
+    cli.execute("CREATE DATABASE my_database_that_has_a_very_long_name");
+    cli.execute("USE DATABASE my_other_db");
+    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outputStreamCaptor));
+    cli.execute("SHOW CURRENT database");
+    @SuppressWarnings("DefaultCharset")
+    String printOutput = outputStreamCaptor.toString().trim();
+
+    assertEquals("my_other_db", printOutput);
+  }
+
+  @Test
+  public void testShowCurrentDatabaseWithNoneSet() {
+    cli.execute("CREATE DATABASE should_not_show_up");
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
+    cli.execute("USE CATALOG my_catalog");
+    cli.execute("DROP DATABASE `default`");
+    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outputStreamCaptor));
+    cli.execute("SHOW CURRENT DATABASE");
+    @SuppressWarnings("DefaultCharset")
+    String printOutput = outputStreamCaptor.toString().trim();
+
+    assertEquals("No database is currently set", printOutput);
+  }
+
+  @Test
   public void testShowDatabases() {
     cli.execute("CREATE DATABASE should_not_show_up");
     cli.execute("CREATE CATALOG my_catalog TYPE 'local'");

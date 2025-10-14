@@ -403,7 +403,6 @@ data: {
         "IF"
         "JAR"
         "LOCATION"
-        "SHOW"
         "TBLPROPERTIES"
         "PROPERTIES"
         "PARTITIONED"
@@ -429,9 +428,9 @@ data: {
       # Return type of method implementation should be 'SqlNode'.
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
-        "SqlShowCatalogs(Span.of(), null)"
-        "SqlShowDatabases(Span.of(), null)"
         "SqlShowTables(Span.of(), null)"
+        "SqlShowDatabases(Span.of(), null)"
+        "SqlShowCatalogs(Span.of(), null)"
         "SqlUseCatalog(Span.of(), null)"
         "SqlUseDatabase(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"
