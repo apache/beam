@@ -35,8 +35,7 @@ def unnest_to_json(cand):
   if isinstance(cand, Timestamp):
     return cand.micros // 1000
   elif isinstance(
-      cand, (nexmark_model.Auction, nexmark_model.Bid, nexmark_model.Person)
-  ):
+      cand, (nexmark_model.Auction, nexmark_model.Bid, nexmark_model.Person)):
     return construct_json_dict(cand)
   else:
     return cand

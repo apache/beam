@@ -157,8 +157,7 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.CITY],
           json_dict[FieldNames.STATE],
           nexmark_json_util.millis_to_timestamp(
-              json_dict[FieldNames.DATE_TIME]
-          ),
+              json_dict[FieldNames.DATE_TIME]),
           json_dict[FieldNames.EXTRA],
       )
     elif FieldNames.ITEM_NAME in json_dict:
@@ -171,8 +170,7 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.INITIAL_BID],
           json_dict[FieldNames.RESERVE],
           nexmark_json_util.millis_to_timestamp(
-              json_dict[FieldNames.DATE_TIME]
-          ),
+              json_dict[FieldNames.DATE_TIME]),
           nexmark_json_util.millis_to_timestamp(json_dict[FieldNames.EXPIRES]),
           json_dict[FieldNames.SELLER],
           json_dict[FieldNames.CATEGORY],
@@ -184,8 +182,7 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.BIDDER],
           json_dict[FieldNames.PRICE],
           nexmark_json_util.millis_to_timestamp(
-              json_dict[FieldNames.DATE_TIME]
-          ),
+              json_dict[FieldNames.DATE_TIME]),
           json_dict[FieldNames.EXTRA],
       )
     else:
