@@ -78,6 +78,32 @@ public class WindowedValueTest {
   }
 
   @Test
+  public void testWindowedValueWithElementMetadataCoder() throws CoderException {
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    Instant timestamp = new Instant(1234);
+    WindowedValue<String> value =
+        WindowedValues.of(
+            "abc",
+            new Instant(1234),
+            Arrays.asList(
+                new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000))),
+                new IntervalWindow(
+                    timestamp.plus(Duration.millis(1000)), timestamp.plus(Duration.millis(2000)))),
+            PaneInfo.NO_FIRING);
+
+    Coder<WindowedValue<String>> windowedValueCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+
+    byte[] encodedValue = CoderUtils.encodeToByteArray(windowedValueCoder, value);
+    WindowedValue<String> decodedValue =
+        CoderUtils.decodeFromByteArray(windowedValueCoder, encodedValue);
+
+    Assert.assertEquals(value.getValue(), decodedValue.getValue());
+    Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
+    Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+  }
+
+  @Test
   public void testFullWindowedValueCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(
         WindowedValues.getFullCoder(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
