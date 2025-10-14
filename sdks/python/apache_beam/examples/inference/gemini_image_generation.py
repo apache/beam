@@ -26,21 +26,18 @@ import logging
 import os
 import uuid
 from collections.abc import Iterable
+from google.genai.types import GenerateContentResponse
 from io import BytesIO
+from PIL import Image
 from typing import Optional
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.base import PredictionResult, RunInference
 from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
 from apache_beam.ml.inference.gemini_inference import generate_image_from_strings_and_images
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 from apache_beam.runners.runner import PipelineResult
-
-from google.genai.types import GenerateContentResponse
-from PIL import Image
 
 
 def parse_known_args(argv):
