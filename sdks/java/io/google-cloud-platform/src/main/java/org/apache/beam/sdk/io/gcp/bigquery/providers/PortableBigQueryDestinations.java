@@ -56,7 +56,8 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
   private final RowFilter rowFilter;
   private final @Nullable List<String> clusteringFields;
   private final @Nullable TimePartitioningConfig timePartitioningConfig;
-  private static final Set<String> allowedTypes = new HashSet<>(Arrays.asList("DAY", "HOUR", "MONTH", "YEAR"));
+  private static final Set<String> allowedTypes =
+      new HashSet<>(Arrays.asList("DAY", "HOUR", "MONTH", "YEAR"));
 
   public PortableBigQueryDestinations(Schema rowSchema, BigQueryWriteConfiguration configuration) {
     this.clusteringFields = configuration.getClusteringFields();

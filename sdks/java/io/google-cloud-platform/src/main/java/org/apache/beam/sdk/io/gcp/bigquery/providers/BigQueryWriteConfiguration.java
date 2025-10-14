@@ -235,7 +235,7 @@ public abstract class BigQueryWriteConfiguration {
 
   @SchemaFieldDescription("Configuration for BigQuery time partitioning.")
   public abstract @Nullable TimePartitioningConfig getTimePartitioningConfig();
-  
+
   @SchemaFieldDescription(
       "Configuration for creating BigLake tables. The following options are available:"
           + "\n - connectionId (REQUIRED): the name of your cloud resource connection,"
@@ -279,7 +279,7 @@ public abstract class BigQueryWriteConfiguration {
     public abstract Builder setClusteringFields(List<String> clusteringFields);
 
     public abstract Builder setTimePartitioningConfig(TimePartitioningConfig config);
-    
+
     public abstract Builder setBigLakeConfiguration(
         java.util.Map<String, String> bigLakeConfiguration);
 
