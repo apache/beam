@@ -179,6 +179,7 @@ ml_base = [
     'tf2onnx',
     'torch',
     'transformers',
+    'tritonserver',
 ]
 
 
