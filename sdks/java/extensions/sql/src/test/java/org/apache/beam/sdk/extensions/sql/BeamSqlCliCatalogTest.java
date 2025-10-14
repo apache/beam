@@ -366,4 +366,25 @@ public class BeamSqlCliCatalogTest {
             + "+---------------------------------------+",
         printOutput);
   }
+
+  @Test
+  public void testShowCatalogsWithPattern() {
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
+    cli.execute("CREATE CATALOG my_very_long_catalog_name TYPE 'local'");
+    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outputStreamCaptor));
+    cli.execute("SHOW CATALOGS");
+    @SuppressWarnings("DefaultCharset")
+    String printOutput = outputStreamCaptor.toString().trim();
+
+    assertEquals(
+        "+---------------------------------------+\n"
+            + "| Catalog Name                | Type    |\n"
+            + "+---------------------------------------+\n"
+            + "| default                     | local   |\n"
+            + "| my_catalog                  | local   |\n"
+            + "| my_very_long_catalog_name   | local   |\n"
+            + "+---------------------------------------+",
+        printOutput);
+  }
 }

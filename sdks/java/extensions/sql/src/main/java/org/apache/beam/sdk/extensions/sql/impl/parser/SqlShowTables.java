@@ -27,8 +27,10 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
@@ -38,13 +40,23 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSetOptio
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SqlShowTables extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
   private static final SqlOperator OPERATOR = new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER);
+  private final @Nullable SqlIdentifier databaseName;
+  private final @Nullable SqlNode regex;
 
-  public SqlShowTables(SqlParserPos pos, String scope) {
+  public SqlShowTables(
+      SqlParserPos pos,
+      String scope,
+      @Nullable SqlIdentifier databaseName,
+      @Nullable SqlNode regex) {
     super(pos, scope, new SqlIdentifier("", pos), null);
+    this.databaseName = databaseName;
+    this.regex = regex;
   }
 
   @Override
@@ -69,8 +81,22 @@ public class SqlShowTables extends SqlSetOption implements BeamSqlParser.Executa
                   + schema.getClass()));
     }
 
-    CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCurrentCatalogSchema();
-    @Nullable BeamCalciteSchema databaseSchema = catalogSchema.getCurrentDatabaseSchema();
+    CatalogSchema catalogSchema;
+    @Nullable BeamCalciteSchema databaseSchema;
+    if (databaseName != null) {
+      List<String> components = Lists.newArrayList(Splitter.on(".").split(databaseName.toString()));
+      TableName pathOverride = TableName.create(components, "");
+      catalogSchema =
+          pathOverride.catalog() != null
+              ? ((CatalogManagerSchema) schema).getCatalogSchema(pathOverride)
+              : ((CatalogManagerSchema) schema).getCurrentCatalogSchema();
+
+      databaseSchema = catalogSchema.getDatabaseSchema(pathOverride);
+    } else {
+      catalogSchema = ((CatalogManagerSchema) schema).getCurrentCatalogSchema();
+      databaseSchema = catalogSchema.getCurrentDatabaseSchema();
+    }
+
     if (databaseSchema == null) {
       throw SqlUtil.newContextException(
           pos,
@@ -80,10 +106,13 @@ public class SqlShowTables extends SqlSetOption implements BeamSqlParser.Executa
 
     String path = catalogSchema.getCatalog().name() + "." + databaseSchema.name();
     Collection<Table> tables = databaseSchema.getTables();
-    print(tables, path);
+    print(tables, path, SqlDdlNodes.getString(regex));
   }
 
-  private static void print(@Nullable Collection<Table> tables, String path) {
+  private static void print(
+      @Nullable Collection<Table> tables, String path, @Nullable String pattern) {
+    SqlFunctions.LikeFunction calciteLike = new SqlFunctions.LikeFunction();
+
     final String HEADER_NAME = "Tables in " + path;
     final String HEADER_TYPE = "Type";
     final String SEPARATOR_CHAR = "-";
@@ -115,7 +144,9 @@ public class SqlShowTables extends SqlSetOption implements BeamSqlParser.Executa
           tables.stream()
               .sorted(Comparator.comparing(Table::getName))
               .collect(Collectors.toList())) {
-        System.out.printf(format, table.getName(), table.getType());
+        if (pattern == null || calciteLike.like(table.getName(), pattern)) {
+          System.out.printf(format, table.getName(), table.getType());
+        }
       }
       System.out.printf(separator);
     }

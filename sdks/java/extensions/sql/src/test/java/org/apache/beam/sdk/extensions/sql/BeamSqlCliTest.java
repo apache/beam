@@ -340,4 +340,63 @@ public class BeamSqlCliTest {
             + "+--------------------------------------------+",
         printOutput);
   }
+
+  @Test
+  public void testShowTablesInOtherDatabase() {
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    catalogManager.registerTableProvider(new TextTableProvider());
+    catalogManager.registerTableProvider(new TestTableProvider());
+    BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
+
+    cli.execute("CREATE DATABASE my_db");
+    cli.execute(
+        "CREATE EXTERNAL TABLE my_db.should_not_show_up (id int, name varchar) TYPE 'text'");
+
+    cli.execute("CREATE CATALOG other_catalog TYPE 'local'");
+    cli.execute("CREATE DATABASE other_catalog.other_db");
+    cli.execute(
+        "CREATE EXTERNAL TABLE other_catalog.other_db.other_table (id int, name varchar) TYPE 'text'");
+    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outputStreamCaptor));
+    cli.execute("SHOW TABLES IN other_catalog.other_db");
+    @SuppressWarnings("DefaultCharset")
+    String printOutput = outputStreamCaptor.toString().trim();
+
+    assertEquals(
+        "+---------------------------------------------+\n"
+            + "| Tables in other_catalog.other_db   | Type   |\n"
+            + "+---------------------------------------------+\n"
+            + "| other_table                        | text   |\n"
+            + "+---------------------------------------------+",
+        printOutput);
+  }
+
+  @Test
+  public void testShowTablesWithPattern() {
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    catalogManager.registerTableProvider(new TextTableProvider());
+    catalogManager.registerTableProvider(new TestTableProvider());
+    BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
+
+    cli.execute("CREATE DATABASE my_db");
+    cli.execute("CREATE EXTERNAL TABLE my_db.my_table (id int, name varchar) TYPE 'text'");
+    cli.execute("CREATE EXTERNAL TABLE my_db.my_table_2 (id int, name varchar) TYPE 'text'");
+    cli.execute("CREATE EXTERNAL TABLE my_db.my_foo_table_1 (id int, name varchar) TYPE 'text'");
+    cli.execute("CREATE EXTERNAL TABLE my_db.my_foo_table_2 (id int, name varchar) TYPE 'text'");
+
+    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outputStreamCaptor));
+    cli.execute("SHOW TABLES IN my_db LIKE '%foo%'");
+    @SuppressWarnings("DefaultCharset")
+    String printOutput = outputStreamCaptor.toString().trim();
+
+    assertEquals(
+        "+------------------------------------+\n"
+            + "| Tables in default.my_db   | Type   |\n"
+            + "+------------------------------------+\n"
+            + "| my_foo_table_1            | text   |\n"
+            + "| my_foo_table_2            | text   |\n"
+            + "+------------------------------------+",
+        printOutput);
+  }
 }

@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
@@ -36,16 +37,20 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSetOptio
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SqlShowCatalogs extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("SHOW CATALOGS", SqlKind.OTHER);
 
   private final boolean showCurrentOnly;
+  private final @Nullable SqlNode regex;
 
-  public SqlShowCatalogs(SqlParserPos pos, String scope, boolean showCurrentOnly) {
+  public SqlShowCatalogs(
+      SqlParserPos pos, String scope, boolean showCurrentOnly, @Nullable SqlNode regex) {
     super(pos, scope, new SqlIdentifier("", pos), null);
     this.showCurrentOnly = showCurrentOnly;
+    this.regex = regex;
   }
 
   @Override
@@ -76,10 +81,12 @@ public class SqlShowCatalogs extends SqlSetOption implements BeamSqlParser.Execu
       return;
     }
     Collection<Catalog> catalogs = managerSchema.catalogs();
-    print(catalogs);
+    print(catalogs, SqlDdlNodes.getString(regex));
   }
 
-  private static void print(Collection<Catalog> catalogs) {
+  private static void print(Collection<Catalog> catalogs, @Nullable String pattern) {
+    SqlFunctions.LikeFunction calciteLike = new SqlFunctions.LikeFunction();
+
     final String HEADER_NAME = "Catalog Name";
     final String HEADER_TYPE = "Type";
     final String SEPARATOR_CHAR = "-";
@@ -114,7 +121,9 @@ public class SqlShowCatalogs extends SqlSetOption implements BeamSqlParser.Execu
         catalogs.stream()
             .sorted(Comparator.comparing(Catalog::name))
             .collect(Collectors.toList())) {
-      System.out.printf(format, catalog.name(), catalog.type());
+      if (pattern == null || calciteLike.like(catalog.name(), pattern)) {
+        System.out.printf(format, catalog.name(), catalog.type());
+      }
     }
     System.out.printf(separator);
   }

@@ -92,7 +92,7 @@ public class SqlDdlNodes {
     }
   }
 
-  static @Nullable String getString(SqlNode n) {
+  static @Nullable String getString(@Nullable SqlNode n) {
     if (n == null) {
       return null;
     }

@@ -107,8 +107,8 @@ public class BeamSqlCliDatabaseTest {
     assertEquals(
         ImmutableSet.of("default"),
         catalogManager.catalogs().stream().map(Catalog::name).collect(Collectors.toSet()));
-    thrown.expect(CalciteContextException.class);
-    thrown.expectMessage("Cannot use catalog: 'my_catalog' not found.");
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Catalog 'my_catalog' not found");
     cli.execute("USE DATABASE my_catalog.my_database");
   }
 
@@ -268,6 +268,53 @@ public class BeamSqlCliDatabaseTest {
             + "| my_db                                   |\n"
             + "| my_other_db                             |\n"
             + "+-----------------------------------------+",
+        printOutput);
+  }
+
+  @Test
+  public void testShowDatabasesInOtherCatalog() {
+    cli.execute("CREATE DATABASE should_not_show_up");
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
+    cli.execute("USE CATALOG my_catalog");
+    cli.execute("CREATE DATABASE my_db");
+    cli.execute("CREATE CATALOG my_other_catalog TYPE 'local'");
+    cli.execute("CREATE DATABASE my_other_catalog.other_db");
+    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outputStreamCaptor));
+    cli.execute("SHOW DATABASES FROM my_other_catalog");
+    @SuppressWarnings("DefaultCharset")
+    String printOutput = outputStreamCaptor.toString().trim();
+
+    assertEquals(
+        "+---------------------------------+\n"
+            + "| Databases in my_other_catalog   |\n"
+            + "+---------------------------------+\n"
+            + "| default                         |\n"
+            + "| other_db                        |\n"
+            + "+---------------------------------+",
+        printOutput);
+  }
+
+  @Test
+  public void testShowDatabasesWithPattern() {
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
+    cli.execute("CREATE DATABASE my_catalog.my_db");
+    cli.execute("CREATE DATABASE my_catalog.other_db");
+    cli.execute("CREATE DATABASE my_catalog.some_foo_db");
+    cli.execute("CREATE DATABASE my_catalog.some_other_foo_db");
+    ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(outputStreamCaptor));
+    cli.execute("SHOW DATABASES FROM my_catalog LIKE '%foo%'");
+    @SuppressWarnings("DefaultCharset")
+    String printOutput = outputStreamCaptor.toString().trim();
+
+    assertEquals(
+        "+---------------------------+\n"
+            + "| Databases in my_catalog   |\n"
+            + "+---------------------------+\n"
+            + "| some_foo_db               |\n"
+            + "| some_other_foo_db         |\n"
+            + "+---------------------------+",
         printOutput);
   }
 }
