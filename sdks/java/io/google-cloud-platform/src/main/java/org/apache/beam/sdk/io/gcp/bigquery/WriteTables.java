@@ -27,6 +27,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -505,8 +506,35 @@ class WriteTables<DestinationT extends @NonNull Object>
         loadJobProjectId == null || loadJobProjectId.get() == null
             ? ref.getProjectId()
             : loadJobProjectId.get();
-    String bqLocation =
-        BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
+
+    String bqLocation;
+    try {
+      bqLocation =
+          BigQueryHelpers.getDatasetLocation(
+              datasetService, ref.getProjectId(), ref.getDatasetId());
+    } catch (IOException e) {
+      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+      if (errorExtractor.itemNotFound(e)) {
+        throw new RuntimeException(
+            String.format(
+                "Dataset %s not found in project %s. Please ensure the dataset exists before running the pipeline.",
+                ref.getDatasetId(), ref.getProjectId()),
+            e);
+      }
+      // For other IOExceptions, wrap and throw
+      throw new RuntimeException(
+          String.format(
+              "Unable to get dataset location for dataset %s in project %s",
+              ref.getDatasetId(), ref.getProjectId()),
+          e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(
+          String.format(
+              "Interrupted while getting dataset location for dataset %s in project %s",
+              ref.getDatasetId(), ref.getProjectId()),
+          e);
+    }
 
     PendingJob retryJob =
         new PendingJob(
