@@ -27,7 +27,6 @@ import os
 import uuid
 from collections.abc import Iterable
 from io import BytesIO
-from PIL import Image
 from typing import Optional
 
 import apache_beam as beam
@@ -41,6 +40,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
 from google.genai.types import GenerateContentResponse
+from PIL import Image
 
 
 def parse_known_args(argv):
