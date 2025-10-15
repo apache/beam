@@ -116,8 +116,8 @@ public class TimerUtils {
     }
 
     @Override
-    public @Nullable Boolean isDraining() {
-      return null;
+    public boolean isDraining() {
+      return false;
     }
 
     @Override

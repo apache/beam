@@ -48,7 +48,7 @@ public interface OutputBuilder<T> extends WindowedValue<T> {
 
   OutputBuilder<T> setRecordOffset(@Nullable Long recordOffset);
 
-  OutputBuilder<T> setDraining(@Nullable Boolean drain);
+  OutputBuilder<T> setDraining(boolean drain);
 
   void output();
 }

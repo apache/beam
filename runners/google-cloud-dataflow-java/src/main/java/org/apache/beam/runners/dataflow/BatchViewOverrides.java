@@ -1379,8 +1379,8 @@ class BatchViewOverrides {
     }
 
     @Override
-    public @Nullable Boolean isDraining() {
-      return null;
+    public boolean isDraining() {
+      return false;
     }
 
     @Override

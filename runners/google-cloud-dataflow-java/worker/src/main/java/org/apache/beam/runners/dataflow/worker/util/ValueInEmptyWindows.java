@@ -60,8 +60,8 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   }
 
   @Override
-  public @Nullable Boolean isDraining() {
-    return null;
+  public boolean isDraining() {
+    return false;
   }
 
   @Override

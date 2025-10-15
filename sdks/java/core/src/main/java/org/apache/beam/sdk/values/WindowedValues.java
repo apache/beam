@@ -99,7 +99,7 @@ public class WindowedValues {
     private @MonotonicNonNull Collection<? extends BoundedWindow> windows;
     private @Nullable String recordId;
     private @Nullable Long recordOffset;
-    private @Nullable Boolean draining;
+    private boolean draining;
 
     @Override
     public Builder<T> setValue(T value) {
@@ -144,7 +144,7 @@ public class WindowedValues {
     }
 
     @Override
-    public Builder<T> setDraining(@Nullable Boolean draining) {
+    public Builder<T> setDraining(boolean draining) {
       this.draining = draining;
       return this;
     }
@@ -198,7 +198,7 @@ public class WindowedValues {
     }
 
     @Override
-    public @Nullable Boolean isDraining() {
+    public boolean isDraining() {
       return draining;
     }
 
@@ -435,7 +435,7 @@ public class WindowedValues {
     }
 
     @Override
-    public @Nullable Boolean isDraining() {
+    public boolean isDraining() {
       return draining;
     }
 
@@ -913,11 +913,9 @@ public class WindowedValues {
         BeamFnApi.Elements.ElementMetadata em =
             builder
                 .setDrain(
-                    windowedElem.isDraining() != null
-                        ? (Boolean.TRUE.equals(windowedElem.isDraining())
-                            ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
-                            : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
-                        : BeamFnApi.Elements.DrainMode.Enum.UNSPECIFIED)
+                    Boolean.TRUE.equals(windowedElem.isDraining())
+                        ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                        : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
                 .build();
 
         ByteArrayCoder.of().encode(em.toByteArray(), outStream);
@@ -936,7 +934,7 @@ public class WindowedValues {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
-      Boolean draining = null;
+      boolean draining = false;
       if (isMetadataSupported() && paneInfo.isElementMetadata()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
@@ -944,7 +942,7 @@ public class WindowedValues {
         draining =
             b
                 ? elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
-                : null;
+                : false;
       }
       T value = valueCoder.decode(inStream, context);
 
