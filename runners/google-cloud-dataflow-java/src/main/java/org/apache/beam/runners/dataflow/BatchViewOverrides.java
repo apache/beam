@@ -1379,6 +1379,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public @Nullable Boolean isDraining() {
+      return null;
+    }
+
+    @Override
     public Instant getTimestamp() {
       return BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
