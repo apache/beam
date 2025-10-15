@@ -75,7 +75,7 @@ try:
   from google.api_core.exceptions import ClientError, GoogleAPICallError
   from google.api_core.client_info import ClientInfo
   from google.cloud import bigquery as gcp_bigquery
-except ImportError:
+except Exception:
   gcp_bigquery = None
   pass
 
