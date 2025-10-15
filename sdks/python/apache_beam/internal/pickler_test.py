@@ -326,7 +326,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
         def dynamic_function():
           return "version2"
 
-      return dynamic_function
+        return dynamic_function
       """)
       namespace = {}
       exec(code_v2, namespace)
