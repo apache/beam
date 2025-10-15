@@ -76,8 +76,8 @@ def parse_known_args(argv):
 class PostProcessor(beam.DoFn):
   def process(self, element: PredictionResult) -> Iterable[Image.Image]:
     try:
-      response: GenerateContentResponse = element.inference
-      for part in response.candidates[0].content.parts:
+      response = element.inference
+      for part in response.parts:
         if part.text is not None:
           print(part.text)
         elif part.inline_data is not None:
@@ -110,7 +110,8 @@ class _WriteImageFn(beam.DoFn):
     """
         Ensures the output directory exists.
     """
-    FileSystems().mkdirs(self._output_dir)
+    if not FileSystems().exists(self._output_dir):
+      FileSystems().mkdirs(self._output_dir)
 
   def process(self, image: Image.Image):
     """

@@ -67,11 +67,13 @@ def parse_known_args(argv):
 
 class PostProcessor(beam.DoFn):
   def process(self, element: PredictionResult) -> Iterable[str]:
-    try:
-      output_text = element.inference.candidates[0].content.parts[0].text
-      yield f"Input: {element.example}, Output: {output_text}"
-    except Exception as e:
-      yield f"Can't decode inference for element: {element.example}, got {e}"
+    for part in element.inference.parts:
+      try:
+        output_text = part.text
+        yield f"Input: {element.example}, Output: {output_text}"
+      except Exception as e:
+        print(f"Can't decode inference for element: {element.example}, got {e}")
+        raise e
 
 
 def run(
