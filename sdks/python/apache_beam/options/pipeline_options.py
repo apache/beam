@@ -64,6 +64,11 @@ _LOGGER = logging.getLogger(__name__)
 # that have a destination(dest) in parser.add_argument() different
 # from the flag name and whose default value is `None`.
 _FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
+# Set of options which should not be overriden when applying options from a
+# different language. This is relevant when using x-lang transforms where the
+# expansion service is started up with some pipeline options, and will
+# impact which options are passed in to expanded transforms' expand functions.
+_NON_OVERIDABLE_XLANG_OPTIONS = ['runner', 'experiments']
 
 
 def _static_value_provider_of(value_type):
@@ -287,6 +292,10 @@ class _CommaSeparatedListAction(argparse.Action):
 
 
 class PipelineOptions(HasDisplayData):
+  # Set of options which should not be overriden when pipeline options are
+  # being merged (see from_runner_api). This primarily comes up when expanding
+  # the Python expansion service
+
   """This class and subclasses are used as containers for command line options.
 
   These classes are wrappers over the standard argparse Python module
@@ -592,15 +601,19 @@ class PipelineOptions(HasDisplayData):
         })
 
   @classmethod
-  def from_runner_api(cls, proto_options):
+  def from_runner_api(cls, proto_options, original_options=None):
     def from_urn(key):
       assert key.startswith('beam:option:')
       assert key.endswith(':v1')
       return key[12:-3]
 
-    return cls(
-        **{from_urn(key): value
-           for (key, value) in proto_options.items()})
+    parsed = {from_urn(key): value for (key, value) in proto_options.items()}
+    if original_options is None:
+      return cls(**parsed)
+    for (key, value) in parsed.items():
+      if value and key not in _NON_OVERIDABLE_XLANG_OPTIONS:
+        original_options._all_options[key] = value
+    return original_options
 
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
