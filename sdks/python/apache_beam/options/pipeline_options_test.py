@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
@@ -307,6 +308,26 @@ class PipelineOptionsTest(unittest.TestCase):
     result = options_from_dict.get_all_options()
     self.assertEqual(result['test_arg_int'], 5)
     self.assertEqual(result['test_arg_none'], None)
+
+  def test_merging_options(self):
+    opts = PipelineOptions(flags=['--num_workers', '5'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api())
+    actual = actual_opts.view_as(WorkerOptions).num_workers
+    self.assertEqual(5, actual)
+
+  def test_merging_options_with_overriden_options(self):
+    opts = PipelineOptions(flags=['--num_workers', '5'])
+    base = PipelineOptions(flags=['--num_workers', '2'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api(), base)
+    actual = actual_opts.view_as(WorkerOptions).num_workers
+    self.assertEqual(5, actual)
+
+  def test_merging_options_with_overriden_runner(self):
+    opts = PipelineOptions(flags=['--runner', 'FnApiRunner'])
+    base = PipelineOptions(flags=['--runner', 'Direct'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api(), base)
+    actual = actual_opts.view_as(StandardOptions).runner
+    self.assertEqual('Direct', actual)
 
   def test_from_kwargs(self):
     class MyOptions(PipelineOptions):
