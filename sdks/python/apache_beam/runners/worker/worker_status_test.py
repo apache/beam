@@ -147,8 +147,8 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
             'apache_beam.runners.worker.sdk_worker_main.terminate_sdk_harness',
         ) as terminate_mock):
       # Set time to be past the lull timeout
-      time_mock.return_value = now + \
-          self.fn_status_handler.log_lull_timeout_ns / 1e9 + 1
+      time_mock.return_value = (
+          now + self.fn_status_handler.log_lull_timeout_ns / 1e9 + 1)
       self.fn_status_handler._log_lull_in_creating_bundle_descriptor(
           instruction_id, bundle_id, thread, creation_time)
       warn_mock.assert_called_once()
@@ -159,8 +159,8 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
           args[0])
 
       # Set time to be past the element processing timeout
-      time_mock.return_value = now + \
-          self.fn_status_handler._element_processing_timeout_ns / 1e9 + 1
+      time_mock.return_value = (
+          now + self.fn_status_handler._element_processing_timeout_ns / 1e9 + 1)
 
       self.fn_status_handler._log_lull_in_creating_bundle_descriptor(
           instruction_id, bundle_id, thread, creation_time)
@@ -170,6 +170,55 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
       self.assertIn(
           'Creation of bundle processor for instruction %s (bundle %s) '
           'has exceeded the specified timeout',
+          args[0])
+
+      terminate_mock.assert_called_once()
+
+  def test_lull_logs_emitted_when_processing_a_bundle_takes_time(self):
+    instruction_id = "instruction-1"
+    now = time.time()
+    thread = threading.current_thread()
+
+    with (
+        mock.patch('logging.Logger.warning') as warn_mock,
+        mock.patch('logging.Logger.error') as error_mock,
+        mock.patch('time.time') as time_mock,
+        mock.patch(
+            'apache_beam.runners.worker.sdk_worker_main.terminate_sdk_harness',
+        ) as terminate_mock):
+      time_mock.return_value = now + 1
+      # Set time to be past the lull timeout
+      sampler_info = statesampler.StateSamplerInfo(
+          state_name=CounterName('test_counter', 'test_stage', 'test_step'),
+          transition_count=1,
+          # Set time to be past the lull timeout
+          time_since_transition=(
+              self.fn_status_handler.log_lull_timeout_ns + 1),
+          tracked_thread=thread)
+      self.fn_status_handler._log_lull_sampler_info(
+          sampler_info, instruction_id)
+      warn_mock.assert_called_once()
+      args, _ = warn_mock.call_args
+      self.assertIn(
+          'Operation ongoing in bundle %s%s for at least %.2f seconds', args[0])
+
+      time_mock.return_value = now + 2
+
+      sampler_info = statesampler.StateSamplerInfo(
+          state_name=CounterName('test_counter', 'test_stage', 'test_step'),
+          transition_count=1,
+          # Set time to be past the element processing timeout
+          time_since_transition=(
+              self.fn_status_handler._element_processing_timeout_ns + 1),
+          tracked_thread=thread)
+      self.fn_status_handler._log_lull_sampler_info(
+          sampler_info, instruction_id)
+
+      error_mock.assert_called_once()
+      args, _ = error_mock.call_args
+      self.assertIn(
+          'Processing of an element in bundle %s%s has exceeded the '
+          'specified timeout of %.2f minutes',
           args[0])
 
       terminate_mock.assert_called_once()
