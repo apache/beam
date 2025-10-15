@@ -49,17 +49,15 @@ Example Usage:
 import argparse
 import io
 import logging
-from typing import Iterable
-
 import numpy as np
+from typing import Iterable
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.trt_handler_numpy_compact import TensorRTEngineHandlerNumPy
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.ml.inference.base import PredictionResult, RunInference
+from apache_beam.ml.inference.trt_handler_numpy_compact import \
+    TensorRTEngineHandlerNumPy
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 
 try:
   from PIL import Image
@@ -77,8 +75,9 @@ def read_image(image_path: str) -> tuple[str, np.ndarray]:
     Tuple of (image_path, preprocessed_array)
   """
   if Image is None:
-    raise ImportError("Pillow is required for image processing. "
-                      "Install with: pip install pillow")
+    raise ImportError(
+        "Pillow is required for image processing. "
+        "Install with: pip install pillow")
 
   with FileSystems().open(image_path, 'r') as f:
     img = Image.open(io.BytesIO(f.read())).convert('RGB')
@@ -99,7 +98,6 @@ def read_image(image_path: str) -> tuple[str, np.ndarray]:
 
 class FormatPrediction(beam.DoFn):
   """Format TensorRT predictions for output."""
-
   def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     """Format prediction result.
 
@@ -150,7 +148,8 @@ def parse_known_args(argv):
       '--engine_path',
       dest='engine_path',
       help='Path to pre-built TensorRT engine (.engine). '
-      'Provides best performance but requires matching GPU/CUDA/TensorRT versions.')
+      'Provides best performance but requires matching GPU/CUDA/TensorRT versions.'
+  )
 
   parser.add_argument(
       '--input',
@@ -201,8 +200,7 @@ def run(argv=None, save_main_session=True):
 
   # Validate arguments
   if not known_args.onnx_path and not known_args.engine_path:
-    raise ValueError(
-        "Must provide either --onnx_path or --engine_path")
+    raise ValueError("Must provide either --onnx_path or --engine_path")
 
   if known_args.onnx_path and known_args.engine_path:
     raise ValueError(
@@ -221,9 +219,7 @@ def run(argv=None, save_main_session=True):
         build_on_worker=True,  # Key feature: builds in worker environment!
     )
   else:
-    logging.info(
-        "Using pre-built engine: %s",
-        known_args.engine_path)
+    logging.info("Using pre-built engine: %s", known_args.engine_path)
     handler = TensorRTEngineHandlerNumPy(
         min_batch_size=known_args.min_batch_size,
         max_batch_size=known_args.max_batch_size,

@@ -17,12 +17,11 @@
 
 # pytype: skip-file
 
+import numpy as np
 import os
+import pytest
 import tempfile
 import unittest
-
-import numpy as np
-import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -33,9 +32,7 @@ from apache_beam.testing.util import assert_that
 try:
   from apache_beam.ml.inference.base import PredictionResult, RunInference
   from apache_beam.ml.inference.trt_handler_numpy_compact import (
-      TensorRTEngine,
-      TensorRTEngineHandlerNumPy,
-  )
+      TensorRTEngine, TensorRTEngineHandlerNumPy)
 except ImportError:
   raise unittest.SkipTest('TensorRT 10.x dependencies are not installed')
 
@@ -75,14 +72,14 @@ TWO_FEATURES_PREDICTIONS = [
 def _compare_prediction_result(a, b):
   """Compare two PredictionResult objects."""
   return ((a.example == b.example).all() and all(
-      np.array_equal(actual, expected)
-      for actual, expected in zip(a.inference, b.inference)))
+      np.array_equal(actual, expected) for actual,
+      expected in zip(a.inference, b.inference)))
 
 
 def _build_simple_onnx_model(input_size=1, output_path=None):
   """Build a simple ONNX model for testing: y = 2x + 0.5"""
   try:
-    from onnx import helper, TensorProto
+    from onnx import TensorProto, helper
   except ImportError:
     raise unittest.SkipTest('ONNX dependencies are not installed')
 
