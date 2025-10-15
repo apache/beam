@@ -342,6 +342,11 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	bundles := em.Bundles(egctx, j.CancelFn, func() string {
 		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
 	})
+
+	// Create a new ticker that fires every 60 seconds.
+	ticker := time.NewTicker(60 * time.Second)
+	// Ensure the ticker is stopped when the function returns to prevent a goroutine leak.
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -351,7 +356,8 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		case rb, ok := <-bundles:
 			if !ok {
 				err := eg.Wait()
-				j.Logger.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err), slog.String("stages", em.DumpStages()))
+				j.Logger.Info("pipeline done!", slog.String("job", j.String()))
+				j.Logger.Debug("finished state", slog.String("job", j.String()), slog.Any("error", err), slog.String("stages", em.DumpStages()))
 				return err
 			}
 			eg.Go(func() error {
@@ -365,6 +371,9 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				}
 				return nil
 			})
+		// Log a heartbeat every 60 seconds
+		case <-ticker.C:
+			j.Logger.Info("pipeline is running", slog.String("job", j.String()))
 		}
 	}
 }
