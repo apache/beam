@@ -37,17 +37,12 @@ try:
 except ImportError:
   raise unittest.SkipTest('TensorRT 10.x dependencies are not installed')
 
-try:
-  from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
-except ImportError:
-  GCSFileSystem = None  # type: ignore
-
 
 #  Check if TensorRT is actually available (not just importable)
 def _is_tensorrt_available():
   """Check if TensorRT can be imported and used."""
   try:
-    import tensorrt as trt  # noqa: F401
+    import tensorrt as trt  # noqa: F401 pylint: disable=unused-import
     return True
   except (ImportError, ModuleNotFoundError):
     return False
