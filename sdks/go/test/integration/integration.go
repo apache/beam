@@ -278,9 +278,9 @@ var sparkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	"TestTimers_EventTime_Unbounded",     // Side inputs in executable stage not supported.
-	"TestTimers_ProcessingTime_Infinity", // Spark doesn't support test stream.
-
+	"TestTimers_EventTime_Unbounded",      // Side inputs in executable stage not supported.
+	"TestTimers_ProcessingTime_Infinity",  // Spark doesn't support test stream.
+	"TestTimers_ProcessingTime_Unbounded", // Side inputs in executable stage not supported.
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
 }
