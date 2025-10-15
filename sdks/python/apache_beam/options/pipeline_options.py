@@ -1023,7 +1023,7 @@ class GoogleCloudOptions(PipelineOptions):
         help='The Google Compute Engine region for creating '
         'Dataflow job.')
     parser.add_argument(
-        '--service_account_email',
+        '--service_account_email', '--serviceAccount',
         default=None,
         help='Identity to run virtual machines as.')
     parser.add_argument(
