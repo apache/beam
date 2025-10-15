@@ -45,7 +45,7 @@ class BeamFnStatusServicer(beam_fn_api_pb2_grpc.BeamFnWorkerStatusServicer):
       self.finished.acquire()
       self.response_received.append(response)
       if len(self.response_received) == self.num_request:
-        self.finished.notifyAll()
+        self.finished.notify_all()
       self.finished.release()
 
 
@@ -63,6 +63,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
         self.url, element_processing_timeout_minutes=10)
 
   def tearDown(self):
+    self.fn_status_handler.close()
     self.server.stop(5)
 
   def test_send_status_response(self):
@@ -72,7 +73,6 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     self.test_status_service.finished.release()
     for response in self.test_status_service.response_received:
       self.assertIsNotNone(response.status_info)
-    self.fn_status_handler.close()
 
   @mock.patch(
       'apache_beam.runners.worker.worker_status'
@@ -85,7 +85,6 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     self.test_status_service.finished.release()
     for response in self.test_status_service.response_received:
       self.assertIsNotNone(response.error)
-    self.fn_status_handler.close()
 
   def test_log_lull_in_bundle_processor(self):
     def get_state_sampler_info_for_lull(lull_duration_s):
@@ -132,6 +131,48 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
           bundle_id, sampler_info = get_state_sampler_info_for_lull(11 * 60)
           self.fn_status_handler._log_lull_sampler_info(sampler_info, bundle_id)
           self.assertEqual(flush_mock.call_count, 3)
+
+  def test_lull_logs_emitted_when_creating_bundle_processor_takes_time(self):
+    instruction_id = "instruction-1"
+    bundle_id = "bundle-1"
+    thread = threading.current_thread()
+    now = time.time()
+    creation_time = now
+
+    with (
+        mock.patch('logging.Logger.warning') as warn_mock,
+        mock.patch('logging.Logger.error') as error_mock,
+        mock.patch('time.time') as time_mock,
+        mock.patch(
+            'apache_beam.runners.worker.sdk_worker_main.terminate_sdk_harness',
+        ) as terminate_mock):
+      # Set time to be past the lull timeout
+      time_mock.return_value = now + \
+          self.fn_status_handler.log_lull_timeout_ns / 1e9 + 1
+      self.fn_status_handler._log_lull_in_creating_bundle_descriptor(
+          instruction_id, bundle_id, thread, creation_time)
+      warn_mock.assert_called_once()
+      args, _ = warn_mock.call_args
+      self.assertIn(
+          'Bundle processor for instruction %s (bundle %s) has been '
+          'creating for at least %.2f seconds',
+          args[0])
+
+      # Set time to be past the element processing timeout
+      time_mock.return_value = now + \
+          self.fn_status_handler._element_processing_timeout_ns / 1e9 + 1
+
+      self.fn_status_handler._log_lull_in_creating_bundle_descriptor(
+          instruction_id, bundle_id, thread, creation_time)
+
+      error_mock.assert_called_once()
+      args, _ = error_mock.call_args
+      self.assertIn(
+          'Creation of bundle processor for instruction %s (bundle %s) '
+          'has exceeded the specified timeout',
+          args[0])
+
+      terminate_mock.assert_called_once()
 
 
 class HeapDumpTest(unittest.TestCase):
