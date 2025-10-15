@@ -27,7 +27,7 @@ limitations under the License.
 # GSoC 2025 Basic Information
 
 **Student:** [Canyu Chen] ([@Chenzo1001](https://github.com/Chenzo1001))
-**Mentors:** [XQ Hu] ([@liferoad](https://github.com/liferoad))  
+**Mentors:** [XQ Hu] ([@liferoad](https://github.com/liferoad))
 **Organization:** [Apache Beam]
 **Proposal Link:** [Here](https://summerofcode.withgoogle.com/media/user/a0dca52853b4/proposal/gAAAAABoPn1Vt4nIBnqceN9xDgbsdmh0JepoDkQBMM16v3qHKpfqftwWZEPk4qOLUZ4CxAzDuHitiF1q_e11s0FdVJBIi8LuMqdbAkkJ1WsKFBUu5rH2DbI=.pdf)
 
