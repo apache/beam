@@ -2016,8 +2016,7 @@ public class KafkaIO {
         extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
 
       @ProcessElement
-      public void processElement(ProcessContext pc) {
-        KafkaRecord<K, V> element = pc.element();
+      public void processElement(@Element KafkaRecord<K, V> element, OutputReceiver receiver) {
         Long offset = null;
         String uniqueId = null;
         if (element != null) {
@@ -2025,13 +2024,7 @@ public class KafkaIO {
           uniqueId =
               (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
         }
-        pc.outputWindowedValue(
-            element,
-            pc.timestamp(),
-            Lists.newArrayList(GlobalWindow.INSTANCE),
-            pc.pane(),
-            uniqueId,
-            offset);
+        receiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset);
       }
     }
 
