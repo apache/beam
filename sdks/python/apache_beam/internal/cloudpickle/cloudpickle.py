@@ -582,8 +582,11 @@ def _make_function(code, globals, name, argdefs, closure):
 
 
 def _make_function_from_identifier(
-    get_code_from_identifier, code_path, globals, name, argdefs, closure):
+    get_code_from_identifier, code_path, globals, name, argdefs):
   fcode = get_code_from_identifier(code_path)
+  expected_closure_len = len(fcode.co_freevars)
+  closure = tuple(types.CellType() for _ in range(expected_closure_len))
+
   return _make_function(fcode, globals, name, argdefs, closure)
 
 
@@ -1350,8 +1353,7 @@ class Pickler(pickle.Pickler):
         code_path,
         base_globals,
         func.__name__,
-        func.__defaults__,
-        func.__closure__)
+        func.__defaults__)
     state = _function_getstate(func)
     return (
         functools.partial(
