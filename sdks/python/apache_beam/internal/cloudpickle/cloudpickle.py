@@ -1349,11 +1349,7 @@ class Pickler(pickle.Pickler):
       for k in ["__package__", "__name__", "__path__"]:
         if k in func.__globals__:
           base_globals[k] = func.__globals__[k]
-    newargs = (
-        code_path,
-        base_globals,
-        func.__name__,
-        func.__defaults__)
+    newargs = (code_path, base_globals, func.__name__, func.__defaults__)
     state = _function_getstate(func)
     return (
         functools.partial(
