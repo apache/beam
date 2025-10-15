@@ -274,10 +274,10 @@ class FnApiWorkerStatusHandler(object):
 
       for instruction, (bundle_id, thread, creation_time) in list(
           bundle_processor_cache.processors_being_created.items()):
-        self._log_lull_in_creating_bundle_decriptor(
+        self._log_lull_in_creating_bundle_descriptor(
             instruction, bundle_id, thread, creation_time)
 
-  def _log_lull_in_creating_bundle_decriptor(
+  def _log_lull_in_creating_bundle_descriptor(
       self, instruction, bundle_id, thread, creation_time):
     time_since_creation_ns = (time.time() - creation_time) * 1e9
 
