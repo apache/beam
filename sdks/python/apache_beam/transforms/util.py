@@ -570,12 +570,15 @@ class GroupByEncryptedKey(PTransform):
 
     gbk = beam.GroupByKey()
     gbk._inside_gbek = True
+    output_type = Tuple[key_type, Iterable[value_type]]
 
     return (
         pcoll
         | beam.ParDo(_EncryptMessage(self._hmac_key, key_coder, value_coder))
         | gbk
-        | beam.ParDo(_DecryptMessage(self._hmac_key, key_coder, value_coder)))
+        | beam.ParDo(
+            _DecryptMessage(self._hmac_key, key_coder,
+                            value_coder)).with_output_types(output_type))
 
 
 class _BatchSizeEstimator(object):
