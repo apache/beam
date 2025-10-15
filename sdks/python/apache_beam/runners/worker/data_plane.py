@@ -502,6 +502,10 @@ class _GrpcDataChannel(DataChannel):
     instruction_id cannot be reused for new queue.
     """
     with self._receive_lock:
+      # Per-instruction read queue may or may not be created yet when
+      # we mark an instruction as 'cleaned up' when creating
+      # a bundle processor failed, e.g. due to a flake in DoFn.setup().
+      # We want to mark an instruction as cleaned up regardless.
       self._received.pop(instruction_id, None)
       self._cleaned_instruction_ids[instruction_id] = True
       while len(self._cleaned_instruction_ids) > _MAX_CLEANED_INSTRUCTIONS:
@@ -857,13 +861,13 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def close(self):
     # type: () -> None
     _LOGGER.info('Closing all cached grpc data channels.')
-    for _, channel in self._data_channel_cache.items():
+    for channel in list(self._data_channel_cache.values()):
       channel.close()
     self._data_channel_cache.clear()
 
   def cleanup(self, instruction_id):
     # type: (str) -> None
-    for channel in self._data_channel_cache.values():
+    for channel in list(self._data_channel_cache.values()):
       channel._clean_receiving_queue(instruction_id)
 
 
