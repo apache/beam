@@ -249,7 +249,7 @@ public class WindowedValues {
 
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
-    return of(value, timestamp, windows, paneInfo, null, null, null);
+    return of(value, timestamp, windows, paneInfo, null, null, false);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
@@ -260,7 +260,7 @@ public class WindowedValues {
       PaneInfo paneInfo,
       @Nullable String currentRecordId,
       @Nullable Long currentRecordOffset,
-      @Nullable Boolean draining) {
+      boolean draining) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
@@ -279,7 +279,7 @@ public class WindowedValues {
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo paneInfo,
-      @Nullable Boolean draining) {
+      boolean draining) {
     if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), paneInfo, draining);
     } else {
