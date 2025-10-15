@@ -2023,7 +2023,7 @@ public class KafkaIO {
           uniqueId =
               (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
         }
-        receiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset);
+        receiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset).output();
       }
     }
 
