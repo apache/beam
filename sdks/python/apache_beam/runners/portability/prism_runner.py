@@ -495,6 +495,6 @@ class PrismJobServer(job_server.SubprocessJobServer):
         self._log_level,
         '--log_kind',
         self._log_kind,
-        '--serve_http',
-        False,
+        # Go does not support "-flag x" format for boolean flags.
+        '--serve_http=false',
     ]

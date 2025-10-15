@@ -830,6 +830,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
           else:
             grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=channel_options)
+          _LOGGER.info('Data channel established.')
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(
               grpc_channel, WorkerIdInterceptor(self._worker_id))

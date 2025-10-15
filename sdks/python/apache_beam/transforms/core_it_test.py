@@ -19,9 +19,9 @@
 
 # pytype: skip-file
 
-import random
-import string
+import sys
 import unittest
+from datetime import datetime
 
 import pytest
 
@@ -43,8 +43,9 @@ class GbekIT(unittest.TestCase):
   def setUp(self):
     if secretmanager is not None:
       self.project_id = 'apache-beam-testing'
-      secret_postfix = ''.join(random.choice(string.digits) for _ in range(6))
-      self.secret_id = 'gbek_secret_tests_' + secret_postfix
+      py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
+      secret_postfix = datetime.now().strftime('%m%d_%H%M%S') + py_version
+      self.secret_id = 'gbekit_secret_tests_' + secret_postfix
       self.client = secretmanager.SecretManagerServiceClient()
       self.project_path = f'projects/{self.project_id}'
       self.secret_path = f'{self.project_path}/secrets/{self.secret_id}'

@@ -186,6 +186,11 @@ type Config struct {
 	EnableRTC bool
 	// Whether to process the data in a streaming mode
 	StreamingMode bool
+	// Whether to enable splitting on splittable dofn.
+	// This flag is currently used when calling KafkaIO in streaming mode. It prevents an
+	// error ("KafkaConsumer is not safe for multi-threaded access") that can occur
+	// if the SDK allows splitting a single topic.
+	EnableSDFSplit bool
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
@@ -1097,6 +1102,7 @@ func (em *ElementManager) markChangedAndClearBundle(stageID, bundID string, ptRe
 	em.changedStages.insert(stageID)
 	for t := range ptRefreshes {
 		em.processTimeEvents.Schedule(t, stageID)
+		em.wakeUpAt(t)
 	}
 	em.refreshCond.Broadcast()
 }
@@ -2464,8 +2470,8 @@ func rebaseProcessingTime(localNow, scheduled mtime.Time) mtime.Time {
 // This is used for processing time timers to ensure the loop re-evaluates
 // stages when a processing time timer is expected to fire.
 func (em *ElementManager) wakeUpAt(t mtime.Time) {
-	if em.testStreamHandler == nil && em.config.EnableRTC {
-		// only create this goroutine if we have real-time clock enabled and the pipeline does not have TestStream.
+	if em.config.EnableRTC {
+		// only create this goroutine if we have real-time clock enabled (also implying the pipeline does not have TestStream).
 		go func(fireAt time.Time) {
 			time.AfterFunc(time.Until(fireAt), func() {
 				em.refreshCond.Broadcast()

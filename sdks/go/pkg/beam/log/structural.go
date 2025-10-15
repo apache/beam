@@ -13,22 +13,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package core contains constants and other static data related to the SDK,
-// such as the SDK Name and version.
-//
-// As a rule, this package should not have dependencies, and should not depend
-// on any package within the Apache Beam Go SDK.
-//
-// Files in this package may be generated or updated by release scripts, allowing
-// for accurate version information to be included.
-package core
+package log
 
-const (
-	// SdkName is the human readable name of the SDK for UserAgents.
-	SdkName = "Apache Beam SDK for Go"
-	// SdkVersion is the current version of the SDK.
-	SdkVersion = "2.70.0.dev"
-
-	// DefaultDockerImage represents the associated image for this release.
-	DefaultDockerImage = "apache/beam_go_sdk:" + SdkVersion
+import (
+	"context"
+	slogger "log/slog"
 )
+
+// Structural is a wrapper over slog
+type Structural struct{}
+
+var loggerMap = map[Severity]func(string, ...any){
+	SevUnspecified: slogger.Info,
+	SevDebug:       slogger.Debug,
+	SevInfo:        slogger.Info,
+	SevWarn:        slogger.Warn,
+	SevError:       slogger.Error,
+	SevFatal:       slogger.Error,
+}
+
+// Log logs the message to the structural Go logger. For Panic, it does not
+// perform the os.Exit(1) call, but defers to the log wrapper.
+func (s *Structural) Log(ctx context.Context, sev Severity, _ int, msg string) {
+	loggerMap[sev](msg)
+}
