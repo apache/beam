@@ -995,8 +995,8 @@ def collect(
   if raw_records:
     result_tuple = tuple(computed.get(pcoll, [])[:n] for pcoll in pcolls)
   else:
-    # Collecting DataFrames may have a length > n, so slice again to be sure. Note
-    # that array[:None] returns everything.
+    # Collecting DataFrames may have a length > n, so slice again to be sure.
+    # Note that array[:None] returns everything.
     empty = pd.DataFrame()
     result_tuple = tuple(
         elements_to_df(
