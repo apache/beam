@@ -21,6 +21,7 @@
 
 import random
 import sys
+import textwrap
 import threading
 import types
 import unittest
@@ -319,13 +320,13 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
 
     try:
       # Monkey patch: Replace the entire outer function with v2
-      code_v2 = """
-def mutable_test_function():
-  def dynamic_function():
-    return "version2"
+      code_v2 = textwrap.dedent("""
+      def mutable_test_function():
+        def dynamic_function():
+          return "version2"
 
-    return dynamic_function
-"""
+      return dynamic_function
+      """)
       namespace = {}
       exec(code_v2, namespace)
       module_test.mutable_test_function = namespace['mutable_test_function']
