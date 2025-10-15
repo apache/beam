@@ -55,6 +55,8 @@ In June, I officially started the project development and maintained close commu
 
 In July and August, I made some modifications to the plugin's source code structure and published it on PyPI to facilitate user installation and promote the plugin. During this period, I also fixed several bugs. Afterwards, I began developing a new feature: the YAML visual editor (design doc [HERE](https://s.apache.org/beam-yaml-jupyterlab)). This feature is particularly meaningful because Beam's Pipeline is described through YAML files, and a visual editor for YAML files can significantly improve developers' efficiency. In July, I published the proposal for the YAML visual editor and, after gathering feedback from the community for some time, started working on its development. Initially, I planned to use native Cytoscape to build the plugin from scratch, but the workload was too heavy, and there were many mature flow chart plugins in the open-source community that could be referenced. Therefore, I chose XYFlow as the component for flow visualization and integrated it into the plugin. In August, I further optimized the YAML visual editor and fixed some bugs.
 
+<img src="/images/blog/gsoc-25-jupyterlab-extensions/Yaml_main.png" alt="Main page of the YAML visual editor" width="100%">
+
 In September, I completed the project submission, passed Google's review, and successfully concluded the project.
 
 # Development Conclusion
