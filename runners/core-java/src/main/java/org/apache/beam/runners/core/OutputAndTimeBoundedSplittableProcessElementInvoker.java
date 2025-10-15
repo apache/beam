@@ -425,24 +425,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
-    public void outputWindowedValue(
-        OutputT value,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      noteOutput();
-      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
-        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
-      }
-      outputReceiver.output(
-          mainOutputTag,
-          WindowedValues.of(
-              value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
-    }
-
-    @Override
     public <T> void output(TupleTag<T> tag, T value) {
       outputWithTimestamp(tag, value, element.getTimestamp());
     }
@@ -460,26 +442,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      outputWindowedValue(tag, value, timestamp, windows, paneInfo, null, null);
-    }
-
-    @Override
-    public <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T value,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
       noteOutput();
       if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
-      outputReceiver.output(
-          tag,
-          WindowedValues.of(
-              value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset));
+      outputReceiver.output(tag, WindowedValues.of(value, timestamp, windows, paneInfo));
     }
 
     private void noteOutput() {
