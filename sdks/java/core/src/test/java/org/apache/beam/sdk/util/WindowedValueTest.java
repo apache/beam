@@ -92,7 +92,7 @@ public class WindowedValueTest {
             PaneInfo.NO_FIRING,
             null,
             null,
-            true);
+            true); // drain is persisted as part of metadata
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
