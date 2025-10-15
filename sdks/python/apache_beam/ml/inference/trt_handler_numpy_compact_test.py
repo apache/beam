@@ -42,6 +42,7 @@ try:
 except ImportError:
   GCSFileSystem = None  # type: ignore
 
+
 #  Check if TensorRT is actually available (not just importable)
 def _is_tensorrt_available():
   """Check if TensorRT can be imported and used."""
@@ -50,6 +51,7 @@ def _is_tensorrt_available():
     return True
   except (ImportError, ModuleNotFoundError):
     return False
+
 
 TENSORRT_AVAILABLE = _is_tensorrt_available()
 
@@ -223,8 +225,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
         model_copies=3)
     self.assertEqual(handler.model_copies(), 3)
 
-  @unittest.skipIf(
-      not TENSORRT_AVAILABLE, 'TensorRT 10.x is not installed')
+  @unittest.skipIf(not TENSORRT_AVAILABLE, 'TensorRT 10.x is not installed')
   def test_inference_with_onnx_build_on_worker(self):
     """Test loading ONNX and building engine on worker."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -271,8 +272,7 @@ class TensorRTEngineHandlerNumPyTest(unittest.TestCase):
 @pytest.mark.uses_tensorrt
 class TensorRTEngineTest(unittest.TestCase):
   """Tests for TensorRTEngine wrapper class."""
-  @unittest.skipIf(
-      not TENSORRT_AVAILABLE, 'TensorRT 10.x is not installed')
+  @unittest.skipIf(not TENSORRT_AVAILABLE, 'TensorRT 10.x is not installed')
   def test_engine_initialization(self):
     """Test that TensorRTEngine initializes correctly."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -300,8 +300,7 @@ class TensorRTEngineTest(unittest.TestCase):
 @pytest.mark.uses_tensorrt
 class TensorRTRunInferencePipelineTest(unittest.TestCase):
   """Integration tests for TensorRT handler in Beam pipelines."""
-  @unittest.skipIf(
-      not TENSORRT_AVAILABLE, 'TensorRT 10.x is not installed')
+  @unittest.skipIf(not TENSORRT_AVAILABLE, 'TensorRT 10.x is not installed')
   def test_pipeline_with_onnx_model(self):
     """Test full pipeline with ONNX model built on worker."""
     with tempfile.TemporaryDirectory() as tmpdir:
