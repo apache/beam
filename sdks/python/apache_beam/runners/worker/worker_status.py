@@ -152,13 +152,14 @@ def _active_processing_bundles_state(bundle_processor_cache):
 
     if bundle_processor_cache.processors_being_created:
       active_bundles.append("Processors being created:\n")
+      current_time = time.time()
       for instruction, (bundle_id, thread, creation_time) in (
           bundle_processor_cache.processors_being_created.items()):
         state = '--- instruction %s ---\n' % instruction
         state += 'ProcessBundleDescriptorId: %s\n' % bundle_id
         state += "tracked thread: %s\n" % thread
         state += "time since creation started: %.2f seconds\n" % (
-            time.time() - creation_time)
+            current_time - creation_time)
         active_bundles.append(state)
 
   active_bundles.append('=' * 30)
@@ -315,8 +316,8 @@ class FnApiWorkerStatusHandler(object):
       return
 
     log_lull = (
-        self._passed_lull_timeout_since_last_log() and
-        sampler_info.time_since_transition > self.log_lull_timeout_ns)
+        sampler_info.time_since_transition > self.log_lull_timeout_ns and
+        self._passed_lull_timeout_since_last_log())
     timeout_exceeded = (
         self._element_processing_timeout_ns and
         sampler_info.time_since_transition
