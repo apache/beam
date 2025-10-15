@@ -29,8 +29,6 @@ from collections.abc import Iterable
 from io import BytesIO
 from typing import Optional
 
-from google.genai.types import GenerateContentResponse
-
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import PredictionResult
