@@ -37,7 +37,8 @@ Example Usage:
     --runner=DataflowRunner \\
     --project=my-project \\
     --region=us-central1 \\
-    --experiment=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver
+    --experiment=worker_accelerator=type:nvidia-tesla-t4;count:1;\
+install-nvidia-driver
 
   # Using pre-built engine (for optimal performance)
   python tensorrt_resnet50_inference.py \\
@@ -148,8 +149,8 @@ def parse_known_args(argv):
       '--engine_path',
       dest='engine_path',
       help='Path to pre-built TensorRT engine (.engine). '
-      'Provides best performance but requires matching GPU/CUDA/TensorRT versions.'
-  )
+      'Provides best performance but requires matching '
+      'GPU/CUDA/TensorRT versions.')
 
   parser.add_argument(
       '--input',
