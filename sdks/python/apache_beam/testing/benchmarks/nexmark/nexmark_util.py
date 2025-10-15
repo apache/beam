@@ -46,7 +46,6 @@ from apache_beam.testing.benchmarks.nexmark.models import nexmark_json_util
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
 from apache_beam.transforms import window
-from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
