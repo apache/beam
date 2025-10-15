@@ -320,9 +320,10 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     try:
       # Monkey patch: Replace the entire outer function with v2
       code_v2 = """
-  def mutable_test_function():
+    def mutable_test_function():
       def dynamic_function():
-          return "version2"
+        return "version2"
+
       return dynamic_function
   """
       namespace = {}
