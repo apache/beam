@@ -293,16 +293,12 @@ public class WindowedValues {
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
-    return of(value, timestamp, window, paneInfo, null);
+    return of(value, timestamp, window, paneInfo, false);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
   public static <T> WindowedValue<T> of(
-      T value,
-      Instant timestamp,
-      BoundedWindow window,
-      PaneInfo paneInfo,
-      @Nullable Boolean draining) {
+      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, boolean draining) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
@@ -321,7 +317,7 @@ public class WindowedValues {
    * default timestamp and pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value) {
-    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null, null);
+    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null, false);
   }
 
   /**
@@ -329,7 +325,7 @@ public class WindowedValues {
    * default timestamp and the specified pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo paneInfo) {
-    return new ValueInGlobalWindow<>(value, paneInfo, null, null, null);
+    return new ValueInGlobalWindow<>(value, paneInfo, null, null, false);
   }
 
   /**
@@ -341,7 +337,7 @@ public class WindowedValues {
       return valueInGlobalWindow(value);
     } else {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, PaneInfo.NO_FIRING, null, null, null);
+          value, timestamp, PaneInfo.NO_FIRING, null, null, false);
     }
   }
 
@@ -354,7 +350,7 @@ public class WindowedValues {
     if (paneInfo.equals(PaneInfo.NO_FIRING)) {
       return timestampedValueInGlobalWindow(value, timestamp);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null, null);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null, false);
     }
   }
 
@@ -422,7 +418,7 @@ public class WindowedValues {
     private final PaneInfo paneInfo;
     private final @Nullable String currentRecordId;
     private final @Nullable Long currentRecordOffset;
-    private final @Nullable Boolean draining;
+    private final boolean draining;
 
     @Override
     public @Nullable String getRecordId() {
@@ -444,7 +440,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        @Nullable Boolean draining) {
+        boolean draining) {
       this.value = value;
       this.paneInfo = checkNotNull(paneInfo);
       this.currentRecordId = currentRecordId;
@@ -498,7 +494,7 @@ public class WindowedValues {
         PaneInfo pane,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        @Nullable Boolean draining) {
+        boolean draining) {
       super(value, pane, currentRecordId, currentRecordOffset, draining);
     }
 
@@ -517,7 +513,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        @Nullable Boolean draining) {
+        boolean draining) {
       super(value, paneInfo, currentRecordId, currentRecordOffset, draining);
     }
 
@@ -573,7 +569,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        @Nullable Boolean draining) {
+        boolean draining) {
       super(value, paneInfo, currentRecordId, currentRecordOffset, draining);
       this.timestamp = checkNotNull(timestamp);
     }
@@ -597,7 +593,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        @Nullable Boolean draining) {
+        boolean draining) {
       super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, draining);
     }
 
@@ -665,7 +661,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        @Nullable Boolean draining) {
+        boolean draining) {
       super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, draining);
       this.window = checkNotNull(window);
     }
@@ -737,7 +733,7 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        @Nullable Boolean draining) {
+        boolean draining) {
       super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, draining);
       this.windows = checkNotNull(windows);
     }
@@ -913,7 +909,7 @@ public class WindowedValues {
         BeamFnApi.Elements.ElementMetadata em =
             builder
                 .setDrain(
-                    Boolean.TRUE.equals(windowedElem.isDraining())
+                    windowedElem.isDraining()
                         ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
                         : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
                 .build();
