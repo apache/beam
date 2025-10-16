@@ -110,6 +110,7 @@
 * Python examples added for CloudSQL enrichment handler on [Beam website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-cloudsql/) (Python) ([#35473](https://github.com/apache/beam/issues/36095)).
 * Support for batch mode execution in WriteToPubSub transform added (Python) ([#35990](https://github.com/apache/beam/issues/35990)).
 * Added official support for Python 3.13 ([#34869](https://github.com/apache/beam/issues/34869)).
+* Added an optional output_schema verification to all YAML transforms ([#35952](https://github.com/apache/beam/issues/35952)).
 * Support for encryption when using GroupByKey added, along with `--gbek` pipeline option to automatically replace all GroupByKey transforms (Java/Python) ([#36214](https://github.com/apache/beam/issues/36214)).
 
 ## Breaking Changes
