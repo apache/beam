@@ -123,12 +123,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract void output(OutputT output, Instant timestamp, BoundedWindow window);
 
-    public abstract void output(
-        OutputT output,
-        Instant timestamp,
-        BoundedWindow window,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
     /**
      * Adds the given element to the output {@code PCollection} with the given tag at the given
      * timestamp in the given window.
@@ -140,14 +134,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract <T> void output(
         TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window);
-
-    public abstract <T> void output(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        BoundedWindow window,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
   }
 
   /**
@@ -226,14 +212,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo);
 
-    public abstract void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
-
     /**
      * Adds the given element to the output {@code PCollection} with the given tag.
      *
@@ -306,15 +284,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo);
-
-    public abstract <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
   }
 
   /** Information accessible when running a {@link DoFn.ProcessElement} method. */

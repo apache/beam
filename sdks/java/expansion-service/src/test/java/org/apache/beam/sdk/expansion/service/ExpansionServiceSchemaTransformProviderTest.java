@@ -431,7 +431,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
 
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.Environment environment =
-        response.getComponents().getEnvironments().get("namespacebeam:env:docker:v1");
+        response.getComponents().getEnvironmentsMap().get("namespacebeam:env:docker:v1");
     RunnerApi.ArtifactInformation artifact = environment.getDependencies(0);
     ArtifactApi.ResolveArtifactsRequest artifactRequest =
         ArtifactApi.ResolveArtifactsRequest.newBuilder().addArtifacts(artifact).build();

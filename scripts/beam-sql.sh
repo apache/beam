@@ -22,7 +22,7 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # --- Configuration ---
-DEFAULT_BEAM_VERSION="2.67.0"
+DEFAULT_BEAM_VERSION="2.70.0"
 MAIN_CLASS="org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
 # Directory to store cached executable JAR files
 CACHE_DIR="${HOME}/.beam/cache"
