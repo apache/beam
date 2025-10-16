@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package errors contains functionality for set up structural logger level and kind.
+// Package logconfig contains functionality for set up structural logger level and kind.
 package logconfig
 
 import (
