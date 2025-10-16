@@ -87,7 +87,7 @@ public class KerberosConsumerFactoryFnTest {
   @SuppressWarnings("rawtypes")
   public void testHappyGcsPath() {
     String keytabGcsPath = "gs://sec-bucket/keytabs/my.keytab";
-    String expectedKrb5LocalPath = "/tmp/kerberos/krb5.conf";
+    String expectedKrb5LocalPath = "/tmp/kerberos/sec-bucket/kerberos/krb5.conf";
     String expectedKeytabLocalPath = "/tmp/kerberos/sec-bucket/keytabs/my.keytab";
 
     Map<String, Object> config = new HashMap<>();
@@ -98,8 +98,12 @@ public class KerberosConsumerFactoryFnTest {
             + "\" principal=\"user@REALM\";");
 
     factory = spy(new KerberosConsumerFactoryFn(KRB5_GCS_PATH));
+    // This mock prevents the spy from calling the real createObject method,
+    // which would otherwise crash.
+    Mockito.doReturn(null).when(factory).createObject(ArgumentMatchers.anyMap());
+
     try (MockedStatic<FileAwareFactoryFn> mockedStaticFactory =
-            Mockito.mockStatic(FileAwareFactoryFn.class);
+            Mockito.mockStatic(FileAwareFactoryFn.class, Mockito.CALLS_REAL_METHODS);
         MockedStatic<Configuration> mockedConfiguration = Mockito.mockStatic(Configuration.class);
         MockedStatic<Files> mockedFiles = Mockito.mockStatic(Files.class);
         MockedConstruction<KafkaConsumer> mockedConsumer =
@@ -108,11 +112,16 @@ public class KerberosConsumerFactoryFnTest {
       Assert.assertNotNull(mockedConsumer);
       // Mock the static downloadExternalFile method to prevent any GCS interaction
       mockedStaticFactory
-          .when(() -> FileAwareFactoryFn.downloadExternalFile(KRB5_GCS_PATH, expectedKrb5LocalPath))
+          .when(
+              () ->
+                  FileAwareFactoryFn.downloadExternalFile(
+                      ArgumentMatchers.eq(KRB5_GCS_PATH), ArgumentMatchers.anyString()))
           .thenReturn(expectedKrb5LocalPath);
       mockedStaticFactory
           .when(
-              () -> FileAwareFactoryFn.downloadExternalFile(keytabGcsPath, expectedKeytabLocalPath))
+              () ->
+                  FileAwareFactoryFn.downloadExternalFile(
+                      ArgumentMatchers.eq(keytabGcsPath), ArgumentMatchers.anyString()))
           .thenReturn(expectedKeytabLocalPath);
 
       Configuration mockConf = Mockito.mock(Configuration.class);
@@ -150,7 +159,7 @@ public class KerberosConsumerFactoryFnTest {
   @SuppressWarnings("rawtypes")
   public void testHappyS3Path() {
     String keytabPath = "s3://sec-bucket/keytabs/my.keytab";
-    String expectedKrb5LocalPath = "/tmp/kerberos/krb5.conf";
+    String expectedKrb5LocalPath = "/tmp/kerberos/sec-bucket/kerberos/krb5.conf";
     String expectedKeytabLocalPath = "/tmp/kerberos/sec-bucket/keytabs/my.keytab";
 
     Map<String, Object> config = new HashMap<>();
@@ -160,20 +169,30 @@ public class KerberosConsumerFactoryFnTest {
             + keytabPath
             + "\" principal=\"user@REALM\";");
     factory = spy(new KerberosConsumerFactoryFn(KRB5_S3_PATH));
+    // This mock prevents the spy from calling the real createObject method,
+    // which would otherwise crash.
+    Mockito.doReturn(null).when(factory).createObject(ArgumentMatchers.anyMap());
+
     try (MockedStatic<FileAwareFactoryFn> mockedStaticFactory =
-            Mockito.mockStatic(FileAwareFactoryFn.class);
+            Mockito.mockStatic(FileAwareFactoryFn.class, Mockito.CALLS_REAL_METHODS);
         MockedStatic<Configuration> mockedConfiguration = Mockito.mockStatic(Configuration.class);
         MockedStatic<Files> mockedFiles = Mockito.mockStatic(Files.class);
         MockedConstruction<KafkaConsumer> mockedConsumer =
             Mockito.mockConstruction(KafkaConsumer.class)) {
 
       Assert.assertNotNull(mockedConsumer);
-      // Mock the static downloadExternalFile method to prevent any GCS interaction
+      // Mock the static downloadExternalFile method to prevent any interaction
       mockedStaticFactory
-          .when(() -> FileAwareFactoryFn.downloadExternalFile(KRB5_S3_PATH, expectedKrb5LocalPath))
+          .when(
+              () ->
+                  FileAwareFactoryFn.downloadExternalFile(
+                      ArgumentMatchers.eq(KRB5_S3_PATH), ArgumentMatchers.anyString()))
           .thenReturn(expectedKrb5LocalPath);
       mockedStaticFactory
-          .when(() -> FileAwareFactoryFn.downloadExternalFile(keytabPath, expectedKeytabLocalPath))
+          .when(
+              () ->
+                  FileAwareFactoryFn.downloadExternalFile(
+                      ArgumentMatchers.eq(keytabPath), ArgumentMatchers.anyString()))
           .thenReturn(expectedKeytabLocalPath);
 
       Configuration mockConf = Mockito.mock(Configuration.class);
@@ -205,5 +224,19 @@ public class KerberosConsumerFactoryFnTest {
       // 3. Verify that the JAAS configuration was refreshed.
       Mockito.verify(mockConf).refresh();
     }
+  }
+
+  @Test
+  public void testInvalidKrb5ConfPathThrowsException() {
+    // Arrange
+    String invalidPath = "not-a-gcs-path"; // This path is missing the "gs://" prefix
+    factory = new KerberosConsumerFactoryFn(invalidPath);
+    Map<String, Object> config = new HashMap<>();
+
+    // Act & Assert
+    RuntimeException ex = Assert.assertThrows(RuntimeException.class, () -> factory.apply(config));
+
+    Assert.assertTrue(ex.getMessage().contains("Failed trying to process extra files"));
+    Assert.assertTrue(ex.getCause() instanceof IOException);
   }
 }

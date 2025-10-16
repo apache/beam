@@ -45,7 +45,6 @@ import org.slf4j.LoggerFactory;
 public abstract class FileAwareFactoryFn<T>
     implements SerializableFunction<Map<String, Object>, T> {
 
-  public static String externalBucketPrefix = "";
   public static final String SECRET_VALUE_PREFIX = "secretValue:";
   public static final String DIRECTORY_PREFIX = "/tmp";
   private static final Pattern PATH_PATTERN =
