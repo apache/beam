@@ -54,7 +54,7 @@ def _retry_on_appropriate_service_error(exception: Exception) -> bool:
   return exception.code == 429 or exception.code >= 500
 
 
-def generate_text_from_string(
+def generate_from_string(
     model_name: str,
     batch: Sequence[str],
     model: genai.Client,
