@@ -308,7 +308,7 @@ pipeline:
       name: WritePredictionsBQ
       input: FormatInferenceOutput
       config:
-        table: "{{ PROJECT }}.{{ DATASET }}.{{ TABLE }}"
+        table: "{{ BQ_TABLE }}"
         create_disposition: "CREATE_IF_NEEDED"
         write_disposition: "WRITE_APPEND"
 

@@ -23,4 +23,4 @@
 #     - email: "user1@google.com"
 #     - email: "user2@google.com"
 
-service_accounts:
+service_accounts: []

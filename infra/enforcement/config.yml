@@ -32,6 +32,7 @@ service_account_keys_file: ../keys/keys.yaml
 # Action to perform when running the script
 # Options:
 #   - check: Check compliance and report issues (default)
-#   - issue: Create GitHub issue if compliance violations are found
+#   - announce: Create/update GitHub issue and send email if compliance violations are found
+#   - print: Print announcement details for testing purposes
 #   - generate: Generate new compliance file based on current IAM policy
-action: check
+action: announce

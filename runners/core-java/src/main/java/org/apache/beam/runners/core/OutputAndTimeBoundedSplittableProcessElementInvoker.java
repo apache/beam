@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermark
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -180,7 +181,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
               @Override
               public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedReceiver(processContext, null);
+                return DoFnOutputReceivers.windowedReceiver(
+                    processContext, OutputBuilderSuppliers.supplierForElement(element), null);
               }
 
               @Override
@@ -190,7 +192,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
               @Override
               public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
+                return DoFnOutputReceivers.windowedMultiReceiver(
+                    processContext, OutputBuilderSuppliers.supplierForElement(element));
               }
 
               @Override
@@ -381,6 +384,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public PaneInfo pane() {
       return element.getPaneInfo();
+    }
+
+    @Override
+    public String currentRecordId() {
+      return element.getRecordId();
+    }
+
+    @Override
+    public Long currentRecordOffset() {
+      return element.getRecordOffset();
     }
 
     @Override

@@ -22,10 +22,13 @@
 # sunset it
 from __future__ import annotations
 
+import datetime
 import hashlib
+import json
 import logging
 import os
 import platform
+import re
 import shutil
 import stat
 import subprocess
@@ -73,9 +76,9 @@ class PrismRunner(portable_runner.PortableRunner):
     debug_options = options.view_as(pipeline_options.DebugOptions)
     get_job_server = lambda: job_server.StopOnExitJobServer(
         PrismJobServer(options))
-    if debug_options.lookup_experiment("enable_prism_server_singleton"):
-      return PrismRunner.shared_handle.acquire(get_job_server)
-    return get_job_server()
+    if debug_options.lookup_experiment("disable_prism_server_singleton"):
+      return get_job_server()
+    return PrismRunner.shared_handle.acquire(get_job_server)
 
   def create_job_service_handle(self, job_service, options):
     return portable_runner.JobServiceHandle(
@@ -111,11 +114,66 @@ def _rename_if_different(src, dst):
     os.rename(src, dst)
 
 
+class PrismRunnerLogFilter(logging.Filter):
+  COMMON_FIELDS = set(["level", "source", "msg", "time"])
+
+  def filter(self, record):
+    if record.funcName == 'log_stdout':
+      try:
+        message = record.getMessage()
+        json_record = json.loads(message)
+        level_str = json_record["level"]
+        # Example level with offset: 'ERROR+2'
+        if "+" in level_str or "-" in level_str:
+          match = re.match(r"([A-Z]+)([+-]\d+)", level_str)
+          if match:
+            base, offset = match.groups()
+            base_level = getattr(logging, base, logging.INFO)
+            record.levelno = base_level + int(offset)
+          else:
+            record.levelno = getattr(logging, level_str, logging.INFO)
+        else:
+          record.levelno = getattr(logging, level_str, logging.INFO)
+        record.levelname = logging.getLevelName(record.levelno)
+        if "source" in json_record:
+          record.funcName = json_record["source"]["function"]
+          record.pathname = json_record["source"]["file"]
+          record.filename = os.path.basename(record.pathname)
+          record.lineno = json_record["source"]["line"]
+        record.created = datetime.datetime.fromisoformat(
+            json_record["time"]).timestamp()
+        extras = {
+            k: v
+            for k, v in json_record.items()
+            if k not in PrismRunnerLogFilter.COMMON_FIELDS
+        }
+
+        if json_record["msg"] == "log from SDK worker":
+          # TODO: Use location and time inside the nested message to set record
+          record.name = "SdkWorker" + "@" + json_record["worker"]["ID"]
+          record.msg = json_record["sdk"]["msg"]
+        else:
+          record.name = "PrismRunner"
+          record.msg = (
+              f"{json_record['msg']} "
+              f"({', '.join(f'{k}={v!r}' for k, v in extras.items())})")
+      except (json.JSONDecodeError,
+              KeyError,
+              ValueError,
+              TypeError,
+              AttributeError):
+        # The log parsing/filtering is best-effort.
+        pass
+
+    return True  # Always return True to allow the record to pass.
+
+
 class PrismJobServer(job_server.SubprocessJobServer):
   BIN_CACHE = os.path.expanduser("~/.apache_beam/cache/prism/bin")
 
   def __init__(self, options):
     super().__init__()
+
     prism_options = options.view_as(pipeline_options.PrismRunnerOptions)
     # Options flow:
     # If the path is set, always download and unzip the provided path,
@@ -131,6 +189,12 @@ class PrismJobServer(job_server.SubprocessJobServer):
     self._job_port = job_options.job_port
 
     self._log_level = prism_options.prism_log_level
+    self._log_kind = prism_options.prism_log_kind
+
+    # override console to json with log filter enabled
+    if self._log_kind == "console":
+      self._log_kind = "json"
+      self._log_filter = PrismRunnerLogFilter()
 
   # the method is only kept for testing and backward compatibility
   @classmethod
@@ -429,6 +493,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
         job_port,
         '--log_level',
         self._log_level,
-        '--serve_http',
-        False,
+        '--log_kind',
+        self._log_kind,
+        # Go does not support "-flag x" format for boolean flags.
+        '--serve_http=false',
     ]

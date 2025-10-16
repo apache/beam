@@ -23,6 +23,7 @@ labels:
       - jrmccluskey
       - lostluck
       - shunping
+      - liferoad
     exclusionList: []
   - name: Python
     reviewers:
@@ -60,6 +61,7 @@ labels:
     reviewers:
       - Abacn
       - damccorm
+      - liferoad
     exclusionList: []
   - name: website
     reviewers:

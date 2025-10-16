@@ -98,6 +98,7 @@ var directFilters = []string{
 	"TestValueStateClear",
 	"TestBagState",
 	"TestBagStateClear",
+	"TestBagStateBlindWrite",
 	"TestCombiningState",
 	"TestMapState",
 	"TestMapStateClear",
@@ -170,6 +171,7 @@ var flinkFilters = []string{
 	"TestBigQueryIO.*",
 	"TestBigtableIO.*",
 	"TestSpannerIO.*",
+	"TestTriggerAfterProcessingTime",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
 	// The flink runner does not support pipeline drain for SDF.
@@ -240,6 +242,7 @@ var samzaFilters = []string{
 
 	// Samza does not support state.
 	"TestTimers.*",
+	"TestBagStateBlindWrite",
 
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
@@ -275,9 +278,9 @@ var sparkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	"TestTimers_EventTime_Unbounded",     // Side inputs in executable stage not supported.
-	"TestTimers_ProcessingTime_Infinity", // Spark doesn't support test stream.
-
+	"TestTimers_EventTime_Unbounded",      // Side inputs in executable stage not supported.
+	"TestTimers_ProcessingTime_Infinity",  // Spark doesn't support test stream.
+	"TestTimers_ProcessingTime_Unbounded", // Side inputs in executable stage not supported.
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
 }

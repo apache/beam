@@ -21,6 +21,7 @@ from typing import NamedTuple
 
 import apache_beam as beam
 from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.yaml.yaml_utils import SafeLineLoader
 
 
 class ErrorHandlingConfig(NamedTuple):
@@ -35,9 +36,11 @@ class ErrorHandlingConfig(NamedTuple):
 
 def exception_handling_args(error_handling_spec):
   if error_handling_spec:
+    # error_handling_spec may have come from a yaml file and have metadata.
+    clean_spec = SafeLineLoader.strip_metadata(error_handling_spec)
     return {
         'dead_letter_tag' if k == 'output' else k: v
-        for (k, v) in error_handling_spec.items()
+        for (k, v) in clean_spec.items()
     }
   else:
     return None

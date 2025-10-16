@@ -230,6 +230,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            WindmillStateTagUtil.instance(),
             readStateSupplier);
     underTestNewKey =
         new WindmillStateInternals<String>(
@@ -245,6 +246,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            WindmillStateTagUtil.instance(),
             readStateSupplier);
     underTestMapViaMultimap =
         new WindmillStateInternals<String>(
@@ -260,6 +262,7 @@ public class WindmillStateInternalsTest {
                     17L,
                     workToken)
                 .forFamily(STATE_FAMILY),
+            WindmillStateTagUtil.instance(),
             readStateSupplier);
   }
 
@@ -272,16 +275,12 @@ public class WindmillStateInternalsTest {
   }
 
   private <T> void waitAndSet(final SettableFuture<T> future, final T value, final long millis) {
-    new Thread(
-            () -> {
-              try {
-                sleepMillis(millis);
-              } catch (InterruptedException e) {
-                throw new RuntimeException("Interrupted before setting", e);
-              }
-              future.set(value);
-            })
-        .run();
+    try {
+      sleepMillis(millis);
+    } catch (InterruptedException e) {
+      throw new RuntimeException("Interrupted before setting", e);
+    }
+    future.set(value);
   }
 
   private WeightedList<String> weightedList(String... elems) {

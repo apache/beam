@@ -131,6 +131,7 @@ public class Select {
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
     // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
+    @SuppressWarnings("unused")
     @FieldAccess("selectFields")
     final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withAllFields();
 

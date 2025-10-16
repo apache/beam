@@ -24,6 +24,7 @@
 
 name: Code Completion Plugin Tests
 on:
+  workflow_dispatch:
   push:
     branches-ignore:
       - 'master'
@@ -69,11 +70,11 @@ jobs:
 
       # Validate wrapper
       - name: Gradle Wrapper Validation
-        uses: gradle/wrapper-validation-action@v1.0.6
+        uses: gradle/wrapper-validation-action@v3.5.0
 
       # Setup Java environment for the next steps
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '11'

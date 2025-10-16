@@ -378,6 +378,14 @@ class DataflowRunner(PipelineRunner):
       # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
+      # Apply DataflowRunner-specific overrides (e.g., streaming PubSub
+      # optimizations)
+      from apache_beam.runners.dataflow.ptransform_overrides import (
+          get_dataflow_transform_overrides)
+      dataflow_overrides = get_dataflow_transform_overrides(options)
+      if dataflow_overrides:
+        pipeline.replace_all(dataflow_overrides)
+
       if options.view_as(DebugOptions).lookup_experiment('use_legacy_bq_sink'):
         warnings.warn(
             "Native sinks no longer implemented; "
@@ -594,8 +602,15 @@ def _check_and_add_missing_options(options):
   debug_options = options.view_as(DebugOptions)
   dataflow_service_options = options.view_as(
       GoogleCloudOptions).dataflow_service_options or []
-  options.view_as(
-      GoogleCloudOptions).dataflow_service_options = dataflow_service_options
+
+  # Add use_gbek to dataflow_service_options if gbek is set.
+  if options.view_as(SetupOptions).gbek:
+    if 'use_gbek' not in dataflow_service_options:
+      dataflow_service_options.append('use_gbek')
+  elif 'use_gbek' in dataflow_service_options:
+    raise ValueError(
+        'Do not set use_gbek directly, pass in the --gbek pipeline option '
+        'with a valid secret instead.')
 
   _add_runner_v2_missing_options(options)
 
@@ -605,6 +620,9 @@ def _check_and_add_missing_options(options):
     debug_options.add_experiment('enable_prime')
   elif debug_options.lookup_experiment('enable_prime'):
     dataflow_service_options.append('enable_prime')
+
+  options.view_as(
+      GoogleCloudOptions).dataflow_service_options = dataflow_service_options
 
   sdk_location = options.view_as(SetupOptions).sdk_location
   if 'dev' in beam.version.__version__ and sdk_location == 'default':
@@ -633,23 +651,8 @@ def _check_and_add_missing_streaming_options(options):
   # Runner v2 only supports using streaming engine (aka windmill service)
   if options.view_as(StandardOptions).streaming:
     debug_options = options.view_as(DebugOptions)
-    google_cloud_options = options.view_as(GoogleCloudOptions)
-    if (not google_cloud_options.enable_streaming_engine and
-        (debug_options.lookup_experiment("enable_windmill_service") or
-         debug_options.lookup_experiment("enable_streaming_engine"))):
-      raise ValueError(
-          """Streaming engine both disabled and enabled:
-          --enable_streaming_engine flag is not set, but
-          enable_windmill_service and/or enable_streaming_engine experiments
-          are present. It is recommended you only set the
-          --enable_streaming_engine flag.""")
-
-    # Ensure that if we detected a streaming pipeline that streaming specific
-    # options and experiments.
-    options.view_as(StandardOptions).streaming = True
-    google_cloud_options.enable_streaming_engine = True
-    debug_options.add_experiment("enable_streaming_engine")
-    debug_options.add_experiment("enable_windmill_service")
+    debug_options.add_experiment('enable_streaming_engine')
+    debug_options.add_experiment('enable_windmill_service')
 
 
 def _is_runner_v2_disabled(options):

@@ -384,7 +384,7 @@ public class StreamingSideInputDoFnRunnerTest {
     assertThat(sideInputFetcher.elementBag(createWindow(0)).read(), Matchers.emptyIterable());
   }
 
-  private <ReceiverT> StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
+  private StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
       WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
       StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
@@ -392,7 +392,7 @@ public class StreamingSideInputDoFnRunnerTest {
     return createRunner(WINDOW_FN, outputManager, views, sideInputFetcher);
   }
 
-  private <ReceiverT> StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
+  private StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
       WindowFn<?, ?> windowFn,
       WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
@@ -415,7 +415,7 @@ public class StreamingSideInputDoFnRunnerTest {
     return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcher);
   }
 
-  private <ReceiverT> StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
+  private StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
       List<PCollectionView<String>> views) throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Iterable<PCollectionView<?>> typedViews = (Iterable) views;

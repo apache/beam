@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -59,7 +60,6 @@ class WindmillTimerInternals implements TimerInternals {
   private static final Instant OUTPUT_TIMESTAMP_MAX_VALUE =
       BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1));
 
-  private static final String TIMER_HOLD_PREFIX = "/h";
   // Map from timer id to its TimerData. If it is to be deleted, we still need
   // its time domain here. Note that TimerData is unique per ID and namespace,
   // though technically in Windmill this is only enforced per ID and namespace
@@ -74,23 +74,26 @@ class WindmillTimerInternals implements TimerInternals {
   private final String stateFamily;
   private final WindmillNamespacePrefix prefix;
   private final Consumer<TimerData> onTimerModified;
+  private final WindmillStateTagUtil windmillStateTagUtil;
 
   public WindmillTimerInternals(
       String stateFamily, // unique identifies a step
       WindmillNamespacePrefix prefix, // partitions user and system namespaces into "/u" and "/s"
       Instant processingTime,
       Watermarks watermarks,
+      WindmillStateTagUtil windmillStateTagUtil,
       Consumer<TimerData> onTimerModified) {
     this.watermarks = watermarks;
     this.processingTime = checkNotNull(processingTime);
     this.stateFamily = stateFamily;
     this.prefix = prefix;
+    this.windmillStateTagUtil = windmillStateTagUtil;
     this.onTimerModified = onTimerModified;
   }
 
   public WindmillTimerInternals withPrefix(WindmillNamespacePrefix prefix) {
     return new WindmillTimerInternals(
-        stateFamily, prefix, processingTime, watermarks, onTimerModified);
+        stateFamily, prefix, processingTime, watermarks, windmillStateTagUtil, onTimerModified);
   }
 
   @Override
@@ -211,7 +214,7 @@ class WindmillTimerInternals implements TimerInternals {
             // Setting a timer, clear any prior hold and set to the new value
             outputBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(timerHoldTag(prefix, timerData))
+                .setTag(windmillStateTagUtil.timerHoldTag(prefix, timerData))
                 .setStateFamily(stateFamily)
                 .setReset(true)
                 .addTimestamps(
@@ -220,7 +223,7 @@ class WindmillTimerInternals implements TimerInternals {
             // Clear the hold in case a previous iteration of this timer set one.
             outputBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(timerHoldTag(prefix, timerData))
+                .setTag(windmillStateTagUtil.timerHoldTag(prefix, timerData))
                 .setStateFamily(stateFamily)
                 .setReset(true);
           }
@@ -235,7 +238,7 @@ class WindmillTimerInternals implements TimerInternals {
           // We are deleting timer; clear the hold
           outputBuilder
               .addWatermarkHoldsBuilder()
-              .setTag(timerHoldTag(prefix, timerData))
+              .setTag(windmillStateTagUtil.timerHoldTag(prefix, timerData))
               .setStateFamily(stateFamily)
               .setReset(true);
         }
@@ -408,55 +411,25 @@ class WindmillTimerInternals implements TimerInternals {
     String tagString;
     if (useNewTimerTagEncoding(timerData)) {
       tagString =
-          new StringBuilder()
-              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-              .append('+')
-              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-              .append('+')
-              .append(timerData.getTimerFamilyId())
-              .toString();
+          prefix.byteString().toStringUtf8()
+              + // this never ends with a slash
+              timerData.getNamespace().stringKey()
+              + // this must begin and end with a slash
+              '+'
+              + timerData.getTimerId()
+              + // this is arbitrary; currently unescaped
+              '+'
+              + timerData.getTimerFamilyId();
     } else {
       // Timers without timerFamily would have timerFamily would be an empty string
       tagString =
-          new StringBuilder()
-              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-              .append('+')
-              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-              .toString();
-    }
-    return ByteString.copyFromUtf8(tagString);
-  }
-
-  /**
-   * Produce a state tag that is guaranteed to be unique for the given timer, to add a watermark
-   * hold that is only freed after the timer fires.
-   */
-  public static ByteString timerHoldTag(WindmillNamespacePrefix prefix, TimerData timerData) {
-    String tagString;
-    if ("".equals(timerData.getTimerFamilyId())) {
-      tagString =
-          new StringBuilder()
-              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(TIMER_HOLD_PREFIX) // this never ends with a slash
-              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-              .append('+')
-              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-              .toString();
-    } else {
-      tagString =
-          new StringBuilder()
-              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(TIMER_HOLD_PREFIX) // this never ends with a slash
-              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-              .append('+')
-              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-              .append('+')
-              .append(
-                  timerData.getTimerFamilyId()) // use to differentiate same timerId in different
-              // timerMap
-              .toString();
+          prefix.byteString().toStringUtf8()
+              + // this never ends with a slash
+              timerData.getNamespace().stringKey()
+              + // this must begin and end with a slash
+              '+'
+              + timerData.getTimerId() // this is arbitrary; currently unescaped
+      ;
     }
     return ByteString.copyFromUtf8(tagString);
   }

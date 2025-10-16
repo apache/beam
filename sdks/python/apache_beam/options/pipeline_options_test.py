@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
@@ -308,6 +309,26 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(result['test_arg_int'], 5)
     self.assertEqual(result['test_arg_none'], None)
 
+  def test_merging_options(self):
+    opts = PipelineOptions(flags=['--num_workers', '5'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api())
+    actual = actual_opts.view_as(WorkerOptions).num_workers
+    self.assertEqual(5, actual)
+
+  def test_merging_options_with_overriden_options(self):
+    opts = PipelineOptions(flags=['--num_workers', '5'])
+    base = PipelineOptions(flags=['--num_workers', '2'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api(), base)
+    actual = actual_opts.view_as(WorkerOptions).num_workers
+    self.assertEqual(5, actual)
+
+  def test_merging_options_with_overriden_runner(self):
+    opts = PipelineOptions(flags=['--runner', 'FnApiRunner'])
+    base = PipelineOptions(flags=['--runner', 'Direct'])
+    actual_opts = PipelineOptions.from_runner_api(opts.to_runner_api(), base)
+    actual = actual_opts.view_as(StandardOptions).runner
+    self.assertEqual('Direct', actual)
+
   def test_from_kwargs(self):
     class MyOptions(PipelineOptions):
       @classmethod
@@ -405,10 +426,18 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(options.get_all_options()['experiments'], None)
 
   def test_worker_options(self):
-    options = PipelineOptions(['--machine_type', 'abc', '--disk_type', 'def'])
+    options = PipelineOptions([
+        '--machine_type',
+        'abc',
+        '--disk_type',
+        'def',
+        '--element_processing_timeout_minutes',
+        '10',
+    ])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertEqual(worker_options.element_processing_timeout_minutes, 10)
 
     options = PipelineOptions(
         ['--worker_machine_type', 'abc', '--worker_disk_type', 'def'])

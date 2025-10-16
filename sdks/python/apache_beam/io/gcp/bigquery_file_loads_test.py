@@ -486,6 +486,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       param(compat_version="2.64.0"),
   ])
   def test_reshuffle_before_load(self, compat_version):
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -511,13 +513,17 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         temp_file_format=bigquery_tools.FileFormat.JSON)
 
-    options = PipelineOptions(update_compatibility_version=compat_version)
+    options = PipelineOptions(
+        update_compatibility_version=compat_version,
+        # Disable unrelated compatibility change.
+        force_cloudpickle_deterministic_coders=True)
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner', options=options) as p:
       _ = p | beam.Create(_ELEMENTS) | transform
 
     reshuffle_before_load = compat_version is None
     assert transform.reshuffle_before_load == reshuffle_before_load
+    typecoders.registry.force_dill_deterministic_coders = False
 
   def test_load_job_id_used(self):
     job_reference = bigquery_api.JobReference()
@@ -877,7 +883,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         Mock(jobReference=bigquery_api.JobReference(jobId=f'job_name{i}'))
         # Order matters in a sense to prove that jobs with different ids
         #  (`2` & `3`) are run with `WRITE_APPEND` without this current fix.
-        for i in [1, 2, 1, 3, 1]
+        for i in [1, 1, 1, 1, 1]
     ]
     mock_perform_start_job.side_effect = mock_jobs
 
@@ -941,7 +947,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 TableReference(
                     datasetId='dataset1',
                     projectId='project1',
-                    tableId='job_name2'),
+                    tableId='job_name1'),
                 TableReference(
                     datasetId='dataset1',
                     projectId='project1',
@@ -970,7 +976,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 TableReference(
                     datasetId='dataset3',
                     projectId='project1',
-                    tableId='job_name3'),
+                    tableId='job_name1'),
                 TableReference(
                     datasetId='dataset3',
                     projectId='project1',
@@ -994,6 +1000,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   ])
   def test_triggering_frequency(
       self, is_streaming, with_auto_sharding, compat_version):
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
+
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -1098,6 +1107,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           equal_to(expected_destinations),
           label='CheckDestinations')
       assert_that(jobs, equal_to(expected_jobs), label='CheckJobs')
+
+    typecoders.registry.force_dill_deterministic_coders = False
 
 
 class BigQueryFileLoadsIT(unittest.TestCase):

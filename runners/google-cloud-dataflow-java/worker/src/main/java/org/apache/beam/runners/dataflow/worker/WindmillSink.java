@@ -18,17 +18,19 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -40,9 +42,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +56,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
+
   private WindmillStreamWriter writer;
   private final Coder<T> valueCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -69,15 +74,39 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     this.context = context;
   }
 
+  private static ByteString encodeMetadata(
+      ByteStringOutputStream stream,
+      Coder<Collection<? extends BoundedWindow>> windowsCoder,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      BeamFnApi.Elements.ElementMetadata metadata)
+      throws IOException {
+    try {
+      // element metadata is behind the experiment
+      boolean elementMetadata = WindowedValues.WindowedValueCoder.isMetadataSupported();
+      if (elementMetadata) {
+        PaneInfoCoder.INSTANCE.encode(paneInfo.withElementMetadata(true), stream);
+        windowsCoder.encode(windows, stream);
+        ByteArrayCoder.of().encode(metadata.toByteArray(), stream, Coder.Context.OUTER);
+      } else {
+        PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
+        windowsCoder.encode(windows, stream, Coder.Context.OUTER);
+      }
+      return stream.toByteStringAndReset();
+    } catch (Exception e) {
+      stream.reset();
+      throw e;
+    }
+  }
+
   public static ByteString encodeMetadata(
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo)
+      PaneInfo paneInfo,
+      BeamFnApi.Elements.ElementMetadata metadata)
       throws IOException {
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
-    windowsCoder.encode(windows, stream, Coder.Context.OUTER);
-    return stream.toByteString();
+    return encodeMetadata(stream, windowsCoder, windows, paneInfo, metadata);
   }
 
   public static PaneInfo decodeMetadataPane(ByteString metadata) throws IOException {
@@ -85,12 +114,27 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     return PaneInfoCoder.INSTANCE.decode(inStream);
   }
 
+  public static BeamFnApi.Elements.ElementMetadata decodeAdditionalMetadata(
+      Coder<Collection<? extends BoundedWindow>> windowsCoder, ByteString metadata)
+      throws IOException {
+    InputStream inStream = metadata.newInput();
+    PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+    windowsCoder.decode(inStream);
+    if (paneInfo.isElementMetadata()) {
+      return BeamFnApi.Elements.ElementMetadata.parseFrom(
+          ByteArrayCoder.of().decode(inStream, Coder.Context.OUTER));
+    } else {
+      // empty
+      return BeamFnApi.Elements.ElementMetadata.newBuilder().build();
+    }
+  }
+
   public static Collection<? extends BoundedWindow> decodeMetadataWindows(
       Coder<Collection<? extends BoundedWindow>> windowsCoder, ByteString metadata)
       throws IOException {
     InputStream inStream = metadata.newInput();
     PaneInfoCoder.INSTANCE.decode(inStream);
-    return windowsCoder.decode(inStream, Coder.Context.OUTER);
+    return windowsCoder.decode(inStream);
   }
 
   /** A {@link SinkFactory.Registrar} for windmill sinks. */
@@ -107,6 +151,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   }
 
   public static class Factory implements SinkFactory {
+
     @Override
     public WindmillSink<?> create(
         CloudObject spec,
@@ -131,23 +176,35 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   }
 
   class WindmillStreamWriter implements SinkWriter<WindowedValue<T>> {
+
     private Map<ByteString, Windmill.KeyedMessageBundle.Builder> productionMap;
     private final String destinationName;
     private final ByteStringOutputStream stream; // Kept across encodes for buffer reuse.
+
+    // Builders are reused to reduce GC overhead.
+    private final Windmill.Message.Builder messageBuilder;
+    private final Windmill.OutputMessageBundle.Builder outputBuilder;
 
     private WindmillStreamWriter(String destinationName) {
       this.destinationName = destinationName;
       productionMap = new HashMap<>();
       stream = new ByteStringOutputStream();
+      messageBuilder = Windmill.Message.newBuilder();
+      outputBuilder = Windmill.OutputMessageBundle.newBuilder();
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      checkState(
-          stream.size() == 0,
-          "Expected output stream to be empty but had %s",
-          stream.toByteString());
-      coder.encode(object, stream, Coder.Context.OUTER);
-      return stream.toByteStringAndReset();
+      if (stream.size() != 0) {
+        throw new IllegalStateException(
+            "Expected output stream to be empty but had " + stream.toByteString());
+      }
+      try {
+        coder.encode(object, stream, Coder.Context.OUTER);
+        return stream.toByteStringAndReset();
+      } catch (Exception e) {
+        stream.reset();
+        throw e;
+      }
     }
 
     @Override
@@ -155,7 +212,12 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
-      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPaneInfo());
+      // todo #33176 specify additional metadata in the future
+      BeamFnApi.Elements.ElementMetadata additionalMetadata =
+          BeamFnApi.Elements.ElementMetadata.newBuilder().build();
+      ByteString metadata =
+          encodeMetadata(
+              stream, windowsCoder, data.getWindows(), data.getPaneInfo(), additionalMetadata);
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();
@@ -208,28 +270,41 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         productionMap.put(key, keyedOutput);
       }
 
-      Windmill.Message.Builder builder =
-          Windmill.Message.newBuilder()
-              .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
-              .setData(value)
-              .setMetadata(metadata);
-      keyedOutput.addMessages(builder.build());
-
+      try {
+        messageBuilder
+            .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
+            .setData(value)
+            .setMetadata(metadata);
+        keyedOutput.addMessages(messageBuilder.build());
+      } finally {
+        messageBuilder.clear();
+      }
       long offsetSize = 0;
       if (context.offsetBasedDeduplicationSupported()) {
         if (id.size() > 0) {
           throw new RuntimeException(
               "Unexpected record ID via ValueWithRecordIdCoder while offset-based deduplication enabled.");
         }
-        byte[] rawId = context.getCurrentRecordId();
-        if (rawId.length == 0) {
+        byte[] rawId = null;
+
+        if (data.getRecordId() != null) {
+          rawId = data.getRecordId().getBytes(StandardCharsets.UTF_8);
+        } else {
+          rawId = context.getCurrentRecordId();
+        }
+        if (rawId == null || rawId.length == 0) {
           throw new RuntimeException(
               "Unexpected empty record ID while offset-based deduplication enabled.");
         }
         id = ByteString.copyFrom(rawId);
 
-        byte[] rawOffset = context.getCurrentRecordOffset();
-        if (rawOffset.length == 0) {
+        byte[] rawOffset = null;
+        if (data.getRecordOffset() != null) {
+          rawOffset = Longs.toByteArray(data.getRecordOffset());
+        } else {
+          rawOffset = context.getCurrentRecordOffset();
+        }
+        if (rawOffset == null || rawOffset.length == 0) {
           throw new RuntimeException(
               "Unexpected empty record offset while offset-based deduplication enabled.");
         }
@@ -245,14 +320,17 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public void close() throws IOException {
-      Windmill.OutputMessageBundle.Builder outputBuilder =
-          Windmill.OutputMessageBundle.newBuilder().setDestinationStreamId(destinationName);
+      try {
+        outputBuilder.setDestinationStreamId(destinationName);
 
-      for (Windmill.KeyedMessageBundle.Builder keyedOutput : productionMap.values()) {
-        outputBuilder.addBundles(keyedOutput.build());
-      }
-      if (outputBuilder.getBundlesCount() > 0) {
-        context.getOutputBuilder().addOutputMessages(outputBuilder.build());
+        for (Windmill.KeyedMessageBundle.Builder keyedOutput : productionMap.values()) {
+          outputBuilder.addBundles(keyedOutput.build());
+        }
+        if (outputBuilder.getBundlesCount() > 0) {
+          context.getOutputBuilder().addOutputMessages(outputBuilder.build());
+        }
+      } finally {
+        outputBuilder.clear();
       }
       productionMap.clear();
     }

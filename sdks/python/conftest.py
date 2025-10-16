@@ -22,7 +22,6 @@ import sys
 from types import SimpleNamespace
 
 import pytest
-from testcontainers.core import waiting_utils
 
 from apache_beam.options import pipeline_options
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -162,12 +161,16 @@ def pytest_configure(config):
   """
   # for the entire test session.
   print("\n--- Applying global testcontainers timeout configuration ---")
-  waiting_utils.config = SimpleNamespace(
-      timeout=int(os.getenv("TC_TIMEOUT", "120")),
-      max_tries=int(os.getenv("TC_MAX_TRIES", "120")),
-      sleep_time=float(os.getenv("TC_SLEEP_TIME", "1")),
-  )
-  print("Successfully set waiting utils config")
+  try:
+    from testcontainers.core import waiting_utils
+    waiting_utils.config = SimpleNamespace(
+        timeout=int(os.getenv("TC_TIMEOUT", "120")),
+        max_tries=int(os.getenv("TC_MAX_TRIES", "120")),
+        sleep_time=float(os.getenv("TC_SLEEP_TIME", "1")),
+    )
+    print("Successfully set waiting utils config")
+  except ModuleNotFoundError:
+    print("The testcontainers library is not installed.")
 
   TestPipeline.pytest_test_pipeline_options = config.getoption(
       'test_pipeline_options', default='')

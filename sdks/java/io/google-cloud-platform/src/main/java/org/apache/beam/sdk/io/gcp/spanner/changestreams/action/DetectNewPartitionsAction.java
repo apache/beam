@@ -149,7 +149,7 @@ public class DetectNewPartitionsAction {
       RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       Timestamp minWatermark,
-      TreeMap<Timestamp, List<PartitionMetadata>> batches) {
+      Map<Timestamp, List<PartitionMetadata>> batches) {
     List<PartitionMetadata> batchPartitionsDifferentCreatedAt = new ArrayList<>();
     int numTimestampsHandledSofar = 0;
     for (Map.Entry<Timestamp, List<PartitionMetadata>> batch : batches.entrySet()) {
@@ -190,11 +190,13 @@ public class DetectNewPartitionsAction {
           partition.toBuilder().setScheduledAt(scheduledAt).build();
 
       LOG.info(
-          "[{}] Outputting partition at {} with start time {} and end time {}",
+          "[{}] Outputting partition at {} with start time {}, end time {}, creation time {} and output timestamp {}",
           updatedPartition.getPartitionToken(),
           updatedPartition.getScheduledAt(),
           updatedPartition.getStartTimestamp(),
-          updatedPartition.getEndTimestamp());
+          updatedPartition.getEndTimestamp(),
+          createdAt,
+          minWatermark);
 
       receiver.outputWithTimestamp(partition, new Instant(minWatermark.toSqlTimestamp()));
 

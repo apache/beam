@@ -30,7 +30,8 @@ https://www.kaggle.com/datasets/datasnaek/youtube?select=UScomments.csv).
 
 Download the dataset and copy over to a GCS bucket:
 ```sh
-gcloud storage cp /path/to/UScomments.csv gs://YOUR_BUCKET/UScomments.csv
+export GCS_PATH="gs://YOUR-BUCKET/USComments.csv"
+gcloud storage cp /path/to/UScomments.csv $GCS_PATH
 ```
 
 For setting up Kafka, an option is to use [Click to Deploy](
@@ -54,6 +55,7 @@ a BigQuery dataset:
 ```sh
 bq --location=us-central1 mk \
   --dataset DATASET_ID
+export BQ_TABLE_ID="PROJECT_ID:DATASET_ID.TABLE_ID"
 ```
 See also [here](
 https://cloud.google.com/bigquery/docs/datasets) for more details on
@@ -76,18 +78,23 @@ export TEMP_LOCATION="gs://YOUR-BUCKET/tmp"
 export REGION="us-central1"
 export JOB_NAME="streaming-sentiment-analysis-`date +%Y%m%d-%H%M%S`"
 export NUM_WORKERS="3"
+export KAFKA_BOOTSTRAP_SERVERS="BOOTSTRAP_IP_ADD:9092"
+export KAFKA_TOPIC="YOUR_TOPIC"
+export KAFKA_USERNAME="KAFKA_USERNAME"
+export KAFKA_PASSWORD="KAFKA_PASSWORD"
+export VERTEXAI_ENDPOINT="ENDPOINT_ID"
 
 python -m apache_beam.yaml.main \
-  --yaml_pipeline_file transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml \
+  --yaml_pipeline_file streaming_sentiment_analysis.yaml \
   --runner DataflowRunner \
   --temp_location $TEMP_LOCATION \
   --project $PROJECT \
   --region $REGION \
   --num_workers $NUM_WORKERS \
   --job_name $JOB_NAME \
-  --jinja_variables '{ "GCS_PATH": "gs://YOUR-BUCKET/USComments.csv",
-  "BOOTSTRAP_SERVERS": "BOOTSTRAP_IP_ADD:9092",
-  "TOPIC": "YOUR_TOPIC", "USERNAME": "KAFKA_USERNAME", "PASSWORD": "KAFKA_PASSWORD",
-  "ENDPOINT": "ENDPOINT_ID", "PROJECT": "PROJECT_ID", "LOCATION": "LOCATION",
-  "DATASET": "DATASET_ID", "TABLE": "TABLE_ID" }'
+  --jinja_variables '{ "GCS_PATH": "'$GCS_PATH'",
+  "BOOTSTRAP_SERVERS": "'$KAFKA_BOOTSTRAP_SERVERS'",
+  "TOPIC": "'$KAFKA_TOPIC'", "USERNAME": "'$KAFKA_USERNAME'", "PASSWORD": "'$KAFKA_PASSWORD'",
+  "ENDPOINT": "'$VERTEXAI_ENDPOINT'", "PROJECT": "'$PROJECT'", "LOCATION": "'$REGION'",
+  "BQ_TABLE": "'$BQ_TABLE_ID'" }'
 ```

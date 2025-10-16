@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Instant;
 
@@ -45,12 +46,18 @@ public interface WindowedValue<T> {
   @Pure
   PaneInfo getPaneInfo();
 
+  @Nullable
+  String getRecordId();
+
+  @Nullable
+  Long getRecordOffset();
+
   /**
    * A representation of each of the actual values represented by this compressed {@link
    * WindowedValue}, one per window.
    */
   @Pure
-  Iterable<WindowedValue<T>> explodeWindows();
+  Iterable<? extends WindowedValue<T>> explodeWindows();
 
   /**
    * A {@link WindowedValue} with identical metadata to the current one, but with the provided

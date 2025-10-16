@@ -68,12 +68,13 @@ public class FakeMessage implements Message<byte[]> {
 
   @Override
   public byte[] getValue() {
-    return null;
+    return new byte[0];
   }
 
   @Override
   public MessageId getMessageId() {
-    return DefaultImplementation.newMessageId(this.ledgerId, this.entryId, this.partitionIndex);
+    return DefaultImplementation.getDefaultImplementation()
+        .newMessageId(this.ledgerId, this.entryId, this.partitionIndex);
   }
 
   @Override
@@ -158,4 +159,24 @@ public class FakeMessage implements Message<byte[]> {
 
   @Override
   public void release() {}
+
+  @Override
+  public boolean hasBrokerPublishTime() {
+    return false;
+  }
+
+  @Override
+  public Optional<Long> getBrokerPublishTime() {
+    return Optional.empty();
+  }
+
+  @Override
+  public boolean hasIndex() {
+    return false;
+  }
+
+  @Override
+  public Optional<Long> getIndex() {
+    return Optional.empty();
+  }
 }

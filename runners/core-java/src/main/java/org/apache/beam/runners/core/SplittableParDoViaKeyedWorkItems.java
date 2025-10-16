@@ -42,7 +42,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.construction.PTransformReplacements;
@@ -250,7 +249,7 @@ public class SplittableParDoViaKeyedWorkItems {
      */
     private static final StateTag<WatermarkHoldState> watermarkHoldTag =
         StateTags.makeSystemTagInternal(
-            StateTags.<GlobalWindow>watermarkStateInternal("hold", TimestampCombiner.LATEST));
+            StateTags.watermarkStateInternal("hold", TimestampCombiner.LATEST));
 
     /**
      * The state cell containing a copy of the element. Written during the first {@link

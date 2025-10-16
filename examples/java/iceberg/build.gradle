@@ -1,0 +1,68 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+plugins {
+  id 'java'
+  id 'org.apache.beam.module'
+  id 'com.gradleup.shadow'
+}
+
+applyJavaNature(
+  exportJavadoc: false,
+  automaticModuleName: 'org.apache.beam.examples.iceberg',
+  // iceberg requires Java11+
+  requireJavaVersion: JavaVersion.VERSION_11
+)
+
+description = "Apache Beam :: Examples :: Java :: Iceberg"
+ext.summary = """Apache Beam Java SDK examples using IcebergIO."""
+
+apply from: "$project.rootDir/examples/java/common.gradle"
+
+dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  runtimeOnly project(":sdks:java:io:iceberg")
+  runtimeOnly project(":sdks:java:io:iceberg:bqms")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:managed")
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.joda_time
+  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  implementation library.java.vendored_guava_32_1_2_jre
+  runtimeOnly library.java.hadoop_client
+  runtimeOnly library.java.bigdataoss_gcs_connector
+
+  // Add dependencies for the PreCommit configurations
+  // For each runner a project level dependency on the examples project.
+  for (String runner : preCommitRunners) {
+    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntimeMigration"))
+  }
+
+  // Add dependency if requested on command line for runner
+  if (project.hasProperty("runnerDependency")) {
+    runtimeOnly project(path: project.getProperty("runnerDependency"))
+  }
+}
+
+configurations.all {
+  // iceberg-core needs avro:1.12.0
+  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
+}

@@ -62,6 +62,7 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -677,7 +678,7 @@ public class SplittableTruncateSizedRestrictionsDoFnRunner<
   }
 
   @VisibleForTesting
-  static <WatermarkEstimatorStateT> HandlesSplits.SplitResult constructSplitResult(
+  static HandlesSplits.SplitResult constructSplitResult(
       @Nullable WindowedSplitResult windowedSplitResult,
       HandlesSplits.@Nullable SplitResult downstreamElementSplit,
       Coder<WindowedValue<?>> fullInputCoder,
@@ -777,19 +778,23 @@ public class SplittableTruncateSizedRestrictionsDoFnRunner<
       extends TruncateSizedRestrictionArgumentProvider {
 
     @Override
-    public void output(RestrictionT output) {
-      double size = getSize(output);
-      outputTo(
-          mainOutputConsumer,
-          WindowedValues.of(
-              KV.of(
-                  KV.of(
-                      getCurrentElement().getValue(),
-                      KV.of(output, getCurrentWatermarkEstimatorState())),
-                  size),
-              getCurrentElement().getTimestamp(),
-              getCurrentWindow(),
-              getCurrentElement().getPaneInfo()));
+    public OutputBuilder<RestrictionT> builder(RestrictionT value) {
+      return WindowedValues.builder(getCurrentElement())
+          .withValue(value)
+          .setWindow(getCurrentWindow())
+          .setReceiver(
+              windowedValue -> {
+                double size = getSize(windowedValue.getValue());
+                outputTo(
+                    mainOutputConsumer,
+                    windowedValue.withValue(
+                        KV.of(
+                            KV.of(
+                                getCurrentElement().getValue(),
+                                KV.of(
+                                    windowedValue.getValue(), getCurrentWatermarkEstimatorState())),
+                            size)));
+              });
     }
 
     @Override
@@ -812,17 +817,24 @@ public class SplittableTruncateSizedRestrictionsDoFnRunner<
       extends TruncateSizedRestrictionArgumentProvider {
 
     @Override
-    public void output(RestrictionT truncatedRestriction) {
-      double size = getSize(truncatedRestriction);
-      outputTo(
-          mainOutputConsumer,
-          getCurrentElement()
-              .withValue(
-                  KV.of(
-                      KV.of(
-                          getCurrentElement().getValue(),
-                          KV.of(truncatedRestriction, getCurrentWatermarkEstimatorState())),
-                      size)));
+    public OutputBuilder<RestrictionT> builder(RestrictionT value) {
+      return WindowedValues.builder(getCurrentElement())
+          .withValue(value)
+          .setReceiver(
+              windowedValue -> {
+                double size = getSize(windowedValue.getValue());
+                outputTo(
+                    mainOutputConsumer,
+                    getCurrentElement()
+                        .withValue(
+                            KV.of(
+                                KV.of(
+                                    getCurrentElement().getValue(),
+                                    KV.of(
+                                        windowedValue.getValue(),
+                                        getCurrentWatermarkEstimatorState())),
+                                size)));
+              });
     }
   }
 
@@ -910,6 +922,16 @@ public class SplittableTruncateSizedRestrictionsDoFnRunner<
     public void outputWithTimestamp(RestrictionT output, Instant timestamp) {
       throw new UnsupportedOperationException(
           "Cannot outputWithTimestamp from TruncateRestriction");
+    }
+
+    @Override
+    public void outputWindowedValue(
+        RestrictionT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      throw new UnsupportedOperationException(
+          "Cannot outputWindowedValue from TruncateRestriction");
     }
   }
 

@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming.utils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
@@ -145,6 +146,7 @@ public class EmbeddedKafkaCluster {
     return zkConnection;
   }
 
+  @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
   public void shutdown() {
     for (KafkaServerStartable broker : brokers) {
       try {
@@ -201,7 +203,8 @@ public class EmbeddedKafkaCluster {
         this.port = TestUtils.getAvailablePort();
       }
       this.factory =
-          NIOServerCnxnFactory.createFactory(new InetSocketAddress("127.0.0.1", port), 1024);
+          NIOServerCnxnFactory.createFactory(
+              new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 1024);
       this.snapshotDir = TestUtils.constructTempDir("embedded-zk/snapshot");
       this.logDir = TestUtils.constructTempDir("embedded-zk/log");
 
