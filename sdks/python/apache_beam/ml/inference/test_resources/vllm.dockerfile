@@ -54,15 +54,9 @@ ENV PYTHONPATH=/opt/apache/beam:$PYTHONPATH
 
 # 6) Install the Beam dev SDK from the local source package.
 # This .tar.gz file will be created by GitHub Actions workflow
-# and copied into the build context.
+# and copied into the build context. This will include vLLM dependencies
 COPY ./sdks/python/build/apache-beam.tar.gz /tmp/beam.tar.gz
-RUN python3 -m pip install --no-cache-dir "/tmp/beam.tar.gz[gcp]"
-
-# 7) Install vLLM, and other dependencies
-RUN python3 -m pip install --no-cache-dir \
-      openai>=1.52.2 \
-      vllm>=0.6.3 \
-      triton>=3.1.0
+RUN python3 -m pip install --no-cache-dir "/tmp/beam.tar.gz[gcp,vllm]"
 
 # 8) Use the Beam boot script as entrypoint
 ENTRYPOINT ["/opt/apache/beam/boot"]
