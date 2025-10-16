@@ -118,9 +118,43 @@ class _VLLMModelServer():
 
     self.start_server()
 
+  def _normalize_vllm_kwargs(self, kw: dict[str, str]) -> dict[str, str]:
+    import torch
+    kw = dict(kw or {})
+
+    # 1) Drop deprecated key, prefer --dtype (vLLM/HF switched to this)
+    kw.pop("torch_dtype", None)  # avoid the warning
+
+    # 2) Pick a safe dtype for this GPU
+    #    - cc < 8.0 (e.g., T4/2080): no bf16, use fp16
+    #    - cc >= 8.0 and bf16 supported (A100/H100/RTX 40xx): bf16 is great
+    cc_major, _ = torch.cuda.get_device_capability(0) if torch.cuda.is_available() else (0, 0)
+    bf16_ok = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
+    if not torch.cuda.is_available():
+      dtype = "float32"           # CPU path: don’t use fp16 on CPU
+    elif cc_major < 8:
+      dtype = "float16"           # Turing/T4 etc.
+    else:
+      dtype = "bfloat16" if bf16_ok else "float16"
+
+    if kw.get("dtype") in (None, "auto"):
+      kw["dtype"] = dtype
+
+    # 3) Keep KV-cache consistent (or default to 'auto' which equals model dtype)
+    if "kv-cache-dtype" not in kw or kw["kv-cache-dtype"] in (None, "auto"):
+      if kw["dtype"] in ("float16", "half", "fp16"):
+        kw["kv-cache-dtype"] = "fp16"
+      elif kw["dtype"] in ("bfloat16", "bf16"):
+        kw["kv-cache-dtype"] = "bf16"
+      else:
+        kw["kv-cache-dtype"] = "auto"
+    return kw
+
   def start_server(self, retries=3):
     with self._server_process_lock:
       if not self._server_started:
+        self._vllm_server_kwargs = self._normalize_vllm_kwargs(self._vllm_server_kwargs)
+        logging.info("vLLM final args: %s", self._vllm_server_kwargs)
         server_cmd = [
             sys.executable,
             '-m',
