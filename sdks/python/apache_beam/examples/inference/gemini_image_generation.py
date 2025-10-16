@@ -23,14 +23,13 @@ gemini-2.0-flash-001 model.
 
 import argparse
 import logging
-import os
-import uuid
 from collections.abc import Iterable
 from io import BytesIO
-from typing import Optional
 
 import apache_beam as beam
-from apache_beam.io.filesystems import FileSystems
+from apache_beam.io.fileio import default_file_naming
+from apache_beam.io.fileio import FileSink
+from apache_beam.io.fileio import WriteToFiles
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
@@ -86,66 +85,15 @@ class PostProcessor(beam.DoFn):
       raise e
 
 
-class _WriteImageFn(beam.DoFn):
-  """
-    A DoFn that writes a single PIL.Image.Image object to a file.
+class ImageSink(FileSink):
+  def open(self, fh) -> None:
+    self._fh = fh
 
-    This DoFn is intended to be used internally by the WriteImages transform.
-  """
-  def __init__(self, output_dir: str, filename_prefix: str):
-    """
-        Initializes the _WriteImageFn.
+  def write(self, record):
+    record.save(self._fh, format='PNG')
 
-        Args:
-            output_dir: The directory where the image files will be written.
-            filename_prefix: A prefix to use for the output filenames. A UUID
-                and the .png extension will be appended to this prefix.
-    """
-    self._output_dir = output_dir
-    self._filename_prefix = filename_prefix
-
-  def setup(self):
-    """
-        Ensures the output directory exists.
-    """
-    if not FileSystems().exists(self._output_dir):
-      FileSystems().mkdirs(self._output_dir)
-
-  def process(self, image: Image.Image):
-    """
-        Saves the given PIL Image to a PNG file.
-
-        Args:
-            image: A PIL.Image.Image object.
-    """
-    # Generate a unique filename to prevent collisions.
-    unique_id = uuid.uuid4()
-    filename = f"{self._filename_prefix}-{unique_id}.png"
-    output_path = os.path.join(self._output_dir, filename)
-
-    try:
-      logging.debug("Writing image to %s", output_path)
-      with FileSystems().create(output_path) as image_file:
-        image.save(image_file, "PNG")
-    except Exception as e:
-      logging.error("Failed to write image to %s: %s", output_path, e)
-      raise
-
-
-class WriteImages(beam.PTransform):
-  """
-    An Apache Beam PTransform for writing a PCollection of PIL Image objects
-    to individual PNG files in a specified directory.
-  """
-  def __init__(self, output_dir: str, filename_prefix: Optional[str] = "image"):
-    self._output_dir = output_dir
-    self._filename_prefix = filename_prefix
-
-  def expand(self, pcoll: beam.PCollection) -> beam.pvalue.PDone:
-    return (
-        pcoll
-        | "WriteImageToFile" >> beam.ParDo(
-            _WriteImageFn(self._output_dir, self._filename_prefix)))
+  def flush(self):
+    self._fh.flush()
 
 
 def run(
@@ -177,8 +125,10 @@ def run(
   read_prompts = pipeline | "Get prompt" >> beam.Create(prompts)
   predictions = read_prompts | "RunInference" >> RunInference(model_handler)
   processed = predictions | "PostProcess" >> beam.ParDo(PostProcessor())
-  _ = processed | "WriteOutput" >> WriteImages(
-      output_dir=known_args.output, filename_prefix="gemini_image")
+  _ = processed | "WriteOutput" >> WriteToFiles(
+      path=known_args.output,
+      file_naming=default_file_naming("gemini-image", ".png"),
+      sink=ImageSink())
 
   result = pipeline.run()
   result.wait_until_finish()
