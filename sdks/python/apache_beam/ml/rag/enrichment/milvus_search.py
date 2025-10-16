@@ -435,19 +435,19 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
             partition_names=self.partition_names,
             **collection_load_params)
         logging.info(
-            f"Successfully connected to Milvus on attempt {attempt + 1}")
+            "Successfully connected to Milvus on attempt %d", attempt + 1)
         return
       except MilvusException as e:
         last_exception = e
         if attempt < max_retries:
           delay = retry_delay * (retry_backoff_factor**attempt)
           logging.warning(
-              f"Milvus connection attempt {attempt + 1} failed: {e}. "
-              f"Retrying in {delay:.2f} seconds...")
+              "Milvus connection attempt %d failed: %s. "
+              "Retrying in %.2f seconds...", attempt + 1, e, delay)
           time.sleep(delay)
         else:
           logging.error(
-              f"Failed to connect to Milvus after {max_retries + 1} attempts")
+              "Failed to connect to Milvus after %d attempts", max_retries + 1)
           raise last_exception
 
   def __call__(self, request: Union[Chunk, List[Chunk]], *args,
