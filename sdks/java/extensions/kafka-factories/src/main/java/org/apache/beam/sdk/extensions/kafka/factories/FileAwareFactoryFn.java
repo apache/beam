@@ -42,6 +42,37 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * An abstract {@link SerializableFunction} that serves as a base class for factories that need to
+ * process a configuration map to handle external resources like files and secrets.
+ *
+ * <p>This class is designed to be extended by concrete factory implementations (e.g., for creating
+ * Kafka consumers). It automates the process of detecting special URI strings within the
+ * configuration values and transforming them before passing the processed configuration to the
+ * subclass.
+ *
+ * <h3>Supported Patterns:</h3>
+ *
+ * <ul>
+ *   <li><b>External File Paths:</b> It recognizes paths prefixed with schemes like {@code gs://} or
+ *       {@code s3://} that are supported by the Beam {@link FileSystems} API. It downloads these
+ *       files to a local temporary directory (under {@code /tmp/<factory-type>/...}) and replaces
+ *       the original path in the configuration with the new local file path.
+ *   <li><b>Secret Manager Values:</b> It recognizes strings prefixed with {@code secretValue:}. It
+ *       interprets the rest of the string as a Google Secret Manager secret version name (e.g.,
+ *       "projects/p/secrets/s/versions/v"), fetches the secret payload, and replaces the original
+ *       {@code secretValue:...} identifier with the plain-text secret.
+ * </ul>
+ *
+ * <h3>Usage:</h3>
+ *
+ * <p>A subclass must implement the {@link #createObject(Map)} method, which receives the fully
+ * processed configuration map with all paths localized and secrets resolved. Subclasses can also
+ * override {@link #downloadAndProcessExtraFiles()} to handle specific preliminary file downloads
+ * (e.g., a krb5.conf file) before the main configuration processing begins.
+ *
+ * @param <T> The type of object this factory creates.
+ */
 public abstract class FileAwareFactoryFn<T>
     implements SerializableFunction<Map<String, Object>, T> {
 
