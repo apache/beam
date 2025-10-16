@@ -49,11 +49,6 @@ func TestUnimplemented(t *testing.T) {
 		// See https://github.com/apache/beam/issues/31153.
 		{pipeline: primitives.TriggerElementCount},
 		{pipeline: primitives.TriggerOrFinally},
-
-		// Currently unimplemented triggers.
-		// https://github.com/apache/beam/issues/31438
-		{pipeline: primitives.TriggerAfterSynchronizedProcessingTime},
-		{pipeline: primitives.TriggerAfterProcessingTime},
 	}
 
 	for _, test := range tests {
@@ -93,6 +88,9 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.TriggerAfterEach},
 		{pipeline: primitives.TriggerAfterEndOfWindow},
 		{pipeline: primitives.TriggerRepeat},
+		{pipeline: primitives.TriggerAfterProcessingTime},
+		{pipeline: primitives.TriggerAfterProcessingTimeNotTriggered},
+		{pipeline: primitives.TriggerAfterSynchronizedProcessingTime},
 	}
 
 	for _, test := range tests {
@@ -145,6 +143,9 @@ func TestTimers(t *testing.T) {
 	}{
 		{pipeline: primitives.TimersEventTimeBounded},
 		{pipeline: primitives.TimersEventTimeUnbounded},
+		{pipeline: primitives.TimersProcessingTime_Bounded},
+		{pipeline: primitives.TimersProcessingTime_Unbounded},
+		{pipeline: primitives.TimersProcessingTimeTestStream_Infinity},
 	}
 
 	for _, test := range tests {

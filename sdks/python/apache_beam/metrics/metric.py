@@ -195,6 +195,7 @@ class MetricResults(object):
   GAUGES = "gauges"
   STRINGSETS = "string_sets"
   BOUNDED_TRIES = "bounded_tries"
+  HISTOGRAMS = "histograms"
 
   @staticmethod
   def _matches_name(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:

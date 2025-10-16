@@ -61,7 +61,7 @@ public class SparkSideInputReader implements SideInputReader {
     checkNotNull(view, "The PCollectionView passed to sideInput cannot be null ");
     KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>> windowedBroadcastHelper =
         sideInputs.get(view.getTagInternal());
-    checkNotNull(windowedBroadcastHelper, "SideInput for view " + view + " is not available.");
+    checkNotNull(windowedBroadcastHelper, "SideInput for view %s is not available.", view);
 
     // --- sideInput window
     final BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(window);

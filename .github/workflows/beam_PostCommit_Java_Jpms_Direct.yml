@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit Java Jpms Direct Java17
+name: PostCommit Java Jpms Direct
 
 on:
   schedule:
     - cron: '0 4/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Jpms_Direct_Java17.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Jpms_Direct.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -49,19 +49,19 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Java_Jpms_Direct_Java17:
+  beam_PostCommit_Java_Jpms_Direct:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run Jpms Direct Java 17 PostCommit'
+      github.event.comment.body == 'Run Jpms Direct PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PostCommit_Java_Jpms_Direct_Java17"]
-        job_phrase: ["Run Jpms Direct Java 17 PostCommit"]
+        job_name: ["beam_PostCommit_Java_Jpms_Direct"]
+        job_phrase: ["Run Jpms Direct PostCommit"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -73,17 +73,11 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
-      - name: run PostCommit Java Jpms Direct Java17 script
+          java-version: 11
+      - name: run PostCommit Java Jpms Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest
-          arguments:
-            -PskipCheckerFramework
-            -PtestJavaVersion=17
-            -Pjava17Home=$JAVA_HOME_17_X64
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

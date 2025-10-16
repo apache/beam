@@ -27,6 +27,15 @@ from sending import SendingClient
 CONFIG_FILE = "config.yml"
 
 class IAMPolicyComplianceChecker:
+
+    def is_project_service_account_email(self, email: Optional[str]) -> bool:
+        """
+        Returns True if the email is not a service account, or if it is a service account and the email contains the project_id.
+        """
+        if email and email.endswith('.gserviceaccount.com'):
+            return self.project_id in email
+        return True
+
     def __init__(self, project_id: str, users_file: str, logger: logging.Logger, sending_client: Optional[SendingClient] = None):
         self.project_id = project_id
         self.users_file = users_file
@@ -94,12 +103,17 @@ class IAMPolicyComplianceChecker:
             for member_str in binding.members:
                 if member_str not in members_data:
                     username, email_address, member_type = self._parse_member(member_str)
+                    # Skip service accounts not matching the project_id
+                    if member_type == "serviceAccount" and not self.is_project_service_account_email(email_address):
+                        self.logger.debug(f"Skipping service account not matching project_id ({self.project_id}): {email_address}")
+                        continue
                     if member_type == "unknown":
                         self.logger.warning(f"Skipping member {member_str} with no email address")
                         continue  # Skip if no email address is found, probably a malformed member
                     members_data[member_str] = {
                         "username": username,
                         "email": email_address,
+                        "member_type": member_type,
                         "permissions": []
                     }
 
@@ -118,6 +132,7 @@ class IAMPolicyComplianceChecker:
             output_list.append({
                 "username": data["username"],
                 "email": data["email"],
+                "member_type": data["member_type"],
                 "permissions": data["permissions"]
             })
 
@@ -190,8 +205,9 @@ class IAMPolicyComplianceChecker:
         Returns:
             A list of strings describing any compliance issues found.
         """
-        current_users = {user['email']: user for user in self._export_project_iam()}
-        existing_users = {user['email']: user for user in self._read_project_iam_file()}
+
+        current_users = {user['email']: user for user in self._export_project_iam() if self.is_project_service_account_email(user.get('email'))}
+        existing_users = {user['email']: user for user in self._read_project_iam_file() if self.is_project_service_account_email(user.get('email'))}
 
         if not existing_users:
             error_msg = f"No IAM policy found in the {self.users_file}."
@@ -211,6 +227,8 @@ class IAMPolicyComplianceChecker:
             elif not current_user and existing_user:
                 differences.append(f"User {email} found in policy file but not in GCP.")
             elif current_user and existing_user:
+                if current_user.get("member_type") != existing_user.get("member_type"):
+                    differences.append(f"User {email} has different member type. In GCP: {current_user.get('member_type')}, in file: {existing_user.get('member_type')}")
                 if current_user["permissions"] != existing_user["permissions"]:
                     msg = f"\nPermissions for user {email} differ."
                     msg += f"\nIn GCP: {current_user['permissions']}"

@@ -30,6 +30,7 @@ from typing import Optional
 
 from apache_beam.metrics.cells import MetricCell
 from apache_beam.metrics.cells import MetricCellFactory
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.utils.histogram import Histogram
 
 if TYPE_CHECKING:
@@ -66,10 +67,12 @@ class HistogramCell(MetricCell):
     return self.data.get_cumulative()
 
   def to_runner_api_monitoring_info(self, name, transform_id):
-    # Histogram metric is currently worker-local and internal
-    # use only. This method should be implemented when runners
-    # support Histogram metric reporting.
-    return None
+    from apache_beam.metrics import monitoring_infos
+    return monitoring_infos.user_histogram(
+        name.namespace,
+        name.name,
+        self.get_cumulative(),
+        ptransform=transform_id)
 
 
 class HistogramCellFactory(MetricCellFactory):
@@ -150,3 +153,13 @@ class HistogramData(object):
   @staticmethod
   def identity_element(bucket_type) -> 'HistogramData':
     return HistogramData(Histogram(bucket_type))
+
+  def to_proto(self) -> metrics_pb2.HistogramValue:
+    return self.histogram.to_runner_api()
+
+  @classmethod
+  def from_proto(cls, proto: metrics_pb2.HistogramValue):
+    return cls(Histogram.from_runner_api(proto))
+
+  def get_result(self):
+    return self.histogram
