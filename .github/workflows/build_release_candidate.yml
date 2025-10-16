@@ -591,6 +591,11 @@ jobs:
         working-directory: beam
         run: |
           ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
+      - name: Copy expansion service jars
+        working-directory: beam
+        run: |
+          cp sdks/java/io/expansion-service/build/libs/beam-sdks-java-io-expansion-service-${{ github.event.inputs.RELEASE }}.jar ~/.apache_beam/cache/jars/
+          cp sdks/java/io/google-cloud-platform/expansion-service/build/libs/beam-sdks-java-io-google-cloud-platform-expansion-service-${{ github.event.inputs.RELEASE }}.jar ~/.apache_beam/cache/jars/
       - name: Generate Managed IO Docs
         working-directory: beam/sdks/python
         run: |
