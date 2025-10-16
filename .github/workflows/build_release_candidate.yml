@@ -66,7 +66,7 @@ jobs:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: |
@@ -120,7 +120,7 @@ jobs:
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -277,7 +277,7 @@ jobs:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -336,7 +336,7 @@ jobs:
         with:
           node-version: '16'
       - name: Install Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -571,7 +571,7 @@ jobs:
         with:
           python-version: '3.9'
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -592,6 +592,12 @@ jobs:
         working-directory: beam
         run: |
           ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
+      - name: Copy expansion service jars
+        working-directory: beam
+        run: |
+          mkdir -p ~/.apache_beam/cache/jars/
+          cp sdks/java/io/expansion-service/build/libs/beam-sdks-java-io-expansion-service-${{ github.event.inputs.RELEASE }}.jar ~/.apache_beam/cache/jars/
+          cp sdks/java/io/google-cloud-platform/expansion-service/build/libs/beam-sdks-java-io-google-cloud-platform-expansion-service-${{ github.event.inputs.RELEASE }}.jar ~/.apache_beam/cache/jars/
       - name: Generate Managed IO Docs
         working-directory: beam/sdks/python
         run: |
