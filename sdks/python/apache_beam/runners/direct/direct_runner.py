@@ -516,12 +516,12 @@ def _get_transform_overrides(pipeline_options):
       # This needs to be the first and the last override. Other overrides depend
       # on the GroupByKey implementation to be composed of _GroupByKeyOnly and
       # _GroupAlsoByWindow.
+      GroupIntoBatchesOverride(),
       GroupByKeyPTransformOverride(),
       SplittableParDoOverride(),
       ProcessKeyedElementsViaKeyedWorkItemsOverride(),
       CombinePerKeyOverride(),
       TestStreamOverride(),
-      GroupIntoBatchesOverride(),
   ]
 
   # Add streaming overrides, if necessary.
