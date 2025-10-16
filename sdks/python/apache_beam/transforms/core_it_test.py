@@ -43,7 +43,6 @@ class GbekIT(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     if secretmanager is not None:
-<<<<<<< HEAD
       cls.project_id = 'apache-beam-testing'
       py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
       secret_postfix = datetime.now().strftime('%m%d_%H%M%S') + py_version
@@ -51,15 +50,6 @@ class GbekIT(unittest.TestCase):
       cls.client = secretmanager.SecretManagerServiceClient()
       cls.project_path = f'projects/{cls.project_id}'
       cls.secret_path = f'{cls.project_path}/secrets/{cls.secret_id}'
-=======
-      self.project_id = 'apache-beam-testing'
-      py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
-      secret_postfix = datetime.now().strftime('%m%d_%H%M%S') + py_version
-      self.secret_id = 'gbekit_secret_tests_' + secret_postfix
-      self.client = secretmanager.SecretManagerServiceClient()
-      self.project_path = f'projects/{self.project_id}'
-      self.secret_path = f'{self.project_path}/secrets/{self.secret_id}'
->>>>>>> f07ccf37cbe1049e231f338344209b82073c7fd8
       try:
         cls.client.get_secret(request={'name': cls.secret_path})
       except Exception:
