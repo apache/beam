@@ -265,6 +265,22 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 }
 
 /**
+ * SHOW CATALOGS [ LIKE regex_pattern ]
+ */
+SqlCall SqlShowCatalogs(Span s, String scope) :
+{
+    SqlNode regex = null;
+}
+{
+    <SHOW> <CATALOGS> { s.add(this); }
+    [ <LIKE> regex = StringLiteral() ]
+    {
+        return new SqlShowCatalogs(s.end(this), scope, false, regex);
+    }
+}
+
+
+/**
  * CREATE DATABASE ( IF NOT EXISTS )? ( catalog_name '.' )? database_name
  */
 SqlCreate SqlCreateDatabase(Span s, boolean replace) :
@@ -329,6 +345,39 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
     {
         return new SqlDropDatabase(s.end(this), ifExists, databaseName, cascade);
     }
+}
+
+/**
+ * SHOW DATABASES [ ( FROM | IN )? catalog_name ] [LIKE regex_pattern ]
+ */
+SqlCall SqlShowDatabases(Span s, String scope) :
+{
+    SqlIdentifier catalogName = null;
+    SqlNode regex = null;
+}
+{
+    <SHOW> <DATABASES> { s.add(this); }
+    [ ( <FROM> | <IN> ) catalogName = SimpleIdentifier() ]
+    [ <LIKE> regex = StringLiteral() ]
+    {
+        return new SqlShowDatabases(s.end(this), scope, false, catalogName, regex);
+    }
+}
+
+SqlCall SqlShowCurrent(Span s, String scope) :
+{
+}
+{
+    <SHOW> <CURRENT> { s.add(this); }
+    (
+        <CATALOG> {
+            return new SqlShowCatalogs(s.end(this), scope, true, null);
+        }
+    |
+        <DATABASE> {
+            return new SqlShowDatabases(s.end(this), scope, true, null, null);
+        }
+    )
 }
 
 
@@ -455,6 +504,24 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
         return SqlDdlNodes.dropTable(s.end(this), ifExists, id);
     }
 }
+
+/**
+ * SHOW TABLES [ ( FROM | IN )? [ catalog_name '.' ] database_name ] [ LIKE regex_pattern ]
+ */
+SqlCall SqlShowTables(Span s, String scope) :
+{
+    SqlIdentifier database = null;
+    SqlNode regex = null;
+}
+{
+    <SHOW> <TABLES> { s.add(this); }
+    [ (<FROM> | <IN>) database = CompoundIdentifier() ]
+    [ <LIKE> regex = StringLiteral() ]
+    {
+        return new SqlShowTables(s.end(this), scope, database, regex);
+    }
+}
+
 
 Schema.FieldType FieldType() :
 {
