@@ -563,15 +563,18 @@ class BundleProcessorCache(object):
     """
     Marks the instruction id as failed shutting down the ``BundleProcessor``.
     """
+    processor = None
     with self._lock:
       self.failed_instruction_ids[instruction_id] = exception
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
         self.failed_instruction_ids.popitem(last=False)
-      processor = self.active_bundle_processors[instruction_id][1]
-      del self.active_bundle_processors[instruction_id]
+      if instruction_id in self.active_bundle_processors:
+        processor = self.active_bundle_processors.pop(instruction_id)[1]
 
     # Perform the shutdown while not holding the lock.
-    processor.shutdown()
+    if processor:
+      processor.shutdown()
+    self.data_channel_factory.cleanup(instruction_id)
 
   def release(self, instruction_id):
     # type: (str) -> None
@@ -694,9 +697,9 @@ class SdkWorker(object):
       instruction_id  # type: str
   ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
-    bundle_processor = self.bundle_processor_cache.get(
-        instruction_id, request.process_bundle_descriptor_id)
     try:
+      bundle_processor = self.bundle_processor_cache.get(
+          instruction_id, request.process_bundle_descriptor_id)
       with bundle_processor.state_handler.process_instruction_id(
           instruction_id, request.cache_tokens):
         with self.maybe_profile(instruction_id):
