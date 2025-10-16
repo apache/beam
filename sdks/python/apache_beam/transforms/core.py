@@ -3267,7 +3267,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
         except Exception:
-          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+          self._combine_fn_copy = pickler.roundtrip(combine_fn)
 
         self.setup = self._combine_fn_copy.setup
         self.create_accumulator = self._combine_fn_copy.create_accumulator
@@ -3288,7 +3288,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
         except Exception:
-          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+          self._combine_fn_copy = pickler.roundtrip(combine_fn)
 
         self.setup = self._combine_fn_copy.setup
         self.create_accumulator = self._combine_fn_copy.create_accumulator
