@@ -24,7 +24,7 @@ import grpc
 class GRPCChannelFactory(grpc.StreamStreamClientInterceptor):
   DEFAULT_OPTIONS = [
       ("grpc.keepalive_time_ms",
-       60000),  # Increased to 60s to reduce ping frequency
+       120000),  # Increased to 120s to further reduce ping frequency
       ("grpc.keepalive_timeout_ms", 300000),
       ("grpc.http2.max_pings_without_data",
        0),  # Allow unlimited pings without data
@@ -33,7 +33,7 @@ class GRPCChannelFactory(grpc.StreamStreamClientInterceptor):
       ("grpc.http2.min_recv_ping_interval_without_data_ms",
        300000),  # 5 minutes
       ("grpc.http2.min_sent_ping_interval_without_data_ms",
-       30000),  # Increased to 30s
+       60000),  # Increased to 60s to be more conservative
   ]
 
   def __init__(self):
