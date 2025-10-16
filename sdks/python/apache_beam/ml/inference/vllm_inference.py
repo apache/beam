@@ -118,7 +118,7 @@ class _VLLMModelServer():
 
     self.start_server()
 
-  def _normalize_vllm_kwargs(kw: dict[str, str]) -> dict[str, str]:
+  def _normalize_vllm_kwargs(self, kw: dict[str, str]) -> dict[str, str]:
     import torch
     kw = dict(kw or {})
 
