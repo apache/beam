@@ -145,19 +145,3 @@ jobs:
           files: '**/pytest*.xml'
           large_files: true
           check_name: "Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})"
-      - name: Cleanup
-        if: always()
-        run: |
-          # Kill any remaining processes
-          sudo pkill -f "gradle" || true
-          sudo pkill -f "java" || true
-          sudo pkill -f "python.*pytest" || true
-          # Clean up temp files and caches
-          sudo rm -rf /tmp/beam-* || true
-          sudo rm -rf /tmp/gradle-* || true
-          sudo rm -rf ~/.cache/pip || true
-          # Clean up ML model caches
-          sudo rm -rf /tmp/transformers_cache || true
-          sudo rm -rf /tmp/torch_cache || true
-          sudo rm -rf ~/.cache/torch || true
-          sudo rm -rf ~/.cache/huggingface || true
