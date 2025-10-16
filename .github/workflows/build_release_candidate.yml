@@ -259,13 +259,14 @@ jobs:
         # Any task which is skipped from a broader task must be explicitly included in this list to avoid accidentally missing new
         # tasks as they are added.
         images_to_publish: [
-          {"gradle_task": ":pushAllRunnersDockerImages", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push39", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push310", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push311", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:pushAll", "skip_flags": "-Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images"},
-          {"gradle_task": ":pushAllSdkDockerImages", "skip_flags": "-Pskip-python-images"},
-          {"gradle_task": ":pushAllDockerImages", "skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
+          {"gradle_task": ":pushAllRunnersDockerImages", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push39", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push310", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push311", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push312", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:pushAll", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless -Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images -Pskip-python-312-images"},
+          {"gradle_task": ":pushAllSdkDockerImages", "include_skip_flags": "-Pskip-python-images"},
+          {"gradle_task": ":pushAllDockerImages", "include_skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
         ]
     steps:
       - name: Checkout
@@ -297,7 +298,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
-        run: ./gradlew ${{ matrix.images_to_publish.gradle_task }} -PisRelease -Pdocker-pull-licenses -Pprune-images ${{ matrix.images_to_publish.skip_flags }} -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
+        run: ./gradlew ${{ matrix.images_to_publish.gradle_task }} -PisRelease -Pdocker-pull-licenses -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
 
   beam_site_pr:
     if:  ${{ fromJson(github.event.inputs.STAGE).beam_site_pr == 'yes'}}
