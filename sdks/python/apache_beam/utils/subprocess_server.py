@@ -185,8 +185,18 @@ class SubprocessServer(object):
     try:
       process, endpoint = self.start_process()
       wait_secs = .1
-      channel_options = [("grpc.max_receive_message_length", -1),
-                         ("grpc.max_send_message_length", -1)]
+      channel_options = [
+          ("grpc.max_receive_message_length", -1),
+          ("grpc.max_send_message_length", -1),
+          ("grpc.keepalive_time_ms",
+           120000),  # Increased to 120s to further reduce ping frequency
+          ("grpc.keepalive_timeout_ms", 300000),
+          ("grpc.http2.max_pings_without_data", 0),
+          ("grpc.keepalive_permit_without_calls", True),
+          ("grpc.http2.min_recv_ping_interval_without_data_ms", 300000),
+          ("grpc.http2.min_sent_ping_interval_without_data_ms",
+           60000),  # Increased to 60s to be more conservative
+      ]
       self._grpc_channel = grpc.insecure_channel(
           endpoint, options=channel_options)
       channel_ready = grpc.channel_ready_future(self._grpc_channel)
