@@ -443,7 +443,10 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
           delay = retry_delay * (retry_backoff_factor**attempt)
           logging.warning(
               "Milvus connection attempt %d failed: %s. "
-              "Retrying in %.2f seconds...", attempt + 1, e, delay)
+              "Retrying in %.2f seconds...",
+              attempt + 1,
+              e,
+              delay)
           time.sleep(delay)
         else:
           logging.error(

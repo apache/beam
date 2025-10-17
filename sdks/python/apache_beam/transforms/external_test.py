@@ -247,9 +247,19 @@ class ExternalTransformTest(unittest.TestCase):
           'in the pipeline')
 
     self.assertEqual(1, len(list(pubsub_read_transform.outputs.values())))
-    self.assertEqual(
-        list(pubsub_read_transform.outputs.values()),
-        list(external_transform.inputs.values()))
+    self.assertEqual(1, len(list(external_transform.inputs.values())))
+
+    # Verify that the PubSub read transform output is connected to the
+    # external transform input. Instead of comparing exact PCollection
+    # reference IDs (which can be non-deterministic), we verify that both
+    # transforms reference the same PCollection in the pipeline components
+    pubsub_output_id = list(pubsub_read_transform.outputs.values())[0]
+    external_input_id = list(external_transform.inputs.values())[0]
+
+    # Both should reference the same PCollection in the pipeline components
+    self.assertIn(pubsub_output_id, pipeline_proto.components.pcollections)
+    self.assertIn(external_input_id, pipeline_proto.components.pcollections)
+    self.assertEqual(pubsub_output_id, external_input_id)
 
   def test_payload(self):
     with beam.Pipeline() as p:
