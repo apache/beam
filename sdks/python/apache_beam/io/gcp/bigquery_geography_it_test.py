@@ -20,6 +20,7 @@
 """Integration tests for BigQuery GEOGRAPHY data type support."""
 
 import logging
+import os
 import secrets
 import time
 import unittest
