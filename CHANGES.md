@@ -116,11 +116,11 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) `dill` is no longer a required, default dependency for Apache Beam ([#21298](https://github.com/apache/beam/issues/21298)). 
+* (Python) `dill` is no longer a required, default dependency for Apache Beam ([#21298](https://github.com/apache/beam/issues/21298)).
   - This change only affects pipelines that explicitly use the `pickle_library=dill` pipeline option.
-  - While `dill==0.3.1.1` is still pre-installed on the official Beam SDK base images, it is no longer a direct dependency of the apache-beam Python package. This means it can be overridden by other dependencies in your environment. 
-  - If your pipeline uses `pickle_library=dill`, you must manually ensure `dill==0.3.1.1` is installed in both your submission and runtime environments. 
-    - Submission environment: Install the dill extra in your local environment `pip install apache-beam[gcpdill]`. 
+  - While `dill==0.3.1.1` is still pre-installed on the official Beam SDK base images, it is no longer a direct dependency of the apache-beam Python package. This means it can be overridden by other dependencies in your environment.
+  - If your pipeline uses `pickle_library=dill`, you must manually ensure `dill==0.3.1.1` is installed in both your submission and runtime environments.
+    - Submission environment: Install the dill extra in your local environment `pip install apache-beam[gcpdill]`.
     - Runtime (worker) environment: Your action depends on how you manage your worker's environment.
       - If using default containers or custom containers with the official Beam base image e.g. `FROM apache/beam_python3.10_sdk:2.69`
         - Add `dill==0.3.1.1` to your worker's requirements file (e.g., requirements.txt)
@@ -130,7 +130,7 @@
   - If there is a dill version mismatch between submission and runtime environments you might encounter unpickling errors like `Can't get attribute '_create_code' on <module 'dill._dill' from...`.
   - If dill is not installed in the runtime environment you will see the error `ImportError: Pipeline option pickle_library=dill is set, but dill is not installed...`
   - Report any issues you encounter when using `pickle_library=dill` to the GitHub issue ([#21298](https://github.com/apache/beam/issues/21298))
-* (Python) Added a `pickle_library=dill_unsafe` pipeline option. This allows overriding `dill==0.3.1.1` using dill as the pickle_library. Use with extreme caution. Other versions of dill has not been tested with Apache Beam ([#21298](https://github.com/apache/beam/issues/21298)). 
+* (Python) Added a `pickle_library=dill_unsafe` pipeline option. This allows overriding `dill==0.3.1.1` using dill as the pickle_library. Use with extreme caution. Other versions of dill has not been tested with Apache Beam ([#21298](https://github.com/apache/beam/issues/21298)).
 * (Python) The deterministic fallback coder for complex types like NamedTuple, Enum, and dataclasses now normalizes filepaths for better determinism guarantees. This affects streaming pipelines updating from 2.68 to 2.69 that utilize this fallback coder. If your pipeline is affected, you may see a warning like: "Using fallback deterministic coder for type X...". To update safely sepcify the pipeline option `--update_compatibility_version=2.68.0` ([#36345](https://github.com/apache/beam/pull/36345)).
 * (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls ([#30445](https://github.com/apache/beam/issues/30445)).
   This may break update compatibility if you don't provide a `--transform_name_mapping`.
