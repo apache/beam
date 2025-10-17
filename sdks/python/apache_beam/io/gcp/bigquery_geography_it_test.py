@@ -428,7 +428,10 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
     hc.assert_that(p, hc.all_of(*pipeline_verifiers))
 
   @pytest.mark.uses_gcp_java_expansion_service
-  @pytest.mark.it_postcommit
+  @unittest.skipUnless(
+      os.environ.get('EXPANSION_JARS'),
+      "EXPANSION_JARS environment var is not provided, "
+      "indicating that jars have not been built")
   def test_geography_storage_write_api(self):
     """Test GEOGRAPHY with Storage Write API method."""
     table_name = 'geography_storage_write'
