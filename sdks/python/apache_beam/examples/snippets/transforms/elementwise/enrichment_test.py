@@ -126,7 +126,7 @@ class EnrichmentTest(unittest.TestCase):
     enrichment_with_bigtable()
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_bigtable()
-    self.assertEqual(output, expected)
+    self.assertEqual(sorted(output), sorted(expected))
 
   def test_enrichment_with_vertex_ai(self, mock_stdout):
     enrichment_with_vertex_ai()
