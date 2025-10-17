@@ -30,13 +30,10 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 import datetime
 import decimal
-import fastavro
 import io
 import json
 import logging
-import numpy as np
 import re
-import regex
 import sys
 import time
 import uuid
@@ -46,6 +43,10 @@ from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
+
+import fastavro
+import numpy as np
+import regex
 
 import apache_beam
 from apache_beam import coders
