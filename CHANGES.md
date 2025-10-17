@@ -90,18 +90,15 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.69.0] - Unreleased
+# [2.69.0] - 2025-10-??
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 * (Python) Add YAML Editor and Visualization Panel ([#35772](https://github.com/apache/beam/issues/35772)).
 * (Java) Java 25 Support ([#35772](https://github.com/apache/beam/issues/35627)).
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded Iceberg dependency to 1.10.0 ([#36123](https://github.com/apache/beam/issues/36123)).
 
 ## New Features / Improvements
@@ -115,7 +112,6 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls ([#30445](https://github.com/apache/beam/issues/30445)).
   This may break update compatibility if you don't provide a `--transform_name_mapping`.
 * Removed deprecated Hadoop versions (2.10.2 and 3.2.4) that are no longer supported for [Iceberg](https://github.com/apache/iceberg/issues/10940) from IcebergIO ([#36282](https://github.com/apache/beam/issues/36282)).
@@ -124,22 +120,13 @@
 * (Java) DoFn OutputReceiver now requires implementing a builder method as part of extended metadata support for elements ([#34902](https://github.com/apache/beam/issues/34902)).
 * (Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver's builder to set those field ([#36523]https://github.com/apache/beam/pull/36523).
 
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed passing of pipeline options to x-lang transforms when called from the Java SDK (Java) ([#36443](https://github.com/apache/beam/issues/36443)).
 * PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
   function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java)
   ([#36141](https://github.com/apache/beam/issues/36141)).
 * Fixed Spanner Change Stream reading stuck issue due to watermark of partition moving backwards ([#36470](https://github.com/apache/beam/issues/36470)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.68.0] - 2025-09-22
 
