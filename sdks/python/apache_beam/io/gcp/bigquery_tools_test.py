@@ -1112,7 +1112,7 @@ class TestGeographyTypeSupport(unittest.TestCase):
     field.name = 'location'
     field.mode = 'NULLABLE'
 
-    wrapper = BigQueryWrapper()
+    wrapper = BigQueryWrapper(client=mock.Mock())
 
     # Test various WKT formats
     test_cases = [
@@ -1234,7 +1234,7 @@ class TestGeographyTypeSupport(unittest.TestCase):
     field.name = 'complex_geo'
     field.mode = 'NULLABLE'
 
-    wrapper = BigQueryWrapper()
+    wrapper = BigQueryWrapper(client=mock.Mock())
 
     # Test complex WKT with various coordinate systems and precision
     complex_wkt = (
