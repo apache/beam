@@ -26,6 +26,13 @@ from typing import Any
 GLOBAL_DICT = {}
 
 
+def mutable_test_function():
+  def dynamic_function():
+    return 'version1'
+
+  return dynamic_function
+
+
 class UnPicklable:
   def __init__(self, x):
     self.x = x

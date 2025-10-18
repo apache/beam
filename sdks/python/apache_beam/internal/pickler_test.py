@@ -21,6 +21,7 @@
 
 import random
 import sys
+import textwrap
 import threading
 import types
 import unittest
@@ -301,6 +302,49 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     self.assertNotEqual(
         dumps(set1, enable_best_effort_determinism=False),
         dumps(set2, enable_best_effort_determinism=False))
+
+  def test_stable_identifier_uses_current_code(self):
+    pickler.set_library('cloudpickle')
+
+    # Get original dynamic function
+    func_v1 = module_test.mutable_test_function()
+
+    pickled_stable = pickler.dumps(
+        func_v1, enable_stable_code_identifier_pickling=True)
+
+    pickled_frozen = pickler.dumps(
+        func_v1, enable_stable_code_identifier_pickling=False)
+
+    # Save original function for cleanup
+    original_function = module_test.mutable_test_function
+
+    try:
+      # Monkey patch: Replace the entire outer function with v2
+      code_v2 = textwrap.dedent(
+          """
+      def mutable_test_function():
+        def dynamic_function():
+          return "version2"
+
+        return dynamic_function
+      """)
+      namespace = {}
+      exec(code_v2, namespace)
+      module_test.mutable_test_function = namespace['mutable_test_function']
+
+      # Unpickle both
+      func_stable = pickler.loads(pickled_stable)
+      func_frozen = pickler.loads(pickled_frozen)
+
+      # Stable identifier resolves to NEW code (version2)
+      self.assertEqual('version2', func_stable())
+
+      # Frozen bytecode uses OLD code (version1)
+      self.assertEqual('version1', func_frozen())
+
+    finally:
+      # Restore original function
+      module_test.mutable_test_function = original_function
 
 
 if __name__ == '__main__':
