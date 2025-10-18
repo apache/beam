@@ -99,15 +99,25 @@ fi
 function cleanup_container {
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
-  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
+
+  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH | grep -E "(beam_python_prebuilt_sdk|$TAG)")
   do
     echo "Deleting Docker image: $image"
     docker rmi $image || echo "Failed to remove prebuilt sdk container image"
     image_tag="${image##*:}"
+
     digest=$(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk --filter="tags=$image_tag" --format="get(digest)")
-    echo "Deleting from GCloud an image with digest: $digest"
-    gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
+
+    echo "Looking for digest for tag '$image_tag', found: '$digest'"
+
+    if [[ -n "$digest" && "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+      echo "Deleting from GCloud an image with digest: $digest"
+      gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
+    else
+      echo "Skipping deletion of image with invalid or empty digest: '$digest'"
+    fi
   done
+
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
   # the associated container images can't be deleted because they are not tagged. However, multi-arch containers that are
   # older than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs daily.
