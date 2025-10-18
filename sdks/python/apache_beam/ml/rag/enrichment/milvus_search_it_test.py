@@ -481,11 +481,10 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   """Tests for search functionality across all search strategies"""
 
   _db: MilvusDBContainerInfo
-  _version = "milvusdb/milvus:v2.5.10"
 
   @classmethod
   def setUpClass(cls):
-    cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
+    cls._db = MilvusEnrichmentTestHelper.start_db_container()
     cls._connection_params = MilvusConnectionParameters(
         uri=cls._db.uri,
         user=cls._db.user,
