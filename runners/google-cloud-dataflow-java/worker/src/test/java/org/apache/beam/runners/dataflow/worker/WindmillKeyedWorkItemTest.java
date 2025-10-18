@@ -93,7 +93,7 @@ public class WindmillKeyedWorkItemTest {
 
     KeyedWorkItem<String, String> keyedWorkItem =
         new WindmillKeyedWorkItem<>(
-            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, false);
 
     assertThat(
         keyedWorkItem.elementsIterable(),
@@ -148,7 +148,7 @@ public class WindmillKeyedWorkItemTest {
             .build();
 
     KeyedWorkItem<String, String> keyedWorkItem =
-        new WindmillKeyedWorkItem<>(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+        new WindmillKeyedWorkItem<>(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, false);
 
     assertThat(
         keyedWorkItem.timersIterable(),
