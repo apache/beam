@@ -113,13 +113,17 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -132,6 +136,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
@@ -2308,20 +2313,34 @@ public class SpannerIO {
     private static class OutputReceiverForFinishBundle
         implements OutputReceiver<Iterable<MutationGroup>> {
 
-      private final FinishBundleContext c;
+      private final OutputBuilderSupplier outputBuilderSupplier;
+      private final DoFn<MutationGroup, Iterable<MutationGroup>>.FinishBundleContext context;
 
-      OutputReceiverForFinishBundle(FinishBundleContext c) {
-        this.c = c;
+      OutputReceiverForFinishBundle(FinishBundleContext context) {
+        this.context = context;
+        this.outputBuilderSupplier =
+            new OutputBuilderSupplier() {
+              @Override
+              public <OutputT> WindowedValues.Builder<OutputT> builder(OutputT value) {
+                return WindowedValues.<OutputT>builder()
+                    .setValue(value)
+                    .setTimestamp(Instant.now())
+                    .setPaneInfo(PaneInfo.NO_FIRING)
+                    .setWindow(GlobalWindow.INSTANCE);
+              }
+            };
       }
 
       @Override
-      public void output(Iterable<MutationGroup> output) {
-        outputWithTimestamp(output, Instant.now());
-      }
-
-      @Override
-      public void outputWithTimestamp(Iterable<MutationGroup> output, Instant timestamp) {
-        c.output(output, timestamp, GlobalWindow.INSTANCE);
+      public OutputBuilder<Iterable<MutationGroup>> builder(Iterable<MutationGroup> value) {
+        return outputBuilderSupplier
+            .builder(value)
+            .setReceiver(
+                wv -> {
+                  for (BoundedWindow window : wv.getWindows()) {
+                    context.output(wv.getValue(), wv.getTimestamp(), window);
+                  }
+                });
       }
     }
   }
@@ -2330,7 +2349,7 @@ public class SpannerIO {
    * Filters MutationGroups larger than the batch size to the output tagged with {@code
    * UNBATCHABLE_MUTATIONS_TAG}.
    *
-   * <p>Testing notes: As batching does not occur during full pipline testing, this DoFn must be
+   * <p>Testing notes: As batching does not occur during full pipeline testing, this DoFn must be
    * tested in isolation.
    */
   @VisibleForTesting

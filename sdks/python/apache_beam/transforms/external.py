@@ -35,7 +35,7 @@ import yaml
 
 from apache_beam import pvalue
 from apache_beam.coders import RowCoder
-from apache_beam.options.pipeline_options import CrossLanguageOptions
+from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
@@ -83,6 +83,10 @@ MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING = {
     ManagedTransforms.Urns.BIGQUERY_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
     ManagedTransforms.Urns.POSTGRES_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
     ManagedTransforms.Urns.POSTGRES_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.MYSQL_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.MYSQL_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.SQL_SERVER_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.SQL_SERVER_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
 }
 
 
@@ -1028,9 +1032,21 @@ class JavaJarExpansionService(object):
     append_args: arguments to be provided when starting up the
       expansion service using the jar file. These arguments will be appended to
       the default arguments.
+    user_agent: HTTP user agent string used when downloading jars via
+      `JavaJarServer.local_jar`, including the main jar and any classpath
+      dependencies.
+    maven_repository_url: Maven repository base URL to resolve artifacts when
+      classpath entries or jars are specified as Maven coordinates
+      (`group:artifact:version`). Defaults to Maven Central if not provided.
   """
   def __init__(
-      self, path_to_jar, extra_args=None, classpath=None, append_args=None):
+      self,
+      path_to_jar,
+      extra_args=None,
+      classpath=None,
+      append_args=None,
+      user_agent=None,
+      maven_repository_url=None):
     if extra_args and append_args:
       raise ValueError('Only one of extra_args or append_args may be provided')
     self.path_to_jar = path_to_jar
@@ -1038,12 +1054,14 @@ class JavaJarExpansionService(object):
     self._classpath = classpath or []
     self._service_count = 0
     self._append_args = append_args or []
+    self._user_agent = user_agent
+    self._maven_repository_url = maven_repository_url
 
   def is_existing_service(self):
     return subprocess_server.is_service_endpoint(self.path_to_jar)
 
   @staticmethod
-  def _expand_jars(jar):
+  def _expand_jars(jar, user_agent=None, maven_repository_url=None):
     if glob.glob(jar):
       return glob.glob(jar)
     elif isinstance(jar, str) and (jar.startswith('http://') or
@@ -1062,14 +1080,21 @@ class JavaJarExpansionService(object):
         return [jar]
       path = subprocess_server.JavaJarServer.local_jar(
           subprocess_server.JavaJarServer.path_to_maven_jar(
-              artifact_id, group_id, version))
+              artifact_id,
+              group_id,
+              version,
+              repository=(
+                  maven_repository_url or
+                  subprocess_server.JavaJarServer.MAVEN_CENTRAL_REPOSITORY)),
+          user_agent=user_agent)
       return [path]
 
   def _default_args(self):
     """Default arguments to be used by `JavaJarExpansionService`."""
 
     to_stage = ','.join([self.path_to_jar] + sum((
-        JavaJarExpansionService._expand_jars(jar)
+        JavaJarExpansionService._expand_jars(
+            jar, self._user_agent, self._maven_repository_url)
         for jar in self._classpath or []), []))
     args = ['{{PORT}}', f'--filesToStage={to_stage}']
     # TODO(robertwb): See if it's possible to scope this per pipeline.
@@ -1078,10 +1103,14 @@ class JavaJarExpansionService(object):
       args.append('--alsoStartLoopbackWorker')
     return args
 
+  def with_user_agent(self, user_agent: str):
+    self._user_agent = user_agent
+    return self
+
   def __enter__(self):
     if self._service_count == 0:
       self.path_to_jar = subprocess_server.JavaJarServer.local_jar(
-          self.path_to_jar)
+          self.path_to_jar, user_agent=self._user_agent)
       if self._extra_args is None:
         self._extra_args = self._default_args() + self._append_args
       # Consider memoizing these servers (with some timeout).
@@ -1093,7 +1122,9 @@ class JavaJarExpansionService(object):
       classpath_urls = [
           subprocess_server.JavaJarServer.local_jar(path)
           for jar in self._classpath
-          for path in JavaJarExpansionService._expand_jars(jar)
+          for path in JavaJarExpansionService._expand_jars(
+              jar, user_agent=self._user_agent,
+              maven_repository_url=self._maven_repository_url)
       ]
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
@@ -1129,6 +1160,11 @@ class BeamJarExpansionService(JavaJarExpansionService):
     append_args: arguments to be provided when starting up the
       expansion service using the jar file. These arguments will be appended to
       the default arguments.
+    user_agent: HTTP user agent string used when downloading the Beam jar and
+      any classpath dependencies.
+    maven_repository_url: Maven repository base URL to resolve the Beam jar
+      for the provided Gradle target. Defaults to Maven Central if not
+      provided.
   """
   def __init__(
       self,
@@ -1136,12 +1172,21 @@ class BeamJarExpansionService(JavaJarExpansionService):
       extra_args=None,
       gradle_appendix=None,
       classpath=None,
-      append_args=None):
+      append_args=None,
+      user_agent=None,
+      maven_repository_url=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
-        gradle_target, gradle_appendix)
+        gradle_target,
+        gradle_appendix,
+        maven_repository_url=maven_repository_url)
     self.gradle_target = gradle_target
     super().__init__(
-        path_to_jar, extra_args, classpath=classpath, append_args=append_args)
+        path_to_jar,
+        extra_args,
+        classpath=classpath,
+        append_args=append_args,
+        user_agent=user_agent,
+        maven_repository_url=maven_repository_url)
 
 
 def _maybe_use_transform_service(provided_service=None, options=None):
@@ -1183,10 +1228,11 @@ def _maybe_use_transform_service(provided_service=None, options=None):
   docker_available = is_docker_available()
 
   use_transform_service = options.view_as(
-      CrossLanguageOptions).use_transform_service
+      pipeline_options.CrossLanguageOptions).use_transform_service
+  user_agent = options.view_as(pipeline_options.SetupOptions).user_agent
 
   if (java_available and provided_service and not use_transform_service):
-    return provided_service
+    return provided_service.with_user_agent(user_agent)
   elif docker_available:
     if use_transform_service:
       error_append = 'it was explicitly requested'
@@ -1208,7 +1254,7 @@ def _maybe_use_transform_service(provided_service=None, options=None):
     beam_version = beam_version.__version__
 
     return transform_service_launcher.TransformServiceLauncher(
-        project_name, port, beam_version)
+        project_name, port, beam_version, user_agent)
   else:
     raise ValueError(
         'Cannot start an expansion service since neither Java nor '

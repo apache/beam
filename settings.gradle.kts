@@ -25,7 +25,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "3.19"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.2.1"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.4.0"
 }
 
 
@@ -170,6 +170,7 @@ include(":sdks:java:container:agent")
 include(":sdks:java:container:java11")
 include(":sdks:java:container:java17")
 include(":sdks:java:container:java21")
+include(":sdks:java:container:java25")
 include(":sdks:java:container:distroless")
 include(":sdks:java:container:distroless:java17")
 include(":sdks:java:container:distroless:java21")

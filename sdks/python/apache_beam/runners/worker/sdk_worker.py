@@ -454,6 +454,8 @@ class BundleProcessorCache(object):
     )  # type: collections.OrderedDict[str, Exception]
     self.active_bundle_processors = {
     }  # type: Dict[str, Tuple[str, bundle_processor.BundleProcessor]]
+    self.processors_being_created = {
+    }  # type: Dict[str, Tuple[str, threading.Thread, float]]
     self.cached_bundle_processors = collections.defaultdict(
         list)  # type: DefaultDict[str, List[bundle_processor.BundleProcessor]]
     self.last_access_times = collections.defaultdict(
@@ -501,7 +503,8 @@ class BundleProcessorCache(object):
           pass
         return processor
       except IndexError:
-        pass
+        self.processors_being_created[instruction_id] = (
+            bundle_descriptor_id, threading.current_thread(), time.time())
 
     # Make sure we instantiate the processor while not holding the lock.
 
@@ -521,6 +524,7 @@ class BundleProcessorCache(object):
     with self._lock:
       self.active_bundle_processors[
         instruction_id] = bundle_descriptor_id, processor
+      del self.processors_being_created[instruction_id]
       try:
         del self.known_not_running_instruction_ids[instruction_id]
       except KeyError:
@@ -559,15 +563,18 @@ class BundleProcessorCache(object):
     """
     Marks the instruction id as failed shutting down the ``BundleProcessor``.
     """
+    processor = None
     with self._lock:
       self.failed_instruction_ids[instruction_id] = exception
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
         self.failed_instruction_ids.popitem(last=False)
-      processor = self.active_bundle_processors[instruction_id][1]
-      del self.active_bundle_processors[instruction_id]
+      if instruction_id in self.active_bundle_processors:
+        processor = self.active_bundle_processors.pop(instruction_id)[1]
 
     # Perform the shutdown while not holding the lock.
-    processor.shutdown()
+    if processor:
+      processor.shutdown()
+    self.data_channel_factory.cleanup(instruction_id)
 
   def release(self, instruction_id):
     # type: (str) -> None
@@ -690,9 +697,9 @@ class SdkWorker(object):
       instruction_id  # type: str
   ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
-    bundle_processor = self.bundle_processor_cache.get(
-        instruction_id, request.process_bundle_descriptor_id)
     try:
+      bundle_processor = self.bundle_processor_cache.get(
+          instruction_id, request.process_bundle_descriptor_id)
       with bundle_processor.state_handler.process_instruction_id(
           instruction_id, request.cache_tokens):
         with self.maybe_profile(instruction_id):

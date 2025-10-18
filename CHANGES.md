@@ -59,13 +59,12 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.69.0] - Unreleased
+# [2.70.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* (Python) Add YAML Editor and Visualization Panel ([#35772](https://github.com/apache/beam/issues/35772)).
 
 ## I/Os
 
@@ -74,8 +73,6 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Python examples added for CloudSQL enrichment handler on [Beam website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-cloudsql/) (Python) ([#36095](https://github.com/apache/beam/issues/36095)).
-* Support for batch mode execution in WriteToPubSub transform added (Python) ([#35990](https://github.com/apache/beam/issues/35990)).
 * Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
   including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
 
@@ -90,30 +87,90 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
-  function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java)
-  ([#36141](https://github.com/apache/beam/issues/36141)).
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.68.0] - Unreleased
+# [2.69.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
+* (Python) Add YAML Editor and Visualization Panel ([#35772](https://github.com/apache/beam/issues/35772)).
+* (Java) Java 25 Support ([#35772](https://github.com/apache/beam/issues/35627)).
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Upgraded Iceberg dependency to 1.10.0 ([#36123](https://github.com/apache/beam/issues/36123)).
+
+## New Features / Improvements
+
+* Enhance JAXBCoder with XMLInputFactory support (Java) ([#36446](https://github.com/apache/beam/issues/36446)).
+* Python examples added for CloudSQL enrichment handler on [Beam website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-cloudsql/) (Python) ([#35473](https://github.com/apache/beam/issues/36095)).
+* Support for batch mode execution in WriteToPubSub transform added (Python) ([#35990](https://github.com/apache/beam/issues/35990)).
+* Added official support for Python 3.13 ([#34869](https://github.com/apache/beam/issues/34869)).
+* Added an optional output_schema verification to all YAML transforms ([#35952](https://github.com/apache/beam/issues/35952)).
+* Support for encryption when using GroupByKey added, along with `--gbek` pipeline option to automatically replace all GroupByKey transforms (Java/Python) ([#36214](https://github.com/apache/beam/issues/36214)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) `dill` is no longer a required, default dependency for Apache Beam ([#21298](https://github.com/apache/beam/issues/21298)).
+  - This change only affects pipelines that explicitly use the `pickle_library=dill` pipeline option.
+  - While `dill==0.3.1.1` is still pre-installed on the official Beam SDK base images, it is no longer a direct dependency of the apache-beam Python package. This means it can be overridden by other dependencies in your environment.
+  - If your pipeline uses `pickle_library=dill`, you must manually ensure `dill==0.3.1.1` is installed in both your submission and runtime environments.
+    - Submission environment: Install the dill extra in your local environment `pip install apache-beam[gcpdill]`.
+    - Runtime (worker) environment: Your action depends on how you manage your worker's environment.
+      - If using default containers or custom containers with the official Beam base image e.g. `FROM apache/beam_python3.10_sdk:2.69`
+        - Add `dill==0.3.1.1` to your worker's requirements file (e.g., requirements.txt)
+        - Pass this file to your pipeline using the --requirements_file requirements.txt pipeline option (For more details see [managing Dataflow dependencies](https://cloud.google.com/dataflow/docs/guides/manage-dependencies#py-custom-containers)).
+      - If custom containers with a non-Beam base image e.g. `FROM python:3.9-slim`
+        - Install apache-beam with the dill extra in your docker file e.g. `RUN pip install --no-cache-dir apache-beam[gcp,dill]`
+  - If there is a dill version mismatch between submission and runtime environments you might encounter unpickling errors like `Can't get attribute '_create_code' on <module 'dill._dill' from...`.
+  - If dill is not installed in the runtime environment you will see the error `ImportError: Pipeline option pickle_library=dill is set, but dill is not installed...`
+  - Report any issues you encounter when using `pickle_library=dill` to the GitHub issue ([#21298](https://github.com/apache/beam/issues/21298))
+* (Python) Added a `pickle_library=dill_unsafe` pipeline option. This allows overriding `dill==0.3.1.1` using dill as the pickle_library. Use with extreme caution. Other versions of dill has not been tested with Apache Beam ([#21298](https://github.com/apache/beam/issues/21298)).
+* (Python) The deterministic fallback coder for complex types like NamedTuple, Enum, and dataclasses now normalizes filepaths for better determinism guarantees. This affects streaming pipelines updating from 2.68 to 2.69 that utilize this fallback coder. If your pipeline is affected, you may see a warning like: "Using fallback deterministic coder for type X...". To update safely sepcify the pipeline option `--update_compatibility_version=2.68.0` ([#36345](https://github.com/apache/beam/pull/36345)).
+* (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls ([#30445](https://github.com/apache/beam/issues/30445)).
+  This may break update compatibility if you don't provide a `--transform_name_mapping`.
+* Removed deprecated Hadoop versions (2.10.2 and 3.2.4) that are no longer supported for [Iceberg](https://github.com/apache/iceberg/issues/10940) from IcebergIO ([#36282](https://github.com/apache/beam/issues/36282)).
+* (Go) Coder construction on SDK side is more faithful to the specs from runners without stripping length-prefix. This may break streaming pipeline update as the underlying coder could be changed ([#36387](https://github.com/apache/beam/issues/36387)).
+* Minimum Go version for Beam Go updated to 1.25.2 ([#36461](https://github.com/apache/beam/issues/36461)).
+* (Java) DoFn OutputReceiver now requires implementing a builder method as part of extended metadata support for elements ([#34902](https://github.com/apache/beam/issues/34902)).
+* (Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver's builder to set those field ([#36523]https://github.com/apache/beam/pull/36523).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed passing of pipeline options to x-lang transforms when called from the Java SDK (Java) ([#36443](https://github.com/apache/beam/issues/36443)).
+* PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
+  function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java)
+  ([#36141](https://github.com/apache/beam/issues/36141)).
+* Fixed Spanner Change Stream reading stuck issue due to watermark of partition moving backwards ([#36470](https://github.com/apache/beam/issues/36470)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.68.0] - 2025-09-22
+
+## Highlights
+
+* [Python] Prism runner now enabled by default for most Python pipelines using the direct runner ([#34612](https://github.com/apache/beam/pull/34612)). This may break some tests, see https://github.com/apache/beam/pull/34612 for details on how to handle issues.
+
+## I/Os
+
 * Upgraded Iceberg dependency to 1.9.2 ([#35981](https://github.com/apache/beam/pull/35981))
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * BigtableRead Connector for BeamYaml added with new Config Param ([#35696](https://github.com/apache/beam/pull/35696))
 * MongoDB Java driver upgraded from 3.12.11 to 5.5.0 with API refactoring and GridFS implementation updates (Java) ([#35946](https://github.com/apache/beam/pull/35946)).
 * Introduced a dedicated module for JUnit-based testing support: `sdks/java/testing/junit`, which provides `TestPipelineExtension` for JUnit 5 while maintaining backward compatibility with existing JUnit 4 `TestRule`-based tests (Java) ([#18733](https://github.com/apache/beam/issues/18733), [#35688](https://github.com/apache/beam/pull/35688)).
@@ -130,7 +187,6 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * Previously deprecated Beam ZetaSQL component has been removed ([#34423](https://github.com/apache/beam/issues/34423)).
   ZetaSQL users could migrate to Calcite SQL with BigQuery dialect enabled.
 * Upgraded Beam vendored Calcite to 1.40.0 for Beam SQL ([#35483](https://github.com/apache/beam/issues/35483)), which
@@ -142,7 +198,6 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 * Python SDK native SpannerIO (apache_beam/io/gcp/experimental/spannerio) is deprecated. Use cross-language wrapper
   (apache_beam/io/gcp/spanner) instead (Python) ([#35860](https://github.com/apache/beam/issues/35860)).
 * Samza runner is deprecated and scheduled for removal in Beam 3.0 ([#35448](https://github.com/apache/beam/issues/35448)).
@@ -153,11 +208,11 @@
 * (Python) Fixed Java YAML provider fails on Windows ([#35617](https://github.com/apache/beam/issues/35617)).
 * Fixed BigQueryIO creating temporary datasets in wrong project when temp_dataset is specified with a different project than the pipeline project. For some jobs, temporary datasets will now be created in the correct project (Python) ([#35813](https://github.com/apache/beam/issues/35813)).
 * (Go) Fix duplicates due to reads after blind writes to Bag State ([#35869](https://github.com/apache/beam/issues/35869)).
-  * Earlier Go SDK versions can avoid the issue by not reading in the same call after a blind write.
+* Earlier Go SDK versions can avoid the issue by not reading in the same call after a blind write.
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* ([#36470](https://github.com/apache/beam/issues/36470)). Spanner Change Stream reading stuck issue due to watermark of partition moving backwards. This issue exists in 2.67.0 and 2.68.0. To mitigate the issue, either use old version 2.66.0 or go to 2.69.0.
 
 # [2.67.0] - 2025-08-12
 
@@ -205,6 +260,7 @@
 ## Known Issues
 
 * ([#35666](https://github.com/apache/beam/issues/35666)). YAML Flatten incorrectly drops fields when input PCollections' schema are different. This issue exists for all versions since 2.52.0.
+* ([#36470](https://github.com/apache/beam/issues/36470)). Spanner Change Stream reading stuck issue due to watermark of partition moving backwards. This issue exists in 2.67.0 and 2.68.0. To mitigate the issue, either use old version 2.66.0 or go to 2.69.0.
 
 # [2.66.0] - 2025-07-01
 

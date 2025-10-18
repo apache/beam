@@ -63,6 +63,11 @@ def loads(encoded, enable_trace=True, use_zlib=False):
       encoded, enable_trace=enable_trace, use_zlib=use_zlib)
 
 
+def roundtrip(o):
+  """Internal utility for testing round-trip pickle serialization."""
+  return desired_pickle_lib.roundtrip(o)
+
+
 def dump_session(file_path):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -79,6 +84,9 @@ def load_session(file_path):
 def set_library(selected_library=DEFAULT_PICKLE_LIB):
   """ Sets pickle library that will be used. """
   global desired_pickle_lib
+
+  if selected_library == 'default':
+    selected_library = DEFAULT_PICKLE_LIB
 
   if selected_library == USE_DILL and not dill_pickler:
     raise ImportError(
@@ -97,9 +105,6 @@ def set_library(selected_library=DEFAULT_PICKLE_LIB):
   # If switching to or from dill, update the pickler hook overrides.
   if is_currently_dill != dill_is_requested:
     dill_pickler.override_pickler_hooks(selected_library == USE_DILL)
-
-  if selected_library == 'default':
-    selected_library = DEFAULT_PICKLE_LIB
 
   if dill_is_requested:
     desired_pickle_lib = dill_pickler

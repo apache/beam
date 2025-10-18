@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -45,14 +48,17 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Instant;
 
 /**
- * Implementations of {@link WindowedValue} and static utility methods.
+ * Implementations of {@link org.apache.beam.sdk.values.WindowedValue} and static utility methods.
  *
  * <p>These are primarily intended for internal use by Beam SDK developers and runner developers.
  * Backwards incompatible changes will likely occur.
@@ -60,6 +66,172 @@ import org.joda.time.Instant;
 @Internal
 public class WindowedValues {
   private WindowedValues() {} // non-instantiable utility class
+
+  public static <T> Builder<T> builder() {
+    return new Builder<>();
+  }
+
+  /** Create a Builder that takes element metadata from the provideed delegate. */
+  public static <T> Builder<T> builder(WindowedValue<T> template) {
+    return new Builder<T>()
+        .setValue(template.getValue())
+        .setTimestamp(template.getTimestamp())
+        .setWindows(template.getWindows())
+        .setPaneInfo(template.getPaneInfo());
+  }
+
+  public static class Builder<T> implements OutputBuilder<T> {
+
+    // Because T itself can be nullable, checking `maybeValue == null` cannot determine if it is set
+    // or
+    // not.
+    //
+    // Note also that JDK Optional class is written in such a way that it cannot have a nullable
+    // type
+    // for T (rendering it largely useless for its one reason for existing - composable
+    // presence/absence).
+    private @Nullable T maybeValue;
+    private boolean hasValue = false;
+
+    private @MonotonicNonNull WindowedValueReceiver<T> receiver;
+    private @MonotonicNonNull PaneInfo paneInfo;
+    private @MonotonicNonNull Instant timestamp;
+    private @MonotonicNonNull Collection<? extends BoundedWindow> windows;
+    private @Nullable String recordId;
+    private @Nullable Long recordOffset;
+
+    @Override
+    public Builder<T> setValue(T value) {
+      this.hasValue = true;
+      this.maybeValue = value;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setTimestamp(Instant timestamp) {
+      this.timestamp = timestamp;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setWindows(Collection<? extends BoundedWindow> windows) {
+      this.windows = windows;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setPaneInfo(PaneInfo paneInfo) {
+      this.paneInfo = paneInfo;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setWindow(BoundedWindow window) {
+      return setWindows(Collections.singleton(window));
+    }
+
+    @Override
+    public Builder<T> setRecordId(@Nullable String recordId) {
+      this.recordId = recordId;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setRecordOffset(@Nullable Long recordOffset) {
+      this.recordOffset = recordOffset;
+      return this;
+    }
+
+    public Builder<T> setReceiver(WindowedValueReceiver<T> receiver) {
+      this.receiver = receiver;
+      return this;
+    }
+
+    @Override
+    public T getValue() {
+      // If T is itself a nullable type, then this checkState ensures it is set, whether or not it
+      // is null.
+      // If T is a non-nullable type, this checkState ensures it is not null.
+      checkState(hasValue, "Value not set");
+      return getValueIgnoringNullness();
+    }
+
+    // This method is a way to @Nullable T to polymorphic-in-nullness T
+    @SuppressWarnings("nullness")
+    T getValueIgnoringNullness() {
+      return maybeValue;
+    }
+
+    @Override
+    public Instant getTimestamp() {
+      checkStateNotNull(timestamp, "Timestamp not set");
+      return timestamp;
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      checkStateNotNull(windows, "Windows not set");
+      return windows;
+    }
+
+    @Override
+    public PaneInfo getPaneInfo() {
+      checkStateNotNull(paneInfo, "PaneInfo not set");
+      return paneInfo;
+    }
+
+    @Override
+    public @Nullable String getRecordId() {
+      return recordId;
+    }
+
+    @Override
+    public @Nullable Long getRecordOffset() {
+      return recordOffset;
+    }
+
+    @Override
+    public Collection<Builder<T>> explodeWindows() {
+      throw new UnsupportedOperationException(
+          "Cannot explodeWindows() on WindowedValue builder; use build().explodeWindows()");
+    }
+
+    @Override
+    @Pure
+    public <OtherT> Builder<OtherT> withValue(OtherT newValue) {
+      // because of erasure, this type system lie is safe
+      return ((Builder<OtherT>) builder(this)).setValue(newValue);
+    }
+
+    @Override
+    public void output() {
+      try {
+        checkStateNotNull(receiver, "A WindowedValueReceiver must be set via setReceiver()")
+            .output(build());
+      } catch (Exception exc) {
+        if (exc instanceof RuntimeException) {
+          throw (RuntimeException) exc;
+        } else {
+          throw new RuntimeException("Exception thrown when outputting WindowedValue", exc);
+        }
+      }
+    }
+
+    public WindowedValue<T> build() {
+      return WindowedValues.of(getValue(), getTimestamp(), getWindows(), getPaneInfo());
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("value", getValue())
+          .add("timestamp", getTimestamp())
+          .add("windows", getWindows())
+          .add("paneInfo", getPaneInfo())
+          .add("receiver", receiver)
+          .toString();
+    }
+  }
 
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
@@ -164,8 +336,8 @@ public class WindowedValues {
         windowedValue.getTimestamp(),
         windowedValue.getWindows(),
         windowedValue.getPaneInfo(),
-        windowedValue.getCurrentRecordId(),
-        windowedValue.getCurrentRecordOffset());
+        windowedValue.getRecordId(),
+        windowedValue.getRecordOffset());
   }
 
   public static <T> boolean equals(
@@ -218,12 +390,12 @@ public class WindowedValues {
     private final @Nullable Long currentRecordOffset;
 
     @Override
-    public @Nullable String getCurrentRecordId() {
+    public @Nullable String getRecordId() {
       return currentRecordId;
     }
 
     @Override
-    public @Nullable Long getCurrentRecordOffset() {
+    public @Nullable Long getRecordOffset() {
       return currentRecordOffset;
     }
 
@@ -259,6 +431,20 @@ public class WindowedValues {
             WindowedValues.of(this.getValue(), this.getTimestamp(), w, this.getPaneInfo()));
       }
       return windowedValues.build();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      if (!(other instanceof WindowedValue)) {
+        return false;
+      }
+
+      return WindowedValues.equals(this, (WindowedValue<T>) other);
+    }
+
+    @Override
+    public int hashCode() {
+      return WindowedValues.hashCode(this);
     }
   }
 
@@ -303,8 +489,7 @@ public class WindowedValues {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInGlobalWindow<>(
-          newValue, getPaneInfo(), getCurrentRecordId(), getCurrentRecordOffset());
+      return new ValueInGlobalWindow<>(newValue, getPaneInfo(), getRecordId(), getRecordOffset());
     }
 
     @Override
@@ -381,7 +566,7 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInGlobalWindow<>(
-          newValue, getTimestamp(), getPaneInfo(), getCurrentRecordId(), getCurrentRecordOffset());
+          newValue, getTimestamp(), getPaneInfo(), getRecordId(), getRecordOffset());
     }
 
     @Override
@@ -438,12 +623,7 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInSingleWindow<>(
-          newValue,
-          getTimestamp(),
-          window,
-          getPaneInfo(),
-          getCurrentRecordId(),
-          getCurrentRecordOffset());
+          newValue, getTimestamp(), window, getPaneInfo(), getRecordId(), getRecordOffset());
     }
 
     @Override
@@ -512,12 +692,7 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInMultipleWindows<>(
-          newValue,
-          getTimestamp(),
-          getWindows(),
-          getPaneInfo(),
-          getCurrentRecordId(),
-          getCurrentRecordOffset());
+          newValue, getTimestamp(), getWindows(), getPaneInfo(), getRecordId(), getRecordOffset());
     }
 
     @Override
@@ -589,6 +764,15 @@ public class WindowedValues {
   /** Abstract class for {@code WindowedValue} coder. */
   public abstract static class WindowedValueCoder<T> extends StructuredCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
+    private static boolean metadataSupported = false;
+
+    public static void setMetadataSupported() {
+      metadataSupported = true;
+    }
+
+    public static boolean isMetadataSupported() {
+      return metadataSupported;
+    }
 
     WindowedValueCoder(Coder<T> valueCoder) {
       this.valueCoder = checkNotNull(valueCoder);
@@ -655,7 +839,15 @@ public class WindowedValues {
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo(), outStream);
+      boolean metadataSupported = isMetadataSupported();
+      PaneInfoCoder.INSTANCE.encode(
+          windowedElem.getPaneInfo().withElementMetadata(metadataSupported), outStream);
+      if (metadataSupported) {
+        BeamFnApi.Elements.ElementMetadata.Builder builder =
+            BeamFnApi.Elements.ElementMetadata.newBuilder();
+        BeamFnApi.Elements.ElementMetadata em = builder.build();
+        ByteArrayCoder.of().encode(em.toByteArray(), outStream);
+      }
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -665,11 +857,15 @@ public class WindowedValues {
     }
 
     @Override
+    @SuppressWarnings("IgnoredPureGetter")
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+      if (isMetadataSupported() && paneInfo.isElementMetadata()) {
+        BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+      }
       T value = valueCoder.decode(inStream, context);
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,

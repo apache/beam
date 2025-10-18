@@ -41,6 +41,6 @@ runs:
         if [ -f ~/.m2/settings.xml ]; then
           rm ~/.m2/settings.xml
         fi
-        ./gradlew ${{ inputs.gradle-command }} --max-workers=${{ inputs.max-workers }} --continue \
+        ./gradlew ${{ inputs.gradle-command }} --max-workers=${{ inputs.max-workers }} --continue --no-daemon \
          -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses \
         ${{ inputs.arguments }}
