@@ -282,7 +282,7 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
       - name: Install Python 3.9
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.9'
       - name: Set up Docker Buildx
@@ -328,7 +328,7 @@ jobs:
           token: ${{ github.event.inputs.REPO_TOKEN }}
           ref: release-docs
       - name: Install Python 3.9
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.9'
       - name: Install node
@@ -567,7 +567,7 @@ jobs:
           token: ${{ github.event.inputs.REPO_TOKEN }}
           persist-credentials: true
       - name: Install Python 3.9
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.9'
       - name: Install Java 11
