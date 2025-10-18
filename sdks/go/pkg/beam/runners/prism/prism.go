@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/logconfig"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
@@ -67,11 +68,16 @@ type Options struct {
 	// CancelFn allows Prism to terminate the program due to it's internal state, such as via the idle shutdown timeout.
 	// If unset, os.Exit(1) will be called instead.
 	CancelFn context.CancelCauseFunc
+
+	// Structural logging options
+	LogLevel, LogKind string
 }
 
 // CreateJobServer returns a Beam JobServicesClient connected to an in memory JobServer.
 // This call is non-blocking.
 func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient, error) {
+	logconfig.ConfigureLogging(opts.LogLevel, opts.LogKind)
+
 	s := jobservices.NewServer(opts.Port, internal.RunPipeline)
 
 	if opts.IdleShutdownTimeout > 0 {

@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"log"
 
-	beamlog "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 	"google.golang.org/grpc"
@@ -40,22 +39,23 @@ var (
 
 // Logging flags
 var (
-	logKindFlag = flag.String("log_kind", "dev",
-		"Determines the format of prism's logging to std err: valid values are `dev', 'json', or 'text'. Default is `dev`.")
 	logLevelFlag = flag.String("log_level", "info",
 		"Sets the minimum log level of Prism. Valid options are 'debug', 'info','warn', and 'error'. Default is 'info'. Debug adds prism source lines.")
+	logKindFlag = flag.String("log_kind", "dev",
+		"Determines the format of prism's logging to std err: valid values are `dev', 'json', or 'text'. Default is `dev`.")
 )
 
 func main() {
 	flag.Parse()
 	ctx, cancel := context.WithCancelCause(context.Background())
 
-	beamlog.SetupLogging(*logLevelFlag, *logKindFlag)
 	cli, err := makeJobClient(ctx,
 		prism.Options{
 			Port:                *jobPort,
 			IdleShutdownTimeout: *idleShutdownTimeout,
 			CancelFn:            cancel,
+			LogLevel:            *logLevelFlag,
+			LogKind:             *logKindFlag,
 		},
 		*jobManagerEndpoint)
 	if err != nil {
