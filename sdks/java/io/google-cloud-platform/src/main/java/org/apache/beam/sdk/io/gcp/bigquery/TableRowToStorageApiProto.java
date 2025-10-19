@@ -1188,7 +1188,8 @@ public class TableRowToStorageApiProto {
       throw new RuntimeException(e);
     }
     TableRow original =
-        TableRowToStorageApiProto.tableRowFromMessage(message, true, Predicates.alwaysTrue());
+        TableRowToStorageApiProto.tableRowFromMessage(
+            schemaInformation, message, true, Predicates.alwaysTrue());
     Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()
             .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
