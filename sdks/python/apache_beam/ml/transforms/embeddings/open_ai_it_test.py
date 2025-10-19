@@ -23,15 +23,12 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
-
-try:
-  from sdks.python.apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
-except ImportError:
-  OpenAITextEmbeddings = None
+from apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
 
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
+  from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
 
@@ -40,8 +37,6 @@ test_query_column = "embedding"
 model_name: str = "text-embedding-3-small"
 
 
-@unittest.skipIf(
-    OpenAITextEmbeddings is None, 'OpenAI Python SDK is not installed.')
 class OpenAIEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='_openai_test')
@@ -76,6 +71,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
         columns=[test_query_column],
         api_key=self.api_key,
     )
+    scale_config = ScaleTo01(columns=['embedding'])
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (
           pipeline
@@ -84,10 +80,12 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
           }])
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
-                  embedding_config))
+                  embedding_config).with_transform(scale_config))
 
       def assert_element(element):
-        assert max(element.feature_1) == 1
+        embedding_values = element.embedding
+        assert 0 <= max(embedding_values) <= 1
+        assert 0 <= min(embedding_values) <= 1
 
       _ = (transformed_pcoll | beam.Map(assert_element))
 
@@ -186,7 +184,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
 
-  def test_with_artifact_location(self):  # pylint: disable=line-too-long
+  def test_with_artifact_location(self):
     """Local artifact location test"""
     secondary_artifact_location = tempfile.mkdtemp(
         prefix='_openai_secondary_test')
@@ -231,7 +229,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
       # Clean up the temporary directory
       shutil.rmtree(secondary_artifact_location)
 
-  def test_mltransform_to_ptransform_with_openai(self):  # pylint: disable=line-too-long
+  def test_mltransform_to_ptransform_with_openai(self):
     transforms = [
         OpenAITextEmbeddings(
             columns=['x'],
