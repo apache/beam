@@ -60,8 +60,6 @@ Output:
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab" width="150" height="auto" style="max-width: 100%"/>
 </a>
 
-## Related transforms
-
-Not applicable.
+## API documentation
 
 {{< button-pydoc path="apache_beam.ml.rag.enrichment.milvus_search" class="MilvusSearchEnrichmentHandler" >}}
