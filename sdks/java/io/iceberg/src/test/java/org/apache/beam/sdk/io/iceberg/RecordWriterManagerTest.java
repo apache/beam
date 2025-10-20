@@ -36,7 +36,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
@@ -363,15 +362,8 @@ public class RecordWriterManagerTest {
     DataFile datafile = writer.getDataFile();
     assertEquals(2L, datafile.recordCount());
 
-    Map<String, PartitionField> partitionFieldMap = new HashMap<>();
-    for (PartitionField partitionField : PARTITION_SPEC.fields()) {
-      partitionFieldMap.put(partitionField.name(), partitionField);
-    }
-
-    String partitionPath =
-        RecordWriterManager.getPartitionDataPath(partitionKey.toPath(), partitionFieldMap);
     DataFile roundTripDataFile =
-        SerializableDataFile.from(datafile, partitionPath)
+        SerializableDataFile.from(datafile, PARTITION_SPEC)
             .createDataFile(ImmutableMap.of(PARTITION_SPEC.specId(), PARTITION_SPEC));
 
     checkDataFileEquality(datafile, roundTripDataFile);
@@ -403,14 +395,8 @@ public class RecordWriterManagerTest {
     writer.close();
 
     // fetch data file and its serializable version
-    Map<String, PartitionField> partitionFieldMap = new HashMap<>();
-    for (PartitionField partitionField : PARTITION_SPEC.fields()) {
-      partitionFieldMap.put(partitionField.name(), partitionField);
-    }
-    String partitionPath =
-        RecordWriterManager.getPartitionDataPath(partitionKey.toPath(), partitionFieldMap);
     DataFile datafile = writer.getDataFile();
-    SerializableDataFile serializableDataFile = SerializableDataFile.from(datafile, partitionPath);
+    SerializableDataFile serializableDataFile = SerializableDataFile.from(datafile, PARTITION_SPEC);
 
     assertEquals(2L, datafile.recordCount());
     assertEquals(serializableDataFile.getPartitionSpecId(), datafile.specId());
