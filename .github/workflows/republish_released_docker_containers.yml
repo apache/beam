@@ -93,7 +93,7 @@ jobs:
           ./gradlew ${{ matrix.images_to_publish.gradle_task }} \
           -PisRelease \
           -Pdocker-pull-licenses \
-          -Pprune-images ${{ matrix.images_to_publish.skip_flags }} \
+          -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} \
           -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
           -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
           --no-daemon \
