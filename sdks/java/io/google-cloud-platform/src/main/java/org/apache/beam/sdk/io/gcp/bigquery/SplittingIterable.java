@@ -49,38 +49,34 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
     abstract List<@Nullable TableRow> getFailsafeTableRows();
   }
 
-  interface ConvertUnknownFields {
-    ByteString convert(TableRow tableRow, boolean ignoreUnknownValues)
+  interface ConcatFields {
+    ByteString concat(ByteString bytes, TableRow tableRows)
         throws TableRowToStorageApiProto.SchemaConversionException;
   }
 
   private final Iterable<StorageApiWritePayload> underlying;
   private final long splitSize;
 
-  private final ConvertUnknownFields unknownFieldsToMessage;
+  private final ConcatFields concatProtoAndTableRow;
   private final Function<ByteString, TableRow> protoToTableRow;
   private final BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer;
   private final boolean autoUpdateSchema;
-  private final boolean ignoreUnknownValues;
-
   private final Instant elementsTimestamp;
 
   public SplittingIterable(
       Iterable<StorageApiWritePayload> underlying,
       long splitSize,
-      ConvertUnknownFields unknownFieldsToMessage,
+      ConcatFields concatProtoAndTableRow,
       Function<ByteString, TableRow> protoToTableRow,
       BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer,
       boolean autoUpdateSchema,
-      boolean ignoreUnknownValues,
       Instant elementsTimestamp) {
     this.underlying = underlying;
     this.splitSize = splitSize;
-    this.unknownFieldsToMessage = unknownFieldsToMessage;
+    this.concatProtoAndTableRow = concatProtoAndTableRow;
     this.protoToTableRow = protoToTableRow;
     this.failedRowsConsumer = failedRowsConsumer;
     this.autoUpdateSchema = autoUpdateSchema;
-    this.ignoreUnknownValues = ignoreUnknownValues;
     this.elementsTimestamp = elementsTimestamp;
   }
 
@@ -128,10 +124,9 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
                 // Protocol buffer serialization format supports concatenation. We serialize any new
                 // "known" fields
                 // into a proto and concatenate to the existing proto.
+
                 try {
-                  byteString =
-                      byteString.concat(
-                          unknownFieldsToMessage.convert(unknownFields, ignoreUnknownValues));
+                  byteString = concatProtoAndTableRow.concat(byteString, unknownFields);
                 } catch (TableRowToStorageApiProto.SchemaConversionException e) {
                   // This generally implies that ignoreUnknownValues=false and there were still
                   // unknown values here.

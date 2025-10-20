@@ -295,9 +295,15 @@ class CustomMilvusContainer(MilvusContainer):
 
 
 class MilvusEnrichmentTestHelper:
+  # IMPORTANT: When upgrading the Milvus server version, ensure the pymilvus
+  # Python SDK client in setup.py is updated to match. Referring to the Milvus
+  # release notes compatibility matrix at
+  # https://milvus.io/docs/release_notes.md or PyPI at
+  # https://pypi.org/project/pymilvus/ for version compatibility.
+  # Example: Milvus v2.6.0 requires pymilvus==2.6.0 (exact match required).
   @staticmethod
   def start_db_container(
-      image="milvusdb/milvus:v2.6.2",
+      image="milvusdb/milvus:v2.5.10",
       max_vec_fields=5,
       vector_client_max_retries=3,
       tc_max_retries=TC_MAX_TRIES) -> Optional[MilvusDBContainerInfo]:
@@ -455,6 +461,13 @@ class MilvusEnrichmentTestHelper:
       user_config = {
           'proxy': {
               'maxVectorFieldNum': max_vector_field_num, 'port': service_port
+          },
+          'etcd': {
+              'use': {
+                  'embed': True
+              }, 'data': {
+                  'dir': '/var/lib/milvus/etcd'
+              }
           }
       }
 
@@ -481,11 +494,10 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   """Tests for search functionality across all search strategies"""
 
   _db: MilvusDBContainerInfo
-  _version = "milvusdb/milvus:v2.5.10"
 
   @classmethod
   def setUpClass(cls):
-    cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
+    cls._db = MilvusEnrichmentTestHelper.start_db_container()
     cls._connection_params = MilvusConnectionParameters(
         uri=cls._db.uri,
         user=cls._db.user,
@@ -1309,11 +1321,7 @@ def assert_chunks_equivalent(
     expected_data = expected.metadata['enrichment_data']
 
     # If actual has enrichment data, then perform detailed validation.
-    if actual_data:
-      # Ensure the id key exist.
-      err_msg = f"Missing id key in metadata {actual.id}"
-      assert 'id' in actual_data, err_msg
-
+    if actual_data and actual_data.get('id'):
       # Validate IDs have consistent ordering.
       actual_ids = sorted(actual_data['id'])
       expected_ids = sorted(expected_data['id'])

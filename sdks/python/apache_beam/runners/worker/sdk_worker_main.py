@@ -233,6 +233,10 @@ def terminate_sdk_harness():
   if _FN_LOG_HANDLER:
     _FN_LOG_HANDLER.close()
   os.kill(os.getpid(), signal.SIGINT)
+  # Delay further control flow in the caller until process is terminated.
+  time.sleep(60)
+  # Try to force-terminate if still running.
+  os.kill(os.getpid(), signal.SIGKILL)
 
 
 def _load_pipeline_options(options_json):

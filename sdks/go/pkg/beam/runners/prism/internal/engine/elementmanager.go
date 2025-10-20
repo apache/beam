@@ -186,6 +186,11 @@ type Config struct {
 	EnableRTC bool
 	// Whether to process the data in a streaming mode
 	StreamingMode bool
+	// Whether to enable splitting on splittable dofn.
+	// This flag is currently used when calling KafkaIO in streaming mode. It prevents an
+	// error ("KafkaConsumer is not safe for multi-threaded access") that can occur
+	// if the SDK allows splitting a single topic.
+	EnableSDFSplit bool
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
