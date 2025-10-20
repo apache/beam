@@ -35,7 +35,6 @@ test.dependsOn "testPy${pythonVersionSuffix}Dill"
 // toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask", "${posargs}"
 // test.dependsOn "testPy${pythonVersionSuffix}Dask"
 project.tasks.register("preCommitPy${pythonVersionSuffix}") {
-		// PreCommit should only run non-cloud tests to avoid flakiness
-		dependsOn = ["testPython${pythonVersionSuffix}"]
+		dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPython${pythonVersionSuffix}"]
 
 }

@@ -143,8 +143,7 @@ status2=$?
 
 # Exit with error if no tests were run in either suite (status code 5).
 if [[ $status1 == 5 && $status2 == 5 ]]; then
-  echo "No tests were selected to run"
-  exit 0
+  exit $status1
 fi
 
 # Exit with error if one of the statuses has an error that's not 5.
@@ -154,5 +153,3 @@ fi
 if [[ $status2 != 0 && $status2 != 5 ]]; then
   exit $status2
 fi
-
-exit 0
