@@ -191,6 +191,8 @@ type Config struct {
 	// error ("KafkaConsumer is not safe for multi-threaded access") that can occur
 	// if the SDK allows splitting a single topic.
 	EnableSDFSplit bool
+	// Logger handler used for structural logging
+	Logger *slog.Logger
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
@@ -249,6 +251,10 @@ type LinkID struct {
 }
 
 func NewElementManager(config Config) *ElementManager {
+	// Set a default value to the logger if it is not specified.
+	if config.Logger == nil {
+		config.Logger = slog.Default()
+	}
 	return &ElementManager{
 		config:            config,
 		stages:            map[string]*stageState{},
@@ -265,7 +271,7 @@ func NewElementManager(config Config) *ElementManager {
 // AddStage adds a stage to this element manager, connecting it's PCollections and
 // nodes to the watermark propagation graph.
 func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, sides []LinkID) {
-	slog.Debug("em.AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
+	em.config.Logger.Debug("em.AddStage", slog.String("ID", ID), slog.Any("inputs", inputIDs), slog.Any("sides", sides), slog.Any("outputs", outputIDs))
 	ss := makeStageState(ID, inputIDs, outputIDs, sides)
 
 	em.stages[ss.ID] = ss
@@ -345,7 +351,7 @@ func (em *ElementManager) Impulse(stageID string) {
 	}}
 
 	consumers := em.consumers[stage.outputIDs[0]]
-	slog.Debug("Impulse", slog.String("stageID", stageID), slog.Any("outputs", stage.outputIDs), slog.Any("consumers", consumers))
+	em.config.Logger.Debug("Impulse", slog.String("stageID", stageID), slog.Any("outputs", stage.outputIDs), slog.Any("consumers", consumers))
 
 	for _, sID := range consumers {
 		consumer := em.stages[sID]
@@ -379,7 +385,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 	ctx, cancelFn := context.WithCancelCause(ctx)
 	go func() {
 		em.pendingElements.Wait()
-		slog.Debug("no more pending elements: terminating pipeline")
+		em.config.Logger.Debug("no more pending elements: terminating pipeline")
 		cancelFn(fmt.Errorf("elementManager out of elements, cleaning up"))
 		// Ensure the watermark evaluation goroutine exits.
 		em.refreshCond.Broadcast()
@@ -389,7 +395,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 		defer func() {
 			// In case of panics in bundle generation, fail and cancel the job.
 			if e := recover(); e != nil {
-				slog.Error("panic in ElementManager.Bundles watermark evaluation goroutine", "error", e, "traceback", string(debug.Stack()))
+				em.config.Logger.Error("panic in ElementManager.Bundles watermark evaluation goroutine", "error", e, "traceback", string(debug.Stack()))
 				upstreamCancelFn(fmt.Errorf("panic in ElementManager.Bundles watermark evaluation goroutine: %v\n%v", e, string(debug.Stack())))
 			}
 		}()
@@ -468,6 +474,8 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 						if pendingAdjustment > 0 {
 							em.addPending(pendingAdjustment)
 						}
+						em.config.Logger.Debug("started an event time bundle", "stageID", ss.ID, "bundleID", bundleID,
+							"bundleSize", len(ss.inprogress[bundleID].es), "upstreamWatermark", watermark)
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -491,6 +499,8 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 						if pendingAdjustment > 0 {
 							em.addPending(pendingAdjustment)
 						}
+						em.config.Logger.Debug("started a processing time bundle", "stageID", ss.ID, "bundleID", bundleID,
+							"bundleSize", len(ss.inprogress[bundleID].es), "emNow", emNow)
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -567,7 +577,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 		// If there are changed stages that need a watermarks refresh,
 		// we aren't yet stuck.
 		v := em.livePending.Load()
-		slog.Debug("Bundles: nothing in progress after advance, but some stages need a watermark refresh",
+		em.config.Logger.Debug("Bundles: nothing in progress after advance, but some stages need a watermark refresh",
 			slog.Any("mayProgress", advanced),
 			slog.Any("needRefresh", em.changedStages),
 			slog.Int64("pendingElementCount", v),
@@ -611,7 +621,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 	// The job is officially stuck. Fail fast and produce debugging information.
 	// Jobs must never get stuck so this indicates a bug in prism to be investigated.
 
-	slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
+	em.config.Logger.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
 	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, em.DumpStages())
 }
 
@@ -787,12 +797,10 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 			if err == io.EOF {
 				break
 			}
-			slog.Error("reElementResiduals: error decoding residual header", "error", err, "bundle", rb)
-			panic("error decoding residual header:" + err.Error())
+			panic(fmt.Sprintf("error decoding residual header on bundle %s: %s", rb, err.Error()))
 		}
 		if len(ws) == 0 {
-			slog.Error("reElementResiduals: sdk provided a windowed value header 0 windows", "bundle", rb)
-			panic("error decoding residual header: sdk provided a windowed value header 0 windows")
+			panic(fmt.Sprintf("error decoding residual header on bundle %s: sdk provided a windowed value header 0 windows", rb))
 		}
 		// POSSIBLY BAD PATTERN: The buffer is invalidated on the next call, which doesn't always happen.
 		// But the decoder won't be mutating the buffer bytes, just reading the data. So the elmBytes
@@ -834,7 +842,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	for output, data := range d.Raw {
 		info := col2Coders[output]
 		var newPending []element
-		slog.Debug("PersistBundle: processing output", "bundle", rb, slog.String("output", output))
+		em.config.Logger.Debug("PersistBundle: processing output", "bundle", rb, slog.String("output", output))
 		for _, datum := range data {
 			buf := bytes.NewBuffer(datum)
 			if len(datum) == 0 {
@@ -848,11 +856,11 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 					if err == io.EOF {
 						break
 					}
-					slog.Error("PersistBundle: error decoding watermarks", "error", err, "bundle", rb, slog.String("output", output))
+					em.config.Logger.Error("PersistBundle: error decoding watermarks", "error", err, "bundle", rb, slog.String("output", output))
 					panic("error decoding watermarks")
 				}
 				if len(ws) == 0 {
-					slog.Error("PersistBundle: sdk provided a windowed value header 0 windows", "bundle", rb)
+					em.config.Logger.Error("PersistBundle: sdk provided a windowed value header 0 windows", "bundle", rb)
 					panic("error decoding residual header: sdk provided a windowed value header 0 windows")
 				}
 				// TODO: Optimize unnecessary copies. This is doubleteeing.
@@ -878,7 +886,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 		consumers := em.consumers[output]
 		sideConsumers := em.sideConsumers[output]
-		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb,
+		em.config.Logger.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb,
 			slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers,
 			"pendingDelta", len(newPending)*len(consumers))
 		for _, sID := range consumers {
@@ -1077,7 +1085,7 @@ func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputI
 	stage.splitBundle(rb, firstRsIndex, em)
 	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
-		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
+		em.config.Logger.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
 		count := stage.AddPending(em, unprocessedElements)
 		em.addPending(count)
 	}
@@ -1650,7 +1658,7 @@ func (ss *stageState) startTriggeredBundle(em *ElementManager, key string, win t
 		nil,
 		panesInBundle,
 	)
-	slog.Debug("started a triggered bundle", "stageID", ss.ID, "bundleID", rb.BundleID, "size", len(toProcess))
+	em.config.Logger.Debug("started a triggered bundle", "stageID", ss.ID, "bundleID", rb.BundleID, "size", len(toProcess))
 
 	// TODO: Use ss.bundlesToInject rather than em.injectedBundles
 	// ss.bundlesToInject = append(ss.bundlesToInject, rb)
@@ -1765,8 +1773,6 @@ func (ss *stageState) startEventTimeBundle(watermark mtime.Time, genBundID func(
 	}
 
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, panesInBundle)
-	slog.Debug("started an event time bundle", "stageID", ss.ID, "bundleID", bundID, "bundleSize", len(toProcess), "upstreamWatermark", watermark)
-
 	return bundID, true, stillSchedulable, accumulatingPendingAdjustment
 }
 
@@ -2003,7 +2009,6 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 		return "", false, stillSchedulable, accumulatingPendingAdjustment
 	}
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, panesInBundle)
-	slog.Debug("started a processing time bundle", "stageID", ss.ID, "bundleID", bundID, "size", len(toProcess), "emNow", emNow)
 	return bundID, true, stillSchedulable, accumulatingPendingAdjustment
 }
 
@@ -2123,7 +2128,7 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 
 // buildProcessingTimeBundle for stateless stages is not supposed to be called currently
 func (*ordinaryStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool, int) {
-	slog.Error("ordinary stages can't have processing time elements")
+	em.config.Logger.Error("ordinary stages can't have processing time elements")
 	return nil, mtime.MinTimestamp, nil, nil, nil, false, 0
 }
 
@@ -2165,7 +2170,7 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 	defer ss.mu.Unlock()
 
 	es := ss.inprogress[rb.BundleID]
-	slog.Debug("split elements", "bundle", rb, "elem count", len(es.es), "res", firstResidual)
+	em.config.Logger.Debug("split elements", "bundle", rb, "elem count", len(es.es), "res", firstResidual)
 
 	prim := es.es[:firstResidual]
 	res := es.es[firstResidual:]
@@ -2177,7 +2182,7 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 		delete(ss.inprogressKeys, string(e.keyBytes))
 
 		if e.IsTimer() {
-			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")
+			em.config.Logger.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")
 			ss.watermarkHolds.Drop(e.holdTimestamp, 1)
 			ss.inprogressHoldsByBundle[rb.BundleID][e.holdTimestamp]--
 		}
@@ -2376,7 +2381,7 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		)
 		ss.expiryWindowsByBundles[rb.BundleID] = win
 
-		slog.Debug("OnWindowExpiration-Bundle Created", slog.Any("bundle", rb), slog.Any("usedKeys", usedKeys), slog.Any("window", win), slog.Any("toProcess", toProcess), slog.Any("busyKeys", busyKeys))
+		em.config.Logger.Debug("OnWindowExpiration-Bundle Created", slog.Any("bundle", rb), slog.Any("usedKeys", usedKeys), slog.Any("window", win), slog.Any("toProcess", toProcess), slog.Any("busyKeys", busyKeys))
 		// We're already in the refreshCond critical section.
 		// Insert that this is in progress here to avoid a race condition.
 		em.inprogressBundles.insert(rb.BundleID)
@@ -2417,7 +2422,7 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 		}
 	} else if inputW == upstreamW && previousInputW == inputW {
 		// Otherwise, use the progression of watermark to determine the bundle readiness.
-		slog.Debug("bundleReady: unchanged upstream watermark",
+		em.config.Logger.Debug("bundleReady: unchanged upstream watermark",
 			slog.String("stage", ss.ID),
 			slog.Group("watermark",
 				slog.Any("upstream == input == previousInput", inputW)))

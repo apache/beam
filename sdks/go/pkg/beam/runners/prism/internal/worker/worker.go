@@ -36,7 +36,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/logconfig"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
@@ -79,6 +78,8 @@ type W struct {
 	activeInstructions map[string]controlResponder              // Active instructions keyed by InstructionID
 	Descriptors        map[string]*fnpb.ProcessBundleDescriptor // Stages keyed by PBDID
 	wg                 *sync.WaitGroup
+
+	Logger *slog.Logger
 }
 
 type controlResponder interface {
@@ -132,12 +133,12 @@ func (wk *W) LogValue() slog.Value {
 func (wk *W) shutdown() {
 	// If this is the first call to "stop" this worker, also close the channels.
 	if wk.stopped.CompareAndSwap(false, true) {
-		slog.Debug("shutdown", "worker", wk, "firstTime", true)
+		wk.Logger.Debug("shutdown", "worker", wk, "firstTime", true)
 		close(wk.StoppedChan)
 		close(wk.InstReqs)
 		close(wk.DataReqs)
 	} else {
-		slog.Debug("shutdown", "worker", wk, "firstTime", false)
+		wk.Logger.Debug("shutdown", "worker", wk, "firstTime", false)
 	}
 }
 
@@ -146,7 +147,7 @@ func (wk *W) Stop() {
 	wk.shutdown()
 	wk.parentPool.delete(wk)
 	wk.wg.Done()
-	slog.Debug("stopped", "worker", wk)
+	wk.Logger.Debug("stopped", "worker", wk)
 }
 
 func (wk *W) NextInst() string {
@@ -207,7 +208,7 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			case codes.Canceled:
 				return nil
 			default:
-				slog.Error("logging.Recv", slog.Any("error", err), slog.Any("worker", wk))
+				wk.Logger.Error("logging.Recv", slog.Any("error", err), slog.Any("worker", wk))
 				return err
 			}
 		}
@@ -245,10 +246,10 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 				attrs = append(attrs, slog.Group("customData", grp...))
 			}
 
-			if logconfig.LogLevel == "debug" {
-				slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), "[SDK] "+l.GetMessage(), slog.Group("sdk", attrs...), slog.Any("worker", wk))
+			if wk.Logger.Enabled(context.TODO(), slog.LevelDebug) {
+				wk.Logger.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), "[SDK] "+l.GetMessage(), slog.Group("sdk", attrs...), slog.Any("worker", wk))
 			} else {
-				slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), "[SDK] "+l.GetMessage())
+				wk.Logger.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), "[SDK] "+l.GetMessage())
 			}
 		}
 	}
@@ -302,7 +303,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 		for {
 			resp, err := ctrl.Recv()
 			if err == io.EOF {
-				slog.Debug("ctrl.Recv finished; marking done", "worker", wk)
+				wk.Logger.Debug("ctrl.Recv finished; marking done", "worker", wk)
 				done <- nil // means stream is finished
 				return
 			}
@@ -312,7 +313,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 					done <- err // means stream is finished
 					return
 				default:
-					slog.Error("ctrl.Recv failed", "error", err, "worker", wk)
+					wk.Logger.Error("ctrl.Recv failed", "error", err, "worker", wk)
 					panic(err)
 				}
 			}
@@ -321,7 +322,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
 				b.Respond(resp)
 			} else {
-				slog.Debug("ctrl.Recv", slog.Any("response", resp))
+				wk.Logger.Debug("ctrl.Recv", slog.Any("response", resp))
 			}
 			wk.mu.Unlock()
 		}
@@ -331,7 +332,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 		select {
 		case req, ok := <-wk.InstReqs:
 			if !ok {
-				slog.Debug("Worker shutting down.", "worker", wk)
+				wk.Logger.Debug("Worker shutting down.", "worker", wk)
 				return nil
 			}
 			if err := ctrl.Send(req); err != nil {
@@ -341,7 +342,7 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			wk.mu.Lock()
 			// Fail extant instructions
 			err := context.Cause(ctrl.Context())
-			slog.Debug("SDK Disconnected", "worker", wk, "ctx_error", err, "outstanding_instructions", len(wk.activeInstructions))
+			wk.Logger.Debug("SDK Disconnected", "worker", wk, "ctx_error", err, "outstanding_instructions", len(wk.activeInstructions))
 
 			msg := fmt.Sprintf("SDK worker disconnected: %v, %v active instructions, error: %v", wk.String(), len(wk.activeInstructions), err)
 			for instID, b := range wk.activeInstructions {
@@ -357,9 +358,9 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 			return err
 		case err := <-done:
 			if err != nil {
-				slog.Warn("Control done", "error", err, "worker", wk)
+				wk.Logger.Warn("Control done", "error", err, "worker", wk)
 			} else {
-				slog.Debug("Control done", "worker", wk)
+				wk.Logger.Debug("Control done", "worker", wk)
 			}
 			return err
 		}
@@ -382,7 +383,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 				case codes.Canceled:
 					return
 				default:
-					slog.Error("data.Recv failed", slog.Any("error", err), slog.Any("worker", wk))
+					wk.Logger.Error("data.Recv failed", slog.Any("error", err), slog.Any("worker", wk))
 					panic(err)
 				}
 			}
@@ -390,7 +391,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			for _, d := range resp.GetData() {
 				cr, ok := wk.activeInstructions[d.GetInstructionId()]
 				if !ok {
-					slog.Debug("data.Recv data for unknown bundle", "response", resp)
+					wk.Logger.Debug("data.Recv data for unknown bundle", "response", resp)
 					continue
 				}
 				// Received data is always for an active ProcessBundle instruction
@@ -409,7 +410,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			for _, t := range resp.GetTimers() {
 				cr, ok := wk.activeInstructions[t.GetInstructionId()]
 				if !ok {
-					slog.Debug("data.Recv timers for unknown bundle", "response", resp)
+					wk.Logger.Debug("data.Recv timers for unknown bundle", "response", resp)
 					continue
 				}
 				// Received data is always for an active ProcessBundle instruction
@@ -435,7 +436,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 				slog.LogAttrs(context.TODO(), slog.LevelDebug, "data.Send error", slog.Any("error", err))
 			}
 		case <-data.Context().Done():
-			slog.Debug("Data context canceled")
+			wk.Logger.Debug("Data context canceled")
 			return context.Cause(data.Context())
 		}
 	}
@@ -461,7 +462,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				case codes.Canceled:
 					return
 				default:
-					slog.Error("state.Recv failed", slog.Any("error", err), slog.Any("worker", wk))
+					wk.Logger.Error("state.Recv failed", slog.Any("error", err), slog.Any("worker", wk))
 					panic(err)
 				}
 			}
@@ -471,7 +472,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 			b, ok := wk.activeInstructions[req.GetInstructionId()].(*B)
 			wk.mu.Unlock()
 			if !ok {
-				slog.Warn("state request after bundle inactive", "instruction", req.GetInstructionId(), "worker", wk)
+				wk.Logger.Warn("state request after bundle inactive", "instruction", req.GetInstructionId(), "worker", wk)
 				continue
 			}
 			switch req.GetRequest().(type) {
@@ -479,7 +480,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				// TODO: move data handling to be pcollection based.
 
 				key := req.GetStateKey()
-				slog.Debug("StateRequest_Get", "request", prototext.Format(req), "bundle", b)
+				wk.Logger.Debug("StateRequest_Get", "request", prototext.Format(req), "bundle", b)
 				var data [][]byte
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_IterableSideInput_:
@@ -500,7 +501,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 					for w := range winMap {
 						wins = append(wins, w)
 					}
-					slog.Debug(fmt.Sprintf("side input[%v][%v] I Key: %v Windows: %v", req.GetId(), req.GetInstructionId(), w, wins))
+					wk.Logger.Debug(fmt.Sprintf("side input[%v][%v] I Key: %v Windows: %v", req.GetId(), req.GetInstructionId(), w, wins))
 
 					data = winMap[w]
 
@@ -534,24 +535,34 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 					dKey := mmkey.GetKey()
 					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
 
-					slog.Debug(fmt.Sprintf("side input[%v][%v] MultiMap Window: %v", req.GetId(), req.GetInstructionId(), w))
+					wk.Logger.Debug(fmt.Sprintf("side input[%v][%v] MultiMap Window: %v", req.GetId(), req.GetInstructionId(), w))
 
 					data = winMap[w][string(dKey)]
 
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
-					data = b.OutputData.GetBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey())
+					stateID := engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}
+					data = b.OutputData.GetBagState(stateID, bagkey.GetWindow(), bagkey.GetKey())
+					wk.Logger.Debug("State() Bag.Get", slog.Any("StateID", stateID), slog.Any("UserKey", bagkey.GetKey()),
+						slog.Any("Window", bagkey.GetWindow()), slog.Any("Data", data))
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
-					data = b.OutputData.GetMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
+					stateID := engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}
+					data = b.OutputData.GetMultimapState(stateID, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
+					wk.Logger.Debug("State() Multimap.Get", slog.Any("StateID", stateID), slog.Any("UserKey", mmkey.GetKey()),
+						slog.Any("MapKey", mmkey.GetMapKey()), slog.Any("Window", mmkey.GetWindow()), slog.Any("Data", data))
 				case *fnpb.StateKey_MultimapKeysUserState_:
 					mmkey := key.GetMultimapKeysUserState()
-					data = b.OutputData.GetMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
+					stateID := engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}
+					data = b.OutputData.GetMultimapKeysState(stateID, mmkey.GetWindow(), mmkey.GetKey())
+					wk.Logger.Debug("State() MultimapKeys.Get", slog.Any("StateID", stateID), slog.Any("UserKey", mmkey.GetKey()),
+						slog.Any("Window", mmkey.GetWindow()), slog.Any("Keys", data))
 				case *fnpb.StateKey_OrderedListUserState_:
 					olkey := key.GetOrderedListUserState()
-					data = b.OutputData.GetOrderedListState(
-						engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
-						olkey.GetWindow(), olkey.GetKey(), olkey.GetRange().GetStart(), olkey.GetRange().GetEnd())
+					stateID := engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()}
+					data = b.OutputData.GetOrderedListState(stateID, olkey.GetWindow(), olkey.GetKey(), olkey.GetRange().GetStart(), olkey.GetRange().GetEnd())
+					wk.Logger.Debug("State() OrderedList.Get", slog.Any("StateID", stateID), slog.Any("UserKey", olkey.GetKey()),
+						slog.Any("Window", olkey.GetWindow()), slog.Group("range", slog.Int64("start", olkey.GetRange().GetStart()), slog.Int64("end", olkey.GetRange().GetEnd())), slog.Any("Data", data))
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Get type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -572,15 +583,21 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
-					b.OutputData.AppendBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
+					stateID := engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}
+					b.OutputData.AppendBagState(stateID, bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
+					wk.Logger.Debug("State() Bag.Append", slog.Any("StateID", stateID), slog.Any("UserKey", bagkey.GetKey()),
+						slog.Any("Window", bagkey.GetWindow()), slog.Any("NewData", req.GetAppend().GetData()))
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
-					b.OutputData.AppendMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
+					stateID := engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}
+					b.OutputData.AppendMultimapState(stateID, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
+					wk.Logger.Debug("State() Multimap.Append", slog.Any("StateID", stateID), slog.Any("UserKey", mmkey.GetKey()),
+						slog.Any("MapKey", mmkey.GetMapKey()), slog.Any("Window", mmkey.GetWindow()), slog.Any("NewData", req.GetAppend().GetData()))
 				case *fnpb.StateKey_OrderedListUserState_:
 					olkey := key.GetOrderedListUserState()
-					b.OutputData.AppendOrderedListState(
-						engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
-						olkey.GetWindow(), olkey.GetKey(), req.GetAppend().GetData())
+					stateID := engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()}
+					b.OutputData.AppendOrderedListState(stateID, olkey.GetWindow(), olkey.GetKey(), req.GetAppend().GetData())
+					wk.Logger.Debug("State() OrderedList.Append", slog.Any("StateID", stateID), slog.Any("UserKey", olkey.GetKey()), slog.Any("Window", olkey.GetWindow()), slog.Any("NewData", req.GetAppend().GetData()))
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Append type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -597,17 +614,29 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
-					b.OutputData.ClearBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey())
+					stateID := engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}
+					b.OutputData.ClearBagState(stateID, bagkey.GetWindow(), bagkey.GetKey())
+					wk.Logger.Debug("State() Bag.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", bagkey.GetKey()),
+						slog.Any("WindowKey", bagkey.GetWindow()))
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
-					b.OutputData.ClearMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
+					stateID := engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}
+					b.OutputData.ClearMultimapState(stateID, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
+					wk.Logger.Debug("State() Multimap.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", mmkey.GetKey()),
+						slog.Any("Window", mmkey.GetWindow()), slog.Any("MapKey", mmkey.GetMapKey()))
 				case *fnpb.StateKey_MultimapKeysUserState_:
 					mmkey := key.GetMultimapUserState()
-					b.OutputData.ClearMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
+					stateID := engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}
+					b.OutputData.ClearMultimapKeysState(stateID, mmkey.GetWindow(), mmkey.GetKey())
+					wk.Logger.Debug("State() MultimapKeys.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", mmkey.GetKey()),
+						slog.Any("WindowKey", mmkey.GetWindow()))
 				case *fnpb.StateKey_OrderedListUserState_:
 					olkey := key.GetOrderedListUserState()
-					b.OutputData.ClearOrderedListState(engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
+					stateID := engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()}
+					b.OutputData.ClearOrderedListState(stateID,
 						olkey.GetWindow(), olkey.GetKey(), olkey.GetRange().GetStart(), olkey.GetRange().GetEnd())
+					wk.Logger.Debug("State() OrderedList.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", olkey.GetKey()),
+						slog.Any("Window", olkey.GetWindow()), slog.Group("range", slog.Int64("start", olkey.GetRange().GetStart()), slog.Int64("end", olkey.GetRange().GetEnd())))
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Clear type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -625,7 +654,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 	}()
 	for resp := range responses {
 		if err := state.Send(resp); err != nil {
-			slog.Error("state.Send", slog.Any("error", err))
+			wk.Logger.Error("state.Send", slog.Any("error", err))
 		}
 	}
 	return nil
@@ -843,10 +872,10 @@ func (mw *MultiplexW) WaitForCleanUp(id string) {
 
 	select {
 	case <-c: // Waitgroup finishes successfully
-		slog.Debug("Finished cleaning up job " + id)
+		mw.logger.Debug("Finished cleaning up job " + id)
 		return
 	case <-time.After(cleanUpTimeout): // Timeout
-		slog.Warn("Timeout when cleaning up job " + id)
+		mw.logger.Warn("Timeout when cleaning up job " + id)
 		return
 	}
 }

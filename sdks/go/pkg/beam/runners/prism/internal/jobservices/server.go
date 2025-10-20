@@ -75,7 +75,8 @@ func NewServer(port int, execute func(*Job)) *Server {
 		lis:     lis,
 		jobs:    make(map[string]*Job),
 		execute: execute,
-		logger:  slog.Default(), // TODO substitute with a configured logger.
+		// The default logger for both in-process and separate prism logging should already be set to the server logger.
+		logger: slog.Default(),
 	}
 	s.logger.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
 	opts := []grpc.ServerOption{
@@ -135,7 +136,7 @@ func (s *Server) idleShutdownCallback() {
 	index := atomic.LoadUint32(&s.index)
 	terminated := atomic.LoadUint32(&s.terminatedJobCount)
 	if index == terminated {
-		slog.Info("shutting down after being idle", "idleTimeout", s.idleTimeout)
+		s.logger.Info("shutting down after being idle", "idleTimeout", s.idleTimeout)
 		s.cancelFn(nil)
 	}
 }

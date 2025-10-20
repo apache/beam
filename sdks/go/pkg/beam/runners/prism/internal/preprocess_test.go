@@ -16,6 +16,7 @@
 package internal
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
@@ -249,7 +250,7 @@ func (p *testPreparer) PrepareUrns() []string {
 	return []string{"test_urn"}
 }
 
-func (p *testPreparer) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (p *testPreparer) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult {
 	return prepareResult{
 		ForcedRoots: p.ForcedRoots,
 		SubbedComps: &pipepb.Components{

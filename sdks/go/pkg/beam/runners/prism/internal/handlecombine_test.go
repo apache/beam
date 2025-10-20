@@ -257,7 +257,7 @@ func TestHandleCombine(t *testing.T) {
 					EnableLifting: test.lifted,
 				},
 			}
-			got := handler.PrepareTransform(undertest, test.comps.GetTransforms()[undertest], test.comps)
+			got := handler.PrepareTransform(undertest, test.comps.GetTransforms()[undertest], test.comps, nil)
 			if d := cmp.Diff(test.want, got, protocmp.Transform()); d != "" {
 				t.Errorf("combine.PrepareTransform diff (-want, +got):\n%v", d)
 			}

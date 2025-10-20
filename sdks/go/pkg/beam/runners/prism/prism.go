@@ -19,6 +19,8 @@ package prism
 
 import (
 	"context"
+	"log"
+	"log/slog"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -76,7 +78,12 @@ type Options struct {
 // CreateJobServer returns a Beam JobServicesClient connected to an in memory JobServer.
 // This call is non-blocking.
 func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient, error) {
-	logconfig.ConfigureLogging(opts.LogLevel, opts.LogKind)
+	// Set the server logger as the default slogger.
+	if logger, err := logconfig.CreateLogger(opts.LogLevel, opts.LogKind); err == nil {
+		slog.SetDefault(logger)
+	} else {
+		log.Fatalf(err.Error())
+	}
 
 	s := jobservices.NewServer(opts.Port, internal.RunPipeline)
 

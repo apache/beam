@@ -114,6 +114,7 @@ type processor struct {
 }
 
 func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservices.Job) error {
+	j.Logger.Info("pipeline started", slog.String("job", j.String()))
 	pipeline := j.Pipeline
 	comps := proto.Clone(pipeline.GetComponents()).(*pipepb.Components)
 
@@ -152,7 +153,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	ts := comps.GetTransforms()
 	pcols := comps.GetPcollections()
 
-	config := engine.Config{EnableRTC: true, EnableSDFSplit: true}
+	config := engine.Config{EnableRTC: true, EnableSDFSplit: true, Logger: j.Logger}
 	m := j.PipelineOptions().AsMap()
 	if experimentsSlice, ok := m["beam:option:experiments:v1"].([]interface{}); ok {
 		for _, exp := range experimentsSlice {
@@ -326,7 +327,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				em.StageStateful(stage.ID, stage.stateTypeLen)
 			}
 			if stage.onWindowExpiration.TimerFamily != "" {
-				slog.Debug("OnWindowExpiration", slog.String("stage", stage.ID), slog.Any("values", stage.onWindowExpiration))
+				j.Logger.Debug("OnWindowExpiration", slog.String("stage", stage.ID), slog.Any("values", stage.onWindowExpiration))
 				em.StageOnWindowExpiration(stage.ID, stage.onWindowExpiration)
 			}
 			if len(stage.processingTimeTimers) > 0 {

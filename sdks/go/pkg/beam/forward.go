@@ -16,6 +16,8 @@
 package beam
 
 import (
+	"log"
+	"log/slog"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -53,7 +55,12 @@ func RegisterType(t reflect.Type) {
 
 func init() {
 	runtime.RegisterInit(func() {
-		logconfig.ConfigureLoggingWithDefault()
+		// Set the server logger as the default slogger
+		if logger, err := logconfig.CreateLoggerWithDefault(); err == nil {
+			slog.SetDefault(logger)
+		} else {
+			log.Fatalf(err.Error())
+		}
 	})
 
 	runtime.RegisterInit(func() {

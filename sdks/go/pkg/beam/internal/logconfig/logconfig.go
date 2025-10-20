@@ -17,7 +17,7 @@
 package logconfig
 
 import (
-	"log"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -26,37 +26,38 @@ import (
 	"github.com/golang-cz/devslog"
 )
 
-var (
-	LogLevel = "info" // The logging level for slog. Valid values are `debug`, `info`, `warn` or `error`. Default is `info`.
-	LogKind  = "text" // The logging format for slog. Valid values are `dev', 'json', or 'text'. Default is `text`.
+const (
+	DefaultLogLevel = "info" // The default logging level for slog. Valid values are `debug`, `info`, `warn` or `error`.
+	DefaultLogKind  = "text" // The default logging format for slog. Valid values are `dev', 'json', or 'text'.
 )
 
-// ConfigureLoggingWithDefault initializes the structural logger with default settings.
-// It configures the logging level and format based on the global LogLevel and LogKind variables.
-// If LogLevel or LogKind are invalid, it will cause a fatal error.
-func ConfigureLoggingWithDefault() {
-	var logLevel = new(slog.LevelVar)
-	var logHandler slog.Handler
+// CreateLogger creates a new slog.Logger with the specified logging level and format.
+//
+// logLevel: The logging level for slog. Valid values are `debug`, `info`, `warn`, or `error`.
+// logKind: The logging format for slog. Valid values are `dev`, `json`, or `text`.
+func CreateLogger(logLevel, logKind string) (*slog.Logger, error) {
+	var level = new(slog.LevelVar)
+	var handler slog.Handler
 	loggerOutput := os.Stderr
 	handlerOpts := &slog.HandlerOptions{
-		Level: logLevel,
+		Level: level,
 	}
-	switch strings.ToLower(LogLevel) {
+	switch strings.ToLower(logLevel) {
 	case "debug":
-		logLevel.Set(slog.LevelDebug)
+		level.Set(slog.LevelDebug)
 		handlerOpts.AddSource = true
 	case "info":
-		logLevel.Set(slog.LevelInfo)
+		level.Set(slog.LevelInfo)
 	case "warn":
-		logLevel.Set(slog.LevelWarn)
+		level.Set(slog.LevelWarn)
 	case "error":
-		logLevel.Set(slog.LevelError)
+		level.Set(slog.LevelError)
 	default:
-		log.Fatalf("Invalid value for log_level: %v, must be 'debug', 'info', 'warn', or 'error'", LogLevel)
+		return nil, fmt.Errorf("Invalid value for log_level: %v, must be 'debug', 'info', 'warn', or 'error'", logLevel)
 	}
-	switch strings.ToLower(LogKind) {
+	switch strings.ToLower(logKind) {
 	case "dev":
-		logHandler =
+		handler =
 			devslog.NewHandler(loggerOutput, &devslog.Options{
 				TimeFormat:         "[" + time.RFC3339Nano + "]",
 				StringerFormatter:  true,
@@ -66,20 +67,16 @@ func ConfigureLoggingWithDefault() {
 				MaxErrorStackTrace: 3,
 			})
 	case "json":
-		logHandler = slog.NewJSONHandler(loggerOutput, handlerOpts)
+		handler = slog.NewJSONHandler(loggerOutput, handlerOpts)
 	case "text":
-		logHandler = slog.NewTextHandler(loggerOutput, handlerOpts)
+		handler = slog.NewTextHandler(loggerOutput, handlerOpts)
 	default:
-		log.Fatalf("Invalid value for log_kind: %v, must be 'dev', 'json', or 'text'", LogKind)
+		return nil, fmt.Errorf("Invalid value for log_kind: %v, must be 'dev', 'json', or 'text'", logKind)
 	}
 
-	slog.SetDefault(slog.New(logHandler))
+	return slog.New(handler), nil
 }
 
-// ConfigureLogging initializes the structural logger with the provided logging level and kind.
-// It sets the global LogLevel and LogKind variables and then calls ConfigureLoggingWithDefault.
-func ConfigureLogging(logLevel, logKind string) {
-	LogLevel = logLevel
-	LogKind = logKind
-	ConfigureLoggingWithDefault()
+func CreateLoggerWithDefault() (*slog.Logger, error) {
+	return CreateLogger(DefaultLogLevel, DefaultLogKind)
 }

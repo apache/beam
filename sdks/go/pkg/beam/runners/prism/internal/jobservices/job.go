@@ -212,7 +212,7 @@ func (j *Job) WaitForCleanUp() {
 
 // Failed indicates that the job completed unsuccessfully.
 func (j *Job) Failed(err error) {
-	slog.Error("job failed", slog.Any("job", j), slog.Any("error", err))
+	j.Logger.Error("job failed", slog.Any("job", j), slog.Any("error", err))
 	j.failureErr = err
 	j.sendState(jobpb.JobState_FAILED)
 	j.CancelFn(fmt.Errorf("jobFailed %v: %w", j, err))
@@ -224,6 +224,7 @@ func (j *Job) MakeWorker(env string) *worker.W {
 	wk.EnvPb = j.Pipeline.GetComponents().GetEnvironments()[env]
 	wk.PipelineOptions = j.PipelineOptions()
 	wk.JobKey = j.JobKey()
+	wk.Logger = j.Logger
 
 	wk.ResolveEndpoints(j.ArtifactEndpoint())
 	return wk

@@ -41,7 +41,7 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 	envs := job.Pipeline.GetComponents().GetEnvironments()
 	for _, env := range envs {
 		for _, dep := range env.GetDependencies() {
-			slog.Debug("GetArtifact start",
+			s.logger.Debug("GetArtifact start",
 				slog.Group("dep",
 					slog.String("urn", dep.GetTypeUrn()),
 					slog.String("payload", string(dep.GetTypePayload()))))
@@ -62,7 +62,7 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 					return err
 				}
 				if in.GetIsLast() {
-					slog.Debug("GetArtifact finished",
+					s.logger.Debug("GetArtifact finished",
 						slog.Group("dep",
 							slog.String("urn", dep.GetTypeUrn()),
 							slog.String("payload", string(dep.GetTypePayload()))),
@@ -79,7 +79,7 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 
 				case *jobpb.ArtifactResponseWrapper_ResolveArtifactResponse:
 					err := fmt.Errorf("unexpected ResolveArtifactResponse to GetArtifact: %v", in.GetResponse())
-					slog.Error("GetArtifact failure", slog.Any("error", err))
+					s.logger.Error("GetArtifact failure", slog.Any("error", err))
 					return err
 				}
 			}
@@ -103,7 +103,7 @@ func (s *Server) GetArtifact(req *jobpb.GetArtifactRequest, stream jobpb.Artifac
 	buf, ok := s.artifacts[string(info.GetTypePayload())]
 	if !ok {
 		pt := prototext.Format(info)
-		slog.Warn("unable to provide artifact to worker", "artifact_info", pt)
+		s.logger.Warn("unable to provide artifact to worker", "artifact_info", pt)
 		return fmt.Errorf("unable to provide %v to worker", pt)
 	}
 	chunk := 128 * 1024 * 1024 // 128 MB

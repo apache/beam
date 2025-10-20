@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"cmp"
 	"fmt"
-	"log/slog"
 	"slices"
 	"sort"
 
@@ -109,7 +108,6 @@ func (d *TentativeData) GetBagState(stateID LinkID, wKey, uKey []byte) [][]byte 
 	winMap := d.state[stateID]
 	w := d.toWindow(wKey)
 	data := winMap[w][string(uKey)]
-	slog.Debug("State() Bag.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w), slog.Any("Data", data))
 	return data.Bag
 }
 
@@ -137,7 +135,6 @@ func (d *TentativeData) appendState(stateID LinkID, wKey []byte) map[string]Stat
 func (d *TentativeData) AppendBagState(stateID LinkID, wKey, uKey, data []byte) {
 	kmap := d.appendState(stateID, wKey)
 	kmap[string(uKey)] = StateData{Bag: append(kmap[string(uKey)].Bag, data)}
-	slog.Debug("State() Bag.Append", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Any("NewData", data))
 }
 
 func (d *TentativeData) clearState(stateID LinkID, wKey []byte) map[string]StateData {
@@ -165,7 +162,6 @@ func (d *TentativeData) ClearBagState(stateID LinkID, wKey, uKey []byte) {
 	// Zero the current entry to clear.
 	// Delete makes it difficult to delete the persisted stage state for the key.
 	kmap[string(uKey)] = StateData{}
-	slog.Debug("State() Bag.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("WindowKey", wKey))
 }
 
 // GetMultimapState retrieves available state from the tentative bundle data.
@@ -174,7 +170,6 @@ func (d *TentativeData) GetMultimapState(stateID LinkID, wKey, uKey, mapKey []by
 	winMap := d.state[stateID]
 	w := d.toWindow(wKey)
 	data := winMap[w][string(uKey)].Multimap[string(mapKey)]
-	slog.Debug("State() Multimap.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w), slog.Any("Data", data))
 	return data
 }
 
@@ -191,7 +186,6 @@ func (d *TentativeData) AppendMultimapState(stateID LinkID, wKey, uKey, mapKey, 
 	stateData.Multimap[string(mapKey)] = append(stateData.Multimap[string(mapKey)], data)
 	// The Multimap field is aliased to the instance we stored in kmap,
 	// so we don't need to re-assign back to kmap after appending the data to mapKey.
-	slog.Debug("State() Multimap.Append", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("MapKey", mapKey), slog.Any("Window", wKey), slog.Any("NewData", data))
 }
 
 // ClearMultimapState clears any tentative data for the state. Since state data is only initialized if any exists,
@@ -213,7 +207,6 @@ func (d *TentativeData) ClearMultimapState(stateID LinkID, wKey, uKey, mapKey []
 	userMap.Multimap[string(mapKey)] = nil
 	// The Multimap field is aliased to the instance we stored in kmap,
 	// so we don't need to re-assign back to kmap after clearing the data from mapKey.
-	slog.Debug("State() Multimap.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey))
 }
 
 // GetMultimapKeysState retrieves all available user map keys.
@@ -227,7 +220,6 @@ func (d *TentativeData) GetMultimapKeysState(stateID LinkID, wKey, uKey []byte) 
 	for k := range userMap.Multimap {
 		keys = append(keys, []byte(k))
 	}
-	slog.Debug("State() MultimapKeys.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w), slog.Any("Keys", keys))
 	return keys
 }
 
@@ -244,7 +236,6 @@ func (d *TentativeData) ClearMultimapKeysState(stateID LinkID, wKey, uKey []byte
 	// Zero the current entry to clear.
 	// Delete makes it difficult to delete the persisted stage state for the key.
 	kmap[string(uKey)] = StateData{}
-	slog.Debug("State() MultimapKeys.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("WindowKey", wKey))
 }
 
 // AppendOrderedListState appends the incoming timestamped data to the existing tentative data bundle.
@@ -284,7 +275,6 @@ func (d *TentativeData) AppendOrderedListState(stateID LinkID, wKey, uKey []byte
 		return compareTimestampSuffixes(vi, vj)
 	})
 	kmap[string(uKey)] = s
-	slog.Debug("State() OrderedList.Append", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Any("NewData", s))
 }
 
 func compareTimestampSuffixes(vi, vj []byte) bool {
@@ -301,7 +291,6 @@ func (d *TentativeData) GetOrderedListState(stateID LinkID, wKey, uKey []byte, s
 	data := winMap[w][string(uKey)]
 
 	lo, hi := findRange(data.Bag, start, end)
-	slog.Debug("State() OrderedList.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Group("range", slog.Int64("start", start), slog.Int64("end", end)), slog.Group("outrange", slog.Int("lo", lo), slog.Int("hi", hi)), slog.Any("Data", data.Bag[lo:hi]))
 	return data.Bag[lo:hi]
 }
 
@@ -310,7 +299,6 @@ func cmpSuffix(vs [][]byte, target int64) func(i int) int {
 		v := vs[i]
 		ims, _ := protowire.ConsumeVarint(v)
 		tvsbi := cmp.Compare(target, int64(ims))
-		slog.Debug("cmpSuffix", "target", target, "bi", ims, "tvsbi", tvsbi)
 		return tvsbi
 	}
 }
@@ -328,8 +316,6 @@ func (d *TentativeData) ClearOrderedListState(stateID LinkID, wKey, uKey []byte,
 	data := kMap[string(uKey)]
 
 	lo, hi := findRange(data.Bag, start, end)
-	slog.Debug("State() OrderedList.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey), slog.Group("range", slog.Int64("start", start), slog.Int64("end", end)), "lo", lo, "hi", hi, slog.Any("PreClearData", data.Bag))
-
 	cleared := slices.Delete(data.Bag, lo, hi)
 	// Zero the current entry to clear.
 	// Delete makes it difficult to delete the persisted stage state for the key.

@@ -40,6 +40,7 @@ from urllib.request import urlopen
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options import pipeline_options
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.transforms import environments
@@ -191,9 +192,10 @@ class PrismJobServer(job_server.SubprocessJobServer):
     self._log_level = prism_options.prism_log_level
     self._log_kind = prism_options.prism_log_kind
 
-    # override console to json with log filter enabled
-    if self._log_kind == "console":
-      self._log_kind = "json"
+    # for better json log rendering
+    debug_options = options.view_as(pipeline_options.DebugOptions)
+    if (self._log_kind == "json" and \
+        debug_options.lookup_experiment("enable_prism_json_log_rendering")):
       self._log_filter = PrismRunnerLogFilter()
 
   # the method is only kept for testing and backward compatibility

@@ -78,20 +78,20 @@ func (*runner) PrepareUrns() []string {
 }
 
 // PrepareTransform handles special processing with respect runner transforms, like reshuffle.
-func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult {
 	switch t.GetSpec().GetUrn() {
 	case urns.TransformFlatten:
-		return h.handleFlatten(tid, t, comps)
+		return h.handleFlatten(tid, t, comps, logger)
 	case urns.TransformReshuffle, urns.TransformRedistributeArbitrarily, urns.TransformRedistributeByKey:
-		return h.handleReshuffle(tid, t, comps)
+		return h.handleReshuffle(tid, t, comps, logger)
 	case urns.TransformTestStream:
-		return h.handleTestStream(tid, t, comps)
+		return h.handleTestStream(tid, t, comps, logger)
 	default:
 		panic("unknown urn to Prepare: " + t.GetSpec().GetUrn())
 	}
 }
 
-func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult {
 	if !h.config.SDKFlatten && !strings.HasPrefix(tid, "ft_") {
 		forcedRoots := []string{tid} // Have runner side transforms be roots.
 
@@ -162,7 +162,7 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 	return prepareResult{}
 }
 
-func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult {
 	// TODO: Implement the windowing strategy the "backup" transforms used for Reshuffle.
 
 	if h.config.SDKReshuffle {
@@ -220,7 +220,7 @@ func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb
 	}
 }
 
-func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult {
 	var pyld pipepb.TestStreamPayload
 	if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pyld); err != nil {
 		panic("Failed to decode TestStreamPayload: " + err.Error())
@@ -254,7 +254,7 @@ func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipep
 	if err != nil {
 		panic(err)
 	}
-	slog.Debug("teststream: add coder", "coderId", cID)
+	logger.Debug("teststream: add coder", "coderId", cID)
 
 	mustLP := func(v []byte) []byte {
 		var buf bytes.Buffer
@@ -279,7 +279,7 @@ func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipep
 			for _, elm := range elms {
 				newElm := proto.Clone(elm).(*pipepb.TestStreamPayload_TimestampedElement)
 				newElm.EncodedElement = mustLP(elm.GetEncodedElement())
-				slog.Debug("handleTestStream: rewrite bytes",
+				logger.Debug("handleTestStream: rewrite bytes",
 					"before:", string(elm.GetEncodedElement()),
 					"after:", string(newElm.GetEncodedElement()))
 				newElms = append(newElms, newElm)
@@ -313,7 +313,7 @@ func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipep
 		pcol := comps.GetPcollections()[gi]
 		newPcol := proto.Clone(pcol).(*pipepb.PCollection)
 		newPcol.CoderId = cID
-		slog.Debug("handleTestStream: rewrite coder for output pcoll", "colId", gi, "oldId", pcol.CoderId, "newId", newPcol.CoderId)
+		logger.Debug("handleTestStream: rewrite coder for output pcoll", "colId", gi, "oldId", pcol.CoderId, "newId", newPcol.CoderId)
 		pcolSubs[gi] = newPcol
 	}
 

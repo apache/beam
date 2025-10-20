@@ -2038,11 +2038,11 @@ class PrismRunnerOptions(PipelineOptions):
             '"warn", and "error". Default log level is "info".'))
     parser.add_argument(
         '--prism_log_kind',
-        default="console",
-        choices=["dev", "json", "text", "console"],
+        default="text",
+        choices=["dev", "json", "text"],
         help=(
             'Controls the log format in Prism. Values can be "dev", "json", '
-            '"text", and "console". Default log format is "console".'))
+            'and "text". Default log format is "text".'))
 
 
 class TestOptions(PipelineOptions):

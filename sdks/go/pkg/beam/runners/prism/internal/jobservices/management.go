@@ -23,6 +23,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/logconfig"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
@@ -79,6 +80,17 @@ func getOnlyValue[K comparable, V any](in map[K]V) V {
 	panic("unreachable")
 }
 
+// getPipelineOptionString safely extracts a string option from pipelineOptions,
+// falling back to a default value if the key is not present or the type assertion fails.
+func getPipelineOptionString(pipelineOptions map[string]any, key, defaultValue string) string {
+	if val, ok := pipelineOptions[key]; ok {
+		if strVal, isString := val.(string); isString {
+			return strVal
+		}
+	}
+	return defaultValue
+}
+
 func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *jobpb.PrepareJobResponse, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -87,6 +99,20 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 	rootCtx, cancelFn := context.WithCancelCause(context.Background())
 	// Wrap in a Once so it will only be invoked a single time for the job.
 	terminalOnceWrap := sync.OnceFunc(s.jobTerminated)
+	pipelineOptions := req.GetPipelineOptions().AsMap()
+	const (
+		urnPrismLogLevel = "beam:option:prism_log_level:v1"
+		urnPrismLogKind  = "beam:option:prism_log_kind:v1"
+	)
+	logLevel := getPipelineOptionString(pipelineOptions, urnPrismLogLevel, logconfig.DefaultLogLevel)
+	logKind := getPipelineOptionString(pipelineOptions, urnPrismLogKind, logconfig.DefaultLogKind)
+
+	logger, err := logconfig.CreateLogger(logLevel, logKind)
+	if err != nil {
+		cancelFn(err)
+		return nil, err
+	}
+
 	job := &Job{
 		key:        s.nextId(),
 		Pipeline:   req.GetPipeline(),
@@ -98,7 +124,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			cancelFn(err)
 			terminalOnceWrap()
 		},
-		Logger:           s.logger, // TODO substitute with a configured logger.
+		Logger:           logger,
 		artifactEndpoint: s.Endpoint(),
 		mw:               s.mw,
 	}
@@ -113,7 +139,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 
 	if err := isSupported(job.Pipeline.GetRequirements()); err != nil {
 		job.Failed(err)
-		slog.Error("unable to run job", slog.String("error", err.Error()), slog.String("jobname", req.GetJobName()))
+		s.logger.Error("unable to run job", slog.String("error", err.Error()), slog.String("jobname", req.GetJobName()))
 		return nil, err
 	}
 	var errs []error
@@ -261,12 +287,12 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 				inputID := getOnlyValue(t.GetInputs())
 				outputID := getOnlyValue(t.GetOutputs())
 				if inputID == outputID {
-					slog.Warn("empty transform, with payload and identical input and output pcollection", "urn", urn, "name", t.GetUniqueName(), "pcoll", inputID)
+					s.logger.Warn("empty transform, with payload and identical input and output pcollection", "urn", urn, "name", t.GetUniqueName(), "pcoll", inputID)
 					continue
 				}
 			}
 			// Otherwise fail.
-			slog.Warn("unknown transform, with payload", "urn", urn, "name", t.GetUniqueName(), "payload", t.GetSpec().GetPayload())
+			s.logger.Warn("unknown transform, with payload", "urn", urn, "name", t.GetUniqueName(), "payload", t.GetSpec().GetPayload())
 			check("PTransform.Spec.Urn", urn+" "+t.GetUniqueName(), "<doesn't exist>")
 		}
 	}
@@ -299,7 +325,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 	}
 	if len(errs) > 0 {
 		jErr := &joinError{errs: errs}
-		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", jErr.Error()))
+		s.logger.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", jErr.Error()))
 		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v:\n%v", len(errs), req.GetJobName(), jErr)
 		job.Failed(err)
 		return nil, err
