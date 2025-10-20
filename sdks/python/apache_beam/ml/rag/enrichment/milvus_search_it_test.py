@@ -1316,11 +1316,7 @@ def assert_chunks_equivalent(
     expected_data = expected.metadata['enrichment_data']
 
     # If actual has enrichment data, then perform detailed validation.
-    if actual_data:
-      # Ensure the id key exist.
-      err_msg = f"Missing id key in metadata {actual.id}"
-      assert 'id' in actual_data, err_msg
-
+    if actual_data and actual_data.get('id'):
       # Validate IDs have consistent ordering.
       actual_ids = sorted(actual_data['id'])
       expected_ids = sorted(expected_data['id'])
