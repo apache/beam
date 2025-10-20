@@ -27,9 +27,9 @@ from collections.abc import Iterable
 from io import BytesIO
 
 import apache_beam as beam
-from apache_beam.io.fileio import default_file_naming
 from apache_beam.io.fileio import FileSink
 from apache_beam.io.fileio import WriteToFiles
+from apache_beam.io.fileio import default_file_naming
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
