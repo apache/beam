@@ -372,8 +372,7 @@ class EnrichmentTestHelpers:
   @staticmethod
   def pre_milvus_enrichment() -> MilvusDBContainerInfo:
     try:
-      version = "milvusdb/milvus:v2.5.10"
-      db = MilvusEnrichmentTestHelper.start_db_container(version)
+      db = MilvusEnrichmentTestHelper.start_db_container()
     except Exception as e:
       raise TestContainerStartupError(
           f"Milvus container failed to start: {str(e)}")
