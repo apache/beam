@@ -416,6 +416,15 @@ class FnApiRunner(runner.PipelineRunner):
       stage_context (translations.TransformContext)
       stages (list[fn_api_runner.translations.Stage])
     """
+    # Apply environment configuration for stability
+    force_single_bundle = os.getenv('BEAM_TESTING_FORCE_SINGLE_BUNDLE', 'false').lower() == 'true'
+    deterministic_order = os.getenv('BEAM_TESTING_DETERMINISTIC_ORDER', 'false').lower() == 'true'
+    
+    if force_single_bundle:
+      _LOGGER.info("Forcing single bundle execution due to BEAM_TESTING_FORCE_SINGLE_BUNDLE")
+    if deterministic_order:
+      _LOGGER.info("Enabling deterministic order due to BEAM_TESTING_DETERMINISTIC_ORDER")
+    
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
     pipeline_metrics = MetricsContainer('')

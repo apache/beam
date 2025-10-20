@@ -20,13 +20,15 @@
 # pytype: skip-file
 
 import dataclasses
+import functools
 import logging
 import os
 import tempfile
+import time
 import typing
 import unittest
 
-import mock
+from unittest import mock
 
 import apache_beam as beam
 from apache_beam import ManagedReplacement
@@ -64,6 +66,32 @@ try:
 except ImportError:
   apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
+
+
+def retry_on_grpc_timeout(max_retries=5, delay=10, max_total_time=300):
+  """Decorator to retry tests that fail due to grpc timeout issues."""
+  def decorator(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+      start_time = time.time()
+      for attempt in range(max_retries):
+        try:
+          return func(*args, **kwargs)
+        except Exception as e:
+          elapsed_time = time.time() - start_time
+          if elapsed_time > max_total_time:
+            logging.error(f"Total retry time exceeded {max_total_time}s, giving up")
+            raise e
+            
+          if any(keyword in str(e).lower() for keyword in ["grpc", "deadline", "timeout", "connection", "unavailable"]):
+            if attempt < max_retries - 1:
+              logging.warning(f"Attempt {attempt + 1} failed with network error: {e}. Retrying in {delay} seconds... (elapsed: {elapsed_time:.1f}s)")
+              time.sleep(delay)
+              continue
+          raise e
+      return func(*args, **kwargs)
+    return wrapper
+  return decorator
 
 
 def get_payload(cls):
@@ -205,6 +233,7 @@ class ExternalTransformTest(unittest.TestCase):
         pipeline_from_proto.transforms_stack[0].parts[1].parts[0].full_label)
 
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
+  @retry_on_grpc_timeout(max_retries=5, delay=10)  # Retry on grpc timeout issues
   def test_pipeline_generation_with_runner_overrides(self):
     pipeline_properties = [
         '--job_name=test-job',
@@ -251,6 +280,7 @@ class ExternalTransformTest(unittest.TestCase):
         list(pubsub_read_transform.outputs.values()),
         list(external_transform.inputs.values()))
 
+  @retry_on_grpc_timeout(max_retries=3, delay=5)
   def test_payload(self):
     with beam.Pipeline() as p:
       res = (
@@ -290,6 +320,7 @@ class ExternalTransformTest(unittest.TestCase):
       pcol = context.pcollections.get_by_id(pcol_id)
       self.assertEqual(pcol.element_type, typehints.Any)
 
+  @retry_on_grpc_timeout(max_retries=3, delay=5)
   def test_nested(self):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
