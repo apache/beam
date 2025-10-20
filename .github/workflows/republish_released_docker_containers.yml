@@ -46,13 +46,14 @@ jobs:
         # Any task which is skipped from a broader task must be explicitly included in this list to avoid accidentally missing new
         # tasks as they are added.
         images_to_publish: [
-          {"gradle_task": ":pushAllRunnersDockerImages", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push39", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push310", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push311", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:pushAll", "skip_flags": "-Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images"},
-          {"gradle_task": ":pushAllSdkDockerImages", "skip_flags": "-Pskip-python-images"},
-          {"gradle_task": ":pushAllDockerImages", "skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
+          {"gradle_task": ":pushAllRunnersDockerImages", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push39", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push310", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push311", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push312", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:pushAll", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless -Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images -Pskip-python-312-images"},
+          {"gradle_task": ":pushAllSdkDockerImages", "include_skip_flags": "-Pskip-python-images"},
+          {"gradle_task": ":pushAllDockerImages", "include_skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
         ]
     steps:
       - name: Checkout
@@ -79,7 +80,7 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -93,7 +94,7 @@ jobs:
           ./gradlew ${{ matrix.images_to_publish.gradle_task }} \
           -PisRelease \
           -Pdocker-pull-licenses \
-          -Pprune-images ${{ matrix.images_to_publish.skip_flags }} \
+          -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} \
           -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
           -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
           --no-daemon \

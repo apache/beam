@@ -28,6 +28,9 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
@@ -49,6 +52,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
 
   private final Class<T> jaxbClass;
   private transient volatile JAXBContext jaxbContext;
+  private transient volatile XMLInputFactory xmlInputFactory;
   private final EmptyOnDeserializationThreadLocal<Marshaller> jaxbMarshaller;
   private final EmptyOnDeserializationThreadLocal<Unmarshaller> jaxbUnmarshaller;
 
@@ -130,10 +134,15 @@ public class JAXBCoder<T> extends CustomCoder<T> {
         long limit = VarInt.decodeLong(inStream);
         inStream = ByteStreams.limit(inStream, limit);
       }
+
+      XMLInputFactory factory = getXMLInputFactory();
+      XMLStreamReader xmlStreamReader =
+          factory.createXMLStreamReader(new CloseIgnoringInputStream(inStream));
+
       @SuppressWarnings("unchecked")
-      T obj = (T) jaxbUnmarshaller.get().unmarshal(new CloseIgnoringInputStream(inStream));
+      T obj = (T) jaxbUnmarshaller.get().unmarshal(xmlStreamReader);
       return obj;
-    } catch (JAXBException e) {
+    } catch (JAXBException | XMLStreamException e) {
       throw new CoderException(e);
     }
   }
@@ -147,6 +156,21 @@ public class JAXBCoder<T> extends CustomCoder<T> {
       }
     }
     return jaxbContext;
+  }
+
+  private XMLInputFactory getXMLInputFactory() {
+    if (xmlInputFactory == null) {
+      synchronized (this) {
+        if (xmlInputFactory == null) {
+          XMLInputFactory factory = XMLInputFactory.newInstance();
+
+          factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+          factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+          xmlInputFactory = factory;
+        }
+      }
+    }
+    return xmlInputFactory;
   }
 
   @Override

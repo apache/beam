@@ -67,7 +67,7 @@ def copyDockerfileDependencies = tasks.register("copyDockerfileDependencies", Co
 }
 
 def copyLicenseScripts = tasks.register("copyLicenseScripts", Copy){
-  from ("../license_scripts")
+  from ("../../license_scripts")
   into "build/target/license_scripts"
 }
 

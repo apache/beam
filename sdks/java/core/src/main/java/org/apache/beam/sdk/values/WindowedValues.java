@@ -36,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -763,6 +764,15 @@ public class WindowedValues {
   /** Abstract class for {@code WindowedValue} coder. */
   public abstract static class WindowedValueCoder<T> extends StructuredCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
+    private static boolean metadataSupported = false;
+
+    public static void setMetadataSupported() {
+      metadataSupported = true;
+    }
+
+    public static boolean isMetadataSupported() {
+      return metadataSupported;
+    }
 
     WindowedValueCoder(Coder<T> valueCoder) {
       this.valueCoder = checkNotNull(valueCoder);
@@ -829,7 +839,15 @@ public class WindowedValues {
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo(), outStream);
+      boolean metadataSupported = isMetadataSupported();
+      PaneInfoCoder.INSTANCE.encode(
+          windowedElem.getPaneInfo().withElementMetadata(metadataSupported), outStream);
+      if (metadataSupported) {
+        BeamFnApi.Elements.ElementMetadata.Builder builder =
+            BeamFnApi.Elements.ElementMetadata.newBuilder();
+        BeamFnApi.Elements.ElementMetadata em = builder.build();
+        ByteArrayCoder.of().encode(em.toByteArray(), outStream);
+      }
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -839,11 +857,15 @@ public class WindowedValues {
     }
 
     @Override
+    @SuppressWarnings("IgnoredPureGetter")
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+      if (isMetadataSupported() && paneInfo.isElementMetadata()) {
+        BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+      }
       T value = valueCoder.decode(inStream, context);
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,

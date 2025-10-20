@@ -61,7 +61,7 @@ jobs:
       matrix:
         job_name: ['beam_PostCommit_Python']
         job_phrase: ['Run Python PostCommit']
-        python_version: ['3.9', '3.10', '3.11', '3.12']
+        python_version: ['3.9', '3.10', '3.11', '3.12', '3.13']
         os: [[self-hosted, ubuntu-20.04, highmem22]]
     if: |
       github.event_name == 'workflow_dispatch' ||

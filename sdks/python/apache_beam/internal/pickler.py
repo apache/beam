@@ -73,6 +73,11 @@ def loads(encoded, enable_trace=True, use_zlib=False):
       encoded, enable_trace=enable_trace, use_zlib=use_zlib)
 
 
+def roundtrip(o):
+  """Internal utility for testing round-trip pickle serialization."""
+  return desired_pickle_lib.roundtrip(o)
+
+
 def dump_session(file_path):
   """For internal use only; no backwards-compatibility guarantees.
 
