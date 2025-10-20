@@ -112,7 +112,7 @@
 * Added official support for Python 3.13 ([#34869](https://github.com/apache/beam/issues/34869)).
 * Added an optional output_schema verification to all YAML transforms ([#35952](https://github.com/apache/beam/issues/35952)).
 * Support for encryption when using GroupByKey added, along with `--gbek` pipeline option to automatically replace all GroupByKey transforms (Java/Python) ([#36214](https://github.com/apache/beam/issues/36214)).
-* In Python SDK, the `--element_processing_timeout_minutes` option will also interrupt the SDK process if slowness happens during DoFn initialization, for example in `DoFn.start()` ([#36518](https://github.com/apache/beam/issues/36518)).
+* In Python SDK, the `--element_processing_timeout_minutes` option will also interrupt the SDK process if slowness happens during DoFn initialization, for example in `DoFn.setup()` ([#36518](https://github.com/apache/beam/issues/36518)).
 
 ## Breaking Changes
 
