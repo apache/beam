@@ -524,8 +524,9 @@ func TestWorker_State_MultimapSideInput(t *testing.T) {
 
 func newWorker() *W {
 	mw := &MultiplexW{
-		pool: map[string]*W{},
-		wg:   map[string]*sync.WaitGroup{},
+		pool:   map[string]*W{},
+		wg:     map[string]*sync.WaitGroup{},
+		logger: slog.Default(),
 	}
 	return mw.MakeWorker("test", "testEnv")
 }

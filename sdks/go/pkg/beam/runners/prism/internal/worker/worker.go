@@ -789,6 +789,8 @@ func (mw *MultiplexW) MakeWorker(id, env string) *W {
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
 		parentPool:         mw,
 		wg:                 mw.wg[id],
+
+		Logger: mw.logger,
 	}
 	mw.pool[workerId] = w
 
