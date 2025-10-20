@@ -68,6 +68,10 @@ public class CatalogSchema implements Schema {
     return catalog;
   }
 
+  public void updateProperties(Map<String, String> setProps, Collection<String> resetProps) {
+    catalog.updateProperties(setProps, resetProps);
+  }
+
   public @Nullable BeamCalciteSchema getCurrentDatabaseSchema() {
     return getSubSchema(catalog.currentDatabase());
   }

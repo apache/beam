@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.catalog;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalog implements Catalog {
   private final String name;
-  private final Map<String, String> properties;
+  protected final Map<String, String> properties;
   protected final Map<String, TableProvider> tableProviders = new HashMap<>();
   private final Map<String, MetaStore> metaStores = new HashMap<>();
   private final HashSet<String> databases = new HashSet<>(Collections.singleton(DEFAULT));
@@ -74,6 +75,12 @@ public class InMemoryCatalog implements Catalog {
   @Override
   public Map<String, String> properties() {
     return Preconditions.checkStateNotNull(properties, "InMemoryCatalog has not been initialized");
+  }
+
+  @Override
+  public void updateProperties(Map<String, String> setProps, Collection<String> resetProps) {
+    properties.putAll(setProps);
+    resetProps.forEach(properties::remove);
   }
 
   @Override

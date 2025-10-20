@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
@@ -31,28 +32,11 @@ public class IcebergCatalog extends InMemoryCatalog {
   //  other SDKs can make use of it too
   private static final String BEAM_HADOOP_PREFIX = "beam.catalog.hadoop";
   private final Map<String, IcebergMetastore> metaStores = new HashMap<>();
-  @VisibleForTesting final IcebergCatalogConfig catalogConfig;
+  @VisibleForTesting IcebergCatalogConfig catalogConfig;
 
-  public IcebergCatalog(String name, Map<String, String> properties) {
-    super(name, properties);
-
-    ImmutableMap.Builder<String, String> catalogProps = ImmutableMap.builder();
-    ImmutableMap.Builder<String, String> hadoopProps = ImmutableMap.builder();
-
-    for (Map.Entry<String, String> entry : properties.entrySet()) {
-      if (entry.getKey().startsWith(BEAM_HADOOP_PREFIX)) {
-        hadoopProps.put(entry.getKey(), entry.getValue());
-      } else {
-        catalogProps.put(entry.getKey(), entry.getValue());
-      }
-    }
-
-    catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setCatalogName(name)
-            .setCatalogProperties(catalogProps.build())
-            .setConfigProperties(hadoopProps.build())
-            .build();
+  public IcebergCatalog(String name, Map<String, String> props) {
+    super(name, props);
+    catalogConfig = initConfig(name, props);
   }
 
   @Override
@@ -64,6 +48,12 @@ public class IcebergCatalog extends InMemoryCatalog {
   @Override
   public String type() {
     return "iceberg";
+  }
+
+  @Override
+  public void updateProperties(Map<String, String> setProps, Collection<String> resetProps) {
+    super.updateProperties(setProps, resetProps);
+    catalogConfig = initConfig(name(), properties());
   }
 
   @Override
@@ -90,5 +80,25 @@ public class IcebergCatalog extends InMemoryCatalog {
       currentDatabase = null;
     }
     return removed;
+  }
+
+  private static IcebergCatalogConfig initConfig(String name, Map<String, String> properties) {
+    ImmutableMap.Builder<String, String> catalogProps = ImmutableMap.builder();
+    ImmutableMap.Builder<String, String> hadoopProps = ImmutableMap.builder();
+
+    for (Map.Entry<String, String> entry : properties.entrySet()) {
+      if (entry.getKey().startsWith(BEAM_HADOOP_PREFIX)) {
+        hadoopProps.put(entry.getKey(), entry.getValue());
+      } else {
+        catalogProps.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    return
+      IcebergCatalogConfig.builder()
+        .setCatalogName(name)
+        .setCatalogProperties(catalogProps.build())
+        .setConfigProperties(hadoopProps.build())
+        .build();
   }
 }

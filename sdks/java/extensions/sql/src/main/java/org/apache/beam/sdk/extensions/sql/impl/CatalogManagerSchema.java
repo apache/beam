@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
@@ -177,14 +178,16 @@ public class CatalogManagerSchema implements Schema {
   }
 
   public CatalogSchema getCatalogSchema(TableName tablePath) {
-    @Nullable Schema catalogSchema = getSubSchema(tablePath.catalog());
-    if (catalogSchema == null) {
-      catalogSchema = getCurrentCatalogSchema();
-    }
+    return getCatalogSchema(tablePath.catalog());
+  }
+
+  public CatalogSchema getCatalogSchema(@Nullable String catalog) {
+    Schema catalogSchema =
+        checkArgumentNotNull(getSubSchema(catalog), "Catalog '%s' not found.", catalog);
     Preconditions.checkState(
         catalogSchema instanceof CatalogSchema,
         "Unexpected Schema type for Catalog '%s': %s",
-        tablePath.catalog(),
+        catalog,
         catalogSchema.getClass());
     return (CatalogSchema) catalogSchema;
   }

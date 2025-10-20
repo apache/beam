@@ -36,6 +36,7 @@ data: {
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseDatabase"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.beam.sdk.schemas.Schema"
       ]
@@ -51,6 +52,7 @@ data: {
         "PROPERTIES"
         "PARTITIONED"
         "USE"
+        "UNSET"
       ]
 
       # List of keywords from "keywords" section that are not reserved.
@@ -77,7 +79,6 @@ data: {
         "BREADTH"
         "C"
         "CASCADE"
-        "CATALOG"
         "CATALOG_NAME"
         "CENTURY"
         "CHAIN"
@@ -422,6 +423,7 @@ data: {
       # Return type of method implementation should be 'SqlNode'.
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
+        "SqlAlterCatalog(Span.of(), null)"
         "SqlUseCatalog(Span.of(), null)"
         "SqlUseDatabase(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"

@@ -178,6 +178,21 @@ SqlNode Property() :
     }
 }
 
+SqlNodeList ArgList() :
+{
+    SqlNodeList list = new SqlNodeList(getPos());
+    SqlNode property;
+}
+{
+    property = StringLiteral() { list.add(property); }
+    (
+        <COMMA> property = StringLiteral() { list.add(property); }
+    )*
+    {
+        return list;
+    }
+}
+
 /**
  * CREATE CATALOG ( IF NOT EXISTS )? catalog_name
  *   TYPE type_name
@@ -243,6 +258,41 @@ SqlCall SqlUseCatalog(Span s, String scope) :
             s.end(this),
             scope,
             catalogName);
+    }
+}
+
+
+/**
+ * ALTER CATALOG catalog_name
+ *   [ SET (key1=val1, key2=val2, ...) ]
+ *   [ (RESET | UNSET) (key1, key2, ...) ]
+ */
+SqlCall SqlAlterCatalog(Span s, String scope) :
+{
+    final SqlNode catalogName;
+    SqlNodeList setProps = null;
+    SqlNodeList resetProps = null;
+}
+{
+    <ALTER> {
+        s.add(this);
+    }
+    <CATALOG>
+    (
+        catalogName = CompoundIdentifier()
+        |
+        catalogName = StringLiteral()
+    )
+    [ <SET> <LPAREN> setProps = PropertyList() <RPAREN> ]
+    [ (<RESET> | <UNSET>) <LPAREN> resetProps = ArgList() <RPAREN> ]
+
+    {
+        return new SqlAlterCatalog(
+            s.end(this),
+            scope,
+            catalogName,
+            setProps,
+            resetProps);
     }
 }
 
