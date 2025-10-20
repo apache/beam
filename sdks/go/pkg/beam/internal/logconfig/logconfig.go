@@ -53,7 +53,7 @@ func CreateLogger(logLevel, logKind string) (*slog.Logger, error) {
 	case "error":
 		level.Set(slog.LevelError)
 	default:
-		return nil, fmt.Errorf("Invalid value for log_level: %v, must be 'debug', 'info', 'warn', or 'error'", logLevel)
+		return nil, fmt.Errorf("invalid value for log_level: %v, must be 'debug', 'info', 'warn', or 'error'", logLevel)
 	}
 	switch strings.ToLower(logKind) {
 	case "dev":
@@ -71,7 +71,7 @@ func CreateLogger(logLevel, logKind string) (*slog.Logger, error) {
 	case "text":
 		handler = slog.NewTextHandler(loggerOutput, handlerOpts)
 	default:
-		return nil, fmt.Errorf("Invalid value for log_kind: %v, must be 'dev', 'json', or 'text'", logKind)
+		return nil, fmt.Errorf("invalid value for log_kind: %v, must be 'dev', 'json', or 'text'", logKind)
 	}
 
 	return slog.New(handler), nil
