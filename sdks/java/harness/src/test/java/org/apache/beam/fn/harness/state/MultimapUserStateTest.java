@@ -701,6 +701,44 @@ public class MultimapUserStateTest {
   }
 
   @Test
+  public void testEntriesPrefetched() throws Exception {
+    // Use a really large chunk size so all elements get returned in a single page. This makes it
+    // easier to count how many get calls we should expect.
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapEntriesStateKey(),
+                KV.of(
+                    KvCoder.of(ByteArrayCoder.of(), IterableCoder.of(StringUtf8Coder.of())),
+                    asList(KV.of(A1, asList("V1", "V2")), KV.of(A2, asList("V3"))))),
+            1000000);
+    MultimapUserState<byte[], String> userState =
+        new MultimapUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createMultimapKeyStateKey(),
+            ByteArrayCoder.of(),
+            StringUtf8Coder.of());
+
+    userState.put(A1, "V4");
+    PrefetchableIterable<Map.Entry<byte[], String>> entries = userState.entries();
+    assertEquals(0, fakeClient.getCallCount());
+    entries.prefetch();
+    assertEquals(1, fakeClient.getCallCount());
+    assertThat(
+        StreamSupport.stream(entries.spliterator(), false)
+            .map(entry -> KV.of(ByteString.copyFrom(entry.getKey()), entry.getValue()))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(
+            KV.of(ByteString.copyFrom(A1), "V1"),
+            KV.of(ByteString.copyFrom(A1), "V2"),
+            KV.of(ByteString.copyFrom(A1), "V4"),
+            KV.of(ByteString.copyFrom(A2), "V3")));
+    assertEquals(1, fakeClient.getCallCount());
+  }
+
+  @Test
   public void testClearPrefetch() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
