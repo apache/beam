@@ -58,10 +58,10 @@ for(int i=min_python_version; i<=max_python_version; ++i) {
     }
     dependsOn ':sdks:python:container:py' + cur + ':docker'
     if (project.hasProperty("include-ml")) {
-      dependsOn ':sdks:python:container:ml:push3' + cur
+      dependsOn ':sdks:python:container:ml:push' + cur
     }
     if (project.hasProperty("include-distroless")) {
-      dependsOn ':sdks:python:container:distroless:push3' + cur
+      dependsOn ':sdks:python:container:distroless:push' + cur
     }
 
     doLast {
