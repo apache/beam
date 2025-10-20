@@ -20057,6 +20057,10 @@ Pydoc&lt;/a
 &lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-bigtable/#example">Enrichment with Bigtable&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;td style="text-align:left">Milvus&lt;/td>
+&lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-milvus/#example">Enrichment with Milvus&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
 &lt;td style="text-align:left">Cloud SQL (PostgreSQL, MySQL, SQLServer)&lt;/td>
 &lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-cloudsql">Enrichment with CloudSQL&lt;/a>&lt;/td>
 &lt;/tr>
@@ -20408,7 +20412,7 @@ enrichment transform with the
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_template&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_template&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">where_clause_fields&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">where_clause_fields&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">cloudsql_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CloudSQLEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">connection_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">connection_config&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">query_config&lt;/span>&lt;span class="p">)&lt;/span>
@@ -20416,8 +20420,7 @@ enrichment transform with the
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;Enrich W/ Google CloudSQL PostgreSQL&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">cloudsql_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ Google CloudSQL PostgreSQL&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">handler&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -20738,14 +20741,208 @@ Row(product_id=3, name=&amp;#39;C&amp;#39;, quantity=10, region_id=4)&lt;/code>&
 &lt;/div>
 &lt;/div>
 &lt;/p>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;p>Not applicable.&lt;/p>
+&lt;h2 id="api-documentation">API documentation&lt;/h2>
 &lt;table align="left" style="margin-right:1em">
 &lt;td>
 &lt;a
 class="button"
 target="_blank"
 href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.cloudsql.html#apache_beam.transforms.enrichment_handlers.cloudsql.CloudSQLEnrichmentHandler"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Enrichment with Milvus</title><link>/documentation/transforms/python/elementwise/enrichment-milvus/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/enrichment-milvus/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="use-milvus-to-enrich-data">Use Milvus to enrich data&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table>
+&lt;tr>
+&lt;td>
+&lt;a>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html#apache_beam.ml.rag.enrichment.milvus_search.MilvusSearchEnrichmentHandler"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>In Apache Beam 2.67.0 and later versions, the enrichment transform includes
+a built-in enrichment handler for
+&lt;a href="https://milvus.io/">Milvus&lt;/a>.
+The following example demonstrates how to create a pipeline that use the enrichment transform with the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html#apache_beam.ml.rag.enrichment.milvus_search.MilvusSearchEnrichmentHandler">&lt;code>MilvusSearchEnrichmentHandler&lt;/code>&lt;/a> handler.&lt;/p>
+&lt;p>The data in the Milvus instance collection &lt;code>docs_catalog&lt;/code> follows this format:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">id&lt;/th>
+&lt;th style="text-align:center">content&lt;/th>
+&lt;th style="text-align:center">domain&lt;/th>
+&lt;th style="text-align:center">cost&lt;/th>
+&lt;th style="text-align:center">metadata&lt;/th>
+&lt;th style="text-align:center">dense_embedding&lt;/th>
+&lt;th style="text-align:center">sparse_embedding&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">This is a test document&lt;/td>
+&lt;td style="text-align:center">medical&lt;/td>
+&lt;td style="text-align:center">49&lt;/td>
+&lt;td style="text-align:center">{&amp;ldquo;language&amp;rdquo;: &amp;ldquo;en&amp;rdquo;}&lt;/td>
+&lt;td style="text-align:center">[0.1, 0.2, 0.3]&lt;/td>
+&lt;td style="text-align:center">[auto-generated by Milvus]&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">Another test document&lt;/td>
+&lt;td style="text-align:center">legal&lt;/td>
+&lt;td style="text-align:center">75&lt;/td>
+&lt;td style="text-align:center">{&amp;ldquo;language&amp;rdquo;: &amp;ldquo;en&amp;rdquo;}&lt;/td>
+&lt;td style="text-align:center">[0.2, 0.3, 0.4]&lt;/td>
+&lt;td style="text-align:center">[auto-generated by Milvus]&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">وثيقة اختبار&lt;/td>
+&lt;td style="text-align:center">financial&lt;/td>
+&lt;td style="text-align:center">149&lt;/td>
+&lt;td style="text-align:center">{&amp;ldquo;language&amp;rdquo;: &amp;ldquo;ar&amp;rdquo;}&lt;/td>
+&lt;td style="text-align:center">[0.3, 0.4, 0.5]&lt;/td>
+&lt;td style="text-align:center">[auto-generated by Milvus]&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">os&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.rag.types&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Content&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.rag.types&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Chunk&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.rag.types&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Embedding&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.rag.enrichment.milvus_search&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">MilvusSearchEnrichmentHandler&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">MilvusConnectionParameters&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">MilvusSearchParameters&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">MilvusCollectionLoadParameters&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">VectorSearchParameters&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">VectorSearchMetrics&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">uri&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_URI&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">user&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_USER&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">password&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_PASSWORD&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">db_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">token&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_TOKEN&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">collection_name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_COLLECTION_NAME&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">Chunk&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;query1&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">embedding&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">Embedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dense_embedding&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mf">0.1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">0.2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">0.3&lt;/span>&lt;span class="p">]),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">content&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">Content&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">connection_parameters&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MilvusConnectionParameters&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">uri&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">user&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">password&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">db_id&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">token&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The first condition (language == &amp;#34;en&amp;#34;) excludes documents in other&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># languages. Initially, this gives us two documents. After applying the second&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># condition (cost &amp;lt; 50), only the first document returns in search results.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">filter_expr&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;metadata[&amp;#34;language&amp;#34;] == &amp;#34;en&amp;#34; AND cost &amp;lt; 50&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">search_params&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;metric_type&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">VectorSearchMetrics&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">COSINE&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">value&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;nprobe&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">vector_search_params&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">VectorSearchParameters&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">anns_field&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;dense_embedding_cosine&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">limit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">filter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">filter_expr&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">search_params&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">search_params&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">search_parameters&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MilvusSearchParameters&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">collection_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">collection_name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">search_strategy&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">vector_search_params&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">output_fields&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;id&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;domain&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;cost&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;metadata&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">round_decimal&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The collection load parameters are optional. They provide fine-graine&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># control over how collections are loaded into memory. For simple use cases or&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># when getting started, this parameter can be omitted to use default loading&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># behavior. Consider using it in resource-constrained environments to optimize&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># memory usage and query performance.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">collection_load_parameters&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MilvusCollectionLoadParameters&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">milvus_search_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MilvusSearchEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">connection_parameters&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">connection_parameters&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">search_parameters&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">search_parameters&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">collection_load_parameters&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">collection_load_parameters&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ Milvus&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">milvus_search_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>Chunk(content=Content(text=None), id=&amp;#39;query1&amp;#39;, index=0, metadata={&amp;#39;enrichment_data&amp;#39;: defaultdict(&amp;lt;class &amp;#39;list&amp;#39;&amp;gt;, {&amp;#39;id&amp;#39;: [1], &amp;#39;distance&amp;#39;: [1.0], &amp;#39;fields&amp;#39;: [{&amp;#39;content&amp;#39;: &amp;#39;This is a test document&amp;#39;, &amp;#39;cost&amp;#39;: 49, &amp;#39;domain&amp;#39;: &amp;#39;medical&amp;#39;, &amp;#39;id&amp;#39;: 1, &amp;#39;metadata&amp;#39;: {&amp;#39;language&amp;#39;: &amp;#39;en&amp;#39;}}]})}, embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3], sparse_embedding=None))&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="notebook-exmaple">Notebook exmaple&lt;/h2>
+&lt;a href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/milvus_enrichment_transform.ipynb" target="_blank">
+&lt;img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab" width="150" height="auto" style="max-width: 100%"/>
+&lt;/a>
+&lt;h2 id="api-documentation">API documentation&lt;/h2>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html#apache_beam.ml.rag.enrichment.milvus_search.MilvusSearchEnrichmentHandler"
 >&lt;img
 src="https://beam.apache.org/images/logos/sdks/python.png"
 width="32px"
@@ -20987,182 +21184,4 @@ Pydoc&lt;/a
 >
 &lt;/td>
 &lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Execution model</title><link>/documentation/runtime/model/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runtime/model/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="execution-model">Execution model&lt;/h1>
-&lt;p>The Beam model allows runners to execute your pipeline in different ways. You
-may observe various effects as a result of the runner’s choices. This page
-describes these effects so you can better understand how Beam pipelines execute.&lt;/p>
-&lt;h2 id="processing-of-elements">Processing of elements&lt;/h2>
-&lt;p>The serialization and communication of elements between machines is one of the
-most expensive operations in a distributed execution of your pipeline. Avoiding
-this serialization may require re-processing elements after failures or may
-limit the distribution of output to other machines.&lt;/p>
-&lt;h3 id="serialization-and-communication">Serialization and communication&lt;/h3>
-&lt;p>The runner might serialize elements between machines for communication purposes
-and for other reasons such as persistence.&lt;/p>
-&lt;p>A runner may decide to transfer elements between transforms in a variety of
-ways, such as:&lt;/p>
-&lt;ul>
-&lt;li>Routing elements to a worker for processing as part of a grouping operation.
-This may involve serializing elements and grouping or sorting them by their
-key.&lt;/li>
-&lt;li>Redistributing elements between workers to adjust parallelism. This may
-involve serializing elements and communicating them to other workers.&lt;/li>
-&lt;li>Using the elements in a side input to a &lt;code>ParDo&lt;/code>. This may require
-serializing the elements and broadcasting them to all the workers executing
-the &lt;code>ParDo&lt;/code>.&lt;/li>
-&lt;li>Passing elements between transforms that are running on the same worker.
-This may allow the runner to avoid serializing elements; instead, the runner
-can just pass the elements in memory. This is done as part of an
-optimization that is known as
-&lt;a href="/documentation/glossary/#fusion">fusion&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;p>Some situations where the runner may serialize and persist elements are:&lt;/p>
-&lt;ol>
-&lt;li>When used as part of a stateful &lt;code>DoFn&lt;/code>, the runner may persist values to some
-state mechanism.&lt;/li>
-&lt;li>When committing the results of processing, the runner may persist the outputs
-as a checkpoint.&lt;/li>
-&lt;/ol>
-&lt;h3 id="bundling-and-persistence">Bundling and persistence&lt;/h3>
-&lt;p>Beam pipelines often focus on &amp;ldquo;&lt;a href="https://en.wikipedia.org/wiki/embarrassingly_parallel">embarassingly parallel&lt;/a>&amp;rdquo;
-problems. Because of this, the APIs emphasize processing elements in parallel,
-which makes it difficult to express actions like &amp;ldquo;assign a sequence number to
-each element in a PCollection&amp;rdquo;. This is intentional as such algorithms are much
-more likely to suffer from scalability problems.&lt;/p>
-&lt;p>Processing all elements in parallel also has some drawbacks. Specifically, it
-makes it impossible to batch any operations, such as writing elements to a sink
-or checkpointing progress during processing.&lt;/p>
-&lt;p>Instead of processing all elements simultaneously, the elements in a
-&lt;code>PCollection&lt;/code> are processed in &lt;em>bundles&lt;/em>. The division of the collection into
-bundles is arbitrary and selected by the runner. This allows the runner to
-choose an appropriate middle-ground between persisting results after every
-element, and having to retry everything if there is a failure. For example, a
-streaming runner may prefer to process and commit small bundles, and a batch
-runner may prefer to process larger bundles.&lt;/p>
-&lt;h3 id="data-partitioning-and-inter-stage-execution">Data partitioning and inter-stage execution&lt;/h3>
-&lt;p>Partitioning and parallelization of element processing within a Beam pipeline is
-dependent on two things:&lt;/p>
-&lt;ul>
-&lt;li>Data source implementation&lt;/li>
-&lt;li>Inter-stage key parallelism&lt;/li>
-&lt;/ul>
-&lt;p>Beam pipelines read data from a source (e.g. &lt;code>KafkaIO&lt;/code>, &lt;code>BigQueryIO&lt;/code>, &lt;code>JdbcIO&lt;/code>,
-or your own source implementation). To implement a Source in Beam one must
-implement it as a Splittable &lt;code>DoFn&lt;/code>. A Splittable &lt;code>DoFn&lt;/code> provides the runner
-with interfaces to facilitate the splitting of work.&lt;/p>
-&lt;p>When running key-based operations in Beam (e.g. &lt;code>GroupByKey&lt;/code>, &lt;code>Combine&lt;/code>,
-&lt;code>Reshuffle.perKey&lt;/code>, and stateful &lt;code>DoFn&lt;/code>s), Beam runners perform serialization
-and transfer of data known as &lt;em>shuffle&lt;/em>&lt;sup>1&lt;/sup>. Shuffle allows data
-elements of the same key to be processed together.&lt;/p>
-&lt;p>The way in which runners &lt;em>shuffle&lt;/em> data may be slightly different for Batch and
-Streaming execution modes.&lt;/p>
-&lt;p>&lt;sup>1&lt;/sup>Not to be confused with the &lt;code>shuffle&lt;/code> operation in some runners.&lt;/p>
-&lt;h4 id="data-ordering-in-a-pipeline-execution">Data ordering in a pipeline execution&lt;/h4>
-&lt;p>The Beam model does not define strict guidelines regarding the order in which
-runners process elements or transport them across &lt;code>PTransforms&lt;/code>. Runners are
-free to implement data transfer semantics in different forms.&lt;/p>
-&lt;p>Some use cases exist where user pipelines may need to rely on specific ordering
-semantics in pipeline execution. The &lt;a href="/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/index.html">capability matrix documents&lt;/a>
-runner behavior for &lt;strong>key-ordered delivery&lt;/strong>.&lt;/p>
-&lt;p>Consider a single Beam worker processing a series of bundles from the same Beam
-transform, and consider a &lt;code>PTransform&lt;/code> that outputs data from this Stage into a
-downstream &lt;code>PCollection&lt;/code>. Finally, consider two events &lt;em>with the same key&lt;/em>
-emitted in a certain order by this worker (within the same bundle or as part of
-different bundles).&lt;/p>
-&lt;p>We say that the Beam runner supports &lt;strong>key-ordered delivery&lt;/strong> if it guarantees
-that these two events will be observed in the same order by a PTransform that is
-immediately downstream independently of the kind of data transmission method.&lt;/p>
-&lt;p>This characteristic will hold true in runners and operations that have
-key-limited parallelism.&lt;/p>
-&lt;h2 id="parallelism">Failures and parallelism within and between transforms&lt;/h2>
-&lt;p>In this section, we discuss how elements in the input collection are processed
-in parallel, and how transforms are retried when failures occur.&lt;/p>
-&lt;h3 id="data-parallelism">Data-parallelism within one transform&lt;/h3>
-&lt;p>When executing a single &lt;code>ParDo&lt;/code>, a runner might divide an example input
-collection of nine elements into two bundles as shown in figure 1.&lt;/p>
-&lt;p>&lt;img src="/images/execution_model_bundling.svg" alt="Bundle A contains five elements. Bundle B contains four elements.">&lt;/p>
-&lt;p>&lt;em>Figure 1: A runner divides an input collection into two bundles.&lt;/em>&lt;/p>
-&lt;p>When the &lt;code>ParDo&lt;/code> executes, workers may process the two bundles in parallel as
-shown in figure 2.&lt;/p>
-&lt;p>&lt;img src="/images/execution_model_bundling_gantt.svg" alt="Two workers process the two bundles in parallel. Worker one processes bundle A. Worker two processes bundle B.">&lt;/p>
-&lt;p>&lt;em>Figure 2: Two workers process the two bundles in parallel.&lt;/em>&lt;/p>
-&lt;p>Since elements cannot be split, the maximum parallelism for a transform depends
-on the number of elements in the collection. In figure 3, the input collection
-has nine elements, so the maximum parallelism is nine.&lt;/p>
-&lt;p>&lt;img src="/images/execution_model_bundling_gantt_max.svg" alt="Nine workers process a nine element input collection in parallel.">&lt;/p>
-&lt;p>&lt;em>Figure 3: Nine workers process a nine element input collection in parallel.&lt;/em>&lt;/p>
-&lt;p>Note: Splittable ParDo allows splitting the processing of a single input across
-multiple bundles. This feature is a work in progress.&lt;/p>
-&lt;h3 id="dependent-parallellism">Dependent-parallelism between transforms&lt;/h3>
-&lt;p>&lt;code>ParDo&lt;/code> transforms that are in sequence may be &lt;em>dependently parallel&lt;/em> if the
-runner chooses to execute the consuming transform on the producing transform&amp;rsquo;s
-output elements without altering the bundling. In figure 4, &lt;code>ParDo1&lt;/code> and
-&lt;code>ParDo2&lt;/code> are &lt;em>dependently parallel&lt;/em> if the output of &lt;code>ParDo1&lt;/code> for a given
-element must be processed on the same worker.&lt;/p>
-&lt;p>&lt;img src="/images/execution_model_bundling_multi.svg" alt="ParDo1 processes an input collection that contains bundles A and B. ParDo2 then processes the output collection from ParDo1, which contains bundles C and D.">&lt;/p>
-&lt;p>&lt;em>Figure 4: Two transforms in sequence and their corresponding input collections.&lt;/em>&lt;/p>
-&lt;p>Figure 5 shows how these dependently parallel transforms might execute. The
-first worker executes &lt;code>ParDo1&lt;/code> on the elements in bundle A (which results in
-bundle C), and then executes &lt;code>ParDo2&lt;/code> on the elements in bundle C. Similarly,
-the second worker executes &lt;code>ParDo1&lt;/code> on the elements in bundle B (which results
-in bundle D), and then executes &lt;code>ParDo2&lt;/code> on the elements in bundle D.&lt;/p>
-&lt;p>&lt;img src="/images/execution_model_bundling_multi_gantt.svg" alt="Worker one executes ParDo1 on bundle A and Pardo2 on bundle C. Worker two executes ParDo1 on bundle B and ParDo2 on bundle D.">&lt;/p>
-&lt;p>&lt;em>Figure 5: Two workers execute dependently parallel ParDo transforms.&lt;/em>&lt;/p>
-&lt;p>Executing transforms this way allows a runner to avoid redistributing elements
-between workers, which saves on communication costs. However, the maximum parallelism
-now depends on the maximum parallelism of the first of the dependently parallel
-steps.&lt;/p>
-&lt;h3 id="failures-within-one-transform">Failures within one transform&lt;/h3>
-&lt;p>If processing of an element within a bundle fails, the entire bundle fails. The
-elements in the bundle must be retried (otherwise the entire pipeline fails),
-although they do not need to be retried with the same bundling.&lt;/p>
-&lt;p>For this example, we will use the &lt;code>ParDo&lt;/code> from figure 1 that has an input
-collection with nine elements and is divided into two bundles.&lt;/p>
-&lt;p>In figure 6, the first worker successfully processes all five elements in bundle
-A. The second worker processes the four elements in bundle B: the first two
-elements were successfully processed, the third element’s processing failed, and
-there is one element still awaiting processing.&lt;/p>
-&lt;p>We see that the runner retries all elements in bundle B and the processing
-completes successfully the second time. Note that the retry does not necessarily
-happen on the same worker as the original processing attempt, as shown in the
-figure.&lt;/p>
-&lt;p>&lt;img src="/images/execution_model_failure_retry.svg" alt="Worker two fails to process an element in bundle B. Worker one finishes processing bundle A and then successfully retries to execute bundle B.">&lt;/p>
-&lt;p>&lt;em>Figure 6: The processing of an element within bundle B fails, and another worker
-retries the entire bundle.&lt;/em>&lt;/p>
-&lt;p>Because we encountered a failure while processing an element in the input
-bundle, we had to reprocess &lt;em>all&lt;/em> of the elements in the input bundle. This means
-the runner must throw away the entire output of the bundle (including any state
-mutations and set timers) since all of the results it contains will be recomputed.&lt;/p>
-&lt;p>Note that if the failed transform is a &lt;code>ParDo&lt;/code>, then the &lt;code>DoFn&lt;/code> instance is torn
-down and abandoned.&lt;/p>
-&lt;h3 id="coupled-failure">Coupled failure: Failures between transforms&lt;/h3>
-&lt;p>If a failure to process an element in &lt;code>ParDo2&lt;/code> causes &lt;code>ParDo1&lt;/code> to re-execute,
-these two steps are said to be &lt;em>co-failing&lt;/em>.&lt;/p>
-&lt;p>For this example, we will use the two &lt;code>ParDo&lt;/code>s from figure 4.&lt;/p>
-&lt;p>In figure 7, worker two successfully executes &lt;code>ParDo1&lt;/code> on all elements in bundle
-B. However, the worker fails to process an element in bundle D, so &lt;code>ParDo2&lt;/code>
-fails (shown as the red X). As a result, the runner must discard and recompute
-the output of &lt;code>ParDo2&lt;/code>. Because the runner was executing &lt;code>ParDo1&lt;/code> and &lt;code>ParDo2&lt;/code>
-together, the output bundle from &lt;code>ParDo1&lt;/code> must also be thrown away, and all
-elements in the input bundle must be retried. These two &lt;code>ParDo&lt;/code>s are co-failing.&lt;/p>
-&lt;p>&lt;img src="/images/execution_model_bundling_coupled_failure.svg" alt="Worker two fails to process en element in bundle D, so all elements in both bundle B and bundle D must be retried.">&lt;/p>
-&lt;p>&lt;em>Figure 7: Processing of an element within bundle D fails, so all elements in
-the input bundle are retried.&lt;/em>&lt;/p>
-&lt;p>Note that the retry does not necessarily have the same processing time as the
-original attempt, as shown in the diagram.&lt;/p>
-&lt;p>All &lt;code>DoFns&lt;/code> that experience coupled failures are terminated and must be torn
-down since they aren’t following the normal &lt;code>DoFn&lt;/code> lifecycle .&lt;/p>
-&lt;p>Executing transforms this way allows a runner to avoid persisting elements
-between transforms, saving on persistence costs.&lt;/p></description></item></channel></rss>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
