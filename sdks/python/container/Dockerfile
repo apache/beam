@@ -29,11 +29,6 @@ COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
 
-# Enable GRPC experiments to mitigate timeout issues in later versions
-# of the grpc package. 
-ENV GRPC_EXPERIMENTS="event_engine_fork,event_engine_poller_for_python"
-ENV GRPC_ENABLE_FORK_SUPPORT=1
-
 # Use one RUN command to reduce the number of layers.
 ARG py_version
 RUN  \
