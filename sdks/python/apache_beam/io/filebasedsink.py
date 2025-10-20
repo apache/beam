@@ -208,6 +208,7 @@ class FileBasedSink(iobase.Sink):
     from apache_beam.pvalue import EmptySideInput
 
     # Handle case where init_result is EmptySideInput (empty collection)
+    # TODO: https://github.com/apache/beam/issues/36563 for Prism
     if isinstance(init_result, EmptySideInput):
       # Fall back to creating a temporary directory based on file_path_prefix
       _LOGGER.warning(
