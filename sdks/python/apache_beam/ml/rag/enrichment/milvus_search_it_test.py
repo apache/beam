@@ -295,6 +295,12 @@ class CustomMilvusContainer(MilvusContainer):
 
 
 class MilvusEnrichmentTestHelper:
+  # IMPORTANT: When upgrading the Milvus server version, ensure the pymilvus
+  # Python SDK client in setup.py is updated to match. Referring to the Milvus
+  # release notes compatibility matrix at
+  # https://milvus.io/docs/release_notes.md or PyPI at
+  # https://pypi.org/project/pymilvus/ for version compatibility.
+  # Example: Milvus v2.6.0 requires pymilvus==2.6.0 (exact match required).
   @staticmethod
   def start_db_container(
       image="milvusdb/milvus:v2.5.10",
