@@ -129,7 +129,7 @@ def dumps(
     enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
-  s = _dumps(o, enable_best_effort_determinism, config)
+  s = _dumps(o, enable_best_effort_determinism, enable_stable_code_identifier_pickling, config)
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
@@ -149,6 +149,7 @@ def dumps(
 def _dumps(
     o,
     enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
 
   if enable_best_effort_determinism:
