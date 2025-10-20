@@ -149,7 +149,7 @@ def dumps(
 def _dumps(
     o,
     enable_best_effort_determinism=False,
-    enable_stable_code_identifier_pickling=False
+    enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
 
   if enable_best_effort_determinism:
