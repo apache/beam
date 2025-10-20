@@ -297,7 +297,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
-        run: ./gradlew ${{ matrix.images_to_publish.gradle_task }} -PisRelease -Pdocker-pull-licenses -Pprune-images ${{ matrix.images_to_publish.skip_flags }} -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
+        run: ./gradlew ${{ matrix.images_to_publish.gradle_task }} -PisRelease -Pdocker-pull-licenses -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
 
   beam_site_pr:
     if:  ${{ fromJson(github.event.inputs.STAGE).beam_site_pr == 'yes'}}
