@@ -40,7 +40,6 @@ from urllib.request import urlopen
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options import pipeline_options
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.transforms import environments

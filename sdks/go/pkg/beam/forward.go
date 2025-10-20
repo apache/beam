@@ -59,7 +59,7 @@ func init() {
 		if logger, err := logconfig.CreateLoggerWithDefault(); err == nil {
 			slog.SetDefault(logger)
 		} else {
-			log.Fatalf(err.Error())
+			log.Fatalf("Failed to create logger: %s", err.Error())
 		}
 	})
 

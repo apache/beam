@@ -82,7 +82,7 @@ func CreateJobServer(ctx context.Context, opts Options) (jobpb.JobServiceClient,
 	if logger, err := logconfig.CreateLogger(opts.LogLevel, opts.LogKind); err == nil {
 		slog.SetDefault(logger)
 	} else {
-		log.Fatalf(err.Error())
+		log.Fatalf("Failed to create job server: %s", err.Error())
 	}
 
 	s := jobservices.NewServer(opts.Port, internal.RunPipeline)
