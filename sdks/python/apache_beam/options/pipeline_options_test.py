@@ -973,7 +973,17 @@ class PipelineOptionsTest(unittest.TestCase):
         'option1=value1', 'option2=value2', 'option3=value3', 'option4=value4'
     ],
                      options.get_all_options()['dataflow_service_options'])
+  
+  
+  def test_service_account_alias_camelCase(self):
+    options = PipelineOptions(['--serviceAccount', 'svc@example.com'])
+    gco = options.view_as(GoogleCloudOptions)
+    self.assertEqual(gco.service_account_email, 'svc@example.com')
 
+  def test_service_account_snake_case_still_works(self):
+    options = PipelineOptions(['--service_account_email', 'svc2@example.com'])
+    gco = options.view_as(GoogleCloudOptions)
+    self.assertEqual(gco.service_account_email, 'svc2@example.com')
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
