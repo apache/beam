@@ -19,24 +19,26 @@
 
 import json
 
-from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.utils.timestamp import Timestamp
 
 
-def model_to_json(model):
-  return json.dumps(construct_json_dict(model), separators=(',', ':'))
+def model_to_json(model, nexmark_types):
+  return json.dumps(
+      construct_json_dict(model, nexmark_types), separators=(',', ':')
+  )
 
 
-def construct_json_dict(model):
-  return {k: unnest_to_json(v) for k, v in model.__dict__.items()}
+def construct_json_dict(model, nexmark_types):
+  return {
+      k: unnest_to_json(v, nexmark_types) for k, v in model.__dict__.items()
+  }
 
 
-def unnest_to_json(cand):
+def unnest_to_json(cand, nexmark_types):
   if isinstance(cand, Timestamp):
     return cand.micros // 1000
-  elif isinstance(
-      cand, (nexmark_model.Auction, nexmark_model.Bid, nexmark_model.Person)):
-    return construct_json_dict(cand)
+  elif isinstance(cand, nexmark_types):
+    return construct_json_dict(cand, nexmark_types)
   else:
     return cand
 

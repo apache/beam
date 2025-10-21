@@ -29,6 +29,7 @@ generate events:
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.coders.coders import StrUtf8Coder
+from apache_beam.testing.benchmarks.nexmark.models import nexmark_json_util
 
 
 class PersonCoder(FastCoder):
@@ -56,6 +57,10 @@ class Person(object):
     self.state = state
     self.date_time = date_time
     self.extra = extra
+
+  def __repr__(self):
+    nexmark_types = (Person, Auction, Bid)
+    return nexmark_json_util.model_to_json(self, nexmark_types)
 
 
 class AuctionCoder(FastCoder):
@@ -96,6 +101,10 @@ class Auction(object):
     self.category = category
     self.extra = extra
 
+  def __repr__(self):
+    nexmark_types = (Person, Auction, Bid)
+    return nexmark_json_util.model_to_json(self, nexmark_types)
+
 
 class BidCoder(FastCoder):
   def to_type_hint(self):
@@ -118,6 +127,10 @@ class Bid(object):
     self.price = price
     self.date_time = date_time
     self.extra = extra
+
+  def __repr__(self):
+    nexmark_types = (Person, Auction, Bid)
+    return nexmark_json_util.model_to_json(self, nexmark_types)
 
 
 class AuctionCoderImpl(coder_impl.StreamCoderImpl):
