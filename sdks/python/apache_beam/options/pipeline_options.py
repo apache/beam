@@ -1172,7 +1172,7 @@ class GoogleCloudOptions(PipelineOptions):
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
-      return 'gs://%s' % bucket.id
+      return 'gs://%s/' % bucket.id
     else:
       return None
 
