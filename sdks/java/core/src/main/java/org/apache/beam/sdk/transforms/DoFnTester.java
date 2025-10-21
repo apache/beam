@@ -492,35 +492,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   ValueInSingleWindow.of(
                       output, timestamp, window, PaneInfo.NO_FIRING, null, null));
         }
-
-        @Override
-        public void output(
-            OutputT output,
-            Instant timestamp,
-            BoundedWindow window,
-            @Nullable String currentRecordId,
-            @Nullable Long currentRecordOffset) {
-          output(mainOutputTag, output, timestamp, window, currentRecordId, currentRecordOffset);
-        }
-
-        @Override
-        public <T> void output(
-            TupleTag<T> tag,
-            T output,
-            Instant timestamp,
-            BoundedWindow window,
-            @Nullable String currentRecordId,
-            @Nullable Long currentRecordOffset) {
-          getMutableOutput(tag)
-              .add(
-                  ValueInSingleWindow.of(
-                      output,
-                      timestamp,
-                      window,
-                      PaneInfo.NO_FIRING,
-                      currentRecordId,
-                      currentRecordOffset));
-        }
       };
     }
 
@@ -643,24 +614,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      outputWindowedValue(
-          mainOutputTag,
-          output,
-          timestamp,
-          windows,
-          paneInfo,
-          currentRecordId,
-          currentRecordOffset);
-    }
-
-    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       outputWithTimestamp(tag, output, element.getTimestamp());
     }
@@ -683,23 +636,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       for (BoundedWindow w : windows) {
         getMutableOutput(tag)
             .add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, null, null));
-      }
-    }
-
-    @Override
-    public <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      for (BoundedWindow w : windows) {
-        getMutableOutput(tag)
-            .add(
-                ValueInSingleWindow.of(
-                    output, timestamp, w, paneInfo, currentRecordId, currentRecordOffset));
       }
     }
   }
