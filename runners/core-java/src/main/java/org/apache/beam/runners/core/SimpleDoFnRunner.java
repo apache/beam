@@ -470,12 +470,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public String currentRecordId() {
+    public @Nullable String currentRecordId() {
       return elem.getRecordId();
     }
 
     @Override
-    public Long currentRecordOffset() {
+    public @Nullable Long currentRecordOffset() {
       return elem.getRecordOffset();
     }
 
