@@ -1190,13 +1190,14 @@ class GoogleCloudOptions(PipelineOptions):
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
-            "Bucket specified in %s has soft-delete policy enabled."
+            "Bucket %s used as %s has soft-delete policy enabled."
             " To avoid being billed for unnecessary storage costs, turn"
             " off the soft delete feature on buckets that your Dataflow"
             " jobs use for temporary and staging storage. For more"
             " information, see"
             " https://cloud.google.com/storage/docs/use-soft-delete"
             "#remove-soft-delete-policy.",
+            gcs_path,
             arg_name,
             n=1,
             key="message")
