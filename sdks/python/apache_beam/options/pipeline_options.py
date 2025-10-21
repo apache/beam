@@ -476,7 +476,7 @@ class PipelineOptions(HasDisplayData):
         suggestions = difflib.get_close_matches(arg_name, all_known_options)
         if suggestions:
           msg += f". Did you mean '{suggestions[0]}'?'"
-      _LOGGER.warning(msg)
+      logger.log_first_n(logging.WARN, msg, key="message")
 
   def get_all_options(
       self,
