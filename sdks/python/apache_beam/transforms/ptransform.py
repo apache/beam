@@ -792,6 +792,8 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
             self,
             enable_best_effort_determinism=context.
             enable_best_effort_deterministic_pickling,
+            enable_stable_code_identifier_pickling=context.
+            enable_stable_code_identifier_pickling,
         ),
     )
 
