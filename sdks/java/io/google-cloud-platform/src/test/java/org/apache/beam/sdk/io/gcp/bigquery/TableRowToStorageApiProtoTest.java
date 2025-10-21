@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.DATETIME_SPACE_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
 import static org.junit.Assert.assertEquals;
@@ -1404,7 +1403,7 @@ public class TableRowToStorageApiProtoTest {
         case INT64:
           return convertedValue.toString();
         case DOUBLE:
-          return BigDecimal.valueOf((double) convertedValue).stripTrailingZeros().toString();
+          return TableRowToStorageApiProto.DECIMAL_FORMAT.format((double) convertedValue);
         case BYTES:
           ByteString byteString =
               (ByteString)
@@ -1432,7 +1431,7 @@ public class TableRowToStorageApiProtoTest {
         case DATETIME:
           long packedDateTime = (long) convertedValue;
           return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(packedDateTime)
-              .format(DATETIME_SPACE_FORMATTER);
+              .format(BigQueryUtils.BIGQUERY_DATETIME_FORMATTER);
         case TIME:
           long packedTime = (long) convertedValue;
           return CivilTimeEncoder.decodePacked64TimeMicrosAsJavaTime(packedTime).toString();
