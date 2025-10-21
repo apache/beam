@@ -24,13 +24,13 @@ from apache_beam.utils.timestamp import Timestamp
 
 def model_to_json(model, nexmark_types):
   return json.dumps(
-      construct_json_dict(model, nexmark_types), separators=(',', ':')
-  )
+      construct_json_dict(model, nexmark_types), separators=(',', ':'))
 
 
 def construct_json_dict(model, nexmark_types):
   return {
-      k: unnest_to_json(v, nexmark_types) for k, v in model.__dict__.items()
+      k: unnest_to_json(v, nexmark_types)
+      for k, v in model.__dict__.items()
   }
 
 
