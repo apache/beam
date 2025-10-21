@@ -218,7 +218,7 @@ tenacity==8.5.0
 tensorboard==2.16.2
 tensorboard-data-server==0.7.2
 tensorflow==2.16.2
-tensorflow-cpu-aws==2.16.2;platform_machine=="aarch64"
+tensorflow-cpu-aws==2.15.1;platform_machine=="aarch64"
 tensorflow-io-gcs-filesystem==0.37.1
 termcolor==3.1.0
 testcontainers==4.12.0
