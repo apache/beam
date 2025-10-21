@@ -53,6 +53,15 @@ func makeInfoWBytes(enum pipepb.MonitoringInfoSpecs_Enum, payload []byte) *pipep
 	return info
 }
 
+func boundedTriePayload(t testing.TB, trie *pipepb.BoundedTrie) []byte {
+	t.Helper()
+	bytes, err := proto.Marshal(trie)
+	if err != nil {
+		t.Fatalf("failed to marshal bounded trie: %v", err)
+	}
+	return bytes
+}
+
 // This test validates that multiple contributions are correctly summed up and accumulated.
 func Test_metricsStore_ContributeMetrics(t *testing.T) {
 
@@ -165,6 +174,37 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 			},
 			want: []*pipepb.MonitoringInfo{
 				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SET_STRING, []byte{0, 0, 0, 1, 1, 63}),
+			},
+		}, {
+			name: "boundedTrie",
+			input: []map[string][]byte{
+				{"a": boundedTriePayload(t, &pipepb.BoundedTrie{Bound: 100, Singleton: []string{"a"}})},
+				{"a": boundedTriePayload(t, &pipepb.BoundedTrie{Bound: 100, Singleton: []string{"z", "z", "z"}})},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(
+					pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE,
+					boundedTriePayload(t, &pipepb.BoundedTrie{
+						Bound: 100,
+						Root: &pipepb.BoundedTrieNode{
+							Children: map[string]*pipepb.BoundedTrieNode{
+								"a": {},
+								"z": {
+									Children: map[string]*pipepb.BoundedTrieNode{
+										"z": {
+											Children: map[string]*pipepb.BoundedTrieNode{
+												"z": {},
+											},
+										},
+									},
+								},
+							},
+						},
+					}),
+				),
 			},
 		},
 	}
