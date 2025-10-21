@@ -167,5 +167,7 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/sankalpjonn/timeloop/master/LICENSE"
   torch:
     license: "https://raw.githubusercontent.com/pytorch/pytorch/master/LICENSE"
+  triton:
+    license: "https://raw.githubusercontent.com/triton-lang/triton/refs/heads/main/LICENSE"
   wget:
     license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"
