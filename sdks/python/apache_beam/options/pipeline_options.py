@@ -38,6 +38,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import logger
 from apache_beam.utils import proto_utils
 
 __all__ = [
@@ -1187,14 +1188,18 @@ class GoogleCloudOptions(PipelineOptions):
     try:
       from apache_beam.io.gcp import gcsio
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
-        _LOGGER.warning(
+        logger.log_first_n(
+            logging.WARN,
             "Bucket specified in %s has soft-delete policy enabled."
             " To avoid being billed for unnecessary storage costs, turn"
             " off the soft delete feature on buckets that your Dataflow"
             " jobs use for temporary and staging storage. For more"
             " information, see"
             " https://cloud.google.com/storage/docs/use-soft-delete"
-            "#remove-soft-delete-policy." % arg_name)
+            "#remove-soft-delete-policy.",
+            arg_name,
+            n=1,
+            key="message")
     except ImportError:
       _LOGGER.warning('Unable to check soft delete policy due to import error.')
 
