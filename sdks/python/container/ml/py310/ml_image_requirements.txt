@@ -231,7 +231,7 @@ tomli==2.3.0
 torch==2.7.1
 tqdm==4.67.1
 transformers==4.55.4
-triton==3.3.1
+triton==3.5.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2025.2
