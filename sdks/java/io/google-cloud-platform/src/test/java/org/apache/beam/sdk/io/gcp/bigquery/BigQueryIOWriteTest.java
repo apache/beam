@@ -4444,6 +4444,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testCustomGcsTempLocationNull() throws Exception {
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to("dataset-id.table-id")

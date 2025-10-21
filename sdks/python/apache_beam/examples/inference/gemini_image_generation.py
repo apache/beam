@@ -24,15 +24,20 @@ gemini-2.0-flash-001 model.
 import argparse
 import logging
 from collections.abc import Iterable
+from io import BytesIO
 
 import apache_beam as beam
+from apache_beam.io.fileio import FileSink
+from apache_beam.io.fileio import WriteToFiles
+from apache_beam.io.fileio import default_file_naming
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
-from apache_beam.ml.inference.gemini_inference import generate_from_string
+from apache_beam.ml.inference.gemini_inference import generate_image_from_strings_and_images
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
+from PIL import Image
 
 
 def parse_known_args(argv):
@@ -66,14 +71,29 @@ def parse_known_args(argv):
 
 
 class PostProcessor(beam.DoFn):
-  def process(self, element: PredictionResult) -> Iterable[str]:
-    for part in element.inference.parts:
-      try:
-        output_text = part.text
-        yield f"Input: {element.example}, Output: {output_text}"
-      except Exception as e:
-        print(f"Can't decode inference for element: {element.example}, got {e}")
-        raise e
+  def process(self, element: PredictionResult) -> Iterable[Image.Image]:
+    try:
+      response = element.inference
+      for part in response.parts:
+        if part.text is not None:
+          print(part.text)
+        elif part.inline_data is not None:
+          image = Image.open(BytesIO(part.inline_data.data))
+          yield image
+    except Exception as e:
+      print(f"Can't decode inference for element: {element.example}, got {e}")
+      raise e
+
+
+class ImageSink(FileSink):
+  def open(self, fh) -> None:
+    self._fh = fh
+
+  def write(self, record):
+    record.save(self._fh, format='PNG')
+
+  def flush(self):
+    self._fh.flush()
 
 
 def run(
@@ -88,8 +108,8 @@ def run(
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   model_handler = GeminiModelHandler(
-      model_name='gemini-2.0-flash-001',
-      request_fn=generate_from_string,
+      model_name='gemini-2.5-flash-image',
+      request_fn=generate_image_from_strings_and_images,
       api_key=known_args.api_key,
       project=known_args.project,
       location=known_args.location)
@@ -99,17 +119,16 @@ def run(
     pipeline = beam.Pipeline(options=pipeline_options)
 
   prompts = [
-      "What is 5+2?",
-      "Who is the protagonist of Lord of the Rings?",
-      "What is the air-speed velocity of a laden swallow?"
+      "Create a picture of a pineapple in the sand at a beach.",
   ]
 
   read_prompts = pipeline | "Get prompt" >> beam.Create(prompts)
   predictions = read_prompts | "RunInference" >> RunInference(model_handler)
   processed = predictions | "PostProcess" >> beam.ParDo(PostProcessor())
-  _ = processed | "PrintOutput" >> beam.Map(print)
-  _ = processed | "WriteOutput" >> beam.io.WriteToText(
-      known_args.output, shard_name_template='', append_trailing_newlines=True)
+  _ = processed | "WriteOutput" >> WriteToFiles(
+      path=known_args.output,
+      file_naming=default_file_naming("gemini-image", ".png"),
+      sink=ImageSink())
 
   result = pipeline.run()
   result.wait_until_finish()
