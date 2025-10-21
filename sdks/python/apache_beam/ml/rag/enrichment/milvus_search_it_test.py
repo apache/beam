@@ -503,7 +503,8 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
         user=cls._db.user,
         password=cls._db.password,
         db_id=cls._db.id,
-        token=cls._db.token)
+        token=cls._db.token,
+        timeout=60.0)  # Increase timeout to 60s for container startup
     cls._collection_load_params = MilvusCollectionLoadParameters()
     cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
         cls._connection_params)
