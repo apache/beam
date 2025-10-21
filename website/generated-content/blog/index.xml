@@ -1,4 +1,41 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Fri, 26 Sep 2025 00:00:00 -0400</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Google Summer of Code 2025 - Beam ML Vector DB/Feature Store integrations</title><link>/blog/gsoc-25-ml-connectors/</link><pubDate>Fri, 26 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-ml-connectors/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 14 Oct 2025 00:00:00 +0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Google Summer of Code 2025 - Enhanced Interactive Pipeline Development Environment for JupyterLab</title><link>/blog/gsoc-25-jupyterlab-extensions/</link><pubDate>Tue, 14 Oct 2025 00:00:00 +0800</pubDate><guid>/blog/gsoc-25-jupyterlab-extensions/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="gsoc-2025-basic-information">GSoC 2025 Basic Information&lt;/h1>
+&lt;p>&lt;strong>Student:&lt;/strong> [Canyu Chen] (&lt;a href="https://github.com/Chenzo1001">@Chenzo1001&lt;/a>)
+&lt;strong>Mentors:&lt;/strong> [XQ Hu] (&lt;a href="https://github.com/liferoad">@liferoad&lt;/a>)
+&lt;strong>Organization:&lt;/strong> [Apache Beam]
+&lt;strong>Proposal Link:&lt;/strong> &lt;a href="https://drive.google.com/file/d/1_J5Fczzwhzge5zP5-8YWawE3EiAH2wQG/view?usp=sharing">Here&lt;/a>&lt;/p>
+&lt;h1 id="project-overview">Project Overview&lt;/h1>
+&lt;p>BeamVision significantly enhances the Apache Beam development experience within JupyterLab by providing a unified, visual interface for pipeline inspection and analysis. This project successfully delivered a production-ready JupyterLab extension that replaces fragmented workflows with an integrated workspace, featuring a dynamic side panel for pipeline visualization and a multi-tab interface for comparative workflow analysis.&lt;/p>
+&lt;p>Core Achievements:&lt;/p>
+&lt;p>Modernized Extension: Upgraded the JupyterLab Sidepanel to v4.x, ensuring compatibility with the latest ecosystem and releasing the package on both &lt;a href="https://www.npmjs.com/package/apache-beam-jupyterlab-sidepanel">NPM&lt;/a> and &lt;a href="https://pypi.org/project/apache-beam-jupyterlab-sidepanel/">PyPI&lt;/a>.&lt;/p>
+&lt;p>YAML Visualization Suite: Implemented a powerful visual editor for Beam YAML, combining a code editor, an interactive flow chart (built with @xyflow/react-flow), and a collapsible key-value panel for intuitive pipeline design.&lt;/p>
+&lt;p>Enhanced Accessibility &amp;amp; Stability: Added pip installation support and fixed critical bugs in Interactive Beam, improving stability and user onboarding.&lt;/p>
+&lt;p>Community Engagement: Active participation in the Beam community, including contributing to a hackathon project and successfully integrating all work into the Apache Beam codebase via merged Pull Requests.&lt;/p>
+&lt;h1 id="development-workflow">Development Workflow&lt;/h1>
+&lt;p>As early as the beginning of March, I saw Apache&amp;rsquo;s project information on the official GSoC website and came across Beam among the projects released by Apache. Since I have some interest in front-end development and wanted to truly integrate into the open-source community for development work, I contacted mentor XQ Hu via email and received positive feedback from him. In April, XQ Hu posted notes for all GSoC students on the Beam Mailing List. It was essential to keep an eye on the Mailing List promptly. Between March and May, besides completing the project proposal and preparation work, I also used my spare time to partially migrate the Beam JupyterLab Extension to version 4.0. This helped me get into the development state more quickly.&lt;/p>
+&lt;p>I also participated in the Beam Hackathon held in May. There were several topics to choose from, and I opted for the free topic. This allowed me to implement any innovative work on Beam. I combined Beam and GCP to create an &lt;a href="https://github.com/Chenzo1001/Beam_auto_emotion_analysis">Automatic Emotion Analysis Tool for comments&lt;/a>. This tool integrates Beam Pipeline, Flink, Docker, and GCP to collect and perform sentiment analysis on real-time comment stream data, storing the results in GCP&amp;rsquo;s BigQuery. This is a highly meaningful task because sentiment analysis of comments can help businesses better understand users&amp;rsquo; opinions about their products, thereby improving the products more effectively. However, the time during the Hackathon was too tight, so I haven&amp;rsquo;t fully completed this project yet, and it can be further improved later. This Hackathon gave me a deeper understanding of Beam and GCP, and also enhanced my knowledge of the development of the Beam JupyterLab Extension.&lt;/p>
+&lt;p>In June, I officially started the project development and maintained close communication with my mentor to ensure the project progressed smoothly. XQ Hu and I held a half-hour weekly meeting every Monday on Google Meet, primarily to address issues encountered during the previous week&amp;rsquo;s development and to discuss the tasks for the upcoming week. XQ Hu is an excellent mentor, and I had no communication barriers with him whatsoever. He is also very understanding; sometimes, when I needed to postpone some development tasks due to personal reasons, he was always supportive and gave me ample freedom. During this month, I improved the plugin to make it fully compatible with JupyterLab 4.0.&lt;/p>
+&lt;p>In July and August, I made some modifications to the plugin&amp;rsquo;s source code structure and published it on PyPI to facilitate user installation and promote the plugin. During this period, I also fixed several bugs. Afterwards, I began developing a new feature: the YAML visual editor (design doc &lt;a href="https://s.apache.org/beam-yaml-jupyterlab">HERE&lt;/a>). This feature is particularly meaningful because Beam&amp;rsquo;s Pipeline is described through YAML files, and a visual editor for YAML files can significantly improve developers&amp;rsquo; efficiency. In July, I published the proposal for the YAML visual editor and, after gathering feedback from the community for some time, started working on its development. Initially, I planned to use native Cytoscape to build the plugin from scratch, but the workload was too heavy, and there were many mature flow chart plugins in the open-source community that could be referenced. Therefore, I chose XYFlow as the component for flow visualization and integrated it into the plugin. In August, I further optimized the YAML visual editor and fixed some bugs.&lt;/p>
+&lt;img src="/images/blog/gsoc-25-jupyterlab-extensions/Yaml_main.png" alt="Main page of the YAML visual editor" width="100%">
+&lt;p>In September, I completed the project submission, passed Google&amp;rsquo;s review, and successfully concluded the project.&lt;/p>
+&lt;h1 id="development-conclusion">Development Conclusion&lt;/h1>
+&lt;p>Overall, collaborating with Apache Beam&amp;rsquo;s developers was a very enjoyable process. I learned a lot about Beam, and since I am a student engaged in high-performance geographic computing research, Beam may play a significant role in my future studies and work.&lt;/p>
+&lt;p>I am excited to remain an active member of the Beam community. I hope to continue contributing to its development, applying what I have learned to both my academic pursuits and future collaborative projects. The experience has strengthened my commitment to open-source innovation and has set a strong foundation for ongoing participation in Apache Beam and related technologies.&lt;/p>
+&lt;h1 id="special-thanks">Special Thanks&lt;/h1>
+&lt;p>I would like to express my sincere gratitude to my mentor XQ Hu for his guidance and support throughout the project. Without his help, I would not have been able to complete this project successfully. His professionalism, patience, and passion have been truly inspiring. As a Google employee, he consistently dedicated time each week to the open-source community and willingly assisted students like me. His selfless dedication to open source is something I deeply admire and strive to emulate. He is also an exceptionally devoted teacher who not only imparted technical knowledge but also taught me how to communicate more effectively, handle interpersonal relationships, and collaborate better in a team setting. He always patiently addressed my questions and provided invaluable advice. I am immensely grateful to him and hope to have the opportunity to work with him again in the future.&lt;/p>
+&lt;p>I also want to thank the Apache Beam community for their valuable feedback and suggestions, which have greatly contributed to the improvement of the plugin. I feel incredibly fortunate that we, as a society, have open-source communities where individuals contribute their intellect and time to drive collective technological progress and innovation. These communities provide students like me with invaluable opportunities to grow and develop rapidly.&lt;/p>
+&lt;p>Finally, I would like to thank the Google Summer of Code program for providing me with this opportunity to contribute to open-source projects and gain valuable experience. Without Google Summer of Code, I might never have had the chance to engage with so many open-source projects, take that first step into the open-source community, or experience such substantial personal and professional growth.&lt;/p></description></item><item><title>Blog: Google Summer of Code 2025 - Beam ML Vector DB/Feature Store integrations</title><link>/blog/gsoc-25-ml-connectors/</link><pubDate>Fri, 26 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-ml-connectors/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6247,211 +6284,4 @@ Vlad
 Vladislav Chunikhin
 Yichi Zhang
 Yi Hu
-Yixiao Shen&lt;/p></description></item><item><title>Blog: Apache Hop web version with Cloud Dataflow</title><link>/blog/hop-web-cloud/</link><pubDate>Sat, 15 Oct 2022 00:00:01 -0800</pubDate><guid>/blog/hop-web-cloud/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Hop is a codeless visual development environment for Apache Beam pipelines that
-can run jobs in any Beam runner, such as Dataflow, Flink or Spark. &lt;a href="/blog/apache-hop-with-dataflow/">In a
-previous post&lt;/a>, we
-introduced the desktop version of Apache Hop. Hop also has a web environment,
-Hop Web, that you can run from a container, so you don&amp;rsquo;t have to install
-anything on your computer to use it.&lt;/p>
-&lt;p>In this detailed tutorial, you access Hop through the internet using a web
-browser and point to a container running in a virtual machine on Google
-Cloud. That container will launch jobs in Dataflow and report back the results
-of those jobs. Because we don&amp;rsquo;t want just anyone to access your Hop instance,
-we’re going to secure it so that only you can access that virtual machine. The
-following diagram illustrates the setup:&lt;/p>
-&lt;p>&lt;img src="/images/blog/hop-web-cloud/hop-web-cloud-image2.png" alt="Architecture deployed with this tutorial">&lt;/p>
-&lt;p>We will show how to do the deployment described previously, creating a web and
-visual development environment that builds Beam pipelines using just a web
-browser. When complete, you will have a secure web environment that you can use
-to create pipelines with your web browser and launch them using Google Cloud
-Dataflow.&lt;/p>
-&lt;h2 id="what-do-you-need-to-run-this-example">What do you need to run this example?&lt;/h2>
-&lt;p>We are using Google Cloud, so the first thing you need is a Google Cloud
-project. If needed, you can sign up for the free trial of Google Cloud at
-&lt;a href="https://cloud.google.com/free">https://cloud.google.com/free&lt;/a>.&lt;/p>
-&lt;p>When you have a project, you can use &lt;a href="https://cloud.google.com/shell">Cloud
-Shell&lt;/a> in your web browser with no additional
-setup. In Cloud Shell, the Google Cloud SDK is automatically configured for your
-project and credentials. That&amp;rsquo;s the option we use here. Alternatively, you can
-configure the Google Cloud SDK in your local computer. For instructions, see
-&lt;a href="https://cloud.google.com/sdk/docs/install">https://cloud.google.com/sdk/docs/install&lt;/a>.&lt;/p>
-&lt;p>To open Cloud Shell, go to the [Google Cloud console]
-(&lt;a href="http://console.cloud.google.com">http://console.cloud.google.com&lt;/a>), make sure your project is selected, and click
-the Cloud Shell button &lt;img src="/images/blog/hop-web-cloud/hop-web-cloud-image1.png" alt="Cloud Shellbutton">. Cloud Shell opens,
-and you can use it to run the commands shown in this post.&lt;/p>
-&lt;p>The commands that we are going to use in the next steps are &lt;a href="https://gist.github.com/iht/6219b227424ada477462c7b9d9d93c57">available in a Gist
-in Github&lt;/a>, just
-in case you prefer to run that script instead of copying the commands from this
-tutorial.&lt;/p>
-&lt;h2 id="permissions-and-accounts">Permissions and accounts&lt;/h2>
-&lt;p>When we run a Dataflow pipeline, we can use our personal Google Cloud
-credentials to run the job. But Hop web will be running in a virtual machine,
-and in Google Cloud, virtual machines run using service accounts as
-credentials. So we need to make sure that we have a service account that has
-permission to run Dataflow jobs.&lt;/p>
-&lt;p>By default, virtual machines use the service account called &lt;em>Compute Engine
-default service account&lt;/em>. For the sake of simplicity, we will use this
-account. Still, we need to add some permissions to run Dataflow jobs with that
-service account.&lt;/p>
-&lt;p>First, let&amp;rsquo;s make sure that you have enabled all the required Google Cloud
-APIs. &lt;a href="https://console.cloud.google.com/flows/enableapi?apiid=dataflow,compute_component,logging,storage_component,storage_api,bigquery,pubsub">Click this link to enable Dataflow, BigQuery and
-Pub/Sub&lt;/a>,
-which we’ll use in this workflow. The link takes you to your project in the
-Google Cloud console, where you can enable the APIs.&lt;/p>
-&lt;p>Let&amp;rsquo;s now give permissions to the VM account. First, find the ID of the service
-account. Open Cloud Shell, and run the following command.&lt;/p>
-&lt;pre tabindex="0">&lt;code>gcloud iam service-accounts list | grep compute
-&lt;/code>&lt;/pre>&lt;p>The output is similar to the following, with &lt;code>&amp;lt;PROJECT_NUMBER&amp;gt;&lt;/code> replaced by your
-project number:&lt;/p>
-&lt;pre tabindex="0">&lt;code>EMAIL: &amp;lt;PROJECT_NUMBER&amp;gt;-compute@developer.gserviceaccount.com
-&lt;/code>&lt;/pre>&lt;p>Copy that service account ID, because we use it in the next step. Run the
-following command to grant the &lt;a href="https://cloud.google.com/dataflow/docs/concepts/access-control">Dataflow Admin
-role&lt;/a> to the
-service account. This role is required to run jobs:&lt;/p>
-&lt;pre tabindex="0">&lt;code>gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT --member=&amp;#34;serviceAccount:&amp;lt;SERVICE_ACCOUNT_ID&amp;gt;&amp;#34; --role=&amp;#34;roles/dataflow.admin&amp;#34;
-&lt;/code>&lt;/pre>&lt;p>where &lt;code>&amp;lt;SERVICE_ACCOUNT_ID&amp;gt;&lt;/code> is the ID that you retrieved previously. If you are
-running these commands in Cloud Shell, the environment variable
-&lt;code>GOOGLE_CLOUD_PROJECT&lt;/code> is already set to your project ID. If you are running
-this from any other place, set the &lt;code>$GOOGLE_CLOUD_PROJECT&lt;/code> variable with the ID
-of your project.&lt;/p>
-&lt;p>Now your &amp;ldquo;user&amp;rdquo; for Dataflow is that service account. If your jobs are accessing
-data in BigQuery, Cloud Storage, Pub/Sub, and so on, you also need to grant
-roles for those services to the service account.&lt;/p>
-&lt;h2 id="disk-and-virtual-machine">Disk and virtual machine&lt;/h2>
-&lt;p>Let&amp;rsquo;s create a virtual machine (VM) in Compute Engine to run the Docker
-container of Apache Hop.&lt;/p>
-&lt;p>In Compute Engine, it is possible to run a container directly in a VM. There are
-other options to run containers in Google Cloud, but a VM is probably the
-simplest and most straightforward. The full details are in the &lt;a href="https://cloud.google.com/compute/docs/containers/deploying-containers">Deploying
-containers on VMs and
-MIGs&lt;/a>
-page of the Google Cloud documentation.&lt;/p>
-&lt;p>In this tutorial, we will always be working in the zone &lt;code>europe-west1-b&lt;/code>, so you
-will see that zone in a lot of the commands. However, you can choose any Google
-Cloud zone; just remember to use the value for your zone instead of
-&lt;code>europe-west1-b&lt;/code>. Always use the same zone for all the resources, such as disks
-and VMs. To minimize the latency when using Hop web, choose a zone that is
-geographically close to your location. Let&amp;rsquo;s define the zone now and use this
-variable for the rest of the commands:&lt;/p>
-&lt;pre tabindex="0">&lt;code>ZONE=europe-west1-b
-&lt;/code>&lt;/pre>&lt;p>Containers have ephemeral storage: when you restart the container, the disk of
-the container returns to its original state. Therefore, if we restart the Hop
-web container, we lose all our precious pipelines. To avoid that, we are going
-to create a persistent disk, where we will store all our work with Hop web. Run
-the following command to create the disk:&lt;/p>
-&lt;pre tabindex="0">&lt;code>gcloud compute disks create my-hop-disk \
---type=pd-balanced \
---size=10GB \
---zone=$ZONE
-&lt;/code>&lt;/pre>&lt;p>Thanks to this disk, we’re able to stop the virtual machine and still keep all
-our personal files in Hop web intact.&lt;/p>
-&lt;p>Let&amp;rsquo;s now create the VM. For the VM, we need to select the network (&lt;code>default&lt;/code> in
-the, well, default case) so the VM will not have a public IP address. This is
-important for security reasons, but it won’t stop us from using the VM from our
-web browser thanks to the Identity Aware Proxy. More on this later; for now
-let&amp;rsquo;s create the VM:&lt;/p>
-&lt;pre tabindex="0">&lt;code>gcloud compute instances create-with-container my-hop-vm \
---zone=$ZONE \
---network-interface=subnet=default,no-address \
---scopes=https://www.googleapis.com/auth/cloud-platform \
---tags=http-server,https-server,ssh \
---container-image=apache/hop-web:2.0.1 \
---container-restart-policy=on-failure \
---container-mount-disk=mode=rw,mount-path=/root,name=my-hop-disk,partition=0 \
---disk=boot=no,device-name=my-hop-disk,mode=rw,name=my-hop-disk
-&lt;/code>&lt;/pre>&lt;p>You might be wondering what those additional options are. They are required for
-the VM to work properly with Hop web. For instance, the &lt;code>scopes&lt;/code> option is what
-allows the VM to use Dataflow, and the &lt;code>tags&lt;/code> option lets your browser reach the
-Hop web address through the network firewall.&lt;/p>
-&lt;p>Apache Hop listens on port 8080 for HTTP connections, so if you have additional
-custom firewall rules in your project, make sure you are not stopping TCP
-traffic on port 8080.&lt;/p>
-&lt;p>But wait a minute; we have created a machine with only private IPs. How can we
-reach Hop web from the web browser on our computer? Don&amp;rsquo;t we need a public IP
-address for that?&lt;/p>
-&lt;p>Google Cloud has a feature called the Identity Aware Proxy (IAP) that can be
-used to wrap services with an authorization layer, allowing connections to
-resources with only internal IPs.&lt;/p>
-&lt;p>We can use the IAP to wrap our Apache Hop web server. With the following
-command, we create a tunnel listening on local port 8080 that connects to port
-8080 on the VM:&lt;/p>
-&lt;pre tabindex="0">&lt;code>gcloud compute start-iap-tunnel my-hop-vm 8080 --local-host-port=localhost:8080 --zone=$ZONE
-&lt;/code>&lt;/pre>&lt;p>To keep the tunnel open, leave that command running. If the command fails right
-after creating the VM, wait a few seconds and try again; the container might
-still be booting up.&lt;/p>
-&lt;p>We now have a tunnel that we can connect to using our web browser. If you’re
-running these commands on your local computer and not in Cloud Shell, point your
-browser to &lt;code>localhost:8080&lt;/code>. The Hop UI should load.&lt;/p>
-&lt;p>If you are running these command in Cloud Shell, where do we point the browser
-to? Cloud Shell comes with an utility for situations like this one. In Cloud
-Shell, locate the &lt;strong>Web Preview&lt;/strong> button:&lt;/p>
-&lt;p>&lt;img src="/images/blog/hop-web-cloud/hop-web-cloud-image3.png" alt="Web preview options">&lt;/p>
-&lt;p>If the preview isn’t using port 8080, click &lt;strong>Change port&lt;/strong>, and switch to
-port 8080. When you click &lt;strong>Preview on port&lt;/strong>, Cloud Shell opens a new tab in
-your browser that points to the tunnel address.&lt;/p>
-&lt;p>The &lt;strong>Identity Aware Proxy&lt;/strong> will ask you to identify yourself using your Google
-account.&lt;/p>
-&lt;p>After that, the Apache Hop web interface loads:&lt;/p>
-&lt;p>&lt;img src="/images/blog/hop-web-cloud/hop-web-cloud-image4.png" alt="Hop web UI">&lt;/p>
-&lt;p>That URL is authenticated using your Google account, the same one that you are
-using for Google Cloud (the one you are authenticated with in the Google Cloud
-SDK). So even if another person gets that URL address, they won’t be able to
-access your Apache Hop instance.&lt;/p>
-&lt;p>You are now ready to use Apache Hop in a web browser!&lt;/p>
-&lt;p>You can try to replicate the example that was given &lt;a href="/blog/apache-hop-with-dataflow/">in a previous
-post&lt;/a> using Hop web, or
-just try to launch any other project from the samples included with Hop:&lt;/p>
-&lt;p>&lt;img src="/images/blog/hop-web-cloud/hop-web-cloud-image5.png" alt="Sample projects in Hop">&lt;/p>
-&lt;h2 id="where-should-i-store-my-stuff">Where should I store my stuff?&lt;/h2>
-&lt;p>The directories in the file system of a container are ephemeral. How can you be
-sure that you store your pipelines and JARs in a persistent location?&lt;/p>
-&lt;p>The home directory container is &lt;code>/root&lt;/code>, and it is the only &lt;strong>persistent&lt;/strong>
-directory in the container (thanks to the disk we created previously). When you
-restart the VM for whatever reason, any file included in that directory is
-retained. But the rest of the directories reset to their original state. So make
-sure you save your stuff, such as your pipelines, the fat JAR generated for
-Dataflow, and so on, in the &lt;code>/root&lt;/code> directory or its subdirectories.&lt;/p>
-&lt;p>In the Hop file dialogs, when you click the home icon, you are directed to the
-&lt;code>/root&lt;/code> directory, so it is very straightforward to use it to store
-everything. In the example in the picture, we clicked the &lt;strong>Home&lt;/strong> button and
-are storing a JAR in that persistent directory:&lt;/p>
-&lt;p>&lt;img src="/images/blog/hop-web-cloud/hop-web-cloud-image6.png" alt="Hop file dialog">&lt;/p>
-&lt;h2 id="turning-off-the-virtual-machine">Turning off the virtual machine&lt;/h2>
-&lt;p>If you want to save some money when you are not using the virtual machine, stop
-the VM and launch it again when needed. The content of the &lt;em>/root&lt;/em> directory is
-saved when you stop the virtual machine.&lt;/p>
-&lt;p>To stop the VM, run the following command (or in the console, on the Compute
-Engine VM page, click &lt;strong>Stop&lt;/strong>):&lt;/p>
-&lt;pre tabindex="0">&lt;code>gcloud compute instances stop my-hop-vm --zone=$ZONE
-&lt;/code>&lt;/pre>&lt;p>And to start it again, run the following command:&lt;/p>
-&lt;pre tabindex="0">&lt;code>gcloud compute instances start my-hop-vm --zone=$ZONE
-&lt;/code>&lt;/pre>&lt;p>Remember that you need to have the Identity Aware Proxy running in order to
-access Hop web, so after starting the VM, don&amp;rsquo;t forget to run the command to
-start the Identity Aware Proxy (and if it fails right after starting, wait a few
-seconds and run it again):&lt;/p>
-&lt;pre tabindex="0">&lt;code>gcloud compute start-iap-tunnel my-hop-vm 8080 --local-host-port=localhost:8080 --zone=$ZONE
-&lt;/code>&lt;/pre>&lt;h2 id="summary">Summary&lt;/h2>
-&lt;p>This post has shown that all that you need to run Hop is a web browser. And,
-well, a Google Cloud project too.&lt;/p>
-&lt;p>We deployed the container to a virtual machine in Google Cloud, so you can
-access Hop from anywhere, and we created a persistent disk, so you can have
-permanent storage for your pipelines. Now you can use your web browser to create
-your pipelines and to run Dataflow jobs without having to install anything
-locally in your computer: not Java, not Docker, not the Google Cloud SDK;
-nothing, just your favourite web browser.&lt;/p>
-&lt;p>If you followed the instructions in this post, head over to the post &lt;a href="/blog/apache-hop-with-dataflow/">Running
-Apache Hop visual pipelines with Google Cloud
-Dataflow&lt;/a> to run a
-Dataflow pipeline right from your web browser!&lt;/p></description></item></channel></rss>
+Yixiao Shen&lt;/p></description></item></channel></rss>
