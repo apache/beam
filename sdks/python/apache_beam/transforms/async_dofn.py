@@ -55,9 +55,8 @@ class AsyncWrapper(beam.DoFn):
   TIMER_SET = ReadModifyWriteStateSpec('timer_set', coders.BooleanCoder())
   TO_PROCESS = BagStateSpec(
       'to_process',
-      coders.TupleCoder([coders.StrUtf8Coder(), coders.StrUtf8Coder()]),
+      coders.TupleCoder([coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()])
   )
-  _timer_frequency = 20
   # The below items are one per dofn (not instance) so are maps of UUID to
   # value.
   _processing_elements = {}
@@ -103,7 +102,7 @@ class AsyncWrapper(beam.DoFn):
     self._uuid = uuid.uuid4().hex
     self._parallelism = parallelism
     self._max_wait_time = max_wait_time
-    self._timer_frequency = 20
+    self._timer_frequency = callback_frequency
     if max_items_to_buffer is None:
       self._max_items_to_buffer = max(parallelism * 2, 10)
     else:
@@ -114,7 +113,6 @@ class AsyncWrapper(beam.DoFn):
     self.max_wait_time = max_wait_time
     self.timer_frequency_ = callback_frequency
     self.parallelism_ = parallelism
-    self._next_time_to_fire = Timestamp.now() + Duration(seconds=5)
     self._shared_handle = Shared()
 
   @staticmethod
@@ -238,7 +236,7 @@ class AsyncWrapper(beam.DoFn):
       **kwargs: keyword arguments that the wrapped dofn requires.
     """
     done = False
-    sleep_time = 1
+    sleep_time = 0.01
     total_sleep = 0
     while not done:
       done = self.schedule_if_room(element, ignore_buffer, *args, **kwargs)
@@ -256,10 +254,10 @@ class AsyncWrapper(beam.DoFn):
         total_sleep += sleep_time
         sleep(sleep_time)
 
-  def next_time_to_fire(self):
+  def next_time_to_fire(self, key):
     return (
         floor((time() + self._timer_frequency) / self._timer_frequency) *
-        self._timer_frequency)
+        self._timer_frequency) + (random.random() * self._timer_frequency)
 
   def accepting_items(self):
     with AsyncWrapper._lock:
@@ -301,7 +299,7 @@ class AsyncWrapper(beam.DoFn):
     # Set a timer to fire on the next round increment of timer_frequency_. Note
     # we do this so that each messages timer doesn't get overwritten by the
     # next.
-    time_to_fire = self.next_time_to_fire()
+    time_to_fire = self.next_time_to_fire(element[0])
     timer.set(time_to_fire)
 
     # Don't output any elements.  This will be done in commit_finished_items.
@@ -346,6 +344,7 @@ class AsyncWrapper(beam.DoFn):
     # from local state and cancel their futures.
     to_remove = []
     key = None
+    to_reschedule = []
     if to_process_local:
       key = str(to_process_local[0][0])
     else:
@@ -387,9 +386,13 @@ class AsyncWrapper(beam.DoFn):
               'item %s found in processing state but not local state,'
               ' scheduling now',
               x)
-          self.schedule_item(x, ignore_buffer=True)
+          to_reschedule.append(x)
           items_rescheduled += 1
 
+    # Reschedule the items not under a lock
+    for x in to_reschedule:
+        self.schedule_item(x, ignore_buffer=False, timeout=1)
+      
     # Update processing state to remove elements we've finished
     to_process.clear()
     for x in to_process_local:
@@ -408,8 +411,8 @@ class AsyncWrapper(beam.DoFn):
     # If there are items not yet finished then set a timer to fire in the
     # future.
     self._next_time_to_fire = Timestamp.now() + Duration(seconds=5)
-    if items_not_yet_finished > 0:
-      time_to_fire = self.next_time_to_fire()
+    if items_in_processing_state > 0:
+      time_to_fire = self.next_time_to_fire(key)
       timer.set(time_to_fire)
 
     # Each result is a list. We want to combine them into a single
