@@ -17,6 +17,7 @@
 """Test for OrderedBatchElements."""
 
 import logging
+import shutil
 import unittest
 
 import apache_beam as beam
@@ -50,7 +51,7 @@ def _maybe_log_elements(pcoll, prefix="result="):
 def _create_input_stream(elements: list[int]):
   now = Timestamp.now()
   length = len(elements)
-  fire_interval = 0.1
+  fire_interval = 0.5
   return PeriodicImpulse(
       data=[(Timestamp.of(e), e) for e in elements],
       fire_interval=fire_interval,
@@ -60,6 +61,10 @@ def _create_input_stream(elements: list[int]):
   )
 
 
+_go_installed = shutil.which('go') is not None
+
+
+@unittest.skipUnless(_go_installed, 'Go is not installed.')
 class OrderedBatchElementsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.options = PipelineOptions([
