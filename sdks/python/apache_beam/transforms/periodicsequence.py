@@ -337,8 +337,7 @@ class PeriodicImpulse(PTransform):
     if self.rebase == RebaseMode.REBASE_ALL:
       duration = Timestamp.of(self.stop_ts) - Timestamp.of(self.start_ts)
       impulse_element = pbegin | beam.Impulse() | beam.Map(
-          lambda _:
-          [Timestamp.now(), Timestamp.now() + duration, self.interval])
+          lambda _: [now := Timestamp.now(), now + duration, self.interval])
     elif self.rebase == RebaseMode.REBASE_START:
       impulse_element = pbegin | beam.Impulse() | beam.Map(
           lambda _: [Timestamp.now(), self.stop_ts, self.interval])
