@@ -1299,7 +1299,7 @@ public class BigQueryIOWriteTest implements Serializable {
                       "CreateTableSchemaString",
                       Create.of(KV.of(tableName, BigQueryHelpers.toJsonString(tableSchema))))
                   .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-                  .apply(View.<String, String>asMap()));
+                  .apply(View.asMap()));
     } else {
       bqWrite = bqWrite.withSchema(tableSchema);
     }
@@ -1313,34 +1313,46 @@ public class BigQueryIOWriteTest implements Serializable {
 
     p.run();
 
+    // Convert values string before comparing.
+    List<TableRow> allRows =
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(
+                (TableRow tr) -> {
+                  Map<String, Object> stringed =
+                      tr.entrySet().stream()
+                          .collect(
+                              Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toString()));
+
+                  TableRow tableRow = new TableRow();
+                  tableRow.putAll(stringed);
+                  return tableRow;
+                })
+            .collect(Collectors.toList());
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        allRows,
         containsInAnyOrder(
             new TableRow()
                 .set("strval", "test")
                 .set("longval", "1")
-                .set("doubleval", 1.0)
+                .set("doubleval", "1.0")
                 .set(
                     "instantval",
                     useStorageApi || useStorageApiApproximate
-                        ? String.valueOf(Instant.parse("2019-01-01T00:00:00Z").getMillis() * 1000)
+                        ? "2019-01-01 T00:00:00"
                         : "2019-01-01 00:00:00 UTC"),
             new TableRow()
                 .set("strval", "test2")
                 .set("longval", "2")
-                .set("doubleval", 2.0)
+                .set("doubleval", "2.0")
                 .set(
                     "instantval",
                     useStorageApi || useStorageApiApproximate
-                        ? String.valueOf(Instant.parse("2019-02-01T00:00:00Z").getMillis() * 1000)
+                        ? "2019-02-01 T00:00:00"
                         : "2019-02-01 00:00:00 UTC")));
   }
 
   @Test
   public void testWriteAvro() throws Exception {
-    // only streaming inserts don't support avro types
-    assumeTrue(!useStreaming);
-
     runTestWriteAvro(false);
   }
 
@@ -3296,9 +3308,9 @@ public class BigQueryIOWriteTest implements Serializable {
     Function<Integer, TableRow> getPrimitiveRow =
         (Integer i) ->
             new TableRow()
-                .set("primitive_double", Double.valueOf(i))
-                .set("primitive_float", Float.valueOf(i).doubleValue())
-                .set("primitive_int32", i.intValue())
+                .set("primitive_double", TableRowToStorageApiProto.DECIMAL_FORMAT.format(i))
+                .set("primitive_float", TableRowToStorageApiProto.DECIMAL_FORMAT.format(i))
+                .set("primitive_int32", i.toString())
                 .set("primitive_int64", i.toString())
                 .set("primitive_uint32", i.toString())
                 .set("primitive_uint64", i.toString())
@@ -3306,7 +3318,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("primitive_sint64", i.toString())
                 .set("primitive_fixed32", i.toString())
                 .set("primitive_fixed64", i.toString())
-                .set("primitive_bool", true)
+                .set("primitive_bool", "true")
                 .set("primitive_string", i.toString())
                 .set(
                     "primitive_bytes",
@@ -3319,7 +3331,7 @@ public class BigQueryIOWriteTest implements Serializable {
         (Function<TableRow, Boolean> & Serializable)
             tr ->
                 tr.containsKey("primitive_int32")
-                    && (Integer) tr.get("primitive_int32") >= failFrom;
+                    && Integer.parseInt((String) tr.get("primitive_int32")) >= failFrom;
     fakeDatasetService.setShouldFailRow(shouldFailRow);
 
     SerializableFunction<Proto3SchemaMessages.Primitive, TableRow> formatRecordOnFailureFunction =
@@ -3606,7 +3618,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .set("number", "42")
             .set("timestamp", "1970-01-01 T00:00:00.000043")
             .set("time", "00:52:07.123456")
-            .set("datetime", "2019-08-16 T00:52:07.123456")
+            .set("datetime", "2019-08-16T00:52:07.123456")
             .set("date", "2019-08-16")
             .set("numeric", "23.4")
             .set("bignumeric", "123456789012345678");
@@ -4038,8 +4050,8 @@ public class BigQueryIOWriteTest implements Serializable {
     Function<Integer, TableRow> getPrimitiveRow =
         (Integer i) ->
             new TableRow()
-                .set("primitive_double", i.toString())
-                .set("primitive_float", i.toString())
+                .set("primitive_double", TableRowToStorageApiProto.DECIMAL_FORMAT.format(i))
+                .set("primitive_float", TableRowToStorageApiProto.DECIMAL_FORMAT.format(i))
                 .set("primitive_int32", i.toString())
                 .set("primitive_int64", i.toString())
                 .set("primitive_uint32", i.toString())
@@ -4159,7 +4171,7 @@ public class BigQueryIOWriteTest implements Serializable {
     final String date = "2019-08-16";
     final String numeric = "23";
     final String bignumeric = "123456789012345678";
-    final String datetime = "2019-08-16 T00:52:07.123456";
+    final String datetime = "2019-08-16T00:52:07.123456";
     final String time = "00:52:07.123456";
 
     Function<Integer, Proto3SchemaMessages.PrimitiveEncodedFields> getPrimitive =
@@ -4317,7 +4329,7 @@ public class BigQueryIOWriteTest implements Serializable {
     final String date = "2019-08-16";
     final String numeric = "23";
     final String bignumeric = "123456789012345678";
-    final String datetime = "2019-08-16 T00:52:07.123456";
+    final String datetime = "2019-08-16T00:52:07.123456";
     final String time = "00:52:07.123456";
 
     Function<Integer, Proto3SchemaMessages.PrimitiveUnEncodedFields> getPrimitive =
@@ -4476,8 +4488,11 @@ public class BigQueryIOWriteTest implements Serializable {
     Function<Integer, TableRow> getPrimitiveRow =
         (Integer i) ->
             new TableRow()
-                .set("float", Float.toString(floatValue.getValue()))
-                .set("double", Double.toString(doubleValue.getValue()))
+                .set(
+                    "float", TableRowToStorageApiProto.DECIMAL_FORMAT.format(floatValue.getValue()))
+                .set(
+                    "double",
+                    TableRowToStorageApiProto.DECIMAL_FORMAT.format(doubleValue.getValue()))
                 .set("bool", Boolean.toString(boolValue.getValue()))
                 .set("int32", Integer.toString(int32Value.getValue()))
                 .set("int64", Long.toString(int64Value.getValue()))

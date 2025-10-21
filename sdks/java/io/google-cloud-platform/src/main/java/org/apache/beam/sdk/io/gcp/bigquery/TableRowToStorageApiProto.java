@@ -47,6 +47,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -60,6 +61,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -72,6 +74,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -190,6 +193,8 @@ public class TableRowToStorageApiProto {
   public interface ThrowingBiFunction<FirstInputT, SecondInputT, OutputT> {
     OutputT apply(FirstInputT t, SecondInputT u) throws SchemaConversionException;
   }
+
+  static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("0.0###############");
 
   // Map of functions to convert json values into the value expected in the Vortex proto object.
   static final Map<TableFieldSchema.Type, ThrowingBiFunction<String, Object, @Nullable Object>>
@@ -1452,15 +1457,24 @@ public class TableRowToStorageApiProto {
 
   // Our process for generating descriptors modifies the names of nested descriptors for wrapper
   // types, so we record them here.
-  private static final String FLOAT_VALUE_DESCRIPTOR_NAME = "google_protobuf_FloatValue";
-  private static final String DOUBLE_VALUE_DESCRIPTOR_NAME = "google_protobuf_DoubleValue";
-  private static final String BOOL_VALUE_DESCRIPTOR_NAME = "google_protobuf_BoolValue";
-  private static final String INT32_VALUE_DESCRIPTOR_NAME = "google_protobuf_Int32Value";
-  private static final String INT64_VALUE_DESCRIPTOR_NAME = "google_protobuf_Int64Value";
-  private static final String UINT32_VALUE_DESCRIPTOR_NAME = "google_protobuf_UInt32Value";
-  private static final String UINT64_VALUE_DESCRIPTOR_NAME = "google_protobuf_UInt64Value";
-  private static final String BYTES_VALUE_DESCRIPTOR_NAME = "google_protobuf_BytesValue";
-  private static final String TIMESTAMP_VALUE_DESCRIPTOR_NAME = "google_protobuf_Timestamp";
+  private static final Set<String> FLOAT_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_FloatValue", "FloatValue");
+  private static final Set<String> DOUBLE_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_DoubleValue", "DoubleValue");
+  private static final Set<String> BOOL_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_BoolValue", "BoolValue");
+  private static final Set<String> INT32_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_Int32Value", "Int32Value");
+  private static final Set<String> INT64_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_Int64Value", "Int64Value");
+  private static final Set<String> UINT32_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_UInt32Value", "UInt32Value");
+  private static final Set<String> UINT64_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_UInt64Value", "UInt64Value");
+  private static final Set<String> BYTES_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_BytesValue", "BytesValue");
+  private static final Set<String> TIMESTAMP_VALUE_DESCRIPTOR_NAMES =
+      ImmutableSet.of("google_protobuf_Timestamp", "Timestamp");
 
   // Translate a proto message value into a json value. If useSetF==false, this will fail with
   // Optional.empty() if
@@ -1511,28 +1525,24 @@ public class TableRowToStorageApiProto {
           case FLOAT:
           case DOUBLE:
           case STRING:
-            return BigDecimal.valueOf(Double.parseDouble(fieldValue.toString()))
-                .stripTrailingZeros()
-                .toString();
+            return DECIMAL_FORMAT.format(Double.parseDouble(fieldValue.toString()));
           case MESSAGE:
             // Handle the various number wrapper types.
             Message doubleMessage = (Message) fieldValue;
-            if (fieldDescriptor.getMessageType().getName().equals(FLOAT_VALUE_DESCRIPTOR_NAME)) {
+            if (FLOAT_VALUE_DESCRIPTOR_NAMES.contains(fieldDescriptor.getMessageType().getName())) {
               float floatValue =
                   (float)
                       doubleMessage.getField(
                           doubleMessage.getDescriptorForType().findFieldByName("value"));
 
-              return new BigDecimal(Float.toString(floatValue)).stripTrailingZeros().toString();
-            } else if (fieldDescriptor
-                .getMessageType()
-                .getName()
-                .equals(DOUBLE_VALUE_DESCRIPTOR_NAME)) {
+              return DECIMAL_FORMAT.format(floatValue);
+            } else if (DOUBLE_VALUE_DESCRIPTOR_NAMES.contains(
+                fieldDescriptor.getMessageType().getName())) {
               double doubleValue =
                   (double)
                       doubleMessage.getField(
                           doubleMessage.getDescriptorForType().findFieldByName("value"));
-              return BigDecimal.valueOf(doubleValue).stripTrailingZeros().toString();
+              return DECIMAL_FORMAT.format(doubleValue);
             } else {
               throw new RuntimeException(
                   "Not implemented yet " + fieldDescriptor.getMessageType().getName());
@@ -1544,7 +1554,7 @@ public class TableRowToStorageApiProto {
         // Wrapper type.
         if (fieldDescriptor.getType().equals(FieldDescriptor.Type.MESSAGE)) {
           Message boolMessage = (Message) fieldValue;
-          if (fieldDescriptor.getMessageType().getName().equals(BOOL_VALUE_DESCRIPTOR_NAME)) {
+          if (BOOL_VALUE_DESCRIPTOR_NAMES.contains(fieldDescriptor.getMessageType().getName())) {
             return boolMessage
                 .getField(boolMessage.getDescriptorForType().findFieldByName("value"))
                 .toString();
@@ -1565,28 +1575,22 @@ public class TableRowToStorageApiProto {
           case MESSAGE:
             // Wrapper types.
             Message message = (Message) fieldValue;
-            if (fieldDescriptor.getMessageType().getName().equals(INT32_VALUE_DESCRIPTOR_NAME)) {
+            if (INT32_VALUE_DESCRIPTOR_NAMES.contains(fieldDescriptor.getMessageType().getName())) {
               return message
                   .getField(message.getDescriptorForType().findFieldByName("value"))
                   .toString();
-            } else if (fieldDescriptor
-                .getMessageType()
-                .getName()
-                .equals(INT64_VALUE_DESCRIPTOR_NAME)) {
+            } else if (INT64_VALUE_DESCRIPTOR_NAMES.contains(
+                fieldDescriptor.getMessageType().getName())) {
               return message
                   .getField(message.getDescriptorForType().findFieldByName("value"))
                   .toString();
-            } else if (fieldDescriptor
-                .getMessageType()
-                .getName()
-                .equals(UINT32_VALUE_DESCRIPTOR_NAME)) {
+            } else if (UINT32_VALUE_DESCRIPTOR_NAMES.contains(
+                fieldDescriptor.getMessageType().getName())) {
               return message
                   .getField(message.getDescriptorForType().findFieldByName("value"))
                   .toString();
-            } else if (fieldDescriptor
-                .getMessageType()
-                .getName()
-                .equals(UINT64_VALUE_DESCRIPTOR_NAME)) {
+            } else if (UINT64_VALUE_DESCRIPTOR_NAMES.contains(
+                fieldDescriptor.getMessageType().getName())) {
               return message
                   .getField(message.getDescriptorForType().findFieldByName("value"))
                   .toString();
@@ -1606,7 +1610,7 @@ public class TableRowToStorageApiProto {
                 .encode(((String) fieldValue).getBytes(StandardCharsets.UTF_8));
           case MESSAGE:
             Message message = (Message) fieldValue;
-            if (fieldDescriptor.getMessageType().getName().equals(BYTES_VALUE_DESCRIPTOR_NAME)) {
+            if (BYTES_VALUE_DESCRIPTOR_NAMES.contains(fieldDescriptor.getMessageType().getName())) {
               ByteString byteString =
                   (ByteString)
                       message.getField(message.getDescriptorForType().findFieldByName("value"));
@@ -1626,7 +1630,8 @@ public class TableRowToStorageApiProto {
           return LocalDateTime.ofInstant(instant, ZoneOffset.UTC).format(TIMESTAMP_FORMATTER);
         } else if (fieldDescriptor.getType().equals(FieldDescriptor.Type.MESSAGE)) {
           Message message = (Message) fieldValue;
-          if (fieldDescriptor.getMessageType().getName().equals(TIMESTAMP_VALUE_DESCRIPTOR_NAME)) {
+          if (TIMESTAMP_VALUE_DESCRIPTOR_NAMES.contains(
+              fieldDescriptor.getMessageType().getName())) {
             Descriptor descriptor = message.getDescriptorForType();
             long seconds = (long) message.getField(descriptor.findFieldByName("seconds"));
             int nanos = (int) message.getField(descriptor.findFieldByName("nanos"));
@@ -1648,11 +1653,20 @@ public class TableRowToStorageApiProto {
           return fieldValue.toString();
         }
       case NUMERIC:
-      case BIGNUMERIC:
         switch (fieldDescriptor.getType()) {
           case BYTES:
             ByteString numericByteString = (ByteString) fieldValue;
             return BigDecimalByteStringEncoder.decodeNumericByteString(numericByteString)
+                .stripTrailingZeros()
+                .toString();
+          default:
+            return fieldValue.toString();
+        }
+      case BIGNUMERIC:
+        switch (fieldDescriptor.getType()) {
+          case BYTES:
+            ByteString numericByteString = (ByteString) fieldValue;
+            return BigDecimalByteStringEncoder.decodeBigNumericByteString(numericByteString)
                 .stripTrailingZeros()
                 .toString();
           default:
