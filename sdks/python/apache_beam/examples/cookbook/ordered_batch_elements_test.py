@@ -20,15 +20,14 @@ import logging
 import unittest
 
 import apache_beam as beam
+from apache_beam.examples.cookbook.ordered_batch_elements import OrderedBatchElements  # pylint: disable=line-too-long
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.periodicsequence import RebaseMode
 from apache_beam.utils.timestamp import Timestamp
-
-from ordered_batch_elements import OrderedBatchElements
 
 logging.basicConfig(level=logging.WARNING)
 

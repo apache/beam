@@ -21,20 +21,20 @@ from apache_beam.coders import BooleanCoder
 from apache_beam.coders import PickleCoder
 from apache_beam.coders import TimestampCoder
 from apache_beam.coders import VarIntCoder
+from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import OrderedListStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
-from apache_beam.utils.timestamp import DurationTypes  # pylint: disable=unused-import
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from apache_beam.utils.timestamp import Timestamp
-from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused-import
-from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints.typehints import TupleConstraint
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import DurationTypes  # pylint: disable=unused-import
+from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused-import
 
 _LOGGER = logging.getLogger("ordered_batch_elements")
 """An example of using states and timers to batch elements in time order.
