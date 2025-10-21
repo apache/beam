@@ -26,10 +26,34 @@ generate events:
   - The bid on an item for auction (Bid).
 
 """
+import json
+
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.coders.coders import StrUtf8Coder
-from apache_beam.testing.benchmarks.nexmark.models import nexmark_json_util
+from apache_beam.utils.timestamp import Timestamp
+
+
+def model_to_json(model):
+  return json.dumps(construct_json_dict(model), separators=(",", ":"))
+
+
+def construct_json_dict(model):
+  return {k: unnest_to_json(v) for k, v in model.__dict__.items()}
+
+
+def unnest_to_json(cand):
+  if isinstance(cand, Timestamp):
+    return cand.micros // 1000
+  elif isinstance(cand, (Auction, Bid, Person)):
+    return construct_json_dict(cand)
+  else:
+    return cand
+
+
+def millis_to_timestamp(millis: int) -> Timestamp:
+  micro_second = millis * 1000
+  return Timestamp(micros=micro_second)
 
 
 class PersonCoder(FastCoder):
@@ -59,8 +83,7 @@ class Person(object):
     self.extra = extra
 
   def __repr__(self):
-    nexmark_types = (Person, Auction, Bid)
-    return nexmark_json_util.model_to_json(self, nexmark_types)
+    return model_to_json(self)
 
 
 class AuctionCoder(FastCoder):
@@ -102,8 +125,7 @@ class Auction(object):
     self.extra = extra
 
   def __repr__(self):
-    nexmark_types = (Person, Auction, Bid)
-    return nexmark_json_util.model_to_json(self, nexmark_types)
+    return model_to_json(self)
 
 
 class BidCoder(FastCoder):
@@ -129,8 +151,7 @@ class Bid(object):
     self.extra = extra
 
   def __repr__(self):
-    nexmark_types = (Person, Auction, Bid)
-    return nexmark_json_util.model_to_json(self, nexmark_types)
+    return model_to_json(self)
 
 
 class AuctionCoderImpl(coder_impl.StreamCoderImpl):
