@@ -422,6 +422,8 @@ if __name__ == '__main__':
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
       ] + pyarrow_dependency,
+      # Force torch dependencies to be pulled from the PyTorch CPU wheel repository
+      find_links=['https://download.pytorch.org/whl/cpu'],
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
