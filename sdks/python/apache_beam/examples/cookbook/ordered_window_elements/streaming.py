@@ -387,7 +387,7 @@ class OrderedWindowElementsDoFnWithBag(OrderedWindowElementsDoFn):
     """Retrieves a specified range of elements from the buffer state."""
     all_elements = list(buffer_state.read())
     filtered_elements = [(ts, val) for ts, val in all_elements
-                         if ts >= range_lo and ts < range_hi]
+                         if range_lo <= ts < range_hi]
     filtered_elements.sort(key=lambda x: x[0])
     return filtered_elements
 
@@ -460,7 +460,7 @@ class OrderedWindowElementsDoFnWithValue(OrderedWindowElementsDoFn):
     """Retrieves a specified range of elements from the buffer state."""
     all_elements = buffer_state.read()
     filtered_elements = [(ts, val) for ts, val in all_elements
-                         if ts >= range_lo and ts < range_hi]
+                         if range_lo <= ts < range_hi]
     filtered_elements.sort(key=lambda x: x[0])
     return filtered_elements
 
