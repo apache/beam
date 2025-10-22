@@ -18,6 +18,7 @@
 from __future__ import absolute_import
 
 import logging
+import random
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from math import floor
@@ -255,6 +256,7 @@ class AsyncWrapper(beam.DoFn):
         sleep(sleep_time)
 
   def next_time_to_fire(self, key):
+    random.seed(key)
     return (
         floor((time() + self._timer_frequency) / self._timer_frequency) *
         self._timer_frequency) + (
