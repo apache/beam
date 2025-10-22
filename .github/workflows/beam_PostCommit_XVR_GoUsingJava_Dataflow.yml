@@ -16,7 +16,7 @@
 # TODO(https://github.com/apache/beam/issues/32492): re-enable the suite
 # on cron and add release/trigger_all_tests.json to trigger path once fixed.
 
-name: PostCommit XVR GoUsingJava Dataflow
+name: PostCommit XVR GoUsingJava Dataflow (disabled)
 
 on:
   pull_request_target:
