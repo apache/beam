@@ -150,6 +150,7 @@ public class WindmillStateTagUtil {
   }
 
   @AutoValue
+  /*StateTags are Interned across keys to reduce memory usage and GC pressure */
   public abstract static class InternedByteString {
 
     private static final Interner<InternedByteString> ENCODED_KEY_INTERNER =
