@@ -74,11 +74,13 @@ _in_windows = sys.platform == "win32"
 @unittest.skipUnless(_go_installed, 'Go is not installed.')
 # TODO: Go environments is not configured correctly on Windows test boxes.
 @unittest.skipIf(_in_windows, reason="Not supported on Windows")
-@parameterized_class(('buffer_state_type', ),
-                     [
-                         (BufferStateType.ORDERED_LIST, ),
-                         (BufferStateType.BAG, ),
-                     ])
+@parameterized_class(
+    'buffer_state_type',
+    [
+        (BufferStateType.ORDERED_LIST, ),
+        (BufferStateType.BAG, ),
+        (BufferStateType.VALUE, ),
+    ])
 class OrderedWindowElementsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.options = PipelineOptions([
