@@ -18,7 +18,6 @@
 
 import logging
 import shutil
-import subprocess
 import unittest
 
 import apache_beam as beam
@@ -62,42 +61,10 @@ def _create_input_stream(elements: list[int]):
   )
 
 
-def _go_installed():
-  """
-    Checks if Go is installed on the system by attempting to run 'go version'.
-    Returns True if Go is installed and the command executes successfully,
-    False otherwise.
-    """
-  try:
-    # Run the 'go version' command.
-    # stdout=subprocess.PIPE captures the output.
-    # stderr=subprocess.PIPE captures errors.
-    # check=True raises a CalledProcessError if the command returns a non-zero
-    #   exit code.
-    result = subprocess.run(
-        'go version',
-        capture_output=True,
-        text=True,
-        check=True,
-        shell=True  # Use shell=True for better compatibility on Windows.
-    )
-    # If the command runs successfully, Go is likely installed.
-    print(f"Go is installed. Version information:\n{result.stdout.strip()}")
-    return True
-  except FileNotFoundError:
-    print("Go executable not found in PATH.")
-    return False
-  except subprocess.CalledProcessError as e:
-    # This occurs if 'go version' returns a non-zero exit code,
-    # indicating an issue even if the executable is found.
-    print(f"Error checking Go version: {e.stderr.strip()}")
-    return False
-  except Exception as e:
-    print(f"An unexpected error occurred: {e}")
-    return False
+_go_installed = shutil.which('go') is not None
 
 
-@unittest.skipUnless(_go_installed(), 'Go is not installed.')
+@unittest.skipUnless(_go_installed, 'Go is not installed.')
 class OrderedBatchElementsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.options = PipelineOptions([
