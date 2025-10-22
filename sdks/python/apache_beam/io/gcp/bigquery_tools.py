@@ -75,7 +75,7 @@ try:
   from google.api_core.exceptions import ClientError, GoogleAPICallError
   from google.api_core.client_info import ClientInfo
   from google.cloud import bigquery as gcp_bigquery
-except ImportError:
+except Exception:
   gcp_bigquery = None
   pass
 
@@ -121,6 +121,7 @@ BIGQUERY_TYPE_TO_PYTHON_TYPE = {
     "FLOAT": np.float64,
     "NUMERIC": decimal.Decimal,
     "TIMESTAMP": apache_beam.utils.timestamp.Timestamp,
+    "GEOGRAPHY": str,
 }
 
 

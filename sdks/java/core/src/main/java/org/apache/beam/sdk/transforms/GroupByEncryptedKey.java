@@ -239,8 +239,9 @@ public class GroupByEncryptedKey<K, V>
     }
 
     @ProcessElement
+    @SuppressWarnings("nullness")
     public void processElement(ProcessContext c) throws Exception {
-      java.util.Map<K, java.util.List<V>> decryptedKvs = new java.util.HashMap<>();
+      java.util.HashMap<K, java.util.List<V>> decryptedKvs = new java.util.HashMap<>();
       for (KV<byte[], byte[]> encryptedKv : c.element().getValue()) {
         byte[] iv = Arrays.copyOfRange(encryptedKv.getKey(), 0, 12);
         GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
@@ -251,24 +252,19 @@ public class GroupByEncryptedKey<K, V>
         byte[] decryptedKeyBytes = this.cipher.doFinal(encryptedKey);
         K key = decode(this.keyCoder, decryptedKeyBytes);
 
-        if (key != null) {
-          if (!decryptedKvs.containsKey(key)) {
-            decryptedKvs.put(key, new java.util.ArrayList<>());
-          }
-
-          iv = Arrays.copyOfRange(encryptedKv.getValue(), 0, 12);
-          gcmParameterSpec = new GCMParameterSpec(128, iv);
-          this.cipher.init(Cipher.DECRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
-
-          byte[] encryptedValue =
-              Arrays.copyOfRange(encryptedKv.getValue(), 12, encryptedKv.getValue().length);
-          byte[] decryptedValueBytes = this.cipher.doFinal(encryptedValue);
-          V value = decode(this.valueCoder, decryptedValueBytes);
-          decryptedKvs.get(key).add(value);
-        } else {
-          throw new RuntimeException(
-              "Found null key when decoding " + Arrays.toString(decryptedKeyBytes));
+        if (!decryptedKvs.containsKey(key)) {
+          decryptedKvs.put(key, new java.util.ArrayList<>());
         }
+
+        iv = Arrays.copyOfRange(encryptedKv.getValue(), 0, 12);
+        gcmParameterSpec = new GCMParameterSpec(128, iv);
+        this.cipher.init(Cipher.DECRYPT_MODE, this.secretKeySpec, gcmParameterSpec);
+
+        byte[] encryptedValue =
+            Arrays.copyOfRange(encryptedKv.getValue(), 12, encryptedKv.getValue().length);
+        byte[] decryptedValueBytes = this.cipher.doFinal(encryptedValue);
+        V value = decode(this.valueCoder, decryptedValueBytes);
+        decryptedKvs.get(key).add(value);
       }
 
       for (java.util.Map.Entry<K, java.util.List<V>> entry : decryptedKvs.entrySet()) {
