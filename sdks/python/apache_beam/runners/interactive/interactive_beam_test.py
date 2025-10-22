@@ -293,6 +293,91 @@ class InteractiveBeamTest(unittest.TestCase):
     self.assertTrue(ib.recordings.record(p))
     ib.recordings.stop(p)
 
+  def test_collect_raw_records_true(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data = list(range(5))
+    pcoll = p | 'Create' >> beam.Create(data)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll, raw_records=True)
+    self.assertIsInstance(result, list)
+    self.assertEqual(result, data)
+
+    result_n = ib.collect(pcoll, n=3, raw_records=True)
+    self.assertIsInstance(result_n, list)
+    self.assertEqual(result_n, data[:3])
+
+  def test_collect_raw_records_false(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data = list(range(5))
+    pcoll = p | 'Create' >> beam.Create(data)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll)
+    self.assertNotIsInstance(result, list)
+    self.assertTrue(
+        hasattr(result, 'columns'), "Result should have 'columns' attribute")
+    self.assertTrue(
+        hasattr(result, 'values'), "Result should have 'values' attribute")
+
+    result_n = ib.collect(pcoll, n=3)
+    self.assertNotIsInstance(result_n, list)
+    self.assertTrue(
+        hasattr(result_n, 'columns'),
+        "Result (n=3) should have 'columns' attribute")
+    self.assertTrue(
+        hasattr(result_n, 'values'),
+        "Result (n=3) should have 'values' attribute")
+
+  def test_collect_raw_records_true_multiple_pcolls(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data1 = list(range(3))
+    data2 = [x * x for x in range(3)]
+    pcoll1 = p | 'Create1' >> beam.Create(data1)
+    pcoll2 = p | 'Create2' >> beam.Create(data2)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll1, pcoll2, raw_records=True)
+    self.assertIsInstance(result, tuple)
+    self.assertEqual(len(result), 2)
+    self.assertIsInstance(result[0], list)
+    self.assertEqual(result[0], data1)
+    self.assertIsInstance(result[1], list)
+    self.assertEqual(result[1], data2)
+
+  def test_collect_raw_records_false_multiple_pcolls(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data1 = list(range(3))
+    data2 = [x * x for x in range(3)]
+    pcoll1 = p | 'Create1' >> beam.Create(data1)
+    pcoll2 = p | 'Create2' >> beam.Create(data2)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll1, pcoll2)
+    self.assertIsInstance(result, tuple)
+    self.assertEqual(len(result), 2)
+    self.assertNotIsInstance(result[0], list)
+    self.assertTrue(hasattr(result[0], 'columns'))
+    self.assertNotIsInstance(result[1], list)
+    self.assertTrue(hasattr(result[1], 'columns'))
+
+  def test_collect_raw_records_true_force_tuple(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data = list(range(5))
+    pcoll = p | 'Create' >> beam.Create(data)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll, raw_records=True, force_tuple=True)
+    self.assertIsInstance(result, tuple)
+    self.assertEqual(len(result), 1)
+    self.assertIsInstance(result[0], list)
+    self.assertEqual(result[0], data)
+
 
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
