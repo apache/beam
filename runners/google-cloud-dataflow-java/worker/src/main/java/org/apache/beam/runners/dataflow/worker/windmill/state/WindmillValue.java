@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil.InternedByteString;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
@@ -34,7 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 })
 public class WindmillValue<T> extends SimpleWindmillState implements ValueState<T> {
   private final StateNamespace namespace;
-  private final ByteString stateKey;
+  private final InternedByteString stateKey;
   private final String stateFamily;
   private final Coder<T> coder;
 
@@ -49,7 +50,7 @@ public class WindmillValue<T> extends SimpleWindmillState implements ValueState<
 
   WindmillValue(
       StateNamespace namespace,
-      ByteString encodeKey,
+      InternedByteString encodeKey,
       String stateFamily,
       Coder<T> coder,
       boolean isNewKey) {
@@ -119,7 +120,7 @@ public class WindmillValue<T> extends SimpleWindmillState implements ValueState<
         coder.encode(value, stream, Coder.Context.OUTER);
       }
       encoded = stream.toByteString();
-      cachedSize = (long) encoded.size() + stateKey.size();
+      cachedSize = (long) encoded.size() + stateKey.byteString().size();
     }
 
     // Place in cache to avoid a future read.
@@ -137,7 +138,7 @@ public class WindmillValue<T> extends SimpleWindmillState implements ValueState<
         Windmill.WorkItemCommitRequest.newBuilder();
     commitBuilder
         .addValueUpdatesBuilder()
-        .setTag(stateKey)
+        .setTag(stateKey.byteString())
         .setStateFamily(stateFamily)
         .getValueBuilder()
         .setData(encoded)
@@ -150,6 +151,6 @@ public class WindmillValue<T> extends SimpleWindmillState implements ValueState<
     // times and it will efficiently be reused.
     return valueIsKnown
         ? Futures.immediateFuture(value)
-        : reader.valueFuture(stateKey, stateFamily, coder);
+        : reader.valueFuture(stateKey.byteString(), stateFamily, coder);
   }
 }

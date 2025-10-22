@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Triple;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil.InternedByteString;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.ReadableState;
@@ -51,7 +52,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 public class WindmillMultimap<K, V> extends SimpleWindmillState implements MultimapState<K, V> {
 
   private final StateNamespace namespace;
-  private final ByteString stateKey;
+  private final InternedByteString stateKey;
   private final String stateFamily;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
@@ -72,7 +73,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
 
   WindmillMultimap(
       StateNamespace namespace,
-      ByteString stateKey,
+      InternedByteString stateKey,
       String stateFamily,
       Coder<K> keyCoder,
       Coder<V> valueCoder,
@@ -118,7 +119,8 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       // Since we're complete, even if there are entries in storage we don't need to read them.
       return Futures.immediateFuture(Collections.emptyList());
     } else {
-      return reader.multimapFetchAllFuture(omitValues, stateKey, stateFamily, valueCoder);
+      return reader.multimapFetchAllFuture(
+          omitValues, stateKey.byteString(), stateFamily, valueCoder);
     }
   }
 
@@ -128,7 +130,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       ByteStringOutputStream keyStream = new ByteStringOutputStream();
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
       return reader.multimapFetchSingleEntryFuture(
-          keyStream.toByteString(), stateKey, stateFamily, valueCoder);
+          keyStream.toByteString(), stateKey.byteString(), stateFamily, valueCoder);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -149,7 +151,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
     Windmill.TagMultimapUpdateRequest.Builder builder = commitBuilder.addMultimapUpdatesBuilder();
-    builder.setTag(stateKey).setStateFamily(stateFamily);
+    builder.setTag(stateKey.byteString()).setStateFamily(stateFamily);
 
     if (cleared) {
       builder.setDeleteAll(true);

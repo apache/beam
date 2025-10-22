@@ -29,12 +29,12 @@ import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil.InternedByteString;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
@@ -53,7 +53,7 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
   // timestamps.
   static final long MIN_TS_MICROS = Windmill.SortedListRange.getDefaultInstance().getStart();
   static final long MAX_TS_MICROS = Windmill.SortedListRange.getDefaultInstance().getLimit();
-  private final ByteString stateKey;
+  private final InternedByteString stateKey;
   private final String stateFamily;
   private final Coder<T> elemCoder;
   // We need to sort based on timestamp, but we need objects with the same timestamp to be treated
@@ -70,7 +70,7 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
   WindmillOrderedList(
       StateTable derivedStateTable,
       StateNamespace namespace,
-      ByteString encodeKey,
+      InternedByteString encodeKey,
       StateTag<OrderedListState<T>> spec,
       String stateFamily,
       Coder<T> elemCoder,
@@ -226,7 +226,7 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
         commitBuilder
             .addSortedListUpdatesBuilder()
             .setStateFamily(cache.getStateFamily())
-            .setTag(stateKey);
+            .setTag(stateKey.byteString());
     try {
       if (cleared) {
         // Default range.
@@ -299,6 +299,9 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
       return Futures.immediateFuture(Collections.emptyList());
     }
     return reader.orderedListFuture(
-        Range.closedOpen(startSortKey, limitSortKey), stateKey, stateFamily, elemCoder);
+        Range.closedOpen(startSortKey, limitSortKey),
+        stateKey.byteString(),
+        stateFamily,
+        elemCoder);
   }
 }

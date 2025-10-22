@@ -25,6 +25,7 @@ import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache.ForKeyAndFamily;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil.InternedByteString;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.*;
@@ -32,7 +33,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 
@@ -85,7 +85,7 @@ final class CachingStateTable extends StateTable {
       public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
         StateTag<BagState<T>> resolvedAddress =
             isSystemTable ? StateTags.makeSystemTagInternal(address) : address;
-        ByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, resolvedAddress);
+        InternedByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, resolvedAddress);
 
         WindmillBag<T> result =
             cache
@@ -119,7 +119,7 @@ final class CachingStateTable extends StateTable {
               new WindmillMapViaMultimap<>(
                   bindMultimap(internalMultimapAddress, keyCoder, valueCoder));
         } else {
-          ByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, spec);
+          InternedByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, spec);
           result =
               cache
                   .get(namespace, encodeKey)
@@ -138,7 +138,7 @@ final class CachingStateTable extends StateTable {
           StateTag<MultimapState<KeyT, ValueT>> spec,
           Coder<KeyT> keyCoder,
           Coder<ValueT> valueCoder) {
-        ByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, spec);
+        InternedByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, spec);
         WindmillMultimap<KeyT, ValueT> result =
             cache
                 .get(namespace, encodeKey)
@@ -155,7 +155,7 @@ final class CachingStateTable extends StateTable {
       public <T> OrderedListState<T> bindOrderedList(
           StateTag<OrderedListState<T>> spec, Coder<T> elemCoder) {
         StateTag<OrderedListState<T>> specOrInternalTag = addressOrInternalTag(spec);
-        ByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, specOrInternalTag);
+        InternedByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, specOrInternalTag);
 
         WindmillOrderedList<T> result =
             cache
@@ -180,7 +180,8 @@ final class CachingStateTable extends StateTable {
       public WatermarkHoldState bindWatermark(
           StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
         StateTag<WatermarkHoldState> addressOrInternalTag = addressOrInternalTag(address);
-        ByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, addressOrInternalTag);
+        InternedByteString encodeKey =
+            windmillStateTagUtil.encodeKey(namespace, addressOrInternalTag);
 
         WindmillWatermarkHold result =
             cache
@@ -231,7 +232,8 @@ final class CachingStateTable extends StateTable {
       @Override
       public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
         StateTag<ValueState<T>> addressOrInternalTag = addressOrInternalTag(address);
-        ByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, addressOrInternalTag);
+        InternedByteString encodeKey =
+            windmillStateTagUtil.encodeKey(namespace, addressOrInternalTag);
 
         WindmillValue<T> result =
             cache

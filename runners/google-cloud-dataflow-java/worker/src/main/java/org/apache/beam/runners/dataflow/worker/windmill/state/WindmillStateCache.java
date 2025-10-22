@@ -34,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.*;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil.InternedByteString;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -224,7 +225,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
   /** Entry in the state cache that stores a map of values. */
   private static class StateCacheEntry implements Weighted {
-    private final IdentityHashMap<ByteString, WeightedValue<?>> values;
+    private final IdentityHashMap<InternedByteString, WeightedValue<?>> values;
     private long weight;
 
     public StateCacheEntry() {
@@ -233,12 +234,12 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends State> Optional<T> get(ByteString encodedAddress) {
+    public <T extends State> Optional<T> get(InternedByteString encodedAddress) {
       return Optional.ofNullable((WeightedValue<T>) values.get(encodedAddress))
           .flatMap(WeightedValue::value);
     }
 
-    public <T extends State> void put(ByteString encodedAddress, T value, long weight) {
+    public <T extends State> void put(InternedByteString encodedAddress, T value, long weight) {
       values.compute(
           encodedAddress,
           (t, v) -> {
@@ -262,38 +263,6 @@ public class WindmillStateCache implements StatusDataProvider {
       return weight + PER_CACHE_ENTRY_OVERHEAD;
     }
 
-    // // Even though we use the namespace at the higher cache level, we are only using the
-    // cacheKey.
-    // // That allows for grouped eviction of entries sharing a cacheKey but we require the full
-    // // namespace here to distinguish between grouped entries.
-    // private static class NamespacedTag<T extends State> {
-    //
-    //   private final StateNamespace namespace;
-    //   private final Equivalence.Wrapper<StateTag<T>> tag;
-    //
-    //   NamespacedTag(StateNamespace namespace, StateTag<T> tag) {
-    //     this.namespace = namespace;
-    //     this.tag = StateTags.ID_EQUIVALENCE.wrap(tag);
-    //   }
-    //
-    //   @Override
-    //   public boolean equals(@Nullable Object other) {
-    //     if (other == this) {
-    //       return true;
-    //     }
-    //     if (!(other instanceof NamespacedTag)) {
-    //       return false;
-    //     }
-    //     NamespacedTag<?> that = (NamespacedTag<?>) other;
-    //     return namespace.equals(that.namespace) && tag.equals(that.tag);
-    //   }
-    //
-    //   @Override
-    //   public int hashCode() {
-    //     return Objects.hash(namespace, tag);
-    //   }
-    // }
-    //
     private static class WeightedValue<T> {
       private long weight;
       private @Nullable T value;
@@ -411,10 +380,11 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     public <T extends State> Optional<T> get(StateNamespace namespace, StateTag<T> address) {
-      return get(namespace, WindmillStateUtil.encodeKey(namespace, address));
+      return get(namespace, WindmillStateTagUtil.instance().encodeKey(namespace, address));
     }
 
-    public <T extends State> Optional<T> get(StateNamespace namespace, ByteString encodedAddress) {
+    public <T extends State> Optional<T> get(
+        StateNamespace namespace, InternedByteString encodedAddress) {
       @SuppressWarnings("nullness")
       // the mapping function for localCache.computeIfAbsent (i.e stateCache.getIfPresent) is
       // nullable.
@@ -428,11 +398,11 @@ public class WindmillStateCache implements StatusDataProvider {
 
     public <T extends State> void put(
         StateNamespace namespace, StateTag<?> tag, T value, long weight) {
-      put(namespace, WindmillStateUtil.encodeKey(namespace, tag), value, weight);
+      put(namespace, WindmillStateTagUtil.instance().encodeKey(namespace, tag), value, weight);
     }
 
     public <T extends State> void put(
-        StateNamespace namespace, ByteString encodedAddress, T value, long weight) {
+        StateNamespace namespace, InternedByteString encodedAddress, T value, long weight) {
       StateId id = new StateId(forKey, stateFamily, namespace);
       @Nullable StateCacheEntry entry = localCache.get(id);
       if (entry == null) {

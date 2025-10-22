@@ -171,14 +171,14 @@ public class WindmillStateCacheTest {
     WindmillValue<String> userValue =
         new WindmillValue<>(
             StateNamespaces.global(),
-            WindmillStateUtil.encodeKey(StateNamespaces.global(), userTag),
+            WindmillStateTagUtil.instance().encodeKey(StateNamespaces.global(), userTag),
             STATE_FAMILY,
             StringUtf8Coder.of(),
             false);
     WindmillValue<String> systemValue =
         new WindmillValue<>(
             StateNamespaces.global(),
-            WindmillStateUtil.encodeKey(StateNamespaces.global(), systemTag),
+            WindmillStateTagUtil.instance().encodeKey(StateNamespaces.global(), systemTag),
             STATE_FAMILY,
             StringUtf8Coder.of(),
             false);

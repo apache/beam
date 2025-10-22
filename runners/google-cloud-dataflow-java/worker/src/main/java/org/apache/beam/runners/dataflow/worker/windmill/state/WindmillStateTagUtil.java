@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
 import java.io.IOException;
@@ -43,13 +44,9 @@ public class WindmillStateTagUtil {
   // Private constructor to prevent instantiations from outside.
   private WindmillStateTagUtil() {}
 
-  private static final Interner<ByteString> ENCODED_KEY_INTERNER = Interners.newWeakInterner();
-
-  private static final Interner<ByteString> ENCODED_KEY_INTERNER = Interners.newWeakInterner();
-
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
   @VisibleForTesting
-  ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
+  InternedByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     RefHolder refHolder = getRefHolderFromThreadLocal();
     // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
     // a lot, and this leads to better performance results. See associated benchmarks.
@@ -71,7 +68,7 @@ public class WindmillStateTagUtil {
       namespace.appendTo(stream);
       stream.append('+');
       address.appendTo(stream);
-      return ENCODED_KEY_INTERNER.intern(stream.toByteStringAndReset());
+      return InternedByteString.of(stream.toByteStringAndReset());
     } catch (IOException e) {
       throw new RuntimeException(e);
     } finally {
@@ -150,5 +147,20 @@ public class WindmillStateTagUtil {
   /** @return the singleton WindmillStateTagUtil */
   public static WindmillStateTagUtil instance() {
     return INSTANCE;
+  }
+
+  @AutoValue
+  public abstract static class InternedByteString {
+    private static final Interner<InternedByteString> ENCODED_KEY_INTERNER =
+        Interners.newWeakInterner();
+
+    protected InternedByteString() {}
+
+    public abstract ByteString byteString();
+
+    private static InternedByteString of(ByteString value) {
+      return ENCODED_KEY_INTERNER.intern(
+          new AutoValue_WindmillStateTagUtil_InternedByteString(value));
+    }
   }
 }
