@@ -229,7 +229,7 @@ public class WindmillStateCache implements StatusDataProvider {
     private long weight;
 
     public StateCacheEntry() {
-      this.values = new IdentityHashMap<>(4);
+      this.values = new IdentityHashMap<>(INITIAL_HASH_MAP_CAPACITY);
       this.weight = 0;
     }
 

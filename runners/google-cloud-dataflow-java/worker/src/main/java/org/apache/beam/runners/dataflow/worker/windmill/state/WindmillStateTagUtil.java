@@ -18,8 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Interner;
-import com.google.common.collect.Interners;
 import java.io.IOException;
 import java.lang.ref.SoftReference;
 import javax.annotation.concurrent.ThreadSafe;
@@ -31,6 +29,8 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Interner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Interners;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
@@ -151,6 +151,7 @@ public class WindmillStateTagUtil {
 
   @AutoValue
   public abstract static class InternedByteString {
+
     private static final Interner<InternedByteString> ENCODED_KEY_INTERNER =
         Interners.newWeakInterner();
 
