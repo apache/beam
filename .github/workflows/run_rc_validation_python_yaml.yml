@@ -21,9 +21,9 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_VER:
-        description: 'Beam Release Version (e.g., 2.64.0)'
+        description: 'Beam Release Version (e.g., 2.69.0)'
         required: true
-        default: '2.64.0'
+        default: '2.69.0'
       RC_NUM:
         description: 'Release Candidate number (e.g., 1)'
         required: true
@@ -59,7 +59,7 @@ jobs:
   run_python_yaml_rc_validation:
     name: Run Python YAML RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 60 # Reduced timeout as the job runs for ~20 mins + setup/validation
+    timeout-minutes: 200
     env: # Job-level env vars
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
@@ -229,8 +229,8 @@ jobs:
              exit 0 # Allow cleanup to proceed
           fi
           JOB_ID=$(cat yaml_dataflow_jobid.txt)
-          echo "Waiting for 20 minutes for Dataflow job $JOB_ID to run..."
-          sleep 1200 # 20 minutes = 1200 seconds
+          echo "Waiting for 40 minutes for Dataflow job $JOB_ID to run..."
+          sleep 2400 # 20 minutes = 2400 seconds
           echo "Wait finished."
         shell: bash
 
