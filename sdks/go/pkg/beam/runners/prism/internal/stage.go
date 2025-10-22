@@ -132,7 +132,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 			err = fmt.Errorf("panic in stage.Execute bundle processing goroutine: %v, stage: %+v,stackTrace:\n%s", e, s, debug.Stack())
 		}
 	}()
-	slog.Debug("Execute: starting bundle", "bundle", rb)
+	j.Logger.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
 	initialState := em.StateForBundle(rb)
@@ -146,7 +146,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		// Runner transforms are processed immeadiately.
 		b = s.exe.ExecuteTransform(s.ID, tid, comps.GetTransforms()[tid], comps, rb.Watermark, em.InputForBundle(rb, s.inputInfo))
 		b.InstID = rb.BundleID
-		slog.Debug("Execute: runner transform", "bundle", rb, slog.String("tid", tid))
+		j.Logger.Debug("Execute: runner transform", "bundle", rb, slog.String("tid", tid))
 
 		// Do some accounting for the fake bundle.
 		b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
@@ -175,12 +175,12 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 		s.prepareSides(b, rb.Watermark)
 
-		slog.Debug("Execute: sdk worker transform(s)", "bundle", rb)
+		j.Logger.Debug("Execute: sdk worker transform(s)", "bundle", rb)
 		defer b.Cleanup(wk)
 		dataReady = b.ProcessOn(ctx, wk)
 	default:
 		err := fmt.Errorf("unknown environment[%v]", s.envID)
-		slog.Error("Execute", "error", err)
+		j.Logger.Error("Execute", "error", err)
 		panic(err)
 	}
 
@@ -207,6 +207,9 @@ progress:
 			return context.Cause(ctx)
 		case resp = <-b.Resp:
 			bundleFinished = true
+			if b.BundleWarn != nil {
+				j.Logger.Warn("Bundle warning:", "warning", b.BundleWarn)
+			}
 			if b.BundleErr != nil {
 				return b.BundleErr
 			}
@@ -222,7 +225,7 @@ progress:
 			ticked = true
 			resp, err := b.Progress(ctx, wk)
 			if err != nil {
-				slog.Debug("SDK Error from progress request, aborting progress update and turning off future progress updates", "bundle", rb, "error", err.Error())
+				j.Logger.Debug("SDK Error from progress request, aborting progress update and turning off future progress updates", "bundle", rb, "error", err.Error())
 				progTick.Stop()
 				continue progress
 			}
@@ -231,22 +234,22 @@ progress:
 				md := wk.MonitoringMetadata(ctx, unknownIDs)
 				j.AddMetricShortIDs(md)
 			}
-			slog.Debug("progress report", "bundle", rb, "index", index, "prevIndex", previousIndex)
+			j.Logger.Debug("progress report", "bundle", rb, "index", index, "prevIndex", previousIndex)
 
 			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
 			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
 			if slow && unsplit && b.EstimatedInputElements > 0 && s.sdfSplittable {
-				slog.Debug("splitting report", "bundle", rb, "index", index)
+				j.Logger.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
-					slog.Warn("SDK Error from split, aborting splits and failing bundle", "bundle", rb, "error", err.Error())
+					j.Logger.Warn("SDK Error from split, aborting splits and failing bundle", "bundle", rb, "error", err.Error())
 					if b.BundleErr != nil {
 						b.BundleErr = err
 					}
 					return b.BundleErr
 				}
 				if sr.GetChannelSplits() == nil {
-					slog.Debug("SDK returned no splits", "bundle", rb)
+					j.Logger.Debug("SDK returned no splits", "bundle", rb)
 					unsplit = false
 					continue progress
 				}
@@ -257,13 +260,13 @@ progress:
 					ba := rr.GetApplication()
 					residuals = append(residuals, engine.Residual{Element: ba.GetElement()})
 					if len(ba.GetElement()) == 0 {
-						slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
+						j.Logger.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
 						panic("sdk returned empty residual application")
 					}
 					// TODO what happens to output watermarks on splits?
 				}
 				if len(sr.GetChannelSplits()) != 1 {
-					slog.Warn("received non-single channel split", "bundle", rb)
+					j.Logger.Warn("received non-single channel split", "bundle", rb)
 				}
 				cs := sr.GetChannelSplits()[0]
 				fr := cs.GetFirstResidualElement()
@@ -298,7 +301,7 @@ progress:
 		s.baseProgTick.CompareAndSwap(baseTick, newTick)
 	}
 	// Tentative Data is ready, commit it to the main datastore.
-	slog.Debug("Execute: committing data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
+	j.Logger.Debug("Execute: committing data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
 
 	// Tally metrics immeadiately so they're available before
 	// pipeline termination.
@@ -315,7 +318,7 @@ progress:
 	for _, rr := range resp.GetResidualRoots() {
 		ba := rr.GetApplication()
 		if len(ba.GetElement()) == 0 {
-			slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
+			j.Logger.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
 			panic("sdk returned empty residual application")
 		}
 		if residuals.TransformID == "" {
@@ -346,16 +349,16 @@ progress:
 		})
 	}
 	if l := len(residuals.Data); l == 0 {
-		slog.Debug("returned empty residual application", "bundle", rb, slog.Int("numResiduals", l), slog.String("pcollection", s.primaryInput))
+		j.Logger.Debug("returned empty residual application", "bundle", rb, slog.Int("numResiduals", l), slog.String("pcollection", s.primaryInput))
 	}
 	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residuals)
 	if s.finalize {
 		_, err := b.Finalize(ctx, wk)
 		if err != nil {
-			slog.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
+			j.Logger.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
 			panic(err)
 		}
-		slog.Debug("finalized bundle", "bundle", rb)
+		j.Logger.Debug("finalized bundle", "bundle", rb)
 	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil
@@ -386,7 +389,7 @@ func portFor(wInCid string, wk *worker.W) []byte {
 	}
 	sourcePortBytes, err := proto.Marshal(sourcePort)
 	if err != nil {
-		slog.Error("bad port", slog.Any("error", err), slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
+		wk.Logger.Error("bad port", slog.Any("error", err), slog.String("endpoint", sourcePort.ApiServiceDescriptor.GetUrl()))
 	}
 	return sourcePortBytes
 }
@@ -588,10 +591,9 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			transforms[si.Transform].GetInputs()[si.Local] = newGlobal
 			// TODO: replace si.Global with newGlobal?
 		}
-		prepSide, err := handleSideInput(si, comps, transforms, pcollections, coders, em)
+		prepSide, err := handleSideInput(si, comps, transforms, pcollections, coders, em, wk.Logger)
 		if err != nil {
-			slog.Error("buildDescriptor: handleSideInputs", "error", err, slog.String("transformID", si.Transform))
-			return err
+			return fmt.Errorf("buildDescriptor: handleSideInputs failed for transform %s: %w", si.Transform, err)
 		}
 		prepareSides = append(prepareSides, prepSide)
 	}
@@ -682,7 +684,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 }
 
 // handleSideInput returns a closure that will look up the data for a side input appropriate for the given watermark.
-func handleSideInput(link engine.LinkID, comps *pipepb.Components, transforms map[string]*pipepb.PTransform, pcols map[string]*pipepb.PCollection, coders map[string]*pipepb.Coder, em *engine.ElementManager) (func(b *worker.B, watermark mtime.Time), error) {
+func handleSideInput(link engine.LinkID, comps *pipepb.Components, transforms map[string]*pipepb.PTransform, pcols map[string]*pipepb.PCollection, coders map[string]*pipepb.Coder, em *engine.ElementManager, logger *slog.Logger) (func(b *worker.B, watermark mtime.Time), error) {
 	t := transforms[link.Transform]
 	sis, err := getSideInputs(t)
 	if err != nil {
@@ -691,7 +693,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, transforms ma
 
 	switch si := sis[link.Local]; si.GetAccessPattern().GetUrn() {
 	case urns.SideInputIterable:
-		slog.Debug("urnSideInputIterable",
+		logger.Debug("urnSideInputIterable",
 			slog.String("sourceTransform", t.GetUniqueName()),
 			slog.String("local", link.Local),
 			slog.String("global", link.Global))
@@ -716,7 +718,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, transforms ma
 		}, nil
 
 	case urns.SideInputMultiMap:
-		slog.Debug("urnSideInputMultiMap",
+		logger.Debug("urnSideInputMultiMap",
 			slog.String("sourceTransform", t.GetUniqueName()),
 			slog.String("local", link.Local),
 			slog.String("global", link.Global))

@@ -61,9 +61,10 @@ type B struct {
 	dataSema   atomic.Int32
 	OutputData engine.TentativeData
 
-	Resp      chan *fnpb.ProcessBundleResponse
-	BundleErr error
-	responded bool
+	Resp       chan *fnpb.ProcessBundleResponse
+	BundleErr  error
+	BundleWarn error
+	responded  bool
 
 	SinkToPCollection map[string]string
 }
@@ -98,7 +99,7 @@ func (b *B) LogValue() slog.Value {
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
 	if b.responded {
-		slog.Warn("additional bundle response", "bundle", b, "resp", resp)
+		b.BundleWarn = fmt.Errorf("additional bundle response for bundle %v: %v", b.PBDID, resp)
 		return
 	}
 	b.responded = true
@@ -123,7 +124,7 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	wk.activeInstructions[b.InstID] = b
 	wk.mu.Unlock()
 
-	slog.Debug("processing", "bundle", b, "worker", wk)
+	wk.Logger.Debug("processing", "bundle", b, "worker", wk)
 
 	// Tell the SDK to start processing the bundle.
 	req := &fnpb.InstructionRequest{

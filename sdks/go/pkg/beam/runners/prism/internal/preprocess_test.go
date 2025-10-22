@@ -16,10 +16,12 @@
 package internal
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -225,7 +227,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 				ForcedRoots: test.forcedRoots,
 			}})
 
-			gotStages := pre.preProcessGraph(test.input, nil)
+			gotStages := pre.preProcessGraph(test.input, &jobservices.Job{Logger: slog.Default()})
 			if diff := cmp.Diff(test.wantStages, gotStages,
 				cmp.AllowUnexported(stage{}, link{}),
 				cmpopts.EquateEmpty(),
@@ -249,7 +251,7 @@ func (p *testPreparer) PrepareUrns() []string {
 	return []string{"test_urn"}
 }
 
-func (p *testPreparer) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (p *testPreparer) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult {
 	return prepareResult{
 		ForcedRoots: p.ForcedRoots,
 		SubbedComps: &pipepb.Components{

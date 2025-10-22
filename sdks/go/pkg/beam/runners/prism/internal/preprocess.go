@@ -38,7 +38,7 @@ type transformPreparer interface {
 	PrepareUrns() []string
 	// PrepareTransform takes a PTransform proto and returns a set of new Components, and a list of
 	// transformIDs leaves to remove and ignore from graph processing.
-	PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult
+	PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult
 }
 
 type prepareResult struct {
@@ -91,7 +91,7 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 		spec := t.GetSpec()
 		if spec == nil {
 			// Most composites don't have specs.
-			slog.Debug("transform is missing a spec",
+			j.Logger.Debug("transform is missing a spec",
 				slog.Group("transform", slog.String("ID", tid), slog.String("name", t.GetUniqueName())))
 			continue
 		}
@@ -120,7 +120,7 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 			continue
 		}
 
-		prepResult := h.PrepareTransform(tid, t, comps)
+		prepResult := h.PrepareTransform(tid, t, comps, j.Logger)
 
 		// Clear out unnecessary leaves from this composite for topological sort handling.
 		for _, key := range prepResult.RemovedLeaves {
@@ -156,7 +156,7 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 	keptLeaves := maps.Keys(leaves)
 	sort.Strings(keptLeaves)
 	topological := pipelinex.TopologicalSort(ts, keptLeaves)
-	slog.Debug("topological transform ordering", slog.Any("topological", topological))
+	j.Logger.Debug("topological transform ordering", slog.Any("topological", topological))
 
 	facts, err := computeFacts(topological, comps)
 	if err != nil {
@@ -195,7 +195,7 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 			),
 		)
 	}
-	slog.Debug("preProcessGraph: all stages and transforms", stageDetails...)
+	j.Logger.Debug("preProcessGraph: all stages and transforms", stageDetails...)
 	return stages
 }
 

@@ -16,7 +16,6 @@
 package engine
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -314,7 +313,6 @@ func (tsi *testStreamImpl) AddProcessingTimeEvent(d time.Duration) {
 
 	// Disable real-time clock for this em if TestStream has processing time events.
 	if tsi.em.config.EnableRTC {
-		slog.Debug("Processing time event found in TestStream: real-time clock will be disabled for this job")
 		tsi.em.config.EnableRTC = false
 	}
 }

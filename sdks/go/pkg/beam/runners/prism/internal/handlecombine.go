@@ -17,6 +17,7 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
 	"reflect"
 
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -58,7 +59,7 @@ func (*combine) PrepareUrns() []string {
 }
 
 // PrepareTransform returns lifted combines and removes the leaves if enabled. Otherwise returns nothing.
-func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult {
 
 	onlyInput := getOnlyValue(t.GetInputs())
 	combineInput := comps.GetPcollections()[onlyInput]

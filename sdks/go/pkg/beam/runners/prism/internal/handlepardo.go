@@ -17,6 +17,7 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
 	"reflect"
 
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -58,7 +59,7 @@ func (*pardo) PrepareUrns() []string {
 
 // PrepareTransform handles special processing with respect to ParDos, since their handling is dependant on supported features
 // and requirements.
-func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, logger *slog.Logger) prepareResult {
 
 	// ParDos are a pain in the butt.
 	// Combines, by comparison, are dramatically simpler.
