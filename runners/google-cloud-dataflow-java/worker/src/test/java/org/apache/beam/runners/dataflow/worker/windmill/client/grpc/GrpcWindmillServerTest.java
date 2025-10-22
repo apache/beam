@@ -336,6 +336,7 @@ public class GrpcWindmillServerTest {
             (String computation,
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
+                boolean drainMode,
                 WorkItem workItem,
                 long serializedWorkItemSize,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
@@ -469,6 +470,7 @@ public class GrpcWindmillServerTest {
             (String computation,
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
+                boolean drainMode,
                 WorkItem workItem,
                 long serializedWorkItemSize,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
