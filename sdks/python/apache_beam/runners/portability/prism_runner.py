@@ -170,7 +170,6 @@ class PrismRunnerLogFilter(logging.Filter):
 
 class PrismJobServer(job_server.SubprocessJobServer):
   BIN_CACHE = os.path.expanduser("~/.apache_beam/cache/prism/bin")
-  GO_CACHE = os.path.expanduser("~/.apache_beam/cache/prism/go_cache")
 
   def __init__(self, options):
     super().__init__()
@@ -386,11 +385,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     """
     # This is a development version! Assume Go is installed.
     # Set the install directory to the cache location.
-    envdict = {
-        **os.environ,
-        "GOBIN": PrismJobServer.BIN_CACHE,
-        "GOCACHE": PrismJobServer.GO_CACHE
-    }
+    envdict = {**os.environ, "GOBIN": PrismJobServer.BIN_CACHE}
     PRISMPKG = "github.com/apache/beam/sdks/v2/go/cmd/prism"
 
     _LOGGER.info(
