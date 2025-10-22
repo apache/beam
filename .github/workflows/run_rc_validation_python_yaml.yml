@@ -229,8 +229,8 @@ jobs:
              exit 0 # Allow cleanup to proceed
           fi
           JOB_ID=$(cat yaml_dataflow_jobid.txt)
-          echo "Waiting for 20 minutes for Dataflow job $JOB_ID to run..."
-          sleep 1200 # 20 minutes = 1200 seconds
+          echo "Waiting for 40 minutes for Dataflow job $JOB_ID to run..."
+          sleep 2400 # 20 minutes = 2400 seconds
           echo "Wait finished."
         shell: bash
 
