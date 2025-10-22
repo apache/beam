@@ -55,8 +55,8 @@ class AsyncWrapper(beam.DoFn):
   TIMER_SET = ReadModifyWriteStateSpec('timer_set', coders.BooleanCoder())
   TO_PROCESS = BagStateSpec(
       'to_process',
-      coders.TupleCoder([coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()])
-  )
+      coders.TupleCoder(
+        [coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()]))
   # The below items are one per dofn (not instance) so are maps of UUID to
   # value.
   _processing_elements = {}
@@ -391,8 +391,8 @@ class AsyncWrapper(beam.DoFn):
 
     # Reschedule the items not under a lock
     for x in to_reschedule:
-        self.schedule_item(x, ignore_buffer=False, timeout=1)
-      
+      self.schedule_item(x, ignore_buffer=False, timeout=1)
+
     # Update processing state to remove elements we've finished
     to_process.clear()
     for x in to_process_local:
