@@ -122,6 +122,8 @@ class HuggingFaceInferenceTest(unittest.TestCase):
         model_uri='unused',
         model_class=TFAutoModel,
         inference_fn=fake_inference_fn_tensor)
+    batched_examples = [tf.constant(1), tf.constant(10), tf.constant(100)]
+    inference_runner.run_inference(batched_examples, fake_model)
     self.assertEqual(inference_runner._framework, 'tf')
 
   def test_convert_to_result_batch_processing(self):
