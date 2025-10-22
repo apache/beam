@@ -35,6 +35,7 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
@@ -90,7 +91,8 @@ public enum Compression {
         byte zero = 0x00;
         int header = Ints.fromBytes(zero, zero, headerBytes[1], headerBytes[0]);
         if (header == GZIPInputStream.GZIP_MAGIC) {
-          return Channels.newChannel(new GZIPInputStream(stream));
+          return Channels.newChannel(
+              new SynchronizedGzipCompressorInputStream(new GzipCompressorInputStream(stream, true)));
         }
       }
       return Channels.newChannel(stream);
@@ -284,6 +286,36 @@ public enum Compression {
 
   public abstract WritableByteChannel writeCompressed(WritableByteChannel channel)
       throws IOException;
+
+  private static class SynchronizedGzipCompressorInputStream extends InputStream {
+    private static final Object LOCK = new Object();
+    private final GzipCompressorInputStream delegate;
+
+    public SynchronizedGzipCompressorInputStream(GzipCompressorInputStream delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public int read() throws IOException {
+      synchronized (LOCK) {
+        return delegate.read();
+      }
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+      synchronized (LOCK) {
+        return delegate.read(b, off, len);
+      }
+    }
+
+    @Override
+    public void close() throws IOException {
+      synchronized (LOCK) {
+        delegate.close();
+      }
+    }
+  }
 
   /** Concatenates all {@link ZipInputStream}s contained within the zip file. */
   private static class FullZipInputStream extends InputStream {
