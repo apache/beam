@@ -45,6 +45,8 @@ public class WindmillStateTagUtil {
 
   private static final Interner<ByteString> ENCODED_KEY_INTERNER = Interners.newWeakInterner();
 
+  private static final Interner<ByteString> ENCODED_KEY_INTERNER = Interners.newWeakInterner();
+
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
   @VisibleForTesting
   ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
