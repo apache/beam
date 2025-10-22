@@ -72,6 +72,10 @@ public class CatalogSchema implements Schema {
     return getSubSchema(catalog.currentDatabase());
   }
 
+  public @Nullable Collection<String> databases() {
+    return catalog.databases();
+  }
+
   public BeamCalciteSchema getDatabaseSchema(TableName tablePath) {
     @Nullable BeamCalciteSchema beamCalciteSchema = getSubSchema(tablePath.database());
     if (beamCalciteSchema == null) {

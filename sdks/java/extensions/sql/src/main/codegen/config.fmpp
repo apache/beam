@@ -35,6 +35,9 @@ data: {
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseDatabase"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlShowCatalogs"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlShowDatabases"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlShowTables"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.beam.sdk.schemas.Schema"
@@ -50,6 +53,9 @@ data: {
         "TBLPROPERTIES"
         "PROPERTIES"
         "PARTITIONED"
+        "CATALOGS"
+        "DATABASES"
+        "TABLES"
         "USE"
       ]
 
@@ -422,6 +428,10 @@ data: {
       # Return type of method implementation should be 'SqlNode'.
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
+        "SqlShowTables(Span.of(), null)"
+        "SqlShowDatabases(Span.of(), null)"
+        "SqlShowCatalogs(Span.of(), null)"
+        "SqlShowCurrent(Span.of(), null)"
         "SqlUseCatalog(Span.of(), null)"
         "SqlUseDatabase(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"
