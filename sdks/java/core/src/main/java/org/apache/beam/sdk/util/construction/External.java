@@ -274,8 +274,8 @@ public class External {
               .setComponents(originalComponents)
               .setTransform(ptransformBuilder.build())
               .setNamespace(getNamespace())
+              .setPipelineOptions(PipelineOptionsTranslation.toProto(p.getOptions()))
               .build();
-      requestBuilder.setPipelineOptions(PipelineOptionsTranslation.toProto(p.getOptions()));
 
       ExpansionApi.ExpansionResponse response =
           clientFactory.getExpansionServiceClient(endpoint).expand(request);

@@ -17,14 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateUtil.encodeKey;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.state.ReadableState;
@@ -60,7 +57,6 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
   WindmillWatermarkHold(
       StateNamespace namespace,
-      StateTag<WatermarkHoldState> address,
       ByteString encodeKey,
       String stateFamily,
       TimestampCombiner timestampCombiner,

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateUtil.encodeKey;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;

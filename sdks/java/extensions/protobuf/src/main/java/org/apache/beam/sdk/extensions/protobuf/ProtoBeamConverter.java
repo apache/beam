@@ -505,12 +505,17 @@ public class ProtoBeamConverter {
 
     // writeObject() needs to be implemented because Descriptor is not serializable.
     private void writeObject(ObjectOutputStream oos) throws IOException {
-      ProtobufUtil.serializeDescriptor(oos, descriptor);
+      String messageFullName = descriptor.getFullName();
+      ProtoDomain protoDomain = ProtoDomain.buildFrom(descriptor);
+      oos.writeObject(protoDomain);
+      oos.writeObject(messageFullName);
     }
 
     // readObject() needs to be implemented because Descriptor is not serializable.
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-      initialize(ProtobufUtil.deserializeDescriptor(ois));
+      ProtoDomain protoDomain = (ProtoDomain) ois.readObject();
+      String messageFullName = (String) ois.readObject();
+      initialize(protoDomain.getDescriptor(messageFullName));
     }
   }
 

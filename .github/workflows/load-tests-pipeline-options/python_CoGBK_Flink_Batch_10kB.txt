@@ -14,15 +14,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
---temp_location=gs://temp-storage-for-perf-tests/loadtests
 --publish_to_big_query=true
 --metrics_dataset=load_test
---metrics_table=python_flink_batch_cogbk_2
---influx_measurement=python_batch_cogbk_2
---input_options=''{\\"num_records\\":20000000,\\"key_size\\":10,\\"value_size\\":90,\\"num_hot_keys\\":5,\\"hot_key_fraction\\":1}''
---co_input_options=''{\\"num_records\\":2000000,\\"key_size\\":10,\\"value_size\\":90,\\"num_hot_keys\\":5,\\"hot_key_fraction\\":1}''
---iterations=1
+--metrics_table=python_flink_batch_cogbk_3
+--influx_measurement=python_batch_cogbk_3
+--input_options=''{\\"num_records\\":200000,\\"key_size\\":10,\\"value_size\\":90,\\"num_hot_keys\\":200000,\\"hot_key_fraction\\":1}''
+--co_input_options=''{\\"num_records\\":20000,\\"key_size\\":10,\\"value_size\\":90,\\"num_hot_keys\\":1000,\\"hot_key_fraction\\":1}''
+--iterations=4
 --parallelism=5
---endpoint=localhost:8099
+--runner=PortableRunner
+--job_endpoint=localhost:8099
 --environment_type=DOCKER
---environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
+--environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest
