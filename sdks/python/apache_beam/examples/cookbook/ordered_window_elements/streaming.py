@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import enum
 import logging
 from typing import Optional
 
@@ -24,6 +25,7 @@ from apache_beam.coders import PickleCoder
 from apache_beam.coders import TimestampCoder
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.timeutil import TimeDomain
+from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import OrderedListStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
@@ -31,6 +33,7 @@ from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints.typehints import TupleConstraint
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import DurationTypes  # pylint: disable=unused-import
 from apache_beam.utils.timestamp import Timestamp
@@ -370,6 +373,80 @@ class OrderedWindowElementsDoFn(beam.DoFn):
       window_timer.set(next_window_end_ts + self.allowed_lateness)
 
 
+class OrderedWindowElementsDoFnWithBag(OrderedWindowElementsDoFn):
+  BUFFER_STATE = BagStateSpec('buffer2', PickleCoder())
+  WINDOW_TIMER = TimerSpec('window_timer2', TimeDomain.WATERMARK)
+
+  def _state_add(self, buffer_state, timestamp, value):
+    """Add a timestamped-value into the buffer state."""
+    buffer_state.add((timestamp, value))
+
+  def _state_read_range(self, buffer_state, range_lo, range_hi):
+    """Retrieves a specified range of elements from the buffer state."""
+    all_elements = list(buffer_state.read())
+    filtered_elements = [(ts, val) for ts, val in all_elements
+                         if ts >= range_lo and ts < range_hi]
+    filtered_elements.sort(key=lambda x: x[0])
+    return filtered_elements
+
+  def _state_clear_range(self, buffer_state, range_lo, range_hi):
+    """Clears a specified range of elements from the buffer state."""
+    remaining_elements = self._state_read_range(
+        buffer_state, range_hi, MAX_TIMESTAMP)
+    buffer_state.clear()
+    for e in remaining_elements:
+      buffer_state.add(e)
+
+  def process(
+      self,
+      element,
+      timestamp=beam.DoFn.TimestampParam,
+      buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+      window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
+      timer_state=beam.DoFn.StateParam(OrderedWindowElementsDoFn.TIMER_STATE),
+      last_value_state=beam.DoFn.StateParam(
+          OrderedWindowElementsDoFn.LAST_VALUE),
+      buffer_min_ts_state=beam.DoFn.StateParam(
+          OrderedWindowElementsDoFn.BUFFER_MIN_TS_STATE),
+      estimated_wm_state=beam.DoFn.StateParam(
+          OrderedWindowElementsDoFn.ESTIMATED_WM_STATE),
+  ):
+    yield from super().process(
+        element,
+        timestamp,
+        buffer_state,
+        window_timer,
+        timer_state,
+        last_value_state,
+        buffer_min_ts_state,
+        estimated_wm_state)
+
+  @on_timer(WINDOW_TIMER)
+  def on_timer(
+      self,
+      key=beam.DoFn.KeyParam,
+      fire_ts=beam.DoFn.TimestampParam,
+      buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+      window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
+      last_value_state=beam.DoFn.StateParam(
+          OrderedWindowElementsDoFn.LAST_VALUE),
+      buffer_min_ts_state=beam.DoFn.StateParam(
+          OrderedWindowElementsDoFn.BUFFER_MIN_TS_STATE),
+  ):
+    yield from super().on_timer(
+        key=key,
+        fire_ts=fire_ts,
+        buffer_state=buffer_state,
+        window_timer=window_timer,
+        last_value_state=last_value_state,
+        buffer_min_ts_state=buffer_min_ts_state)
+
+
+class BufferStateType(enum.Enum):
+  ORDERED_LIST = 0
+  BAG = 1
+
+
 class OrderedWindowElements(PTransform):
   """A PTransform that batches elements into ordered, sliding windows.
 
@@ -385,7 +462,9 @@ class OrderedWindowElements(PTransform):
       allowed_lateness: DurationTypes = 0,
       default_start_value=None,
       fill_start_if_missing: bool = False,
-      stop_timestamp: Optional[TimestampTypes] = None):
+      stop_timestamp: Optional[TimestampTypes] = None,
+      buffer_state_type: BufferStateType = BufferStateType.ORDERED_LIST,
+  ):
     """Initializes the OrderedWindowElements transform.
 
     Args:
@@ -402,6 +481,8 @@ class OrderedWindowElements(PTransform):
         present at the window's start.
       stop_timestamp: An optional timestamp to stop processing and firing
         timers.
+      buffer_state_type: An optional enum to control what backend state to use
+        to store buffered elements. By default, it is using ordered list state.
     """
     self.duration = duration
     self.slide_interval = duration if slide_interval is None else slide_interval
@@ -410,6 +491,7 @@ class OrderedWindowElements(PTransform):
     self.default_start_value = default_start_value
     self.fill_start_if_missing = fill_start_if_missing
     self.stop_timestamp = stop_timestamp
+    self.buffer_state_type = buffer_state_type
 
   def expand(self, input):
     """Applies the OrderedWindowElements transform to the input PCollection.
@@ -440,9 +522,16 @@ class OrderedWindowElements(PTransform):
       # Add a default key (0) if the input PCollection is unkeyed.
       keyed_input = input | beam.WithKeys(0)
 
+    if self.buffer_state_type == BufferStateType.ORDERED_LIST:
+      dofn = OrderedWindowElementsDoFn
+    elif self.buffer_state_type == BufferStateType.BAG:
+      dofn = OrderedWindowElementsDoFnWithBag
+    else:
+      raise ValueError("Unknown buffer_state_type: " + self.buffer_state_type)
+
     keyed_output = (
         keyed_input | 'Ordered Sliding Window' >> beam.ParDo(
-            OrderedWindowElementsDoFn(
+            dofn(
                 self.duration,
                 self.slide_interval,
                 self.offset,

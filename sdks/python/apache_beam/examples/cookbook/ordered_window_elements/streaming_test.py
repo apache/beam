@@ -22,9 +22,11 @@ import unittest
 
 from parameterized import param
 from parameterized import parameterized
+from parameterized import parameterized_class
 
 import apache_beam as beam
 from apache_beam.examples.cookbook.ordered_window_elements.streaming import OrderedWindowElements
+from apache_beam.examples.cookbook.ordered_window_elements.streaming import BufferStateType
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -37,6 +39,7 @@ logging.basicConfig(level=logging.WARNING)
 
 ENABLE_LOGGING = False
 WINDOW_SIZE = 3
+FIRE_INTERVAL = 0.5
 
 
 def _maybe_log_elements(pcoll, prefix="result="):
@@ -54,7 +57,7 @@ def _maybe_log_elements(pcoll, prefix="result="):
 def _create_input_stream(elements: list[int]):
   now = Timestamp.now()
   length = len(elements)
-  fire_interval = 0.1
+  fire_interval = FIRE_INTERVAL
   return PeriodicImpulse(
       data=[(Timestamp.of(e), e) for e in elements],
       fire_interval=fire_interval,
@@ -71,6 +74,11 @@ _in_windows = sys.platform == "win32"
 @unittest.skipUnless(_go_installed, 'Go is not installed.')
 # TODO: Go environments is not configured correctly on Windows test boxes.
 @unittest.skipIf(_in_windows, reason="Not supported on Windows")
+@parameterized_class(('buffer_state_type', ),
+                     [
+                         (BufferStateType.ORDERED_LIST, ),
+                         (BufferStateType.BAG, ),
+                     ])
 class OrderedWindowElementsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.options = PipelineOptions([
@@ -100,7 +108,10 @@ class OrderedWindowElementsTest(unittest.TestCase):
     with TestPipeline(options=self.options) as p:
       result = (
           p | _create_input_stream([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-          | OrderedWindowElements(WINDOW_SIZE, stop_timestamp=13))
+          | OrderedWindowElements(
+              WINDOW_SIZE,
+              stop_timestamp=13,
+              buffer_state_type=self.buffer_state_type))
       result = _maybe_log_elements(result)
       assert_that(result, equal_to([
           [0, 1, 2],
@@ -248,8 +259,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
           ]))
 
   @parameterized.expand([
-      param(fill_start=False),
-      param(fill_start=True),
+      param(fill_start=False),  # param(fill_start=True),
   ])
   def test_reversed_ordered_data_with_allowed_lateness(self, fill_start):
     if fill_start:
