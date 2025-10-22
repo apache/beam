@@ -56,7 +56,7 @@ class AsyncWrapper(beam.DoFn):
   TO_PROCESS = BagStateSpec(
       'to_process',
       coders.TupleCoder(
-        [coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()]))
+          [coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()]))
   # The below items are one per dofn (not instance) so are maps of UUID to
   # value.
   _processing_elements = {}
@@ -257,7 +257,8 @@ class AsyncWrapper(beam.DoFn):
   def next_time_to_fire(self, key):
     return (
         floor((time() + self._timer_frequency) / self._timer_frequency) *
-        self._timer_frequency) + (random.random() * self._timer_frequency)
+        self._timer_frequency) + (
+            random.random() * self._timer_frequency)
 
   def accepting_items(self):
     with AsyncWrapper._lock:
