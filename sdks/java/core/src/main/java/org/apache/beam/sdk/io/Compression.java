@@ -91,7 +91,7 @@ public enum Compression {
         byte zero = 0x00;
         int header = Ints.fromBytes(zero, zero, headerBytes[1], headerBytes[0]);
         if (header == GZIPInputStream.GZIP_MAGIC) {
-          return Channels.newChannel(new GzipCompressorInputStream(stream, true));
+          return Channels.newChannel(new GZIPInputStream(stream));
         }
       }
       return Channels.newChannel(stream);
