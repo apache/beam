@@ -397,11 +397,6 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     public <T extends State> void put(
-        StateNamespace namespace, StateTag<?> tag, T value, long weight) {
-      put(namespace, WindmillStateTagUtil.instance().encodeKey(namespace, tag), value, weight);
-    }
-
-    public <T extends State> void put(
         StateNamespace namespace, InternedByteString encodedAddress, T value, long weight) {
       StateId id = new StateId(forKey, stateFamily, namespace);
       @Nullable StateCacheEntry entry = localCache.get(id);
