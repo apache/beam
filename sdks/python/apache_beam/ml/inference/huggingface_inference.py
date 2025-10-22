@@ -563,16 +563,6 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     return 'BeamML_HuggingFaceModelHandler_Tensor'
 
 
-def _convert_to_result(
-    batch: Iterable,
-    predictions: Union[Iterable, dict[Any, Iterable]],
-    model_id: Optional[str] = None,
-) -> Iterable[PredictionResult]:
-  return [
-      PredictionResult(x, y, model_id) for x, y in zip(batch, [predictions])
-  ]
-
-
 def _default_pipeline_inference_fn(
     batch, pipeline, inference_args) -> Iterable[PredictionResult]:
   predicitons = pipeline(batch, **inference_args)
@@ -715,7 +705,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     inference_args = {} if not inference_args else inference_args
     predictions = self._inference_fn(batch, pipeline, inference_args)
-    return _convert_to_result(batch, predictions)
+    return utils._convert_to_result(batch, predictions)
 
   def update_model_path(self, model_path: Optional[str] = None):
     """
