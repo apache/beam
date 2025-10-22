@@ -51,11 +51,6 @@ def unnest_to_json(cand):
     return cand
 
 
-def millis_to_timestamp(millis: int) -> Timestamp:
-  micro_second = millis * 1000
-  return Timestamp(micros=micro_second)
-
-
 class PersonCoder(FastCoder):
   def to_type_hint(self):
     return Person

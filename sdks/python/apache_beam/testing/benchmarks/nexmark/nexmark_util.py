@@ -45,6 +45,7 @@ from apache_beam.testing.benchmarks.nexmark.models import auction_bid
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
 from apache_beam.transforms import window
+from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -154,9 +155,8 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.CREDIT_CARD],
           json_dict[FieldNames.CITY],
           json_dict[FieldNames.STATE],
-          nexmark_model.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
-          json_dict[FieldNames.EXTRA],
-      )
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          json_dict[FieldNames.EXTRA])
     elif FieldNames.ITEM_NAME in json_dict:
       if type(json_dict[FieldNames.EXPIRES]) is dict:
         json_dict[FieldNames.EXPIRES] = json_dict[FieldNames.EXPIRES]['millis']
@@ -166,20 +166,18 @@ class ParseJsonEventFn(beam.DoFn):
           json_dict[FieldNames.DESCRIPTION],
           json_dict[FieldNames.INITIAL_BID],
           json_dict[FieldNames.RESERVE],
-          nexmark_model.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
-          nexmark_model.millis_to_timestamp(json_dict[FieldNames.EXPIRES]),
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          millis_to_timestamp(json_dict[FieldNames.EXPIRES]),
           json_dict[FieldNames.SELLER],
           json_dict[FieldNames.CATEGORY],
-          json_dict[FieldNames.EXTRA],
-      )
+          json_dict[FieldNames.EXTRA])
     elif FieldNames.AUCTION in json_dict:
       yield nexmark_model.Bid(
           json_dict[FieldNames.AUCTION],
           json_dict[FieldNames.BIDDER],
           json_dict[FieldNames.PRICE],
-          nexmark_model.millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
-          json_dict[FieldNames.EXTRA],
-      )
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          json_dict[FieldNames.EXTRA])
     else:
       raise ValueError('Invalid event: %s.' % str(json_dict))
 
@@ -201,6 +199,11 @@ def log_count_info(count):
 def display(elm):
   logging.debug(elm)
   return elm
+
+
+def millis_to_timestamp(millis: int) -> Timestamp:
+  micro_second = millis * 1000
+  return Timestamp(micros=micro_second)
 
 
 def get_counter_metric(
