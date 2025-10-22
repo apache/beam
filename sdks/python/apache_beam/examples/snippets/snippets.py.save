@@ -1455,8 +1455,54 @@ def side_input_slow_update(
 """
 Example: Slowly updating global window side input in Python.
 This snippet demonstrates how to use PeriodicImpulse to refresh
-a side input periodically, using dummy data for safe local testing.
+a side input periodically, similar to the Java example in Beam docs.
 """
+
+import apache_beam as beam
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms import window
+
+def cross_join(left, rights):
+    """Example function combining each left element with side input elements."""
+    for x in rights:
+        yield (left, x)
+
+def run_side_input_example():
+    pipeline = beam.Pipeline()
+
+    # Define time parameters for periodic updates
+    first_timestamp = 0
+    last_timestamp = 60  # Run for 60 seconds; could use MAX_TIMESTAMP for indefinite
+    interval = 10        # Refresh every 10 seconds
+    src_file_pattern = "data/batch_"  # Example pattern
+    sample_main_input_elements = [1, 2, 3]
+    main_input_windowing_interval = 30  # Example window interval
+
+    # Create periodically updated side input
+    side_input = (
+        pipeline
+        | 'PeriodicImpulse' >> PeriodicImpulse(first_timestamp, last_timestamp, interval, True)
+        | 'MapToFileName' >> beam.Map(lambda x: src_file_pattern + str(x))
+        | 'ReadFromFile' >> beam.io.ReadAllFromText()
+    )
+
+    # Main input with fixed windows
+    main_input = (
+        pipeline
+        | 'CreateMainInput' >> beam.Create(sample_main_input_elements)
+        | 'MapToTimestamped' >> beam.Map(lambda src: TimestampedValue(src, src))
+        | 'WindowIntoFixed' >> beam.WindowInto(window.FixedWindows(main_input_windowing_interval))
+    )
+
+    # Apply transformation with side input
+    result = (
+        main_input
+        | 'ApplyCrossJoin' >> beam.FlatMap(cross_join, rights=beam.pvalue.AsIter(side_input))
+    )
+
+    return pipeline
+# [END SideInputPatternSlowUpdateGlobalWindowSnip1]
 import apache_beam as beam
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.window import TimestampedValue, GlobalWindows, FixedWindows
@@ -1499,11 +1545,7 @@ def run_side_input_example():
         )
 
 if __name__ == "__main__":
-    run_side_input_example()
-
-
-# [END SideInputPatternSlowUpdateGlobalWindowSnip1]
-def bigqueryio_deadletter():
+    run_side_input_example()def bigqueryio_deadletter():
   # [START BigQueryIODeadLetter]
 
   # Create pipeline.
