@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.lang.ref.SoftReference;
 import javax.annotation.concurrent.ThreadSafe;
@@ -25,12 +24,11 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Interner;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Interners;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
@@ -44,7 +42,10 @@ public class WindmillStateTagUtil {
   // Private constructor to prevent instantiations from outside.
   private WindmillStateTagUtil() {}
 
-  /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
+  /**
+   * Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. The
+   * returned InternedByteStrings are weakly interned to reduce memory usage and reduce GC pressure.
+   */
   @VisibleForTesting
   InternedByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     RefHolder refHolder = getRefHolderFromThreadLocal();
@@ -147,22 +148,5 @@ public class WindmillStateTagUtil {
   /** @return the singleton WindmillStateTagUtil */
   public static WindmillStateTagUtil instance() {
     return INSTANCE;
-  }
-
-  @AutoValue
-  /*StateTags are Interned across keys to reduce memory usage and GC pressure */
-  public abstract static class InternedByteString {
-
-    private static final Interner<InternedByteString> ENCODED_KEY_INTERNER =
-        Interners.newWeakInterner();
-
-    protected InternedByteString() {}
-
-    public abstract ByteString byteString();
-
-    private static InternedByteString of(ByteString value) {
-      return ENCODED_KEY_INTERNER.intern(
-          new AutoValue_WindmillStateTagUtil_InternedByteString(value));
-    }
   }
 }

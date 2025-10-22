@@ -21,7 +21,6 @@ import com.google.auto.value.AutoBuilder;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
@@ -29,12 +28,11 @@ import java.util.function.BiConsumer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.dataflow.worker.*;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateTagUtil.InternedByteString;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -55,6 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * thread at a time, so this is safe.
  */
 public class WindmillStateCache implements StatusDataProvider {
+
   private static final int STATE_CACHE_CONCURRENCY_LEVEL = 4;
   // Convert Megabytes to bytes
   private static final long MEGABYTES = 1024 * 1024;
@@ -95,6 +94,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
   @AutoBuilder(ofClass = WindmillStateCache.class)
   public interface Builder {
+
     Builder setSizeMb(long sizeMb);
 
     Builder setSupportMapViaMultimap(boolean supportMapViaMultimap);
@@ -174,6 +174,7 @@ public class WindmillStateCache implements StatusDataProvider {
   }
 
   private static class EntryStats {
+
     long entries;
     long idWeight;
     long entryWeight;
@@ -185,6 +186,7 @@ public class WindmillStateCache implements StatusDataProvider {
    * Struct identifying a cache entry that contains all data for a ForKey instance and namespace.
    */
   private static class StateId implements Weighted {
+
     private final ForKey forKey;
     private final String stateFamily;
     private final Object namespaceKey;
@@ -225,18 +227,19 @@ public class WindmillStateCache implements StatusDataProvider {
 
   /** Entry in the state cache that stores a map of values. */
   private static class StateCacheEntry implements Weighted {
-    private final IdentityHashMap<InternedByteString, WeightedValue<?>> values;
+
+    private final HashMap<InternedByteString, WeightedValue<? extends State>> values;
     private long weight;
 
     public StateCacheEntry() {
-      this.values = new IdentityHashMap<>(INITIAL_HASH_MAP_CAPACITY);
+      this.values = new HashMap<>(INITIAL_HASH_MAP_CAPACITY);
       this.weight = 0;
     }
 
-    @SuppressWarnings("unchecked")
-    public <T extends State> Optional<T> get(InternedByteString encodedAddress) {
-      return Optional.ofNullable((WeightedValue<T>) values.get(encodedAddress))
-          .flatMap(WeightedValue::value);
+    public @Nullable State get(InternedByteString encodedAddress) {
+      WeightedValue<? extends State> weightedValue = values.get(encodedAddress);
+      if (weightedValue == null) return null;
+      return weightedValue.value;
     }
 
     public <T extends State> void put(InternedByteString encodedAddress, T value, long weight) {
@@ -263,7 +266,8 @@ public class WindmillStateCache implements StatusDataProvider {
       return weight + PER_CACHE_ENTRY_OVERHEAD;
     }
 
-    private static class WeightedValue<T> {
+    private static class WeightedValue<T extends State> {
+
       private long weight;
       private @Nullable T value;
 
@@ -322,6 +326,7 @@ public class WindmillStateCache implements StatusDataProvider {
   // Note that we utilize the default equality and hashCode for this class based upon the instance
   // (instead of the fields) to optimize cache invalidation.
   public class ForKey {
+
     private final WindmillComputationKey computationKey;
     // Cache token must be consistent for the key for the cache to be valid.
     private final long cacheToken;
@@ -361,6 +366,7 @@ public class WindmillStateCache implements StatusDataProvider {
    * and must be flushed to the cache by calling persist. This class is not thread-safe.
    */
   public class ForKeyAndFamily {
+
     final ForKey forKey;
     final String stateFamily;
     private final HashMap<StateId, StateCacheEntry> localCache;
@@ -379,21 +385,16 @@ public class WindmillStateCache implements StatusDataProvider {
       return supportMapViaMultimap;
     }
 
-    public <T extends State> Optional<T> get(StateNamespace namespace, StateTag<T> address) {
-      return get(namespace, WindmillStateTagUtil.instance().encodeKey(namespace, address));
-    }
-
-    public <T extends State> Optional<T> get(
-        StateNamespace namespace, InternedByteString encodedAddress) {
-      @SuppressWarnings("nullness")
-      // the mapping function for localCache.computeIfAbsent (i.e stateCache.getIfPresent) is
-      // nullable.
-      Optional<StateCacheEntry> stateCacheEntry =
-          Optional.ofNullable(
-              localCache.computeIfAbsent(
-                  new StateId(forKey, stateFamily, namespace), stateCache::getIfPresent));
-
-      return stateCacheEntry.flatMap(entry -> entry.get(encodedAddress));
+    public @Nullable State get(StateNamespace namespace, InternedByteString encodedAddress) {
+      @Nullable
+      @SuppressWarnings("nullness") // stateCache::getIfPresent returns null
+      StateCacheEntry stateCacheEntry =
+          localCache.computeIfAbsent(
+              new StateId(forKey, stateFamily, namespace), stateCache::getIfPresent);
+      if (stateCacheEntry == null) {
+        return null;
+      }
+      return stateCacheEntry.get(encodedAddress);
     }
 
     public <T extends State> void put(
