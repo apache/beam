@@ -287,7 +287,8 @@ class OrderedWindowElementsTest(unittest.TestCase):
           ]))
 
   @parameterized.expand([
-      param(fill_start=False),  # param(fill_start=True),
+      param(fill_start=False),
+      param(fill_start=True),
   ])
   def test_reversed_ordered_data_with_allowed_lateness(self, fill_start):
     if fill_start:
