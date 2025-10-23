@@ -27,7 +27,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Intern
 /*
  * Weakly Interned ByteStrings.
  * Used to save memory and GC pressure by sharing ByteStrings,
- * that are repeated commonly. Encoded stateTags are an example.
+ * that are repeated commonly. Encoded stateTags are an example that are Interned.
  * */
 @ThreadSafe
 public class InternedByteString {
