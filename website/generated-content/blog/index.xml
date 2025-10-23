@@ -14,7 +14,7 @@ limitations under the License.
 &lt;p>&lt;strong>Student:&lt;/strong> [Canyu Chen] (&lt;a href="https://github.com/Chenzo1001">@Chenzo1001&lt;/a>)
 &lt;strong>Mentors:&lt;/strong> [XQ Hu] (&lt;a href="https://github.com/liferoad">@liferoad&lt;/a>)
 &lt;strong>Organization:&lt;/strong> [Apache Beam]
-&lt;strong>Proposal Link:&lt;/strong> &lt;a href="https://drive.google.com/file/d/1_J5Fczzwhzge5zP5-8YWawE3EiAH2wQG/view?usp=sharing">Here&lt;/a>&lt;/p>
+&lt;strong>Proposal Link:&lt;/strong> &lt;a href="https://drive.google.com/file/d/1gmrSUGpXMXujVnFffuj0UWQjbghWI8Oy/view?usp=sharing">Here&lt;/a>&lt;/p>
 &lt;h1 id="project-overview">Project Overview&lt;/h1>
 &lt;p>BeamVision significantly enhances the Apache Beam development experience within JupyterLab by providing a unified, visual interface for pipeline inspection and analysis. This project successfully delivered a production-ready JupyterLab extension that replaces fragmented workflows with an integrated workspace, featuring a dynamic side panel for pipeline visualization and a multi-tab interface for comparative workflow analysis.&lt;/p>
 &lt;p>Core Achievements:&lt;/p>
