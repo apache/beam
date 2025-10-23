@@ -91,9 +91,7 @@ public enum Compression {
         byte zero = 0x00;
         int header = Ints.fromBytes(zero, zero, headerBytes[1], headerBytes[0]);
         if (header == GZIPInputStream.GZIP_MAGIC) {
-          return Channels.newChannel(
-              new SynchronizedGzipCompressorInputStream(
-                  new GzipCompressorInputStream(stream, true)));
+          return Channels.newChannel(new ConcatenatedGzipInputStream(stream));
         }
       }
       return Channels.newChannel(stream);
@@ -288,33 +286,62 @@ public enum Compression {
   public abstract WritableByteChannel writeCompressed(WritableByteChannel channel)
       throws IOException;
 
-  private static class SynchronizedGzipCompressorInputStream extends InputStream {
-    private static final Object LOCK = new Object();
-    private final GzipCompressorInputStream delegate;
+  /**
+   * A thread-safe input stream for reading concatenated GZIP streams. This is a replacement for
+   * Apache Commons Compress's GzipCompressorInputStream(stream, true), which is not thread-safe.
+   */
+  private static class ConcatenatedGzipInputStream extends InputStream {
+    private final InputStream underlying;
+    private GZIPInputStream currentMember;
 
-    public SynchronizedGzipCompressorInputStream(GzipCompressorInputStream delegate) {
-      this.delegate = delegate;
+    ConcatenatedGzipInputStream(InputStream in) throws IOException {
+      this.underlying = in;
+      this.currentMember = new GZIPInputStream(in);
     }
 
     @Override
     public int read() throws IOException {
-      synchronized (LOCK) {
-        return delegate.read();
+      if (currentMember == null) {
+        return -1;
       }
+      int result = currentMember.read();
+      if (result == -1) {
+        try {
+          currentMember = new GZIPInputStream(underlying);
+          return currentMember.read();
+        } catch (IOException e) {
+          currentMember = null;
+          return -1;
+        }
+      }
+      return result;
     }
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-      synchronized (LOCK) {
-        return delegate.read(b, off, len);
+      if (currentMember == null) {
+        return -1;
       }
+      int result = currentMember.read(b, off, len);
+      if (result == -1) {
+        try {
+          currentMember = new GZIPInputStream(underlying);
+          return currentMember.read(b, off, len);
+        } catch (IOException e) {
+          currentMember = null;
+          return -1;
+        }
+      }
+      return result;
     }
 
     @Override
     public void close() throws IOException {
-      synchronized (LOCK) {
-        delegate.close();
+      if (currentMember != null) {
+        currentMember.close();
+        currentMember = null;
       }
+      underlying.close();
     }
   }
 
