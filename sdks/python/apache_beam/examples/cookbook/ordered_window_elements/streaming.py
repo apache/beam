@@ -376,8 +376,8 @@ class OrderedWindowElementsDoFn(beam.DoFn):
 class OrderedWindowElementsDoFnWithBag(OrderedWindowElementsDoFn):
   """The implementation of stateful Dofn with BagState as buffer state"""
 
-  BUFFER_STATE = BagStateSpec('buffer2', PickleCoder())
-  WINDOW_TIMER = TimerSpec('window_timer2', TimeDomain.WATERMARK)
+  BUFFER_STATE = BagStateSpec('buffer', PickleCoder())
+  WINDOW_TIMER = TimerSpec('window_timer', TimeDomain.WATERMARK)
 
   def _state_add(self, buffer_state, timestamp, value):
     """Add a timestamped-value into the buffer state."""
@@ -447,8 +447,8 @@ class OrderedWindowElementsDoFnWithBag(OrderedWindowElementsDoFn):
 class OrderedWindowElementsDoFnWithValue(OrderedWindowElementsDoFn):
   """The implementation of stateful Dofn with ValueState as buffer state"""
 
-  BUFFER_STATE = ReadModifyWriteStateSpec('buffer3', PickleCoder())
-  WINDOW_TIMER = TimerSpec('window_timer3', TimeDomain.WATERMARK)
+  BUFFER_STATE = ReadModifyWriteStateSpec('buffer', PickleCoder())
+  WINDOW_TIMER = TimerSpec('window_timer', TimeDomain.WATERMARK)
 
   def _state_add(self, buffer_state, timestamp, value):
     """Add a timestamped-value into the buffer state."""

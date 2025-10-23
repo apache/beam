@@ -29,6 +29,7 @@ from apache_beam.examples.cookbook.ordered_window_elements.streaming import Buff
 from apache_beam.examples.cookbook.ordered_window_elements.streaming import OrderedWindowElements
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
@@ -54,7 +55,15 @@ def _maybe_log_elements(pcoll, prefix="result="):
     return pcoll
 
 
-def _create_input_stream(elements: list[int]):
+# Creates an unbounded source via `PeriodicImpulse`, simulating a continuous
+# stream of elements fired at a fixed interval. This method is closer to
+# real-world streaming but is sensitive to system load and can cause test
+# flakiness.
+# If the test runner is slow or under heavy load, elements may be delayed and
+# processed in a single large bundle. This can defeat the purpose of testing
+# time-based logic, as the elements will not arrive distributed over time as
+# intended.
+def _create_periodic_impulse_stream(elements: list[int]):
   now = Timestamp.now()
   length = len(elements)
   fire_interval = FIRE_INTERVAL
@@ -65,6 +74,23 @@ def _create_input_stream(elements: list[int]):
       stop_timestamp=now + length * fire_interval,
       rebase=RebaseMode.REBASE_ALL,
   )
+
+
+# Creates an unbounded source via `TestStream`, allowing precise control over
+# watermarks and element emission for deterministic testing scenarios. However,
+# it is an instantaneous data stream and it is less realistic than the stream
+# from `PeriodicImpulse`.
+def _create_test_stream(elements: list[int]):
+  test_stream = TestStream()
+  wm = None
+  for e in elements:
+    test_stream.add_elements([e], event_timestamp=e)
+    if wm is None or wm < e:
+      wm = e
+      test_stream.advance_watermark_to(wm)
+
+  test_stream.advance_watermark_to_infinity()
+  return test_stream
 
 
 _go_installed = shutil.which('go') is not None
@@ -109,7 +135,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
   def test_default(self):
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+          p | _create_test_stream([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
           | OrderedWindowElements(
               WINDOW_SIZE,
               stop_timestamp=13,
@@ -125,7 +151,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
   def test_slide_interval(self):
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+          p | _create_test_stream([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
           | OrderedWindowElements(WINDOW_SIZE, 1, stop_timestamp=13))
       result = _maybe_log_elements(result)
       assert_that(
@@ -146,7 +172,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
   def test_keyed_input(self):
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+          p | _create_test_stream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
           | beam.WithKeys("my_key")  # key is present in the output
           | OrderedWindowElements(WINDOW_SIZE, stop_timestamp=13))
       result = _maybe_log_elements(result)
@@ -182,7 +208,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
 
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+          p | _create_test_stream([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
           | OrderedWindowElements(
               WINDOW_SIZE,
               offset=1,
@@ -219,7 +245,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
       ]
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([0, 1, 2, 3, 4, 16, 17, 18, 19, 20])
+          p | _create_test_stream([0, 1, 2, 3, 4, 16, 17, 18, 19, 20])
           | OrderedWindowElements(
               WINDOW_SIZE,
               fill_start_if_missing=fill_window_start,
@@ -230,7 +256,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
   def test_single_late_data_with_no_allowed_lateness(self):
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([0, 1, 2, 3, 4, 6, 7, 8, 9, 5])
+          p | _create_test_stream([0, 1, 2, 3, 4, 6, 7, 8, 9, 5])
           | OrderedWindowElements(WINDOW_SIZE, stop_timestamp=13))
       result = _maybe_log_elements(result)
       assert_that(
@@ -245,7 +271,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
   def test_single_late_data_with_allowed_lateness(self):
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([0, 1, 2, 3, 4, 6, 7, 8, 9, 5])
+          p | _create_test_stream([0, 1, 2, 3, 4, 6, 7, 8, 9, 5])
           | OrderedWindowElements(
               WINDOW_SIZE, allowed_lateness=4, stop_timestamp=17))
       result = _maybe_log_elements(result)
@@ -284,7 +310,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
       ]
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
+          p | _create_test_stream([9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
           | OrderedWindowElements(
               WINDOW_SIZE,
               fill_start_if_missing=fill_start,
@@ -296,7 +322,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
   def test_multiple_late_data_with_allowed_lateness(self):
     with TestPipeline(options=self.options) as p:
       result = (
-          p | _create_input_stream([1, 2, 9, 3, 14, 7, 5, 12, 16, 17])
+          p | _create_test_stream([1, 2, 9, 3, 14, 7, 5, 12, 16, 17])
           | OrderedWindowElements(
               WINDOW_SIZE,
               1,
