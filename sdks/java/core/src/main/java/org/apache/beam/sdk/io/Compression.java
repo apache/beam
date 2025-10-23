@@ -33,6 +33,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -292,7 +293,7 @@ public enum Compression {
    */
   private static class ConcatenatedGzipInputStream extends InputStream {
     private final InputStream underlying;
-    private GZIPInputStream currentMember;
+    private @Nullable GZIPInputStream currentMember;
 
     ConcatenatedGzipInputStream(InputStream in) throws IOException {
       this.underlying = in;
