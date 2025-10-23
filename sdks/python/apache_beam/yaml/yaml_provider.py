@@ -1510,6 +1510,8 @@ class RenamingProvider(Provider):
     """Creates a PTransform instance for the given transform type and arguments.
     """
     mappings = self._mappings[typ]
+    # NOTE: If the `key` is not found in the mappings (e.g. standard_io.py), the
+    # `key` is passed down as is to the underlying transform.
     remapped_args = {
         mappings.get(key, key): value
         for key, value in args.items()
