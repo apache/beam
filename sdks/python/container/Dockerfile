@@ -50,7 +50,7 @@ RUN  \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install --no-deps -r /tmp/base_image_requirements.txt && \
+    pip install --no-deps -r /tmp/base_image_requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu && \
     rm -rf /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
