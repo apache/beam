@@ -239,7 +239,8 @@ class AsyncWrapper(beam.DoFn):
     done = False
     sleep_time = 0.01
     total_sleep = 0
-    while not done:
+    timeout = 1
+    while not done and total_sleep < timeout:
       done = self.schedule_if_room(element, ignore_buffer, *args, **kwargs)
       if not done:
         sleep_time = min(self.max_wait_time, sleep_time * 2)
@@ -394,7 +395,7 @@ class AsyncWrapper(beam.DoFn):
 
     # Reschedule the items not under a lock
     for x in to_reschedule:
-      self.schedule_item(x, ignore_buffer=False, timeout=1)
+      self.schedule_item(x, ignore_buffer=False)
 
     # Update processing state to remove elements we've finished
     to_process.clear()
