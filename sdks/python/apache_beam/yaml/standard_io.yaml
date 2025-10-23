@@ -74,6 +74,7 @@
         'error_handling': 'error_handling'
         'file_descriptor_path': 'file_descriptor_path'
         'message_name': 'message_name'
+        'max_read_time_seconds': 'max_read_time_seconds'
       'WriteToKafka':
         'format': 'format'
         'topic': 'topic'
