@@ -65,7 +65,7 @@ Apache Beam lets you combine transforms written in any supported SDK language an
   <td>&ge; 2.69.0</td>
 </tr>
 <tr>
-  <td>27</td>
+  <td>21</td>
   <td>&ge; 2.52.0</td>
 </tr>
 <tr>
