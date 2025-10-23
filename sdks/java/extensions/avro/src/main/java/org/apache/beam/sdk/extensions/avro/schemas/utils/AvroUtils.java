@@ -133,6 +133,8 @@ import org.joda.time.ReadableInstant;
  *   LogicalTypes.Date              <-----> LogicalType(DATE)
  *                                  <------ LogicalType(urn="beam:logical_type:date:v1")
  *   LogicalTypes.TimestampMillis   <-----> DATETIME
+ *   LogicalTypes.TimestampMicros   ------> Long
+ *   LogicalTypes.TimestampMicros   <------ LogicalType(urn="beam:logical_type:micros_instant:v1")
  *   LogicalTypes.Decimal           <-----> DECIMAL
  * </pre>
  *
@@ -1179,6 +1181,9 @@ public class AvroUtils {
           baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
         } else if ("TIME".equals(identifier)) {
           baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
+          baseType =
+              LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG));
         } else {
           throw new RuntimeException(
               "Unhandled logical type " + checkNotNull(fieldType.getLogicalType()).getIdentifier());
@@ -1315,6 +1320,10 @@ public class AvroUtils {
           return ((java.time.LocalDate) value).toEpochDay();
         } else if ("TIME".equals(identifier)) {
           return (int) ((Instant) value).getMillis();
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
+          java.time.Instant instant = (java.time.Instant) value;
+          return TimeUnit.SECONDS.toMicros(instant.getEpochSecond())
+              + TimeUnit.NANOSECONDS.toMicros(instant.getNano());
         } else {
           throw new RuntimeException("Unhandled logical type " + identifier);
         }
