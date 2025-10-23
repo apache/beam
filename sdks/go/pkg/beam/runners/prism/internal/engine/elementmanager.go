@@ -791,8 +791,7 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 			panic("error decoding residual header:" + err.Error())
 		}
 		if len(ws) == 0 {
-			slog.Error("reElementResiduals: sdk provided a windowed value header 0 windows", "bundle", rb)
-			panic("error decoding residual header: sdk provided a windowed value header 0 windows")
+			slog.Warn("reElementResiduals: sdk provided a windowed value header 0 windows", "bundle", rb)
 		}
 		// POSSIBLY BAD PATTERN: The buffer is invalidated on the next call, which doesn't always happen.
 		// But the decoder won't be mutating the buffer bytes, just reading the data. So the elmBytes
@@ -852,8 +851,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 					panic("error decoding watermarks")
 				}
 				if len(ws) == 0 {
-					slog.Error("PersistBundle: sdk provided a windowed value header 0 windows", "bundle", rb)
-					panic("error decoding residual header: sdk provided a windowed value header 0 windows")
+					slog.Warn("PersistBundle: sdk provided a windowed value header 0 windows", "bundle", rb)
 				}
 				// TODO: Optimize unnecessary copies. This is doubleteeing.
 				elmBytes := info.EDec(tee)
