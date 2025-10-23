@@ -59,6 +59,39 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.70.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
+  including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
 # [2.69.0] - Unreleased
 
 ## Highlights
@@ -79,21 +112,35 @@
 * Python examples added for CloudSQL enrichment handler on [Beam website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-cloudsql/) (Python) ([#35473](https://github.com/apache/beam/issues/36095)).
 * Support for batch mode execution in WriteToPubSub transform added (Python) ([#35990](https://github.com/apache/beam/issues/35990)).
 * Added official support for Python 3.13 ([#34869](https://github.com/apache/beam/issues/34869)).
+* Added an optional output_schema verification to all YAML transforms ([#35952](https://github.com/apache/beam/issues/35952)).
 * Support for encryption when using GroupByKey added, along with `--gbek` pipeline option to automatically replace all GroupByKey transforms (Java/Python) ([#36214](https://github.com/apache/beam/issues/36214)).
+* In Python SDK, the `--element_processing_timeout_minutes` option will also interrupt the SDK process if slowness happens during DoFn initialization, for example in `DoFn.setup()` ([#36518](https://github.com/apache/beam/issues/36518)).
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) `dill` is no longer a required, default dependency for Apache Beam ([#21298](https://github.com/apache/beam/issues/21298)).
+  - This change only affects pipelines that explicitly use the `pickle_library=dill` pipeline option.
+  - While `dill==0.3.1.1` is still pre-installed on the official Beam SDK base images, it is no longer a direct dependency of the apache-beam Python package. This means it can be overridden by other dependencies in your environment.
+  - If your pipeline uses `pickle_library=dill`, you must manually ensure `dill==0.3.1.1` is installed in both your submission and runtime environments.
+    - Submission environment: Install the dill extra in your local environment `pip install apache-beam[gcpdill]`.
+    - Runtime (worker) environment: Your action depends on how you manage your worker's environment.
+      - If using default containers or custom containers with the official Beam base image e.g. `FROM apache/beam_python3.10_sdk:2.69.0`
+        - Add `dill==0.3.1.1` to your worker's requirements file (e.g., requirements.txt)
+        - Pass this file to your pipeline using the --requirements_file requirements.txt pipeline option (For more details see [managing Dataflow dependencies](https://cloud.google.com/dataflow/docs/guides/manage-dependencies#py-custom-containers)).
+      - If custom containers with a non-Beam base image e.g. `FROM python:3.9-slim`
+        - Install apache-beam with the dill extra in your docker file e.g. `RUN pip install --no-cache-dir apache-beam[gcp,dill]`
+  - If there is a dill version mismatch between submission and runtime environments you might encounter unpickling errors like `Can't get attribute '_create_code' on <module 'dill._dill' from...`.
+  - If dill is not installed in the runtime environment you will see the error `ImportError: Pipeline option pickle_library=dill is set, but dill is not installed...`
+  - Report any issues you encounter when using `pickle_library=dill` to the GitHub issue ([#21298](https://github.com/apache/beam/issues/21298))
+* (Python) Added a `pickle_library=dill_unsafe` pipeline option. This allows overriding `dill==0.3.1.1` using dill as the pickle_library. Use with extreme caution. Other versions of dill has not been tested with Apache Beam ([#21298](https://github.com/apache/beam/issues/21298)).
+* (Python) The deterministic fallback coder for complex types like NamedTuple, Enum, and dataclasses now normalizes filepaths for better determinism guarantees. This affects streaming pipelines updating from 2.68 to 2.69 that utilize this fallback coder. If your pipeline is affected, you may see a warning like: "Using fallback deterministic coder for type X...". To update safely sepcify the pipeline option `--update_compatibility_version=2.68.0` ([#36345](https://github.com/apache/beam/pull/36345)).
 * (Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls ([#30445](https://github.com/apache/beam/issues/30445)).
   This may break update compatibility if you don't provide a `--transform_name_mapping`.
 * Removed deprecated Hadoop versions (2.10.2 and 3.2.4) that are no longer supported for [Iceberg](https://github.com/apache/iceberg/issues/10940) from IcebergIO ([#36282](https://github.com/apache/beam/issues/36282)).
 * (Go) Coder construction on SDK side is more faithful to the specs from runners without stripping length-prefix. This may break streaming pipeline update as the underlying coder could be changed ([#36387](https://github.com/apache/beam/issues/36387)).
 * Minimum Go version for Beam Go updated to 1.25.2 ([#36461](https://github.com/apache/beam/issues/36461)).
 * (Java) DoFn OutputReceiver now requires implementing a builder method as part of extended metadata support for elements ([#34902](https://github.com/apache/beam/issues/34902)).
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver's builder to set those field ([#36523]https://github.com/apache/beam/pull/36523).
 
 ## Bugfixes
 

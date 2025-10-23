@@ -642,7 +642,7 @@ class GcsIO(object):
 
   def is_soft_delete_enabled(self, gcs_path):
     try:
-      bucket_name, _ = parse_gcs_path(gcs_path)
+      bucket_name, _ = parse_gcs_path(gcs_path, object_optional=True)
       bucket = self.get_bucket(bucket_name)
       if (bucket.soft_delete_policy is not None and
           bucket.soft_delete_policy.retention_duration_seconds > 0):

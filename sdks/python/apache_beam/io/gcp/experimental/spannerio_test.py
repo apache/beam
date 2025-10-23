@@ -653,7 +653,40 @@ class SpannerWriteTest(unittest.TestCase):
                   max_number_rows=500,
                   max_number_cells=50))
           | beam.Map(lambda x: len(x)))
-      assert_that(res, equal_to([12, 12, 12, 12, 2]))
+
+      # Accept both optimal and suboptimal batching patterns due to Beam's
+      # non-deterministic execution
+      # Optimal: [12, 12, 12, 12, 2] - ideal batching without bundle
+      # fragmentation
+      # Suboptimal: [12, 12, 1, 12, 1, 12] - caused by bundle boundaries
+      # interrupting batching
+      optimal_batch_sizes = [12, 12, 12, 12, 2]
+      suboptimal_batch_sizes = [12, 12, 1, 12, 1, 12]
+
+      def validate_batching(actual_batch_sizes):
+        actual_sorted = sorted(actual_batch_sizes)
+        optimal_sorted = sorted(optimal_batch_sizes)
+        suboptimal_sorted = sorted(suboptimal_batch_sizes)
+
+        # Verify total element count first
+        total_elements = sum(actual_batch_sizes)
+        if total_elements != 50:
+          raise AssertionError(
+              f"Expected total of 50 elements, got {total_elements}")
+
+        # Accept either optimal or known suboptimal pattern
+        if actual_sorted == optimal_sorted:
+          # Optimal batching achieved
+          return True
+        elif actual_sorted == suboptimal_sorted:
+          # Known suboptimal pattern due to bundle fragmentation - acceptable
+          return True
+        else:
+          raise AssertionError(
+              f"Expected batch sizes {optimal_sorted} (optimal) or "
+              f"{suboptimal_sorted} (suboptimal), got {actual_sorted}")
+
+      assert_that(res, validate_batching)
 
   def test_write_mutation_error(self, *args):
     with self.assertRaises(ValueError):

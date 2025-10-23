@@ -94,7 +94,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
@@ -112,7 +111,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -2016,8 +2014,8 @@ public class KafkaIO {
         extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
 
       @ProcessElement
-      public void processElement(ProcessContext pc) {
-        KafkaRecord<K, V> element = pc.element();
+      public void processElement(
+          @Element KafkaRecord<K, V> element, OutputReceiver<KafkaRecord<K, V>> outputReceiver) {
         Long offset = null;
         String uniqueId = null;
         if (element != null) {
@@ -2025,13 +2023,7 @@ public class KafkaIO {
           uniqueId =
               (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
         }
-        pc.outputWindowedValue(
-            element,
-            pc.timestamp(),
-            Lists.newArrayList(GlobalWindow.INSTANCE),
-            pc.pane(),
-            uniqueId,
-            offset);
+        outputReceiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset).output();
       }
     }
 
