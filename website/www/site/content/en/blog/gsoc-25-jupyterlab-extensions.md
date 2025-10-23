@@ -29,7 +29,7 @@ limitations under the License.
 **Student:** [Canyu Chen] ([@Chenzo1001](https://github.com/Chenzo1001))
 **Mentors:** [XQ Hu] ([@liferoad](https://github.com/liferoad))
 **Organization:** [Apache Beam]
-**Proposal Link:** [Here](https://drive.google.com/file/d/1_J5Fczzwhzge5zP5-8YWawE3EiAH2wQG/view?usp=sharing)
+**Proposal Link:** [Here](https://drive.google.com/file/d/1gmrSUGpXMXujVnFffuj0UWQjbghWI8Oy/view?usp=sharing)
 
 # Project Overview
 
