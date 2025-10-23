@@ -52,3 +52,32 @@ In addition several [3rd party Java libraries](/documentation/sdks/java-thirdpar
 ## Java multi-language pipelines quickstart
 
 Apache Beam lets you combine transforms written in any supported SDK language and use them in one multi-language pipeline. To learn how to create a multi-language pipeline using the Java SDK, see the [Java multi-language pipelines quickstart](/documentation/sdks/java-multi-language-pipelines).
+
+## Java Version Compatibility
+
+<table class="table table-bordered">
+<tr>
+  <th>Java Version</th>
+  <th>Supported Beam Versions</th>
+</tr>
+<tr>
+  <td>25</td>
+  <td>&ge; 2.69.0</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td>&ge; 2.52.0</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td>&ge; 2.37.0</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td>&ge; 2.29.0</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td>2.x</td>
+</tr>
+</table>
