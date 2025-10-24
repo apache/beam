@@ -90,7 +90,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Install python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Get tag
@@ -244,7 +244,7 @@ jobs:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
     - name: Install Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.9
     - uses: docker/setup-qemu-action@v3
