@@ -27,6 +27,10 @@ The major components of Beam each have their own roadmap which you can find
 via the menu.
 Below are some highlights for the project as a whole.
 
+## Beam 3
+
+Beam 3 is the planned first major version upgrade. See https://s.apache.org/beam3-milestones for details.
+
 ## Portability Framework
 
 Portability is the primary Beam vision: running pipelines authored with _any SDK_
@@ -50,16 +54,15 @@ The Go SDK is not actively being developed beyond bugfixes due to lack of contri
 
 ## Python 3 support
 
-As of Apache Beam 2.61.0, Python 3.8 support has been removed. We support python version from 3.9 uptil Python 3.12. Supporting Python 3.13 is in our roadmap.
+As of Apache Beam 2.69.0, we support python version from 3.9 uptil Python 3.13. Supporting Python 3.14 is in our roadmap.
 
 See details on
 the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
 
-## Java 17 support
+## Java support
 
-Java 17 is already supported and Java's next LTS (Long Term Support)
-version (21) is already on roadmap. See details on
-the [Java SDK's Roadmap](/roadmap/java-sdk).
+As of Beam 2.69.0, we support Java 8, 11, 17, 21, 25. Java 8 support is deprecated and scheduled for removal in Beam 3.0.0.
+See details on the [Java SDK's Roadmap](/roadmap/java-sdk).
 
 ## SQL
 
@@ -76,9 +79,3 @@ Portable schemas enable compatibility between rows in Python and Java.
 A particularly interesting use case is the combination of SQL (implemented in Java)
 with the Python SDK via Beam's cross-language support.
 Learn more about portable schemas from this [presentation](https://s.apache.org/portable-schemas-seattle).
-
-## Euphoria
-
-Euphoria is Beam's newest API, offering a high-level, fluent style for
-Beam Java developers. See the [Euphoria API Roadmap](/roadmap/euphoria).
-

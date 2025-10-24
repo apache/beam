@@ -19,7 +19,14 @@ limitations under the License.
 
 # Beam Calcite SQL scalar functions
 
-This page documents the Apache Calcite functions supported by Beam Calcite SQL.
+This page documents the Apache Calcite functions supported by Beam Calcite SQL. The list is not exhausted.
+For a full list of Calcite builtin functions, please refer to [Apache Calcite reference](https://calcite.apache.org/docs/reference.html).
+Not all functions in Calcite documentations are supported.
+The support status depends on [Beam version](/documentation/dsls/sql/calcite/overview/#Calcite_Version_Compatibility) and support status on Calcite internals.
+
+In addition to standard SQL scalar functions, Beam SQL supports Calcite's
+[dialect-specific](https://calcite.apache.org/docs/reference.html#dialect-specific-operators)
+functions by configuring pipeline option `--calciteConnectionProperties={"fun":"<value>"}` (since Apache Beam 2.67.0).
 
 ## Comparison functions and operators
 
