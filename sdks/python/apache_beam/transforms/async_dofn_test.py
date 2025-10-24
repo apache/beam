@@ -423,9 +423,7 @@ class AsyncTest(unittest.TestCase):
       for i in range(0, 10):
         results[i].extend(
             async_dofn.commit_finished_items(
-                bag_states['key' + str(i)], timers['key' + str(i)]
-            )
-        )
+                bag_states['key' + str(i)], timers['key' + str(i)]))
         if not bag_states['key' + str(i)].items:
           self.check_output(results[i], expected_outputs['key' + str(i)])
         else:
@@ -435,6 +433,7 @@ class AsyncTest(unittest.TestCase):
     for i in range(0, 10):
       self.check_output(results[i], expected_outputs['key' + str(i)])
       self.assertEqual(bag_states['key' + str(i)].items, [])
+
 
 if __name__ == '__main__':
   unittest.main()
