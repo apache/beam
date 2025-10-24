@@ -53,6 +53,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.testing.BatchOnly;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -665,13 +666,13 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @Category({ValidatesRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testSimpleCombineEmpty() {
       runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @Category({ValidatesRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testBasicCombine() {
       runTestBasicCombine(
           Arrays.asList(KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)),
@@ -682,7 +683,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @Category({ValidatesRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testBasicCombineEmpty() {
       runTestBasicCombine(EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
     }
@@ -702,7 +703,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class})
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testHotKeyCombining() {
       PCollection<KV<String, Integer>> input =
           copy(
@@ -839,7 +840,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testCombinePerKeyPrimitiveDisplayData() {
       DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
@@ -909,7 +910,7 @@ public class CombineTest implements Serializable {
 
     /** Tests creation of a per-key binary {@link Combine} via a Java 8 lambda. */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testBinaryCombinePerKeyLambda() {
 
       PCollection<KV<String, Integer>> output =
@@ -923,7 +924,7 @@ public class CombineTest implements Serializable {
 
     /** Tests creation of a per-key {@link Combine} via a Java 8 method reference. */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testCombinePerKeyInstanceMethodReference() {
 
       PCollection<KV<String, Integer>> output =
@@ -937,7 +938,7 @@ public class CombineTest implements Serializable {
 
     /** Tests creation of a per-key binary {@link Combine} via a Java 8 method reference. */
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testBinaryCombinePerKeyInstanceMethodReference() {
 
       PCollection<KV<String, Integer>> output =
@@ -1001,7 +1002,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @Category({ValidatesRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testSimpleCombineWithContextEmpty() {
       runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
     }
@@ -1031,7 +1032,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @Category({ValidatesRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testHotKeyCombineWithSideInputs() {
       PCollection<KV<String, Integer>> input =
           createInput(
