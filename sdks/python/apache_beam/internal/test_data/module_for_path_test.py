@@ -16,6 +16,7 @@
 
 """A test module for source file path normalization."""
 
+
 def func_for_path_test():
   """A simple function for path normalization testing."""
   return "hello"

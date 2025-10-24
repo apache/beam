@@ -216,7 +216,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
 
   def test_best_effort_determinism_is_partially_supported(self):
     with self.assertLogs('apache_beam.internal.cloudpickle_pickler',
-                        "INFO") as l:
+                         "INFO") as l:
       dumps(123, enable_best_effort_determinism=True)
       self.assertIn(
           'Option not fully supported:'
@@ -224,7 +224,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
           'normalization for pickling.'
           'This has been fully implemented for dill.',
           '\n'.join(l.output))
-      
+
   def test_code_object_path_is_normalized(self):
     """Tests that cloudpickle normalizes a function's co_filename."""
     func = module_for_path_test.func_for_path_test
@@ -233,9 +233,11 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     unpickled_func = loads(dumps(func, enable_best_effort_determinism=True))
 
     unpickled_filename = unpickled_func.__code__.co_filename
-    expected_normalized_filename = 'apache_beam/internal/test_data/module_for_path_test.py'
+    expected_normalized_filename = 'apache_beam/internal/test_data/' \
+    'module_for_path_test.py'
 
     self.assertEqual(unpickled_filename, expected_normalized_filename)
+
 
 if __name__ == '__main__':
   unittest.main()

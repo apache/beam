@@ -157,7 +157,7 @@ def _dumps(
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
 
   if enable_stable_code_identifier_pickling:
-      config = STABLE_CODE_IDENTIFIER_CONFIG
+    config = STABLE_CODE_IDENTIFIER_CONFIG
   config_kwargs = config.__dict__.copy()
 
   if enable_best_effort_determinism:
@@ -166,7 +166,8 @@ def _dumps(
     config_kwargs['filepath_interceptor'] = cloudpickle.get_relative_path
     _LOGGER.info(
         'Option not fully supported:'
-        'enable_best_effort_determinism is True: Applying file path normalization for pickling.'
+        'enable_best_effort_determinism is True: Applying file path '
+        'normalization for pickling.'
         'This has been fully implemented for dill.')
 
   final_config = cloudpickle.CloudPickleConfig(**config_kwargs)
