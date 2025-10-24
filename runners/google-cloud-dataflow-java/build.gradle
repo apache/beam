@@ -440,6 +440,7 @@ task validatesRunnerStreaming {
     name: 'validatesRunnerLegacyWorkerTestStreaming',
     pipelineOptions: legacyPipelineOptions + ['--streaming'],
     excludedCategories: [
+      'org.apache.beam.sdk.testing.BatchOnly',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesMapState',
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
@@ -550,6 +551,7 @@ task validatesRunnerV2Streaming {
     name: 'validatesRunnerV2TestStreaming',
     pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
     excludedCategories: [
+      'org.apache.beam.sdk.testing.BatchOnly',
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
