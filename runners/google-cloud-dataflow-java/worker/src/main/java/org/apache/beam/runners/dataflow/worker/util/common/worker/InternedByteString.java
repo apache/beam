@@ -32,10 +32,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Intern
 @ThreadSafe
 public class InternedByteString {
 
-  private static final int MAP_CONCURRENCY = Math.max(4,
-    Runtime.getRuntime().availableProcessors());
+  private static final int MAP_CONCURRENCY =
+      Math.max(4, Runtime.getRuntime().availableProcessors());
   private static final Interner<InternedByteString> ENCODED_KEY_INTERNER =
-    Interners.newBuilder().weak().concurrencyLevel(MAP_CONCURRENCY).build();
+      Interners.newBuilder().weak().concurrencyLevel(MAP_CONCURRENCY).build();
 
   // ints don't tear and it is safe to cache without synchronization.
   // Defaults to 0.
