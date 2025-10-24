@@ -265,7 +265,31 @@ Execute the following code for running tests using tox:
 
 ### Running Tests Using gradle
 
-Integration tests suites on Jenkins are configured in groovy files that launch certain gradle tasks ([example](https://github.com/apache/beam/blob/0fd6a044df5b9f26d567e0f9a619a665a0f4043b/.test-infra/jenkins/job_PostCommit_Python.groovy#L43)). You could launch test suites locally by executing the gradle targets directly (for example: `./gradlew :sdks:python:test-suites:dataflow:py39:postCommitPy39`). This option may only be available to committers, as by default the test suites are configured to use the [`apache-beam-testing`](https://github.com/apache/beam/blob/0fd6a044df5b9f26d567e0f9a619a665a0f4043b/sdks/python/scripts/run_integration_test.sh#L70) project.
+Integration tests suites on Jenkins are configured in groovy files that launch certain gradle tasks ([example](https://github.com/apache/beam/blob/0fd6a044df5b9f26d567e0f9a619a665a0f4043b/.test-infra/jenkins/job_PostCommit_Python.groovy#L43)). You could launch test suites locally by executing the gradle targets directly (for example: `./gradlew :sdks:python:test-suites:dataflow:py39:postCommitPy39`). This option may only be available to committers, as by default the test suites are configured to use the [`apache-beam-testing`](https://github.com/apache/beam/blob/0fd6a044df5b9f26d567e0f9a619a665a0f4043b/sdks/python/scripts/run_integration_test.sh#L70) project.
+
+### Environment Variables for Test Stability
+
+The following environment variables can be used to improve test stability in CI environments:
+
+**Beam-specific settings:**
+- `BEAM_TESTING_FORCE_SINGLE_BUNDLE=true` - Forces single bundle execution for deterministic behavior
+- `BEAM_TESTING_DETERMINISTIC_ORDER=true` - Enables deterministic ordering of operations
+- `BEAM_RETRY_MAX_ATTEMPTS=5` - Maximum retry attempts for failed operations
+- `BEAM_RETRY_INITIAL_DELAY_MS=1000` - Initial delay between retries in milliseconds
+- `BEAM_RETRY_MAX_DELAY_MS=60000` - Maximum delay between retries in milliseconds
+- `BEAM_RUNNER_BUNDLE_TIMEOUT_MS=300000` - Bundle processing timeout in milliseconds
+
+**gRPC stability settings:**
+- `GRPC_ARG_KEEPALIVE_TIME_MS=30000` - gRPC keepalive time
+- `GRPC_ARG_KEEPALIVE_TIMEOUT_MS=5000` - gRPC keepalive timeout
+- `GRPC_ARG_MAX_RECONNECT_BACKOFF_MS=120000` - Maximum reconnection backoff
+- `GRPC_ARG_MAX_CONNECTION_IDLE_MS=300000` - Maximum connection idle time
+
+**Test execution settings:**
+- `PYTEST_XDIST_WORKER_COUNT=1` - Force sequential test execution
+- `PYTHONHASHSEED=0` - Ensure deterministic hash behavior
+- `OMP_NUM_THREADS=1` - Limit OpenMP threads
+- `OPENBLAS_NUM_THREADS=1` - Limit OpenBLAS threads
 
 To run only a subset of tests using this approach, you could adjust the test label in the test (such as [it_postcommit](https://github.com/apache/beam/blob/25e6008e8919c2f31eaebae2662b44e02f9f37a1/sdks/python/apache_beam/io/gcp/pubsub_integration_test.py#L211)) and the [selector](https://github.com/apache/beam/blob/25e6008e8919c2f31eaebae2662b44e02f9f37a1/sdks/python/test-suites/dataflow/common.gradle#L117) where the test suite is defined.
 
