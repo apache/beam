@@ -51,21 +51,20 @@ public class RowJsonUtils {
    * overwrite the default buffer size limit to 100 MB, and exposes this interface for higher limit.
    * If needed, call this method during pipeline run time, e.g. in DoFn.setup.
    */
-  public static void increaseDefaultStreamReadConstraints(int newLimit) {
-    if (newLimit <= defaultBufferLimit) {
-      return;
-    }
-    try {
-      Class<?> unused = Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
+  public static synchronized void increaseDefaultStreamReadConstraints(int newLimit) {
+    if (newLimit > defaultBufferLimit) {
+      try {
+        Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
 
-      com.fasterxml.jackson.core.StreamReadConstraints.overrideDefaultStreamReadConstraints(
-          com.fasterxml.jackson.core.StreamReadConstraints.builder()
-              .maxStringLength(newLimit)
-              .build());
-    } catch (ClassNotFoundException e) {
-      // <2.15, do nothing
+        com.fasterxml.jackson.core.StreamReadConstraints.overrideDefaultStreamReadConstraints(
+            com.fasterxml.jackson.core.StreamReadConstraints.builder()
+                .maxStringLength(newLimit)
+                .build());
+      } catch (ClassNotFoundException e) {
+        // <2.15, do nothing
+      }
+      defaultBufferLimit = newLimit;
     }
-    defaultBufferLimit = newLimit;
   }
 
   static {
@@ -101,7 +100,7 @@ public class RowJsonUtils {
    * factory to higher limits. If needed, call this method during pipeline run time, e.g. in
    * DoFn.setup. This avoids a data race caused by modifying the global default settings.
    */
-  public static JsonFactory createJsonFactory(int sizeLimit) {
+  public static synchronized JsonFactory createJsonFactory(int sizeLimit) {
     sizeLimit = Math.max(sizeLimit, MAX_STRING_LENGTH);
     JsonFactory jsonFactory = new JsonFactory();
     if (STREAM_READ_CONSTRAINTS_AVAILABLE) {
