@@ -25,8 +25,10 @@ import unittest
 
 from apache_beam.coders import proto2_coder_test_messages_pb2
 from apache_beam.internal import module_test
+from apache_beam.internal.cloudpickle import register_pickle_by_value
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
+from apache_beam.internal.test_data import module_for_path_test
 from apache_beam.utils import shared
 
 GLOBAL_DICT_REF = module_test.GLOBAL_DICT
@@ -212,14 +214,28 @@ from apache_beam.internal.module_test import DataClass
 self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
 
-  def test_best_effort_determinism_not_implemented(self):
+  def test_best_effort_determinism_is_partially_supported(self):
     with self.assertLogs('apache_beam.internal.cloudpickle_pickler',
-                         "WARNING") as l:
+                        "INFO") as l:
       dumps(123, enable_best_effort_determinism=True)
       self.assertIn(
-          'Ignoring unsupported option: enable_best_effort_determinism',
+          'Option not fully supported:'
+          'enable_best_effort_determinism is True: Applying file path '
+          'normalization for pickling.'
+          'This has been fully implemented for dill.',
           '\n'.join(l.output))
+      
+  def test_code_object_path_is_normalized(self):
+    """Tests that cloudpickle normalizes a function's co_filename."""
+    func = module_for_path_test.func_for_path_test
 
+    register_pickle_by_value(module_for_path_test)
+    unpickled_func = loads(dumps(func, enable_best_effort_determinism=True))
+
+    unpickled_filename = unpickled_func.__code__.co_filename
+    expected_normalized_filename = 'apache_beam/internal/test_data/module_for_path_test.py'
+
+    self.assertEqual(unpickled_filename, expected_normalized_filename)
 
 if __name__ == '__main__':
   unittest.main()

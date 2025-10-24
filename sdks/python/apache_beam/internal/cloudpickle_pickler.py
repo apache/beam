@@ -156,17 +156,23 @@ def _dumps(
     enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
 
+  if enable_stable_code_identifier_pickling:
+      config = STABLE_CODE_IDENTIFIER_CONFIG
+  config_kwargs = config.__dict__.copy()
+
   if enable_best_effort_determinism:
     # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
     # is merged in.
-    _LOGGER.warning(
-        'Ignoring unsupported option: enable_best_effort_determinism. '
-        'This has only been implemented for dill.')
+    config_kwargs['filepath_interceptor'] = cloudpickle.get_relative_path
+    _LOGGER.info(
+        'Option not fully supported:'
+        'enable_best_effort_determinism is True: Applying file path normalization for pickling.'
+        'This has been fully implemented for dill.')
+
+  final_config = cloudpickle.CloudPickleConfig(**config_kwargs)
   with _pickle_lock:
     with io.BytesIO() as file:
-      if enable_stable_code_identifier_pickling:
-        config = STABLE_CODE_IDENTIFIER_CONFIG
-      pickler = cloudpickle.CloudPickler(file, config=config)
+      pickler = cloudpickle.CloudPickler(file, config=final_config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
