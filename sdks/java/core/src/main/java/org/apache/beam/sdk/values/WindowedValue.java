@@ -52,7 +52,7 @@ public interface WindowedValue<T> {
   @Nullable
   Long getRecordOffset();
 
-  boolean isDraining();
+  boolean causedByDrain();
 
   /**
    * A representation of each of the actual values represented by this compressed {@link

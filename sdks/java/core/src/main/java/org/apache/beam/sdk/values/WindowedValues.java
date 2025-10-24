@@ -99,7 +99,7 @@ public class WindowedValues {
     private @MonotonicNonNull Collection<? extends BoundedWindow> windows;
     private @Nullable String recordId;
     private @Nullable Long recordOffset;
-    private boolean draining;
+    private boolean causedByDrain;
 
     @Override
     public Builder<T> setValue(T value) {
@@ -144,8 +144,8 @@ public class WindowedValues {
     }
 
     @Override
-    public Builder<T> setDraining(boolean draining) {
-      this.draining = draining;
+    public Builder<T> setCausedByDrain(boolean causedByDrain) {
+      this.causedByDrain = causedByDrain;
       return this;
     }
 
@@ -198,8 +198,8 @@ public class WindowedValues {
     }
 
     @Override
-    public boolean isDraining() {
-      return draining;
+    public boolean causedByDrain() {
+      return causedByDrain;
     }
 
     @Override
@@ -231,7 +231,7 @@ public class WindowedValues {
 
     public WindowedValue<T> build() {
       return WindowedValues.of(
-          getValue(), getTimestamp(), getWindows(), getPaneInfo(), null, null, isDraining());
+          getValue(), getTimestamp(), getWindows(), getPaneInfo(), null, null, causedByDrain());
     }
 
     @Override
@@ -241,7 +241,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("windows", getWindows())
           .add("paneInfo", getPaneInfo())
-          .add("draining", isDraining())
+          .add("causedByDrain", causedByDrain())
           .add("receiver", receiver)
           .toString();
     }
@@ -260,15 +260,15 @@ public class WindowedValues {
       PaneInfo paneInfo,
       @Nullable String currentRecordId,
       @Nullable Long currentRecordOffset,
-      boolean draining) {
+      boolean causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo, draining);
+      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
     } else {
       return new TimestampedValueInMultipleWindows<>(
-          value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, draining);
+          value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
   }
 
@@ -279,12 +279,12 @@ public class WindowedValues {
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo paneInfo,
-      boolean draining) {
+      boolean causedByDrain) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo, draining);
+      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
     } else {
       return new TimestampedValueInMultipleWindows<>(
-          value, timestamp, windows, paneInfo, null, null, draining);
+          value, timestamp, windows, paneInfo, null, null, causedByDrain);
     }
   }
 
@@ -298,17 +298,18 @@ public class WindowedValues {
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
   public static <T> WindowedValue<T> of(
-      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, boolean draining) {
+      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, boolean causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value, paneInfo);
     } else if (isGlobal) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null, draining);
+      return new TimestampedValueInGlobalWindow<>(
+          value, timestamp, paneInfo, null, null, causedByDrain);
     } else {
       return new TimestampedValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, draining);
+          value, timestamp, window, paneInfo, null, null, causedByDrain);
     }
   }
 
@@ -367,7 +368,7 @@ public class WindowedValues {
         windowedValue.getPaneInfo(),
         windowedValue.getRecordId(),
         windowedValue.getRecordOffset(),
-        windowedValue.isDraining());
+        windowedValue.causedByDrain());
   }
 
   public static <T> boolean equals(
@@ -418,7 +419,7 @@ public class WindowedValues {
     private final PaneInfo paneInfo;
     private final @Nullable String currentRecordId;
     private final @Nullable Long currentRecordOffset;
-    private final boolean draining;
+    private final boolean causedByDrain;
 
     @Override
     public @Nullable String getRecordId() {
@@ -431,8 +432,8 @@ public class WindowedValues {
     }
 
     @Override
-    public boolean isDraining() {
-      return draining;
+    public boolean causedByDrain() {
+      return causedByDrain;
     }
 
     protected SimpleWindowedValue(
@@ -440,12 +441,12 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean draining) {
+        boolean causedByDrain) {
       this.value = value;
       this.paneInfo = checkNotNull(paneInfo);
       this.currentRecordId = currentRecordId;
       this.currentRecordOffset = currentRecordOffset;
-      this.draining = draining;
+      this.causedByDrain = causedByDrain;
     }
 
     @Override
@@ -494,8 +495,8 @@ public class WindowedValues {
         PaneInfo pane,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean draining) {
-      super(value, pane, currentRecordId, currentRecordOffset, draining);
+        boolean causedByDrain) {
+      super(value, pane, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
     @Override
@@ -513,8 +514,8 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean draining) {
-      super(value, paneInfo, currentRecordId, currentRecordOffset, draining);
+        boolean causedByDrain) {
+      super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
     @Override
@@ -530,7 +531,7 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new ValueInGlobalWindow<>(
-          newValue, getPaneInfo(), getRecordId(), getRecordOffset(), isDraining());
+          newValue, getPaneInfo(), getRecordId(), getRecordOffset(), causedByDrain());
     }
 
     @Override
@@ -554,7 +555,7 @@ public class WindowedValues {
       return MoreObjects.toStringHelper(getClass())
           .add("value", getValue())
           .add("paneInfo", getPaneInfo())
-          .add("draining", isDraining())
+          .add("causedByDrain", causedByDrain())
           .toString();
     }
   }
@@ -569,8 +570,8 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean draining) {
-      super(value, paneInfo, currentRecordId, currentRecordOffset, draining);
+        boolean causedByDrain) {
+      super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.timestamp = checkNotNull(timestamp);
     }
 
@@ -593,8 +594,8 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean draining) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, draining);
+        boolean causedByDrain) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
     @Override
@@ -610,7 +611,12 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInGlobalWindow<>(
-          newValue, getTimestamp(), getPaneInfo(), getRecordId(), getRecordOffset(), isDraining());
+          newValue,
+          getTimestamp(),
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain());
     }
 
     @Override
@@ -640,7 +646,7 @@ public class WindowedValues {
           .add("value", getValue())
           .add("timestamp", getTimestamp())
           .add("paneInfo", getPaneInfo())
-          .add("draining", isDraining())
+          .add("causedByDrain", causedByDrain())
           .toString();
     }
   }
@@ -661,8 +667,8 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean draining) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, draining);
+        boolean causedByDrain) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.window = checkNotNull(window);
     }
 
@@ -675,7 +681,7 @@ public class WindowedValues {
           getPaneInfo(),
           getRecordId(),
           getRecordOffset(),
-          isDraining());
+          causedByDrain());
     }
 
     @Override
@@ -717,7 +723,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("window", window)
           .add("paneInfo", getPaneInfo())
-          .add("draining", isDraining())
+          .add("causedByDrain", causedByDrain())
           .toString();
     }
   }
@@ -733,8 +739,8 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        boolean draining) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, draining);
+        boolean causedByDrain) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.windows = checkNotNull(windows);
     }
 
@@ -752,7 +758,7 @@ public class WindowedValues {
           getPaneInfo(),
           getRecordId(),
           getRecordOffset(),
-          isDraining());
+          causedByDrain());
     }
 
     @Override
@@ -790,7 +796,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("windows", windows)
           .add("paneInfo", getPaneInfo())
-          .add("draining", isDraining())
+          .add("causedByDrain", causedByDrain())
           .toString();
     }
 
@@ -909,7 +915,7 @@ public class WindowedValues {
         BeamFnApi.Elements.ElementMetadata em =
             builder
                 .setDrain(
-                    windowedElem.isDraining()
+                    windowedElem.causedByDrain()
                         ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
                         : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
                 .build();
@@ -930,12 +936,12 @@ public class WindowedValues {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
-      boolean draining = false;
+      boolean causedByDrain = false;
       if (isMetadataSupported() && paneInfo.isElementMetadata()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
         boolean b = elementMetadata.hasDrain();
-        draining =
+        causedByDrain =
             b
                 ? elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
                 : false;
@@ -944,7 +950,8 @@ public class WindowedValues {
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
       // we call this deprecated no-validation path when decoding
-      return WindowedValues.createWithoutValidation(value, timestamp, windows, paneInfo, draining);
+      return WindowedValues.createWithoutValidation(
+          value, timestamp, windows, paneInfo, causedByDrain);
     }
 
     @Override

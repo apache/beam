@@ -104,7 +104,7 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
-    Assert.assertTrue(value.isDraining());
+    Assert.assertTrue(value.causedByDrain());
   }
 
   @Test

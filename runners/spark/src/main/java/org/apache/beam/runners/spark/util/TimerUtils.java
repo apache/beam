@@ -116,7 +116,7 @@ public class TimerUtils {
     }
 
     @Override
-    public boolean isDraining() {
+    public boolean causedByDrain() {
       return false;
     }
 
