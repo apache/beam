@@ -1379,7 +1379,7 @@ class BatchViewOverrides {
     }
 
     @Override
-    public boolean isDraining() {
+    public boolean causedByDrain() {
       return false;
     }
 
