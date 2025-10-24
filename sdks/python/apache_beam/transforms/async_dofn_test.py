@@ -416,6 +416,10 @@ class AsyncTest(unittest.TestCase):
       add_item(i)
       time.sleep(random.random())
 
+    # Run for a while. Should be enough to start all items but not finish them
+    # all.
+    time.sleep(random.randint(30, 50))
+
     done = False
     results = [[] for _ in range(0, 10)]
     while not done:
