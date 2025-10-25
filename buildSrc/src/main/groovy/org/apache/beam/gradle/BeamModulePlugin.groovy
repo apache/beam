@@ -631,6 +631,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def everit_json_version = "1.14.2"
     def kafka_version = "2.4.1"
     def log4j2_version = "2.20.0"
+    def logback_version = "1.5.20"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.110.Final"
@@ -1287,6 +1288,11 @@ class BeamModulePlugin implements Plugin<Project> {
             // the same classes as hamcrest.
             force "org.hamcrest:hamcrest-core:$hamcrest_version"
             force "org.hamcrest:hamcrest-library:$hamcrest_version"
+
+            // hadoop uses an old version of logback with CVE reports
+            // force all transitive logback deps to a newer one
+            force "ch.qos.logback:logback-classic:$logback_version"
+            force "ch.qos.logback:logback-core:$logback_version"
           }
         }
       }
