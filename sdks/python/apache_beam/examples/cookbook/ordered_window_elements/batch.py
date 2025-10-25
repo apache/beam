@@ -42,14 +42,33 @@ from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused
 
 class FanOutToWindows(beam.DoFn):
   """
-  Assigns each element to all the sliding windows that contain it.
-  """
+  Assigns each element to all the windows that contain it.
+
+  This DoFn is used to expand a single element into multiple elements, each
+  associated with a specific window.
+
+  Args:
+    duration: The duration of each window in seconds.
+    slide_interval: The interval at which windows slide in seconds.
+    offset: The offset for window alignment in seconds.
+"""
   def __init__(self, duration, slide_interval, offset):
     self.duration = duration
     self.slide_interval = slide_interval
     self.offset = offset
 
   def process(self, element):
+    """
+    Processes an element and assigns it to relevant windows.
+
+    Args:
+      element: A tuple (timestamp, value) where timestamp is a Timestamp object
+               and value is the actual element data.
+
+    Yields:
+      A tuple ((window_start, window_end), element) for each window the
+      element belongs to.
+    """
     timestamp = element[0]
     timestamp_secs = timestamp.micros / 1e6
 
@@ -97,12 +116,30 @@ class FanOutToWindows(beam.DoFn):
 class FanOutToSlideBoundaries(beam.DoFn):
   """
   Assigns each element to a window representing its slide.
+
+  This DoFn is used to group elements by the start of the slide they belong to.
+  This is a preliminary step for generating context information for window gaps.
+
+  Args:
+    slide_interval: The interval at which windows slide in seconds.
+    offset: The offset for window alignment in seconds.
   """
   def __init__(self, slide_interval, offset):
     self.slide_interval = slide_interval
     self.offset = offset
 
   def process(self, element):
+    """
+    Processes an element and assigns it to its corresponding slide boundary.
+
+    Args:
+      element: A tuple (timestamp, value) where timestamp is a Timestamp object
+               and value is the actual element data.
+
+    Yields:
+      A tuple (slide_start, element) where slide_start is the beginning
+      timestamp of the slide the element belongs to.
+    """
     timestamp = element[0]
     timestamp_secs = timestamp.micros / 1e6
 
@@ -118,9 +155,22 @@ class FanOutToSlideBoundaries(beam.DoFn):
     yield slide_start, element
 
 
-# context stores the value to fill if there is a gap at the beginning of a
-# window.
 class GenerateContextDoFn(beam.DoFn):
+  """
+  Generates context information for filling gaps in windows.
+
+  This DoFn uses Beam's state and timer features to collect elements within
+  slides and emit a "context" value for each slide. This context value is
+  typically the element with the maximum timestamp within that slide, which
+  can then be used to forward-fill empty windows or gaps at the start of
+  windows.
+
+  Args:
+    duration: The duration of each window in seconds.
+    slide_interval: The interval at which windows slide in seconds.
+    offset: The offset for window alignment in seconds.
+    default: The default value to use when no context is available.
+  """
   ORDERED_BUFFER_STATE = OrderedListStateSpec('ordered_buffer', PickleCoder())
   WINDOW_TIMER = TimerSpec('window_timer', TimeDomain.WATERMARK)
   TIMER_STATE = ReadModifyWriteStateSpec('timer_state', BooleanCoder())
@@ -139,7 +189,16 @@ class GenerateContextDoFn(beam.DoFn):
       timer_state=beam.DoFn.StateParam(TIMER_STATE),
       ordered_buffer=beam.DoFn.StateParam(ORDERED_BUFFER_STATE),
   ):
+    """
+    Buffers elements and sets a timer to process them when the window closes.
 
+    Args:
+      element: The input element, expected to be (key, (slide_start, value)).
+      timestamp: The timestamp of the element.
+      window_timer: The timer for the current window.
+      timer_state: State to track if the timer has been started.
+      ordered_buffer: Ordered list state to buffer elements.
+    """
     _, (slide_start, value) = element
 
     ordered_buffer.add((Timestamp.of(slide_start), value))
@@ -155,6 +214,19 @@ class GenerateContextDoFn(beam.DoFn):
       self,
       ordered_buffer=beam.DoFn.StateParam(ORDERED_BUFFER_STATE),
   ):
+    """
+    Emits context results when the window timer fires.
+
+    This method processes the buffered elements, identifies the maximum
+    timestamp element for each slide, and yields context values to fill
+    potential gaps in subsequent windows.
+
+    Args:
+      ordered_buffer: Ordered list state containing buffered elements.
+
+    Yields:
+      A tuple (timestamp, element) representing the context for a slide.
+    """
     # Emit the context result once we collect all elements
     prev_max_timestamp_element = None
     prev_max_timestamp = MIN_TIMESTAMP
@@ -182,6 +254,14 @@ class GenerateContextDoFn(beam.DoFn):
 
 
 class WindowGapStrategy(Enum):
+  """
+  Defines strategies for handling gaps in windows.
+
+  Attributes:
+    IGNORE: Do nothing for empty windows or gaps.
+    DISCARD: Discard the window. Only applied to empty windows.
+    FORWARD_FILL: Fill empty windows or gaps with the last known value.
+  """
   IGNORE = 1
   DISCARD = 2
   FORWARD_FILL = 3
@@ -189,8 +269,20 @@ class WindowGapStrategy(Enum):
 
 class WindowGapFillingDoFn(beam.DoFn):
   """
-  Fills the start of windows with a default value if they are empty, and
-  generates placeholder windows for completely empty slides.
+  On-demand filling the start gaps of a window or empty windows.
+
+  This DoFn takes windowed data and a side input containing context information
+  (e.g., the last element from a previous slide). It uses this context to
+  fill gaps at the beginning of windows or to generate entire empty windows
+  based on the configured gap filling strategies.
+
+  Args:
+    duration: The duration of each window in seconds.
+    slide_interval: The interval at which windows slide in seconds.
+    default: The default value to use for filling gaps.
+    empty_window_strategy: The strategy for handling completely empty windows.
+    window_start_gap_strategy: The strategy for handling gaps at the
+                                start of non-empty windows.
   """
   def __init__(
       self,
@@ -206,6 +298,19 @@ class WindowGapFillingDoFn(beam.DoFn):
     self.window_start_gap_strategy = window_start_gap_strategy
 
   def process(self, element, context_side):
+    """
+    Processes a window of elements and fills gaps according to strategies.
+
+    Args:
+      element: A tuple (window, values) where window is (start_ts, end_ts)
+               and values is a list of elements within that window.
+      context_side: A side input (AsDict) containing context information
+                    (slide_start -> max_timestamp_element) for previous slides.
+
+    Yields:
+      A tuple ((window_start, window_end), filled_values) where filled_values
+      is the list of elements for the window, potentially with gaps filled.
+    """
     window, values = element
     window_start_ts = Timestamp.of(window[0])
 
@@ -272,6 +377,16 @@ class WindowGapFillingDoFn(beam.DoFn):
 
 
 def max_timestamp_element(elements):
+  """
+  Finds the element with the maximum timestamp from a list of elements.
+
+  Args:
+    elements: A list of elements, where each element is a tuple
+              (timestamp, value).
+
+  Returns:
+    The element with the maximum timestamp, or None if the list is empty.
+  """
   max_timestamp = MIN_TIMESTAMP
   ret = None
   for e in elements:
@@ -282,6 +397,27 @@ def max_timestamp_element(elements):
 
 
 class OrderedWindowElements(PTransform):
+  """
+  A PTransform that orders elements within windows and fills gaps.
+
+  This transform takes a PCollection of elements, assigns them to windows, and
+  then processes these windows to ensure elements are ordered and to fill any
+  gaps (empty windows or gaps at the start of windows) based on specified
+  strategies.
+
+  Args:
+    duration: The duration of each window.
+    slide_interval: The interval at which windows slide. Defaults to `duration`.
+    offset: The offset for window alignment.
+    default_start_value: The default value to use for filling gaps at the
+                          start of windows.
+    empty_window_strategy: The strategy for handling completely empty windows.
+    window_start_gap_strategy: The strategy for handling gaps at the
+                                start of non-empty windows.
+    timestamp: An optional callable to extract a timestamp from an element.
+                If not provided, elements are assumed to be (timestamp, value)
+                tuples.
+  """
   def __init__(
       self,
       duration: DurationTypes,
@@ -305,9 +441,29 @@ class OrderedWindowElements(PTransform):
           "due to potential data loss.")
 
   def key_with_timestamp(self, element) -> tuple[Timestamp, Any]:
+    """
+    Extracts the timestamp from an element and keys it with the element.
+
+    Args:
+      element: The input element.
+
+    Returns:
+      A tuple (timestamp, element).
+    """
     return self.timestamp_func(element), element
 
   def expand(self, input):
+    """
+    Applies the PTransform to the input PCollection.
+
+    Args:
+      input: The input PCollection of elements.
+
+    Returns:
+      A PCollection of ((window_start, window_end), [ordered_elements])
+      where ordered_elements are sorted by timestamp and gaps are filled
+      according to the specified strategies.
+    """
     if self.timestamp_func:
       input = input | beam.Map(self.key_with_timestamp)
 
