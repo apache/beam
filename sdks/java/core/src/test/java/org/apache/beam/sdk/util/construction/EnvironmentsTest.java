@@ -219,6 +219,9 @@ public class EnvironmentsTest implements Serializable {
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.ORDERED_LIST_STATE)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.MULTIMAP_STATE)));
     // Check that SDF truncation is supported
     assertThat(
         Environments.getJavaCapabilities(),
