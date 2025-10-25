@@ -32,6 +32,7 @@ import java.time.temporal.TemporalUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -1036,6 +1037,39 @@ public class AvroUtilsTest {
     Row deserializedRow = toRowFn.apply(serializedRow);
 
     assertEquals(row, deserializedRow);
+  }
+
+  @Test
+  public void testBeamTimestampLogicalTypeToAvro() {
+    // Tests special handling for Beam's MicrosInstant logical type
+    // Only one way (Beam to Avro)
+
+    Schema beamSchema =
+        Schema.builder().addLogicalTypeField("timestampMicrosLT", SqlTypes.TIMESTAMP).build();
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "timestampMicrosLT",
+            LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
+            "",
+            (Object) null));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
+
+    assertEquals(avroSchema, AvroUtils.toAvroSchema(beamSchema));
+
+    java.time.Instant instant =
+        java.time.Instant.ofEpochMilli(DATE_TIME.getMillis()).plusNanos(123000);
+    Row beamRow = Row.withSchema(beamSchema).addValue(instant).build();
+    GenericRecord avroRecord =
+        new GenericRecordBuilder(avroSchema)
+            .set(
+                "timestampMicrosLT",
+                TimeUnit.SECONDS.toMicros(instant.getEpochSecond())
+                    + TimeUnit.NANOSECONDS.toMicros(instant.getNano()))
+            .build();
+
+    assertEquals(avroRecord, AvroUtils.toGenericRecord(beamRow));
   }
 
   @Test
