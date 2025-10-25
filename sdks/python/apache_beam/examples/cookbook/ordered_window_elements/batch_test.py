@@ -17,6 +17,8 @@
 
 import logging
 import random
+import shutil
+import sys
 import unittest
 
 from parameterized import param
@@ -78,10 +80,16 @@ def _convert_timestamp_to_int():
        [(int(t.micros // 1e6), v) for t, v in elements]))
 
 
+_go_installed = shutil.which('go') is not None
+_in_windows = sys.platform == "win32"
+
+
+@unittest.skipUnless(_go_installed, 'Go is not installed.')
+# TODO: Go environments is not configured correctly on Windows test boxes.
+@unittest.skipIf(_in_windows, reason="Not supported on Windows")
 class OrderedWindowElementsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.options = PipelineOptions([
-        "--streaming",
         "--environment_type=LOOPBACK",
         "--runner=PrismRunner",
         "--prism_log_kind=dev",
