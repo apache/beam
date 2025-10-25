@@ -98,6 +98,7 @@ import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.BatchOnly;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -405,7 +406,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testParDoEmpty() {
 
       List<Integer> inputs = Arrays.asList();
@@ -421,7 +422,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testParDoEmptyOutputs() {
 
       List<Integer> inputs = Arrays.asList();
@@ -442,7 +443,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testParDoInCustomTransform() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -629,7 +630,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testPipelineOptionsParameter() {
       PCollection<String> results =
           pipeline
@@ -728,7 +729,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testParDoEmptyWithTaggedOutput() {
       TupleTag<String> mainOutputTag = new TupleTag<String>("main") {};
       TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1") {};
@@ -770,7 +771,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testParDoWithEmptyTaggedOutput() {
       TupleTag<String> mainOutputTag = new TupleTag<String>("main") {};
       TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1") {};
@@ -794,7 +795,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category({ValidatesRunner.class, BatchOnly.class})
     public void testParDoWithOnlyTaggedOutput() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -823,7 +824,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category({NeedsRunner.class, BatchOnly.class})
     public void testParDoWritingToUndeclaredTag() {
       List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -906,7 +907,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesSideInputs.class})
+    @Category({NeedsRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testSideInputAnnotationFailedValidationMissing() {
       // SideInput tag id
       final String sideInputTag1 = "tag1";
@@ -923,7 +924,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesSideInputs.class})
+    @Category({NeedsRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testSideInputAnnotationFailedValidationSingletonType() {
 
       final PCollectionView<Integer> sideInput1 =
@@ -948,7 +949,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesSideInputs.class})
+    @Category({NeedsRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testSideInputAnnotationFailedValidationListType() {
 
       final PCollectionView<List<Integer>> sideInput1 =
@@ -973,7 +974,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesSideInputs.class})
+    @Category({NeedsRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testSideInputAnnotationFailedValidationIterableType() {
 
       final PCollectionView<Iterable<Integer>> sideInput1 =
@@ -998,7 +999,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesSideInputs.class})
+    @Category({NeedsRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testSideInputAnnotationFailedValidationMapType() {
 
       final PCollectionView<Map<Integer, Integer>> sideInput1 =
@@ -1048,7 +1049,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @Category({ValidatesRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testSideInputAnnotation() {
 
       final PCollectionView<List<Integer>> sideInput1 =
@@ -1184,7 +1185,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    @Category({ValidatesRunner.class, UsesSideInputs.class, BatchOnly.class})
     public void testParDoWithSideInputsIsCumulative() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -1294,7 +1295,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category({NeedsRunner.class, BatchOnly.class})
     public void testParDoReadingFromUnknownSideInput() {
 
       List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -1506,7 +1507,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category({NeedsRunner.class, BatchOnly.class})
     public void testMainOutputUnregisteredExplicitCoder() {
 
       PCollection<Integer> input = pipeline.apply(Create.of(Arrays.asList(1, 2, 3)));
@@ -1524,7 +1525,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category(NeedsRunner.class)
+    @Category({NeedsRunner.class, BatchOnly.class})
     public void testMainOutputApplyTaggedOutputNoCoder() {
       // Regression test: applying a transform to the main output
       // should not cause a crash based on lack of a coder for the

@@ -52,6 +52,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.testing.BatchOnly;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -101,7 +102,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, BatchOnly.class})
   public void testCreateEmpty() {
     PCollection<String> output = p.apply(Create.empty(StringUtf8Coder.of()));
 
@@ -125,7 +126,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, BatchOnly.class})
   public void testCreateEmptyIterableWithCoder() {
     PCollection<Void> output =
         p.apply(Create.of(Collections.<Void>emptyList()).withCoder(VoidCoder.of()));
@@ -161,7 +162,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, BatchOnly.class})
   public void testCreateWithNullsAndValues() throws Exception {
     PCollection<String> output =
         p.apply(
