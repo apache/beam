@@ -14,6 +14,7 @@ dependencies {
   implementation("com.google.auto.value:auto-value-annotations:1.11.0")
 
   // testing
+  testImplementation(project(":runners:direct-java"))
   testImplementation("junit:junit:4.13.2")
   testImplementation(project(":sdks:java:testing:test-utils"))
 }

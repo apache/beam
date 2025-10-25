@@ -6,10 +6,12 @@ public class OpenAiModelParameters implements BaseModelParameters {
 
   private final String apiKey;
   private final String modelName;
+  private final String instructionPrompt;
 
   private OpenAiModelParameters(Builder builder) {
     this.apiKey = builder.apiKey;
     this.modelName = builder.modelName;
+    this.instructionPrompt = builder.instructionPrompt;
   }
 
   public String getApiKey() {
@@ -20,6 +22,10 @@ public class OpenAiModelParameters implements BaseModelParameters {
     return modelName;
   }
 
+  public String getInstructionPrompt() {
+    return instructionPrompt;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -27,6 +33,7 @@ public class OpenAiModelParameters implements BaseModelParameters {
   public static class Builder {
     private String apiKey;
     private String modelName;
+    private String instructionPrompt;
 
     private Builder() {
     }
@@ -38,6 +45,11 @@ public class OpenAiModelParameters implements BaseModelParameters {
 
     public Builder modelName(String modelName) {
       this.modelName = modelName;
+      return this;
+    }
+
+    public Builder instructionPrompt(String prompt) {
+      this.instructionPrompt = prompt;
       return this;
     }
 
