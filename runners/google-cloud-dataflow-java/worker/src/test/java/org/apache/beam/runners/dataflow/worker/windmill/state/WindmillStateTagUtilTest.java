@@ -24,10 +24,10 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,8 +39,8 @@ public class WindmillStateTagUtilTest {
   public void testEncodeKey() {
     StateNamespaceForTest namespace = new StateNamespaceForTest("key");
     StateTag<SetState<Integer>> foo = StateTags.set("foo", VarIntCoder.of());
-    ByteString bytes = WindmillStateTagUtil.instance().encodeKey(namespace, foo);
-    assertEquals("key+ufoo", bytes.toStringUtf8());
+    InternedByteString bytes = WindmillStateTagUtil.instance().encodeKey(namespace, foo);
+    assertEquals("key+ufoo", bytes.byteString().toStringUtf8());
   }
 
   @Test
@@ -81,7 +81,7 @@ public class WindmillStateTagUtilTest {
             sb.append("namespace2");
           }
         };
-    ByteString bytes = WindmillStateTagUtil.instance().encodeKey(namespace2, tag2);
-    assertEquals("namespace2+tag2", bytes.toStringUtf8());
+    InternedByteString bytes = WindmillStateTagUtil.instance().encodeKey(namespace2, tag2);
+    assertEquals("namespace2+tag2", bytes.byteString().toStringUtf8());
   }
 }

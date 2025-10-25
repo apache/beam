@@ -25,10 +25,9 @@ import java.util.concurrent.Future;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
@@ -50,8 +49,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 })
 public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
   private final StateNamespace namespace;
-  private final StateTag<MapState<K, V>> address;
-  private final ByteString stateKeyPrefix;
+  private final InternedByteString stateKeyPrefix;
   private final String stateFamily;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
@@ -67,15 +65,13 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
   WindmillMap(
       StateNamespace namespace,
-      StateTag<MapState<K, V>> address,
+      InternedByteString stateKeyPrefix,
       String stateFamily,
       Coder<K> keyCoder,
       Coder<V> valueCoder,
-      boolean isNewKey,
-      WindmillStateTagUtil windmillStateTagUtil) {
+      boolean isNewKey) {
     this.namespace = namespace;
-    this.address = address;
-    this.stateKeyPrefix = windmillStateTagUtil.encodeKey(namespace, address);
+    this.stateKeyPrefix = stateKeyPrefix;
     this.stateFamily = stateFamily;
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
@@ -83,14 +79,14 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
   }
 
   private K userKeyFromProtoKey(ByteString tag) throws IOException {
-    Preconditions.checkState(tag.startsWith(stateKeyPrefix));
-    ByteString keyBytes = tag.substring(stateKeyPrefix.size());
+    Preconditions.checkState(tag.startsWith(stateKeyPrefix.byteString()));
+    ByteString keyBytes = tag.substring(stateKeyPrefix.byteString().size());
     return keyCoder.decode(keyBytes.newInput(), Coder.Context.OUTER);
   }
 
   private ByteString protoKeyFromUserKey(K key) throws IOException {
     ByteStringOutputStream keyStream = new ByteStringOutputStream();
-    stateKeyPrefix.writeTo(keyStream);
+    stateKeyPrefix.byteString().writeTo(keyStream);
     keyCoder.encode(key, keyStream, Coder.Context.OUTER);
     return keyStream.toByteString();
   }
@@ -110,7 +106,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
       commitBuilder
           .addTagValuePrefixDeletesBuilder()
           .setStateFamily(stateFamily)
-          .setTagPrefix(stateKeyPrefix);
+          .setTagPrefix(stateKeyPrefix.byteString());
     }
     cleared = false;
 
@@ -132,7 +128,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
     for (K key : localRemovals) {
       ByteStringOutputStream keyStream = new ByteStringOutputStream();
-      stateKeyPrefix.writeTo(keyStream);
+      stateKeyPrefix.byteString().writeTo(keyStream);
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
       ByteString keyBytes = keyStream.toByteString();
       // Leaving data blank means that we delete the tag.
@@ -154,7 +150,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
     // of the map, and to do so efficiently (i.e. without iterating over the entire map on every
     // persist)
     // we need to track the sizes of each map entry.
-    cache.put(namespace, address, this, 1);
+    cache.put(namespace, stateKeyPrefix, this, 1);
     return commitBuilder.buildPartial();
   }
 
@@ -260,7 +256,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
   private Future<V> getFutureForKey(K key) {
     try {
       ByteStringOutputStream keyStream = new ByteStringOutputStream();
-      stateKeyPrefix.writeTo(keyStream);
+      stateKeyPrefix.byteString().writeTo(keyStream);
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
       return reader.valueFuture(keyStream.toByteString(), stateFamily, valueCoder);
     } catch (IOException e) {
@@ -273,7 +269,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
       // The caller will merge in local cached values.
       return Futures.immediateFuture(Collections.emptyList());
     } else {
-      return reader.valuePrefixFuture(stateKeyPrefix, stateFamily, valueCoder);
+      return reader.valuePrefixFuture(stateKeyPrefix.byteString(), stateFamily, valueCoder);
     }
   }
 
