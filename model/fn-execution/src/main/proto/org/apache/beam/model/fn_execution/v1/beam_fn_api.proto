@@ -740,10 +740,18 @@ message Elements {
     bool is_last = 4;
   }
 
+  message DrainMode {
+    enum Enum {
+      UNSPECIFIED = 0;
+      NOT_DRAINING = 1;
+      DRAINING = 2;
+    }
+  }
+
   // Element metadata passed as part of WindowedValue to make WindowedValue
   // extensible and backward compatible
   message ElementMetadata {
-    // empty message - add drain, kind, tracing metadata in the future
+    optional DrainMode.Enum drain = 1;
   }
 
   // Represent the encoded user timer for a given instruction, transform and
