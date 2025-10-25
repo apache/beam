@@ -22,7 +22,6 @@ from typing import Callable
 from typing import Optional
 
 import apache_beam as beam
-
 from apache_beam.coders import BooleanCoder
 from apache_beam.coders import PickleCoder
 from apache_beam.pvalue import AsDict

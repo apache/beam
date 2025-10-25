@@ -25,8 +25,8 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
-from apache_beam.examples.cookbook.ordered_window_elements.batch import OrderedWindowElements  # pylint: disable=line-too-long
-from apache_beam.examples.cookbook.ordered_window_elements.batch import WindowGapStrategy  # pylint: disable=line-too-long
+from apache_beam.examples.cookbook.ordered_window_elements.batch import OrderedWindowElements
+from apache_beam.examples.cookbook.ordered_window_elements.batch import WindowGapStrategy
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
