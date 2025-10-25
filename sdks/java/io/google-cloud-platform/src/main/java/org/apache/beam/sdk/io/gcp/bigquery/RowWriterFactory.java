@@ -22,6 +22,8 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import org.apache.avro.Schema;
 import org.apache.avro.io.DatumWriter;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import org.apache.beam.sdk.transforms.SerializableBiFunctions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -41,29 +43,45 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
       String tempFilePrefix, DestinationT destination) throws Exception;
 
   static <ElementT, DestinationT> RowWriterFactory<ElementT, DestinationT> tableRows(
-      SerializableFunction<ElementT, TableRow> toRow,
-      SerializableFunction<ElementT, TableRow> toFailsafeRow) {
+      SerializableBiFunction<
+              TableRowToStorageApiProto.@Nullable SchemaInformation, ElementT, TableRow>
+          toRow,
+      SerializableBiFunction<
+              TableRowToStorageApiProto.@Nullable SchemaInformation, ElementT, TableRow>
+          toFailsafeRow) {
     return new TableRowWriterFactory<ElementT, DestinationT>(toRow, toFailsafeRow);
   }
 
   static final class TableRowWriterFactory<ElementT, DestinationT>
       extends RowWriterFactory<ElementT, DestinationT> {
 
-    private final SerializableFunction<ElementT, TableRow> toRow;
-    private final SerializableFunction<ElementT, TableRow> toFailsafeRow;
+    private final SerializableBiFunction<
+            TableRowToStorageApiProto.@Nullable SchemaInformation, ElementT, TableRow>
+        toRow;
+    private final SerializableBiFunction<
+            TableRowToStorageApiProto.@Nullable SchemaInformation, ElementT, TableRow>
+        toFailsafeRow;
 
     private TableRowWriterFactory(
-        SerializableFunction<ElementT, TableRow> toRow,
-        SerializableFunction<ElementT, TableRow> toFailsafeRow) {
+        SerializableBiFunction<
+                TableRowToStorageApiProto.@Nullable SchemaInformation, ElementT, TableRow>
+            toRow,
+        SerializableBiFunction<
+                TableRowToStorageApiProto.@Nullable SchemaInformation, ElementT, TableRow>
+            toFailsafeRow) {
       this.toRow = toRow;
       this.toFailsafeRow = toFailsafeRow;
     }
 
-    public SerializableFunction<ElementT, TableRow> getToRowFn() {
+    public SerializableBiFunction<
+            TableRowToStorageApiProto.@Nullable SchemaInformation, ElementT, TableRow>
+        getToRowFn() {
       return toRow;
     }
 
-    public SerializableFunction<ElementT, TableRow> getToFailsafeRowFn() {
+    public SerializableBiFunction<
+            TableRowToStorageApiProto.@Nullable SchemaInformation, ElementT, TableRow>
+        getToFailsafeRowFn() {
       if (toFailsafeRow == null) {
         return toRow;
       }
@@ -76,9 +94,10 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
     }
 
     @Override
+    @SuppressWarnings("nullness")
     public BigQueryRowWriter<ElementT> createRowWriter(
         String tempFilePrefix, DestinationT destination) throws Exception {
-      return new TableRowWriter<>(tempFilePrefix, toRow);
+      return new TableRowWriter<>(tempFilePrefix, SerializableBiFunctions.fix1st(toRow, null));
     }
 
     @Override

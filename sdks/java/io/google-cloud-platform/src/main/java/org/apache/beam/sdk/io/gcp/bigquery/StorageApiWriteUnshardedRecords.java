@@ -655,11 +655,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             @Nullable TableRow failedRow = failsafeTableRows.get(i);
             if (failedRow == null) {
               ByteString rowBytes = inserts.getSerializedRows(i);
+              AppendClientInfo aci = getAppendClientInfo(true, null);
               failedRow =
                   TableRowToStorageApiProto.tableRowFromMessage(
+                      aci.getSchemaInformation(),
                       DynamicMessage.parseFrom(
-                          TableRowToStorageApiProto.wrapDescriptorProto(
-                              getAppendClientInfo(true, null).getDescriptor()),
+                          TableRowToStorageApiProto.wrapDescriptorProto(aci.getDescriptor()),
                           rowBytes),
                       true,
                       successfulRowsPredicate);
@@ -739,12 +740,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     if (failedRow == null) {
                       ByteString protoBytes =
                           failedContext.protoRows.getSerializedRows(failedIndex);
+                      AppendClientInfo aci = Preconditions.checkStateNotNull(appendClientInfo);
                       failedRow =
                           TableRowToStorageApiProto.tableRowFromMessage(
+                              aci.getSchemaInformation(),
                               DynamicMessage.parseFrom(
                                   TableRowToStorageApiProto.wrapDescriptorProto(
-                                      Preconditions.checkStateNotNull(appendClientInfo)
-                                          .getDescriptor()),
+                                      aci.getDescriptor()),
                                   protoBytes),
                               true,
                               Predicates.alwaysTrue());
@@ -897,6 +899,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     try {
                       TableRow row =
                           TableRowToStorageApiProto.tableRowFromMessage(
+                              Preconditions.checkStateNotNull(appendClientInfo)
+                                  .getSchemaInformation(),
                               DynamicMessage.parseFrom(descriptor, rowBytes),
                               true,
                               successfulRowsPredicate);

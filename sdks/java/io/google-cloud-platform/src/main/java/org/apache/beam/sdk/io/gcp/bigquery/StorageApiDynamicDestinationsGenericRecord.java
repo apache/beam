@@ -26,6 +26,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -36,7 +37,8 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   private final SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord;
   private final SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
-  private final @javax.annotation.Nullable SerializableFunction<T, TableRow>
+  private final @Nullable SerializableBiFunction<
+          TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow>
       formatRecordOnFailureFunction;
 
   private boolean usesCdc;
@@ -45,7 +47,9 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       DynamicDestinations<T, DestinationT> inner,
       SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
       SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord,
-      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
+      @Nullable
+          SerializableBiFunction<TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow>
+              formatRecordOnFailureFunction,
       boolean usesCdc) {
     super(inner);
     this.toGenericRecord = toGenericRecord;
@@ -110,7 +114,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     @Override
     public TableRow toFailsafeTableRow(T element) {
       if (formatRecordOnFailureFunction != null) {
-        return formatRecordOnFailureFunction.apply(element);
+        return formatRecordOnFailureFunction.apply(null, element);
       } else {
         return BigQueryUtils.convertGenericRecordToTableRow(
             toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), bqTableSchema);

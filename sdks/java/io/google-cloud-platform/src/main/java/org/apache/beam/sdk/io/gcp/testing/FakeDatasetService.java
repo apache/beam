@@ -613,6 +613,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       private Descriptor protoDescriptor;
       private TableSchema currentSchema;
       private @Nullable com.google.cloud.bigquery.storage.v1.TableSchema updatedSchema;
+      TableRowToStorageApiProto.SchemaInformation schemaInformation;
 
       private boolean usedForInsert = false;
       private boolean usedForUpdate = false;
@@ -627,6 +628,9 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             throw new ApiException(null, GrpcStatusCode.of(Status.Code.NOT_FOUND), false);
           }
           currentSchema = stream.tableContainer.getTable().getSchema();
+          schemaInformation =
+              TableRowToStorageApiProto.SchemaInformation.fromTableSchema(
+                  TableRowToStorageApiProto.schemaToProtoTableSchema(currentSchema));
         }
       }
 
@@ -650,6 +654,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             }
             TableRow tableRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
+                    schemaInformation,
                     DynamicMessage.parseFrom(protoDescriptor, bytes),
                     false,
                     Predicates.alwaysTrue());
@@ -698,6 +703,8 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             responseBuilder.setUpdatedSchema(newSchema);
             if (this.updatedSchema == null) {
               this.updatedSchema = newSchema;
+              this.schemaInformation =
+                  TableRowToStorageApiProto.SchemaInformation.fromTableSchema((this.updatedSchema));
             }
           }
         }
