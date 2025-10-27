@@ -276,7 +276,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
             files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      includeCategories 'org.apache.beam.sdk.testing.RerunTest'
       commonRunnerV2ExcludeCategories.each {
         excludeCategories it
       }

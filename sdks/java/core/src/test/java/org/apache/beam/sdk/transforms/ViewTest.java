@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RerunTest;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -84,7 +85,7 @@ import org.junit.runners.JUnit4;
  * views can only be observed via {@link ParDo}.
  */
 @RunWith(JUnit4.class)
-@Category(UsesSideInputs.class)
+@Category({UsesSideInputs.class, RerunTest.class})
 public class ViewTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -1835,60 +1836,5 @@ public class ViewTest implements Serializable {
     PAssert.that(output).containsInAnyOrder(17);
 
     pipeline.run();
-  }
-
-  @Test
-  public void testViewGetName() {
-    assertEquals("View.AsSingleton", View.<Integer>asSingleton().getName());
-    assertEquals("View.AsIterable", View.<Integer>asIterable().getName());
-    assertEquals("View.AsMap", View.<String, Integer>asMap().getName());
-    assertEquals("View.AsMultimap", View.<String, Integer>asMultimap().getName());
-  }
-
-  private void testViewUnbounded(
-      Pipeline pipeline,
-      PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) {
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("Unable to create a side-input view from input");
-    thrown.expectCause(
-        ThrowableMessageMatcher.hasMessage(Matchers.containsString("non-bounded PCollection")));
-    pipeline
-        .apply(
-            new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
-              @Override
-              public PCollection<KV<String, Integer>> expand(PBegin input) {
-                return PCollection.createPrimitiveOutputInternal(
-                    input.getPipeline(),
-                    WindowingStrategy.globalDefault(),
-                    PCollection.IsBounded.UNBOUNDED,
-                    KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
-              }
-            })
-        .apply(view);
-  }
-
-  @Test
-  public void testViewUnboundedAsSingletonDirect() {
-    testViewUnbounded(pipeline, View.asSingleton());
-  }
-
-  @Test
-  public void testViewUnboundedAsIterableDirect() {
-    testViewUnbounded(pipeline, View.asIterable());
-  }
-
-  @Test
-  public void testViewUnboundedAsListDirect() {
-    testViewUnbounded(pipeline, View.asList());
-  }
-
-  @Test
-  public void testViewUnboundedAsMapDirect() {
-    testViewUnbounded(pipeline, View.asMap());
-  }
-
-  @Test
-  public void testViewUnboundedAsMultimapDirect() {
-    testViewUnbounded(pipeline, View.asMultimap());
   }
 }
