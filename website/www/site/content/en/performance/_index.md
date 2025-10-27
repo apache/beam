@@ -46,6 +46,7 @@ See the following pages for performance measures recorded when running various B
 ## Streaming
 
 - [PyTorch Sentiment Analysis Streaming DistilBERT base](/performance/pytorchbertsentimentstreaming)
+- [PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting)](/performance/pytorchimagenetrightfit)
 
 ## Batch
 
