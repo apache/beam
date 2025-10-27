@@ -326,10 +326,10 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract PaneInfo pane();
 
     @Pure
-    public abstract String currentRecordId();
+    public abstract @Nullable String currentRecordId();
 
     @Pure
-    public abstract Long currentRecordOffset();
+    public abstract @Nullable Long currentRecordOffset();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
