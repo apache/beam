@@ -196,6 +196,23 @@ def shipments_data():
           }]
 
 
+def shipment_data_filtered():
+  return [{
+      'customer_id': 'C1',
+      'shipment_date': '2023-05-01',
+      'shipment_cost': 150.0,
+      'customer_name': 'Alice',
+      'customer_email': 'alice@example.com'
+  },
+          {
+              'customer_id': 'C1',
+              'shipment_date': '2023-05-10',
+              'shipment_cost': 20.0,
+              'customer_name': 'Alice',
+              'customer_email': 'alice@example.com'
+          }]
+
+
 def bigtable_data():
   return [{
       'product_id': '1', 'product_name': 'pixel 5', 'product_stock': '2'

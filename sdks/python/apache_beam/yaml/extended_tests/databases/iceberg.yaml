@@ -61,3 +61,28 @@ pipelines:
     options:
       project: "apache-beam-testing"
       temp_location: "{TEMP_DIR}"
+
+
+  - name: read_cdc
+    pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIcebergCDC
+          config:
+            table: db.labels
+            catalog_name: hadoop_catalog
+            catalog_properties:
+              type: hadoop
+              warehouse: "{TEMP_DIR}"
+            keep:
+              - label
+              - rank
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: "11a", rank: 0}
+              - {label: "37a", rank: 1}
+              - {label: "389a", rank: 2}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"
