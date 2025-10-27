@@ -46,7 +46,7 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3 && \
     python3 -m pip install --upgrade pip setuptools wheel
 
 # 4) Copy the Beam SDK harness (for Dataflow workers)
-COPY --from=gcr.io/apache-beam-testing/beam-sdk/beam_python3.10_sdk:2.68.0.dev \
+COPY --from=gcr.io/apache-beam-testing/beam-sdk/beam_python3.10_sdk:latest \
      /opt/apache/beam /opt/apache/beam
 
 # 5) Make sure the harness is discovered first

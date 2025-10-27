@@ -593,6 +593,12 @@ if __name__ == '__main__':
               'tensorflow>=2.12.0',
               'torch>=1.9.0'
           ],
+          'ml_cpu': [
+              'tensorflow>=2.12.0',
+              'torch==2.8.0+cpu',
+              'transformers>=4.28.0,<4.55.0; python_version < "3.10"',
+              'transformers>=4.28.0,<4.56.0; python_version >= "3.10"'
+          ],
           'tft': [
               'tensorflow_transform>=1.14.0,<1.15.0'
               # tensorflow-transform requires dill, but doesn't set dill as a
@@ -611,7 +617,7 @@ if __name__ == '__main__':
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
           'milvus': milvus_dependency,
-          'vllm': ['openai>=1.52.2', 'vllm>=0.6.3', 'triton>=3.1.0']
+          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
       },
       zip_safe=False,
       # PyPI package information.

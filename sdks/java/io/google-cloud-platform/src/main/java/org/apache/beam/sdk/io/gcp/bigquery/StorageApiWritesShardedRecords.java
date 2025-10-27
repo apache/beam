@@ -613,7 +613,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           new SplittingIterable(
               element.getValue(),
               splitSize,
-              (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),
+              (bytes, tableRow) ->
+                  appendClientInfo.get().mergeNewFields(bytes, tableRow, ignoreUnknownValues),
               bytes -> appendClientInfo.get().toTableRow(bytes, Predicates.alwaysTrue()),
               (failedRow, errorMessage) -> {
                 o.get(failedRowsTag)
@@ -628,7 +629,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     .inc(1);
               },
               autoUpdateSchema,
-              ignoreUnknownValues,
               elementTs);
 
       // Initialize stream names and offsets for all contexts. This will be called initially, but

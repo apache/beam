@@ -143,6 +143,9 @@ func TestTimers(t *testing.T) {
 	}{
 		{pipeline: primitives.TimersEventTimeBounded},
 		{pipeline: primitives.TimersEventTimeUnbounded},
+		{pipeline: primitives.TimersProcessingTime_Bounded},
+		{pipeline: primitives.TimersProcessingTime_Unbounded},
+		{pipeline: primitives.TimersProcessingTimeTestStream_Infinity},
 	}
 
 	for _, test := range tests {

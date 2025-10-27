@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.util.GcpSecret;
 import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -58,7 +60,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
 
   private static class FakeSecret implements Secret {
     private final byte[] secret =
-        "aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZc".getBytes(Charset.defaultCharset());
+        "YUt3STJQbXFZRnQycDV0TktDeUJTNXFZV0hoSHNHWmM".getBytes(Charset.defaultCharset());
 
     @Override
     public byte[] getSecretBytes() {
@@ -123,7 +125,10 @@ public class GroupByEncryptedKeyTest implements Serializable {
       byte[] secretBytes = new byte[32];
       new SecureRandom().nextBytes(secretBytes);
       client.addSecretVersion(
-          secretName, SecretPayload.newBuilder().setData(ByteString.copyFrom(secretBytes)).build());
+          secretName,
+          SecretPayload.newBuilder()
+              .setData(ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
+              .build());
     }
     gcpSecret = new GcpSecret(secretName.toString() + "/versions/latest");
   }
@@ -138,20 +143,22 @@ public class GroupByEncryptedKeyTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testGroupByKeyGcpSecret() {
-    List<KV<String, Integer>> ungroupedPairs =
+    List<KV<@Nullable String, Integer>> ungroupedPairs =
         Arrays.asList(
+            KV.of(null, 3),
             KV.of("k1", 3),
             KV.of("k5", Integer.MAX_VALUE),
             KV.of("k5", Integer.MIN_VALUE),
             KV.of("k2", 66),
             KV.of("k1", 4),
+            KV.of(null, 5),
             KV.of("k2", -33),
             KV.of("k3", 0));
 
     PCollection<KV<String, Integer>> input =
         p.apply(
             Create.of(ungroupedPairs)
-                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+                .withCoder(KvCoder.of(NullableCoder.of(StringUtf8Coder.of()), VarIntCoder.of())));
 
     PCollection<KV<String, Iterable<Integer>>> output =
         input.apply(GroupByEncryptedKey.<String, Integer>create(gcpSecret));
@@ -159,6 +166,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
     PAssert.that(output.apply("Sort", MapElements.via(new SortValues())))
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
+            KV.of(null, Arrays.asList(3, 5)),
             KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
             KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));

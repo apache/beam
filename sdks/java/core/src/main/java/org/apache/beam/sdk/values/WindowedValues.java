@@ -36,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -98,6 +99,7 @@ public class WindowedValues {
     private @MonotonicNonNull Collection<? extends BoundedWindow> windows;
     private @Nullable String recordId;
     private @Nullable Long recordOffset;
+    private boolean causedByDrain;
 
     @Override
     public Builder<T> setValue(T value) {
@@ -138,6 +140,12 @@ public class WindowedValues {
     @Override
     public Builder<T> setRecordOffset(@Nullable Long recordOffset) {
       this.recordOffset = recordOffset;
+      return this;
+    }
+
+    @Override
+    public Builder<T> setCausedByDrain(boolean causedByDrain) {
+      this.causedByDrain = causedByDrain;
       return this;
     }
 
@@ -190,6 +198,11 @@ public class WindowedValues {
     }
 
     @Override
+    public boolean causedByDrain() {
+      return causedByDrain;
+    }
+
+    @Override
     public Collection<Builder<T>> explodeWindows() {
       throw new UnsupportedOperationException(
           "Cannot explodeWindows() on WindowedValue builder; use build().explodeWindows()");
@@ -217,7 +230,8 @@ public class WindowedValues {
     }
 
     public WindowedValue<T> build() {
-      return WindowedValues.of(getValue(), getTimestamp(), getWindows(), getPaneInfo());
+      return WindowedValues.of(
+          getValue(), getTimestamp(), getWindows(), getPaneInfo(), null, null, causedByDrain());
     }
 
     @Override
@@ -227,6 +241,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("windows", getWindows())
           .add("paneInfo", getPaneInfo())
+          .add("causedByDrain", causedByDrain())
           .add("receiver", receiver)
           .toString();
     }
@@ -234,7 +249,7 @@ public class WindowedValues {
 
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
-    return of(value, timestamp, windows, paneInfo, null, null);
+    return of(value, timestamp, windows, paneInfo, null, null, false);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
@@ -244,27 +259,32 @@ public class WindowedValues {
       Collection<? extends BoundedWindow> windows,
       PaneInfo paneInfo,
       @Nullable String currentRecordId,
-      @Nullable Long currentRecordOffset) {
+      @Nullable Long currentRecordOffset,
+      boolean causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo);
+      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
     } else {
       return new TimestampedValueInMultipleWindows<>(
-          value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset);
+          value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
   }
 
   /** @deprecated for use only in compatibility with old broken code */
   @Deprecated
   static <T> WindowedValue<T> createWithoutValidation(
-      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      boolean causedByDrain) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo);
+      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
     } else {
       return new TimestampedValueInMultipleWindows<>(
-          value, timestamp, windows, paneInfo, null, null);
+          value, timestamp, windows, paneInfo, null, null, causedByDrain);
     }
   }
 
@@ -273,13 +293,23 @@ public class WindowedValues {
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
+    return of(value, timestamp, window, paneInfo, false);
+  }
+
+  /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
+  public static <T> WindowedValue<T> of(
+      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, boolean causedByDrain) {
+    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
+
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value, paneInfo);
     } else if (isGlobal) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null);
+      return new TimestampedValueInGlobalWindow<>(
+          value, timestamp, paneInfo, null, null, causedByDrain);
     } else {
-      return new TimestampedValueInSingleWindow<>(value, timestamp, window, paneInfo, null, null);
+      return new TimestampedValueInSingleWindow<>(
+          value, timestamp, window, paneInfo, null, null, causedByDrain);
     }
   }
 
@@ -288,7 +318,7 @@ public class WindowedValues {
    * default timestamp and pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value) {
-    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null);
+    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null, false);
   }
 
   /**
@@ -296,7 +326,7 @@ public class WindowedValues {
    * default timestamp and the specified pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo paneInfo) {
-    return new ValueInGlobalWindow<>(value, paneInfo, null, null);
+    return new ValueInGlobalWindow<>(value, paneInfo, null, null, false);
   }
 
   /**
@@ -307,7 +337,8 @@ public class WindowedValues {
     if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING, null, null);
+      return new TimestampedValueInGlobalWindow<>(
+          value, timestamp, PaneInfo.NO_FIRING, null, null, false);
     }
   }
 
@@ -320,7 +351,7 @@ public class WindowedValues {
     if (paneInfo.equals(PaneInfo.NO_FIRING)) {
       return timestampedValueInGlobalWindow(value, timestamp);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, paneInfo, null, null, false);
     }
   }
 
@@ -336,7 +367,8 @@ public class WindowedValues {
         windowedValue.getWindows(),
         windowedValue.getPaneInfo(),
         windowedValue.getRecordId(),
-        windowedValue.getRecordOffset());
+        windowedValue.getRecordOffset(),
+        windowedValue.causedByDrain());
   }
 
   public static <T> boolean equals(
@@ -387,6 +419,7 @@ public class WindowedValues {
     private final PaneInfo paneInfo;
     private final @Nullable String currentRecordId;
     private final @Nullable Long currentRecordOffset;
+    private final boolean causedByDrain;
 
     @Override
     public @Nullable String getRecordId() {
@@ -398,15 +431,22 @@ public class WindowedValues {
       return currentRecordOffset;
     }
 
+    @Override
+    public boolean causedByDrain() {
+      return causedByDrain;
+    }
+
     protected SimpleWindowedValue(
         T value,
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
+        @Nullable Long currentRecordOffset,
+        boolean causedByDrain) {
       this.value = value;
       this.paneInfo = checkNotNull(paneInfo);
       this.currentRecordId = currentRecordId;
       this.currentRecordOffset = currentRecordOffset;
+      this.causedByDrain = causedByDrain;
     }
 
     @Override
@@ -454,8 +494,9 @@ public class WindowedValues {
         T value,
         PaneInfo pane,
         @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      super(value, pane, currentRecordId, currentRecordOffset);
+        @Nullable Long currentRecordOffset,
+        boolean causedByDrain) {
+      super(value, pane, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
     @Override
@@ -472,8 +513,9 @@ public class WindowedValues {
         T value,
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      super(value, paneInfo, currentRecordId, currentRecordOffset);
+        @Nullable Long currentRecordOffset,
+        boolean causedByDrain) {
+      super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
     @Override
@@ -488,7 +530,8 @@ public class WindowedValues {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInGlobalWindow<>(newValue, getPaneInfo(), getRecordId(), getRecordOffset());
+      return new ValueInGlobalWindow<>(
+          newValue, getPaneInfo(), getRecordId(), getRecordOffset(), causedByDrain());
     }
 
     @Override
@@ -512,6 +555,7 @@ public class WindowedValues {
       return MoreObjects.toStringHelper(getClass())
           .add("value", getValue())
           .add("paneInfo", getPaneInfo())
+          .add("causedByDrain", causedByDrain())
           .toString();
     }
   }
@@ -525,8 +569,9 @@ public class WindowedValues {
         Instant timestamp,
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      super(value, paneInfo, currentRecordId, currentRecordOffset);
+        @Nullable Long currentRecordOffset,
+        boolean causedByDrain) {
+      super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.timestamp = checkNotNull(timestamp);
     }
 
@@ -548,8 +593,9 @@ public class WindowedValues {
         Instant timestamp,
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
+        @Nullable Long currentRecordOffset,
+        boolean causedByDrain) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
 
     @Override
@@ -565,7 +611,12 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInGlobalWindow<>(
-          newValue, getTimestamp(), getPaneInfo(), getRecordId(), getRecordOffset());
+          newValue,
+          getTimestamp(),
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain());
     }
 
     @Override
@@ -595,6 +646,7 @@ public class WindowedValues {
           .add("value", getValue())
           .add("timestamp", getTimestamp())
           .add("paneInfo", getPaneInfo())
+          .add("causedByDrain", causedByDrain())
           .toString();
     }
   }
@@ -614,15 +666,22 @@ public class WindowedValues {
         BoundedWindow window,
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
+        @Nullable Long currentRecordOffset,
+        boolean causedByDrain) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.window = checkNotNull(window);
     }
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInSingleWindow<>(
-          newValue, getTimestamp(), window, getPaneInfo(), getRecordId(), getRecordOffset());
+          newValue,
+          getTimestamp(),
+          window,
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain());
     }
 
     @Override
@@ -664,6 +723,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("window", window)
           .add("paneInfo", getPaneInfo())
+          .add("causedByDrain", causedByDrain())
           .toString();
     }
   }
@@ -678,8 +738,9 @@ public class WindowedValues {
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset);
+        @Nullable Long currentRecordOffset,
+        boolean causedByDrain) {
+      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
       this.windows = checkNotNull(windows);
     }
 
@@ -691,7 +752,13 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInMultipleWindows<>(
-          newValue, getTimestamp(), getWindows(), getPaneInfo(), getRecordId(), getRecordOffset());
+          newValue,
+          getTimestamp(),
+          getWindows(),
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain());
     }
 
     @Override
@@ -729,6 +796,7 @@ public class WindowedValues {
           .add("timestamp", getTimestamp())
           .add("windows", windows)
           .add("paneInfo", getPaneInfo())
+          .add("causedByDrain", causedByDrain())
           .toString();
     }
 
@@ -763,6 +831,15 @@ public class WindowedValues {
   /** Abstract class for {@code WindowedValue} coder. */
   public abstract static class WindowedValueCoder<T> extends StructuredCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
+    private static boolean metadataSupported = false;
+
+    public static void setMetadataSupported() {
+      metadataSupported = true;
+    }
+
+    public static boolean isMetadataSupported() {
+      return metadataSupported;
+    }
 
     WindowedValueCoder(Coder<T> valueCoder) {
       this.valueCoder = checkNotNull(valueCoder);
@@ -829,7 +906,22 @@ public class WindowedValues {
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo(), outStream);
+      boolean metadataSupported = isMetadataSupported();
+      PaneInfoCoder.INSTANCE.encode(
+          windowedElem.getPaneInfo().withElementMetadata(metadataSupported), outStream);
+      if (metadataSupported) {
+        BeamFnApi.Elements.ElementMetadata.Builder builder =
+            BeamFnApi.Elements.ElementMetadata.newBuilder();
+        BeamFnApi.Elements.ElementMetadata em =
+            builder
+                .setDrain(
+                    windowedElem.causedByDrain()
+                        ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                        : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+                .build();
+
+        ByteArrayCoder.of().encode(em.toByteArray(), outStream);
+      }
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -844,11 +936,22 @@ public class WindowedValues {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+      boolean causedByDrain = false;
+      if (isMetadataSupported() && paneInfo.isElementMetadata()) {
+        BeamFnApi.Elements.ElementMetadata elementMetadata =
+            BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+        boolean b = elementMetadata.hasDrain();
+        causedByDrain =
+            b
+                ? elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
+                : false;
+      }
       T value = valueCoder.decode(inStream, context);
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
       // we call this deprecated no-validation path when decoding
-      return WindowedValues.createWithoutValidation(value, timestamp, windows, paneInfo);
+      return WindowedValues.createWithoutValidation(
+          value, timestamp, windows, paneInfo, causedByDrain);
     }
 
     @Override

@@ -53,9 +53,10 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "${files(configurations.sdkSourceTarball.files).singleFile} " +
               "ml_image_requirements.txt " +
               "container/ml " +
-              "[gcp,dataframe,test,tensorflow,torch,transformers] " +
+              "[gcp,dataframe,test,ml_cpu] " +
               "${pipExtraOptions}"
     }
+    // TODO(https://github.com/apache/beam/issues/36637)
     // Skip generating Python 3.13 requirements for now since not all 3.13
     // wheels are available/buildable.
     if ("${project.ext.pythonVersion}" != "3.13") {

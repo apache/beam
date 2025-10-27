@@ -116,6 +116,11 @@ public class TimerUtils {
     }
 
     @Override
+    public boolean causedByDrain() {
+      return false;
+    }
+
+    @Override
     public @Nullable Long getRecordOffset() {
       return null;
     }

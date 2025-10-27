@@ -3058,6 +3058,10 @@ class CombinePerKey(PTransformWithSideInputs):
     return lambda element, *args, **kwargs: None
 
   def expand(self, pcoll):
+    # When using gbek, don't allow overriding default implementation
+    gbek_option = (pcoll.pipeline._options.view_as(SetupOptions).gbek)
+    self._using_gbek = (gbek_option is not None and len(gbek_option) > 0)
+
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
     return pcoll | GroupByKey() | 'Combine' >> CombineValues(
@@ -3083,7 +3087,9 @@ class CombinePerKey(PTransformWithSideInputs):
       self,
       context,  # type: PipelineContext
   ):
-    # type: (...) -> typing.Tuple[str, beam_runner_api_pb2.CombinePayload]
+    # type: (...) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
+    if getattr(self, '_using_gbek', False):
+      return super().to_runner_api_parameter(context)
     if self.args or self.kwargs:
       from apache_beam.transforms.combiners import curry_combine_fn
       combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
@@ -3261,7 +3267,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
         except Exception:
-          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+          self._combine_fn_copy = pickler.roundtrip(combine_fn)
 
         self.setup = self._combine_fn_copy.setup
         self.create_accumulator = self._combine_fn_copy.create_accumulator
@@ -3282,7 +3288,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
         except Exception:
-          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+          self._combine_fn_copy = pickler.roundtrip(combine_fn)
 
         self.setup = self._combine_fn_copy.setup
         self.create_accumulator = self._combine_fn_copy.create_accumulator
@@ -3329,9 +3335,10 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
-  def __init__(self):
+  def __init__(self, label=None):
     self._replaced_by_gbek = False
     self._inside_gbek = False
+    super().__init__(label)
 
   class ReifyWindows(DoFn):
     def process(

@@ -86,7 +86,10 @@ fi
 # Install dataframe deps to add have Dataframe support in released images.
 # Install test deps since some integration tests need dependencies,
 # such as pytest, installed in the runner environment.
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS"
+# Force torch dependencies to be pulled from the PyTorch CPU wheel
+# repository so that they don't include GPU dependencies with
+# non-compliant licenses
+pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS" --extra-index-url https://download.pytorch.org/whl/cpu
 pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
 
 pip uninstall -y apache-beam

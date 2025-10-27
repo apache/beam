@@ -47,8 +47,18 @@ def dumps(
     o,
     enable_trace=True,
     use_zlib=False,
-    enable_best_effort_determinism=False) -> bytes:
+    enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False) -> bytes:
 
+  if (desired_pickle_lib == cloudpickle_pickler):
+    return cloudpickle_pickler.dumps(
+        o,
+        enable_trace=enable_trace,
+        use_zlib=use_zlib,
+        enable_best_effort_determinism=enable_best_effort_determinism,
+        enable_stable_code_identifier_pickling=
+        enable_stable_code_identifier_pickling,
+    )
   return desired_pickle_lib.dumps(
       o,
       enable_trace=enable_trace,
@@ -61,6 +71,11 @@ def loads(encoded, enable_trace=True, use_zlib=False):
 
   return desired_pickle_lib.loads(
       encoded, enable_trace=enable_trace, use_zlib=use_zlib)
+
+
+def roundtrip(o):
+  """Internal utility for testing round-trip pickle serialization."""
+  return desired_pickle_lib.roundtrip(o)
 
 
 def dump_session(file_path):
