@@ -45,6 +45,7 @@ LOOKS_TO_DOWNLOAD = [
     ("86", ["284", "285", "286", "287", "288"]),  # VLLM Batch Gemma
     ("96", ["270", "304", "305", "353", "354"]),   # Table Row Inference Sklearn Batch
     ("106", ["355", "356", "357", "358", "359"])   # Table Row Inference Sklearn Streaming
+    ("92", ["289", "290", "291", "292", "293"]),  # PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting)
     #TODO: PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch
     #TODO: PyTorch Image Captioning BLIP + CLIP Batch
 ]
