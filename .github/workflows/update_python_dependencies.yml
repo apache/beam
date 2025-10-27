@@ -64,25 +64,6 @@ jobs:
           java-version: default
           go-version: default
           disable-cache: true
-      # Need rust installed for some deps - https://github.com/dottxt-ai/outlines/issues/1331
-      - name: Install rust compiler
-        run: |
-          # Download the rustup installation script
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup-init.sh
-          # Make the script executable
-          chmod +x rustup-init.sh
-          # Run the rustup installation script
-          # The '--default-toolchain stable' ensures the stable version is installed.
-          # The '-y' flag accepts the default installation options without prompting.
-          ./rustup-init.sh --default-toolchain stable -y
-          # Source the cargo environment to add Rust to the system PATH for the current session
-          # This line is often added to ~/.bashrc or ~/.zshrc for permanent effect.
-          source "$HOME/.cargo/env"
-          # Verify the installation by checking the Rust compiler version
-          rustc --version
-          # Clean up the downloaded script
-          rm rustup-init.sh
-          echo "Rust installation complete and verified."
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
