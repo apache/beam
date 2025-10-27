@@ -291,7 +291,6 @@ class HistogramTest(unittest.TestCase):
   def test_histogram(self):
     class WordExtractingDoFn(beam.DoFn):
       def __init__(self):
-        super().__init__()
         self.word_lengths_dist = Metrics.histogram(
             self.__class__,
             'latency_histogram_ms',
