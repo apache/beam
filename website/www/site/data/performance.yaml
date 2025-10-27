@@ -250,3 +250,19 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: dKyJy5ZKhkBdSTXRY3wZR6fXzptSs2qm
           title: AvgThroughputElementsPerSec by Version
+  pytorchimagenetrightfit:
+    write:
+      folder: 92
+      cost:
+        - id: zJhxrMmxJ3zVHH5WZnDQqcBHdFDrBhxK
+          title: RunTime and EstimatedCost
+      date:
+        - id: RybzxZdkXJg6PzQZkBcfxTJkByTf3ZV5
+          title: AvgThroughputBytesPerSec by Date
+        - id: xTVYPytQVH7zXYz7SvphnRV4nQcxCddp
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: dGN6Zr6rh7DfnRtTDCN6GHcNfhSkrbCq
+          title: AvgThroughputBytesPerSec by Version
+        - id: VJMWrZh3jXk2mqCZk4NQn3tBrHgGWqnC
+          title: AvgThroughputElementsPerSec by Version
