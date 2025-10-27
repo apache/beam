@@ -56,17 +56,22 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "[gcp,dataframe,test,tensorflow,torch,transformers] " +
               "${pipExtraOptions}"
     }
-    // GPU requirements not used for any containers directly due to licensing,
-    // but can be picked up by customers or other consumers for use.
-    exec {
-      executable 'sh'
-      args '-c', "cd ${rootDir} && ${runScriptsPath} " +
-              "${project.ext.pythonVersion} " +
-              "${files(configurations.sdkSourceTarball.files).singleFile} " +
-              "gpu_image_requirements.txt " +
-              "container/ml " +
-              "[gcp,dataframe,test,tensorflow,torch,transformers,vllm] " +
-              "${pipExtraOptions}"
+    // Skip generating Python 3.13 requirements for now since not all 3.13
+    // wheels are available/buildable.
+    if ("${project.ext.pythonVersion}" != "3.13") {
+      // GPU requirements not used for any containers directly due to
+      // licensing, but can be picked up by customers or other consumers for
+      // use.
+      exec {
+        executable 'sh'
+        args '-c', "cd ${rootDir} && ${runScriptsPath} " +
+                "${project.ext.pythonVersion} " +
+                "${files(configurations.sdkSourceTarball.files).singleFile} " +
+                "gpu_image_requirements.txt " +
+                "container/ml " +
+                "[gcp,dataframe,test,tensorflow,torch,transformers,vllm] " +
+                "${pipExtraOptions}"
+      }
     }
   }
 }
