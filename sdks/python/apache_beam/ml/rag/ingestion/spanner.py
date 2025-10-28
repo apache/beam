@@ -60,6 +60,7 @@ Spanner schema example:
     ) PRIMARY KEY (id)
 """
 
+import functools
 import json
 from dataclasses import dataclass
 from typing import Any
@@ -74,12 +75,7 @@ from typing import Type
 import apache_beam as beam
 from apache_beam.coders import registry
 from apache_beam.coders.row_coder import RowCoder
-from apache_beam.io.gcp.spanner import FailureMode
-from apache_beam.io.gcp.spanner import SpannerDelete
-from apache_beam.io.gcp.spanner import SpannerInsert
-from apache_beam.io.gcp.spanner import SpannerInsertOrUpdate
-from apache_beam.io.gcp.spanner import SpannerReplace
-from apache_beam.io.gcp.spanner import SpannerUpdate
+from apache_beam.io.gcp import spanner
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.types import Chunk
 
@@ -95,7 +91,6 @@ class SpannerColumnSpec:
       column_name: Name of the Spanner table column
       python_type: Python type for the NamedTuple field (required for RowCoder)
       value_fn: Function to extract value from a Chunk
-      convert_fn: Optional function to transform the extracted value
   
   Examples:
       String column:
@@ -109,21 +104,18 @@ class SpannerColumnSpec:
       >>> SpannerColumnSpec(
       ...     column_name="embedding",
       ...     python_type=List[float],
-      ...     value_fn=lambda chunk: chunk.embedding.dense_embedding,
-      ...     convert_fn=lambda vec: [round(x, 4) for x in vec]
+      ...     value_fn=lambda chunk: chunk.embedding.dense_embedding
       ... )
   """
   column_name: str
   python_type: Type
   value_fn: Callable[[Chunk], Any]
-  convert_fn: Optional[Callable[[Any], Any]] = None
 
-  def extract_value(self, chunk: Chunk) -> Any:
-    """Extract and optionally convert value from chunk."""
-    value = self.value_fn(chunk)
-    if self.convert_fn:
-      value = self.convert_fn(value)
-    return value
+
+def _extract_and_convert(extract_fn, convert_fn, chunk):
+  if convert_fn:
+    return convert_fn(extract_fn(chunk))
+  return extract_fn(chunk)
 
 
 class SpannerColumnSpecsBuilder:
@@ -144,7 +136,6 @@ class SpannerColumnSpecsBuilder:
       ...     .build()
       ... )
   """
-
   def __init__(self):
     self._specs: List[SpannerColumnSpec] = []
 
@@ -169,14 +160,15 @@ class SpannerColumnSpecsBuilder:
       self,
       column_name: str = "id",
       python_type: Type = str,
-      value_fn: Optional[Callable[[Chunk], Any]] = None,
-      convert_fn: Optional[Callable[[Any], Any]] = None) -> 'SpannerColumnSpecsBuilder':
+      extract_fn: Optional[Callable[[Chunk], Any]] = lambda chunk: chunk.id,
+      convert_fn: Optional[Callable[[Any], Any]] = None
+  ) -> 'SpannerColumnSpecsBuilder':
     """Add ID column specification.
     
     Args:
         column_name: Column name (default: "id")
         python_type: Python type (default: str)
-        value_fn: Value extractor (default: lambda chunk: chunk.id)
+        extract_fn: Value extractor (default: lambda chunk: chunk.id)
         convert_fn: Optional converter (e.g., to cast to int)
     
     Returns:
@@ -192,26 +184,26 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda id: int(id.split('_')[1])
         ... )
     """
-    fn = value_fn or (lambda chunk: chunk.id)
+
     self._specs.append(
         SpannerColumnSpec(
             column_name=column_name,
             python_type=python_type,
-            value_fn=fn,
-            convert_fn=convert_fn))
+            value_fn=functools.partial(
+                _extract_and_convert, extract_fn, convert_fn)))
     return self
 
   def with_embedding_spec(
       self,
       column_name: str = "embedding",
-      value_fn: Optional[Callable[[Chunk], List[float]]] = None,
+      extract_fn: Optional[Callable[[Chunk], List[float]]] = None,
       convert_fn: Optional[Callable[[List[float]], List[float]]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add embedding array column (ARRAY<FLOAT32> or ARRAY<FLOAT64>).
     
     Args:
         column_name: Column name (default: "embedding")
-        value_fn: Value extractor (default: chunk.embedding.dense_embedding)
+        extract_fn: Value extractor (default: chunk.embedding.dense_embedding)
         convert_fn: Optional converter (e.g., normalize, quantize)
     
     Returns:
@@ -237,20 +229,21 @@ class SpannerColumnSpecsBuilder:
         raise ValueError(f'Chunk must contain embedding: {chunk}')
       return chunk.embedding.dense_embedding
 
-    fn = value_fn or default_fn
+    extract_fn = extract_fn or default_fn
+
     self._specs.append(
         SpannerColumnSpec(
             column_name=column_name,
             python_type=List[float],
-            value_fn=fn,
-            convert_fn=convert_fn))
+            value_fn=functools.partial(
+                _extract_and_convert, extract_fn, convert_fn)))
     return self
 
   def with_content_spec(
       self,
       column_name: str = "content",
       python_type: Type = str,
-      value_fn: Optional[Callable[[Chunk], Any]] = None,
+      extract_fn: Optional[Callable[[Chunk], Any]] = None,
       convert_fn: Optional[Callable[[Any], Any]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add content column.
@@ -258,7 +251,7 @@ class SpannerColumnSpecsBuilder:
     Args:
         column_name: Column name (default: "content")
         python_type: Python type (default: str)
-        value_fn: Value extractor (default: chunk.content.text)
+        extract_fn: Value extractor (default: chunk.content.text)
         convert_fn: Optional converter
     
     Returns:
@@ -285,13 +278,14 @@ class SpannerColumnSpecsBuilder:
         raise ValueError(f'Chunk must contain content: {chunk}')
       return chunk.content.text
 
-    fn = value_fn or default_fn
+    extract_fn = extract_fn or default_fn
+
     self._specs.append(
         SpannerColumnSpec(
             column_name=column_name,
             python_type=python_type,
-            value_fn=fn,
-            convert_fn=convert_fn))
+            value_fn=functools.partial(
+                _extract_and_convert, extract_fn, convert_fn)))
     return self
 
   def with_metadata_spec(
@@ -313,13 +307,10 @@ class SpannerColumnSpecsBuilder:
     Note:
         Metadata is automatically converted to JSON string using json.dumps()
     """
-    fn = value_fn or (lambda chunk: chunk.metadata)
+    value_fn = value_fn or (lambda chunk: json.dumps(chunk.metadata))
     self._specs.append(
         SpannerColumnSpec(
-            column_name=column_name,
-            python_type=str,
-            value_fn=fn,
-            convert_fn=lambda meta: json.dumps(meta)))
+            column_name=column_name, python_type=str, value_fn=value_fn))
     return self
 
   def add_metadata_field(
@@ -332,8 +323,7 @@ class SpannerColumnSpecsBuilder:
     """Flatten a metadata field into its own column.
     
     Extracts a specific field from chunk.metadata and stores it in a
-    dedicated table column. Useful for fields that need to be queried
-    or indexed separately.
+    dedicated table column.
     
     Args:
         field: Key in chunk.metadata to extract
@@ -387,24 +377,21 @@ class SpannerColumnSpecsBuilder:
         SpannerColumnSpec(
             column_name=name,
             python_type=python_type,
-            value_fn=value_fn,
-            convert_fn=convert_fn))
+            value_fn=functools.partial(
+                _extract_and_convert, value_fn, convert_fn)))
     return self
 
   def add_column(
       self,
       column_name: str,
       python_type: Type,
-      value_fn: Callable[[Chunk], Any],
-      convert_fn: Optional[Callable[[Any], Any]] = None
-  ) -> 'SpannerColumnSpecsBuilder':
+      value_fn: Callable[[Chunk], Any]) -> 'SpannerColumnSpecsBuilder':
     """Add a custom column with full control.
     
     Args:
         column_name: Column name
         python_type: Python type (required)
         value_fn: Value extraction function
-        convert_fn: Optional converter
     
     Returns:
         Self for method chaining
@@ -426,10 +413,8 @@ class SpannerColumnSpecsBuilder:
     """
     self._specs.append(
         SpannerColumnSpec(
-            column_name=column_name,
-            python_type=python_type,
-            value_fn=value_fn,
-            convert_fn=convert_fn))
+            column_name=column_name, python_type=python_type,
+            value_fn=value_fn))
     return self
 
   def build(self) -> List[SpannerColumnSpec]:
@@ -447,7 +432,6 @@ class _SpannerSchemaBuilder:
   Creates a NamedTuple type from column specifications and registers it
   with Beam's RowCoder for serialization.
   """
-
   def __init__(self, table_name: str, column_specs: List[SpannerColumnSpec]):
     """Initialize schema builder.
     
@@ -483,7 +467,7 @@ class _SpannerSchemaBuilder:
     """
     def convert(chunk: Chunk) -> self.record_type:  # type: ignore
       values = {
-          col.column_name: col.extract_value(chunk)
+          col.column_name: col.value_fn(chunk)
           for col in self.column_specs
       }
       return self.record_type(**values)  # type: ignore
@@ -534,7 +518,6 @@ class SpannerVectorWriterConfig(VectorDatabaseWriteConfig):
       ...     emulator_host="http://localhost:9010"
       ... )
   """
-
   def __init__(
       self,
       project_id: str,
@@ -560,9 +543,10 @@ class SpannerVectorWriterConfig(VectorDatabaseWriteConfig):
       commit_deadline: Optional[int] = None,
       max_cumulative_backoff: Optional[int] = None,
       # Error handling
-      failure_mode: Optional[FailureMode] = FailureMode.REPORT_FAILURES,
+      failure_mode: Optional[
+          spanner.FailureMode] = spanner.FailureMode.REPORT_FAILURES,
       high_priority: bool = False,
-       # Additional Spanner arguments
+      # Additional Spanner arguments
       **spanner_kwargs):
     """Initialize Spanner vector writer configuration.
     
@@ -630,7 +614,6 @@ class SpannerVectorWriterConfig(VectorDatabaseWriteConfig):
 
 class _WriteToSpannerVectorDatabase(beam.PTransform):
   """Internal: PTransform for writing to Spanner vector database."""
-
   def __init__(self, config: SpannerVectorWriterConfig):
     """Initialize write transform.
     
@@ -645,16 +628,13 @@ class _WriteToSpannerVectorDatabase(beam.PTransform):
     
     Args:
         pcoll: PCollection of Chunks to write
-    
-    Returns:
-        PCollection of write results (or errors if failure_mode=REPORT_FAILURES)
     """
     # Select appropriate Spanner write transform based on write_mode
     write_transform_class = {
-        "INSERT": SpannerInsert,
-        "UPDATE": SpannerUpdate,
-        "REPLACE": SpannerReplace,
-        "INSERT_OR_UPDATE": SpannerInsertOrUpdate,
+        "INSERT": spanner.SpannerInsert,
+        "UPDATE": spanner.SpannerUpdate,
+        "REPLACE": spanner.SpannerReplace,
+        "INSERT_OR_UPDATE": spanner.SpannerInsertOrUpdate,
     }[self.config.write_mode]
 
     return (
@@ -678,5 +658,4 @@ class _WriteToSpannerVectorDatabase(beam.PTransform):
             failure_mode=self.config.failure_mode,
             expansion_service=self.config.expansion_service,
             high_priority=self.config.high_priority,
-            **self.config.spanner_kwargs
-        ))
+            **self.config.spanner_kwargs))
