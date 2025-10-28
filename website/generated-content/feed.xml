@@ -1,4 +1,89 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Google Summer of Code 2025 - Enhanced Interactive Pipeline Development Environment for JupyterLab</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.69.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.69.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2690-2025-10-28">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.69.0, check out the &lt;a href="https://github.com/apache/beam/milestone/37?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>(Python) Add YAML Editor and Visualization Panel (&lt;a href="https://github.com/apache/beam/issues/35772">#35772&lt;/a>).&lt;/li>
+&lt;li>(Java) Java 25 Support (&lt;a href="https://github.com/apache/beam/issues/35627">#35772&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Upgraded Iceberg dependency to 1.10.0 (&lt;a href="https://github.com/apache/beam/issues/36123">#36123&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Enhance JAXBCoder with XMLInputFactory support (Java) (&lt;a href="https://github.com/apache/beam/issues/36446">#36446&lt;/a>).&lt;/li>
+&lt;li>Python examples added for CloudSQL enrichment handler on &lt;a href="https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-cloudsql/">Beam website&lt;/a> (Python) (&lt;a href="https://github.com/apache/beam/issues/36095">#35473&lt;/a>).&lt;/li>
+&lt;li>Support for batch mode execution in WriteToPubSub transform added (Python) (&lt;a href="https://github.com/apache/beam/issues/35990">#35990&lt;/a>).&lt;/li>
+&lt;li>Added official support for Python 3.13 (&lt;a href="https://github.com/apache/beam/issues/34869">#34869&lt;/a>).&lt;/li>
+&lt;li>Added an optional output_schema verification to all YAML transforms (&lt;a href="https://github.com/apache/beam/issues/35952">#35952&lt;/a>).&lt;/li>
+&lt;li>Support for encryption when using GroupByKey added, along with &lt;code>--gbek&lt;/code> pipeline option to automatically replace all GroupByKey transforms (Java/Python) (&lt;a href="https://github.com/apache/beam/issues/36214">#36214&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>(Python) &lt;code>dill&lt;/code> is no longer a required, default dependency for Apache Beam (&lt;a href="https://github.com/apache/beam/issues/21298">#21298&lt;/a>).
+&lt;ul>
+&lt;li>This change only affects pipelines that explicitly use the &lt;code>pickle_library=dill&lt;/code> pipeline option.&lt;/li>
+&lt;li>While &lt;code>dill==0.3.1.1&lt;/code> is still pre-installed on the official Beam SDK base images, it is no longer a direct dependency of the apache-beam Python package. This means it can be overridden by other dependencies in your environment.&lt;/li>
+&lt;li>If your pipeline uses &lt;code>pickle_library=dill&lt;/code>, you must manually ensure &lt;code>dill==0.3.1.1&lt;/code> is installed in both your submission and runtime environments.
+&lt;ul>
+&lt;li>Submission environment: Install the dill extra in your local environment &lt;code>pip install apache-beam[gcpdill]&lt;/code>.&lt;/li>
+&lt;li>Runtime (worker) environment: Your action depends on how you manage your worker&amp;rsquo;s environment.
+&lt;ul>
+&lt;li>If using default containers or custom containers with the official Beam base image e.g. &lt;code>FROM apache/beam_python3.10_sdk:2.69.0&lt;/code>
+&lt;ul>
+&lt;li>Add &lt;code>dill==0.3.1.1&lt;/code> to your worker&amp;rsquo;s requirements file (e.g., requirements.txt)&lt;/li>
+&lt;li>Pass this file to your pipeline using the &amp;ndash;requirements_file requirements.txt pipeline option (For more details see &lt;a href="https://cloud.google.com/dataflow/docs/guides/manage-dependencies#py-custom-containers">managing Dataflow dependencies&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>If custom containers with a non-Beam base image e.g. &lt;code>FROM python:3.9-slim&lt;/code>
+&lt;ul>
+&lt;li>Install apache-beam with the dill extra in your docker file e.g. &lt;code>RUN pip install --no-cache-dir apache-beam[gcp,dill]&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>If there is a dill version mismatch between submission and runtime environments you might encounter unpickling errors like &lt;code>Can't get attribute '_create_code' on &amp;lt;module 'dill._dill' from...&lt;/code>.&lt;/li>
+&lt;li>If dill is not installed in the runtime environment you will see the error &lt;code>ImportError: Pipeline option pickle_library=dill is set, but dill is not installed...&lt;/code>&lt;/li>
+&lt;li>Report any issues you encounter when using &lt;code>pickle_library=dill&lt;/code> to the GitHub issue (&lt;a href="https://github.com/apache/beam/issues/21298">#21298&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>(Python) Added a &lt;code>pickle_library=dill_unsafe&lt;/code> pipeline option. This allows overriding &lt;code>dill==0.3.1.1&lt;/code> using dill as the pickle_library. Use with extreme caution. Other versions of dill has not been tested with Apache Beam (&lt;a href="https://github.com/apache/beam/issues/21298">#21298&lt;/a>).&lt;/li>
+&lt;li>(Python) The deterministic fallback coder for complex types like NamedTuple, Enum, and dataclasses now normalizes filepaths for better determinism guarantees. This affects streaming pipelines updating from 2.68 to 2.69 that utilize this fallback coder. If your pipeline is affected, you may see a warning like: &amp;ldquo;Using fallback deterministic coder for type X&amp;hellip;&amp;rdquo;. To update safely sepcify the pipeline option &lt;code>--update_compatibility_version=2.68.0&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/36345">#36345&lt;/a>).&lt;/li>
+&lt;li>(Python) Fixed transform naming conflict when executing DataTransform on a dictionary of PColls (&lt;a href="https://github.com/apache/beam/issues/30445">#30445&lt;/a>).
+This may break update compatibility if you don&amp;rsquo;t provide a &lt;code>--transform_name_mapping&lt;/code>.&lt;/li>
+&lt;li>Removed deprecated Hadoop versions (2.10.2 and 3.2.4) that are no longer supported for &lt;a href="https://github.com/apache/iceberg/issues/10940">Iceberg&lt;/a> from IcebergIO (&lt;a href="https://github.com/apache/beam/issues/36282">#36282&lt;/a>).&lt;/li>
+&lt;li>(Go) Coder construction on SDK side is more faithful to the specs from runners without stripping length-prefix. This may break streaming pipeline update as the underlying coder could be changed (&lt;a href="https://github.com/apache/beam/issues/36387">#36387&lt;/a>).&lt;/li>
+&lt;li>Minimum Go version for Beam Go updated to 1.25.2 (&lt;a href="https://github.com/apache/beam/issues/36461">#36461&lt;/a>).&lt;/li>
+&lt;li>(Java) DoFn OutputReceiver now requires implementing a builder method as part of extended metadata support for elements (&lt;a href="https://github.com/apache/beam/issues/34902">#34902&lt;/a>).&lt;/li>
+&lt;li>(Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver&amp;rsquo;s builder to set those field ([#36523]https://github.com/apache/beam/pull/36523).&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed passing of pipeline options to x-lang transforms when called from the Java SDK (Java) (&lt;a href="https://github.com/apache/beam/issues/36443">#36443&lt;/a>).&lt;/li>
+&lt;li>PulsarIO has now changed support status from incomplete to experimental. Both read and writes should now minimally
+function (un-partitioned topics, without schema support, timestamp ordered messages for read) (Java)
+(&lt;a href="https://github.com/apache/beam/issues/36141">#36141&lt;/a>).&lt;/li>
+&lt;li>Fixed Spanner Change Stream reading stuck issue due to watermark of partition moving backwards (&lt;a href="https://github.com/apache/beam/issues/36470">#36470&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.69.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Andrew Crites, Arun Pandian, Bryan Dang, Chamikara Jayalath, Charles Nguyen, Chenzo, Clay Johnson, Danny McCormick, David A, Derrick Williams, Enrique Calderon, Hai Joey Tran, Ian Liao, Ian Mburu, Jack McCluskey, Jiang Zhu, Joey Tran, Kenneth Knowles, Kyle Stanley, Maciej Szwaja, Minbo Bae, Mohamed Awnallah, Radek Stankiewicz, Radosław Stankiewicz, Razvan Culea, Reuven Lax, Sagnik Ghosh, Sam Whittle, Shunping Huang, Steven van Rossum, Talat UYARER, Tanu Sharma, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, Yilei, claudevdm, flpablo, fozzie15, johnjcasey, lim1t, parveensania, yashu&lt;/p></description><link>/blog/beam-2.69.0/</link><pubDate>Tue, 28 Oct 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.69.0/</guid><category>blog</category><category>release</category></item><item><title>Google Summer of Code 2025 - Enhanced Interactive Pipeline Development Environment for JupyterLab</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -815,72 +900,4 @@ limitations under the License.
 &lt;h2 id="conclusion">Conclusion&lt;/h2>
 &lt;p>I’m currently a &lt;strong>Software Architect and Data Engineer at TELUS Security&lt;/strong>, where I work on the &lt;strong>Cybersecurity Analytics and Software Engineering&lt;/strong> team. We design data pipelines to detect and respond to threats at scale.&lt;/p>
 &lt;p>Participating in Beam College was a great way to stretch my skills, meet passionate Beam users, and contribute to a vibrant open source community. I’m excited to see what others will build in future editions!&lt;/p>
-&lt;p>– &lt;a href="https://www.linkedin.com/in/marcio-sugar/">Marcio Sugar&lt;/a>&lt;/p></description><link>/blog/beam-college-2025-anomaflow/</link><pubDate>Mon, 16 Jun 2025 00:00:00 +0000</pubDate><guid>/blog/beam-college-2025-anomaflow/</guid><category>blog</category></item><item><title>Apache Beam 2.65.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.65.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2650-2025-05-12">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.65.0, check out the &lt;a href="https://github.com/apache/beam/milestone/29?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Upgraded GoogleAdsAPI to v19 for GoogleAdsIO (Java) (&lt;a href="https://github.com/apache/beam/pull/34497">#34497&lt;/a>). Changed PTransform method from version-specified (&lt;code>v17()&lt;/code>) to &lt;code>current()&lt;/code> for better backward compatibility in the future.&lt;/li>
-&lt;li>Added support for writing to Pubsub with ordering keys (Java) (&lt;a href="https://github.com/apache/beam/issues/21162">#21162&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Added support for streaming side-inputs in the Spark Classic runner (&lt;a href="https://github.com/apache/beam/issues/18136">#18136&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>[Python] Cloudpickle is set as the default &lt;code>pickle_library&lt;/code>, where previously
-dill was the default in &lt;a href="https://github.com/apache/beam/pull/34695">#34695&lt;/a>.
-For known issues, reporting new issues, and understanding cloudpickle
-behavior refer to &lt;a href="https://github.com/apache/beam/issues/34903">#34903&lt;/a>.&lt;/li>
-&lt;li>[Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
-after reshuffle. To opt out of this change, set the
-update_compatibility_version to a previous Beam version e.g. &amp;ldquo;2.64.0&amp;rdquo;.
-(&lt;a href="https://github.com/apache/beam/pull/34348">#34348&lt;/a>).&lt;/li>
-&lt;li>[Python] PaneInfo is encoded by PaneInfoCoder, where previously PaneInfo was
-encoded with FastPrimitivesCoder falling back to PickleCoder. This only
-affects cases where PaneInfo is directly stored as an element.
-(&lt;a href="https://github.com/apache/beam/pull/34824">#34824&lt;/a>).&lt;/li>
-&lt;li>[Python] BigQueryFileLoads now adds a Reshuffle before triggering load jobs.
-This fixes a bug where there can be data loss in a streaming pipeline if there
-is a pending load job during autoscaling. To opt out of this change, set the
-update_compatibility_version to a previous Beam version e.g. &amp;ldquo;2.64.0&amp;rdquo;.
-(&lt;a href="https://github.com/apache/beam/pull/34657">#34657&lt;/a>)&lt;/li>
-&lt;li>[YAML] Kafka source and sink will be automatically replaced with compatible managed transforms.
-For older Beam versions, streaming update compatiblity can be maintained by specifying the pipeline
-option &lt;code>update_compatibility_version&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/34767">#34767&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>Beam ZetaSQL is deprecated and will be removed no earlier than Beam 2.68.0 (&lt;a href="https://github.com/apache/beam/issues/34423">#34423&lt;/a>).
-Users are recommended to switch to &lt;a href="https://beam.apache.org/documentation/dsls/sql/calcite/overview/">Calcite SQL&lt;/a> dialect.&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers (&lt;a href="https://github.com/apache/beam/issues/34089">#34089&lt;/a>)&lt;/li>
-&lt;li>(Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer&lt;Row> interface(&lt;a href="https://github.com/apache/beam/pull/34505">#34505&lt;/a>)&lt;/li>
-&lt;li>[Python] &lt;code>TypedDict&lt;/code> typehints are now compatible with &lt;code>Mapping&lt;/code> and &lt;code>Dict&lt;/code> type annotations.&lt;/li>
-&lt;/ul>
-&lt;h3 id="security-fixes">Security Fixes&lt;/h3>
-&lt;ul>
-&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2025-30065">CVE-2025-30065&lt;/a> (Java) (&lt;a href="https://github.com/apache/beam/pull/34573">#34573&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;p>N/A&lt;/p>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.65.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Aaron Trelstad, Adrian Stoll, Ahmed Abualsaud, akashorabek, Arun Pandian, Bentsi Leviav, Bryan Dang, Celeste Zeng, Chamikara Jayalath, claudevdm, Danny McCormick, Derrick Williams, Ozzie Fernandez, Gabija Balvociute, Gayatri Kate, illoise, Jack McCluskey, Jan Lukavský, Jinho Lee, Justin Bandoro, Kenneth Knowles, XQ Hu, Luke Tsekouras, Martin Trieu, Matthew Suozzo, Naireen Hussain, Niel Markwick, Radosław Stankiewicz, Razvan Culea, Robert Bradshaw, Robert Burke, RuiLong J., Sam Whittle, Sarthak, Shubham Jaiswal, Shunping Huang, Steven van Rossum, Suvrat Acharya, &lt;a href="mailto:sveyrie@luminatedata.com">sveyrie@luminatedata.com&lt;/a>, Talat Uyarer, TanuSharma2511, Tobias Kaymak, Tom Stepp, Valentyn Tymofieiev, twosom, Vitaly Terentyev, wollowizard, Yi Hu, Yifan Ye, Zilin Du&lt;/p></description><link>/blog/beam-2.65.0/</link><pubDate>Mon, 12 May 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.65.0/</guid><category>blog</category><category>release</category></item></channel></rss>
+&lt;p>– &lt;a href="https://www.linkedin.com/in/marcio-sugar/">Marcio Sugar&lt;/a>&lt;/p></description><link>/blog/beam-college-2025-anomaflow/</link><pubDate>Mon, 16 Jun 2025 00:00:00 +0000</pubDate><guid>/blog/beam-college-2025-anomaflow/</guid><category>blog</category></item></channel></rss>
