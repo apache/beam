@@ -795,7 +795,9 @@ def _iceberg_io_read_test_preprocessor(
 
 
 @YamlExamplesTestSuite.register_test_preprocessor([
-    'test_iceberg_to_iceberg_streaming_yaml', 'test_iceberg_to_iceberg_batch_yaml'])
+    'test_iceberg_to_iceberg_streaming_yaml',
+    'test_iceberg_to_iceberg_batch_yaml'
+])
 def _iceberg_cdc_read_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
@@ -818,9 +820,7 @@ def _iceberg_cdc_read_test_preprocessor(
             for k, v in config.items() if k.startswith('__')
         }
         transform['config']['elements'] = INPUT_TABLES[(
-            config['catalog_name'],
-            db_name,
-            table_name)]
+            config['catalog_name'], db_name, table_name)]
 
   return test_spec
 
@@ -1351,7 +1351,8 @@ INPUT_TABLES = {
     ('orders-test', 'order-database', 'orders'): input_data.
     spanner_orders_data(),
     ('db', 'users', 'NY'): input_data.iceberg_dynamic_destinations_users_data(),
-    ('shipment_data', 'shipment_dataset_bronze', 'shipments'): input_data.shipment_data_filtered(),
+    ('shipment_data', 'shipment_dataset_bronze', 'shipments'): input_data.
+    shipment_data_filtered(),
     ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
     bigtable_data(),
     ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data(),
