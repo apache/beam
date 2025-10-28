@@ -271,20 +271,6 @@ Integration tests suites on Jenkins are configured in groovy files that launch c
 
 The following environment variables can be used to improve test stability in CI environments:
 
-**Beam-specific settings:**
-- `BEAM_TESTING_FORCE_SINGLE_BUNDLE=true` - Forces single bundle execution for deterministic behavior
-- `BEAM_TESTING_DETERMINISTIC_ORDER=true` - Enables deterministic ordering of operations
-- `BEAM_RETRY_MAX_ATTEMPTS=5` - Maximum retry attempts for failed operations
-- `BEAM_RETRY_INITIAL_DELAY_MS=1000` - Initial delay between retries in milliseconds
-- `BEAM_RETRY_MAX_DELAY_MS=60000` - Maximum delay between retries in milliseconds
-- `BEAM_RUNNER_BUNDLE_TIMEOUT_MS=300000` - Bundle processing timeout in milliseconds
-
-**gRPC stability settings:**
-- `GRPC_ARG_KEEPALIVE_TIME_MS=30000` - gRPC keepalive time
-- `GRPC_ARG_KEEPALIVE_TIMEOUT_MS=5000` - gRPC keepalive timeout
-- `GRPC_ARG_MAX_RECONNECT_BACKOFF_MS=120000` - Maximum reconnection backoff
-- `GRPC_ARG_MAX_CONNECTION_IDLE_MS=300000` - Maximum connection idle time
-
 **Test execution settings:**
 - `PYTEST_XDIST_WORKER_COUNT=1` - Force sequential test execution
 - `PYTHONHASHSEED=0` - Ensure deterministic hash behavior
