@@ -124,8 +124,8 @@ class _KafkaIOSDFReadPerfTest(LoadTest):
         f"but got {total_messages}")
 
     _LOGGER.info(
-        f"Read {total_messages} messages "
-        f"(expected: {expected_records})")
+        "Read %d messages (expected: %d)",
+        total_messages, expected_records)
 
 
 if __name__ == '__main__':
