@@ -299,9 +299,6 @@ public final class KafkaIOST extends IOStressTestBase {
             .addParameter("maxNumWorkers", String.valueOf(configuration.maxNumWorkers))
             .addParameter("experiments", configuration.useDataflowRunnerV2 ? "use_runner_v2" : "")
             .addParameter("enableStreamingEngine", "true") // Enable streaming engine
-            .addParameter("usePublicIps", "false") // Use private IPs for better performance
-            .addParameter(
-                "subnetwork", "regions/us-central1/subnetworks/default") // Use default subnet
             .build();
 
     return pipelineLauncher.launch(project, region, options);
@@ -334,9 +331,6 @@ public final class KafkaIOST extends IOStressTestBase {
             .addParameter("runner", configuration.runner)
             .addParameter("experiments", configuration.useDataflowRunnerV2 ? "use_runner_v2" : "")
             .addParameter("enableStreamingEngine", "true") // Enable streaming engine
-            .addParameter("usePublicIps", "false") // Use private IPs for better performance
-            .addParameter(
-                "subnetwork", "regions/us-central1/subnetworks/default") // Use default subnet
             .build();
 
     return pipelineLauncher.launch(project, region, options);
