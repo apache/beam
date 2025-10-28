@@ -120,11 +120,12 @@ class _KafkaIOSDFReadPerfTest(LoadTest):
     expected_records = self.input_options['num_records']
 
     assert total_messages >= expected_records, (
-        f"Expected at least {expected_records} messages, but got "
-        f"{total_messages}")
+        f"Expected at least {expected_records} messages, "
+        f"but got {total_messages}")
 
-    _LOGGER.info(f"Read {total_messages} messages (expected: "
-                 f"{expected_records})")
+    _LOGGER.info(
+        f"Read {total_messages} messages "
+        f"(expected: {expected_records})")
 
 
 if __name__ == '__main__':
