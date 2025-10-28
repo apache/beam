@@ -212,7 +212,7 @@ class OrderedWindowElementsDoFn(beam.DoFn):
       _LOGGER.info(
           "[process] setting initial timer to %s",
           first_window_end_ts + self.allowed_lateness)
-      if (self.stop_timestamp is not None and
+      if (self.stop_timestamp is None or
           first_window_end_ts + self.allowed_lateness < self.stop_timestamp):
         window_timer.set(first_window_end_ts + self.allowed_lateness)
 
@@ -368,7 +368,7 @@ class OrderedWindowElementsDoFn(beam.DoFn):
     _LOGGER.info(
         "[on_timer] setting follow-up timer to %s",
         next_window_end_ts + self.allowed_lateness)
-    if (self.stop_timestamp is not None and
+    if (self.stop_timestamp is None or
         next_window_end_ts + self.allowed_lateness < self.stop_timestamp):
       window_timer.set(next_window_end_ts + self.allowed_lateness)
 
