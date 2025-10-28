@@ -148,15 +148,13 @@ public abstract class FileAwareFactoryFn<T>
             processedConfig.put(key, processedValue);
           }
         } catch (IOException ex) {
-          throw new RuntimeException(
-              "Failed trying to process value " + value + " for key " + key + ".", ex);
+          throw new RuntimeException("Failed trying to process value for key " + key + ".", ex);
         }
       }
     } catch (IOException e) {
       throw new RuntimeException("Failed trying to process extra files.", e);
     }
 
-    LOG.info("ProcessedConfig: {}", processedConfig);
     return createObject(processedConfig);
   }
 
