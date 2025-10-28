@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.69.0"
-date:   2025-10-?? 15:00:00 -0500
+date:   2025-10-28 15:00:00 -0500
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.69.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2690-2025-10-??) for this release.
+See the [download page](/get-started/downloads/#2690-2025-10-28) for this release.
 
 <!--more-->
 
