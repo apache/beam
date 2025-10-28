@@ -24,6 +24,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -41,9 +42,12 @@ public class WindmillStateTagUtil {
   // Private constructor to prevent instantiations from outside.
   private WindmillStateTagUtil() {}
 
-  /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
+  /**
+   * Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. The
+   * returned InternedByteStrings are weakly interned to reduce memory usage and reduce GC pressure.
+   */
   @VisibleForTesting
-  ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
+  InternedByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     RefHolder refHolder = getRefHolderFromThreadLocal();
     // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
     // a lot, and this leads to better performance results. See associated benchmarks.
@@ -65,7 +69,7 @@ public class WindmillStateTagUtil {
       namespace.appendTo(stream);
       stream.append('+');
       address.appendTo(stream);
-      return stream.toByteStringAndReset();
+      return InternedByteString.of(stream.toByteStringAndReset());
     } catch (IOException e) {
       throw new RuntimeException(e);
     } finally {
