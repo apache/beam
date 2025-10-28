@@ -20,11 +20,9 @@
 # pytype: skip-file
 
 import dataclasses
-import functools
 import logging
 import os
 import tempfile
-import time
 import typing
 import unittest
 
