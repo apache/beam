@@ -1,12 +1,1 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Beam Security</title><link>/security/</link><description>Recent content in Beam Security on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/security/index.xml" rel="self" type="application/rss+xml"/><item><title>Security: CVE-2020-1929</title><link>/security/cve-2020-1929/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/security/cve-2020-1929/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---></description></item></channel></rss>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Beam Security</title><link>/security/</link><description>Recent content in Beam Security on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/security/index.xml" rel="self" type="application/rss+xml"/></channel></rss>
