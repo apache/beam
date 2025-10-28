@@ -183,7 +183,7 @@ public final class KafkaIOST extends IOStressTestBase {
           pipelineOperator.waitUntilDone(
               createConfig(writeInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
       assertNotEquals(PipelineOperator.Result.LAUNCH_FAILED, writeResult);
-      
+
       // Add monitoring for read job progress
       PipelineOperator.Result readResult =
           pipelineOperator.waitUntilDone(
@@ -300,7 +300,8 @@ public final class KafkaIOST extends IOStressTestBase {
             .addParameter("experiments", configuration.useDataflowRunnerV2 ? "use_runner_v2" : "")
             .addParameter("enableStreamingEngine", "true") // Enable streaming engine
             .addParameter("usePublicIps", "false") // Use private IPs for better performance
-            .addParameter("subnetwork", "regions/us-central1/subnetworks/default") // Use default subnet
+            .addParameter(
+                "subnetwork", "regions/us-central1/subnetworks/default") // Use default subnet
             .build();
 
     return pipelineLauncher.launch(project, region, options);
@@ -312,13 +313,14 @@ public final class KafkaIOST extends IOStressTestBase {
         KafkaIO.readBytes()
             .withBootstrapServers(configuration.bootstrapServers)
             .withTopic(kafkaTopic)
-            .withConsumerConfigUpdates(ImmutableMap.of(
-                "auto.offset.reset", "earliest",
-                "session.timeout.ms", "30000", // Add session timeout
-                "heartbeat.interval.ms", "10000", // Add heartbeat interval
-                "max.poll.interval.ms", "300000", // Add max poll interval
-                "fetch.min.bytes", "1", // Add fetch min bytes
-                "fetch.max.wait.ms", "500")); // Add fetch max wait
+            .withConsumerConfigUpdates(
+                ImmutableMap.of(
+                    "auto.offset.reset", "earliest",
+                    "session.timeout.ms", "30000", // Add session timeout
+                    "heartbeat.interval.ms", "10000", // Add heartbeat interval
+                    "max.poll.interval.ms", "300000", // Add max poll interval
+                    "fetch.min.bytes", "1", // Add fetch min bytes
+                    "fetch.max.wait.ms", "500")); // Add fetch max wait
 
     readPipeline
         .apply("Read from Kafka", readFromKafka)
@@ -333,7 +335,8 @@ public final class KafkaIOST extends IOStressTestBase {
             .addParameter("experiments", configuration.useDataflowRunnerV2 ? "use_runner_v2" : "")
             .addParameter("enableStreamingEngine", "true") // Enable streaming engine
             .addParameter("usePublicIps", "false") // Use private IPs for better performance
-            .addParameter("subnetwork", "regions/us-central1/subnetworks/default") // Use default subnet
+            .addParameter(
+                "subnetwork", "regions/us-central1/subnetworks/default") // Use default subnet
             .build();
 
     return pipelineLauncher.launch(project, region, options);
