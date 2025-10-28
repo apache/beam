@@ -159,7 +159,7 @@ overrides==7.7.0
 packaging==25.0
 pandas==2.2.3
 parameterized==0.9.0
-pg8000==1.31.4
+pg8000==1.31.5
 pip==25.2
 pluggy==1.6.0
 propcache==0.3.2
