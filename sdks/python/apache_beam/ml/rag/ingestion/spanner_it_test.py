@@ -22,6 +22,8 @@ import time
 import unittest
 import uuid
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.spanner import SpannerVectorWriterConfig
 from apache_beam.ml.rag.types import Chunk
