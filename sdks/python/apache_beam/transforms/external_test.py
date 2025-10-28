@@ -28,7 +28,7 @@ import time
 import typing
 import unittest
 
-from unittest import mock
+import mock
 
 import apache_beam as beam
 from apache_beam import ManagedReplacement
