@@ -48,6 +48,7 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -59,6 +60,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -194,7 +196,8 @@ public class TableRowToStorageApiProto {
     OutputT apply(FirstInputT t, SecondInputT u) throws SchemaConversionException;
   }
 
-  static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("0.0###############");
+  static final DecimalFormat DECIMAL_FORMAT =
+      new DecimalFormat("0.0###############", DecimalFormatSymbols.getInstance(Locale.ROOT));
 
   // Map of functions to convert json values into the value expected in the Vortex proto object.
   static final Map<TableFieldSchema.Type, ThrowingBiFunction<String, Object, @Nullable Object>>
