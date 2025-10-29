@@ -83,7 +83,7 @@ jobs:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:portable:py39:flinkCompatibilityMatrix${{ matrix.environment_type }}
+          gradle-command: :sdks:python:test-suites:portable:py310:flinkCompatibilityMatrix${{ matrix.environment_type }}
           arguments: |
             -PpythonVersion=3.10 \
       - name: Archive Python Test Results

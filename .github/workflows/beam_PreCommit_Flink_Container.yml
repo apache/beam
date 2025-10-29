@@ -120,7 +120,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request_target' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:container:py39:docker
+          gradle-command: :sdks:python:container:py310:docker
           arguments: |
             -PpythonVersion=${{ env.PYTHON_VERSION }} \
             -Pdocker-repository-root=${{ env.DOCKER_REPOSITORY_ROOT }} \
