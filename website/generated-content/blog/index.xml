@@ -17,7 +17,7 @@ See the &lt;a href="/get-started/downloads/#2690-2025-10-28">download page&lt;/a
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
 &lt;li>(Python) Add YAML Editor and Visualization Panel (&lt;a href="https://github.com/apache/beam/issues/35772">#35772&lt;/a>).&lt;/li>
-&lt;li>(Java) Java 25 Support (&lt;a href="https://github.com/apache/beam/issues/35627">#35772&lt;/a>).&lt;/li>
+&lt;li>(Java) Java 25 Support (&lt;a href="https://github.com/apache/beam/issues/35627">#35627&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h3 id="ios">I/Os&lt;/h3>
 &lt;ul>
@@ -71,7 +71,7 @@ This may break update compatibility if you don&amp;rsquo;t provide a &lt;code>--
 &lt;li>(Go) Coder construction on SDK side is more faithful to the specs from runners without stripping length-prefix. This may break streaming pipeline update as the underlying coder could be changed (&lt;a href="https://github.com/apache/beam/issues/36387">#36387&lt;/a>).&lt;/li>
 &lt;li>Minimum Go version for Beam Go updated to 1.25.2 (&lt;a href="https://github.com/apache/beam/issues/36461">#36461&lt;/a>).&lt;/li>
 &lt;li>(Java) DoFn OutputReceiver now requires implementing a builder method as part of extended metadata support for elements (&lt;a href="https://github.com/apache/beam/issues/34902">#34902&lt;/a>).&lt;/li>
-&lt;li>(Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver&amp;rsquo;s builder to set those field ([#36523]https://github.com/apache/beam/pull/36523).&lt;/li>
+&lt;li>(Java) Removed ProcessContext outputWindowedValue introduced in 2.68 that allowed setting offset and record Id. Use OutputReceiver&amp;rsquo;s builder to set those field (&lt;a href="https://github.com/apache/beam/pull/36523">#36523&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h3 id="bugfixes">Bugfixes&lt;/h3>
 &lt;ul>
