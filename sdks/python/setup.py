@@ -297,7 +297,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.10'
+python_requires = '>=3.9'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 14:
   warnings.warn(
