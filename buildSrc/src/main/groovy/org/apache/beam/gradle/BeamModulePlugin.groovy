@@ -1663,7 +1663,6 @@ class BeamModulePlugin implements Plugin<Project> {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 
-        // redirect java compiler to specified version for compileTestJava only
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
           project.ext.setJavaVerOptions(options, ver)
@@ -1677,17 +1676,19 @@ class BeamModulePlugin implements Plugin<Project> {
             //  'com.sun.tools.javac.code.TypeTag UNKNOWN'
             options.errorprone.enabled = false
           }
+          outputs.upToDateWhen { false }
         }
-        // redirect java runtime to specified version for running tests
         project.tasks.withType(Test).configureEach {
           useJUnit()
           executable = "${testJavaHome}/bin/java"
+          dependsOn project.tasks.compileTestJava
         }
         project.afterEvaluate {
           project.tasks.withType(Test).configureEach { testTask ->
             if (testJavaHome) {
               testTask.executable = "${testJavaHome}/bin/java"
             }
+            testTask.dependsOn project.tasks.compileTestJava
           }
         }
       }
