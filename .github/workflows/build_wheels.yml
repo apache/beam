@@ -92,7 +92,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.10
+          python-version: '3.10'
       - name: Get tag
         id: get_tag
         run: |
@@ -246,7 +246,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: 3.10
+        python-version: '3.10'
     - uses: docker/setup-qemu-action@v3
       if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU
