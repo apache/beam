@@ -3094,10 +3094,10 @@ class BeamModulePlugin implements Plugin<Project> {
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '3.'
+          project.pythonVersion : '3.10'
 
       // Set min/max python versions used for containers and supported versions.
-      project.ext.minPythonVersion = 9
+      project.ext.minPythonVersion = 10
       project.ext.maxPythonVersion = 13
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
