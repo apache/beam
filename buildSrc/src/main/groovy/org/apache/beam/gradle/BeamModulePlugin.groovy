@@ -1291,10 +1291,19 @@ class BeamModulePlugin implements Plugin<Project> {
 
             // hadoop uses an old version of logback with CVE reports
             // force all transitive logback deps to a newer one
-            // Use Java 8 compatible version when running tests with Java 8
-            def logbackTestVersion = project.findProperty('testJavaVersion') == '8' ? '1.4.17' : logback_version
-            force "ch.qos.logback:logback-classic:$logbackTestVersion"
-            force "ch.qos.logback:logback-core:$logbackTestVersion"
+            // When running tests with Java 8, use Java 8 compatible version only for test runtime configurations
+            // (not compile configurations to avoid dependency resolution failures)
+            // Only apply Java 8 compatible logback to explicit test runtime configurations, not compile/testCompile/testImplementation
+            def configName = config.getName().toLowerCase()
+            def isTestRuntimeConfig = (configName == 'testruntimeclasspath' ||
+                                      configName == 'testruntimeonly' ||
+                                      configName == 'testruntimemigration' ||
+                                      configName == 'shadowtestruntimeclasspath')
+            // Use logback 1.4.14 for Java 8 test runtime (last stable 1.4.x that supports Java 8)
+            // Logback 1.5.x requires Java 11+, so we must use 1.4.x when running tests with Java 8
+            def logbackVersionToUse = (isTestRuntimeConfig && project.findProperty('testJavaVersion') == '8') ? '1.4.14' : logback_version
+            force "ch.qos.logback:logback-classic:$logbackVersionToUse"
+            force "ch.qos.logback:logback-core:$logbackVersionToUse"
           }
         }
       }
