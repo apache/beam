@@ -2448,7 +2448,10 @@ func (em *ElementManager) ProcessingTimeNow() (ret mtime.Time) {
 
 	// "Test" mode -> advance to next processing time event if any, to allow execution.
 	if !em.config.EnableRTC {
-		if t, ok := em.processTimeEvents.Peek(); ok {
+		em.refreshCond.L.Lock()
+		t, ok := em.processTimeEvents.Peek()
+		em.refreshCond.L.Unlock()
+		if ok {
 			return t
 		}
 	}
