@@ -35,6 +35,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints.typehints import TupleConstraint
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import DurationTypes  # pylint: disable=unused-import
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused-import
@@ -89,7 +90,7 @@ class OrderedWindowElementsDoFn(beam.DoFn):
       self,
       duration: DurationTypes,
       slide_interval: DurationTypes,
-      offset: TimestampTypes,
+      offset: DurationTypes,
       allowed_lateness: DurationTypes,
       default_start_value,
       fill_start_if_missing: bool,
@@ -200,20 +201,23 @@ class OrderedWindowElementsDoFn(beam.DoFn):
 
     timer_started = timer_state.read()
     if not timer_started:
-      timestamp_secs = timestamp.micros / 1e6
+      offset_duration = Duration.of(self.offset)
+      slide_duration = Duration.of(self.slide_interval)
+      duration_duration = Duration.of(self.duration)
 
       # Align the timestamp with the windowing scheme.
-      aligned_timestamp = timestamp_secs - self.offset
+      aligned_micros = (timestamp - offset_duration).micros
 
-      # Calculate the start of the last window that could contain this timestamp.
-      last_window_start_aligned = ((aligned_timestamp // self.slide_interval) *
-                                   self.slide_interval)
-      last_window_start = last_window_start_aligned + self.offset
+      # Calculate the start of the last window that could contain this timestamp
+      last_window_start_aligned_micros = (
+          (aligned_micros // slide_duration.micros) * slide_duration.micros)
 
-      n = (self.duration - 1) // self.slide_interval
+      last_window_start = Timestamp(
+          micros=last_window_start_aligned_micros) + offset_duration
+      n = (duration_duration.micros - 1) // slide_duration.micros
       # Calculate the start of the first sliding window.
-      first_slide_start = last_window_start - n * self.slide_interval
-      first_slide_start_ts = Timestamp.of(first_slide_start)
+      first_slide_start_ts = last_window_start - Duration(
+          micros=n * slide_duration.micros)
 
       # Set the initial timer to fire at the end of the first window plus
       # allowed lateness.
@@ -541,7 +545,7 @@ class OrderedWindowElements(PTransform):
       self,
       duration: DurationTypes,
       slide_interval: Optional[DurationTypes] = None,
-      offset: TimestampTypes = 0,
+      offset: DurationTypes = 0,
       allowed_lateness: DurationTypes = 0,
       default_start_value=None,
       fill_start_if_missing: bool = False,
