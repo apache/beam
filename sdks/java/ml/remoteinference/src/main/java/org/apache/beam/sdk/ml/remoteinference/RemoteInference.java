@@ -1,11 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.ml.remoteinference;
 
+import org.apache.beam.sdk.ml.remoteinference.base.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import org.apache.beam.sdk.ml.remoteinference.base.BaseInput;
-import org.apache.beam.sdk.ml.remoteinference.base.BaseModelHandler;
-import org.apache.beam.sdk.ml.remoteinference.base.BaseModelParameters;
-import org.apache.beam.sdk.ml.remoteinference.base.BaseResponse;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -27,7 +41,7 @@ public class RemoteInference {
 
   @AutoValue
   public abstract static class Invoke<InputT extends BaseInput, OutputT extends BaseResponse>
-    extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+    extends PTransform<PCollection<InputT>, PCollection<Iterable<PredictionResult<InputT, OutputT>>>> {
 
     abstract @Nullable Class<? extends BaseModelHandler> handler();
 
@@ -54,12 +68,12 @@ public class RemoteInference {
     }
 
     @Override
-    public PCollection<OutputT> expand(PCollection<InputT> input) {
+    public PCollection<Iterable<PredictionResult<InputT, OutputT>>> expand(PCollection<InputT> input) {
       return input.apply(ParDo.of(new RemoteInferenceFn<>(this)));
     }
 
     static class RemoteInferenceFn<InputT extends BaseInput, OutputT extends BaseResponse>
-      extends DoFn<InputT, OutputT> {
+      extends DoFn<InputT, Iterable<PredictionResult<InputT, OutputT>>> {
 
       private final Class<? extends BaseModelHandler> handlerClass;
       private final BaseModelParameters parameters;
@@ -83,7 +97,7 @@ public class RemoteInference {
 
       @ProcessElement
       public void processElement(ProcessContext c) {
-        OutputT response = (OutputT) this.handler.request(c.element());
+        Iterable<PredictionResult<InputT, OutputT>> response = this.handler.request(c.element());
         c.output(response);
       }
     }

@@ -15,10 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.ml.remoteinference.base;
+package org.apache.beam.sdk.ml.remoteinference.openai;
 
-import java.io.Serializable;
+import org.apache.beam.sdk.ml.remoteinference.base.BaseInput;
 
-public interface BaseModelParameters extends Serializable {
+public class OpenAIModelInput extends BaseInput {
+
+  private final String input;
+
+  private OpenAIModelInput(String input) {
+
+    this.input = input;
+  }
+
+  public String getInput() {
+    return input;
+  }
+
+  public static OpenAIModelInput create(String input) {
+    return new OpenAIModelInput(input);
+  }
 
 }

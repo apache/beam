@@ -19,6 +19,26 @@ package org.apache.beam.sdk.ml.remoteinference.base;
 
 import java.io.Serializable;
 
-public interface BaseModelParameters extends Serializable {
+public class PredictionResult<InputT, OutputT> implements Serializable {
 
+  private final InputT input;
+  private final OutputT output;
+
+  private PredictionResult(InputT input, OutputT output) {
+    this.input = input;
+    this.output = output;
+
+  }
+
+  public InputT getInput() {
+    return input;
+  }
+
+  public OutputT getOutput() {
+    return output;
+  }
+
+  public static <InputT, OutputT> PredictionResult<InputT, OutputT> create(InputT input, OutputT output) {
+    return new PredictionResult<>(input, output);
+  }
 }
