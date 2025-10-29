@@ -1675,7 +1675,26 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
-          project.ext.setJavaVerOptions(options, ver)
+          // Manually set fork options instead of using setJavaVerOptions to ensure we have the correct property
+          if (ver == '8') {
+            options.compilerArgs += ['-Xlint:-path']
+          } else if (ver == '11') {
+            options.compilerArgs += ['-Xlint:-path']
+          } else if (ver == '17') {
+            options.compilerArgs += ['-Xlint:-path']
+            options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+            options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
+          } else if (ver == '21' || ver == '25') {
+            options.compilerArgs += ['-Xlint:-path', '-Xlint:-this-escape']
+            if (ver == '25') {
+              options.compilerArgs += ['-Xlint:-dangling-doc-comments']
+            }
+            options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+            options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
+            project.checkerFramework {
+              skipCheckerFramework = true
+            }
+          }
           if (ver == '25') {
             // TODO: Upgrade errorprone version to support Java25. Currently compile crashes
             //  java.lang.NoSuchFieldError: Class com.sun.tools.javac.code.TypeTag does not have member field
