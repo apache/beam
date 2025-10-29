@@ -26,5 +26,211 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.10'
 
+def posargs = project.findProperty("posargs") ?: ""
+
 apply from: "../common.gradle"
 
+toxTask "testPy310CloudCoverage", "py310-cloudcoverage", "${posargs}"
+test.dependsOn "testPy310CloudCoverage"
+project.tasks.register("preCommitPyCoverage") {
+      dependsOn = ["testPy310CloudCoverage"]
+}
+
+// Dep Postcommit runs test suites that evaluate compatibility of particular
+// dependencies. Each suite is exercised on at most one python version.
+//
+// Should still leave at least one version in PreCommit unless the marked tests
+// are also exercised by existing PreCommit
+// e.g. pyarrow and pandas also run on PreCommit Dataframe and Coverage
+project.tasks.register("postCommitPyDep") {}
+
+// Create a test task for supported major versions of pyarrow
+// We should have a test for the lowest supported version and
+// For versions that we would like to prioritize for testing,
+// for example versions released in a timeframe of last 1-2 years.
+
+toxTask "testPy310pyarrow-3", "py310-pyarrow-3", "${posargs}"
+test.dependsOn "testPy310pyarrow-3"
+postCommitPyDep.dependsOn "testPy310pyarrow-3"
+
+toxTask "testPy310pyarrow-9", "py310-pyarrow-9", "${posargs}"
+test.dependsOn "testPy310pyarrow-9"
+postCommitPyDep.dependsOn "testPy310pyarrow-9"
+
+toxTask "testPy310pyarrow-10", "py310-pyarrow-10", "${posargs}"
+test.dependsOn "testPy310pyarrow-10"
+postCommitPyDep.dependsOn "testPy310pyarrow-10"
+
+toxTask "testPy310pyarrow-11", "py310-pyarrow-11", "${posargs}"
+test.dependsOn "testPy310pyarrow-11"
+postCommitPyDep.dependsOn "testPy310pyarrow-11"
+
+toxTask "testPy310pyarrow-12", "py310-pyarrow-12", "${posargs}"
+test.dependsOn "testPy310pyarrow-12"
+postCommitPyDep.dependsOn "testPy310pyarrow-12"
+
+toxTask "testPy310pyarrow-13", "py310-pyarrow-13", "${posargs}"
+test.dependsOn "testPy310pyarrow-13"
+postCommitPyDep.dependsOn "testPy310pyarrow-13"
+
+toxTask "testPy310pyarrow-14", "py310-pyarrow-14", "${posargs}"
+test.dependsOn "testPy310pyarrow-14"
+postCommitPyDep.dependsOn "testPy310pyarrow-14"
+
+toxTask "testPy310pyarrow-15", "py310-pyarrow-15", "${posargs}"
+test.dependsOn "testPy310pyarrow-15"
+postCommitPyDep.dependsOn "testPy310pyarrow-15"
+
+toxTask "testPy310pyarrow-16", "py310-pyarrow-16", "${posargs}"
+test.dependsOn "testPy310pyarrow-16"
+postCommitPyDep.dependsOn "testPy310pyarrow-16"
+
+toxTask "testPy310pyarrow-17", "py310-pyarrow-17", "${posargs}"
+test.dependsOn "testPy310pyarrow-17"
+postCommitPyDep.dependsOn "testPy310pyarrow-17"
+
+toxTask "testPy310pyarrow-18", "py310-pyarrow-18", "${posargs}"
+test.dependsOn "testPy310pyarrow-18"
+postCommitPyDep.dependsOn "testPy310pyarrow-18"
+
+// Create a test task for each supported minor version of pandas
+toxTask "testPy310pandas-14", "py310-pandas-14", "${posargs}"
+test.dependsOn "testPy310pandas-14"
+postCommitPyDep.dependsOn "testPy310pandas-14"
+
+toxTask "testPy310pandas-15", "py310-pandas-15", "${posargs}"
+test.dependsOn "testPy310pandas-15"
+postCommitPyDep.dependsOn "testPy310pandas-15"
+
+toxTask "testPy310pandas-20", "py310-pandas-20", "${posargs}"
+test.dependsOn "testPy310pandas-20"
+postCommitPyDep.dependsOn "testPy310pandas-20"
+
+// TODO(https://github.com/apache/beam/issues/31192): Add below suites
+// after dependency compat tests suite switches to Python 3.9 or we add
+// Python 2.2 support.
+
+// toxTask "testPy310pandas-21", "py310-pandas-21", "${posargs}"
+// test.dependsOn "testPy310pandas-21"
+// postCommitPyDep.dependsOn "testPy310pandas-21"
+
+// toxTask "testPy310pandas-22", "py310-pandas-22", "${posargs}"
+// test.dependsOn "testPy310pandas-22"
+// postCommitPyDep.dependsOn "testPy310pandas-22"
+
+// TODO(https://github.com/apache/beam/issues/30908): Revise what are we testing
+
+// Create a test task for each minor version of pytorch
+toxTask "testPy310pytorch-19", "py310-pytorch-19", "${posargs}"
+test.dependsOn "testPy310pytorch-19"
+postCommitPyDep.dependsOn "testPy310pytorch-19"
+
+toxTask "testPy310pytorch-110", "py310-pytorch-110", "${posargs}"
+test.dependsOn "testPy310pytorch-110"
+postCommitPyDep.dependsOn "testPy310pytorch-110"
+
+toxTask "testPy310pytorch-111", "py310-pytorch-111", "${posargs}"
+test.dependsOn "testPy310pytorch-111"
+postCommitPyDep.dependsOn "testPy310pytorch-111"
+
+toxTask "testPy310pytorch-112", "py310-pytorch-112", "${posargs}"
+test.dependsOn "testPy310pytorch-112"
+postCommitPyDep.dependsOn "testPy310pytorch-112"
+
+toxTask "testPy310pytorch-113", "py310-pytorch-113", "${posargs}"
+test.dependsOn "testPy310pytorch-113"
+postCommitPyDep.dependsOn "testPy310pytorch-113"
+
+// run on precommit
+toxTask "testPy310pytorch-200", "py310-pytorch-200", "${posargs}"
+test.dependsOn "testPy310pytorch-200"
+postCommitPyDep.dependsOn "testPy310pytorch-200"
+
+toxTask "testPy310tft-113", "py310-tft-113", "${posargs}"
+test.dependsOn "testPy310tft-113"
+postCommitPyDep.dependsOn "testPy310tft-113"
+
+// TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
+// Create a test task for each minor version of onnx
+// toxTask "testPy310onnx-113", "py310-onnx-113", "${posargs}"
+// test.dependsOn "testPy310onnx-113"
+// postCommitPyDep.dependsOn "testPy310onnx-113"
+
+// Create a test task for each minor version of tensorflow
+toxTask "testPy310tensorflow-212", "py310-tensorflow-212", "${posargs}"
+test.dependsOn "testPy310tensorflow-212"
+postCommitPyDep.dependsOn "testPy310tensorflow-212"
+
+// Create a test task for each minor version of transformers
+toxTask "testPy310transformers-428", "py310-transformers-428", "${posargs}"
+test.dependsOn "testPy310transformers-428"
+postCommitPyDep.dependsOn "testPy310transformers-428"
+
+toxTask "testPy310transformers-447", "py310-transformers-447", "${posargs}"
+test.dependsOn "testPy310transformers-447"
+postCommitPyDep.dependsOn "testPy310transformers-447"
+
+toxTask "testPy310transformers-448", "py310-transformers-448", "${posargs}"
+test.dependsOn "testPy310transformers-448"
+postCommitPyDep.dependsOn "testPy310transformers-448"
+
+toxTask "testPy310transformers-latest", "py310-transformers-latest", "${posargs}"
+test.dependsOn "testPy310transformers-latest"
+postCommitPyDep.dependsOn "testPy310transformers-latest"
+
+toxTask "testPy310embeddingsMLTransform", "py310-embeddings", "${posargs}"
+test.dependsOn "testPy310embeddingsMLTransform"
+postCommitPyDep.dependsOn "testPy310embeddingsMLTransform"
+
+// Part of MLTransform embeddings test suite but requires tensorflow hub, which we need to test on
+// mutliple versions so keeping this suite separate.
+toxTask "testPy310TensorflowHubEmbeddings-014", "py310-TFHubEmbeddings-014", "${posargs}"
+test.dependsOn "testPy310TensorflowHubEmbeddings-014"
+postCommitPyDep.dependsOn "testPy310TensorflowHubEmbeddings-014"
+
+toxTask "testPy310TensorflowHubEmbeddings-015", "py310-TFHubEmbeddings-015", "${posargs}"
+test.dependsOn "testPy310TensorflowHubEmbeddings-015"
+postCommitPyDep.dependsOn "testPy310TensorflowHubEmbeddings-015"
+
+toxTask "whitespacelint", "whitespacelint", "${posargs}"
+
+task archiveFilesToLint(type: Zip) {
+  archiveFileName = "files-to-whitespacelint.zip"
+  destinationDirectory = file("$buildDir/dist")
+
+  from ("$rootProject.projectDir") {
+    include "**/*.md"
+    include "**/build.gradle"
+    include '**/build.gradle.kts'
+    exclude '**/build/**' // intermediate build directory
+    exclude 'website/www/site/themes/docsy/**' // fork to google/docsy
+    exclude "**/node_modules/*"
+    exclude "**/.gogradle/*"
+  }
+}
+
+task unpackFilesToLint(type: Copy) {
+  from zipTree("$buildDir/dist/files-to-whitespacelint.zip")
+  into "$buildDir/files-to-whitespacelint"
+}
+
+whitespacelint.dependsOn archiveFilesToLint, unpackFilesToLint
+unpackFilesToLint.dependsOn archiveFilesToLint
+archiveFilesToLint.dependsOn cleanPython
+
+toxTask "jest", "jest", "${posargs}"
+
+toxTask "eslint", "eslint", "${posargs}"
+
+task copyTsSource(type: Copy) {
+  from ("$rootProject.projectDir") {
+    include "sdks/python/apache_beam/runners/interactive/extensions/**/*"
+    exclude "sdks/python/apache_beam/runners/interactive/extensions/**/lib/*"
+    exclude "sdks/python/apache_beam/runners/interactive/extensions/**/node_modules/*"
+  }
+  into "$buildDir/ts"
+}
+
+jest.dependsOn copyTsSource
+eslint.dependsOn copyTsSource
+copyTsSource.dependsOn cleanPython

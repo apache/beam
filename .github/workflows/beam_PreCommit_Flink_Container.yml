@@ -79,7 +79,7 @@ env:
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-precommit-flink-container-${{ github.run_id }}
   DOCKER_REGISTRY: gcr.io
   DOCKER_REPOSITORY_ROOT: ${{ github.event_name == 'pull_request_target' && 'gcr.io/apache-beam-testing/beam-sdk-pr' || 'gcr.io/apache-beam-testing/beam-sdk' }}
-  PYTHON_VERSION: 3.9
+  PYTHON_VERSION: 3.10
   PYTHON_SDK_IMAGE_TAG: latest
 
 jobs:

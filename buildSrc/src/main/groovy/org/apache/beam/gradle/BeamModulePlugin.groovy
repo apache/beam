@@ -3093,9 +3093,8 @@ class BeamModulePlugin implements Plugin<Project> {
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
-      // TODO(BEAM-12000): Move default value to Py3.9.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '3.9'
+          project.pythonVersion : '3.'
 
       // Set min/max python versions used for containers and supported versions.
       project.ext.minPythonVersion = 9
@@ -3310,7 +3309,6 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:3:job-server:shadowJar',
-            ':sdks:python:container:py39:docker',
             ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',
             ':sdks:python:container:py312:docker',

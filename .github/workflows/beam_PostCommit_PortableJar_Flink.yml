@@ -81,7 +81,7 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:portable:py39:testPipelineJarFlinkRunner
           arguments: |
-            -PpythonVersion=3.9 \
+            -PpythonVersion=3.10 \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
