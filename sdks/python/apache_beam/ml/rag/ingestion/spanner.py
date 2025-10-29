@@ -65,7 +65,6 @@ import json
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import List
 from typing import Literal
 from typing import NamedTuple
@@ -291,7 +290,7 @@ class SpannerColumnSpecsBuilder:
   def with_metadata_spec(
       self,
       column_name: str = "metadata",
-      value_fn: Optional[Callable[[Chunk], Dict[str, Any]]] = None
+      value_fn: Optional[Callable[[Chunk], Any]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add metadata JSON column.
     

@@ -17,6 +17,7 @@
 
 """Integration tests for Spanner vector store writer."""
 
+import logging
 import os
 import time
 import unittest
@@ -211,7 +212,6 @@ class SpannerVectorWriterTest(unittest.TestCase):
     self.assertEqual(row2[0], 'doc2')
     self.assertEqual(list(row2[1]), [4.0, 5.0, 6.0])
     self.assertEqual(row2[2], 'Second document')
-    logging.warning(f"CLAUDE {results}")
 
   def test_write_flattened_metadata(self):
     """Test writing with flattened metadata fields."""
@@ -594,7 +594,6 @@ class SpannerVectorWriterTest(unittest.TestCase):
     self.assertEqual(rows[0][0], 'doc1')
     # Timestamp is returned as datetime object by Spanner client
     self.assertIsNotNone(rows[0][1])
-    logging.warning(rows)
 
 
 if __name__ == '__main__':
