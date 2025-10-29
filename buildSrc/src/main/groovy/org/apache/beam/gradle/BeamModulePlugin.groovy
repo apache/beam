@@ -3004,7 +3004,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Transform service delivers transforms that refer to SDK harness containers with following sufixes.
       def transformServiceJavaContainerSuffix = 'java11'
-      def transformServicePythonContainerSuffix = '39'
+      def transformServicePythonContainerSuffix = '310'
 
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         // Containers for main SDKs when running tests.
