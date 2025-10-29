@@ -116,7 +116,7 @@ joblib==1.5.1
 jsonpickle==3.4.2
 jsonschema==4.25.1
 jsonschema-specifications==2025.4.1
-keras==3.10.0
+keras==3.12.0
 keyring==25.6.0
 keyrings.google-artifactregistry-auth==1.1.2
 libclang==18.1.1
