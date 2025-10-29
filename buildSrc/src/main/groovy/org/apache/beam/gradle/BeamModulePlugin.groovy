@@ -1665,10 +1665,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
         def cleanTestClassesTask = project.tasks.register("cleanTestClassesForJava${ver}") {
           outputs.upToDateWhen { false }
-          doLast {
+          doFirst {
             project.sourceSets.test.output.classesDirs.each { dir ->
               if (dir.exists()) {
-                project.fileTree(dir).matching { include '**/*.class' }.each { it.delete() }
+                project.delete(dir)
               }
             }
           }
@@ -1688,10 +1688,13 @@ class BeamModulePlugin implements Plugin<Project> {
             if (!testJavaHome) {
               throw new GradleException("testJavaVersion=${ver} requires java${ver}Home property to be set")
             }
-            if (!options.forkOptions.javaHome || !options.forkOptions.javaHome.exists()) {
-              options.fork = true
-              options.forkOptions.javaHome = testJavaHome as File
+            def javaHomeFile = testJavaHome as File
+            if (!javaHomeFile.exists()) {
+              throw new GradleException("testJavaVersion=${ver} java${ver}Home directory does not exist: ${javaHomeFile}")
             }
+            options.fork = true
+            options.forkOptions.javaHome = javaHomeFile
+            options.forkOptions.executable = "${javaHomeFile}/bin/javac"
           }
         }
         project.tasks.withType(Test).configureEach {
