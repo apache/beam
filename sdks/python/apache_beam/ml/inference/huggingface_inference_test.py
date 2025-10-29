@@ -121,12 +121,34 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     inference_runner = HuggingFaceModelHandlerTensor(
         model_uri='unused',
         model_class=TFAutoModel,
-        inference_fn=fake_inference_fn_tensor,
-        inference_args={"add": True})
-    batched_examples = [tf.constant([1]), tf.constant([10]), tf.constant([100])]
-    inference_runner.run_inference(
-        batched_examples, fake_model, inference_args={"add": True})
-    self.assertEqual(inference_runner._framework, "tf")
+        inference_fn=fake_inference_fn_tensor)
+    batched_examples = [tf.constant(1), tf.constant(10), tf.constant(100)]
+    inference_runner.run_inference(batched_examples, fake_model)
+    self.assertEqual(inference_runner._framework, 'tf')
+
+  def test_convert_to_result_batch_processing(self):
+    """Test that utils._convert_to_result correctly handles 
+    batches with multiple elements."""
+
+    # Test case that reproduces the bug: batch size > 1
+    batch = ["input1", "input2"]
+    predictions = [{
+        "translation_text": "output1"
+    }, {
+        "translation_text": "output2"
+    }]
+
+    results = list(utils._convert_to_result(batch, predictions))
+
+    # Should return 2 results, not 1
+    self.assertEqual(
+        len(results), 2, "Should return one result per batch element")
+
+    # Check that each result has the correct input and output
+    self.assertEqual(results[0].example, "input1")
+    self.assertEqual(results[0].inference, {"translation_text": "output1"})
+    self.assertEqual(results[1].example, "input2")
+    self.assertEqual(results[1].inference, {"translation_text": "output2"})
 
 
 if __name__ == '__main__':

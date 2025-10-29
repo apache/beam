@@ -89,7 +89,10 @@ public class WindowedValueTest {
                 new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000))),
                 new IntervalWindow(
                     timestamp.plus(Duration.millis(1000)), timestamp.plus(Duration.millis(2000)))),
-            PaneInfo.NO_FIRING);
+            PaneInfo.NO_FIRING,
+            null,
+            null,
+            true); // drain is persisted as part of metadata
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
@@ -101,6 +104,7 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+    Assert.assertTrue(value.causedByDrain());
   }
 
   @Test
