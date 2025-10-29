@@ -52,8 +52,11 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -74,9 +77,11 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -118,6 +123,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -669,6 +675,19 @@ public class BigQueryIO {
             BigQueryUtils.tableRowToBeamRow(),
             BigQueryUtils.tableRowFromBeamRow());
   }
+  /** @deprecated this method may have breaking changes introduced, use with caution */
+  @Deprecated
+  public static DynamicRead readDynamicallyTableRows() {
+    return new AutoValue_BigQueryIO_DynamicRead.Builder()
+        .setBigQueryServices(new BigQueryServicesImpl())
+        .setParseFn(new TableRowParser())
+        .setFormat(DataFormat.AVRO)
+        .setOutputCoder(TableRowJsonCoder.of())
+        .setProjectionPushdownApplied(false)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
+        .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+        .build();
+  }
 
   private static class TableSchemaFunction
       implements Serializable, Function<@Nullable String, @Nullable TableSchema> {
@@ -802,6 +821,99 @@ public class BigQueryIO {
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
       return BigQueryAvroUtils.convertGenericRecordToTableRow(schemaAndRecord.getRecord());
+    }
+  }
+  /** @deprecated this class may have breaking changes introduced, use with caution */
+  @Deprecated
+  @AutoValue
+  public abstract static class DynamicRead
+      extends PTransform<PCollection<BigQueryDynamicReadDescriptor>, PCollection<TableRow>> {
+
+    abstract BigQueryServices getBigQueryServices();
+
+    abstract DataFormat getFormat();
+
+    abstract @Nullable SerializableFunction<SchemaAndRecord, TableRow> getParseFn();
+
+    abstract @Nullable ValueProvider<String> getRowRestriction();
+
+    abstract @Nullable Coder<TableRow> getOutputCoder();
+
+    abstract boolean getProjectionPushdownApplied();
+
+    abstract BadRecordRouter getBadRecordRouter();
+
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+
+      abstract Builder setFormat(DataFormat format);
+
+      abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
+
+      abstract Builder setParseFn(SerializableFunction<SchemaAndRecord, TableRow> parseFn);
+
+      abstract Builder setRowRestriction(ValueProvider<String> rowRestriction);
+
+      abstract Builder setOutputCoder(Coder<TableRow> coder);
+
+      abstract Builder setProjectionPushdownApplied(boolean projectionPushdownApplied);
+
+      abstract Builder setBadRecordErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder setBadRecordRouter(BadRecordRouter badRecordRouter);
+
+      abstract DynamicRead build();
+    }
+
+    DynamicRead() {}
+
+    class CreateBoundedSourceForTable
+        extends DoFn<BigQueryDynamicReadDescriptor, BigQueryStorageStreamSource<TableRow>> {
+
+      @ProcessElement
+      public void processElement(
+          OutputReceiver<BigQueryStorageStreamSource<TableRow>> receiver,
+          @Element BigQueryDynamicReadDescriptor descriptor,
+          PipelineOptions options)
+          throws Exception {
+        BigQueryStorageTableSource<TableRow> output =
+            BigQueryStorageTableSource.create(
+                StaticValueProvider.of(BigQueryHelpers.parseTableSpec(descriptor.getTable())),
+                getFormat(),
+                null,
+                getRowRestriction(),
+                getParseFn(),
+                getOutputCoder(),
+                getBigQueryServices(),
+                getProjectionPushdownApplied());
+        // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k
+        // shards
+        long desiredChunkSize =
+            Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+        List<BigQueryStorageStreamSource<TableRow>> split = output.split(desiredChunkSize, options);
+        split.stream().forEach(source -> receiver.output(source));
+      }
+    }
+
+    @Override
+    public PCollection<TableRow> expand(PCollection<BigQueryDynamicReadDescriptor> input) {
+      TupleTag<TableRow> rowTag = new TupleTag<>();
+      PCollectionTuple resultTuple =
+          input
+              .apply("convert", ParDo.of(new CreateBoundedSourceForTable()))
+              .apply("redistribute", Redistribute.arbitrarily())
+              .apply(
+                  "Read Storage Table Source",
+                  ParDo.of(
+                          new TypedRead.ReadTableSource<TableRow>(
+                              rowTag, getParseFn(), getBadRecordRouter()))
+                      .withOutputTags(rowTag, TupleTagList.of(BAD_RECORD_TAG)));
+      getBadRecordErrorHandler()
+          .addErrorCollection(
+              resultTuple.get(BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
+      return resultTuple.get(rowTag).setCoder(TableRowJsonCoder.of());
     }
   }
 
