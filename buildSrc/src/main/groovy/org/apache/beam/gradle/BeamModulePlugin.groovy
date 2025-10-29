@@ -1663,6 +1663,16 @@ class BeamModulePlugin implements Plugin<Project> {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 
+        def cleanTestClassesTask = project.tasks.register("cleanTestClassesForJava${ver}") {
+          outputs.upToDateWhen { false }
+          doLast {
+            project.sourceSets.test.output.classesDirs.each { dir ->
+              if (dir.exists()) {
+                project.fileTree(dir).matching { include '**/*.class' }.each { it.delete() }
+              }
+            }
+          }
+        }
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
           project.ext.setJavaVerOptions(options, ver)
@@ -1673,18 +1683,21 @@ class BeamModulePlugin implements Plugin<Project> {
             options.errorprone.enabled = false
           }
           outputs.upToDateWhen { false }
+          dependsOn cleanTestClassesTask
           doFirst {
-            project.sourceSets.test.output.classesDirs.each { dir ->
-              if (dir.exists()) {
-                project.delete(project.fileTree(dir))
-              }
-              dir.mkdirs()
+            if (!testJavaHome) {
+              throw new GradleException("testJavaVersion=${ver} requires java${ver}Home property to be set")
+            }
+            if (!options.forkOptions.javaHome || !options.forkOptions.javaHome.exists()) {
+              options.fork = true
+              options.forkOptions.javaHome = testJavaHome as File
             }
           }
         }
         project.tasks.withType(Test).configureEach {
           useJUnit()
           executable = "${testJavaHome}/bin/java"
+          dependsOn cleanTestClassesTask
           dependsOn project.tasks.compileTestJava
         }
         project.afterEvaluate {
@@ -1692,6 +1705,7 @@ class BeamModulePlugin implements Plugin<Project> {
             if (testJavaHome) {
               testTask.executable = "${testJavaHome}/bin/java"
             }
+            testTask.dependsOn cleanTestClassesTask
             testTask.dependsOn project.tasks.compileTestJava
           }
         }
