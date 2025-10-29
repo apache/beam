@@ -1666,10 +1666,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
           project.ext.setJavaVerOptions(options, ver)
-          if (testJavaHome) {
-            options.fork = true
-            options.forkOptions.executable = "${testJavaHome}/bin/javac"
-          }
           if (ver == '25') {
             // TODO: Upgrade errorprone version to support Java25. Currently compile crashes
             //  java.lang.NoSuchFieldError: Class com.sun.tools.javac.code.TypeTag does not have member field
@@ -1677,6 +1673,13 @@ class BeamModulePlugin implements Plugin<Project> {
             options.errorprone.enabled = false
           }
           outputs.upToDateWhen { false }
+          doFirst {
+            project.sourceSets.test.output.classesDirs.each { dir ->
+              if (dir.exists()) {
+                project.delete(dir)
+              }
+            }
+          }
         }
         project.tasks.withType(Test).configureEach {
           useJUnit()
