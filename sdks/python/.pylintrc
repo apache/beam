@@ -165,7 +165,7 @@ disable =
   unspecified-encoding, #TODO(https://github.com/apache/beam/issues/21236) Enable explicit encoding
   unused-argument,
   use-dict-literal,
-  usless-return,
+  useless-return,
   unused-wildcard-import,
   useless-object-inheritance,
   wildcard-import,
