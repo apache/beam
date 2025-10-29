@@ -15,7 +15,7 @@
 #    limitations under the License.
 #
 
-[MASTER]
+[MAIN]
 # Ignore auto-generated files.
 ignore=clients
 load-plugins=pylint.extensions.no_self_use,pylint.extensions.bad_builtin
@@ -119,6 +119,7 @@ disable =
   len-as-condition,
   locally-disabled,
   logging-not-lazy,
+  logging-too-few-args,
   missing-docstring,
   modified-iterating-list, 
   multiple-statements,
