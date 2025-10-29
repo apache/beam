@@ -155,12 +155,14 @@ class OrderedWindowElementsTest(unittest.TestCase):
               stop_timestamp=13,
               buffer_state_type=self.buffer_state_type))
       result = _maybe_log_elements(result) | _convert_timestamp_to_int()
-      assert_that(result, equal_to([
+      assert_that(
+          result,
+          equal_to([
               ((0, 3), [(0, 0), (1, 1), (2, 2)]),
               ((3, 6), [(3, 3), (4, 4), (5, 5)]),
               ((6, 9), [(6, 6), (7, 7), (8, 8)]),
               ((9, 12), [(9, 9)]),
-      ]))
+          ]))
 
   def test_offset(self):
     with TestPipeline(options=self.options) as p:
@@ -210,7 +212,7 @@ class OrderedWindowElementsTest(unittest.TestCase):
       assert_that(
           result,
           equal_to([
-              ("my_key", ((0,3), [(1, 1), (2, 2)])),
+              ("my_key", ((0, 3), [(1, 1), (2, 2)])),
               ("my_key", ((3, 6), [(3, 3), (4, 4), (5, 5)])),
               ("my_key", ((6, 9), [(6, 6), (7, 7), (8, 8)])),
               ("my_key", ((9, 12), [(9, 9), (10, 10)])),
@@ -258,9 +260,12 @@ class OrderedWindowElementsTest(unittest.TestCase):
       expected = [
           ((0, 3), [(0, 0), (1, 1), (2, 2)]),
           ((3, 6), [(3, 3), (4, 4)]),
-          ((6, 9), [(6, 4)]),  # window [6, 9) is empty, so the start is filled.
-          ((9, 12), [(9, 4)]),  # window [9, 12) is empty, so the start is filled.
-          ((12, 15), [(12, 4)]),  # window [12, 15) is empty, so the start is filled.
+          # window [6, 9) is empty, so the start is filled with last value.
+          ((6, 9), [(6, 4)]),
+          # window [9, 12) is empty, so the start is filled with last value.
+          ((9, 12), [(9, 4)]),
+          # window [12, 15) is empty, so the start is filled with last value.
+          ((12, 15), [(12, 4)]),
           ((15, 18), [(15, 4), (16, 16), (17, 17)]),
           ((18, 21), [(18, 18), (19, 19), (20, 20)])
       ]
