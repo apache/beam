@@ -1676,8 +1676,9 @@ class BeamModulePlugin implements Plugin<Project> {
           doFirst {
             project.sourceSets.test.output.classesDirs.each { dir ->
               if (dir.exists()) {
-                project.delete(dir)
+                project.delete(project.fileTree(dir))
               }
+              dir.mkdirs()
             }
           }
         }
