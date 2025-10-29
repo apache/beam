@@ -1291,8 +1291,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
             // hadoop uses an old version of logback with CVE reports
             // force all transitive logback deps to a newer one
-            force "ch.qos.logback:logback-classic:$logback_version"
-            force "ch.qos.logback:logback-core:$logback_version"
+            // Use Java 8 compatible version when running tests with Java 8
+            def logbackTestVersion = project.findProperty('testJavaVersion') == '8' ? '1.4.17' : logback_version
+            force "ch.qos.logback:logback-classic:$logbackTestVersion"
+            force "ch.qos.logback:logback-core:$logbackTestVersion"
           }
         }
       }
