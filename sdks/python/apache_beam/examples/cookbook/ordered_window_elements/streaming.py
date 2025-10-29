@@ -200,10 +200,19 @@ class OrderedWindowElementsDoFn(beam.DoFn):
 
     timer_started = timer_state.read()
     if not timer_started:
+      timestamp_secs = timestamp.micros / 1e6
+
+      # Align the timestamp with the windowing scheme.
+      aligned_timestamp = timestamp_secs - self.offset
+
+      # Calculate the start of the last window that could contain this timestamp.
+      last_window_start_aligned = ((aligned_timestamp // self.slide_interval) *
+                                   self.slide_interval)
+      last_window_start = last_window_start_aligned + self.offset
+
+      n = (self.duration - 1) // self.slide_interval
       # Calculate the start of the first sliding window.
-      first_slide_start = int(
-          (timestamp.micros / 1e6 - self.offset) //
-          self.slide_interval) * self.slide_interval + self.offset
+      first_slide_start = last_window_start - n * self.slide_interval
       first_slide_start_ts = Timestamp.of(first_slide_start)
 
       # Set the initial timer to fire at the end of the first window plus
@@ -256,14 +265,16 @@ class OrderedWindowElementsDoFn(beam.DoFn):
       if not windowed_values:
         # If the window is empty, use the last value.
         last_value = last_value_state.read()
-        windowed_values.append(last_value)
+        value_to_insert = (window_start_ts, last_value[1])
+        windowed_values.append(value_to_insert)
       else:
         first_timestamp = windowed_values[0][0]
         last_value = last_value_state.read()
         if first_timestamp > window_start_ts and last_value:
           # Prepend the last value if there's a gap between the first element
           # in the window and the start of the window.
-          windowed_values = [last_value] + windowed_values
+          value_to_insert = (window_start_ts, last_value[1])
+          windowed_values = [value_to_insert] + windowed_values
 
       # Find the last element before the beginning of the next window to update
       # last_value_state.
@@ -334,8 +345,7 @@ class OrderedWindowElementsDoFn(beam.DoFn):
         windowed_values = self._get_windowed_values_from_state(
             buffer_state, late_start_ts, late_end_ts, last_value_state)
         yield TimestampedValue(
-            ((key, late_start_ts, late_end_ts), [v[1]
-                                                 for v in windowed_values]),
+            (key, ((late_start_ts, late_end_ts), windowed_values)),
             late_end_ts - 1)
         late_start_ts += self.slide_interval
 
@@ -347,8 +357,7 @@ class OrderedWindowElementsDoFn(beam.DoFn):
     windowed_values = self._get_windowed_values_from_state(
         buffer_state, window_start_ts, window_end_ts, last_value_state)
     yield TimestampedValue(
-        ((key, window_start_ts, window_end_ts), [v[1]
-                                                 for v in windowed_values]),
+        (key, ((window_start_ts, window_end_ts), windowed_values)),
         window_end_ts - 1)
 
     # Post-emit actions for the current window:
@@ -617,7 +626,7 @@ class OrderedWindowElements(PTransform):
                 self.stop_timestamp)))
 
     if isinstance(input.element_type, TupleConstraint):
-      ret = keyed_output | beam.MapTuple(lambda x, y: (x[0], y))
+      ret = keyed_output
     else:
       # Remove the default key if the input PCollection was originally unkeyed.
       ret = keyed_output | beam.Values()
