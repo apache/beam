@@ -1675,26 +1675,15 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.compileTestJava {
           setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
-          // Manually set fork options instead of using setJavaVerOptions to ensure we have the correct property
-          if (ver == '8') {
-            options.compilerArgs += ['-Xlint:-path']
-          } else if (ver == '11') {
-            options.compilerArgs += ['-Xlint:-path']
-          } else if (ver == '17') {
-            options.compilerArgs += ['-Xlint:-path']
-            options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-            options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
-          } else if (ver == '21' || ver == '25') {
-            options.compilerArgs += ['-Xlint:-path', '-Xlint:-this-escape']
-            if (ver == '25') {
-              options.compilerArgs += ['-Xlint:-dangling-doc-comments']
-            }
-            options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-            options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
-            project.checkerFramework {
-              skipCheckerFramework = true
-            }
+          // Validate javaHome exists before configuring fork options
+          def javaHomeFile = testJavaHome as File
+          if (!javaHomeFile.exists()) {
+            throw new GradleException("testJavaVersion=${ver} java${ver}Home directory does not exist: ${javaHomeFile}")
           }
+          // Use setJavaVerOptions to configure fork with the correct Java version
+          // Note: setJavaVerOptions uses findProperty, but we've already validated it exists above
+          project.ext.setJavaVerOptions(options, ver)
+
           if (ver == '25') {
             // TODO: Upgrade errorprone version to support Java25. Currently compile crashes
             //  java.lang.NoSuchFieldError: Class com.sun.tools.javac.code.TypeTag does not have member field
@@ -1704,16 +1693,11 @@ class BeamModulePlugin implements Plugin<Project> {
           outputs.upToDateWhen { false }
           dependsOn cleanTestClassesTask
           doFirst {
-            if (!testJavaHome) {
-              throw new GradleException("testJavaVersion=${ver} requires java${ver}Home property to be set")
+            // Ensure fork is enabled (setJavaVerOptions should have done this, but double-check as fallback)
+            if (!options.fork) {
+              options.fork = true
+              options.forkOptions.javaHome = javaHomeFile
             }
-            def javaHomeFile = testJavaHome as File
-            if (!javaHomeFile.exists()) {
-              throw new GradleException("testJavaVersion=${ver} java${ver}Home directory does not exist: ${javaHomeFile}")
-            }
-            options.fork =াবে true
-            // Set javaHome to use Java 8 compiler - setting executable explicitly can cause toolchain conflicts
-            options.forkOptions.javaHome = javaHomeFile
           }
         }
         project.tasks.withType(Test).configureEach {
