@@ -17,7 +17,7 @@
 
 [MAIN]
 # Ignore auto-generated files.
-ignore=clients
+ignore=('clients')
 load-plugins=pylint.extensions.no_self_use,pylint.extensions.bad_builtin
 
 [BASIC]
