@@ -1712,6 +1712,10 @@ class BeamModulePlugin implements Plugin<Project> {
               throw new GradleException("testJavaVersion=${ver} java${ver}Home directory does not exist: ${javaHomeFile}")
             }
             options.fork = true
+            // Clear any toolchain settings to avoid conflicts with forkOptions.javaHome
+            options.forkOptions.javaCompiler = null
+            options.forkOptions.executable = null
+            // Set javaHome and executable to use Java 8 compiler
             options.forkOptions.javaHome = javaHomeFile
             options.forkOptions.executable = "${javaHomeFile}/bin/javac"
           }
