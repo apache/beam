@@ -73,7 +73,7 @@ pipelines:
             catalog_properties:
               type: hadoop
               warehouse: "{TEMP_DIR}"
-            filter: "label = '11a'"
+            filter: '"label" = ''11a'''
             keep:
               - label
               - rank
