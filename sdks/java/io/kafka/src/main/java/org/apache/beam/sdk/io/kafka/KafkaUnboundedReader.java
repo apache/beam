@@ -393,7 +393,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private AtomicReference<@Nullable KafkaCheckpointMark> finalizedCheckpointMark =
       new AtomicReference<>();
   private AtomicBoolean closed = new AtomicBoolean(false);
-  private Instant lastSuccessfulCommitTime = Instant.ofEpochMilli(0);
   private Instant nextAllowedCommitFailLogTime = Instant.ofEpochMilli(0);
 
   // Backlog support :
