@@ -1998,19 +1998,13 @@ public class ProcessBundleHandlerTest {
     for (MetricsApi.MonitoringInfo info : response.getProcessBundle().getMonitoringInfosList()) {
       if (info.getLabelsOrDefault("NAME", "").equals("timersFired")) {
         ++timerCounterFound;
-        assertThat(
-            info,
-            allOf(
-                hasProperty("urn", equalTo("beam:metric:user:sum_int64:v1")),
-                hasProperty("type", equalTo("beam:metrics:sum_int64:v1")),
-                hasProperty("payload", equalTo(ByteString.copyFromUtf8("\001"))),
-                hasProperty(
-                    "labels",
-                    hasEntry(
-                        equalTo("NAMESPACE"),
-                        equalTo(
-                            "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn"))),
-                hasProperty("labels", hasEntry(equalTo("PTRANSFORM"), equalTo("3L")))));
+        assertEquals("beam:metric:user:sum_int64:v1", info.getUrn());
+        assertEquals("beam:metrics:sum_int64:v1", info.getType());
+        assertEquals(
+          "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn",
+          info.getLabelsOrDefault("NAMESPACE", ""));
+        assertEquals("3L", info.getLabelsOrDefault("PTRANSFORM", ""));
+        assertEquals(ByteString.copyFromUtf8("\001"), info.getPayload());
       }
     }
     assertEquals(1, timerCounterFound);
@@ -2057,19 +2051,13 @@ public class ProcessBundleHandlerTest {
       } else {
         continue;
       }
-      assertThat(
-          info,
-          allOf(
-              hasProperty("urn", equalTo("beam:metric:user:sum_int64:v1")),
-              hasProperty("type", equalTo("beam:metrics:sum_int64:v1")),
-              hasProperty("payload", equalTo(ByteString.copyFromUtf8("\001"))),
-              hasProperty(
-                  "labels",
-                  hasEntry(
-                      equalTo("NAMESPACE"),
-                      equalTo(
-                          "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn"))),
-              hasProperty("labels", hasEntry(equalTo("PTRANSFORM"), equalTo("3L")))));
+      assertEquals("beam:metric:user:sum_int64:v1", info.getUrn());
+      assertEquals("beam:metrics:sum_int64:v1", info.getType());
+      assertEquals(
+        "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn",
+        info.getLabelsOrDefault("NAMESPACE", ""));
+      assertEquals("3L", info.getLabelsOrDefault("PTRANSFORM", ""));
+      assertEquals(ByteString.copyFromUtf8("\001"), info.getPayload());
     }
     assertEquals(1, startCounterFound);
     assertEquals(1, finishCounterFound);
