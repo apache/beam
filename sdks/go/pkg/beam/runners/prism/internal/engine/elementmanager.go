@@ -234,7 +234,7 @@ type ElementManager struct {
 	livePending     atomic.Int64   // An accessible live pending count. DEBUG USE ONLY
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
 
-	processTimeEvents *stageRefreshQueue // Manages sequence of stage updates when interfacing with processing time.
+	processTimeEvents *stageRefreshQueue // Manages sequence of stage updates when interfacing with processing time. Callers must hold refreshCond.L lock.
 	testStreamHandler *testStreamHandler // Optional test stream handler when a test stream is in the pipeline.
 }
 
@@ -2006,6 +2006,7 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 }
 
 // handleProcessingTimeTimer contains the common code for handling processing-time timers for aggregation stages and stateful stages.
+// Callers must hold em.refreshCond.L lock.
 func handleProcessingTimeTimer(ss *stageState, em *ElementManager, emNow mtime.Time,
 	processTimerFn func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane, int)) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool, int) {
 	// TODO: Determine if it's possible and a good idea to treat all EventTime processing as a MinTime
