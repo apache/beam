@@ -17,12 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
@@ -31,17 +35,67 @@ import org.checkerframework.dataflow.qual.Pure;
 @AutoValue
 public abstract class BigQueryDynamicReadDescriptor implements Serializable {
   @SchemaFieldName("query")
+  @SchemaFieldNumber("0")
   @Pure
   abstract @Nullable String getQuery();
 
   @SchemaFieldName("table")
+  @SchemaFieldNumber("1")
   @Pure
   abstract @Nullable String getTable();
 
+  @SchemaFieldName("flattenResults")
+  @SchemaFieldNumber("2")
+  @Pure
+  abstract @Nullable Boolean getFlattenResults();
+
+  @SchemaFieldName("legacySql")
+  @SchemaFieldNumber("3")
+  @Pure
+  abstract @Nullable Boolean getLegacySql();
+
+  @SchemaFieldName("selectedFields")
+  @SchemaFieldNumber("4")
+  @Pure
+  abstract @Nullable List<String> getSelectedFields();
+
+  @SchemaFieldName("rowRestriction")
+  @SchemaFieldNumber("5")
+  @Pure
+  abstract @Nullable String getRowRestriction();
+
   @SchemaCreate
-  @SuppressWarnings("all")
   public static BigQueryDynamicReadDescriptor create(
-      @Nullable String query, @Nullable String table) {
-    return new AutoValue_BigQueryDynamicReadDescriptor(query, table);
+      @Nullable String query,
+      @Nullable String table,
+      @Nullable Boolean flattenResults,
+      @Nullable Boolean legacySql,
+      @Nullable List<String> selectedFields,
+      @Nullable String rowRestriction) {
+    checkArgument((query != null || table != null), "Either query or table has to be specified.");
+    checkArgument(
+        !(query != null && table != null), "Either query or table has to be specified not both.");
+    checkArgument(
+        !(table != null && (flattenResults != null || legacySql != null)),
+        "Specifies a table with a result flattening preference or legacySql, which only applies to queries");
+    checkArgument(
+        !(query != null && (selectedFields != null || rowRestriction != null)),
+        "Selected fields and row restriction are only applicable for table reads");
+    checkArgument(
+        !(query != null && (flattenResults == null || legacySql == null)),
+        "If query is used, flattenResults and legacySql have to be set as well.");
+
+    return new AutoValue_BigQueryDynamicReadDescriptor(
+        query, table, flattenResults, legacySql, selectedFields, rowRestriction);
+  }
+
+  public static BigQueryDynamicReadDescriptor query(
+      String query, Boolean flattenResults, Boolean legacySql) {
+    return create(query, null, flattenResults, legacySql, null, null);
+  }
+
+  public static BigQueryDynamicReadDescriptor table(
+      String table, @Nullable List<String> selectedFields, @Nullable String rowRestriction) {
+    return create(null, table, null, null, selectedFields, rowRestriction);
   }
 }

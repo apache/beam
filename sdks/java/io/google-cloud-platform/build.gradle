@@ -202,6 +202,8 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageWriteIT.class'
+  exclude '**/BigQueryIOStorageDynamicQueryIT.class'
+  exclude '**/BigQueryIOStorageDynamicReadIT.class'
   exclude '**/BigQueryToTableIT.class'
 
   maxParallelForks 4
@@ -271,6 +273,7 @@ task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResou
   include '**/BigQueryToTableIT.class'
   include '**/BigQueryIOJsonIT.class'
   include '**/BigQueryIOStorageReadTableRowIT.class'
+  include '**/BigQueryIOStorageDynamicReadTableRowIT.class'
   // storage write api
   include '**/StorageApiDirectWriteProtosIT.class'
   include '**/StorageApiSinkFailedRowsIT.class'
