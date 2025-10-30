@@ -79,7 +79,7 @@ echo -e "Skipping lint for files:\n${FILES_TO_IGNORE}"
 echo -e "Linting modules:\n${MODULE}"
 
 echo "Running pylint..."
-pylint ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
+pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running flake8..."
 flake8 ${MODULE} --count --select=E9,F821,F822,F823 --show-source --statistics \
   --exclude="${FILES_TO_IGNORE}"
@@ -116,7 +116,7 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
 isort ${MODULE} -p apache_beam --line-width 120 --check-only --order-by-type \
-    --combine-star --force-single-line-imports --diff --recursive ${SKIP_PARAM}
+    --combine-star --force-single-line-imports --diff --magic-placement ${SKIP_PARAM}
 
 echo "Checking unittest.main..."
 TESTS_MISSING_MAIN=$(
