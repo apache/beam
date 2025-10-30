@@ -269,8 +269,6 @@ class SpannerColumnSpecsBuilder:
         raise ValueError(f'Chunk must contain content: {chunk}')
       return chunk.content.text
 
-    extract_fn = extract_fn or default_fn
-
     self._specs.append(
         SpannerColumnSpec(
             column_name=column_name,
