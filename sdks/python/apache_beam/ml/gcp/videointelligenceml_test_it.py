@@ -31,6 +31,7 @@ from apache_beam.testing.util import matches_all
 
 # Protect against environments where Google Cloud VideoIntelligence client is
 # not available.
+# pylint: disable=ungrouped-imports
 try:
   from google.cloud.videointelligence import enums
   from google.cloud.videointelligence import types

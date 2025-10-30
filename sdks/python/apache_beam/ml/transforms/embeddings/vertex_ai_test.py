@@ -25,6 +25,7 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
 
+# pylint: disable=ungrouped-imports
 try:
   from vertexai.vision_models import Image
   from vertexai.vision_models import Video
@@ -42,7 +43,6 @@ except ImportError:
   VertexAITextEmbeddings = None  # type: ignore
   VertexAIImageEmbeddings = None  # type: ignore
 
-# pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
 

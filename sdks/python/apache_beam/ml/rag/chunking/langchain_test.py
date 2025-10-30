@@ -26,6 +26,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_not_empty
 
+# pylint: disable=ungrouped-imports
 try:
   from langchain.text_splitter import CharacterTextSplitter
   from langchain.text_splitter import RecursiveCharacterTextSplitter
