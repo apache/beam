@@ -26,16 +26,17 @@ from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
 
 try:
-  from apache_beam.ml.rag.types import Chunk
-  from apache_beam.ml.rag.types import Content
-  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIMultiModalEmbeddings
-  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
-  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIImageEmbeddings
-  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexImage
-  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexVideo
   from vertexai.vision_models import Image
   from vertexai.vision_models import Video
   from vertexai.vision_models import VideoSegmentConfig
+
+  from apache_beam.ml.rag.types import Chunk
+  from apache_beam.ml.rag.types import Content
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIImageEmbeddings
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAIMultiModalEmbeddings
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexImage
+  from apache_beam.ml.transforms.embeddings.vertex_ai import VertexVideo
 except ImportError:
   VertexAIMultiModalEmbeddings = None  # type: ignore
   VertexAITextEmbeddings = None  # type: ignore
@@ -44,6 +45,7 @@ except ImportError:
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
+
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None

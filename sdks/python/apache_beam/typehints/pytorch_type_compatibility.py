@@ -18,6 +18,7 @@
 from typing import Optional
 
 import torch
+
 from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.batch import N

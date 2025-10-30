@@ -27,8 +27,9 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 
 try:
-  from apache_beam.io.gcp import gcsio_retry
   from google.api_core import exceptions as api_exceptions
+
+  from apache_beam.io.gcp import gcsio_retry
 except ImportError:
   gcsio_retry = None
   api_exceptions = None

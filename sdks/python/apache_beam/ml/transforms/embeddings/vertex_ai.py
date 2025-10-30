@@ -28,12 +28,20 @@ from typing import Any
 from typing import Optional
 from typing import cast
 
+import vertexai
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
 from google.auth.credentials import Credentials
+from vertexai.language_models import TextEmbeddingInput
+from vertexai.language_models import TextEmbeddingModel
+from vertexai.vision_models import Image
+from vertexai.vision_models import MultiModalEmbeddingModel
+from vertexai.vision_models import MultiModalEmbeddingResponse
+from vertexai.vision_models import Video
+from vertexai.vision_models import VideoEmbedding
+from vertexai.vision_models import VideoSegmentConfig
 
 import apache_beam as beam
-import vertexai
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
@@ -44,14 +52,6 @@ from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _MultiModalEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-from vertexai.language_models import TextEmbeddingInput
-from vertexai.language_models import TextEmbeddingModel
-from vertexai.vision_models import Image
-from vertexai.vision_models import MultiModalEmbeddingModel
-from vertexai.vision_models import MultiModalEmbeddingResponse
-from vertexai.vision_models import Video
-from vertexai.vision_models import VideoEmbedding
-from vertexai.vision_models import VideoSegmentConfig
 
 __all__ = [
     "VertexAITextEmbeddings",

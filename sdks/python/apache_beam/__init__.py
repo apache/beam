@@ -83,17 +83,16 @@ else:
 
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler
-
 from apache_beam import coders
 from apache_beam import io
 from apache_beam import metrics
 from apache_beam import typehints
 from apache_beam import version
 from apache_beam.pipeline import *
-from apache_beam.transforms import *
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.transforms import *
 
 try:
   # Add mitigation for CVE-2023-47248 while Beam allows affected versions

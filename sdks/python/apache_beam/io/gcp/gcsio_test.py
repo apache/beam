@@ -37,9 +37,11 @@ from apache_beam.utils import counters
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
+  from google.cloud.exceptions import BadRequest
+  from google.cloud.exceptions import NotFound
+
   from apache_beam.io.gcp import gcsio
   from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTER
-  from google.cloud.exceptions import BadRequest, NotFound
 except ImportError:
   NotFound = None
 # pylint: enable=wrong-import-order, wrong-import-position

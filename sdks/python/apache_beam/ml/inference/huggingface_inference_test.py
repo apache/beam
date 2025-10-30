@@ -39,6 +39,7 @@ try:
   import torch
   from transformers import AutoModel
   from transformers import TFAutoModel
+
   from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerTensor
 except ImportError:
   raise unittest.SkipTest('Transformers dependencies are not installed.')

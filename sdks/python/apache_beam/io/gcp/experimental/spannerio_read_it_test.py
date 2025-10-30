@@ -33,10 +33,11 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=unused-import
 try:
   from google.cloud import spanner
+
   from apache_beam.io.gcp import resource_identifiers
-  from apache_beam.io.gcp.experimental.spannerio import create_transaction
-  from apache_beam.io.gcp.experimental.spannerio import ReadOperation
   from apache_beam.io.gcp.experimental.spannerio import ReadFromSpanner
+  from apache_beam.io.gcp.experimental.spannerio import ReadOperation
+  from apache_beam.io.gcp.experimental.spannerio import create_transaction
   from apache_beam.metrics import monitoring_infos
   from apache_beam.metrics.execution import MetricsEnvironment
   from apache_beam.metrics.metricbase import MetricName

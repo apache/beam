@@ -78,6 +78,7 @@ from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
+
   from apache_beam.io import iobase
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext
@@ -2675,7 +2676,8 @@ class _TimeoutDoFn(DoFn):
       self._pool = concurrent.futures.ThreadPoolExecutor(10)
 
     # Import here to avoid circular dependency
-    from apache_beam.runners.worker.statesampler import get_current_tracker, set_current_tracker
+    from apache_beam.runners.worker.statesampler import get_current_tracker
+    from apache_beam.runners.worker.statesampler import set_current_tracker
 
     # State sampler/tracker is stored as a thread local variable, and is used
     # when incrementing counter metrics.
@@ -3004,8 +3006,7 @@ class CombinePerKey(PTransformWithSideInputs):
       # If the CombineFn has deferred side inputs, the python SDK
       # doesn't implement it.
       # Use a ParDo-based CombinePerKey instead.
-      from apache_beam.transforms.combiners import \
-        LiftedCombinePerKey
+      from apache_beam.transforms.combiners import LiftedCombinePerKey
       combine_fn, *args = args
       return LiftedCombinePerKey(combine_fn, args, kwargs)
     return super(CombinePerKey, cls).__new__(cls)
@@ -3760,7 +3761,9 @@ class Windowing(object):
     """
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
+    from apache_beam.transforms.trigger import AccumulationMode
+    from apache_beam.transforms.trigger import DefaultTrigger
+
     # pylint: enable=wrong-import-order, wrong-import-position
     if triggerfn is None:
       triggerfn = DefaultTrigger()

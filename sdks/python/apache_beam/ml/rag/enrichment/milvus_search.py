@@ -411,8 +411,9 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     self.use_custom_types = True
 
   def __enter__(self):
-    import time
     import logging
+    import time
+
     from pymilvus.exceptions import MilvusException
 
     connection_params = unpack_dataclass_with_kwargs(

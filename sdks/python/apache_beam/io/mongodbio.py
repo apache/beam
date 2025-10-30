@@ -92,7 +92,6 @@ try:
   from bson import json_util
   from bson import objectid
   from bson.objectid import ObjectId
-
   # pymongo also internally depends on bson.
   from pymongo import ASCENDING
   from pymongo import DESCENDING

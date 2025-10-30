@@ -196,12 +196,13 @@ from apache_beam.utils.annotations import deprecated
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 # pylint: disable=unused-import
 try:
+  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import GoogleAPICallError
   from google.cloud.spanner import Client
   from google.cloud.spanner import KeySet
   from google.cloud.spanner_v1 import batch
   from google.cloud.spanner_v1.database import BatchSnapshot
-  from google.api_core.exceptions import ClientError, GoogleAPICallError
-  from apitools.base.py.exceptions import HttpError
 except ImportError:
   Client = None
   KeySet = None

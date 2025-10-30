@@ -39,11 +39,12 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-import apache_beam as beam
 import tensorflow as tf
 import tensorflow_transform as tft
-from apache_beam.ml.transforms.base import BaseOperation
 from tensorflow_transform import common_types
+
+import apache_beam as beam
+from apache_beam.ml.transforms.base import BaseOperation
 
 __all__ = [
     'ComputeAndApplyVocabulary',
