@@ -159,15 +159,13 @@ class SpannerColumnSpecsBuilder:
       self,
       column_name: str = "id",
       python_type: Type = str,
-      extract_fn: Optional[Callable[[Chunk], Any]] = lambda chunk: chunk.id,
-      convert_fn: Optional[Callable[[Any], Any]] = None
+      convert_fn: Optional[Callable[[str], Any]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add ID column specification.
     
     Args:
         column_name: Column name (default: "id")
         python_type: Python type (default: str)
-        extract_fn: Value extractor (default: lambda chunk: chunk.id)
         convert_fn: Optional converter (e.g., to cast to int)
     
     Returns:
@@ -189,20 +187,18 @@ class SpannerColumnSpecsBuilder:
             column_name=column_name,
             python_type=python_type,
             value_fn=functools.partial(
-                _extract_and_convert, extract_fn, convert_fn)))
+                _extract_and_convert, lambda chunk: chunk.id, convert_fn)))
     return self
 
   def with_embedding_spec(
       self,
       column_name: str = "embedding",
-      extract_fn: Optional[Callable[[Chunk], List[float]]] = None,
       convert_fn: Optional[Callable[[List[float]], List[float]]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add embedding array column (ARRAY<FLOAT32> or ARRAY<FLOAT64>).
     
     Args:
         column_name: Column name (default: "embedding")
-        extract_fn: Value extractor (default: chunk.embedding.dense_embedding)
         convert_fn: Optional converter (e.g., normalize, quantize)
     
     Returns:
@@ -223,12 +219,10 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda vec: [round(x, 4) for x in vec]
         ... )
     """
-    def default_fn(chunk: Chunk) -> List[float]:
+    def extract_fn(chunk: Chunk) -> List[float]:
       if chunk.embedding is None or chunk.embedding.dense_embedding is None:
         raise ValueError(f'Chunk must contain embedding: {chunk}')
       return chunk.embedding.dense_embedding
-
-    extract_fn = extract_fn or default_fn
 
     self._specs.append(
         SpannerColumnSpec(
@@ -242,15 +236,13 @@ class SpannerColumnSpecsBuilder:
       self,
       column_name: str = "content",
       python_type: Type = str,
-      extract_fn: Optional[Callable[[Chunk], Any]] = None,
-      convert_fn: Optional[Callable[[Any], Any]] = None
+      convert_fn: Optional[Callable[[str], Any]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add content column.
     
     Args:
         column_name: Column name (default: "content")
         python_type: Python type (default: str)
-        extract_fn: Value extractor (default: chunk.content.text)
         convert_fn: Optional converter
     
     Returns:
@@ -272,7 +264,7 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda text: text[:1000]
         ... )
     """
-    def default_fn(chunk: Chunk) -> str:
+    def extract_fn(chunk: Chunk) -> str:
       if chunk.content.text is None:
         raise ValueError(f'Chunk must contain content: {chunk}')
       return chunk.content.text
@@ -288,17 +280,13 @@ class SpannerColumnSpecsBuilder:
     return self
 
   def with_metadata_spec(
-      self,
-      column_name: str = "metadata",
-      value_fn: Optional[Callable[[Chunk], Any]] = None
-  ) -> 'SpannerColumnSpecsBuilder':
+      self, column_name: str = "metadata") -> 'SpannerColumnSpecsBuilder':
     """Add metadata JSON column.
     
     Stores the full metadata dictionary as a JSON string in Spanner.
     
     Args:
         column_name: Column name (default: "metadata")
-        value_fn: Value extractor (default: lambda chunk: chunk.metadata)
     
     Returns:
         Self for method chaining
@@ -306,7 +294,7 @@ class SpannerColumnSpecsBuilder:
     Note:
         Metadata is automatically converted to JSON string using json.dumps()
     """
-    value_fn = value_fn or (lambda chunk: json.dumps(chunk.metadata))
+    value_fn = lambda chunk: json.dumps(chunk.metadata)
     self._specs.append(
         SpannerColumnSpec(
             column_name=column_name, python_type=str, value_fn=value_fn))
