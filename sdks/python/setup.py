@@ -593,6 +593,12 @@ if __name__ == '__main__':
               'tensorflow>=2.12.0',
               'torch>=1.9.0'
           ],
+          'ml_cpu': [
+              'tensorflow>=2.12.0',
+              'torch==2.8.0+cpu',
+              'transformers>=4.28.0,<4.55.0; python_version < "3.10"',
+              'transformers>=4.28.0,<4.56.0; python_version >= "3.10"'
+          ],
           'tft': [
               'tensorflow_transform>=1.14.0,<1.15.0'
               # tensorflow-transform requires dill, but doesn't set dill as a
