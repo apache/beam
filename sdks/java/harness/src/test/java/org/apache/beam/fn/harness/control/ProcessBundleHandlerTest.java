@@ -21,13 +21,10 @@ import static java.util.Arrays.asList;
 import static org.apache.beam.fn.harness.control.ProcessBundleHandler.REGISTERED_RUNNER_FACTORIES;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
@@ -2001,8 +1998,8 @@ public class ProcessBundleHandlerTest {
         assertEquals("beam:metric:user:sum_int64:v1", info.getUrn());
         assertEquals("beam:metrics:sum_int64:v1", info.getType());
         assertEquals(
-          "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn",
-          info.getLabelsOrDefault("NAMESPACE", ""));
+            "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn",
+            info.getLabelsOrDefault("NAMESPACE", ""));
         assertEquals("3L", info.getLabelsOrDefault("PTRANSFORM", ""));
         assertEquals(ByteString.copyFromUtf8("\001"), info.getPayload());
       }
@@ -2054,8 +2051,8 @@ public class ProcessBundleHandlerTest {
       assertEquals("beam:metric:user:sum_int64:v1", info.getUrn());
       assertEquals("beam:metrics:sum_int64:v1", info.getType());
       assertEquals(
-        "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn",
-        info.getLabelsOrDefault("NAMESPACE", ""));
+          "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn",
+          info.getLabelsOrDefault("NAMESPACE", ""));
       assertEquals("3L", info.getLabelsOrDefault("PTRANSFORM", ""));
       assertEquals(ByteString.copyFromUtf8("\001"), info.getPayload());
     }
