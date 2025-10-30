@@ -81,7 +81,7 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 # Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 try:
   from apitools.base.py.exceptions import HttpError
@@ -97,7 +97,7 @@ except ImportError:
   HttpError = None
   HttpForbiddenError = None
   exceptions = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 

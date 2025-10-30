@@ -38,7 +38,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.auth import default
   from google.auth.transport import requests
@@ -48,7 +48,7 @@ try:
   from apache_beam.io.gcp.healthcare.dicomio import UploadToDicomStore
 except ImportError:
   DicomSearch = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 REGION = 'us-central1'
 DATA_SET_ID = 'apache-beam-integration-testing'
