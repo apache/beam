@@ -80,7 +80,7 @@ pip install --upgrade pip setuptools wheel
 INDEX_URL_OPTION="--extra-index-url https://download.pytorch.org/whl/cpu"
 if [[ $EXTRAS == *"vllm"* ]]; then
   # Explicitly install torch to avoid https://github.com/facebookresearch/xformers/issues/740
-  # This should be overwritten later since the vllm extra is installed alongside torch
+  # A different version of torch may be installed later since torch is a requirement for vllm
   pip install --no-cache-dir torch
 
   INDEX_URL_OPTION=""
