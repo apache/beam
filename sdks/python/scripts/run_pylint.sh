@@ -57,6 +57,8 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py"
+"apache_beam/runners/dataflow/internal/clients/cloudbuild/cloudbuild_v1_client.py"
+"apache_beam/runners/dataflow/internal/clients/cloudbuild/cloudbuild_v1_messages.py"
 )
 
 # more portable than shopt -s globstar
@@ -76,7 +78,7 @@ echo -e "Skipping lint for files:\n${FILES_TO_IGNORE}"
 echo -e "Linting modules:\n${MODULE}"
 
 echo "Running pylint..."
-pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
+pylint ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running flake8..."
 flake8 ${MODULE} --count --select=E9,F821,F822,F823 --show-source --statistics \
   --exclude="${FILES_TO_IGNORE}"

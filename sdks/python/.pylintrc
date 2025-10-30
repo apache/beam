@@ -17,7 +17,8 @@
 
 [MAIN]
 # Ignore auto-generated files.
-ignore=('clients', 'cloudbuild','s3')
+jobs=0
+ignore=clients,cloudbuild,s3
 load-plugins=pylint.extensions.no_self_use,pylint.extensions.bad_builtin
 
 [BASIC]
