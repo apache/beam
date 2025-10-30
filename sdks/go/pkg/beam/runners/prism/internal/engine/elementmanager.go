@@ -1332,11 +1332,12 @@ func (ss *stageState) AddPending(em *ElementManager, newPending []element) int {
 
 func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
 	// Check on triggers for this key.
-	// We use an empty linkID as the key into state for aggregations.
+	// Callers must hold em.refreshCond.L
 	count := 0
 	if ss.state == nil {
 		ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
 	}
+	// We use an empty linkID as the key into state for aggregations.
 	lv, ok := ss.state[LinkID{}]
 	if !ok {
 		lv = make(map[typex.Window]map[string]StateData)
@@ -1631,7 +1632,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win t
 	return toProcess, accumulationDiff
 }
 
-// startTriggeredBundle must be called with the stage.mu lock held.
+// startTriggeredBundle must be called with the stage.mu lock and em.refreshCond.L lock held.
 // Returns the accumulation diff that the pending work needs to be adjusted by, as completed work is subtracted from the pending count.
 // When in discarding mode, returns 0, as the pending work already includes these elements.
 // When in accumulating mode, returns the number of fired elements, since those elements remain pending even after this bundle is fired.
@@ -1666,10 +1667,8 @@ func (ss *stageState) startTriggeredBundle(em *ElementManager, key string, win t
 	// TODO: Use ss.bundlesToInject rather than em.injectedBundles
 	// ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
-	em.refreshCond.L.Lock()
 	em.injectedBundles = append(em.injectedBundles, rb)
 	em.inprogressBundles.insert(rb.BundleID)
-	em.refreshCond.L.Unlock()
 	return accumulationDiff
 }
 
