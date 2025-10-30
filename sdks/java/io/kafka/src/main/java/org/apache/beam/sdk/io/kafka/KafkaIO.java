@@ -1121,7 +1121,6 @@ public class KafkaIO {
      */
     public Read<K, V> withRedistribute() {
       Builder<K, V> builder = toBuilder().setRedistributed(true);
-      // builder = builder.setOffsetDeduplication(true); ?
       if (getRedistributeNumKeys() == 0) {
         builder = builder.setRedistributeNumKeys(DEFAULT_REDISTRIBUTE_NUM_KEYS);
       }
