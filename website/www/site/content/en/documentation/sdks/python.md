@@ -63,3 +63,52 @@ Apache Beam lets you combine transforms written in any supported SDK language an
 ## Unrecoverable Errors in Beam Python
 
 Some common errors can occur during worker start-up and prevent jobs from starting. To learn about these errors and how to troubleshoot them in the Python SDK, see [Unrecoverable Errors in Beam Python](/documentation/sdks/python-unrecoverable-errors).
+
+## Python Version Compatibility
+
+<table class="table table-bordered">
+<tr>
+  <th>Python Version</th>
+  <th>Supported Beam Versions</th>
+</tr>
+<tr>
+  <td>3.13</td>
+  <td>&ge; 2.69.0</td>
+</tr>
+<tr>
+  <td>3.12</td>
+  <td>&ge; 2.57.0</td>
+</tr>
+<tr>
+  <td>3.11</td>
+  <td>&ge; 2.47.0</td>
+</tr>
+<tr>
+  <td>3.10</td>
+  <td>&ge; 2.43.0</td>
+</tr>
+<tr>
+  <td>3.9</td>
+  <td>&ge; 2.37.0</td>
+</tr>
+<tr>
+  <td>3.8</td>
+  <td>2.23.0 - 2.60.0</td>
+</tr>
+<tr>
+  <td>3.7</td>
+  <td>2.12.0 - 2.48.0</td>
+</tr>
+<tr>
+  <td>3.6</td>
+  <td>2.12.0 - 2.38.0</td>
+</tr>
+<tr>
+  <td>3.5</td>
+  <td>2.11.0 - 2.24.0</td>
+</tr>
+<tr>
+  <td>2.7</td>
+  <td>&le 2.24.0</td>
+</tr>
+</table>
