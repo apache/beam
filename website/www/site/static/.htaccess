@@ -27,6 +27,4 @@ RedirectMatch "/contribute/release-guide" "https://github.com/apache/beam/blob/m
 
 RedirectMatch "/contribute/committer-guide" "https://github.com/apache/beam/blob/master/contributor-docs/committer-guide.md"
 
-# Allow embedding content from play.beam.apache.org, youtube.com and drive.google.com
-# This is the standard way to add local exceptions to the CSP, see https://infra.apache.org/tools/csp.html
-SetEnv CSP_PROJECT_DOMAINS "https://play.beam.apache.org/ https://www.youtube.com/ https://drive.google.com/"
+Header set Content-Security-Policy "frame-src 'self' https://play.beam.apache.org/ https://www.youtube.com/ https://drive.google.com/ ;"
