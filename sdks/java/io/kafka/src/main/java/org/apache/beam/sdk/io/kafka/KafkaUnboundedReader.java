@@ -157,7 +157,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
      */
     while (true) {
       if (curBatch.hasNext()) {
-        // Initalize metrics container.
+        // Initialize metrics container.
         kafkaResults = KafkaSinkMetrics.kafkaMetrics();
 
         PartitionState<K, V> pState = curBatch.next();
@@ -394,7 +394,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       new AtomicReference<>();
   private AtomicBoolean closed = new AtomicBoolean(false);
   private Instant lastSuccessfulCommitTime = Instant.ofEpochMilli(0);
-  private Instant lastCommitErrorLogTime = Instant.ofEpochMilli(0);
+  private Instant nextAllowedCommitFailLogTime = Instant.ofEpochMilli(0);
 
   // Backlog support :
   // Kafka consumer does not have an API to fetch latest offset for topic. We need to seekToEnd()
@@ -625,19 +625,17 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                     Collectors.toMap(
                         p -> new TopicPartition(p.getTopic(), p.getPartition()),
                         p -> new OffsetAndMetadata(p.getNextOffset()))));
-        lastSuccessfulCommitTime = now;
-        lastCommitErrorLogTime = now; // Only start timing when commits start failing.
+        nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
       } catch (Exception e) {
         // Log but ignore the exception. Committing consumer offsets to Kafka is not critical for
         // KafkaIO because it relies on the offsets stored in KafkaCheckpointMark.
-        if (now.isAfter(lastSuccessfulCommitTime.plus(MIN_COMMIT_FAIL_LOG_INTERVAL))
-            && now.isAfter(lastCommitErrorLogTime.plus(MIN_COMMIT_FAIL_LOG_INTERVAL))) {
+        if (now.isAfter(nextAllowedCommitFailLogTime)) {
           LOG.warn(
               String.format(
                   "%s: Did not successfully commit finalized checkpoint for > %s: %s",
                   this, MIN_COMMIT_FAIL_LOG_INTERVAL, checkpointMark),
               e);
-          lastCommitErrorLogTime = now;
+          nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
         }
       }
     }
