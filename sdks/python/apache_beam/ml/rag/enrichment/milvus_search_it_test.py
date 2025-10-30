@@ -53,7 +53,6 @@ try:
       MilvusClient,
       RRFRanker)
   from pymilvus.milvus_client import IndexParams
-  from testcontainers.core.config import MAX_TRIES as TC_MAX_TRIES
   from testcontainers.core.config import testcontainers_config
   from testcontainers.core.generic import DbContainer
   from testcontainers.milvus import MilvusContainer
@@ -306,13 +305,15 @@ class MilvusEnrichmentTestHelper:
       image="milvusdb/milvus:v2.5.10",
       max_vec_fields=5,
       vector_client_max_retries=3,
-      tc_max_retries=TC_MAX_TRIES) -> Optional[MilvusDBContainerInfo]:
+      tc_max_retries=None) -> Optional[MilvusDBContainerInfo]:
     service_container_port = MilvusEnrichmentTestHelper.find_free_port()
     healthcheck_container_port = MilvusEnrichmentTestHelper.find_free_port()
     user_yaml_creator = MilvusEnrichmentTestHelper.create_user_yaml
     with user_yaml_creator(service_container_port, max_vec_fields) as cfg:
       info = None
-      testcontainers_config.max_tries = tc_max_retries
+      original_tc_max_tries = testcontainers_config.max_tries
+      if not testcontainers_config.max_tries:
+        testcontainers_config.max_tries = tc_max_retries
       for i in range(vector_client_max_retries):
         try:
           vector_db_container = CustomMilvusContainer(
@@ -325,7 +326,7 @@ class MilvusEnrichmentTestHelper:
           host = vector_db_container.get_container_host_ip()
           port = vector_db_container.get_exposed_port(service_container_port)
           info = MilvusDBContainerInfo(vector_db_container, host, port)
-          testcontainers_config.max_tries = TC_MAX_TRIES
+          testcontainers_config.max_tries = original_tc_max_tries
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
           break
