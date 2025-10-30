@@ -916,9 +916,8 @@ public class KafkaIO {
             builder.setAllowDuplicates(config.allowDuplicates);
           }
           if (config.redistribute
-              && (config.allowDuplicates == null || !config.allowDuplicates)
-              && config.offsetDeduplication != null) {
-            builder.setOffsetDeduplication(config.offsetDeduplication);
+              && (config.allowDuplicates == null || !config.allowDuplicates)) {
+            builder.setOffsetDeduplication(config.offsetDeduplication == null ? true : config.offsetDeduplication);
           }
           if (config.redistribute && config.redistributeByRecordKey != null) {
             builder.setRedistributeByRecordKey(config.redistributeByRecordKey);
@@ -1122,6 +1121,7 @@ public class KafkaIO {
      */
     public Read<K, V> withRedistribute() {
       Builder<K, V> builder = toBuilder().setRedistributed(true);
+      // builder = builder.setOffsetDeduplication(true); ?
       if (getRedistributeNumKeys() == 0) {
         builder = builder.setRedistributeNumKeys(DEFAULT_REDISTRIBUTE_NUM_KEYS);
       }
