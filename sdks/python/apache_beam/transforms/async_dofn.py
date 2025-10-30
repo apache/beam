@@ -75,7 +75,8 @@ class AsyncWrapper(beam.DoFn):
       parallelism=1,
       callback_frequency=5,
       max_items_to_buffer=None,
-      max_wait_time=120,
+      timeout = 1,
+      max_wait_time=0.5,
   ):
     """Wraps the sync_fn to create an asynchronous version.
 
@@ -96,12 +97,15 @@ class AsyncWrapper(beam.DoFn):
       max_items_to_buffer: We should ideally buffer enough to always be busy but
         not so much that the worker ooms.  By default will be 2x the parallelism
         which should be good for most pipelines.
-      max_wait_time: The maximum amount of time an item should wait to be added
-        to the buffer.  Used for testing to ensure timeouts are met.
+      timeout: The maximum amount of time an item should try to be scheduled
+        locally before it goes in the queue of waiting work.
+      max_wait_time: The maximum amount of sleep time while attempting to
+        schedule an item.  Used in testing to ensure timeouts are met.
     """
     self._sync_fn = sync_fn
     self._uuid = uuid.uuid4().hex
     self._parallelism = parallelism
+    self._timeout = timeout
     self._max_wait_time = max_wait_time
     self._timer_frequency = callback_frequency
     if max_items_to_buffer is None:
@@ -112,8 +116,6 @@ class AsyncWrapper(beam.DoFn):
     AsyncWrapper._processing_elements[self._uuid] = {}
     AsyncWrapper._items_in_buffer[self._uuid] = 0
     self.max_wait_time = max_wait_time
-    self.timer_frequency_ = callback_frequency
-    self.parallelism_ = parallelism
     self._shared_handle = Shared()
 
   @staticmethod
@@ -239,8 +241,7 @@ class AsyncWrapper(beam.DoFn):
     done = False
     sleep_time = 0.01
     total_sleep = 0
-    timeout = 1
-    while not done and total_sleep < timeout:
+    while not done and total_sleep < self.timeout:
       done = self.schedule_if_room(element, ignore_buffer, *args, **kwargs)
       if not done:
         sleep_time = min(self.max_wait_time, sleep_time * 2)
