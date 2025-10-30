@@ -229,34 +229,56 @@ def add_transform_links(transform, description, provider_list):
 
 
 def transform_docs(transform_base, transforms, providers, extra_docs=''):
+  # Allow adding transform-specific extra documentation. For example, the
+  # SQL transform needs a short callout on how to provide calcite connection
+  # properties via the YAML `options:` section.
+  extra_docs_out = extra_docs or ''
+  if transform_base.lower() == 'sql':
+    callout = (
+        "**Note on Calcite connection properties**: Some SQL functions and "
+        "dialect-specific behavior are controlled by Calcite connection "
+        "properties. In Beam YAML pipelines you can provide these under the "
+        "top-level `options:` key. For example (preferred as YAML mapping):\n\n"
+        "    :::yaml\n\n"
+        "    options:\n"
+        "      calcite_connection_properties:\n"
+        "        fun: postgresql\n\n"
+        "If your environment expects a JSON string, you can also provide the "
+        "properties as a JSON-formatted string (note the quoting):\n\n"
+        "    :::yaml\n\n"
+        "    options:\n"
+        "      calcite_connection_properties: '{\"fun\": \"postgresql\"}'\n"
+    )
+    extra_docs_out = (extra_docs_out + "\n\n" if extra_docs_out else "") + callout
+
   return '\n'.join([
-      f'## {transform_base}',
-      '',
+    f'## {transform_base}',
+    '',
+    longest(
+      lambda t: longest(
+        lambda p: add_transform_links(
+          t, p.description(t), providers.keys()), providers[t]),
+      transforms).replace('::\n', '\n\n    :::yaml\n'),
+    '',
+    extra_docs_out,
+    '',
+    '### Configuration',
+    '',
+    longest(
+      lambda t: longest(
+        lambda p: config_docs(p.config_schema(t)), providers[t]),
+      transforms),
+    '',
+    '### Usage',
+    '',
+    '    :::yaml',
+    '',
+    indent(
       longest(
-          lambda t: longest(
-              lambda p: add_transform_links(
-                  t, p.description(t), providers.keys()), providers[t]),
-          transforms).replace('::\n', '\n\n    :::yaml\n'),
-      '',
-      extra_docs,
-      '',
-      '### Configuration',
-      '',
-      longest(
-          lambda t: longest(
-              lambda p: config_docs(p.config_schema(t)), providers[t]),
-          transforms),
-      '',
-      '### Usage',
-      '',
-      '    :::yaml',
-      '',
-      indent(
-          longest(
-              lambda t: longest(
-                  lambda p: pretty_example(p, t, transform_base), providers[t]),
-              transforms),
-          4),
+        lambda t: longest(
+          lambda p: pretty_example(p, t, transform_base), providers[t]),
+        transforms),
+      4),
   ])
 
 

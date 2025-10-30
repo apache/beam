@@ -1,0 +1,41 @@
+# SQL transform — how to provide calcite_connection_properties
+#
+# This example shows how to provide Calcite connection properties (for
+# example to enable PostgreSQL-specific functions) to a YAML pipeline.
+#
+# The connection properties can be provided under the top-level `options:`
+# key. Most of the time you can provide them as normal YAML mappings.
+# Some environments may expect a JSON-formatted string instead; both forms
+# are shown below.
+
+pipeline:
+  transforms:
+    - name: Source
+      type: Create
+      config:
+        elements:
+        - {a: "x", b: 1}
+        - {a: "x", b: 2}
+        - {a: "x", b: 3}
+        - {a: "y", b: 10}
+    - name: Transform
+      type: Sql
+      config:
+        query: "SELECT STRING_TO_ARRAY('abc def g', ' ') as col_name"
+      input: Source
+    - name: Sink
+      type: LogForTesting
+      input: Transform
+      config:
+        level: INFO
+
+# Preferred: pass connection properties as YAML mapping
+options:
+  calcite_connection_properties:
+    fun: postgresql
+
+# Alternative: pass as a JSON string (useful if your runner or expansion
+# service expects a stringified JSON). Note the quoting.
+#
+# options:
+#   calcite_connection_properties: '{"fun": "postgresql"}'
