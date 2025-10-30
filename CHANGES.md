@@ -83,7 +83,7 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) Python 3.9 reached EOL in October 2025 and support for the lanugage version has been removed. ([#36665](https://github.com/apache/beam/pull/36665)).
+* (Python) Python 3.9 reached EOL in October 2025 and support for the lanugage version has been removed. ([#36665](https://github.com/apache/beam/issues/36665)).
 
 ## Bugfixes
 
