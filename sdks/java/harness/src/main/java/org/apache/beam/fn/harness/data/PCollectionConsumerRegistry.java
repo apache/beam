@@ -371,14 +371,11 @@ public class PCollectionConsumerRegistry {
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
       // metrics container.
-      executionState.activate();
-      try {
+      try (ExecutionState.ActiveState a = executionState.scopedActivate()) {
         this.delegate.accept(input);
       } catch (Exception e) {
         logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
-      } finally {
-        executionState.deactivate();
       }
       this.sampledByteSizeDistribution.finishLazyUpdate();
     }
@@ -461,8 +458,7 @@ public class PCollectionConsumerRegistry {
       for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         ExecutionState state = consumerAndMetadata.getExecutionState();
-        state.activate();
-        try {
+        try (ExecutionState.ActiveState a = state.scopedActivate()) {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
           logAndRethrow(
@@ -472,8 +468,6 @@ public class PCollectionConsumerRegistry {
               consumerAndMetadata.getPTransformId(),
               outputSampler,
               elementSample);
-        } finally {
-          state.deactivate();
         }
         this.sampledByteSizeDistribution.finishLazyUpdate();
       }
