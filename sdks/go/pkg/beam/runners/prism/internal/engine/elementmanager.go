@@ -398,7 +398,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 		for {
 			em.refreshCond.L.Lock()
 			// Check if processing time has advanced before the wait loop.
-			emNow := em.ProcessingTimeNow()
+			emNow := em.processingTimeNow()
 			changedByProcessingTime := em.processTimeEvents.AdvanceTo(emNow)
 			em.changedStages.merge(changedByProcessingTime)
 
@@ -415,7 +415,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				em.refreshCond.Wait() // until watermarks may have changed.
 
 				// Update if the processing time has advanced while we waited, and add refreshes here. (TODO waking on real time here for prod mode)
-				emNow = em.ProcessingTimeNow()
+				emNow = em.processingTimeNow()
 				changedByProcessingTime = em.processTimeEvents.AdvanceTo(emNow)
 				em.changedStages.merge(changedByProcessingTime)
 			}
@@ -521,7 +521,7 @@ func (em *ElementManager) DumpStages() string {
 		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
 			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
 	} else {
-		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.ProcessingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
+		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.processingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
 	}
 	sort.Strings(ids)
 	for _, id := range ids {
@@ -880,8 +880,23 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers,
 			"pendingDelta", len(newPending)*len(consumers))
 		for _, sID := range consumers {
+
 			consumer := em.stages[sID]
-			count := consumer.AddPending(em, newPending)
+			var count int
+			_, isAggregateStage := consumer.kind.(*aggregateStageKind)
+			if isAggregateStage {
+				// While adding pending elements in aggregate stage, we may need to
+				// access em.processTimeEvents to determine triggered bundles.
+				// To avoid deadlocks, we acquire the em.refreshCond.L lock here before
+				// AddPending is called.
+				func() {
+					em.refreshCond.L.Lock()
+					defer em.refreshCond.L.Unlock()
+					count = consumer.AddPending(em, newPending)
+				}()
+			} else {
+				count = consumer.AddPending(em, newPending)
+			}
 			em.addPending(count)
 		}
 		for _, link := range sideConsumers {
@@ -993,7 +1008,7 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 		win typex.Window
 	}
 	em.refreshCond.L.Lock()
-	emNow := em.ProcessingTimeNow()
+	emNow := em.processingTimeNow()
 	em.refreshCond.L.Unlock()
 
 	var pendingEventTimers []element
@@ -1337,7 +1352,7 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 	ready := ss.strat.IsTriggerReady(triggerInput{
 		newElementCount:    1,
 		endOfWindowReached: endOfWindowReached,
-		emNow:              em.ProcessingTimeNow(),
+		emNow:              em.processingTimeNow(),
 	}, &state)
 
 	if ready {
@@ -1374,9 +1389,7 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 				// TODO: how to deal with watermark holds for this implicit processing time timer
 				// ss.watermarkHolds.Add(timer.holdTimestamp, 1)
 				ss.processingTimeTimers.Persist(firingTime, timer, notYetHolds)
-				em.refreshCond.L.Lock()
 				em.processTimeEvents.Schedule(firingTime, ss.ID)
-				em.refreshCond.L.Unlock()
 				em.wakeUpAt(firingTime)
 			}
 		}
@@ -2441,8 +2454,8 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 	return upstreamW, ready, ptimeEventsReady, injectedReady
 }
 
-// ProcessingTimeNow gives the current processing time for the runner.
-func (em *ElementManager) ProcessingTimeNow() (ret mtime.Time) {
+// processingTimeNow gives the current processing time for the runner.
+func (em *ElementManager) processingTimeNow() (ret mtime.Time) {
 	if em.testStreamHandler != nil && !em.testStreamHandler.completed {
 		return em.testStreamHandler.Now()
 	}
