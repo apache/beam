@@ -232,7 +232,7 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
         " https://github.com/apache/beam/issues/31921")
 
   def test_metrics(self):
-    super().test_metrics(check_bounded_trie=False)
+    super().test_metrics(check_bounded_trie=True)
 
   def construct_timestamped(k, t):
     return window.TimestampedValue((k, t), t)
