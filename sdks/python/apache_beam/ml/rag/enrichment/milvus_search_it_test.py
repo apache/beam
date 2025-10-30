@@ -312,7 +312,7 @@ class MilvusEnrichmentTestHelper:
     with user_yaml_creator(service_container_port, max_vec_fields) as cfg:
       info = None
       original_tc_max_tries = testcontainers_config.max_tries
-      if not testcontainers_config.max_tries:
+      if testcontainers_config.max_tries is not None:
         testcontainers_config.max_tries = tc_max_retries
       for i in range(vector_client_max_retries):
         try:
@@ -326,7 +326,6 @@ class MilvusEnrichmentTestHelper:
           host = vector_db_container.get_container_host_ip()
           port = vector_db_container.get_exposed_port(service_container_port)
           info = MilvusDBContainerInfo(vector_db_container, host, port)
-          testcontainers_config.max_tries = original_tc_max_tries
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
           break
@@ -351,6 +350,8 @@ class MilvusEnrichmentTestHelper:
                 stdout_logs,
                 stderr_logs)
             raise e
+        finally:
+          testcontainers_config.max_tries = original_tc_max_tries
       return info
 
   @staticmethod
@@ -358,13 +359,9 @@ class MilvusEnrichmentTestHelper:
     if db_info is None:
       _LOGGER.warning("Milvus db info is None. Skipping stop operation.")
       return
-    try:
-      _LOGGER.debug("Stopping milvus db container.")
-      db_info.container.stop()
-      _LOGGER.info("milvus db container stopped successfully.")
-    except Exception as e:
-      _LOGGER.warning(
-          "Error encountered while stopping milvus db container: %s", e)
+    _LOGGER.debug("Stopping milvus db container.")
+    db_info.container.stop()
+    _LOGGER.info("milvus db container stopped successfully.")
 
   @staticmethod
   def initialize_db_with_data(connc_params: MilvusConnectionParameters):
