@@ -41,7 +41,6 @@ labels:
       - chamikaramj
       - m-trieu
       - kennknowles
-      - robertwb
     exclusionList: []
   - name: spanner
     reviewers:
@@ -76,6 +75,5 @@ fallbackReviewers:
   - jrmccluskey
   - kennknowles
   - liferoad
-  - robertwb
   - shunping
   - tvalentyn

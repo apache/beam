@@ -445,8 +445,17 @@ public class ProcessBundleHandler {
                     String timerFamilyId,
                     org.apache.beam.sdk.coders.Coder<Timer<T>> coder,
                     FnDataReceiver<Timer<T>> receiver) {
+                  ExecutionStateSampler.ExecutionState executionState =
+                      pCollectionConsumerRegistry.getProcessingExecutionState(
+                          pTransformId, pTransform.getUniqueName());
+                  FnDataReceiver<Timer<T>> wrappedReceiver =
+                      (Timer<T> timer) -> {
+                        try (AutoCloseable ignored = executionState.scopedActivate()) {
+                          receiver.accept(timer);
+                        }
+                      };
                   addTimerEndpoint.accept(
-                      TimerEndpoint.create(pTransformId, timerFamilyId, coder, receiver));
+                      TimerEndpoint.create(pTransformId, timerFamilyId, coder, wrappedReceiver));
                 }
 
                 @Override

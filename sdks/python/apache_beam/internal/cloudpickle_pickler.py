@@ -35,12 +35,19 @@ import sys
 import threading
 import zlib
 
+from apache_beam.internal import code_object_pickler
 from apache_beam.internal.cloudpickle import cloudpickle
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
     skip_reset_dynamic_type_state=True)
 NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
     id_generator=None, skip_reset_dynamic_type_state=True)
+STABLE_CODE_IDENTIFIER_CONFIG = cloudpickle.CloudPickleConfig(
+    skip_reset_dynamic_type_state=True,
+    get_code_object_params=cloudpickle.GetCodeObjectParams(
+        get_code_object_identifier=code_object_pickler.
+        get_code_object_identifier,
+        get_code_from_identifier=code_object_pickler.get_code_from_identifier))
 
 try:
   from absl import flags
@@ -119,9 +126,14 @@ def dumps(
     enable_trace=True,
     use_zlib=False,
     enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
-  s = _dumps(o, enable_best_effort_determinism, config)
+  s = _dumps(
+      o,
+      enable_best_effort_determinism,
+      enable_stable_code_identifier_pickling,
+      config)
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
@@ -141,6 +153,7 @@ def dumps(
 def _dumps(
     o,
     enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
 
   if enable_best_effort_determinism:
@@ -151,6 +164,8 @@ def _dumps(
         'This has only been implemented for dill.')
   with _pickle_lock:
     with io.BytesIO() as file:
+      if enable_stable_code_identifier_pickling:
+        config = STABLE_CODE_IDENTIFIER_CONFIG
       pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
