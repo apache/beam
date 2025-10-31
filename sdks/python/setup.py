@@ -385,6 +385,7 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
           'hdfs>=2.1.0,<3.0.0',
+          'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -507,7 +508,6 @@ if __name__ == '__main__':
               # Dataflow, which allows installing python packages from private
               # Python repositories in GAR.
               'keyrings.google-artifactregistry-auth',
-              'httplib2>=0.8,<0.23.0',
               'orjson>=3.9.7,<4',
               'regex>=2020.6.8',
           ],
