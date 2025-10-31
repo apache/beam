@@ -165,12 +165,10 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
   """Integration tests for Milvus vector database ingestion functionality"""
 
   _db: VectorDBContainerInfo
-  _version = "milvusdb/milvus:v2.5.10"
 
   @classmethod
   def setUpClass(cls):
-    cls._db = MilvusTestHelpers.start_db_container(
-        cls._version, vector_client_max_retries=3)
+    cls._db = MilvusTestHelpers.start_db_container()
     cls._connection_config = MilvusConnectionParameters(
         uri=cls._db.uri,
         user=cls._db.user,
