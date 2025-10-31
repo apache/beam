@@ -25,6 +25,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
+import uuid
 
 from google.protobuf.json_format import MessageToDict
 from pymilvus import AnnSearchRequest
@@ -35,6 +36,7 @@ from pymilvus import SearchResult
 
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Embedding
+from apache_beam.ml.rag.utils import MilvusHelpers, MilvusConnectionParameters
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 
@@ -102,44 +104,6 @@ class MilvusBaseRanker:
 
   def __str__(self):
     return self.dict().__str__()
-
-
-@dataclass
-class MilvusConnectionParameters:
-  """Parameters for establishing connections to Milvus servers.
-
-  Args:
-    uri: URI endpoint for connecting to Milvus server in the format
-      "http(s)://hostname:port".
-    user: Username for authentication. Required if authentication is enabled and
-      not using token authentication.
-    password: Password for authentication. Required if authentication is enabled
-      and not using token authentication.
-    db_id: Database ID to connect to. Specifies which Milvus database to use.
-      Defaults to 'default'.
-    token: Authentication token as an alternative to username/password.
-    timeout: Connection timeout in seconds. Uses client default if None.
-    max_retries: Maximum number of connection retry attempts. Defaults to 3.
-    retry_delay: Initial delay between retries in seconds. Defaults to 1.0.
-    retry_backoff_factor: Multiplier for retry delay after each attempt. 
-      Defaults to 2.0 (exponential backoff).
-    kwargs: Optional keyword arguments for additional connection parameters.
-      Enables forward compatibility.
-  """
-  uri: str
-  user: str = field(default_factory=str)
-  password: str = field(default_factory=str)
-  db_id: str = "default"
-  token: str = field(default_factory=str)
-  timeout: Optional[float] = None
-  max_retries: int = 3
-  retry_delay: float = 1.0
-  retry_backoff_factor: float = 2.0
-  kwargs: Dict[str, Any] = field(default_factory=dict)
-
-  def __post_init__(self):
-    if not self.uri:
-      raise ValueError("URI must be provided for Milvus connection")
 
 
 @dataclass
@@ -361,7 +325,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       **kwargs):
     """
     Example Usage:
-      connection_paramters = MilvusConnectionParameters(
+      connection_parameters = MilvusConnectionParameters(
         uri="http://localhost:19530")
       search_parameters = MilvusSearchParameters(
         collection_name="my_collection",
@@ -369,7 +333,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       collection_load_parameters = MilvusCollectionLoadParameters(
         load_fields=["embedding", "metadata"]),
       milvus_handler = MilvusSearchEnrichmentHandler(
-        connection_paramters,
+        connection_parameters,
         search_parameters,
         collection_load_parameters=collection_load_parameters,
         min_batch_size=10,
@@ -534,10 +498,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       raise ValueError(
           f"Chunk {chunk.id} missing both text content and sparse embedding "
           "required for keyword search")
-
-    sparse_embedding = self.convert_sparse_embedding_to_milvus_format(
-        chunk.sparse_embedding)
-
+    sparse_embedding = MilvusHelpers.sparse_embedding(chunk.sparse_embedding)
     return chunk.content.text or sparse_embedding
 
   def _get_call_response(

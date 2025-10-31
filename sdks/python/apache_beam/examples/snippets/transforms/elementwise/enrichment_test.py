@@ -57,8 +57,8 @@ try:
   from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
       MilvusEnrichmentTestHelper,
       MilvusDBContainerInfo,
-      parse_chunk_strings,
       assert_chunks_equivalent)
+  from apache_beam.ml.rag.utils import parse_chunk_strings
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError as e:
   raise unittest.SkipTest(f'Examples dependencies are not installed: {str(e)}')
@@ -68,9 +68,11 @@ class TestContainerStartupError(Exception):
   """Raised when any test container fails to start."""
   pass
 
+
 class TestContainerTeardownError(Exception):
   """Raised when any test container fails to teardown."""
   pass
+
 
 def validate_enrichment_with_bigtable():
   expected = '''[START enrichment_with_bigtable]
@@ -377,13 +379,13 @@ class EnrichmentTestHelpers:
     try:
       db = MilvusEnrichmentTestHelper.start_db_container()
       connection_params = MilvusConnectionParameters(
-        uri=db.uri,
-        user=db.user,
-        password=db.password,
-        db_id=db.id,
-        token=db.token)
+          uri=db.uri,
+          user=db.user,
+          password=db.password,
+          db_id=db.id,
+          token=db.token)
       collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
-        connection_params)
+          connection_params)
     except Exception as e:
       raise TestContainerStartupError(
           f"Milvus container failed to start: {str(e)}")
@@ -405,7 +407,7 @@ class EnrichmentTestHelpers:
       MilvusEnrichmentTestHelper.stop_db_container(db)
     except Exception:
       raise TestContainerTeardownError(
-        f"Milvus container failed to tear down: {str(e)}")
+          f"Milvus container failed to tear down: {str(e)}")
 
     os.environ.pop('MILVUS_VECTOR_DB_URI', None)
     os.environ.pop('MILVUS_VECTOR_DB_USER', None)
