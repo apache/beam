@@ -41,8 +41,9 @@ DATA = [
     beam.Row(label='389a', conductor=389, rank=2),
 ]
 
-
 unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
+
+
 class YamlMappingTest(unittest.TestCase):
   def test_basic(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

@@ -87,8 +87,9 @@ TEST_PROVIDERS = {
     'PyMap': lambda fn: beam.Map(python_callable.PythonCallableWithSource(fn)),
 }
 
-
 unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
+
+
 class YamlTransformE2ETest(unittest.TestCase):
   def test_composite(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
