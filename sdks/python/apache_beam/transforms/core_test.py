@@ -114,10 +114,12 @@ class TestDoFn10(beam.DoFn):
     return None
 
 
-class TestDoFn12(beam.DoFn):
-  """test process returning None (return statement without a value)"""
+class TestDoFn11(beam.DoFn):
+  """test process returning None in a filter pattern"""
   def process(self, element):
-    return
+    if element == 0:
+      return
+    return element
 
 
 class TestDoFnStateful(beam.DoFn):
@@ -185,11 +187,10 @@ class CreateTest(unittest.TestCase):
       assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
       assert str(TestDoFn10) in self._caplog.text
 
-  def test_dofn_with_implicit_return_none_return_without_value(self):
+  def test_dofn_with_implicit_return_none_and_value(self):
     with self._caplog.at_level(logging.WARNING):
-      beam.ParDo(TestDoFn12())
-      assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
-      assert str(TestDoFn12) in self._caplog.text
+      beam.ParDo(TestDoFn11())
+      assert RETURN_NONE_PARTIAL_WARNING not in self._caplog.text
 
 
 class PartitionTest(unittest.TestCase):
