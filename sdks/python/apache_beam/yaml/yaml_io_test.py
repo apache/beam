@@ -40,12 +40,14 @@ class FakeReadFromPubSub:
       messages,
       subscription=None,
       id_attribute=None,
-      timestamp_attribute=None):
+      timestamp_attribute=None,
+      max_read_time_seconds=None):
     self._topic = topic
     self._subscription = subscription
     self._messages = messages
     self._id_attribute = id_attribute
     self._timestamp_attribute = timestamp_attribute
+    self._max_read_time_seconds = max_read_time_seconds
 
   def __call__(
       self,
@@ -54,11 +56,13 @@ class FakeReadFromPubSub:
       subscription,
       with_attributes,
       id_label,
-      timestamp_attribute):
+      timestamp_attribute,
+      max_read_time_seconds=None):
     assert topic == self._topic
     assert id_label == self._id_attribute
     assert timestamp_attribute == self._timestamp_attribute
     assert subscription == self._subscription
+    assert max_read_time_seconds == self._max_read_time_seconds
     if with_attributes:
       data = self._messages
     else:
@@ -535,6 +539,27 @@ class YamlPubSubTest(unittest.TestCase):
                   rank: {type: integer}
             ''')
         assert_that(result, equal_to(data))
+
+  def test_read_with_max_read_time(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(b'msg1', {'attr': 'value1'}),
+                                    PubsubMessage(b'msg2', {'attr': 'value2'})],
+                          max_read_time_seconds=60)):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: RAW
+              max_read_time_seconds: 60
+            ''')
+        assert_that(
+            result,
+            equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')]))
 
 
 if __name__ == '__main__':
