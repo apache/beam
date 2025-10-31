@@ -1507,25 +1507,28 @@ def _check_fn_use_yield_and_return(fn):
     source_code = _get_function_body_without_inners(fn)
     has_yield = False
     has_return = False
-    return_none_warning = (
-        "No iterator is returned by the process method in %s.",
-        fn.__self__.__class__)
+    has_return_none = False
     for line in source_code.split("\n"):
       lstripped_line = line.lstrip()
       if lstripped_line.startswith("yield ") or lstripped_line.startswith(
           "yield("):
         has_yield = True
-      if lstripped_line.startswith("return ") or lstripped_line.startswith(
+      elif lstripped_line.rstrip() == "return":
+        has_return_none = True
+      elif lstripped_line.startswith("return ") or lstripped_line.startswith(
           "return("):
-        has_return = True
-        if lstripped_line.startswith(
-            "return None") or lstripped_line.rstrip() == "return":
-          _LOGGER.warning(return_none_warning)
+        if lstripped_line.startswith("return None"):
+          has_return_none = True
+        else:
+          has_return = True
       if has_yield and has_return:
         return True
 
-    if not has_yield and not has_return:
-      _LOGGER.warning(return_none_warning)
+    if not has_yield and not has_return and has_return_none:
+      _LOGGER.warning(
+          "Process method returned None (element won't be emitted): %s. Check if intended.",
+          fn.__self__.__class__)
+    print(has_yield, has_return, has_return_none)
 
     return False
   except Exception as e:

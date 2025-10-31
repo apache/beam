@@ -40,7 +40,7 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 
-RETURN_NONE_PARTIAL_WARNING = "No iterator is returned"
+RETURN_NONE_PARTIAL_WARNING = "Process method returned None"
 
 
 class TestDoFn1(beam.DoFn):
@@ -114,12 +114,6 @@ class TestDoFn10(beam.DoFn):
     return None
 
 
-class TestDoFn11(beam.DoFn):
-  """test process returning None (no return and no yield)"""
-  def process(self, element):
-    pass
-
-
 class TestDoFn12(beam.DoFn):
   """test process returning None (return statement without a value)"""
   def process(self, element):
@@ -190,12 +184,6 @@ class CreateTest(unittest.TestCase):
       beam.ParDo(TestDoFn10())
       assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
       assert str(TestDoFn10) in self._caplog.text
-
-  def test_dofn_with_implicit_return_none_missing_return_and_yield(self):
-    with self._caplog.at_level(logging.WARNING):
-      beam.ParDo(TestDoFn11())
-      assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
-      assert str(TestDoFn11) in self._caplog.text
 
   def test_dofn_with_implicit_return_none_return_without_value(self):
     with self._caplog.at_level(logging.WARNING):
