@@ -21,4 +21,5 @@ import java.io.Serializable;
 
 public interface BaseModelParameters extends Serializable {
 
+  public BatchConfig defaultBatchConfig();
 }

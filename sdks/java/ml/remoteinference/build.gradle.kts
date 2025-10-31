@@ -30,6 +30,7 @@ dependencies {
   implementation("com.openai:openai-java:4.3.0")
   implementation("com.google.auto.value:auto-value:1.11.0")
   implementation("com.google.auto.value:auto-value-annotations:1.11.0")
+  implementation("com.fasterxml.jackson.core:jackson-core:2.20.0")
 
   // testing
   testImplementation(project(":runners:direct-java"))

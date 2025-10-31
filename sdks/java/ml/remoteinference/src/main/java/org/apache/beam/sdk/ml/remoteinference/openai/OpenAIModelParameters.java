@@ -18,17 +18,20 @@
 package org.apache.beam.sdk.ml.remoteinference.openai;
 
 import org.apache.beam.sdk.ml.remoteinference.base.BaseModelParameters;
+import org.apache.beam.sdk.ml.remoteinference.base.BatchConfig;
 
 public class OpenAIModelParameters implements BaseModelParameters {
 
   private final String apiKey;
   private final String modelName;
   private final String instructionPrompt;
+  private final BatchConfig batchConfig;
 
   private OpenAIModelParameters(Builder builder) {
     this.apiKey = builder.apiKey;
     this.modelName = builder.modelName;
     this.instructionPrompt = builder.instructionPrompt;
+    this.batchConfig = BatchConfig.builder().maxBatchSize(1).minBatchSize(1).build();
   }
 
   public String getApiKey() {
@@ -45,6 +48,11 @@ public class OpenAIModelParameters implements BaseModelParameters {
 
   public static Builder builder() {
     return new Builder();
+  }
+
+  @Override
+  public BatchConfig defaultBatchConfig() {
+    return batchConfig;
   }
 
   public static class Builder {

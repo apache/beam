@@ -28,6 +28,9 @@ import org.apache.beam.sdk.values.PCollection;
 
 import com.google.auto.value.AutoValue;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @SuppressWarnings({ "rawtypes", "unchecked" })
 public class RemoteInference {
 
@@ -47,6 +50,8 @@ public class RemoteInference {
 
     abstract @Nullable BaseModelParameters parameters();
 
+    abstract @Nullable BatchConfig batchConfig();
+
     abstract Builder<InputT, OutputT> builder();
 
     @AutoValue.Builder
@@ -55,6 +60,8 @@ public class RemoteInference {
       abstract Builder<InputT, OutputT> setHandler(Class<? extends BaseModelHandler> modelHandler);
 
       abstract Builder<InputT, OutputT> setParameters(BaseModelParameters modelParameters);
+
+      abstract Builder<InputT, OutputT> setBatchConfig(BatchConfig config);
 
       abstract Invoke<InputT, OutputT> build();
     }
@@ -67,13 +74,21 @@ public class RemoteInference {
       return builder().setParameters(modelParameters).build();
     }
 
+    public Invoke<InputT, OutputT> withBatchConfig(BatchConfig config) {
+      return builder().setBatchConfig(config).build();
+    }
+
     @Override
     public PCollection<Iterable<PredictionResult<InputT, OutputT>>> expand(PCollection<InputT> input) {
-      return input.apply(ParDo.of(new RemoteInferenceFn<>(this)));
+      return input.apply(ParDo.of(new BatchElementsFn<>(this.batchConfig() != null ? this.batchConfig()
+          : this
+          .parameters()
+          .defaultBatchConfig())))
+        .apply(ParDo.of(new RemoteInferenceFn<>(this)));
     }
 
     static class RemoteInferenceFn<InputT extends BaseInput, OutputT extends BaseResponse>
-      extends DoFn<InputT, Iterable<PredictionResult<InputT, OutputT>>> {
+      extends DoFn<List<InputT>, Iterable<PredictionResult<InputT, OutputT>>> {
 
       private final Class<? extends BaseModelHandler> handlerClass;
       private final BaseModelParameters parameters;
@@ -100,6 +115,38 @@ public class RemoteInference {
         Iterable<PredictionResult<InputT, OutputT>> response = this.handler.request(c.element());
         c.output(response);
       }
+    }
+
+    public static class BatchElementsFn<T> extends DoFn<T, List<T>> {
+      private final BatchConfig config;
+      private List<T> batch;
+
+      public BatchElementsFn(BatchConfig config) {
+        this.config = config;
+      }
+
+      @StartBundle
+      public void startBundle() {
+        batch = new ArrayList<>();
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        batch.add(c.element());
+        if (batch.size() >= config.getMaxBatchSize()) {
+          c.output(new ArrayList<>(batch));
+          batch.clear();
+        }
+      }
+
+      @FinishBundle
+      public void finishBundle(FinishBundleContext c) {
+        if (!batch.isEmpty()) {
+          c.output(new ArrayList<>(batch), null, null);
+          batch.clear();
+        }
+      }
+
     }
   }
 }

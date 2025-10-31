@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.ml.remoteinference.base;
 
+import java.util.List;
+
 public interface BaseModelHandler<ParamT extends BaseModelParameters, InputT extends BaseInput, OutputT extends BaseResponse> {
 
   // initialize the model with provided parameters
   public void createClient(ParamT parameters);
 
   // Logic to invoke model provider
-  public Iterable<PredictionResult<InputT, OutputT>> request(InputT input);
+  public Iterable<PredictionResult<InputT, OutputT>> request(List<InputT> input);
 
 }
