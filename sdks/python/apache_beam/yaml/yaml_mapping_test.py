@@ -30,6 +30,11 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml.yaml_transform import YamlTransform
 
+try:
+  import jsonschema
+except ImportError:
+  pass
+
 DATA = [
     beam.Row(label='11a', conductor=11, rank=0),
     beam.Row(label='37a', conductor=37, rank=1),
@@ -37,6 +42,7 @@ DATA = [
 ]
 
 
+unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class YamlMappingTest(unittest.TestCase):
   def test_basic(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
