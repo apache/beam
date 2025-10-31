@@ -33,11 +33,15 @@ from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
-import pydot
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive.display import pipeline_graph_renderer
+
+try:
+  import pydot
+except ImportError:
+  pass
 
 # pylint does not understand context
 # pylint:disable=dangerous-default-value
