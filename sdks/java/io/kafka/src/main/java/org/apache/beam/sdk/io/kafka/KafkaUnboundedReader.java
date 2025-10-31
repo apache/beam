@@ -631,10 +631,16 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         if (now.isAfter(nextAllowedCommitFailLogTime)) {
           LOG.warn(
               String.format(
-                  "%s: Did not successfully commit finalized checkpoint for > %s: %s",
+                  "%s: Did not successfully commit finalized checkpoint for > %s. Current checkpoint: %s",
                   this, MIN_COMMIT_FAIL_LOG_INTERVAL, checkpointMark),
               e);
           nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
+        } else {
+          LOG.info(
+              String.format(
+                  "%s: Could not commit finalized checkpoint. Commit will be retried with subsequent reads. Current checkpoint: %s",
+                  this, checkpointMark),
+              e);
         }
       }
     }
