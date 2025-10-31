@@ -75,7 +75,7 @@ class AsyncWrapper(beam.DoFn):
       parallelism=1,
       callback_frequency=5,
       max_items_to_buffer=None,
-      timeout = 1,
+      timeout=1,
       max_wait_time=0.5,
   ):
     """Wraps the sync_fn to create an asynchronous version.
@@ -241,7 +241,7 @@ class AsyncWrapper(beam.DoFn):
     done = False
     sleep_time = 0.01
     total_sleep = 0
-    while not done and total_sleep < self.timeout:
+    while not done and total_sleep < self._timeout:
       done = self.schedule_if_room(element, ignore_buffer, *args, **kwargs)
       if not done:
         sleep_time = min(self.max_wait_time, sleep_time * 2)
