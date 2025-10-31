@@ -4,7 +4,7 @@ import os
 import socket
 import tempfile
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 from testcontainers.core.config import testcontainers_config
 from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer

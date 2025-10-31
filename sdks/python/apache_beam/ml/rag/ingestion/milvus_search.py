@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, NamedTuple, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from pymilvus import MilvusClient
 
@@ -29,7 +29,6 @@ from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.utils import (
     MilvusHelpers, unpack_dataclass_with_kwargs, DEFAULT_WRITE_BATCH_SIZE)
-from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.transforms import DoFn
 
 from apache_beam.ml.rag.utils import MilvusConnectionParameters
@@ -117,7 +116,6 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
       A function that takes a Chunk and returns a dictionary representing
       a Milvus record with fields mapped according to column_specs.
     """
-    """Creates a function to convert Chunks to records."""
     def convert(chunk: Chunk) -> Dict[str, Any]:
       result = {}
       for col in self.column_specs:

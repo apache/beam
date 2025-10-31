@@ -25,7 +25,6 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
-import uuid
 
 from google.protobuf.json_format import MessageToDict
 from pymilvus import AnnSearchRequest

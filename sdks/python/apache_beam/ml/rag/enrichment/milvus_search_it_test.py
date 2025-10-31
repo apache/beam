@@ -15,25 +15,17 @@
 # limitations under the License.
 #
 
-import contextlib
 import logging
-import os
 import platform
-import re
-import socket
-import tempfile
 import unittest
-from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Callable
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import cast
 
 import pytest
-import yaml
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -53,9 +45,6 @@ try:
       MilvusClient,
       RRFRanker)
   from pymilvus.milvus_client import IndexParams
-  from testcontainers.core.config import testcontainers_config
-  from testcontainers.core.generic import DbContainer
-  from testcontainers.milvus import MilvusContainer
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.ml.rag.test_utils import (
       MilvusTestHelpers, VectorDBContainerInfo)

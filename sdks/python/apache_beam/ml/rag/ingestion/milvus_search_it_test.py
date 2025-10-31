@@ -112,7 +112,11 @@ def create_collection_with_partition(
     client: MilvusClient,
     collection_name: str,
     partition_name: str = '',
-    fields=MILVUS_INGESTION_IT_CONFIG["fields"]):
+    fields=None):
+
+  if fields is None:
+    fields = MILVUS_INGESTION_IT_CONFIG["fields"]
+
   # Configure schema.
   schema = CollectionSchema(fields=fields)
 
