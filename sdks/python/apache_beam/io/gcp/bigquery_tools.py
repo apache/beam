@@ -46,9 +46,9 @@ from typing import Union
 
 import fastavro
 import numpy as np
-import regex
 
 import apache_beam
+import regex
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value

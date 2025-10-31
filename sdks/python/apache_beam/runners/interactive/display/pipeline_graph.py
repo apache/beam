@@ -32,9 +32,8 @@ from typing import List
 from typing import Tuple
 from typing import Union
 
-import pydot
-
 import apache_beam as beam
+import pydot
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
