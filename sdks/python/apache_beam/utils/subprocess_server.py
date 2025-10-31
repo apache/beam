@@ -188,8 +188,6 @@ class SubprocessServer(object):
       channel_options = [
           ("grpc.max_receive_message_length", -1),
           ("grpc.max_send_message_length", -1),
-          # Default: 30000ms (30s), increased to 180s to reduce ping frequency
-          ("grpc.keepalive_time_ms", 180000),
           # Default: 5000ms (5s), increased to 10 minutes for stability
           ("grpc.keepalive_timeout_ms", 600000),
           # Default: 2, set to 0 to allow unlimited pings without data
@@ -204,8 +202,6 @@ class SubprocessServer(object):
           ("grpc.http2.max_ping_strikes", 0),
           # Default: 0 (disabled), enable socket reuse for better handling
           ("grpc.so_reuseport", 1),
-          # Default: 0 (disabled), set 30s TCP timeout for connection control
-          ("grpc.tcp_user_timeout_ms", 30000),
       ]
       self._grpc_channel = grpc.insecure_channel(
           endpoint, options=channel_options)
