@@ -405,7 +405,7 @@ class EnrichmentTestHelpers:
   def post_milvus_enrichment(db: MilvusDBContainerInfo):
     try:
       MilvusEnrichmentTestHelper.stop_db_container(db)
-    except Exception:
+    except Exception as e:
       raise TestContainerTeardownError(
           f"Milvus container failed to tear down: {str(e)}")
 
