@@ -19,6 +19,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 import uuid
+import re
 
 from apache_beam.ml.rag.types import Chunk, Content, Embedding
 
