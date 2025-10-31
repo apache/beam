@@ -379,14 +379,12 @@ if __name__ == '__main__':
       install_requires=[
           'crcmod>=1.7,<2.0',
           'cryptography>=39.0.0,<48.0.0',
-          'orjson>=3.9.7,<4',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
           'hdfs>=2.1.0,<3.0.0',
-          'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -411,7 +409,6 @@ if __name__ == '__main__':
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
           'redis>=5.0.0,<6',
-          'regex>=2020.6.8',
           'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
@@ -509,7 +506,10 @@ if __name__ == '__main__':
               # --extra-index-url or --index-url in requirements.txt in
               # Dataflow, which allows installing python packages from private
               # Python repositories in GAR.
-              'keyrings.google-artifactregistry-auth'
+              'keyrings.google-artifactregistry-auth',
+              'httplib2>=0.8,<0.23.0',
+              'orjson>=3.9.7,<4',
+              'regex>=2020.6.8',
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
