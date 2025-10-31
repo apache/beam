@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
@@ -90,6 +91,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -834,6 +836,9 @@ public class PubsubIO {
     /** The name of the message attribute to read unique message IDs from. */
     abstract @Nullable String getIdAttribute();
 
+    /** The maximum time to read from Pub/Sub. If not specified, will read indefinitely. */
+    abstract @Nullable Duration getMaxReadTime();
+
     /** The coder used to decode each record. */
     abstract Coder<T> getCoder();
 
@@ -895,6 +900,8 @@ public class PubsubIO {
       abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
       abstract Builder<T> setIdAttribute(String idAttribute);
+
+      abstract Builder<T> setMaxReadTime(@Nullable Duration maxReadTime);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
@@ -1080,6 +1087,17 @@ public class PubsubIO {
     }
 
     /**
+     * Sets a maximum amount of time to read from the source.
+     *
+     * <p>If this is set, the source will be bounded and will stop reading after this much time has
+     * passed.
+     */
+    public Read<T> withMaxReadTime(Duration maxReadTime) {
+      checkArgument(maxReadTime != null, "maxReadTime can not be null");
+      return toBuilder().setMaxReadTime(maxReadTime).build();
+    }
+
+    /**
      * Causes the source to return a PubsubMessage that includes Pubsub attributes, and uses the
      * given parsing function to transform the PubsubMessage into an output type. A Coder for the
      * output type T must be registered or set on the output via {@link
@@ -1155,7 +1173,8 @@ public class PubsubIO {
               getIdAttribute(),
               getNeedsAttributes(),
               getNeedsMessageId(),
-              getNeedsOrderingKey());
+              getNeedsOrderingKey(),
+              getMaxReadTime());
 
       PCollection<PubsubMessage> preParse = input.apply(source);
       return expandReadContinued(preParse, topicPath, subscriptionPath);

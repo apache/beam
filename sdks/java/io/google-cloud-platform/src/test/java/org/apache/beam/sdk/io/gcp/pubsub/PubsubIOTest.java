@@ -87,6 +87,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
@@ -987,6 +988,45 @@ public class PubsubIOTest {
         PubsubIO.readMessages().fromTopic("projects/test-project/topics/nonExistingTopic");
 
     read.validate(options);
+  }
+
+  @Test
+  public void testReadWithMaxReadTime() {
+    // Create 1000 messages
+    List<IncomingMessage> messages =
+        IntStream.range(0, 1000)
+            .mapToObj(
+                i ->
+                    IncomingMessage.of(
+                        com.google.pubsub.v1.PubsubMessage.newBuilder()
+                            .setData(ByteString.copyFromUtf8("message-" + i))
+                            .build(),
+                        1234L,
+                        0,
+                        UUID.randomUUID().toString(),
+                        UUID.randomUUID().toString()))
+            .collect(Collectors.toList());
+
+    // Create Pubsub client factory
+    clientFactory = PubsubTestClient.createFactoryForPull(CLOCK, SUBSCRIPTION, 60, messages);
+
+    // Read messages
+    PCollection<String> read =
+        pipeline.apply(
+            PubsubIO.readStrings()
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withMaxReadTime(Duration.standardSeconds(2))
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory));
+
+    // Check that some messages are read and appropriately stops.
+    PAssert.that(read)
+        .satisfies(
+            input -> {
+              assertThat(input.iterator().hasNext(), is(true));
+              return null;
+            });
+    pipeline.run();
   }
 
   @Test

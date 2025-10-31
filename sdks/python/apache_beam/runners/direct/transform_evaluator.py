@@ -588,6 +588,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   # TODO(https://github.com/apache/beam/issues/19751): Prevents garbage
   # collection of pipeline instances.
   _subscription_cache: Dict[AppliedPTransform, str] = {}
+  _start_times: Dict[AppliedPTransform, float] = {}
 
   def __init__(
       self,
@@ -606,6 +607,9 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if self.source.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
+
+    if self._applied_ptransform not in _PubSubReadEvaluator._start_times:
+      _PubSubReadEvaluator._start_times[self._applied_ptransform] = time.time()
 
     sub_project = None
     if hasattr(self._evaluation_context, 'pipeline_options'):
@@ -654,6 +658,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       self, timestamp_attribute) -> List[Tuple[Timestamp, 'PubsubMessage']]:
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
+    try:
+      from google.api_core import exceptions
+    except ImportError:
+      exceptions = None
 
     def _get_element(message):
       parsed_message = PubsubMessage._from_message(message)
@@ -677,6 +685,16 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
       return timestamp, parsed_message
 
+    # Check if timeout has elasped.
+    timeout = 30
+    max_read_time_seconds = getattr(self.source, 'max_read_time_seconds', None)
+    if max_read_time_seconds:
+      elapsed = time.time() - _PubSubReadEvaluator._start_times[
+          self._applied_ptransform]
+      timeout = max(0, min(timeout, max_read_time_seconds - elapsed))
+      if timeout <= 0:
+        return []
+
     # Because of the AutoAck, we are not able to reread messages if this
     # evaluator fails with an exception before emitting a bundle. However,
     # the DirectRunner currently doesn't retry work items anyway, so the
@@ -684,17 +702,31 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     sub_client = pubsub.SubscriberClient()
     try:
       response = sub_client.pull(
-          subscription=self._sub_name, max_messages=10, timeout=30)
+          subscription=self._sub_name, max_messages=10, timeout=timeout)
       results = [_get_element(rm.message) for rm in response.received_messages]
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
         sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
+    except Exception as e:
+      if exceptions and isinstance(e, exceptions.DeadlineExceeded):
+        results = []
+      else:
+        raise
     finally:
       sub_client.close()
 
     return results
 
   def finish_bundle(self) -> TransformResult:
+    # Check if timeout has elasped.
+    max_read_time_seconds = getattr(self.source, 'max_read_time_seconds', None)
+    if max_read_time_seconds:
+      elapsed = time.time() - _PubSubReadEvaluator._start_times[
+          self._applied_ptransform]
+      if elapsed > max_read_time_seconds:
+        return TransformResult(
+            self, [], [], None, {None: WatermarkManager.WATERMARK_POS_INF})
+
     data = self._read_from_pubsub(self.source.timestamp_attribute)
     if data:
       output_pcollection = list(self._outputs)[0]

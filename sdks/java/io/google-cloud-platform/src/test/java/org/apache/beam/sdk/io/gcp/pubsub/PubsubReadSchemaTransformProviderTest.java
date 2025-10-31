@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerializerProvider;
@@ -46,18 +47,30 @@ import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link org.apache.beam.sdk.io.gcp.pubsub.PubsubReadSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
 public class PubsubReadSchemaTransformProviderTest {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(PubsubReadSchemaTransformProviderTest.class);
 
   private static final Schema BEAM_SCHEMA =
       Schema.of(
@@ -316,6 +329,156 @@ public class PubsubReadSchemaTransformProviderTest {
       }
     } catch (Exception e) {
       throw e;
+    }
+  }
+
+  @Test
+  public void testReadWithMaxReadTimeDoesNotExpire() throws IOException {
+    PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
+    TestClock clock = TestClock.create(Instant.ofEpochMilli(1678988970000L));
+    Long maxReadTime = 5L;
+    Long advanceSeconds = 1L;
+
+    try (PubsubTestClientFactory clientFactory =
+        PubsubTestClient.createFactoryForPull(
+            clock,
+            PubsubClient.subscriptionPathFromPath(SUBSCRIPTION),
+            60,
+            // Provide one message to trigger the read.
+            ImmutableList.of(incomingMessageOf(new byte[] {1}, clock.now().getMillis())))) {
+      PubsubReadSchemaTransformConfiguration config =
+          PubsubReadSchemaTransformConfiguration.builder()
+              .setFormat("RAW")
+              .setSchema("")
+              .setSubscription(SUBSCRIPTION)
+              .setClientFactory(clientFactory)
+              .setClock(clock)
+              .setMaxReadTimeSeconds(maxReadTime) // Shorter time
+              .build();
+      SchemaTransform transform = new PubsubReadSchemaTransformProvider().from(config);
+      PCollection<Row> reads = begin.apply(transform).get("output");
+
+      // This DoFn advances the clock when the first message is received.
+      // This ensures the maxReadTime (2 seconds) expires.
+      PCollection<Row> delayedReads =
+          reads.apply(
+              "AdvanceClock", ParDo.of(new AdvanceClockFn(clock, maxReadTime, advanceSeconds)));
+      delayedReads.setRowSchema(reads.getSchema());
+      PCollection<Row> windowed =
+          delayedReads.apply(
+              "Window",
+              Window.<Row>into(new GlobalWindows())
+                  .triggering(AfterWatermark.pastEndOfWindow())
+                  .withAllowedLateness(Duration.ZERO)
+                  .discardingFiredPanes());
+      PCollection<Long> count = windowed.apply(org.apache.beam.sdk.transforms.Count.globally());
+      // We expect to process no messages.
+      PAssert.that(count).containsInAnyOrder(1L);
+
+      p.run().waitUntilFinish();
+    } catch (Exception e) {
+      throw e;
+    }
+  }
+
+  @Test
+  public void testReadWithMaxReadTimeExpires() throws IOException {
+    PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
+    TestClock clock = TestClock.create(Instant.ofEpochMilli(1678988970000L));
+    Long maxReadTime = 2L;
+    Long advanceSeconds = 10L;
+
+    try (PubsubTestClientFactory clientFactory =
+        PubsubTestClient.createFactoryForPull(
+            clock,
+            PubsubClient.subscriptionPathFromPath(SUBSCRIPTION),
+            60,
+            // Provide one message to trigger the read.
+            ImmutableList.of(incomingMessageOf(new byte[] {1}, clock.now().getMillis())))) {
+      PubsubReadSchemaTransformConfiguration config =
+          PubsubReadSchemaTransformConfiguration.builder()
+              .setFormat("RAW")
+              .setSchema("")
+              .setSubscription(SUBSCRIPTION)
+              .setClientFactory(clientFactory)
+              .setClock(clock)
+              .setMaxReadTimeSeconds(maxReadTime) // Shorter time
+              .build();
+      SchemaTransform transform = new PubsubReadSchemaTransformProvider().from(config);
+      PCollection<Row> reads = begin.apply(transform).get("output");
+
+      // This DoFn advances the clock when the first message is received.
+      PCollection<Row> delayedReads =
+          reads.apply(
+              "AdvanceClock", ParDo.of(new AdvanceClockFn(clock, maxReadTime, advanceSeconds)));
+      delayedReads.setRowSchema(reads.getSchema());
+      PCollection<Row> windowed =
+          delayedReads.apply(
+              "Window",
+              Window.<Row>into(new GlobalWindows())
+                  .triggering(AfterWatermark.pastEndOfWindow())
+                  .withAllowedLateness(Duration.ZERO)
+                  .discardingFiredPanes());
+      PCollection<Long> count = windowed.apply(org.apache.beam.sdk.transforms.Count.globally());
+      // We expect to process no messages.
+      PAssert.that(count).containsInAnyOrder(0L);
+
+      p.run().waitUntilFinish();
+    } catch (Exception e) {
+      throw e;
+    }
+  }
+
+  /** A mock clock for testing that allows for manual time advancement. */
+  private static class TestClock implements Clock, Serializable {
+    private Instant currentTime;
+
+    private TestClock(Instant currentTime) {
+      this.currentTime = currentTime;
+    }
+
+    public static TestClock create(Instant time) {
+      return new TestClock(time);
+    }
+
+    public synchronized void advance(Duration amount) {
+      currentTime = currentTime.plus(amount);
+    }
+
+    @Override
+    public synchronized long currentTimeMillis() {
+      return currentTime.getMillis();
+    }
+
+    public synchronized Instant now() {
+      return currentTime;
+    }
+  }
+
+  /**
+   * A {@link DoFn} that advances a {@link TestClock} and is used in tests to simulate the passage
+   * of time.
+   */
+  private static class AdvanceClockFn extends DoFn<Row, Row> {
+    private final TestClock clock;
+    private final TestClock clockStart;
+    private final Long advanceSeconds;
+    private final Long maxReadTime;
+
+    public AdvanceClockFn(TestClock clock, Long maxReadTime, Long advanceSeconds) {
+      this.clock = clock;
+      this.clockStart = TestClock.create(clock.now());
+      this.advanceSeconds = advanceSeconds;
+      this.maxReadTime = maxReadTime;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      clock.advance(Duration.standardSeconds(advanceSeconds));
+      if (clock.currentTimeMillis()
+          <= clockStart.currentTimeMillis() + TimeUnit.SECONDS.toMillis(maxReadTime)) {
+        c.output(c.element());
+      }
     }
   }
 

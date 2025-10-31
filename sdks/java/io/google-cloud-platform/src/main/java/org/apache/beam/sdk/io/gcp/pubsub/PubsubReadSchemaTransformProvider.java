@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Pub/Sub reads configured using
@@ -270,6 +271,11 @@ public class PubsubReadSchemaTransformProvider
       }
       if (!Strings.isNullOrEmpty(configuration.getTimestampAttribute())) {
         pubsubRead = pubsubRead.withTimestampAttribute(configuration.getTimestampAttribute());
+      }
+      if (configuration.getMaxReadTimeSeconds() != null) {
+        pubsubRead =
+            pubsubRead.withMaxReadTime(
+                Duration.standardSeconds(configuration.getMaxReadTimeSeconds()));
       }
       return pubsubRead;
     }

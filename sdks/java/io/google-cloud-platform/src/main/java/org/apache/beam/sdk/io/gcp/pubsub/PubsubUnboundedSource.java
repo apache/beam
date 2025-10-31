@@ -512,6 +512,15 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     /** Stats only: Maximum number of checkpoints in flight at any time. */
     private int maxInFlightCheckpoints;
 
+    /** Stats only: Maximum read time before ending process. */
+    private @Nullable Duration maxReadTime;
+
+    /** Stats only: Start time of reading process from source. */
+    private long startTime;
+
+    /** Stats only: Process is finished or not. */
+    private boolean done;
+
     private static MovingFunction newFun(Combine.BinaryCombineLongFn function) {
       return new MovingFunction(
           SAMPLE_PERIOD.getMillis(),
@@ -559,6 +568,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       numLateMessages = newFun(SUM);
       numInFlightCheckpoints = new AtomicInteger();
       maxInFlightCheckpoints = 0;
+      maxReadTime = outer.outer.maxReadTime;
+      startTime = now();
+      done = false;
     }
 
     @VisibleForTesting
@@ -839,6 +851,15 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      */
     @Override
     public boolean advance() throws IOException {
+      if (done && notYetRead.isEmpty()) {
+        return false;
+      }
+
+      long now = now();
+      if (maxReadTime != null && now > startTime + maxReadTime.getMillis()) {
+        done = true;
+      }
+
       // Emit stats.
       stats();
 
@@ -862,7 +883,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (notYetRead.isEmpty()) {
         // Pull another batch.
         // Will BLOCK until fetch returns, but will not block until a message is available.
-        pull();
+        if (maxReadTime == null || now() <= startTime + maxReadTime.getMillis()) {
+          pull();
+        }
       }
 
       // Take one message from queue.
@@ -950,7 +973,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public Instant getWatermark() {
-      if (pubsubClient.get().isEOF() && notYetRead.isEmpty()) {
+      if (done || (pubsubClient.get().isEOF() && notYetRead.isEmpty())) {
         // For testing only: Advance the watermark to the end of time to signal
         // the test is complete.
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
@@ -1203,6 +1226,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Whether this source should include the orderingKey from PubSub. */
   private final boolean needsOrderingKey;
 
+  /** The maximum time to read from Pub/Sub. If not specified, will read indefinitely. */
+  private final @Nullable Duration maxReadTime;
+
   @VisibleForTesting
   PubsubUnboundedSource(
       Clock clock,
@@ -1214,7 +1240,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       @Nullable String idAttribute,
       boolean needsAttributes,
       boolean needsMessageId,
-      boolean needsOrderingKey) {
+      boolean needsOrderingKey,
+      @Nullable Duration maxReadTime) {
     checkArgument(
         (topic == null) != (subscription == null),
         "Exactly one of topic and subscription must be given");
@@ -1228,6 +1255,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this.needsAttributes = needsAttributes;
     this.needsMessageId = needsMessageId;
     this.needsOrderingKey = needsOrderingKey;
+    this.maxReadTime = maxReadTime;
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
@@ -1249,7 +1277,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         idAttribute,
         needsAttributes,
         false,
-        false);
+        false,
+        null);
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
@@ -1272,7 +1301,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         idAttribute,
         needsAttributes,
         false,
-        false);
+        false,
+        null);
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
@@ -1295,7 +1325,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         idAttribute,
         needsAttributes,
         needsMessageId,
-        false);
+        false,
+        null);
   }
 
   /** Get the project path. */

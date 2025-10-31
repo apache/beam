@@ -314,7 +314,8 @@ def read_from_pubsub(
     attributes: Optional[Iterable[str]] = None,
     attributes_map: Optional[str] = None,
     id_attribute: Optional[str] = None,
-    timestamp_attribute: Optional[str] = None):
+    timestamp_attribute: Optional[str] = None,
+    max_read_time_seconds: Optional[int] = None):
   """Reads messages from Cloud Pub/Sub.
 
   Args:
@@ -364,6 +365,7 @@ def read_from_pubsub(
         ``2015-10-29T23:41:41.123Z``. The sub-second component of the
         timestamp is optional, and digits beyond the first three (i.e., time
         units smaller than milliseconds) may be ignored.
+    max_read_time_seconds: maximum time to read the stream. Default is forever.
   """
   if topic and subscription:
     raise TypeError('Only one of topic and subscription may be specified.')
@@ -400,7 +402,8 @@ def read_from_pubsub(
           subscription=subscription,
           with_attributes=bool(attributes or attributes_map),
           id_label=id_attribute,
-          timestamp_attribute=timestamp_attribute)
+          timestamp_attribute=timestamp_attribute,
+          max_read_time_seconds=max_read_time_seconds)
       | 'ParseMessage' >> beam.Map(mapper))
   output.element_type = schemas.named_tuple_from_schema(
       schema_pb2.Schema(fields=list(payload_schema.fields) + extra_fields))

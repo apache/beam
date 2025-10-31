@@ -98,6 +98,10 @@ public abstract class PubsubReadSchemaTransformConfiguration {
   // Used for testing only.
   public abstract @Nullable Clock getClock();
 
+  @SchemaFieldDescription(
+      "The maximum time to read from Pub/Sub, in seconds. If not specified, will read indefinitely.")
+  public abstract @Nullable Long getMaxReadTimeSeconds();
+
   @AutoValue
   public abstract static class ErrorHandling {
     @SchemaFieldDescription("The name of the output PCollection containing failed reads.")
@@ -145,6 +149,8 @@ public abstract class PubsubReadSchemaTransformConfiguration {
 
     // Used for testing only.
     public abstract Builder setClock(@Nullable Clock clock);
+
+    public abstract Builder setMaxReadTimeSeconds(@Nullable Long maxReadTimeSeconds);
 
     public abstract PubsubReadSchemaTransformConfiguration build();
   }

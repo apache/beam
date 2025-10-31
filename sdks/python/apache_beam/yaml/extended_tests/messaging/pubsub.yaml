@@ -21,41 +21,45 @@ fixtures:
     config:
       project_id: "apache-beam-testing"
 
+# One pipeline is required due to the lifespan of the pubsub messages in this
+# test environment.
 pipelines:
-  # Pubsub write pipeline
   - pipeline:
-      type: chain
+      type: composite
       transforms:
         - type: Create
+          name: elements
           config:
             elements:
               - {value: "11a"}
               - {value: "37a"}
               - {value: "389a"}
         - type: WriteToPubSub
+          input: elements
           config:
             topic: "{PS_TOPIC}"
             format: "RAW"
-
+        - type: ReadFromPubSub
+          name: read
+          config:
+            topic: "{PS_TOPIC}"
+            format: "RAW"
+            max_read_time_seconds: 30 # Need a minimum of this for test_pubsub_emulator to work correctly
+        - type: MapToFields
+          name: convertBytesToString
+          input: read
+          config:
+            language: python
+            fields:
+              value:
+                callable: "lambda row: row.payload.decode('utf-8')"
+        - type: AssertEqual
+          input: convertBytesToString
+          config:
+            elements:
+              - {value: "11a"}
+              - {value: "37a"}
+              - {value: "389a"}
     options:
       streaming: true
-
-
-# TODO: Current PubSubIO doesn't have a max_read_time_seconds parameter like 
-# Kafka does.  Without it, the ReadFromPubSub will run forever.  This is not a
-# trival change. For now, we will live with the mocked tests located
-# [here](https://github.com/apache/beam/blob/bea04446b41c86856c24d0a9761622092ed9936f/sdks/python/apache_beam/yaml/yaml_io_test.py#L83).
-
-  # - pipeline:
-  #     type: chain
-  #     transforms:
-  #       - type: ReadFromPubSub
-  #         config:
-  #           topic: "{PS_TOPIC}"
-  #           format: "RAW"
-  # # ...
-
-
-  #   options:
-  #     streaming: true
 

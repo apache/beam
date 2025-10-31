@@ -54,6 +54,7 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
@@ -181,6 +182,84 @@ public class PubsubUnboundedSourceTest {
     // Now ACK the message.
     PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  @Test
+  public void maxReadTimeIsRespected() throws Exception {
+    // Setup
+    setupOneMessage();
+    PubsubUnboundedSource sourceWithMaxReadTime =
+        new PubsubUnboundedSource(
+            clock,
+            factory,
+            null,
+            null,
+            StaticValueProvider.of(SUBSCRIPTION),
+            TIMESTAMP_ATTRIBUTE,
+            ID_ATTRIBUTE,
+            true, /* needsAttributes */
+            false, /* needsMessageId */
+            false, /* needsOrderingKey */
+            Duration.standardSeconds(20L));
+    primSource = new PubsubSource(sourceWithMaxReadTime);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
+    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+
+    // Assert reader has started
+    assertTrue(reader.start());
+
+    // Assert received data matches expected
+    assertEquals(
+        DATA,
+        data(
+            reader.getCurrent(),
+            !(primSource.outer.getNeedsAttributes() || primSource.outer.getNeedsMessageId())));
+
+    // Let the maxReadTime for the above expire.
+    now.addAndGet(25 * 1000); // Advance by 25 seconds
+    pubsubClient.advance();
+
+    // Don't receive any new messages.
+    assertFalse(reader.advance());
+
+    // ACK the message.
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  @Test
+  public void maxReadTimeCausesTimeout() throws Exception {
+    // No messages are waiting.
+    setupOneMessage(ImmutableList.of());
+
+    // Create a source with a very short read time.
+    PubsubUnboundedSource sourceWithMaxReadTime =
+        new PubsubUnboundedSource(
+            clock,
+            factory,
+            null,
+            null,
+            StaticValueProvider.of(SUBSCRIPTION),
+            TIMESTAMP_ATTRIBUTE,
+            ID_ATTRIBUTE,
+            true, /* needsAttributes */
+            false, /* needsMessageId */
+            false, /* needsOrderingKey */
+            Duration.standardSeconds(1L)); // 1 second max read time
+    primSource = new PubsubSource(sourceWithMaxReadTime);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
+    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+
+    // Advance the clock *before* trying to read, to cause an immediate timeout.
+    now.addAndGet(2 * 1000); // Advance by 2 seconds
+    pubsubClient.advance();
+
+    // Now, try to start the reader. It should fail because the maxReadTime has passed.
+    assertFalse(reader.start());
+
+    // No message was read, so no need to ACK.
     reader.close();
   }
 

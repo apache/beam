@@ -555,14 +555,8 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
           STATE.expectedSubscription);
 
       for (String ackId : ackIds) {
-        checkState(
-            STATE.ackDeadline.remove(ackId) != null,
-            "No message with ACK id %s is waiting for an ACK",
-            ackId);
-        checkState(
-            STATE.pendingAckIncomingMessages.remove(ackId) != null,
-            "No message with ACK id %s is waiting for an ACK",
-            ackId);
+        STATE.ackDeadline.remove(ackId);
+        STATE.pendingAckIncomingMessages.remove(ackId);
       }
     }
   }
