@@ -667,8 +667,11 @@ public class JmsIO {
       try {
         Message message;
         synchronized (this) {
-          long timeout = (receiveTimeoutMillis == 0L) ? 1L : receiveTimeoutMillis;
-          message = this.consumer.receive(timeout);
+          if (receiveTimeoutMillis == 0L) {
+            message = this.consumer.receiveNoWait();
+          } else {
+            message = this.consumer.receive(receiveTimeoutMillis);
+          }
           // put add in synchronized to make sure all messages in preparer are in same session
           if (message != null) {
             checkpointMarkPreparer.add(message);
