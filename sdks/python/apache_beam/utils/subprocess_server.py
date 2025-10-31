@@ -194,10 +194,6 @@ class SubprocessServer(object):
           ("grpc.http2.max_pings_without_data", 0),
           # Default: False, set to True to allow keepalive pings when no calls
           ("grpc.keepalive_permit_without_calls", True),
-          # Default: 300000ms (5min), increased to 10min for stability
-          ("grpc.http2.min_recv_ping_interval_without_data_ms", 600000),
-          # Default: 300000ms (5min), increased to 120s for conservative pings
-          ("grpc.http2.min_sent_ping_interval_without_data_ms", 120000),
           # Default: 2, set to 0 to allow unlimited ping strikes
           ("grpc.http2.max_ping_strikes", 0),
           # Default: 0 (disabled), enable socket reuse for better handling
