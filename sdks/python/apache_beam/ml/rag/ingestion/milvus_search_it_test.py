@@ -315,6 +315,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     with self.write_test_pipeline as p:
       _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
+    self._test_client.flush(auto_id_collection)
     self._test_client.load_collection(auto_id_collection)
     result = self._test_client.query(
         collection_name=auto_id_collection,
@@ -340,6 +341,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
       _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
     # Verify data was written successfully.
+    self._test_client.flush(self._collection_name)
     self._test_client.load_collection(self._collection_name)
     result = self._test_client.query(
         collection_name=self._collection_name,
@@ -411,6 +413,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
       _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
     # Verify data was written successfully.
+    self._test_client.flush(self._collection_name)
     self._test_client.load_collection(self._collection_name)
     result = self._test_client.query(
         collection_name=self._collection_name,
@@ -462,7 +465,10 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
       _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
     # Verify all data was written successfully.
+    # Flush to persist all data to disk, then load collection for querying.
+    self._test_client.flush(self._collection_name)
     self._test_client.load_collection(self._collection_name)
+
     result = self._test_client.query(
         collection_name=self._collection_name,
         partition_names=[self._partition_name],
@@ -526,6 +532,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
           | "Write initial" >> config.create_write_transform())
 
     # Verify initial data was inserted (not existed before).
+    self._test_client.flush(self._collection_name)
     self._test_client.load_collection(self._collection_name)
     result = self._test_client.query(
         collection_name=self._collection_name,
@@ -567,6 +574,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
           | "Write update1" >> config.create_write_transform())
 
     # Verify update worked.
+    self._test_client.flush(self._collection_name)
     self._test_client.load_collection(self._collection_name)
     result = self._test_client.query(
         collection_name=self._collection_name,
@@ -591,6 +599,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
             | f"Write repeat{i+2}" >> config.create_write_transform())
 
       # Verify state hasn't changed after repeated updates.
+      self._test_client.flush(self._collection_name)
       self._test_client.load_collection(self._collection_name)
       result = self._test_client.query(
           collection_name=self._collection_name,
