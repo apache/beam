@@ -37,7 +37,6 @@ from apache_beam.ml.rag.utils import MilvusHelpers
 from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.transforms import DoFn
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
