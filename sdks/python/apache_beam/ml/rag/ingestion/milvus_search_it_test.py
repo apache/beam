@@ -16,26 +16,28 @@
 #
 
 import platform
-from typing import Callable, cast
 import unittest
 import uuid
+from typing import Callable
+from typing import cast
 
 import pytest
-from pymilvus import CollectionSchema, DataType, MilvusClient
+from pymilvus import CollectionSchema
+from pymilvus import DataType
 from pymilvus import FieldSchema
+from pymilvus import MilvusClient
 from pymilvus.milvus_client import IndexParams
 
 import apache_beam as beam
-
+from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
+from apache_beam.ml.rag.test_utils import MilvusTestHelpers
+from apache_beam.ml.rag.test_utils import VectorDBContainerInfo
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.rag.utils import MilvusConnectionParameters
-from apache_beam.ml.rag.test_utils import (
-    VectorDBContainerInfo, MilvusTestHelpers)
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
+from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   from apache_beam.ml.rag.ingestion.milvus_search import (
@@ -79,7 +81,7 @@ MILVUS_INGESTION_IT_CONFIG = {
     "index": _construct_index_params,
     "corpus": [
         Chunk(
-            id=1,
+            id=1,  # type: ignore[arg-type]
             content=Content(text="Test document one"),
             metadata={"source": "test1"},
             embedding=Embedding(
@@ -87,7 +89,7 @@ MILVUS_INGESTION_IT_CONFIG = {
                 sparse_embedding=([1, 2], [0.1, 0.2])),
         ),
         Chunk(
-            id=2,
+            id=2,  # type: ignore[arg-type]
             content=Content(text="Test document two"),
             metadata={"source": "test2"},
             embedding=Embedding(
@@ -96,7 +98,7 @@ MILVUS_INGESTION_IT_CONFIG = {
             ),
         ),
         Chunk(
-            id=3,
+            id=3,  # type: ignore[arg-type]
             content=Content(text="Test document three"),
             metadata={"source": "test3"},
             embedding=Embedding(

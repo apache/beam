@@ -15,13 +15,20 @@
 # limitations under the License.
 #
 
-from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-import uuid
 import re
+import uuid
+from collections import defaultdict
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
-from apache_beam.ml.rag.types import Chunk, Content, Embedding
+from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Content
+from apache_beam.ml.rag.types import Embedding
 
 # Default batch size for writing data to Milvus, matching
 # JdbcIO.DEFAULT_BATCH_SIZE.

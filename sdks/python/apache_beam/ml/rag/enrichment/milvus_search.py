@@ -35,7 +35,8 @@ from pymilvus import SearchResult
 
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Embedding
-from apache_beam.ml.rag.utils import MilvusHelpers, MilvusConnectionParameters
+from apache_beam.ml.rag.utils import MilvusConnectionParameters
+from apache_beam.ml.rag.utils import MilvusHelpers
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 

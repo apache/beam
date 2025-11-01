@@ -14,24 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+import logging
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
 
 from pymilvus import MilvusClient
 
-import logging
-
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
+from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpec
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpecsBuilder
-from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 from apache_beam.ml.rag.types import Chunk
-from apache_beam.ml.rag.utils import (
-    MilvusHelpers, unpack_dataclass_with_kwargs, DEFAULT_WRITE_BATCH_SIZE)
+from apache_beam.ml.rag.utils import DEFAULT_WRITE_BATCH_SIZE
+from apache_beam.ml.rag.utils import MilvusConnectionParameters
+from apache_beam.ml.rag.utils import MilvusHelpers
+from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.transforms import DoFn
 
-from apache_beam.ml.rag.utils import MilvusConnectionParameters
 
 _LOGGER = logging.getLogger(__name__)
 

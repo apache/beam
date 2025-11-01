@@ -16,16 +16,18 @@
 #
 
 import contextlib
-from dataclasses import dataclass
+import logging
 import os
 import socket
 import tempfile
-import logging
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List
+from typing import Optional
+
+import yaml
 from testcontainers.core.config import testcontainers_config
 from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer
-import yaml
 
 from apache_beam.ml.rag.types import Chunk
 
