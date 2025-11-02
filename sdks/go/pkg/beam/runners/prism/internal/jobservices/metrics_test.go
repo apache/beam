@@ -55,7 +55,7 @@ func makeInfoWBytes(enum pipepb.MonitoringInfoSpecs_Enum, payload []byte) *pipep
 
 func boundedTriePayload(t testing.TB, trie *pipepb.BoundedTrie) []byte {
 	t.Helper()
-	bytes, err := proto.Marshal(trie)
+	bytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(trie)
 	if err != nil {
 		t.Fatalf("failed to marshal bounded trie: %v", err)
 	}
