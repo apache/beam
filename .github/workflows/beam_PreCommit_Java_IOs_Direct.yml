@@ -22,6 +22,7 @@ on:
     paths:
       - "sdks/java/io/common/**"
       - "sdks/java/core/src/main/**"
+      - "sdks/java/extensions/kafka-factories/**"
       - "buildSrc/**"
       - ".github/workflows/beam_PreCommit_Java_IOs_Direct.yml"
   pull_request_target:
@@ -29,6 +30,7 @@ on:
     paths:
       - "sdks/java/io/common/**"
       - "sdks/java/core/src/main/**"
+      - "sdks/java/extensions/kafka-factories/**"
       - 'release/trigger_all_tests.json'
       - '.github/trigger_files/beam_PreCommit_Java_IOs_Direct.json'
   issue_comment:
