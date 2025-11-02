@@ -26,8 +26,8 @@ from pymilvus import CollectionSchema
 from pymilvus import DataType
 from pymilvus import FieldSchema
 from pymilvus import MilvusClient
-from pymilvus.milvus_client import IndexParams
 from pymilvus.exceptions import MilvusException
+from pymilvus.milvus_client import IndexParams
 
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig

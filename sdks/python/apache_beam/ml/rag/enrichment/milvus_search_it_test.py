@@ -45,8 +45,8 @@ try:
       FunctionType,
       MilvusClient,
       RRFRanker)
-  from pymilvus.milvus_client import IndexParams
   from pymilvus.exceptions import MilvusException
+  from pymilvus.milvus_client import IndexParams
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.ml.rag.test_utils import MilvusTestHelpers
   from apache_beam.ml.rag.test_utils import VectorDBContainerInfo
