@@ -38,7 +38,7 @@ class TestMilvusWriteConfig(unittest.TestCase):
   def test_none_collection_name_raises_error(self):
     """Test that None collection name raises ValueError."""
     with self.assertRaises(ValueError) as context:
-      MilvusWriteConfig(collection_name=None)  # type: ignore[arg-type]
+      MilvusWriteConfig(collection_name=None)
 
     self.assertIn("Collection name must be provided", str(context.exception))
 
