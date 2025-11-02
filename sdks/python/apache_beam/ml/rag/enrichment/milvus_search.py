@@ -584,15 +584,3 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
 def join_fn(left: Embedding, right: Dict[str, Any]) -> Embedding:
   left.metadata['enrichment_data'] = right
   return left
-
-
-def unpack_dataclass_with_kwargs(dataclass_instance):
-  # Create a copy of the dataclass's __dict__.
-  params_dict: dict = dataclass_instance.__dict__.copy()
-
-  # Extract the nested kwargs dictionary.
-  nested_kwargs = params_dict.pop('kwargs', {})
-
-  # Merge the dictionaries, with nested_kwargs taking precedence
-  # in case of duplicate keys.
-  return {**params_dict, **nested_kwargs}

@@ -28,6 +28,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import Type
 
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
@@ -148,7 +149,7 @@ def retry_with_backoff(
     retry_delay: float = 1.0,
     retry_backoff_factor: float = 2.0,
     operation_name: str = "operation",
-    exception_types: Tuple[type, ...] = (Exception, )
+    exception_types: Tuple[Type[BaseException], ...] = (Exception, )
 ) -> Any:
   """Executes an operation with retry logic and exponential backoff.
 
