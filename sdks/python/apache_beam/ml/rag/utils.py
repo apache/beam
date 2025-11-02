@@ -160,10 +160,11 @@ def retry_with_backoff(
   Note:
     This utility is designed for one-time setup operations and complements
     Apache Beam's RequestResponseIO pattern. Use retry_with_backoff() for:
-    - Establishing client connections in __enter__() methods (e.g., creating
+
+    * Establishing client connections in __enter__() methods (e.g., creating
       MilvusClient instances, database connections) before processing elements
-    - One-time setup/teardown operations in DoFn lifecycle methods
-    - Operations outside of per-element processing where retry is needed
+    * One-time setup/teardown operations in DoFn lifecycle methods
+    * Operations outside of per-element processing where retry is needed
 
     For per-element operations (e.g., API calls within Caller.__call__),
     use RequestResponseIO which already provides automatic retry with
