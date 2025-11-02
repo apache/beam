@@ -31,6 +31,7 @@ import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
+from apache_beam.ml.rag.utils import retry_with_backoff
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 
@@ -45,9 +46,10 @@ try:
       MilvusClient,
       RRFRanker)
   from pymilvus.milvus_client import IndexParams
+  from pymilvus.exceptions import MilvusException
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.ml.rag.test_utils import (
-      MilvusTestHelpers, VectorDBContainerInfo)
+  from apache_beam.ml.rag.test_utils import MilvusTestHelpers
+  from apache_beam.ml.rag.test_utils import VectorDBContainerInfo
   from apache_beam.ml.rag.enrichment.milvus_search import (
       MilvusSearchEnrichmentHandler,
       MilvusConnectionParameters,
@@ -235,8 +237,16 @@ MILVUS_IT_CONFIG = {
 
 
 def initialize_db_with_data(connc_params: MilvusConnectionParameters):
-  # Open the connection to the milvus db.
-  client = MilvusClient(**connc_params.__dict__)
+  # Open the connection to the milvus db with retry.
+  def create_client():
+    return MilvusClient(**connc_params.__dict__)
+
+  client = retry_with_backoff(
+      create_client,
+      max_retries=3,
+      retry_delay=1.0,
+      operation_name="Test Milvus client connection",
+      exception_types=(MilvusException, ))
 
   # Configure schema.
   field_schemas: List[FieldSchema] = cast(
@@ -403,8 +413,8 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
-          result,
-          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
+          result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
+              actual, expected_chunks))
 
   def test_filtered_search_with_cosine_similarity_and_batching(self):
     test_chunks = [
@@ -531,8 +541,8 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
-          result,
-          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
+          result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
+              actual, expected_chunks))
 
   def test_filtered_search_with_bm25_full_text_and_batching(self):
     test_chunks = [
@@ -636,8 +646,8 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
-          result,
-          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
+          result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
+              actual, expected_chunks))
 
   def test_vector_search_with_euclidean_distance(self):
     test_chunks = [
@@ -777,8 +787,8 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
-          result,
-          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
+          result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
+              actual, expected_chunks))
 
   def test_vector_search_with_inner_product_similarity(self):
     test_chunks = [
@@ -917,8 +927,8 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
-          result,
-          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
+          result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
+              actual, expected_chunks))
 
   def test_keyword_search_with_inner_product_sparse_embedding(self):
     test_chunks = [
@@ -982,8 +992,8 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
-          result,
-          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
+          result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
+              actual, expected_chunks))
 
   def test_hybrid_search(self):
     test_chunks = [
@@ -1055,103 +1065,8 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
-          result,
-          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
-
-
-def assert_chunks_equivalent(
-    actual_chunks: List[Chunk], expected_chunks: List[Chunk]):
-  """assert_chunks_equivalent checks for presence rather than exact match"""
-  # Sort both lists by ID to ensure consistent ordering.
-  actual_sorted = sorted(actual_chunks, key=lambda c: c.id)
-  expected_sorted = sorted(expected_chunks, key=lambda c: c.id)
-
-  actual_len = len(actual_sorted)
-  expected_len = len(expected_sorted)
-  err_msg = (
-      f"Different number of chunks, actual: {actual_len}, "
-      f"expected: {expected_len}")
-  assert actual_len == expected_len, err_msg
-
-  for actual, expected in zip(actual_sorted, expected_sorted):
-    # Assert that IDs match.
-    assert actual.id == expected.id
-
-    # Assert that dense embeddings match.
-    err_msg = f"Dense embedding mismatch for chunk {actual.id}"
-    assert actual.dense_embedding == expected.dense_embedding, err_msg
-
-    # Assert that sparse embeddings match.
-    err_msg = f"Sparse embedding mismatch for chunk {actual.id}"
-    assert actual.sparse_embedding == expected.sparse_embedding, err_msg
-
-    # Assert that text content match.
-    err_msg = f"Text Content mismatch for chunk {actual.id}"
-    assert actual.content.text == expected.content.text, err_msg
-
-    # For enrichment_data, be more flexible.
-    # If "expected" has values for enrichment_data but actual doesn't, that's
-    # acceptable since vector search results can vary based on many factors
-    # including implementation details, vector database state, and slight
-    # variations in similarity calculations.
-
-    # First ensure the enrichment data key exists.
-    err_msg = f"Missing enrichment_data key in chunk {actual.id}"
-    assert 'enrichment_data' in actual.metadata, err_msg
-
-    # For enrichment_data, ensure consistent ordering of results.
-    actual_data = actual.metadata['enrichment_data']
-    expected_data = expected.metadata['enrichment_data']
-
-    # If actual has enrichment data, then perform detailed validation.
-    if actual_data and actual_data.get('id'):
-      # Validate IDs have consistent ordering.
-      actual_ids = sorted(actual_data['id'])
-      expected_ids = sorted(expected_data['id'])
-      err_msg = f"IDs in enrichment_data don't match for chunk {actual.id}"
-      assert actual_ids == expected_ids, err_msg
-
-      # Ensure the distance key exist.
-      err_msg = f"Missing distance key in metadata {actual.id}"
-      assert 'distance' in actual_data, err_msg
-
-      # Validate distances exist and have same length as IDs.
-      actual_distances = actual_data['distance']
-      expected_distances = expected_data['distance']
-      err_msg = (
-          "Number of distances doesn't match number of IDs for "
-          f"chunk {actual.id}")
-      assert len(actual_distances) == len(expected_distances), err_msg
-
-      # Ensure the fields key exist.
-      err_msg = f"Missing fields key in metadata {actual.id}"
-      assert 'fields' in actual_data, err_msg
-
-      # Validate fields have consistent content.
-      # Sort fields by 'id' to ensure consistent ordering.
-      actual_fields_sorted = sorted(
-          actual_data['fields'], key=lambda f: f.get('id', 0))
-      expected_fields_sorted = sorted(
-          expected_data['fields'], key=lambda f: f.get('id', 0))
-
-      # Compare field IDs.
-      actual_field_ids = [f.get('id') for f in actual_fields_sorted]
-      expected_field_ids = [f.get('id') for f in expected_fields_sorted]
-      err_msg = f"Field IDs don't match for chunk {actual.id}"
-      assert actual_field_ids == expected_field_ids, err_msg
-
-      # Compare field content.
-      for a_f, e_f in zip(actual_fields_sorted, expected_fields_sorted):
-        # Ensure the id key exist.
-        err_msg = f"Missing id key in metadata.fields {actual.id}"
-        assert 'id' in a_f
-
-        err_msg = f"Field ID mismatch chunk {actual.id}"
-        assert a_f['id'] == e_f['id'], err_msg
-
-        # Validate field metadata.
-        err_msg = f"Field Metadata doesn't match for chunk {actual.id}"
-        assert a_f['metadata'] == e_f['metadata'], err_msg
+          result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
+              actual, expected_chunks))
 
 
 if __name__ == '__main__':

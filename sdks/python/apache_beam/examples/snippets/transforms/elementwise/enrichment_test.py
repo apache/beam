@@ -55,9 +55,8 @@ try:
   from apache_beam.ml.rag.enrichment.milvus_search import (
       MilvusConnectionParameters)
   from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
-      MilvusEnrichmentTestHelper,
-      MilvusDBContainerInfo,
-      assert_chunks_equivalent)
+      MilvusEnrichmentTestHelper, MilvusDBContainerInfo)
+  from apache_beam.ml.rag.test_utils import MilvusTestHelpers
   from apache_beam.ml.rag.utils import parse_chunk_strings
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError as e:
@@ -231,7 +230,7 @@ class EnrichmentTest(unittest.TestCase):
         self.maxDiff = None
         output = parse_chunk_strings(output)
         expected = parse_chunk_strings(expected)
-        assert_chunks_equivalent(output, expected)
+        MilvusTestHelpers.assert_chunks_equivalent(output, expected)
     except (TestContainerStartupError, TestContainerTeardownError) as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:

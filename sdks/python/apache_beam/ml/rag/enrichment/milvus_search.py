@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field
@@ -32,11 +33,14 @@ from pymilvus import Hit
 from pymilvus import Hits
 from pymilvus import MilvusClient
 from pymilvus import SearchResult
+from pymilvus.exceptions import MilvusException
 
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.rag.utils import MilvusConnectionParameters
 from apache_beam.ml.rag.utils import MilvusHelpers
+from apache_beam.ml.rag.utils import retry_with_backoff
+from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 
@@ -371,51 +375,43 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
         'min_batch_size': min_batch_size, 'max_batch_size': max_batch_size
     }
     self.kwargs = kwargs
+    self._client = None
     self.join_fn = join_fn
     self.use_custom_types = True
 
   def __enter__(self):
-    import time
-    import logging
-    from pymilvus.exceptions import MilvusException
+    """Enters the context manager and establishes Milvus connection.
 
-    connection_params = unpack_dataclass_with_kwargs(
-        self._connection_parameters)
-    collection_load_params = unpack_dataclass_with_kwargs(
-        self._collection_load_parameters)
+    Returns:
+      Self, enabling use in 'with' statements.
+    """
+    if not self._client:
+      connection_params = unpack_dataclass_with_kwargs(
+          self._connection_parameters)
+      collection_load_params = unpack_dataclass_with_kwargs(
+          self._collection_load_parameters)
 
-    # Extract retry parameters from connection_params
-    max_retries = connection_params.pop('max_retries', 3)
-    retry_delay = connection_params.pop('retry_delay', 1.0)
-    retry_backoff_factor = connection_params.pop('retry_backoff_factor', 2.0)
+      # Extract retry parameters from connection_params.
+      max_retries = connection_params.pop('max_retries', 3)
+      retry_delay = connection_params.pop('retry_delay', 1.0)
+      retry_backoff_factor = connection_params.pop('retry_backoff_factor', 2.0)
 
-    # Retry logic for MilvusClient connection
-    last_exception = None
-    for attempt in range(max_retries + 1):
-      try:
-        self._client = MilvusClient(**connection_params)
-        self._client.load_collection(
+      def connect_and_load():
+        client = MilvusClient(**connection_params)
+        client.load_collection(
             collection_name=self.collection_name,
             partition_names=self.partition_names,
             **collection_load_params)
-        logging.info(
-            "Successfully connected to Milvus on attempt %d", attempt + 1)
-        return
-      except MilvusException as e:
-        last_exception = e
-        if attempt < max_retries:
-          delay = retry_delay * (retry_backoff_factor**attempt)
-          logging.warning(
-              "Milvus connection attempt %d failed: %s. "
-              "Retrying in %.2f seconds...",
-              attempt + 1,
-              e,
-              delay)
-          time.sleep(delay)
-        else:
-          logging.error(
-              "Failed to connect to Milvus after %d attempts", max_retries + 1)
-          raise last_exception
+        return client
+
+      self._client = retry_with_backoff(
+          connect_and_load,
+          max_retries=max_retries,
+          retry_delay=retry_delay,
+          retry_backoff_factor=retry_backoff_factor,
+          operation_name="Milvus connection and collection load",
+          exception_types=(MilvusException, ))
+    return self
 
   def __call__(self, request: Union[Chunk, List[Chunk]], *args,
                **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:

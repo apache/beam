@@ -15,12 +15,15 @@
 # limitations under the License.
 #
 
+import logging
 import re
+import time
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -29,6 +32,8 @@ from typing import Tuple
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
+
+_LOGGER = logging.getLogger(__name__)
 
 # Default batch size for writing data to Milvus, matching
 # JdbcIO.DEFAULT_BATCH_SIZE.
@@ -135,3 +140,83 @@ def unpack_dataclass_with_kwargs(dataclass_instance):
   # Merge the dictionaries, with nested_kwargs taking precedence
   # in case of duplicate keys.
   return {**params_dict, **nested_kwargs}
+
+
+def retry_with_backoff(
+    operation: Callable[[], Any],
+    max_retries: int = 3,
+    retry_delay: float = 1.0,
+    retry_backoff_factor: float = 2.0,
+    operation_name: str = "operation",
+    exception_types: Tuple[type, ...] = (Exception, )
+) -> Any:
+  """Executes an operation with retry logic and exponential backoff.
+
+  This is a generic retry utility that can be used for any operation that may
+  fail transiently. It retries the operation with exponential backoff between
+  attempts.
+
+  Note:
+    This utility is designed for one-time setup operations and complements
+    Apache Beam's RequestResponseIO pattern. Use retry_with_backoff() for:
+    - Establishing client connections in __enter__() methods (e.g., creating
+      MilvusClient instances, database connections) before processing elements
+    - One-time setup/teardown operations in DoFn lifecycle methods
+    - Operations outside of per-element processing where retry is needed
+
+    For per-element operations (e.g., API calls within Caller.__call__),
+    use RequestResponseIO which already provides automatic retry with
+    exponential backoff, failure handling, caching, and other features.
+    See: https://beam.apache.org/documentation/io/built-in/webapis/
+
+  Args:
+    operation: Callable that performs the operation to retry. Should return
+      the result of the operation.
+    max_retries: Maximum number of retry attempts. Default is 3.
+    retry_delay: Initial delay in seconds between retries. Default is 1.0.
+    retry_backoff_factor: Multiplier for the delay after each retry. Default
+      is 2.0 (exponential backoff).
+    operation_name: Name of the operation for logging purposes. Default is
+      "operation".
+    exception_types: Tuple of exception types to catch and retry. Default is
+      (Exception,) which catches all exceptions.
+
+  Returns:
+    The result of the operation if successful.
+
+  Raises:
+    The last exception encountered if all retry attempts fail.
+
+  Example:
+    >>> def connect_to_service():
+    ...     return service.connect(host="localhost")
+    >>> client = retry_with_backoff(
+    ...     connect_to_service,
+    ...     max_retries=5,
+    ...     retry_delay=2.0,
+    ...     operation_name="service connection")
+  """
+  last_exception = None
+  for attempt in range(max_retries + 1):
+    try:
+      result = operation()
+      _LOGGER.info(
+          "Successfully completed %s on attempt %d",
+          operation_name,
+          attempt + 1)
+      return result
+    except exception_types as e:
+      last_exception = e
+      if attempt < max_retries:
+        delay = retry_delay * (retry_backoff_factor**attempt)
+        _LOGGER.warning(
+            "%s attempt %d failed: %s. Retrying in %.2f seconds...",
+            operation_name,
+            attempt + 1,
+            e,
+            delay)
+        time.sleep(delay)
+      else:
+        _LOGGER.error(
+            "Failed %s after %d attempts", operation_name, max_retries + 1)
+        raise last_exception

@@ -27,6 +27,7 @@ from pymilvus import DataType
 from pymilvus import FieldSchema
 from pymilvus import MilvusClient
 from pymilvus.milvus_client import IndexParams
+from pymilvus.exceptions import MilvusException
 
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
@@ -36,6 +37,7 @@ from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.rag.utils import MilvusConnectionParameters
+from apache_beam.ml.rag.utils import retry_with_backoff
 from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -190,7 +192,18 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     self._partition_name = f"test_partition_{self._testMethodName}"
     config = unpack_dataclass_with_kwargs(self._connection_config)
     config["alias"] = f"milvus_conn_{uuid.uuid4().hex[:8]}"
-    self._test_client = MilvusClient(**config)
+
+    # Use retry_with_backoff for test client connection.
+    def create_client():
+      return MilvusClient(**config)
+
+    self._test_client = retry_with_backoff(
+        create_client,
+        max_retries=3,
+        retry_delay=1.0,
+        operation_name="Test Milvus client connection",
+        exception_types=(MilvusException, ))
+
     create_collection_with_partition(
         self._test_client, self._collection_name, self._partition_name)
 

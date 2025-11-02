@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 import logging
 from dataclasses import dataclass
 from dataclasses import field
@@ -24,6 +25,7 @@ from typing import List
 from typing import Optional
 
 from pymilvus import MilvusClient
+from pymilvus.exceptions import MilvusException
 
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
@@ -34,6 +36,7 @@ from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.utils import DEFAULT_WRITE_BATCH_SIZE
 from apache_beam.ml.rag.utils import MilvusConnectionParameters
 from apache_beam.ml.rag.utils import MilvusHelpers
+from apache_beam.ml.rag.utils import retry_with_backoff
 from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.transforms import DoFn
 
@@ -325,8 +328,23 @@ class _MilvusSink:
       Self, enabling use in 'with' statements.
     """
     if not self._client:
-      self._client = MilvusClient(
-          **unpack_dataclass_with_kwargs(self._connection_params))
+      connection_params = unpack_dataclass_with_kwargs(self._connection_params)
+
+      # Extract retry parameters from connection_params.
+      max_retries = connection_params.pop('max_retries', 3)
+      retry_delay = connection_params.pop('retry_delay', 1.0)
+      retry_backoff_factor = connection_params.pop('retry_backoff_factor', 2.0)
+
+      def create_client():
+        return MilvusClient(**connection_params)
+
+      self._client = retry_with_backoff(
+          create_client,
+          max_retries=max_retries,
+          retry_delay=retry_delay,
+          retry_backoff_factor=retry_backoff_factor,
+          operation_name="Milvus connection",
+          exception_types=(MilvusException, ))
     return self
 
   def __exit__(self, exc_type, exc_val, exc_tb):
