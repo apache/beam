@@ -65,7 +65,7 @@ if [ -z "$BASE_PATH" ]; then
 fi
 
 if [ -z "$EXTRAS" ]; then
-  EXTRAS="[gcp,dataframe,test]"
+  EXTRAS="[gcp,dataframe,test,yaml]"
 fi
 
 set -ex
