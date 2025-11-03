@@ -1520,9 +1520,8 @@ def _check_fn_use_yield_and_return(fn):
         if lstripped_line.rstrip() == "return None" or lstripped_line.rstrip(
         ) == "return(None)":
           has_return_none = True
-        else:
-          has_return = True
-      if has_yield and (has_return or has_return_none):
+        has_return = True
+      if has_yield and has_return:
         return True
 
     if has_return_none:

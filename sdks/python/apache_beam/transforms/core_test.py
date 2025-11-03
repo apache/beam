@@ -115,6 +115,12 @@ class TestDoFn10(beam.DoFn):
 
 
 class TestDoFn11(beam.DoFn):
+  """test process returning None (no return and no yield)"""
+  def process(self, element):
+    pass
+
+
+class TestDoFn12(beam.DoFn):
   """test process returning None in a filter pattern"""
   def process(self, element):
     if element == 0:
@@ -187,9 +193,14 @@ class CreateTest(unittest.TestCase):
       assert RETURN_NONE_PARTIAL_WARNING in self._caplog.text
       assert str(TestDoFn10) in self._caplog.text
 
-  def test_dofn_with_implicit_return_none_and_value(self):
+  def test_dofn_with_implicit_return_none_missing_return_and_yield(self):
     with self._caplog.at_level(logging.WARNING):
       beam.ParDo(TestDoFn11())
+      assert RETURN_NONE_PARTIAL_WARNING not in self._caplog.text
+
+  def test_dofn_with_implicit_return_none_and_value(self):
+    with self._caplog.at_level(logging.WARNING):
+      beam.ParDo(TestDoFn12())
       assert RETURN_NONE_PARTIAL_WARNING not in self._caplog.text
 
 
