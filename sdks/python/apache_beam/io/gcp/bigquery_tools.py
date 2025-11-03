@@ -46,7 +46,6 @@ from typing import Union
 
 import fastavro
 import numpy as np
-import regex
 
 import apache_beam
 from apache_beam import coders
@@ -70,6 +69,7 @@ from apache_beam.utils.histogram import LinearBucket
 
 # Protect against environments where bigquery library is not available.
 try:
+  import regex
   from apitools.base.py.exceptions import HttpError
   from apitools.base.py.exceptions import HttpForbiddenError
   from apitools.base.py.transfer import Upload
