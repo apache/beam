@@ -2915,7 +2915,7 @@ class PTransformTypeAliasTest(unittest.TestCase):
   @unittest.skipIf(sys.version_info < (3, 12), "Python 3.12 required")
   def test_type_alias_statement_supported_in_with_output_types(self):
     ns = {}
-    exec("type InputType = tuple[int, ...]", ns)
+    exec("type InputType = tuple[int, ...]", ns)  # pylint: disable=exec-used
     InputType = ns["InputType"]
 
     def print_element(element: InputType) -> InputType:
@@ -2931,7 +2931,7 @@ class PTransformTypeAliasTest(unittest.TestCase):
   @unittest.skipIf(sys.version_info < (3, 12), "Python 3.12 required")
   def test_type_alias_supported_in_ptransform_with_output_types(self):
     ns = {}
-    exec("type OutputType = tuple[int, int]", ns)
+    exec("type OutputType = tuple[int, int]", ns)  # pylint: disable=exec-used
     OutputType = ns["OutputType"]
 
     with beam.Pipeline() as p:
