@@ -33,7 +33,7 @@ from apache_beam.yaml.yaml_transform import YamlTransform
 try:
   import jsonschema
 except ImportError:
-  pass
+  jsonschema = None
 
 DATA = [
     beam.Row(label='11a', conductor=11, rank=0),
@@ -42,8 +42,6 @@ DATA = [
 ]
 
 unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
-
-
 class YamlMappingTest(unittest.TestCase):
   def test_basic(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

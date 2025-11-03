@@ -55,6 +55,7 @@ def new_pipeline():
           pickle_library='cloudpickle'))
 
 
+unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class MainTest(unittest.TestCase):
   def assertYaml(self, expected, result):
     result = SafeLineLoader.strip_metadata(result)
