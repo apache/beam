@@ -21,13 +21,16 @@ from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
+from typing import Union
 
 from google import genai
 from google.genai import errors
+from google.genai.types import Part
 
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RemoteModelHandler
+from PIL.Image import Image
 
 LOGGER = logging.getLogger("GeminiModelHandler")
 
@@ -56,6 +59,41 @@ def generate_from_string(
     batch: Sequence[str],
     model: genai.Client,
     inference_args: dict[str, Any]):
+  """ Request function that expects inputs to be composed of strings, then
+  sends requests to Gemini to generate text responses based on the text
+  prompts.
+
+  Args:
+    model_name: the Gemini model to use for the request. This model should be
+      a text generation model.
+    batch: the string inputs to be send to Gemini for text generation.
+    model: the genai Client
+    inference_args: any additional arguments passed to the generate_content
+      call.
+  """
+  return model.models.generate_content(
+      model=model_name, contents=batch, **inference_args)
+
+
+def generate_image_from_strings_and_images(
+    model_name: str,
+    batch: Sequence[list[Union[str, Image, Part]]],
+    model: genai.Client,
+    inference_args: dict[str, Any]):
+  """ Request function that expects inputs to be composed of lists of strings
+  and PIL Image instances, then sends requests to Gemini to generate images
+  based on the text prompts and contextual images. This is currently intended
+  to be used with the gemini-2.5-flash-image model (AKA Nano Banana.)
+
+  Args:
+    model_name: the Gemini model to use for the request. This model should be
+      an image generation model such as gemini-2.5-flash-image.
+    batch: the inputs to be send to Gemini for image generation as prompts.
+      Composed of text prompts and contextual pillow Images.
+    model: the genai Client
+    inference_args: any additional arguments passed to the generate_content
+      call.
+  """
   return model.models.generate_content(
       model=model_name, contents=batch, **inference_args)
 
@@ -168,5 +206,7 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     """
     if inference_args is None:
       inference_args = {}
-    responses = self.request_fn(self.model_name, batch, model, inference_args)
+    # Wrap the responses in a list to prevent zip() call from treating the
+    # response itself as an iterable of individual responses.
+    responses = [self.request_fn(self.model_name, batch, model, inference_args)]
     return utils._convert_to_result(batch, responses, self.model_name)

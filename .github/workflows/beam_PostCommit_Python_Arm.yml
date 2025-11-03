@@ -18,8 +18,6 @@
 name: PostCommit Python Arm
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 5/6 * * *'
   pull_request_target:
@@ -28,7 +26,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -54,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Python_Arm:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} ${{ matrix.python_version }}
     runs-on: ubuntu-22.04
     timeout-minutes: 240
     strategy:
@@ -62,12 +60,11 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Python_Arm]
         job_phrase: [Run Python PostCommit Arm]
-        python_version: ['3.9', '3.10', '3.11', '3.12']
+        python_version: ['3.9', '3.13']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      startsWith(github.event.comment.body, 'Run Python PostCommit Arm')
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -75,7 +72,7 @@ jobs:
         with:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+          github_job: ${{ matrix.job_name }} ${{ matrix.python_version }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -90,9 +87,9 @@ jobs:
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io

@@ -80,7 +80,7 @@ final class GrpcGetDataStream
 
   static final FluentBackoff BACK_OFF_FACTORY =
       FluentBackoff.DEFAULT
-          .withInitialBackoff(Duration.millis(10))
+          .withInitialBackoff(Duration.millis(1))
           .withMaxBackoff(Duration.standardSeconds(10));
 
   /**
@@ -91,7 +91,9 @@ final class GrpcGetDataStream
   @GuardedBy("this")
   private final Deque<QueuedBatch> batches;
 
-  private final Supplier<Integer> batchesDebugSizeSupplier;
+  // Size of the batches that may be read without synchronization.  If it is under synchronized
+  // block it is guaranteed to be correct.
+  private final Supplier<Integer> batchesSizeSupplier;
 
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
@@ -133,7 +135,7 @@ final class GrpcGetDataStream
     // Otherwise the deque is accessed via batches which has a guardedby annotation.
     ConcurrentLinkedDeque<QueuedBatch> batches = new ConcurrentLinkedDeque<>();
     this.batches = batches;
-    this.batchesDebugSizeSupplier = batches::size;
+    this.batchesSizeSupplier = batches::size;
     this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
     this.processHeartbeatResponses = processHeartbeatResponses;
   }
@@ -191,7 +193,7 @@ final class GrpcGetDataStream
     public void sendBatch(QueuedBatch batch) throws WindmillStreamShutdownException {
       // Synchronization of pending inserts is necessary with send to ensure duplicates are not
       // sent on stream reconnect.
-      for (QueuedRequest request : batch.requestsReadOnly()) {
+      for (QueuedRequest request : batch.requestsView()) {
         boolean alreadyPresent = pending.put(request.id(), request.getResponseStream()) != null;
         verify(!alreadyPresent, "Request already sent, id: %s", request.id());
       }
@@ -224,7 +226,7 @@ final class GrpcGetDataStream
 
     @Override
     public boolean hasPendingRequests() {
-      return !pending.isEmpty();
+      return !pending.isEmpty() || batchesSizeSupplier.get() > 0;
     }
 
     @Override
@@ -275,8 +277,10 @@ final class GrpcGetDataStream
     }
     while (!batches.isEmpty()) {
       QueuedBatch batch = checkNotNull(batches.peekFirst());
-      verify(!batch.isEmpty());
-      if (!batch.isFinalized()) break;
+      verify(batch.requestsCount() > 0);
+      if (!batch.isFinalized()) {
+        break;
+      }
       try {
         verify(
             batch == batches.pollFirst(),
@@ -419,7 +423,7 @@ final class GrpcGetDataStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    int batches = batchesDebugSizeSupplier.get();
+    int batches = batchesSizeSupplier.get();
     if (batches > 0) {
       writer.format("GetDataStream: %d queued batches ", batches);
     } else {
@@ -435,22 +439,23 @@ final class GrpcGetDataStream
       try {
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
-      } catch (AppendableInputStream.InvalidInputStreamStateException | CancellationException e) {
+      } catch (CancellationException e) {
         throwIfShutdown(request, e);
-        if (!(e instanceof CancellationException)) {
-          throw e;
-        }
+      } catch (AppendableInputStream.InvalidInputStreamStateException e) {
+        throwIfShutdown(request, e);
+        throw e;
       } catch (IOException e) {
         LOG.error("Parsing GetData response failed: ", e);
-        try {
-          BackOffUtils.next(Sleeper.DEFAULT, backoff);
-        } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
-        }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throwIfShutdown(request, e);
         throw new RuntimeException(e);
+      }
+      // In all cases we are going to retry, perform some backoff
+      try {
+        BackOffUtils.next(Sleeper.DEFAULT, backoff);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
       }
     }
   }
@@ -477,17 +482,15 @@ final class GrpcGetDataStream
 
       batch = batches.isEmpty() ? null : batches.getLast();
       if (batch == null
-          || batch.isFinalized()
-          || batch.requestsCount() >= streamingRpcBatchLimit
-          || batch.byteSize() + request.byteSize() > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
-        if (batch != null) {
-          prevBatch = batch;
-        }
+          || !batch.tryAddRequest(
+              request, streamingRpcBatchLimit, AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE)) {
+        // We need a new batch.
+        prevBatch = batch; // may be null
         batch = new QueuedBatch();
         batches.addLast(batch);
         responsibleForSend = true;
+        verify(batch.tryAddRequest(request, Integer.MAX_VALUE, Long.MAX_VALUE));
       }
-      batch.addRequest(request);
     }
     if (responsibleForSend) {
       if (prevBatch == null) {
@@ -498,11 +501,9 @@ final class GrpcGetDataStream
         prevBatch.waitForSendOrFailNotification();
       }
       trySendBatch(batch);
-      // Since the above send may not succeed, we fall through to block on sending or failure.
+      // If the send fails, request.responseStream will be cancelled and
+      // reading responseStream will throw.
     }
-
-    // Wait for this batch to be sent before parsing the response.
-    batch.waitForSendOrFailNotification();
   }
 
   private synchronized void trySendBatch(QueuedBatch batch) throws WindmillStreamShutdownException {
@@ -516,7 +517,7 @@ final class GrpcGetDataStream
     }
     final @Nullable GetDataPhysicalStreamHandler currentGetDataPhysicalStream =
         (GetDataPhysicalStreamHandler) currentPhysicalStream;
-    if (currentGetDataPhysicalStream == null) {
+    if (currentGetDataPhysicalStream == null || clientClosed) {
       // Leave the batch finalized but in the batches queue.  Finalized batches will be sent on a
       // new stream in onFlushPending.
       return;
@@ -529,7 +530,7 @@ final class GrpcGetDataStream
       // an error and will
       // resend requests (possibly with new batching).
       verify(batch == batches.pollFirst());
-      verify(!batch.isEmpty());
+      verify(batch.requestsCount() > 0);
       currentGetDataPhysicalStream.sendBatch(batch);
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).

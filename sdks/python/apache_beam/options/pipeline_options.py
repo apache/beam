@@ -38,6 +38,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import logger
 from apache_beam.utils import proto_utils
 
 __all__ = [
@@ -64,6 +65,11 @@ _LOGGER = logging.getLogger(__name__)
 # that have a destination(dest) in parser.add_argument() different
 # from the flag name and whose default value is `None`.
 _FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
+# Set of options which should not be overriden when applying options from a
+# different language. This is relevant when using x-lang transforms where the
+# expansion service is started up with some pipeline options, and will
+# impact which options are passed in to expanded transforms' expand functions.
+_NON_OVERIDABLE_XLANG_OPTIONS = ['runner', 'experiments']
 
 
 def _static_value_provider_of(value_type):
@@ -287,6 +293,10 @@ class _CommaSeparatedListAction(argparse.Action):
 
 
 class PipelineOptions(HasDisplayData):
+  # Set of options which should not be overriden when pipeline options are
+  # being merged (see from_runner_api). This primarily comes up when expanding
+  # the Python expansion service
+
   """This class and subclasses are used as containers for command line options.
 
   These classes are wrappers over the standard argparse Python module
@@ -466,7 +476,7 @@ class PipelineOptions(HasDisplayData):
         suggestions = difflib.get_close_matches(arg_name, all_known_options)
         if suggestions:
           msg += f". Did you mean '{suggestions[0]}'?'"
-      _LOGGER.warning(msg)
+      logger.log_first_n(logging.WARN, msg, key="message")
 
   def get_all_options(
       self,
@@ -592,15 +602,19 @@ class PipelineOptions(HasDisplayData):
         })
 
   @classmethod
-  def from_runner_api(cls, proto_options):
+  def from_runner_api(cls, proto_options, original_options=None):
     def from_urn(key):
       assert key.startswith('beam:option:')
       assert key.endswith(':v1')
       return key[12:-3]
 
-    return cls(
-        **{from_urn(key): value
-           for (key, value) in proto_options.items()})
+    parsed = {from_urn(key): value for (key, value) in proto_options.items()}
+    if original_options is None:
+      return cls(**parsed)
+    for (key, value) in parsed.items():
+      if value and key not in _NON_OVERIDABLE_XLANG_OPTIONS:
+        original_options._all_options[key] = value
+    return original_options
 
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
@@ -874,6 +888,18 @@ class TypeOptions(PipelineOptions):
         'their condition met. Some operations, such as GroupByKey, disallow '
         'this. This exists for cases where such loss is acceptable and for '
         'backwards compatibility. See BEAM-9487.')
+    parser.add_argument(
+        '--force_cloudpickle_deterministic_coders',
+        default=False,
+        action='store_true',
+        help=(
+            'Force the use of cloudpickle-based deterministic coders '
+            'instead of dill-based coders, even when '
+            'update_compatibility_version  would normally trigger dill usage '
+            'for backward compatibility. This flag overrides automatic coder '
+            'selection to always use the modern cloudpickle serialization '
+            ' path. Warning: May break pipeline update compatibility with '
+            ' SDK versions prior to 2.68.0.'))
 
   def validate(self, unused_validator):
     errors = []
@@ -1146,7 +1172,7 @@ class GoogleCloudOptions(PipelineOptions):
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
-      return 'gs://%s' % bucket.id
+      return 'gs://%s/' % bucket.id
     else:
       return None
 
@@ -1162,14 +1188,19 @@ class GoogleCloudOptions(PipelineOptions):
     try:
       from apache_beam.io.gcp import gcsio
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
-        _LOGGER.warning(
-            "Bucket specified in %s has soft-delete policy enabled."
+        logger.log_first_n(
+            logging.WARN,
+            "Bucket %s used as %s has soft-delete policy enabled."
             " To avoid being billed for unnecessary storage costs, turn"
             " off the soft delete feature on buckets that your Dataflow"
             " jobs use for temporary and staging storage. For more"
             " information, see"
             " https://cloud.google.com/storage/docs/use-soft-delete"
-            "#remove-soft-delete-policy." % arg_name)
+            "#remove-soft-delete-policy.",
+            gcs_path,
+            arg_name,
+            n=1,
+            key="message")
     except ImportError:
       _LOGGER.warning('Unable to check soft delete policy due to import error.')
 
@@ -1716,6 +1747,38 @@ class SetupOptions(PipelineOptions):
         help=(
             'Docker registry url to use for tagging and pushing the prebuilt '
             'sdk worker container image.'))
+    parser.add_argument(
+        '--gbek',
+        default=None,
+        help=(
+            'When set, will replace all GroupByKey transforms in the pipeline '
+            'with EncryptedGroupByKey transforms using the secret passed in '
+            'the option. Beam will infer the secret type and value based on '
+            'secret itself. This guarantees that any data at rest during the '
+            'GBK will be encrypted. Many runners only store data at rest when '
+            'performing a GBK, so this can be used to guarantee that data is '
+            'not unencrypted. The secret should be a url safe base64 encoded '
+            '32 byte value. To generate a secret in this format, you can use '
+            'Secret.generate_secret_bytes(). For an example of this, see '
+            'https://github.com/apache/beam/blob/c8df4da229da49d533491857e1bb4ab5dbf4fd37/sdks/python/apache_beam/transforms/util_test.py#L356. '  # pylint: disable=line-too-long
+            'Runners with this behavior include the Dataflow, '
+            'Flink, and Spark runners. The option should be '
+            'structured like: '
+            '--gbek=type:<secret_type>;<secret_param>:<value>, for example '
+            '--gbek=type:GcpSecret;version_name:my_secret/versions/latest'))
+    parser.add_argument(
+        '--user_agent',
+        default=None,
+        help=(
+            'A user agent string describing the pipeline to external services. '
+            'The format should follow RFC2616.'))
+    parser.add_argument(
+        '--maven_repository_url',
+        default=None,
+        help=(
+            'Custom Maven repository URL to use for downloading JAR files. '
+            'If not specified, the default Maven Central repository will be '
+            'used.'))
 
   def validate(self, validator):
     errors = []
@@ -1747,7 +1810,7 @@ class PortableOptions(PipelineOptions):
     parser.add_argument(
         '--job_server_timeout',
         '--job-server-timeout',  # For backwards compatibility.
-        default=60,
+        default=300,
         type=int,
         help=(
             'Job service request timeout in seconds. The timeout '

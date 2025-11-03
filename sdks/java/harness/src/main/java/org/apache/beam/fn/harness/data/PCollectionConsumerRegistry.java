@@ -92,10 +92,23 @@ public class PCollectionConsumerRegistry {
     public abstract ExecutionStateTracker getExecutionStateTracker();
   }
 
+  @AutoValue
+  abstract static class ExecutionStateKey {
+    public static ExecutionStateKey of(String pTransformId, String pTransformUniqueName) {
+      return new AutoValue_PCollectionConsumerRegistry_ExecutionStateKey(
+          pTransformId, pTransformUniqueName);
+    }
+
+    public abstract String getPTransformId();
+
+    public abstract String getPTransformUniqueId();
+  }
+
   private final ExecutionStateTracker stateTracker;
   private final ShortIdMap shortIdMap;
-  private final Map<String, List<ConsumerAndMetadata>> pCollectionIdsToConsumers;
-  private final Map<String, FnDataReceiver> pCollectionIdsToWrappedConsumer;
+  private final Map<String, List<ConsumerAndMetadata>> pCollectionIdsToConsumers = new HashMap<>();
+  private final Map<String, FnDataReceiver> pCollectionIdsToWrappedConsumer = new HashMap<>();
+  private final Map<ExecutionStateKey, ExecutionState> executionStates = new HashMap<>();
   private final BundleProgressReporter.Registrar bundleProgressReporterRegistrar;
   private final ProcessBundleDescriptor processBundleDescriptor;
   private final RehydratedComponents rehydratedComponents;
@@ -118,8 +131,6 @@ public class PCollectionConsumerRegistry {
       @Nullable DataSampler dataSampler) {
     this.stateTracker = stateTracker;
     this.shortIdMap = shortIdMap;
-    this.pCollectionIdsToConsumers = new HashMap<>();
-    this.pCollectionIdsToWrappedConsumer = new HashMap<>();
     this.bundleProgressReporterRegistrar = bundleProgressReporterRegistrar;
     this.processBundleDescriptor = processBundleDescriptor;
     this.rehydratedComponents =
@@ -162,31 +173,14 @@ public class PCollectionConsumerRegistry {
               + "calling getMultiplexingConsumer.");
     }
 
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS);
-    builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE);
-    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
-    MonitoringInfo mi = builder.build();
-    if (mi == null) {
-      throw new IllegalStateException(
-          String.format(
-              "Unable to construct %s counter for PTransform {id=%s, name=%s}",
-              MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS,
-              pTransformId,
-              pTransformUniqueName));
-    }
-    String shortId = shortIdMap.getOrCreateShortId(mi);
-    ExecutionState executionState =
-        stateTracker.create(
-            shortId,
-            pTransformId,
-            pTransformUniqueName,
-            org.apache.beam.runners.core.metrics.ExecutionStateTracker.PROCESS_STATE_NAME);
-
     List<ConsumerAndMetadata> consumerAndMetadatas =
         pCollectionIdsToConsumers.computeIfAbsent(pCollectionId, (unused) -> new ArrayList<>());
     consumerAndMetadatas.add(
-        ConsumerAndMetadata.forConsumer(consumer, pTransformId, executionState, stateTracker));
+        ConsumerAndMetadata.forConsumer(
+            consumer,
+            pTransformId,
+            getProcessingExecutionState(pTransformId, pTransformUniqueName),
+            stateTracker));
   }
 
   /**
@@ -243,6 +237,39 @@ public class PCollectionConsumerRegistry {
             return new MultiplexingMetricTrackingFnDataReceiver(
                 pcId, coder, consumerAndMetadatas, sampler);
           }
+        });
+  }
+
+  /**
+   * Returns a shared ExecutionState for tracking the process of the given transform.
+   *
+   * @return A {@link ExecutionState} which should be only activated/deactivated on the processing
+   *     thread for the bundle.
+   */
+  public ExecutionState getProcessingExecutionState(
+      String pTransformId, String pTransformUniqueName) {
+    return executionStates.computeIfAbsent(
+        ExecutionStateKey.of(pTransformId, pTransformUniqueName),
+        (key) -> {
+          SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+          builder.setUrn(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS);
+          builder.setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE);
+          builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, key.getPTransformId());
+          MonitoringInfo mi = builder.build();
+          if (mi == null) {
+            throw new IllegalStateException(
+                String.format(
+                    "Unable to construct %s counter for PTransform {id=%s, name=%s}",
+                    MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS,
+                    key.getPTransformId(),
+                    key.getPTransformUniqueId()));
+          }
+          String shortId = shortIdMap.getOrCreateShortId(mi);
+          return stateTracker.create(
+              shortId,
+              key.getPTransformId(),
+              key.getPTransformUniqueId(),
+              org.apache.beam.runners.core.metrics.ExecutionStateTracker.PROCESS_STATE_NAME);
         });
   }
 
@@ -344,14 +371,11 @@ public class PCollectionConsumerRegistry {
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
       // metrics container.
-      executionState.activate();
-      try {
+      try (ExecutionState.ActiveState a = executionState.scopedActivate()) {
         this.delegate.accept(input);
       } catch (Exception e) {
         logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
-      } finally {
-        executionState.deactivate();
       }
       this.sampledByteSizeDistribution.finishLazyUpdate();
     }
@@ -434,8 +458,7 @@ public class PCollectionConsumerRegistry {
       for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         ExecutionState state = consumerAndMetadata.getExecutionState();
-        state.activate();
-        try {
+        try (ExecutionState.ActiveState a = state.scopedActivate()) {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
           logAndRethrow(
@@ -445,8 +468,6 @@ public class PCollectionConsumerRegistry {
               consumerAndMetadata.getPTransformId(),
               outputSampler,
               elementSample);
-        } finally {
-          state.deactivate();
         }
         this.sampledByteSizeDistribution.finishLazyUpdate();
       }

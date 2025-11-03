@@ -68,6 +68,8 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class NotAvailableWithReason:
   """A False value that provides additional content.
@@ -1322,6 +1324,18 @@ class PypiExpansionService:
         venv_python = os.path.join(venv, 'bin', 'python')
         venv_pip = os.path.join(venv, 'bin', 'pip')
         subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
+        # Issue warning when installing packages from PyPI
+        _LOGGER.warning(
+            " WARNING: Apache Beam is installing Python packages "
+            "from PyPI at runtime.\n"
+            "   This may pose security risks or cause instability due to "
+            "repository availability.\n"
+            "   Packages: %s\n"
+            "   Consider pre-staging dependencies or using a private "
+            "repository mirror.\n"
+            "   For more information, see: "
+            "https://beam.apache.org/documentation/sdks/python-dependencies/",
+            ', '.join(packages))
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
@@ -1342,6 +1356,18 @@ class PypiExpansionService:
         clonable_venv = cls._create_venv_to_clone(base_python)
         clonevirtualenv.clone_virtualenv(clonable_venv, venv)
         venv_pip = os.path.join(venv, 'bin', 'pip')
+        # Issue warning when installing packages from PyPI
+        _LOGGER.warning(
+            "   WARNING: Apache Beam is installing Python packages "
+            "from PyPI at runtime.\n"
+            "   This may pose security risks or cause instability due to "
+            "repository availability.\n"
+            "   Packages: %s\n"
+            "   Consider pre-staging dependencies or using a private "
+            "repository mirror.\n"
+            "   For more information, see: "
+            "https://beam.apache.org/documentation/sdks/python-dependencies/",
+            ', '.join(packages))
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))

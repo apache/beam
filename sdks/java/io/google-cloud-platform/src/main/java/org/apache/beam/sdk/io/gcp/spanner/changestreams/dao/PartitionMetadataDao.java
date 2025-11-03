@@ -32,6 +32,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.ResultSet;
@@ -528,14 +529,25 @@ public class PartitionMetadataDao {
     }
 
     /**
-     * Update the partition watermark to the given timestamp.
+     * Update the partition watermark to the given timestamp iff the partition watermark in metadata
+     * table is smaller than the given watermark.
      *
      * @param partitionToken the partition unique identifier
      * @param watermark the new partition watermark
      * @return the commit timestamp of the read / write transaction
      */
     public Void updateWatermark(String partitionToken, Timestamp watermark) {
-      transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      Struct row =
+          transaction.readRow(
+              metadataTableName, Key.of(partitionToken), Collections.singleton(COLUMN_WATERMARK));
+      if (row == null) {
+        LOG.error("[{}] Failed to read Watermark column", partitionToken);
+        return null;
+      }
+      Timestamp partitionWatermark = row.getTimestamp(COLUMN_WATERMARK);
+      if (partitionWatermark.compareTo(watermark) < 0) {
+        transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      }
       return null;
     }
 

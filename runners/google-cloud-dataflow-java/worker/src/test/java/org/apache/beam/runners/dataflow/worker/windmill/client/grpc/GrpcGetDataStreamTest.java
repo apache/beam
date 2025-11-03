@@ -27,6 +27,7 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -236,6 +237,56 @@ public class GrpcGetDataStreamTest {
   }
 
   @Test
+  public void testRequestKeyedData_multipleRequestsSameWorkItemSeparateBatches()
+      throws InterruptedException {
+    GrpcGetDataStream getDataStream = createGetDataStream();
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    final CountDownLatch requestStarter = new CountDownLatch(1);
+
+    // Get a bunch of threads ready to send a request with the same work token. These should racily
+    // attempt to batch but be prevented due to work token separation logic.
+    // These will block until they are successfully sent.
+    List<CompletableFuture<Windmill.KeyedGetDataResponse>> futures = new ArrayList<>();
+    final Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
+    for (int i = 0; i < 10; ++i) {
+      futures.add(
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  requestStarter.await();
+                  return getDataStream.requestKeyedData("computationId", keyedGetDataRequest);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }));
+    }
+
+    // Unblock and verify that 10 requests are made and not batched.
+    requestStarter.countDown();
+    for (int i = 0; i < 10; ++i) {
+      Windmill.StreamingGetDataRequest request = streamInfo.requests.take();
+      assertEquals(1, request.getRequestIdCount());
+      assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
+    }
+
+    // Send the responses.
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
+    for (int i = 0; i < 10; ++i) {
+      streamInfo.responseObserver.onNext(
+          Windmill.StreamingGetDataResponse.newBuilder()
+              .addRequestId(i + 1)
+              .addSerializedResponse(keyedGetDataResponse.toByteString())
+              .build());
+    }
+
+    for (CompletableFuture<Windmill.KeyedGetDataResponse> future : futures) {
+      assertThat(future.join()).isEqualTo(keyedGetDataResponse);
+    }
+    getDataStream.shutdown();
+  }
+
+  @Test
   public void testRequestKeyedData_reconnectOnStreamError() throws InterruptedException {
     GrpcGetDataStream getDataStream = createGetDataStream();
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
@@ -316,16 +367,26 @@ public class GrpcGetDataStreamTest {
     assertNull(streamInfo.onDone.get());
 
     // Simulate an error on the grpc stream, this should trigger retrying the requests on a new
-    // stream
-    // which is half-closed.
+    // stream which is half-closed.
     streamInfo.responseObserver.onError(new IOException("test error"));
 
-    FakeWindmillGrpcService.GetDataStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
-    Windmill.StreamingGetDataRequest request2 = streamInfo2.requests.take();
-    assertThat(request2.getRequestIdList()).containsExactly(1L);
-    assertEquals(keyedGetDataRequest, request2.getStateRequest(0).getRequests(0));
-    assertNull(streamInfo2.onDone.get());
     Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo2;
+    while (true) {
+      streamInfo2 = waitForConnectionAndConsumeHeader();
+      streamInfo2.onDone.get();
+      Windmill.StreamingGetDataRequest request2 = streamInfo2.requests.poll(5, TimeUnit.SECONDS);
+      if (request2 == null) {
+        // Client half-closed but didn't send the request, this can happen due to race but
+        // should recover by resending stream with requests.
+        streamInfo2.responseObserver.onCompleted();
+        continue;
+      }
+      assertThat(request2.getRequestIdList()).containsExactly(1L);
+      assertEquals(keyedGetDataRequest, request2.getStateRequest(0).getRequests(0));
+      break;
+    }
+
     streamInfo2.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)

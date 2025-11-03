@@ -33,6 +33,7 @@ To manage user roles, edit the `users.yml` file. Add or modify entries under the
 users:
   - username: <username>
     email: <email>
+    member_type: <user|serviceAccount|group>
     permissions:
       - role: <role>
         title: <title> (optional)

@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
@@ -41,8 +41,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
 
   private final StateNamespace namespace;
-  private final StateTag<BagState<T>> address;
-  private final ByteString stateKey;
+  private final InternedByteString stateKey;
   private final String stateFamily;
   private final Coder<T> elemCoder;
 
@@ -60,13 +59,12 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
 
   WindmillBag(
       StateNamespace namespace,
-      StateTag<BagState<T>> address,
+      InternedByteString encodeKey,
       String stateFamily,
       Coder<T> elemCoder,
       boolean isNewKey) {
     this.namespace = namespace;
-    this.address = address;
-    this.stateKey = WindmillStateUtil.encodeKey(namespace, address);
+    this.stateKey = encodeKey;
     this.stateFamily = stateFamily;
     this.elemCoder = elemCoder;
     if (isNewKey) {
@@ -182,7 +180,7 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
     }
 
     if (bagUpdatesBuilder != null) {
-      bagUpdatesBuilder.setTag(stateKey).setStateFamily(stateFamily);
+      bagUpdatesBuilder.setTag(stateKey.byteString()).setStateFamily(stateFamily);
     }
 
     if (cachedValues != null) {
@@ -193,7 +191,7 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
       }
       // We now know the complete bag contents, and any read on it will yield a
       // cached value, so cache it for future reads.
-      cache.put(namespace, address, this, encodedSize + stateKey.size());
+      cache.put(namespace, stateKey, this, encodedSize + stateKey.byteString().size());
     }
 
     // Don't reuse the localAdditions object; we don't want future changes to it to
@@ -204,6 +202,8 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
   }
 
   private Future<Iterable<T>> getFuture() {
-    return cachedValues != null ? null : reader.bagFuture(stateKey, stateFamily, elemCoder);
+    return cachedValues != null
+        ? null
+        : reader.bagFuture(stateKey.byteString(), stateFamily, elemCoder);
   }
 }

@@ -36,6 +36,8 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
@@ -238,14 +240,39 @@ public class PartitionMetadataDaoTest {
   @Test
   public void testInTransactionContextUpdateWatermark() {
     ArgumentCaptor<Mutation> mutation = ArgumentCaptor.forClass(Mutation.class);
-    doNothing().when(transaction).buffer(mutation.capture());
-    assertNull(inTransactionContext.updateWatermark(PARTITION_TOKEN, WATERMARK));
+    when(transaction.readRow(any(), any(), any()))
+        .thenReturn(
+            Struct.newBuilder()
+                .set(PartitionMetadataAdminDao.COLUMN_WATERMARK)
+                .to(WATERMARK)
+                .build());
+    Instant largerWatermark = WATERMARK.toSqlTimestamp().toInstant().plus(Duration.ofSeconds(1));
+    assertNull(
+        inTransactionContext.updateWatermark(
+            PARTITION_TOKEN,
+            Timestamp.ofTimeSecondsAndNanos(
+                largerWatermark.getEpochSecond(), largerWatermark.getNano())));
+    verify(transaction).buffer(mutation.capture());
     Map<String, Value> mutationValueMap = mutation.getValue().asMap();
     assertEquals(
         PARTITION_TOKEN,
         mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString());
     assertEquals(
-        WATERMARK, mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_WATERMARK).getTimestamp());
+        Timestamp.ofTimeSecondsAndNanos(
+            largerWatermark.getEpochSecond(), largerWatermark.getNano()),
+        mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_WATERMARK).getTimestamp());
+  }
+
+  @Test
+  public void testInTransactionContextDoNotUpdateWatermark() {
+    when(transaction.readRow(any(), any(), any()))
+        .thenReturn(
+            Struct.newBuilder()
+                .set(PartitionMetadataAdminDao.COLUMN_WATERMARK)
+                .to(WATERMARK)
+                .build());
+    assertNull(inTransactionContext.updateWatermark(PARTITION_TOKEN, WATERMARK));
+    verify(transaction, times(0)).buffer(any(Mutation.class));
   }
 
   @Test

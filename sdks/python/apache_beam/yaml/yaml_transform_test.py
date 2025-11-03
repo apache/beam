@@ -29,6 +29,11 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_transform import YamlTransform
 
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
+
 
 class CreateTimestamped(beam.PTransform):
   _yaml_requires_inputs = False
@@ -83,6 +88,7 @@ TEST_PROVIDERS = {
 }
 
 
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class YamlTransformE2ETest(unittest.TestCase):
   def test_composite(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

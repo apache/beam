@@ -1379,6 +1379,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public boolean causedByDrain() {
+      return false;
+    }
+
+    @Override
     public Instant getTimestamp() {
       return BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
@@ -1394,12 +1399,12 @@ class BatchViewOverrides {
     }
 
     @Override
-    public @Nullable String getCurrentRecordId() {
+    public @Nullable String getRecordId() {
       return null;
     }
 
     @Override
-    public @Nullable Long getCurrentRecordOffset() {
+    public @Nullable Long getRecordOffset() {
       return null;
     }
 

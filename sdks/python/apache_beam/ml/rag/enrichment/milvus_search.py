@@ -119,6 +119,10 @@ class MilvusConnectionParameters:
       Defaults to 'default'.
     token: Authentication token as an alternative to username/password.
     timeout: Connection timeout in seconds. Uses client default if None.
+    max_retries: Maximum number of connection retry attempts. Defaults to 3.
+    retry_delay: Initial delay between retries in seconds. Defaults to 1.0.
+    retry_backoff_factor: Multiplier for retry delay after each attempt. 
+      Defaults to 2.0 (exponential backoff).
     kwargs: Optional keyword arguments for additional connection parameters.
       Enables forward compatibility.
   """
@@ -128,6 +132,9 @@ class MilvusConnectionParameters:
   db_id: str = "default"
   token: str = field(default_factory=str)
   timeout: Optional[float] = None
+  max_retries: int = 3
+  retry_delay: float = 1.0
+  retry_backoff_factor: float = 2.0
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
@@ -404,19 +411,54 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     self.use_custom_types = True
 
   def __enter__(self):
+    import time
+    import logging
+    from pymilvus.exceptions import MilvusException
+
     connection_params = unpack_dataclass_with_kwargs(
         self._connection_parameters)
     collection_load_params = unpack_dataclass_with_kwargs(
         self._collection_load_parameters)
-    self._client = MilvusClient(**connection_params)
-    self._client.load_collection(
-        collection_name=self.collection_name,
-        partition_names=self.partition_names,
-        **collection_load_params)
+
+    # Extract retry parameters from connection_params
+    max_retries = connection_params.pop('max_retries', 3)
+    retry_delay = connection_params.pop('retry_delay', 1.0)
+    retry_backoff_factor = connection_params.pop('retry_backoff_factor', 2.0)
+
+    # Retry logic for MilvusClient connection
+    last_exception = None
+    for attempt in range(max_retries + 1):
+      try:
+        self._client = MilvusClient(**connection_params)
+        self._client.load_collection(
+            collection_name=self.collection_name,
+            partition_names=self.partition_names,
+            **collection_load_params)
+        logging.info(
+            "Successfully connected to Milvus on attempt %d", attempt + 1)
+        return
+      except MilvusException as e:
+        last_exception = e
+        if attempt < max_retries:
+          delay = retry_delay * (retry_backoff_factor**attempt)
+          logging.warning(
+              "Milvus connection attempt %d failed: %s. "
+              "Retrying in %.2f seconds...",
+              attempt + 1,
+              e,
+              delay)
+          time.sleep(delay)
+        else:
+          logging.error(
+              "Failed to connect to Milvus after %d attempts", max_retries + 1)
+          raise last_exception
 
   def __call__(self, request: Union[Chunk, List[Chunk]], *args,
                **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:
     reqs = request if isinstance(request, list) else [request]
+    # Early return for empty requests to avoid unnecessary connection attempts
+    if not reqs:
+      return []
     search_result = self._search_documents(reqs)
     return self._get_call_response(reqs, search_result)
 

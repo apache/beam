@@ -65,7 +65,7 @@ jobs:
       matrix:
         job_name: ['beam_PreCommit_Python_ML']
         job_phrase: ['Run Python_ML PreCommit']
-        python_version: ['3.9','3.10','3.11','3.12']
+        python_version: ['3.9','3.10','3.11','3.12','3.13']
         # Run on both self-hosted and GitHub-hosted runners.
         # Some tests (marked require_docker_in_docker) can't run on Beam's
         # self-hosted runners due to Docker-in-Docker environment constraint.
@@ -73,8 +73,8 @@ jobs:
         # Context: https://github.com/apache/beam/pull/35585.
         os: [[self-hosted, ubuntu-20.04, main], [ubuntu-latest]]
         exclude:
-          # Temporary exclude Python 3.9, 3.10, 3.11 from ubuntu-latest. This
-          # results in pip dependency resolution exceeded maximum depth issue.
+          # Temporary exclude Python 3.9, 3.10, 3.11, from ubuntu-latest.
+          # This results in pip dependency resolution exceeded maximum depth issue.
           # Context: https://github.com/apache/beam/pull/35816.
           - python_version: '3.9'
             os: [ubuntu-latest]
@@ -90,6 +90,18 @@ jobs:
       startsWith(github.event.comment.body, 'Run Python_ML PreCommit')
     steps:
       - uses: actions/checkout@v4
+      - name: Free Disk Space (Ubuntu)
+        if: contains(matrix.os, 'ubuntu-latest')
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          # Remove unnecessary packages to free up space
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

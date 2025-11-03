@@ -53,7 +53,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: ubuntu-22.04
-    timeout-minutes: 160
+    timeout-minutes: 300
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
     strategy:
       fail-fast: false
@@ -61,23 +61,28 @@ jobs:
         job_name: ["beam_Publish_Beam_SDK_Snapshots"]
         job_phrase: ["N/A"]
         container_task:
-          - "go:container"
-          - "java:container:java11"
-          - "java:container:java17"
-          - "java:container:java21"
-          - "java:container:distroless:java17"
-          - "java:container:distroless:java21"
-          - "python:container:py39"
-          - "python:container:py310"
-          - "python:container:py311"
-          - "python:container:py312"
-          - "python:container:distroless:py39"
-          - "python:container:distroless:py310"
-          - "python:container:distroless:py311"
-          - "python:container:distroless:py312"
-          - "java:expansion-service:container"
+          - "go:container:docker"
+          - "java:container:pushAll"
+          - "python:container:py39:docker"
+          - "python:container:py310:docker"
+          - "python:container:py311:docker"
+          - "python:container:py312:docker"
+          - "python:container:py313:docker"
+          - "python:container:distroless:py39:docker"
+          - "python:container:distroless:py310:docker"
+          - "python:container:distroless:py311:docker"
+          - "python:container:distroless:py312:docker"
+          - "python:container:distroless:py313:docker"
+          - "python:container:ml:py39:docker"
+          - "python:container:ml:py310:docker"
+          - "python:container:ml:py311:docker"
+          - "python:container:ml:py312:docker"
+          - "python:container:ml:py313:docker"
+          - "java:expansion-service:container:docker"
     steps:
       - uses: actions/checkout@v4
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -91,15 +96,18 @@ jobs:
         run: |
           BEAM_VERSION_LINE=$(cat gradle.properties | grep "sdk_version")
           echo "BEAM_VERSION=${BEAM_VERSION_LINE#*sdk_version=}" >> $GITHUB_ENV
+      - name: Set latest tag only on master branch
+        if: github.ref == 'refs/heads/master'
+        run: echo "LATEST_TAG=,latest" >> $GITHUB_ENV
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
       - name: Authenticate on GCP
         uses: google-github-actions/auth@v3
         with:
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}
@@ -116,10 +124,9 @@ jobs:
       - name: run Publish Beam SDK Snapshots script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:${{ matrix.container_task }}:docker
+          gradle-command: :sdks:${{ matrix.container_task }}
           arguments: |
-            -Pjava11Home=$JAVA_HOME_11_X64 \
             -Pdocker-repository-root=gcr.io/apache-beam-testing/beam-sdk \
-            -Pdocker-tag-list=${{ github.sha }},${BEAM_VERSION},latest \
+            -Pdocker-tag-list=${{ github.sha }},${BEAM_VERSION}${LATEST_TAG} \
             -Pcontainer-architecture-list=arm64,amd64 \
             -Ppush-containers \
