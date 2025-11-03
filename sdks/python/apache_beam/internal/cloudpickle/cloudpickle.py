@@ -169,6 +169,17 @@ class CloudPickleConfig:
 
 DEFAULT_CONFIG = CloudPickleConfig()
 
+
+# Minimal helper to return the provided object during unpickling.
+def _return_obj(obj):
+  return obj
+
+
+# Optional import for Python 3.12 TypeAliasType
+try:  # pragma: no cover - dependent on Python version
+  from typing import TypeAliasType  # type: ignore[attr-defined]
+except Exception:
+  TypeAliasType = None  # type: ignore[assignment]
 builtin_code_type = None
 if PYPY:
   # builtin-code objects only exist in pypy
@@ -1535,6 +1546,14 @@ class Pickler(pickle.Pickler):
         return _class_reduce(obj, self.config)
       elif isinstance(obj, typing.TypeVar):  # Add this check
         return _typevar_reduce(obj, self.config)
+      elif TypeAliasType is not None and isinstance(obj, TypeAliasType):
+        # Unwrap typing.TypeAliasType to its underlying value to make pickling
+        # robust for locally-defined `type` aliases (Python 3.12+).
+        underlying = getattr(obj, '__value__', None)
+        if underlying is not None:
+          return (_return_obj, (underlying, ))
+        # Fallback to default behavior if no underlying value.
+        return NotImplemented
       elif isinstance(obj, types.CodeType):
         return _code_reduce(obj, self.config)
       elif isinstance(obj, types.FunctionType):

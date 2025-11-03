@@ -25,6 +25,7 @@ import os
 import pickle
 import random
 import re
+import sys
 import typing
 import unittest
 from functools import reduce
@@ -2908,6 +2909,37 @@ class DeadLettersTest(unittest.TestCase):
                 threshold=0.5,
                 threshold_windowing=window.FixedWindows(10),
                 use_subprocess=self.use_subprocess))
+
+
+class PTransformTypeAliasTest(unittest.TestCase):
+  @unittest.skipIf(sys.version_info < (3, 12), "Python 3.12 required")
+  def test_type_alias_statement_supported_in_with_output_types(self):
+    ns = {}
+    exec("type InputType = tuple[int, ...]", ns)
+    InputType = ns["InputType"]
+
+    def print_element(element: InputType) -> InputType:
+      return element
+
+    with beam.Pipeline() as p:
+      _ = (
+          p
+          | beam.Create([(1, 2)])
+          | beam.Map(lambda x: x)
+          | beam.Map(print_element))
+
+  @unittest.skipIf(sys.version_info < (3, 12), "Python 3.12 required")
+  def test_type_alias_supported_in_ptransform_with_output_types(self):
+    ns = {}
+    exec("type OutputType = tuple[int, int]", ns)
+    OutputType = ns["OutputType"]
+
+    with beam.Pipeline() as p:
+      _ = (
+          p
+          | beam.Create([(1, 2)])
+          | beam.Map(lambda x: x)
+          | beam.Map(lambda x: x).with_output_types(OutputType))
 
 
 class TestPTransformFn(TypeHintTestCase):
