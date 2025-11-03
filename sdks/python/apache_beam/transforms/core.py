@@ -1517,19 +1517,19 @@ def _check_fn_use_yield_and_return(fn):
         has_return = True
       elif lstripped_line.startswith("return ") or lstripped_line.startswith(
           "return("):
-        if lstripped_line.startswith("return None"):
+        if lstripped_line.rstrip() == "return None" or lstripped_line.rstrip(
+        ) == "return(None)":
           has_return_none = True
         else:
           has_return = True
       if has_yield and (has_return or has_return_none):
         return True
 
-    if not has_yield and not has_return and has_return_none:
+    if has_return_none:
       _LOGGER.warning(
           "Process method returned None (element won't be emitted): %s."
           " Check if intended.",
           fn.__self__.__class__)
-    print(has_yield, has_return, has_return_none)
 
     return False
   except Exception as e:
