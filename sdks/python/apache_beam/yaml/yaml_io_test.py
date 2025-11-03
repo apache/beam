@@ -87,7 +87,7 @@ class FakeWriteToPubSub:
     return AssertThat(equal_to(self._messages))
 
 
-unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class YamlPubSubTest(unittest.TestCase):
   def test_simple_read(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
