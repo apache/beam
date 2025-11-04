@@ -956,8 +956,7 @@ public class BigQueryIO {
                   getProjectionPushdownApplied());
           // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k
           // shards
-          long desiredChunkSize =
-                  getDesiredChunkSize(options, output);
+          long desiredChunkSize = getDesiredChunkSize(options, output);
           List<BigQueryStorageStreamSource<T>> split = output.split(desiredChunkSize, options);
           split.stream().forEach(source -> receiver.output(source));
         } else {
@@ -991,16 +990,16 @@ public class BigQueryIO {
                   false);
           // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k
           // shards
-          long desiredChunkSize =
-                  getDesiredChunkSize(options, output);
+          long desiredChunkSize = getDesiredChunkSize(options, output);
           List<BigQueryStorageStreamSource<T>> split = output.split(desiredChunkSize, options);
           split.stream().forEach(source -> receiver.output(source));
         }
       }
 
-        private long getDesiredChunkSize(PipelineOptions options, BigQueryStorageTableSource<T> output) throws Exception {
-            return Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
-        }
+      private long getDesiredChunkSize(
+          PipelineOptions options, BigQueryStorageTableSource<T> output) throws Exception {
+        return Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+      }
     }
 
     @Override
