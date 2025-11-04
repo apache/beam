@@ -518,9 +518,9 @@ message MonitoringInfoTypeUrns {
     //   - min:   beam:coder:varint:v1
     //   - max:   beam:coder:varint:v1
     //
-    // Note that when count is zero, the SDK may or may not send sum, min, and
-    // max in the response. If those fields are included in the payload, runners
-    // should ignore them.
+    // Note that when count is zero, the SDK may not send sum, min, and max in
+    // the response. If those fields are included in the payload, runners should
+    // omit them.
     DISTRIBUTION_INT64_TYPE = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
                                      "beam:metrics:distribution_int64:v1"];
 
@@ -536,9 +536,9 @@ message MonitoringInfoTypeUrns {
     //   - min:   beam:coder:double:v1
     //   - max:   beam:coder:double:v1
     //
-    // Note that when count is zero, the SDK may or may not send sum, min, and
-    // max in the response. If those fields are included in the payload, runners
-    // should ignore them.
+    // Note that when count is zero, the SDK may not send sum, min, and max in
+    // the response. If those fields are included in the payload, runners should
+    // omit them.
     DISTRIBUTION_DOUBLE_TYPE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
                                  "beam:metrics:distribution_double:v1"];
 
