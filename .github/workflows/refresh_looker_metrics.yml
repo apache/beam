@@ -19,12 +19,19 @@ name: Refresh Looker Performance Metrics
 
 on:
   workflow_dispatch:
+    inputs:
+      LOOKERSDK_CLIENT_ID:
+        description: Your Looker Client ID.
+        required: true
+      LOOKERSDK_CLIENT_SECRET:
+        description: Your Looker Client Secret.
+        required: true
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   LOOKERSDK_BASE_URL: ${{ secrets.LOOKERSDK_BASE_URL }}
-  LOOKERSDK_CLIENT_ID: ${{ secrets.LOOKERSDK_CLIENT_ID }}
-  LOOKERSDK_CLIENT_SECRET: ${{ secrets.LOOKERSDK_CLIENT_SECRET }}
+  LOOKERSDK_CLIENT_ID: ${{ github.event.inputs.LOOKERSDK_CLIENT_ID }}
+  LOOKERSDK_CLIENT_SECRET: ${{ github.event.inputs.LOOKERSDK_CLIENT_SECRET }}
   GCS_BUCKET: 'public_looker_explores_us_a3853f40'
 
 jobs:
