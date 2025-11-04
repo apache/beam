@@ -395,6 +395,8 @@ public class IcebergIO {
 
     abstract @Nullable Duration getTriggeringFrequency();
 
+    abstract @Nullable Integer getDirectWriteByteLimit();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -406,6 +408,8 @@ public class IcebergIO {
       abstract Builder setDynamicDestinations(DynamicDestinations destinations);
 
       abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
+
+      abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
 
       abstract WriteRows build();
     }
@@ -435,6 +439,10 @@ public class IcebergIO {
       return toBuilder().setTriggeringFrequency(triggeringFrequency).build();
     }
 
+    public WriteRows withDirectWriteByteLimit(Integer directWriteByteLimit) {
+      return toBuilder().setDirectWriteByteLimit(directWriteByteLimit).build();
+    }
+
     @Override
     public IcebergWriteResult expand(PCollection<Row> input) {
       List<?> allToArgs = Arrays.asList(getTableIdentifier(), getDynamicDestinations());
@@ -455,7 +463,8 @@ public class IcebergIO {
           .apply("Assign Table Destinations", new AssignDestinations(destinations))
           .apply(
               "Write Rows to Destinations",
-              new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency()));
+              new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency(),
+                getDirectWriteByteLimit()));
     }
   }
 
