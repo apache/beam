@@ -60,7 +60,8 @@ def default_window_mapping_fn(
   def map_via_end(source_window: window.BoundedWindow) -> window.BoundedWindow:
     return list(
         target_window_fn.assign(
-            window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
+            window.WindowFn.AssignContext(source_window.max_timestamp(),
+                                          window=source_window)))[-1]
 
   return map_via_end
 
