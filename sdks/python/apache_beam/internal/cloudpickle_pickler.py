@@ -95,6 +95,27 @@ LOCK_TYPE = type(threading.Lock())
 _LOGGER = logging.getLogger(__name__)
 
 
+# Helper to return an object directly during unpickling.
+def _return_obj(obj):
+  return obj
+
+
+# Optional import for Python 3.12 TypeAliasType
+try:  # pragma: no cover - dependent on Python version
+  from typing import TypeAliasType  # type: ignore[attr-defined]
+except Exception:
+  TypeAliasType = None  # type: ignore[assignment]
+
+
+def _typealias_reduce(obj):
+  # Unwrap typing.TypeAliasType to its underlying value for robust pickling.
+  underlying = getattr(obj, '__value__', None)
+  if underlying is None:
+    # Fallback: return the object itself; lets default behavior handle it.
+    return _return_obj, (obj, )
+  return _return_obj, (underlying, )
+
+
 def _reconstruct_enum_descriptor(full_name):
   for _, module in list(sys.modules.items()):
     if not hasattr(module, 'DESCRIPTOR'):
@@ -171,6 +192,9 @@ def _dumps(
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
         pass
+      # Register Python 3.12 `type` alias reducer to unwrap to underlying value.
+      if TypeAliasType is not None:
+        pickler.dispatch_table[TypeAliasType] = _typealias_reduce
       try:
         pickler.dispatch_table[RLOCK_TYPE] = _pickle_rlock
       except NameError:
