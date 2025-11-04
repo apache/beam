@@ -102,9 +102,9 @@ def _return_obj(obj):
 
 # Optional import for Python 3.12 TypeAliasType
 try:  # pragma: no cover - dependent on Python version
-  from typing import TypeAliasType  # type: ignore[attr-defined]
+  from typing import TypeAliasType as _TypeAliasType  # type: ignore[attr-defined]
 except Exception:
-  TypeAliasType = None  # type: ignore[assignment]
+  _TypeAliasType = None
 
 
 def _typealias_reduce(obj):
@@ -193,8 +193,8 @@ def _dumps(
       except NameError:
         pass
       # Register Python 3.12 `type` alias reducer to unwrap to underlying value.
-      if TypeAliasType is not None:
-        pickler.dispatch_table[TypeAliasType] = _typealias_reduce
+      if _TypeAliasType is not None:
+        pickler.dispatch_table[_TypeAliasType] = _typealias_reduce
       try:
         pickler.dispatch_table[RLOCK_TYPE] = _pickle_rlock
       except NameError:
