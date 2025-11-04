@@ -27,6 +27,7 @@ import itertools
 import logging
 import typing
 
+import more_itertools
 from google.protobuf import wrappers_pb2
 
 import apache_beam as beam
@@ -56,6 +57,8 @@ from apache_beam.utils.interactive_utils import is_in_ipython
 __all__ = ['BundleBasedDirectRunner', 'DirectRunner', 'SwitchingDirectRunner']
 
 _LOGGER = logging.getLogger(__name__)
+K = typing.TypeVar('K')
+V = typing.TypeVar('V')
 
 
 class SwitchingDirectRunner(PipelineRunner):
@@ -261,6 +264,29 @@ class _GroupByKeyOnly(PTransform):
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return PCollection.from_(pcoll)
+
+
+@typehints.with_input_types(typing.Tuple[K, V])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+class _GroupIntoBatches(PTransform):
+  """
+  Non-timer based implementation of GroupIntoBatches.
+  """
+  def __init__(self, batch_size: int):
+    if batch_size <= 0:
+      raise ValueError("batch_size must be a positive integer.")
+    self.batch_size = batch_size
+
+  def expand(self, pcoll):
+    return (
+        pcoll | beam.GroupByKey() | "BatchGroupedValues" >> beam.FlatMap(
+            self._batch_elements, batch_size=self.batch_size)
+        | beam.Reshuffle())
+
+  @staticmethod
+  def _batch_elements(key_values: tuple, batch_size: int):
+    k, values = key_values
+    return ((k, batch) for batch in more_itertools.batched(values, batch_size))
 
 
 @typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
@@ -472,10 +498,25 @@ def _get_transform_overrides(pipeline_options):
         self, applied_ptransform):
       return _GroupByKey()
 
+  class GroupIntoBatchesOverride(PTransformOverride):
+    """A ``PTransformOverride`` for ``GroupIntoBatches``.
+
+    This replaces the Beam implementation as a primitive.
+    """
+    def matches(self, applied_ptransform):
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.transforms.util import GroupIntoBatches
+      return isinstance(applied_ptransform.transform, GroupIntoBatches)
+
+    def get_replacement_transform(self, ptransform):
+      return _GroupIntoBatches(ptransform.params.batch_size)
+
   overrides = [
       # This needs to be the first and the last override. Other overrides depend
       # on the GroupByKey implementation to be composed of _GroupByKeyOnly and
       # _GroupAlsoByWindow.
+      GroupIntoBatchesOverride(),
       GroupByKeyPTransformOverride(),
       SplittableParDoOverride(),
       ProcessKeyedElementsViaKeyedWorkItemsOverride(),
