@@ -97,7 +97,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(readSession, readStream, jsonTableSchema, parseFn, outputCoder);
+    return Objects.hashCode(readSession, readStream, jsonTableSchema, outputCoder);
   }
 
   /**

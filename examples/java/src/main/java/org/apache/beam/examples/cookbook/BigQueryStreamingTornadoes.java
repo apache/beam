@@ -87,7 +87,7 @@ public class BigQueryStreamingTornadoes {
     @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
-      if ((Boolean) row.get("tornado")) {
+      if (Boolean.TRUE.equals(row.get("tornado"))) {
         c.output(Integer.parseInt((String) row.get("month")));
       }
     }
@@ -203,7 +203,7 @@ public class BigQueryStreamingTornadoes {
   }
 
   public static void main(String[] args) {
-    Options options = PipelineOptionsFactory.fromArgs(args).as(Options.class);
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     runBigQueryTornadoes(options);
   }
 }

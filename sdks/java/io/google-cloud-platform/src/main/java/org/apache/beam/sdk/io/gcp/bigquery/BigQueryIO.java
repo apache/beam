@@ -928,54 +928,6 @@ public class BigQueryIO {
 
     DynamicRead() {}
 
-    public static <T> void readSource(
-        PipelineOptions options,
-        TupleTag<T> rowTag,
-        MultiOutputReceiver outputReceiver,
-        BoundedSource<T> streamSource,
-        TypedRead.ErrorHandlingParseFn<T> errorHandlingParseFn,
-        BadRecordRouter badRecordRouter)
-        throws Exception {
-      // Read all the data from the stream. In the event that this work
-      // item fails and is rescheduled, the same rows will be returned in
-      // the same order.
-      BoundedSource.BoundedReader<T> reader = streamSource.createReader(options);
-
-      try {
-        if (reader.start()) {
-          outputReceiver.get(rowTag).output(reader.getCurrent());
-        } else {
-          return;
-        }
-      } catch (TypedRead.ParseException e) {
-        GenericRecord record = errorHandlingParseFn.getSchemaAndRecord().getRecord();
-        badRecordRouter.route(
-            outputReceiver,
-            record,
-            AvroCoder.of(record.getSchema()),
-            (Exception) e.getCause(),
-            "Unable to parse record reading from BigQuery");
-      }
-
-      while (true) {
-        try {
-          if (reader.advance()) {
-            outputReceiver.get(rowTag).output(reader.getCurrent());
-          } else {
-            return;
-          }
-        } catch (TypedRead.ParseException e) {
-          GenericRecord record = errorHandlingParseFn.getSchemaAndRecord().getRecord();
-          badRecordRouter.route(
-              outputReceiver,
-              record,
-              AvroCoder.of(record.getSchema()),
-              (Exception) e.getCause(),
-              "Unable to parse record reading from BigQuery");
-        }
-      }
-    }
-
     class CreateBoundedSourceForTable
         extends DoFn<KV<String, BigQueryDynamicReadDescriptor>, BigQueryStorageStreamSource<T>> {
 
@@ -1005,7 +957,7 @@ public class BigQueryIO {
           // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k
           // shards
           long desiredChunkSize =
-              Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+                  getDesiredChunkSize(options, output);
           List<BigQueryStorageStreamSource<T>> split = output.split(desiredChunkSize, options);
           split.stream().forEach(source -> receiver.output(source));
         } else {
@@ -1040,11 +992,15 @@ public class BigQueryIO {
           // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k
           // shards
           long desiredChunkSize =
-              Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+                  getDesiredChunkSize(options, output);
           List<BigQueryStorageStreamSource<T>> split = output.split(desiredChunkSize, options);
           split.stream().forEach(source -> receiver.output(source));
         }
       }
+
+        private long getDesiredChunkSize(PipelineOptions options, BigQueryStorageTableSource<T> output) throws Exception {
+            return Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+        }
     }
 
     @Override

@@ -107,8 +107,7 @@ public class BigQueryIODynamicQueryIT {
                         null)))
             .apply(
                 "DynamicRead",
-                BigQueryIO.readDynamically(TableRowParser.INSTANCE, TableRowJsonCoder.of())
-                    .withQueryTempProject("radoslaws-playground-pso"))
+                BigQueryIO.readDynamically(TableRowParser.INSTANCE, TableRowJsonCoder.of()))
             .apply("Count", Count.globally());
 
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());
