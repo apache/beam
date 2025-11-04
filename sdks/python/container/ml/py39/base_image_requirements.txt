@@ -115,8 +115,6 @@ jeepney==0.9.0
 Jinja2==3.1.6
 joblib==1.5.2
 jsonpickle==3.4.2
-jsonschema==4.25.1
-jsonschema-specifications==2025.9.1
 keras==3.10.0
 keyring==25.6.0
 keyrings.google-artifactregistry-auth==1.1.2
@@ -164,7 +162,6 @@ pyasn1_modules==0.4.2
 pycparser==2.23
 pydantic==2.12.3
 pydantic_core==2.41.4
-pydot==1.4.2
 Pygments==2.19.2
 PyHamcrest==2.1.0
 PyJWT==2.10.1
@@ -182,12 +179,10 @@ python-tds==1.17.1
 pytz==2025.2
 PyYAML==6.0.3
 redis==5.3.1
-referencing==0.36.2
 regex==2025.10.23
 requests==2.32.5
 requests-mock==1.12.1
 rich==14.2.0
-rpds-py==0.27.1
 rsa==4.9.1
 safetensors==0.6.2
 scikit-learn==1.6.1
