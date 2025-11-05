@@ -808,6 +808,7 @@ class DoOperation(Operation):
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
+    # Force clean rebuild 
     self.input_info = None  # type: Optional[OpInputInfo]
     self.scoped_timer_processing_state = None
     if self.state_sampler:
