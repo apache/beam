@@ -966,7 +966,7 @@ public class BigQueryIO {
                   kv.getKey(),
                   StaticValueProvider.of(descriptor.getQuery()),
                   descriptor.getFlattenResults(),
-                  descriptor.getLegacySql(),
+                  descriptor.getUseLegacySql(),
                   TypedRead.QueryPriority.INTERACTIVE,
                   getQueryLocation(),
                   getQueryTempDataset(),

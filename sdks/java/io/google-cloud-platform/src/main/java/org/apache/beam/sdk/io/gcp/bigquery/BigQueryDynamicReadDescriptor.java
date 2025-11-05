@@ -52,7 +52,7 @@ public abstract class BigQueryDynamicReadDescriptor implements Serializable {
   @SchemaFieldName("legacySql")
   @SchemaFieldNumber("3")
   @Pure
-  abstract @Nullable Boolean getLegacySql();
+  abstract @Nullable Boolean getUseLegacySql();
 
   @SchemaFieldName("selectedFields")
   @SchemaFieldNumber("4")
@@ -69,29 +69,29 @@ public abstract class BigQueryDynamicReadDescriptor implements Serializable {
       @Nullable String query,
       @Nullable String table,
       @Nullable Boolean flattenResults,
-      @Nullable Boolean legacySql,
+      @Nullable Boolean useLegacySql,
       @Nullable List<String> selectedFields,
       @Nullable String rowRestriction) {
     checkArgument((query != null || table != null), "Either query or table has to be specified.");
     checkArgument(
         !(query != null && table != null), "Either query or table has to be specified not both.");
     checkArgument(
-        !(table != null && (flattenResults != null || legacySql != null)),
+        !(table != null && (flattenResults != null || useLegacySql != null)),
         "Specifies a table with a result flattening preference or legacySql, which only applies to queries");
     checkArgument(
         !(query != null && (selectedFields != null || rowRestriction != null)),
         "Selected fields and row restriction are only applicable for table reads");
     checkArgument(
-        !(query != null && (flattenResults == null || legacySql == null)),
+        !(query != null && (flattenResults == null || useLegacySql == null)),
         "If query is used, flattenResults and legacySql have to be set as well.");
 
     return new AutoValue_BigQueryDynamicReadDescriptor(
-        query, table, flattenResults, legacySql, selectedFields, rowRestriction);
+        query, table, flattenResults, useLegacySql, selectedFields, rowRestriction);
   }
 
   public static BigQueryDynamicReadDescriptor query(
-      String query, Boolean flattenResults, Boolean legacySql) {
-    return create(query, null, flattenResults, legacySql, null, null);
+      String query, Boolean flattenResults, Boolean useLegacySql) {
+    return create(query, null, flattenResults, useLegacySql, null, null);
   }
 
   public static BigQueryDynamicReadDescriptor table(
