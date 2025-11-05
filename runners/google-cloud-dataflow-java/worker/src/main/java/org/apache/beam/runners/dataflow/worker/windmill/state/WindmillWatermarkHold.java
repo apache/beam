@@ -17,20 +17,17 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateUtil.encodeKey;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.joda.time.Instant;
@@ -45,8 +42,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
   private final TimestampCombiner timestampCombiner;
   private final StateNamespace namespace;
-  private final StateTag<WatermarkHoldState> address;
-  private final ByteString stateKey;
+  private final InternedByteString stateKey;
   private final String stateFamily;
 
   private boolean cleared = false;
@@ -61,13 +57,12 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
   WindmillWatermarkHold(
       StateNamespace namespace,
-      StateTag<WatermarkHoldState> address,
+      InternedByteString encodeKey,
       String stateFamily,
       TimestampCombiner timestampCombiner,
       boolean isNewKey) {
     this.namespace = namespace;
-    this.address = address;
-    this.stateKey = encodeKey(namespace, address);
+    this.stateKey = encodeKey;
     this.stateFamily = stateFamily;
     this.timestampCombiner = timestampCombiner;
     if (isNewKey) {
@@ -149,7 +144,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
           Windmill.WorkItemCommitRequest.newBuilder();
       commitBuilder
           .addWatermarkHoldsBuilder()
-          .setTag(stateKey)
+          .setTag(stateKey.byteString())
           .setStateFamily(stateFamily)
           .setReset(true);
 
@@ -160,7 +155,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
           Windmill.WorkItemCommitRequest.newBuilder();
       commitBuilder
           .addWatermarkHoldsBuilder()
-          .setTag(stateKey)
+          .setTag(stateKey.byteString())
           .setStateFamily(stateFamily)
           .setReset(true)
           .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
@@ -175,14 +170,14 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
       throw new IllegalStateException("Unreachable condition");
     }
 
-    final int estimatedByteSize = ENCODED_SIZE + stateKey.size();
+    final int estimatedByteSize = ENCODED_SIZE + stateKey.byteString().size();
     return Futures.lazyTransform(
         result,
         result1 -> {
           cleared = false;
           localAdditions = null;
           if (cachedValue != null) {
-            cache.put(namespace, address, WindmillWatermarkHold.this, estimatedByteSize);
+            cache.put(namespace, stateKey, WindmillWatermarkHold.this, estimatedByteSize);
           }
           return result1;
         });
@@ -191,7 +186,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
   private Future<Instant> getFuture() {
     return cachedValue != null
         ? Futures.immediateFuture(cachedValue.orNull())
-        : reader.watermarkFuture(stateKey, stateFamily);
+        : reader.watermarkFuture(stateKey.byteString(), stateFamily);
   }
 
   /**
@@ -219,7 +214,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
           Windmill.WorkItemCommitRequest.newBuilder();
       commitBuilder
           .addWatermarkHoldsBuilder()
-          .setTag(stateKey)
+          .setTag(stateKey.byteString())
           .setStateFamily(stateFamily)
           .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
 
@@ -237,7 +232,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
       return Futures.lazyTransform(
           (cachedValue != null)
               ? Futures.immediateFuture(cachedValue.orNull())
-              : reader.watermarkFuture(stateKey, stateFamily),
+              : reader.watermarkFuture(stateKey.byteString(), stateFamily),
           priorHold -> {
             cachedValue =
                 Optional.of(
@@ -248,7 +243,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
                 Windmill.WorkItemCommitRequest.newBuilder();
             commitBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(stateKey)
+                .setTag(stateKey.byteString())
                 .setStateFamily(stateFamily)
                 .setReset(true)
                 .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(cachedValue.get()));

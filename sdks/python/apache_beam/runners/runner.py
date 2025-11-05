@@ -36,8 +36,8 @@ from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
 from apache_beam.transforms import environments
 
 if TYPE_CHECKING:
-  from apache_beam import pvalue
   from apache_beam import PTransform
+  from apache_beam import pvalue
   from apache_beam.pipeline import Pipeline
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
@@ -136,8 +136,8 @@ class PipelineRunner(object):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import PTransform
-    from apache_beam.pvalue import PBegin
     from apache_beam.pipeline import Pipeline
+    from apache_beam.pvalue import PBegin
     p = Pipeline(runner=self, options=options)
     if isinstance(transform, PTransform):
       p | transform

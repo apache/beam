@@ -87,6 +87,10 @@ public class Environments {
   private static final String processCommandOption = "process_command";
   private static final String processVariablesOption = "process_variables";
 
+  // Any artifacts starting with this prefix will be assumed to be mock artifacts specified for
+  // Beam testing purposes and will not be resolved as files.
+  public static final String MOCK_ARTIFACT_PREFIX = "beam_testing_mock_artifact";
+
   private static final Map<String, Set<String>> allowedEnvironmentOptions =
       ImmutableMap.<String, Set<String>>builder()
           .put(ENVIRONMENT_DOCKER, ImmutableSet.of(dockerContainerImageOption))
@@ -385,6 +389,27 @@ public class Environments {
         file = new File(path);
       }
 
+      if (path.startsWith(MOCK_ARTIFACT_PREFIX)) {
+        ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
+        artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
+        artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
+        artifactBuilder.setTypePayload(
+            RunnerApi.ArtifactFilePayload.newBuilder()
+                .setPath(file.getPath())
+                .setSha256("mockhashcode")
+                .build()
+                .toByteString());
+
+        artifactBuilder.setRolePayload(
+            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                .setStagedName(file.getPath()) // Setting the stage name to the same as the path.
+                .build()
+                .toByteString());
+        artifactsBuilder.add(artifactBuilder.build());
+
+        continue;
+      }
+
       // Spurious items get added to the classpath, but ignoring silently can cause confusion.
       // Therefore, issue logs if a file does not exist before ignoring. The level will be warning
       // if they have a staged name, as those are likely to cause problems or unintended behavior
@@ -496,6 +521,7 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.DATA_SAMPLING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.SDK_CONSUMING_RECEIVED_DATA));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.ORDERED_LIST_STATE));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTIMAP_STATE));
     return capabilities.build();
   }
 

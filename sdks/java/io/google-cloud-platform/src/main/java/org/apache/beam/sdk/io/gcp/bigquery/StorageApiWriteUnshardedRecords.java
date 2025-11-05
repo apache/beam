@@ -585,13 +585,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           }
           @Nullable TableRow unknownFields = payload.getUnknownFields();
           if (unknownFields != null && !unknownFields.isEmpty()) {
+            // check if unknownFields contains repeated struct, merge
+            // otherwise use concat
             try {
-              // TODO(34145, radoslaws): concat will work for unknownFields that are primitive type,
-              //  will cause issues with nested and repeated fields
               payloadBytes =
-                  payloadBytes.concat(
-                      Preconditions.checkStateNotNull(appendClientInfo)
-                          .encodeUnknownFields(unknownFields, ignoreUnknownValues));
+                  Preconditions.checkStateNotNull(appendClientInfo)
+                      .mergeNewFields(payloadBytes, unknownFields, ignoreUnknownValues);
             } catch (TableRowToStorageApiProto.SchemaConversionException e) {
               @Nullable TableRow tableRow = payload.getFailsafeTableRow();
               if (tableRow == null) {
@@ -656,11 +655,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             @Nullable TableRow failedRow = failsafeTableRows.get(i);
             if (failedRow == null) {
               ByteString rowBytes = inserts.getSerializedRows(i);
+              AppendClientInfo aci = getAppendClientInfo(true, null);
               failedRow =
                   TableRowToStorageApiProto.tableRowFromMessage(
+                      aci.getSchemaInformation(),
                       DynamicMessage.parseFrom(
-                          TableRowToStorageApiProto.wrapDescriptorProto(
-                              getAppendClientInfo(true, null).getDescriptor()),
+                          TableRowToStorageApiProto.wrapDescriptorProto(aci.getDescriptor()),
                           rowBytes),
                       true,
                       successfulRowsPredicate);
@@ -740,12 +740,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     if (failedRow == null) {
                       ByteString protoBytes =
                           failedContext.protoRows.getSerializedRows(failedIndex);
+                      AppendClientInfo aci = Preconditions.checkStateNotNull(appendClientInfo);
                       failedRow =
                           TableRowToStorageApiProto.tableRowFromMessage(
+                              aci.getSchemaInformation(),
                               DynamicMessage.parseFrom(
                                   TableRowToStorageApiProto.wrapDescriptorProto(
-                                      Preconditions.checkStateNotNull(appendClientInfo)
-                                          .getDescriptor()),
+                                      aci.getDescriptor()),
                                   protoBytes),
                               true,
                               Predicates.alwaysTrue());
@@ -898,6 +899,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     try {
                       TableRow row =
                           TableRowToStorageApiProto.tableRowFromMessage(
+                              Preconditions.checkStateNotNull(appendClientInfo)
+                                  .getSchemaInformation(),
                               DynamicMessage.parseFrom(descriptor, rowBytes),
                               true,
                               successfulRowsPredicate);
@@ -1008,15 +1011,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.bigLakeConfiguration = bigLakeConfiguration;
     }
 
-    boolean shouldFlush() {
-      return numPendingRecords > flushThresholdCount || numPendingRecordBytes > flushThresholdBytes;
+    boolean shouldFlush(int recordBytes) {
+      return numPendingRecords > flushThresholdCount
+          || (((numPendingRecordBytes + recordBytes) > flushThresholdBytes)
+              && numPendingRecords > 0);
     }
 
     void flushIfNecessary(
         OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
-        @Nullable OutputReceiver<TableRow> successfulRowsReceiver)
+        @Nullable OutputReceiver<TableRow> successfulRowsReceiver,
+        int recordBytes)
         throws Exception {
-      if (shouldFlush()) {
+      if (shouldFlush(recordBytes)) {
         forcedFlushes.inc();
         // Too much memory being used. Flush the state and wait for it to drain out.
         // TODO(reuvenlax): Consider waiting for memory usage to drop instead of waiting for all the
@@ -1172,10 +1178,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       @Nullable
       OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
-      flushIfNecessary(failedRowsReceiver, successfulRowsReceiver);
+
+      int recordBytes = element.getValue().getPayload().length;
+      flushIfNecessary(failedRowsReceiver, successfulRowsReceiver, recordBytes);
       state.addMessage(element.getValue(), elementTs, failedRowsReceiver);
       ++numPendingRecords;
-      numPendingRecordBytes += element.getValue().getPayload().length;
+      numPendingRecordBytes += recordBytes;
     }
 
     private OutputReceiver<TableRow> makeSuccessfulRowsreceiver(

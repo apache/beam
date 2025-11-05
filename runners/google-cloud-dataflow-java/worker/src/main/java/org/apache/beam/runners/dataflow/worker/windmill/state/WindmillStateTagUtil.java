@@ -19,20 +19,35 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import java.io.IOException;
 import java.lang.ref.SoftReference;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class WindmillStateUtil {
+@Internal
+@ThreadSafe
+public class WindmillStateTagUtil {
 
   private static final ThreadLocal<@Nullable RefHolder> threadLocalRefHolder = new ThreadLocal<>();
+  private static final String TIMER_HOLD_PREFIX = "/h";
+  private static final WindmillStateTagUtil INSTANCE = new WindmillStateTagUtil();
 
-  /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
+  // Private constructor to prevent instantiations from outside.
+  private WindmillStateTagUtil() {}
+
+  /**
+   * Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. The
+   * returned InternedByteStrings are weakly interned to reduce memory usage and reduce GC pressure.
+   */
   @VisibleForTesting
-  static ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
+  InternedByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     RefHolder refHolder = getRefHolderFromThreadLocal();
     // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
     // a lot, and this leads to better performance results. See associated benchmarks.
@@ -54,7 +69,7 @@ class WindmillStateUtil {
       namespace.appendTo(stream);
       stream.append('+');
       address.appendTo(stream);
-      return stream.toByteStringAndReset();
+      return InternedByteString.of(stream.toByteStringAndReset());
     } catch (IOException e) {
       throw new RuntimeException(e);
     } finally {
@@ -65,7 +80,44 @@ class WindmillStateUtil {
     }
   }
 
+  /**
+   * Produce a state tag that is guaranteed to be unique for the given timer, to add a watermark
+   * hold that is only freed after the timer fires.
+   */
+  public ByteString timerHoldTag(WindmillNamespacePrefix prefix, TimerData timerData) {
+    String tagString;
+    if ("".equals(timerData.getTimerFamilyId())) {
+      tagString =
+          prefix.byteString().toStringUtf8()
+              + // this never ends with a slash
+              TIMER_HOLD_PREFIX
+              + // this never ends with a slash
+              timerData.getNamespace().stringKey()
+              + // this must begin and end with a slash
+              '+'
+              + timerData.getTimerId() // this is arbitrary; currently unescaped
+      ;
+    } else {
+      tagString =
+          prefix.byteString().toStringUtf8()
+              + // this never ends with a slash
+              TIMER_HOLD_PREFIX
+              + // this never ends with a slash
+              timerData.getNamespace().stringKey()
+              + // this must begin and end with a slash
+              '+'
+              + timerData.getTimerId()
+              + // this is arbitrary; currently unescaped
+              '+'
+              + timerData.getTimerFamilyId() // use to differentiate same timerId in different
+      // timerMap
+      ;
+    }
+    return ByteString.copyFromUtf8(tagString);
+  }
+
   private static class RefHolder {
+
     public SoftReference<@Nullable ByteStringOutputStream> streamRef =
         new SoftReference<>(new ByteStringOutputStream());
 
@@ -91,5 +143,10 @@ class WindmillStateUtil {
       refHolder.streamRef = new SoftReference<>(stream);
     }
     return stream;
+  }
+
+  /** @return the singleton WindmillStateTagUtil */
+  public static WindmillStateTagUtil instance() {
+    return INSTANCE;
   }
 }

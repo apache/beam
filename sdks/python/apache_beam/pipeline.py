@@ -109,6 +109,7 @@ from apache_beam.utils.interactive_utils import is_in_ipython
 
 if TYPE_CHECKING:
   from types import TracebackType
+
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.runners.runner import PipelineResult
   from apache_beam.transforms import environments
@@ -354,7 +355,7 @@ class Pipeline(HasDisplayData):
           if replacement_transform is original_transform_node.transform:
             return
           replacement_transform.side_inputs = tuple(
-              original_transform_node.transform.side_inputs)
+              getattr(original_transform_node.transform, 'side_inputs', ()))
 
           replacement_transform_node = AppliedPTransform(
               original_transform_node.parent,
@@ -1027,7 +1028,9 @@ class Pipeline(HasDisplayData):
         # type: (AppliedPTransform) -> None
         if not transform_node.transform:
           return
-        if transform_node.transform.runner_api_requires_keyed_input():
+        if hasattr(
+            transform_node.transform, 'runner_api_requires_keyed_input'
+        ) and transform_node.transform.runner_api_requires_keyed_input():
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
@@ -1046,7 +1049,7 @@ class Pipeline(HasDisplayData):
                 == output.element_type.tuple_types[0]):
               output.requires_deterministic_key_coder = (
                   deterministic_key_coders and transform_node.full_label)
-        for side_input in transform_node.transform.side_inputs:
+        for side_input in getattr(transform_node.transform, 'side_inputs', []):
           if side_input.requires_keyed_input():
             side_input.pvalue.element_type = typehints.coerce_to_kv_type(
                 side_input.pvalue.element_type,
@@ -1240,10 +1243,10 @@ class AppliedPTransform(object):
     # once environment is a first-class citizen in Beam graph and we have
     # access to actual environment, not just an id.
     self.resource_hints = dict(
-        transform.get_resource_hints()) if transform else {
-        }  # type: Dict[str, bytes]
+        transform.get_resource_hints()) if transform and hasattr(
+            transform, 'get_resource_hints') else {}  # type: Dict[str, bytes]
 
-    if transform:
+    if transform and hasattr(transform, 'annotations'):
       annotations = {
           **(annotations or {}), **encode_annotations(transform.annotations())
       }
@@ -1399,8 +1402,11 @@ class AppliedPTransform(object):
       assert not self.main_inputs and not self.side_inputs
       return {}
     else:
-      named_inputs = self.transform._named_inputs(
-          self.main_inputs, self.side_inputs)
+      if hasattr(self.transform, '_named_inputs'):
+        named_inputs = self.transform._named_inputs(
+            self.main_inputs, self.side_inputs)
+      else:
+        named_inputs = {}
       if not self.parts:
         for name, pc_out in self.outputs.items():
           if pc_out.producer is not self and pc_out not in named_inputs.values(
@@ -1414,7 +1420,10 @@ class AppliedPTransform(object):
       assert not self.outputs
       return {}
     else:
-      return self.transform._named_outputs(self.outputs)
+      if hasattr(self.transform, '_named_outputs'):
+        return self.transform._named_outputs(self.outputs)
+      else:
+        return {}
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PTransform
@@ -1441,7 +1450,9 @@ class AppliedPTransform(object):
               context,
               has_parts=bool(self.parts),
               named_inputs=self.named_inputs())
-        return transform.to_runner_api(context, has_parts=bool(self.parts))
+        elif hasattr(transform, 'to_runner_api'):
+          return transform.to_runner_api(context, has_parts=bool(self.parts))
+        return None
 
     # Iterate over inputs and outputs by sorted key order, so that ids are
     # consistently generated for multiple runs of the same pipeline.
@@ -1527,7 +1538,8 @@ class AppliedPTransform(object):
         environment_id=None,
         annotations=proto.annotations)
 
-    if result.transform and result.transform.side_inputs:
+    if result.transform and hasattr(
+        result.transform, 'side_inputs') and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
         si.pvalue = pcoll
       result.side_inputs = tuple(result.transform.side_inputs)

@@ -546,13 +546,18 @@ class GroupByEncryptedKey(PTransform):
         pcoll.element_type).tuple_types)
     kv_type_hint = typehints.KV[key_type, value_type]
     if kv_type_hint and kv_type_hint != typehints.Any:
-      coder = coders.registry.get_coder(kv_type_hint).as_deterministic_coder(
-          f'GroupByEncryptedKey {self.label}'
-          'The key coder is not deterministic. This may result in incorrect '
-          'pipeline output. This can be fixed by adding a type hint to the '
-          'operation preceding the GroupByKey step, and for custom key '
-          'classes, by writing a deterministic custom Coder. Please see the '
-          'documentation for more details.')
+      coder = coders.registry.get_coder(kv_type_hint)
+      try:
+        coder = coder.as_deterministic_coder(self.label)
+      except ValueError:
+        logging.warning(
+            'GroupByEncryptedKey %s: '
+            'The key coder is not deterministic. This may result in incorrect '
+            'pipeline output. This can be fixed by adding a type hint to the '
+            'operation preceding the GroupByKey step, and for custom key '
+            'classes, by writing a deterministic custom Coder. Please see the '
+            'documentation for more details.',
+            self.label)
       if not coder.is_kv_coder():
         raise ValueError(
             'Input elements to the transform %s with stateful DoFn must be '
@@ -565,12 +570,15 @@ class GroupByEncryptedKey(PTransform):
 
     gbk = beam.GroupByKey()
     gbk._inside_gbek = True
+    output_type = Tuple[key_type, Iterable[value_type]]
 
     return (
         pcoll
         | beam.ParDo(_EncryptMessage(self._hmac_key, key_coder, value_coder))
         | gbk
-        | beam.ParDo(_DecryptMessage(self._hmac_key, key_coder, value_coder)))
+        | beam.ParDo(
+            _DecryptMessage(self._hmac_key, key_coder,
+                            value_coder)).with_output_types(output_type))
 
 
 class _BatchSizeEstimator(object):
@@ -1441,13 +1449,18 @@ def WithKeys(pcoll, k, *args, **kwargs):
       if all(isinstance(arg, AsSideInput)
              for arg in args) and all(isinstance(kwarg, AsSideInput)
                                       for kwarg in kwargs.values()):
-        return pcoll | Map(
+        # Map(lambda) produces a label formatted like this, but it cannot be
+        # changed without breaking update compat. Here, we pin to the transform
+        # name used in the 2.68 release to avoid breaking changes when the line
+        # number changes. Context: https://github.com/apache/beam/pull/36381
+        return pcoll | "Map(<lambda at util.py:1189>)" >> Map(
             lambda v, *args, **kwargs: (k(v, *args, **kwargs), v),
             *args,
             **kwargs)
-      return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
-    return pcoll | Map(lambda v: (k(v), v))
-  return pcoll | Map(lambda v: (k, v))
+      return pcoll | "Map(<lambda at util.py:1192>)" >> Map(
+          lambda v: (k(v, *args, **kwargs), v))
+    return pcoll | "Map(<lambda at util.py:1193>)" >> Map(lambda v: (k(v), v))
+  return pcoll | "Map(<lambda at util.py:1194>)" >> Map(lambda v: (k, v))
 
 
 @typehints.with_input_types(tuple[K, V])
@@ -1527,7 +1540,11 @@ class GroupIntoBatches(PTransform):
 
     def expand(self, pcoll):
       key_type, value_type = pcoll.element_type.tuple_types
-      sharded_pcoll = pcoll | Map(
+      # Map(lambda) produces a label formatted like this, but it cannot be
+      # changed without breaking update compat. Here, we pin to the transform
+      # name used in the 2.68 release to avoid breaking changes when the line
+      # number changes. Context: https://github.com/apache/beam/pull/36381
+      sharded_pcoll = pcoll | "Map(<lambda at util.py:1275>)" >> Map(
           lambda key_value: (
               ShardedKey(
                   key_value[0],
@@ -2032,7 +2049,12 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Map(lambda elem: regex.sub(replacement, elem))
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1779>)" >> Map(
+        lambda elem: regex.sub(replacement, elem))
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -2048,7 +2070,12 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Map(lambda elem: regex.sub(replacement, elem, 1))
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1795>)" >> Map(
+        lambda elem: regex.sub(replacement, elem, 1))
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -2139,4 +2166,9 @@ class WaitOn(PTransform):
             | f"WaitOn{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
         for (ix, side) in enumerate(self._to_be_waited_on)
     ]
-    return pcoll | beam.Map(lambda x, *unused_sides: x, *sides)
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1886>)" >> beam.Map(
+        lambda x, *unused_sides: x, *sides)

@@ -30,14 +30,15 @@ from typing import Union
 
 import tensorflow as tf
 import torch
-from apache_beam.ml.inference import utils
-from apache_beam.ml.inference.base import ModelHandler
-from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.pytorch_inference import _convert_to_device
 from transformers import AutoModel
 from transformers import Pipeline
 from transformers import TFAutoModel
 from transformers import pipeline
+
+from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.pytorch_inference import _convert_to_device
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -563,16 +564,6 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     return 'BeamML_HuggingFaceModelHandler_Tensor'
 
 
-def _convert_to_result(
-    batch: Iterable,
-    predictions: Union[Iterable, dict[Any, Iterable]],
-    model_id: Optional[str] = None,
-) -> Iterable[PredictionResult]:
-  return [
-      PredictionResult(x, y, model_id) for x, y in zip(batch, [predictions])
-  ]
-
-
 def _default_pipeline_inference_fn(
     batch, pipeline, inference_args) -> Iterable[PredictionResult]:
   predicitons = pipeline(batch, **inference_args)
@@ -715,7 +706,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     inference_args = {} if not inference_args else inference_args
     predictions = self._inference_fn(batch, pipeline, inference_args)
-    return _convert_to_result(batch, predictions)
+    return utils._convert_to_result(batch, predictions)
 
   def update_model_path(self, model_path: Optional[str] = None):
     """

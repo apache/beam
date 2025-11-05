@@ -39,10 +39,10 @@ import string
 import sys
 
 import apache_beam as beam
-from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
 from apache_beam.coders import coders_test_common
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import row_coder
 from apache_beam.coders import typecoders
 from apache_beam.tools import utils

@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -138,7 +139,16 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 		case msg.GetMessageResponse() != nil:
 			resp := msg.GetMessageResponse()
 
-			text := fmt.Sprintf("%v (%v): %v", resp.GetTime(), resp.GetMessageId(), resp.GetMessageText())
+			var b strings.Builder
+			if resp.GetTime() != "" {
+				fmt.Fprintf(&b, "(time=%v)", resp.GetTime())
+			}
+			if resp.GetMessageId() != "" {
+				fmt.Fprintf(&b, "(id=%v)", resp.GetMessageId())
+			}
+			b.WriteString(resp.GetMessageText())
+			text := b.String()
+
 			log.Output(ctx, messageSeverity(resp.GetImportance()), 1, text)
 
 			if resp.GetImportance() >= jobpb.JobMessage_JOB_MESSAGE_ERROR {

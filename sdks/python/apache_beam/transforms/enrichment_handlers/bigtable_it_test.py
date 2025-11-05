@@ -34,6 +34,7 @@ try:
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_filters import ColumnRangeFilter
   from testcontainers.redis import RedisContainer
+
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigtable import ExceptionLevel

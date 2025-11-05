@@ -88,9 +88,9 @@ from apache_beam.utils import python_callable
 if TYPE_CHECKING:
   from apache_beam import coders
   from apache_beam.pipeline import Pipeline
+  from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.transforms.core import Windowing
-  from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = [
     'PTransform',
@@ -567,6 +567,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     else:
       from apache_beam.transforms.core import Windowing
       from apache_beam.transforms.window import GlobalWindows
+
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
 
@@ -590,6 +591,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam import pipeline
       from apache_beam.options.pipeline_options import PipelineOptions
+
       # pylint: enable=wrong-import-order, wrong-import-position
       p = pipeline.Pipeline('DirectRunner', PipelineOptions(sys.argv))
     else:
@@ -610,6 +612,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
+
     # pylint: enable=wrong-import-order, wrong-import-position
     replacements = {
         id(v): p | 'CreatePInput%s' % ix >> Create(v, reshuffle=False)
@@ -639,6 +642,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     """
     # pylint: disable=wrong-import-order
     from apache_beam import pipeline
+
     # pylint: enable=wrong-import-order
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)
@@ -747,6 +751,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
   def to_runner_api(self, context, has_parts=False, **extra_kwargs):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
+
     # typing: only ParDo supports extra_kwargs
     urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
@@ -792,6 +797,8 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
             self,
             enable_best_effort_determinism=context.
             enable_best_effort_deterministic_pickling,
+            enable_stable_code_identifier_pickling=context.
+            enable_stable_code_identifier_pickling,
         ),
     )
 
@@ -875,12 +882,12 @@ class PTransformWithSideInputs(PTransform):
 
     # Ensure fn and side inputs are picklable for remote execution.
     try:
-      self.fn = pickler.loads(pickler.dumps(self.fn))
+      self.fn = pickler.roundtrip(self.fn)
     except RuntimeError as e:
       raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e))
 
-    self.args = pickler.loads(pickler.dumps(self.args))
-    self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
+    self.args = pickler.roundtrip(self.args)
+    self.kwargs = pickler.roundtrip(self.kwargs)
 
     # For type hints, because loads(dumps(class)) != class.
     self.fn = self._cached_fn

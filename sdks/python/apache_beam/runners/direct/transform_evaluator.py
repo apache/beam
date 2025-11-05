@@ -76,8 +76,8 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from apache_beam.io.gcp.pubsub import _PubSubSource
   from apache_beam.io.gcp.pubsub import PubsubMessage
+  from apache_beam.io.gcp.pubsub import _PubSubSource
   from apache_beam.runners.direct.evaluation_context import EvaluationContext
 
 _LOGGER = logging.getLogger(__name__)
@@ -652,8 +652,9 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
   def _read_from_pubsub(
       self, timestamp_attribute) -> List[Tuple[Timestamp, 'PubsubMessage']]:
-    from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
+
+    from apache_beam.io.gcp.pubsub import PubsubMessage
 
     def _get_element(message):
       parsed_message = PubsubMessage._from_message(message)
@@ -822,7 +823,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
     # TODO(aaltay): Consider storing the serialized form as an optimization.
     dofn = (
-        pickler.loads(pickler.dumps(transform.dofn))
+        pickler.roundtrip(transform.dofn)
         if self._perform_dofn_pickle_test else transform.dofn)
 
     args = transform.args if hasattr(transform, 'args') else []

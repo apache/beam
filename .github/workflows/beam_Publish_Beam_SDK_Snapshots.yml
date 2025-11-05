@@ -63,19 +63,23 @@ jobs:
         container_task:
           - "go:container:docker"
           - "java:container:pushAll"
-          - "python:container:py39:docker"
           - "python:container:py310:docker"
           - "python:container:py311:docker"
           - "python:container:py312:docker"
           - "python:container:py313:docker"
-          - "python:container:distroless:py39:docker"
           - "python:container:distroless:py310:docker"
           - "python:container:distroless:py311:docker"
           - "python:container:distroless:py312:docker"
           - "python:container:distroless:py313:docker"
+          - "python:container:ml:py310:docker"
+          - "python:container:ml:py311:docker"
+          - "python:container:ml:py312:docker"
+          - "python:container:ml:py313:docker"
           - "java:expansion-service:container:docker"
     steps:
       - uses: actions/checkout@v4
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -93,7 +97,7 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: echo "LATEST_TAG=,latest" >> $GITHUB_ENV
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
       - name: Authenticate on GCP
         uses: google-github-actions/auth@v3
         with:

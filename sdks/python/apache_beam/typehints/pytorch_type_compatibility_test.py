@@ -32,6 +32,7 @@ from apache_beam.typehints.batch import N
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import torch
+
   from apache_beam.typehints.pytorch_type_compatibility import PytorchTensor
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')

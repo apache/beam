@@ -38,6 +38,7 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   from apitools.base.py.exceptions import HttpError
+
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
   HttpError = None

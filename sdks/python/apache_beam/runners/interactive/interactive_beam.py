@@ -879,7 +879,8 @@ def collect(
     runner=None,
     options=None,
     force_compute=False,
-    force_tuple=False):
+    force_tuple=False,
+    raw_records=False):
   """Materializes the elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
@@ -901,6 +902,8 @@ def collect(
         cached PCollections
     force_tuple: (optional) if True, return a 1-tuple or results rather than
         the bare results if only one PCollection is computed
+    raw_records: (optional) if True, return a list of collected records
+        without converting to a DataFrame. Default False.
 
   For example::
 
@@ -910,6 +913,9 @@ def collect(
 
     # Run the pipeline and bring the PCollection into memory as a Dataframe.
     in_memory_square = head(square, n=5)
+    
+    # Run the pipeline and get the raw list of elements.
+    raw_squares = collect(square, n=5, raw_records=True)
   """
   if len(pcolls) == 0:
     return ()
@@ -986,15 +992,19 @@ def collect(
   if n == float('inf'):
     n = None
 
-  # Collecting DataFrames may have a length > n, so slice again to be sure. Note
-  # that array[:None] returns everything.
-  empty = pd.DataFrame()
-  result_tuple = tuple(
-      elements_to_df(
-          computed[pcoll],
-          include_window_info=include_window_info,
-          element_type=pcolls_to_element_types[pcoll])[:n] if pcoll in
-      computed else empty for pcoll in pcolls)
+  if raw_records:
+    result_tuple = tuple([el.value for el in computed.get(pcoll, [])][:n]
+                         for pcoll in pcolls)
+  else:
+    # Collecting DataFrames may have a length > n, so slice again to be sure.
+    # Note that array[:None] returns everything.
+    empty = pd.DataFrame()
+    result_tuple = tuple(
+        elements_to_df(
+            computed.get(pcoll, []),
+            include_window_info=include_window_info,
+            element_type=pcolls_to_element_types[pcoll])[:n] if pcoll in
+        computed else empty for pcoll in pcolls)
 
   if len(result_tuple) == 1 and not force_tuple:
     return result_tuple[0]

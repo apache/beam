@@ -35,12 +35,19 @@ import sys
 import threading
 import zlib
 
+from apache_beam.internal import code_object_pickler
 from apache_beam.internal.cloudpickle import cloudpickle
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
     skip_reset_dynamic_type_state=True)
 NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
     id_generator=None, skip_reset_dynamic_type_state=True)
+STABLE_CODE_IDENTIFIER_CONFIG = cloudpickle.CloudPickleConfig(
+    skip_reset_dynamic_type_state=True,
+    get_code_object_params=cloudpickle.GetCodeObjectParams(
+        get_code_object_identifier=code_object_pickler.
+        get_code_object_identifier,
+        get_code_from_identifier=code_object_pickler.get_code_from_identifier))
 
 try:
   from absl import flags
@@ -88,6 +95,27 @@ LOCK_TYPE = type(threading.Lock())
 _LOGGER = logging.getLogger(__name__)
 
 
+# Helper to return an object directly during unpickling.
+def _return_obj(obj):
+  return obj
+
+
+# Optional import for Python 3.12 TypeAliasType
+try:  # pragma: no cover - dependent on Python version
+  from typing import TypeAliasType as _TypeAliasType  # type: ignore[attr-defined]
+except Exception:
+  _TypeAliasType = None
+
+
+def _typealias_reduce(obj):
+  # Unwrap typing.TypeAliasType to its underlying value for robust pickling.
+  underlying = getattr(obj, '__value__', None)
+  if underlying is None:
+    # Fallback: return the object itself; lets default behavior handle it.
+    return _return_obj, (obj, )
+  return _return_obj, (underlying, )
+
+
 def _reconstruct_enum_descriptor(full_name):
   for _, module in list(sys.modules.items()):
     if not hasattr(module, 'DESCRIPTOR'):
@@ -119,33 +147,14 @@ def dumps(
     enable_trace=True,
     use_zlib=False,
     enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
     config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
-  if enable_best_effort_determinism:
-    # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
-    # is merged in.
-    _LOGGER.warning(
-        'Ignoring unsupported option: enable_best_effort_determinism. '
-        'This has only been implemented for dill.')
-  with _pickle_lock:
-    with io.BytesIO() as file:
-      pickler = cloudpickle.CloudPickler(file, config=config)
-      try:
-        pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
-      except NameError:
-        pass
-      try:
-        pickler.dispatch_table[RLOCK_TYPE] = _pickle_rlock
-      except NameError:
-        pass
-      try:
-        pickler.dispatch_table[LOCK_TYPE] = _lock_reducer
-      except NameError:
-        pass
-      if EnumDescriptor is not None:
-        pickler.dispatch_table[EnumDescriptor] = _pickle_enum_descriptor
-      pickler.dump(o)
-      s = file.getvalue()
+  s = _dumps(
+      o,
+      enable_best_effort_determinism,
+      enable_stable_code_identifier_pickling,
+      config)
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
@@ -162,6 +171,44 @@ def dumps(
   return base64.b64encode(c)
 
 
+def _dumps(
+    o,
+    enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
+    config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
+
+  if enable_best_effort_determinism:
+    # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
+    # is merged in.
+    _LOGGER.warning(
+        'Ignoring unsupported option: enable_best_effort_determinism. '
+        'This has only been implemented for dill.')
+  with _pickle_lock:
+    with io.BytesIO() as file:
+      if enable_stable_code_identifier_pickling:
+        config = STABLE_CODE_IDENTIFIER_CONFIG
+      pickler = cloudpickle.CloudPickler(file, config=config)
+      try:
+        pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
+      except NameError:
+        pass
+      # Register Python 3.12 `type` alias reducer to unwrap to underlying value.
+      if _TypeAliasType is not None:
+        pickler.dispatch_table[_TypeAliasType] = _typealias_reduce
+      try:
+        pickler.dispatch_table[RLOCK_TYPE] = _pickle_rlock
+      except NameError:
+        pass
+      try:
+        pickler.dispatch_table[LOCK_TYPE] = _lock_reducer
+      except NameError:
+        pass
+      if EnumDescriptor is not None:
+        pickler.dispatch_table[EnumDescriptor] = _pickle_enum_descriptor
+      pickler.dump(o)
+      return file.getvalue()
+
+
 def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
@@ -173,10 +220,18 @@ def loads(encoded, enable_trace=True, use_zlib=False):
     s = bz2.decompress(c)
 
   del c  # Free up some possibly large and no-longer-needed memory.
+  return _loads(s)
 
+
+def _loads(s):
   with _pickle_lock:
     unpickled = cloudpickle.loads(s)
     return unpickled
+
+
+def roundtrip(o):
+  """Internal utility for testing round-trip pickle serialization."""
+  return _loads(_dumps(o))
 
 
 def _pickle_absl_flags(obj):

@@ -36,7 +36,7 @@ env:
 
 jobs:
   set-properties:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -56,7 +56,6 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.9
             3.10
             3.11
             3.12
@@ -64,7 +63,6 @@ jobs:
           java-version: default
           go-version: default
           disable-cache: true
-
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

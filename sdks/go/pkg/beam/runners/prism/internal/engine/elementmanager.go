@@ -186,6 +186,11 @@ type Config struct {
 	EnableRTC bool
 	// Whether to process the data in a streaming mode
 	StreamingMode bool
+	// Whether to enable splitting on splittable dofn.
+	// This flag is currently used when calling KafkaIO in streaming mode. It prevents an
+	// error ("KafkaConsumer is not safe for multi-threaded access") that can occur
+	// if the SDK allows splitting a single topic.
+	EnableSDFSplit bool
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
@@ -229,7 +234,7 @@ type ElementManager struct {
 	livePending     atomic.Int64   // An accessible live pending count. DEBUG USE ONLY
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
 
-	processTimeEvents *stageRefreshQueue // Manages sequence of stage updates when interfacing with processing time.
+	processTimeEvents *stageRefreshQueue // Manages sequence of stage updates when interfacing with processing time. Callers must hold refreshCond.L lock.
 	testStreamHandler *testStreamHandler // Optional test stream handler when a test stream is in the pipeline.
 }
 
@@ -393,7 +398,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 		for {
 			em.refreshCond.L.Lock()
 			// Check if processing time has advanced before the wait loop.
-			emNow := em.ProcessingTimeNow()
+			emNow := em.processingTimeNow()
 			changedByProcessingTime := em.processTimeEvents.AdvanceTo(emNow)
 			em.changedStages.merge(changedByProcessingTime)
 
@@ -410,7 +415,7 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				em.refreshCond.Wait() // until watermarks may have changed.
 
 				// Update if the processing time has advanced while we waited, and add refreshes here. (TODO waking on real time here for prod mode)
-				emNow = em.ProcessingTimeNow()
+				emNow = em.processingTimeNow()
 				changedByProcessingTime = em.processTimeEvents.AdvanceTo(emNow)
 				em.changedStages.merge(changedByProcessingTime)
 			}
@@ -477,12 +482,15 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 					}
 				}
 				if ptimeEventsReady {
-					bundleID, ok, reschedule := ss.startProcessingTimeBundle(em, emNow, nextBundID)
+					bundleID, ok, reschedule, pendingAdjustment := ss.startProcessingTimeBundle(em, emNow, nextBundID)
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.changedStages.insert(stageID)
 					}
 					if ok {
+						if pendingAdjustment > 0 {
+							em.addPending(pendingAdjustment)
+						}
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -513,7 +521,7 @@ func (em *ElementManager) DumpStages() string {
 		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
 			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
 	} else {
-		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.ProcessingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
+		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.processingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
 	}
 	sort.Strings(ids)
 	for _, id := range ids {
@@ -783,8 +791,7 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 			panic("error decoding residual header:" + err.Error())
 		}
 		if len(ws) == 0 {
-			slog.Error("reElementResiduals: sdk provided a windowed value header 0 windows", "bundle", rb)
-			panic("error decoding residual header: sdk provided a windowed value header 0 windows")
+			slog.Warn("reElementResiduals: sdk provided a windowed value header 0 windows", "bundle", rb)
 		}
 		// POSSIBLY BAD PATTERN: The buffer is invalidated on the next call, which doesn't always happen.
 		// But the decoder won't be mutating the buffer bytes, just reading the data. So the elmBytes
@@ -844,8 +851,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 					panic("error decoding watermarks")
 				}
 				if len(ws) == 0 {
-					slog.Error("PersistBundle: sdk provided a windowed value header 0 windows", "bundle", rb)
-					panic("error decoding residual header: sdk provided a windowed value header 0 windows")
+					slog.Warn("PersistBundle: sdk provided a windowed value header 0 windows", "bundle", rb)
 				}
 				// TODO: Optimize unnecessary copies. This is doubleteeing.
 				elmBytes := info.EDec(tee)
@@ -874,8 +880,23 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers,
 			"pendingDelta", len(newPending)*len(consumers))
 		for _, sID := range consumers {
+
 			consumer := em.stages[sID]
-			count := consumer.AddPending(em, newPending)
+			var count int
+			_, isAggregateStage := consumer.kind.(*aggregateStageKind)
+			if isAggregateStage {
+				// While adding pending elements in aggregate stage, we may need to
+				// access em.processTimeEvents to determine triggered bundles.
+				// To avoid deadlocks, we acquire the em.refreshCond.L lock here before
+				// AddPending is called.
+				func() {
+					em.refreshCond.L.Lock()
+					defer em.refreshCond.L.Unlock()
+					count = consumer.AddPending(em, newPending)
+				}()
+			} else {
+				count = consumer.AddPending(em, newPending)
+			}
 			em.addPending(count)
 		}
 		for _, link := range sideConsumers {
@@ -987,7 +1008,7 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 		win typex.Window
 	}
 	em.refreshCond.L.Lock()
-	emNow := em.ProcessingTimeNow()
+	emNow := em.processingTimeNow()
 	em.refreshCond.L.Unlock()
 
 	var pendingEventTimers []element
@@ -1094,6 +1115,7 @@ func (em *ElementManager) markChangedAndClearBundle(stageID, bundID string, ptRe
 	em.changedStages.insert(stageID)
 	for t := range ptRefreshes {
 		em.processTimeEvents.Schedule(t, stageID)
+		em.wakeUpAt(t)
 	}
 	em.refreshCond.Broadcast()
 }
@@ -1218,7 +1240,7 @@ type stageKind interface {
 		holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane, schedulable bool, pendingAdjustment int)
 	// buildProcessingTimeBundle handles building processing-time bundles for the stage per it's kind.
 	buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string],
-		holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane, schedulable bool)
+		holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane, schedulable bool, pendingAdjustment int)
 	// getPaneOrDefault based on the stage state, element metadata, and bundle id.
 	getPaneOrDefault(ss *stageState, defaultPane typex.PaneInfo, w typex.Window, keyBytes []byte, bundID string) typex.PaneInfo
 }
@@ -1310,11 +1332,12 @@ func (ss *stageState) AddPending(em *ElementManager, newPending []element) int {
 
 func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
 	// Check on triggers for this key.
-	// We use an empty linkID as the key into state for aggregations.
+	// Callers must hold em.refreshCond.L
 	count := 0
 	if ss.state == nil {
 		ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
 	}
+	// We use an empty linkID as the key into state for aggregations.
 	lv, ok := ss.state[LinkID{}]
 	if !ok {
 		lv = make(map[typex.Window]map[string]StateData)
@@ -1330,7 +1353,7 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 	ready := ss.strat.IsTriggerReady(triggerInput{
 		newElementCount:    1,
 		endOfWindowReached: endOfWindowReached,
-		emNow:              em.ProcessingTimeNow(),
+		emNow:              em.processingTimeNow(),
 	}, &state)
 
 	if ready {
@@ -1367,9 +1390,7 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 				// TODO: how to deal with watermark holds for this implicit processing time timer
 				// ss.watermarkHolds.Add(timer.holdTimestamp, 1)
 				ss.processingTimeTimers.Persist(firingTime, timer, notYetHolds)
-				em.refreshCond.L.Lock()
 				em.processTimeEvents.Schedule(firingTime, ss.ID)
-				em.refreshCond.L.Unlock()
 				em.wakeUpAt(firingTime)
 			}
 		}
@@ -1611,7 +1632,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win t
 	return toProcess, accumulationDiff
 }
 
-// startTriggeredBundle must be called with the stage.mu lock held.
+// startTriggeredBundle must be called with the stage.mu lock and em.refreshCond.L lock held.
 // Returns the accumulation diff that the pending work needs to be adjusted by, as completed work is subtracted from the pending count.
 // When in discarding mode, returns 0, as the pending work already includes these elements.
 // When in accumulating mode, returns the number of fired elements, since those elements remain pending even after this bundle is fired.
@@ -1646,10 +1667,8 @@ func (ss *stageState) startTriggeredBundle(em *ElementManager, key string, win t
 	// TODO: Use ss.bundlesToInject rather than em.injectedBundles
 	// ss.bundlesToInject = append(ss.bundlesToInject, rb)
 	// Bundle is marked in progress here to prevent a race condition.
-	em.refreshCond.L.Lock()
 	em.injectedBundles = append(em.injectedBundles, rb)
 	em.inprogressBundles.insert(rb.BundleID)
-	em.refreshCond.L.Unlock()
 	return accumulationDiff
 }
 
@@ -1983,24 +2002,25 @@ keysPerBundle:
 	return toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment
 }
 
-func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.Time, genBundID func() string) (string, bool, bool) {
+func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.Time, genBundID func() string) (string, bool, bool, int) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
-	toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable := ss.kind.buildProcessingTimeBundle(ss, em, emNow)
+	toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment := ss.kind.buildProcessingTimeBundle(ss, em, emNow)
 
 	if len(toProcess) == 0 {
 		// If we have nothing
-		return "", false, stillSchedulable
+		return "", false, stillSchedulable, accumulatingPendingAdjustment
 	}
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle, panesInBundle)
 	slog.Debug("started a processing time bundle", "stageID", ss.ID, "bundleID", bundID, "size", len(toProcess), "emNow", emNow)
-	return bundID, true, stillSchedulable
+	return bundID, true, stillSchedulable, accumulatingPendingAdjustment
 }
 
 // handleProcessingTimeTimer contains the common code for handling processing-time timers for aggregation stages and stateful stages.
+// Callers must hold em.refreshCond.L lock.
 func handleProcessingTimeTimer(ss *stageState, em *ElementManager, emNow mtime.Time,
-	processTimerFn func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane)) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
+	processTimerFn func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane, int)) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool, int) {
 	// TODO: Determine if it's possible and a good idea to treat all EventTime processing as a MinTime
 	// Special Case for ProcessingTime handling.
 	// Eg. Always queue EventTime elements at minTime.
@@ -2010,6 +2030,8 @@ func handleProcessingTimeTimer(ss *stageState, em *ElementManager, emNow mtime.T
 
 	var toProcess []element
 	var panesInBundle []bundlePane
+	var pendingAdjustment int
+	accumulatingPendingAdjustment := 0
 	minTs := mtime.MaxTimestamp
 	holdsInBundle := map[mtime.Time]int{}
 
@@ -2044,7 +2066,8 @@ func handleProcessingTimeTimer(ss *stageState, em *ElementManager, emNow mtime.T
 				minTs = e.timestamp
 			}
 
-			toProcess, panesInBundle = processTimerFn(e, toProcess, holdsInBundle, panesInBundle)
+			toProcess, panesInBundle, pendingAdjustment = processTimerFn(e, toProcess, holdsInBundle, panesInBundle)
+			accumulatingPendingAdjustment += pendingAdjustment
 		}
 
 		nextTime = ss.processingTimeTimers.Peek()
@@ -2065,24 +2088,26 @@ func handleProcessingTimeTimer(ss *stageState, em *ElementManager, emNow mtime.T
 	// Add a refresh if there are still processing time events to process.
 	stillSchedulable := (nextTime < emNow && nextTime != mtime.MaxTimestamp || len(notYet) > 0)
 
-	return toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable
+	return toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment
 }
 
 // buildProcessingTimeBundle for stateful stages prepares bundles for processing-time timers
-func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
-	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane) {
+func (*statefulStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool, int) {
+	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane, int) {
 		holdsInBundle[e.holdTimestamp]++
 		// We're going to process this timer!
 		toProcess = append(toProcess, e)
-		return toProcess, nil
+		return toProcess, nil, 0
 	})
 }
 
 // buildProcessingTimeBundle for aggregation stages prepares bundles for after-processing-time triggers
-func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
-	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane) {
+func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool, int) {
+	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane, int) {
 		// Different from `buildProcessingTimeBundle` for stateful stage,
 		// triggers don't hold back the watermark, so no holds are in the triggered bundle.
+		var pendingAdjustment int
+		var elems []element
 		state := ss.state[LinkID{}][e.window][string(e.keyBytes)]
 		endOfWindowReached := e.window.MaxTimestamp() < ss.input
 		ready := ss.strat.IsTriggerReady(triggerInput{
@@ -2095,7 +2120,7 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 			state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
 
 			// We're going to process this trigger!
-			elems, _ := ss.buildTriggeredBundle(em, string(e.keyBytes), e.window)
+			elems, pendingAdjustment = ss.buildTriggeredBundle(em, string(e.keyBytes), e.window)
 			toProcess = append(toProcess, elems...)
 
 			ss.state[LinkID{}][e.window][string(e.keyBytes)] = state
@@ -2103,14 +2128,14 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 			panesInBundle = append(panesInBundle, bundlePane{})
 		}
 
-		return toProcess, panesInBundle
+		return toProcess, panesInBundle, pendingAdjustment
 	})
 }
 
 // buildProcessingTimeBundle for stateless stages is not supposed to be called currently
-func (*ordinaryStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool) {
+func (*ordinaryStageKind) buildProcessingTimeBundle(ss *stageState, em *ElementManager, emNow mtime.Time) (elementHeap, mtime.Time, set[string], map[mtime.Time]int, []bundlePane, bool, int) {
 	slog.Error("ordinary stages can't have processing time elements")
-	return nil, mtime.MinTimestamp, nil, nil, nil, false
+	return nil, mtime.MinTimestamp, nil, nil, nil, false, 0
 }
 
 // makeInProgressBundle is common code to store a set of elements as a bundle in progress.
@@ -2428,8 +2453,8 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 	return upstreamW, ready, ptimeEventsReady, injectedReady
 }
 
-// ProcessingTimeNow gives the current processing time for the runner.
-func (em *ElementManager) ProcessingTimeNow() (ret mtime.Time) {
+// processingTimeNow gives the current processing time for the runner.
+func (em *ElementManager) processingTimeNow() (ret mtime.Time) {
 	if em.testStreamHandler != nil && !em.testStreamHandler.completed {
 		return em.testStreamHandler.Now()
 	}
@@ -2456,8 +2481,8 @@ func rebaseProcessingTime(localNow, scheduled mtime.Time) mtime.Time {
 // This is used for processing time timers to ensure the loop re-evaluates
 // stages when a processing time timer is expected to fire.
 func (em *ElementManager) wakeUpAt(t mtime.Time) {
-	if em.testStreamHandler == nil && em.config.EnableRTC {
-		// only create this goroutine if we have real-time clock enabled and the pipeline does not have TestStream.
+	if em.config.EnableRTC {
+		// only create this goroutine if we have real-time clock enabled (also implying the pipeline does not have TestStream).
 		go func(fireAt time.Time) {
 			time.AfterFunc(time.Until(fireAt), func() {
 				em.refreshCond.Broadcast()

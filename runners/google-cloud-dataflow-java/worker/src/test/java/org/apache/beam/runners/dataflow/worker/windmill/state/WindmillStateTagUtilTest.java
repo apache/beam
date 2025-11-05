@@ -24,23 +24,23 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class WindmillStateUtilTest {
+public class WindmillStateTagUtilTest {
 
   @Test
   public void testEncodeKey() {
     StateNamespaceForTest namespace = new StateNamespaceForTest("key");
     StateTag<SetState<Integer>> foo = StateTags.set("foo", VarIntCoder.of());
-    ByteString bytes = WindmillStateUtil.encodeKey(namespace, foo);
-    assertEquals("key+ufoo", bytes.toStringUtf8());
+    InternedByteString bytes = WindmillStateTagUtil.instance().encodeKey(namespace, foo);
+    assertEquals("key+ufoo", bytes.byteString().toStringUtf8());
   }
 
   @Test
@@ -53,7 +53,7 @@ public class WindmillStateUtilTest {
         new StateTag<SetState<Integer>>() {
           @Override
           public void appendTo(Appendable sb) throws IOException {
-            WindmillStateUtil.encodeKey(namespace1, tag1);
+            WindmillStateTagUtil.instance().encodeKey(namespace1, tag1);
             sb.append("tag2");
           }
 
@@ -77,11 +77,11 @@ public class WindmillStateUtilTest {
         new StateNamespaceForTest("key") {
           @Override
           public void appendTo(Appendable sb) throws IOException {
-            WindmillStateUtil.encodeKey(namespace1, tag1);
+            WindmillStateTagUtil.instance().encodeKey(namespace1, tag1);
             sb.append("namespace2");
           }
         };
-    ByteString bytes = WindmillStateUtil.encodeKey(namespace2, tag2);
-    assertEquals("namespace2+tag2", bytes.toStringUtf8());
+    InternedByteString bytes = WindmillStateTagUtil.instance().encodeKey(namespace2, tag2);
+    assertEquals("namespace2+tag2", bytes.byteString().toStringUtf8());
   }
 }

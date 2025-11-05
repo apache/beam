@@ -461,8 +461,10 @@ class BeamModulePlugin implements Plugin<Project> {
       return 'java11'
     } else if (ver <= JavaVersion.VERSION_17) {
       return 'java17'
-    } else {
+    } else if (ver <= JavaVersion.VERSION_21) {
       return 'java21'
+    } else {
+      return 'java25'
     }
   }
 
@@ -697,7 +699,7 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_gcs_connector                    : "com.google.cloud.bigdataoss:gcs-connector:hadoop2-$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         bigdataoss_util_hadoop                      : "com.google.cloud.bigdataoss:util-hadoop:hadoop2-$google_cloud_bigdataoss_version",
-        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.14.12",
+        byte_buddy                                  : "net.bytebuddy:byte-buddy:1.17.7",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
@@ -821,7 +823,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         jcl_over_slf4j                              : "org.slf4j:jcl-over-slf4j:$slf4j_version",
         jmh_core                                    : "org.openjdk.jmh:jmh-core:$jmh_version",
-        joda_time                                   : "joda-time:joda-time:2.10.14",
+        joda_time                                   : "joda-time:joda-time:2.14.0",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
         json_org                                    : "org.json:json:20231013", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
@@ -912,7 +914,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_grpc_1_69_0                        : "org.apache.beam:beam-vendor-grpc-1_69_0:0.1",
         vendored_guava_32_1_2_jre                   : "org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1",
         vendored_calcite_1_40_0                     : "org.apache.beam:beam-vendor-calcite-1_40_0:0.1",
-        woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
+        woodstox_core                               : "com.fasterxml.woodstox:woodstox-core:7.1.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.5.6-3",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
         quickcheck_generators                       : "com.pholser:junit-quickcheck-generators:$quickcheck_version",
@@ -988,6 +990,11 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Xlint:-path',
           '-Xlint:-this-escape'
         ]
+        if (ver == '25') {
+          options.compilerArgs += [
+            '-Xlint:-dangling-doc-comments'
+          ]
+        }
         // Error prone requires some packages to be exported/opened for Java 17+
         // Disabling checks since this property is only used for tests
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
@@ -2330,7 +2337,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.24.4"
+      project.ext.goVersion = "go1.25.2"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2997,7 +3004,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Transform service delivers transforms that refer to SDK harness containers with following sufixes.
       def transformServiceJavaContainerSuffix = 'java11'
-      def transformServicePythonContainerSuffix = '39'
+      def transformServicePythonContainerSuffix = '310'
 
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         // Containers for main SDKs when running tests.
@@ -3086,12 +3093,11 @@ class BeamModulePlugin implements Plugin<Project> {
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
-      // TODO(BEAM-12000): Move default value to Py3.9.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '3.9'
+          project.pythonVersion : '3.10'
 
       // Set min/max python versions used for containers and supported versions.
-      project.ext.minPythonVersion = 9
+      project.ext.minPythonVersion = 10
       project.ext.maxPythonVersion = 13
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
@@ -3303,10 +3309,10 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:3:job-server:shadowJar',
-            ':sdks:python:container:py39:docker',
             ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',
             ':sdks:python:container:py312:docker',
+            ':sdks:python:container:py313:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

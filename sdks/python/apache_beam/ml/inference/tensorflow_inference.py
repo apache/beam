@@ -27,9 +27,9 @@ from typing import Optional
 from typing import Union
 
 import numpy
-
 import tensorflow as tf
 import tensorflow_hub as hub
+
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult

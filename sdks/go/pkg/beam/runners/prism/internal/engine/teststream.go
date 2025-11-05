@@ -16,6 +16,7 @@
 package engine
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -237,7 +238,7 @@ func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	}
 
 	// Add the refreshes now so our block prevention logic works.
-	emNow := em.ProcessingTimeNow()
+	emNow := em.processingTimeNow()
 	toRefresh := em.processTimeEvents.AdvanceTo(emNow)
 	em.changedStages.merge(toRefresh)
 }
@@ -310,4 +311,10 @@ func (tsi *testStreamImpl) AddWatermarkEvent(tag string, newWatermark mtime.Time
 func (tsi *testStreamImpl) AddProcessingTimeEvent(d time.Duration) {
 	tsi.em.testStreamHandler.AddProcessingTimeEvent(d)
 	tsi.em.addPending(1)
+
+	// Disable real-time clock for this em if TestStream has processing time events.
+	if tsi.em.config.EnableRTC {
+		slog.Debug("Processing time event found in TestStream: real-time clock will be disabled for this job")
+		tsi.em.config.EnableRTC = false
+	}
 }

@@ -66,7 +66,7 @@ jobs:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: |
@@ -120,7 +120,7 @@ jobs:
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -259,13 +259,14 @@ jobs:
         # Any task which is skipped from a broader task must be explicitly included in this list to avoid accidentally missing new
         # tasks as they are added.
         images_to_publish: [
-          {"gradle_task": ":pushAllRunnersDockerImages", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push39", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push310", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:push311", "skip_flags": ""},
-          {"gradle_task": ":sdks:python:container:pushAll", "skip_flags": "-Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images"},
-          {"gradle_task": ":pushAllSdkDockerImages", "skip_flags": "-Pskip-python-images"},
-          {"gradle_task": ":pushAllDockerImages", "skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
+          {"gradle_task": ":pushAllRunnersDockerImages", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push39", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push310", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push311", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:push312", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
+          {"gradle_task": ":sdks:python:container:pushAll", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless -Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images -Pskip-python-312-images"},
+          {"gradle_task": ":pushAllSdkDockerImages", "include_skip_flags": "-Pskip-python-images"},
+          {"gradle_task": ":pushAllDockerImages", "include_skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
         ]
     steps:
       - name: Checkout
@@ -276,16 +277,16 @@ jobs:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
-      - name: Install Python 3.9
+      - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -297,7 +298,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push docker images
-        run: ./gradlew ${{ matrix.images_to_publish.gradle_task }} -PisRelease -Pdocker-pull-licenses -Pprune-images ${{ matrix.images_to_publish.skip_flags }} -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
+        run: ./gradlew ${{ matrix.images_to_publish.gradle_task }} -PisRelease -Pdocker-pull-licenses -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} --no-daemon --no-parallel
 
   beam_site_pr:
     if:  ${{ fromJson(github.event.inputs.STAGE).beam_site_pr == 'yes'}}
@@ -326,16 +327,16 @@ jobs:
           path: beam-site
           token: ${{ github.event.inputs.REPO_TOKEN }}
           ref: release-docs
-      - name: Install Python 3.9
+      - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - name: Install node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '16'
       - name: Install Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -451,7 +452,7 @@ jobs:
           fi
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25'
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
@@ -564,13 +565,13 @@ jobs:
           repository: apache/beam
           path: beam
           token: ${{ github.event.inputs.REPO_TOKEN }}
-          persist-credentials: false
-      - name: Install Python 3.9
+          persist-credentials: true
+      - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -591,6 +592,12 @@ jobs:
         working-directory: beam
         run: |
           ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
+      - name: Copy expansion service jars
+        working-directory: beam
+        run: |
+          mkdir -p ~/.apache_beam/cache/jars/
+          cp sdks/java/io/expansion-service/build/libs/beam-sdks-java-io-expansion-service-${{ github.event.inputs.RELEASE }}.jar ~/.apache_beam/cache/jars/
+          cp sdks/java/io/google-cloud-platform/expansion-service/build/libs/beam-sdks-java-io-google-cloud-platform-expansion-service-${{ github.event.inputs.RELEASE }}.jar ~/.apache_beam/cache/jars/
       - name: Generate Managed IO Docs
         working-directory: beam/sdks/python
         run: |

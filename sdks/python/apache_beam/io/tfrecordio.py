@@ -47,6 +47,7 @@ def _default_crc32c_fn(value):
   if not _default_crc32c_fn.fn:
     try:
       import snappy  # pylint: disable=import-error
+
       # Support multiple versions of python-snappy:
       # https://github.com/andrix/python-snappy/pull/53
       if getattr(snappy, '_crc32c', None):

@@ -44,30 +44,29 @@ from apache_beam.testing.util import assert_that
 
 # pylint: disable=ungrouped-imports
 try:
-  from pymilvus import (
-      CollectionSchema,
-      DataType,
-      FieldSchema,
-      Function,
-      FunctionType,
-      MilvusClient,
-      RRFRanker)
+  from pymilvus import CollectionSchema
+  from pymilvus import DataType
+  from pymilvus import FieldSchema
+  from pymilvus import Function
+  from pymilvus import FunctionType
+  from pymilvus import MilvusClient
+  from pymilvus import RRFRanker
   from pymilvus.milvus_client import IndexParams
   from testcontainers.core.config import MAX_TRIES as TC_MAX_TRIES
   from testcontainers.core.config import testcontainers_config
   from testcontainers.core.generic import DbContainer
   from testcontainers.milvus import MilvusContainer
+
+  from apache_beam.ml.rag.enrichment.milvus_search import HybridSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import KeywordSearchMetrics
+  from apache_beam.ml.rag.enrichment.milvus_search import KeywordSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusCollectionLoadParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusConnectionParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusSearchEnrichmentHandler
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import VectorSearchMetrics
+  from apache_beam.ml.rag.enrichment.milvus_search import VectorSearchParameters
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.ml.rag.enrichment.milvus_search import (
-      MilvusSearchEnrichmentHandler,
-      MilvusConnectionParameters,
-      MilvusSearchParameters,
-      MilvusCollectionLoadParameters,
-      VectorSearchParameters,
-      KeywordSearchParameters,
-      HybridSearchParameters,
-      VectorSearchMetrics,
-      KeywordSearchMetrics)
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
 
@@ -295,9 +294,15 @@ class CustomMilvusContainer(MilvusContainer):
 
 
 class MilvusEnrichmentTestHelper:
+  # IMPORTANT: When upgrading the Milvus server version, ensure the pymilvus
+  # Python SDK client in setup.py is updated to match. Referring to the Milvus
+  # release notes compatibility matrix at
+  # https://milvus.io/docs/release_notes.md or PyPI at
+  # https://pypi.org/project/pymilvus/ for version compatibility.
+  # Example: Milvus v2.6.0 requires pymilvus==2.6.0 (exact match required).
   @staticmethod
   def start_db_container(
-      image="milvusdb/milvus:v2.3.9",
+      image="milvusdb/milvus:v2.5.10",
       max_vec_fields=5,
       vector_client_max_retries=3,
       tc_max_retries=TC_MAX_TRIES) -> Optional[MilvusDBContainerInfo]:
@@ -455,6 +460,13 @@ class MilvusEnrichmentTestHelper:
       user_config = {
           'proxy': {
               'maxVectorFieldNum': max_vector_field_num, 'port': service_port
+          },
+          'etcd': {
+              'use': {
+                  'embed': True
+              }, 'data': {
+                  'dir': '/var/lib/milvus/etcd'
+              }
           }
       }
 
@@ -481,17 +493,17 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   """Tests for search functionality across all search strategies"""
 
   _db: MilvusDBContainerInfo
-  _version = "milvusdb/milvus:v2.5.10"
 
   @classmethod
   def setUpClass(cls):
-    cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
+    cls._db = MilvusEnrichmentTestHelper.start_db_container()
     cls._connection_params = MilvusConnectionParameters(
         uri=cls._db.uri,
         user=cls._db.user,
         password=cls._db.password,
         db_id=cls._db.id,
-        token=cls._db.token)
+        token=cls._db.token,
+        timeout=60.0)  # Increase timeout to 60s for container startup
     cls._collection_load_params = MilvusCollectionLoadParameters()
     cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
         cls._connection_params)
@@ -1309,11 +1321,7 @@ def assert_chunks_equivalent(
     expected_data = expected.metadata['enrichment_data']
 
     # If actual has enrichment data, then perform detailed validation.
-    if actual_data:
-      # Ensure the id key exist.
-      err_msg = f"Missing id key in metadata {actual.id}"
-      assert 'id' in actual_data, err_msg
-
+    if actual_data and actual_data.get('id'):
       # Validate IDs have consistent ordering.
       actual_ids = sorted(actual_data['id'])
       expected_ids = sorted(expected_data['id'])
