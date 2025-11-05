@@ -147,7 +147,7 @@ class FlinkPipelineExecutionEnvironment {
     if (flinkBatchEnv != null) {
       if (options.getAttachedMode()) {
         JobExecutionResult jobExecutionResult = flinkBatchEnv.execute(jobName);
-        ensureFlinkCleanupComplete(flinkBatchEnv);
+        ensureFlinkCleanupComplete();
         return createAttachedPipelineResult(jobExecutionResult);
       } else {
         JobClient jobClient = flinkBatchEnv.executeAsync(jobName);
@@ -156,7 +156,7 @@ class FlinkPipelineExecutionEnvironment {
     } else if (flinkStreamEnv != null) {
       if (options.getAttachedMode()) {
         JobExecutionResult jobExecutionResult = flinkStreamEnv.execute(jobName);
-        ensureFlinkCleanupComplete(flinkStreamEnv);
+        ensureFlinkCleanupComplete();
         return createAttachedPipelineResult(jobExecutionResult);
       } else {
         JobClient jobClient = flinkStreamEnv.executeAsync(jobName);
@@ -168,9 +168,18 @@ class FlinkPipelineExecutionEnvironment {
   }
 
   /** Prevents ThreadGroup destruction while Flink cleanup threads are still running. */
-  private void ensureFlinkCleanupComplete(Object executionEnv) {
+  private void ensureFlinkCleanupComplete() {
     String javaVersion = System.getProperty("java.version");
     if (javaVersion == null || !javaVersion.startsWith("1.8")) {
+      return;
+    }
+
+    if (flinkBatchEnv == null) {
+      return;
+    }
+
+    String flinkMaster = options.getFlinkMaster();
+    if (!flinkMaster.matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
       return;
     }
 
