@@ -100,6 +100,7 @@
 
 # pytype: skip-file
 
+import collections
 import typing
 
 import numpy as np
@@ -122,7 +123,9 @@ ReadFromKafkaSchema = typing.NamedTuple(
      ('allow_duplicates', typing.Optional[bool]),
      ('dynamic_read_poll_interval_seconds', typing.Optional[int]),
      ('consumer_factory_fn_class', typing.Optional[str]),
-     ('consumer_factory_fn_params', typing.Optional[typing.Mapping[str, str]])])
+     (
+         'consumer_factory_fn_params',
+         typing.Optional[collections.abc.Mapping[str, str]])])
 
 
 def default_io_expansion_service(append_args=None):
@@ -170,8 +173,9 @@ class ReadFromKafka(ExternalTransform):
       redistribute_num_keys=np.int32(0),
       allow_duplicates=False,
       dynamic_read_poll_interval_seconds: typing.Optional[int] = None,
-      consumer_factory_fn_class=None,
-      consumer_factory_fn_params=None):
+      consumer_factory_fn_class: typing.Optional[str] = None,
+      consumer_factory_fn_params: typing.Optional[
+          collections.abc.Mapping] = None):
     """
     Initializes a read operation from Kafka.
 
@@ -218,7 +222,7 @@ class ReadFromKafka(ExternalTransform):
         existing provided consumerFactoryFn. If not None, this will construct
         Kafka consumers with a custom configuration.
     :param consumer_factory_fn_params: A map which specifies the parameters for
-        the provided consumer_factory_fn_class. IF not None, the values in this
+        the provided consumer_factory_fn_class. If not None, the values in this
         map will be used when constructing the consumer_factory_fn_class object.
         This cannot be null if the consumer_factory_fn_class is not null.
     """
