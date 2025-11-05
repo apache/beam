@@ -53,10 +53,10 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.metricbase import StringSet
 
 if TYPE_CHECKING:
+  from apache_beam.internal.metrics.metric import MetricLogger
   from apache_beam.metrics.execution import MetricKey
   from apache_beam.metrics.metricbase import Metric
   from apache_beam.utils.histogram import BucketType
-  from apache_beam.internal.metrics.metric import MetricLogger
 
 __all__ = ['Metrics', 'MetricsFilter', 'Lineage']
 

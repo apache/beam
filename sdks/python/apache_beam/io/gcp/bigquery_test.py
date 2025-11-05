@@ -81,22 +81,23 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 # Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 try:
-  from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
   from apitools.base.py.exceptions import HttpError
   from apitools.base.py.exceptions import HttpForbiddenError
+  from google.api_core import exceptions
   from google.cloud import bigquery as gcp_bigquery
   from google.cloud import bigquery_storage_v1 as bq_storage
-  from google.api_core import exceptions
+
+  from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
 except ImportError:
   gcp_bigquery = None
   bq_storage = None
   HttpError = None
   HttpForbiddenError = None
   exceptions = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1947,8 +1948,8 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
 
 
 def test_with_batched_input_exceeds_size_limit(self):
-  from apache_beam.utils.windowed_value import WindowedValue
   from apache_beam.transforms import window
+  from apache_beam.utils.windowed_value import WindowedValue
 
   client = mock.Mock()
   client.tables.Get.return_value = bigquery.Table(
@@ -2021,8 +2022,8 @@ def test_with_batched_input_exceeds_size_limit(self):
 
 
 def test_with_batched_input_splits_large_batch(self):
-  from apache_beam.utils.windowed_value import WindowedValue
   from apache_beam.transforms import window
+  from apache_beam.utils.windowed_value import WindowedValue
 
   client = mock.Mock()
   client.tables.Get.return_value = bigquery.Table(

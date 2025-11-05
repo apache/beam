@@ -54,7 +54,8 @@ from apache_beam.utils import retry
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError
-  from google.api_core.exceptions import ClientError, GoogleAPICallError
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
   pass
 

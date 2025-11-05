@@ -46,7 +46,8 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 # Protect against environments where apitools library is not available.
 try:
-  from google.cloud.exceptions import BadRequest, NotFound
+  from google.cloud.exceptions import BadRequest
+  from google.cloud.exceptions import NotFound
 except ImportError:
   _http_error_imported = False
 else:

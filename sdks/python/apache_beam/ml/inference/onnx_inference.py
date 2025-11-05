@@ -23,9 +23,9 @@ from typing import Any
 from typing import Optional
 
 import numpy
-
 import onnx
 import onnxruntime as ort
+
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler

@@ -44,30 +44,29 @@ from apache_beam.testing.util import assert_that
 
 # pylint: disable=ungrouped-imports
 try:
-  from pymilvus import (
-      CollectionSchema,
-      DataType,
-      FieldSchema,
-      Function,
-      FunctionType,
-      MilvusClient,
-      RRFRanker)
+  from pymilvus import CollectionSchema
+  from pymilvus import DataType
+  from pymilvus import FieldSchema
+  from pymilvus import Function
+  from pymilvus import FunctionType
+  from pymilvus import MilvusClient
+  from pymilvus import RRFRanker
   from pymilvus.milvus_client import IndexParams
   from testcontainers.core.config import MAX_TRIES as TC_MAX_TRIES
   from testcontainers.core.config import testcontainers_config
   from testcontainers.core.generic import DbContainer
   from testcontainers.milvus import MilvusContainer
+
+  from apache_beam.ml.rag.enrichment.milvus_search import HybridSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import KeywordSearchMetrics
+  from apache_beam.ml.rag.enrichment.milvus_search import KeywordSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusCollectionLoadParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusConnectionParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusSearchEnrichmentHandler
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import VectorSearchMetrics
+  from apache_beam.ml.rag.enrichment.milvus_search import VectorSearchParameters
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.ml.rag.enrichment.milvus_search import (
-      MilvusSearchEnrichmentHandler,
-      MilvusConnectionParameters,
-      MilvusSearchParameters,
-      MilvusCollectionLoadParameters,
-      VectorSearchParameters,
-      KeywordSearchParameters,
-      HybridSearchParameters,
-      VectorSearchMetrics,
-      KeywordSearchMetrics)
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
 

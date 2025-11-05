@@ -31,6 +31,7 @@ try:
   from google.cloud.datastore import entity
   from google.cloud.datastore import key
   from google.cloud.datastore.helpers import GeoPoint
+
   from apache_beam.io.gcp.datastore.v1new.types import Entity
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query

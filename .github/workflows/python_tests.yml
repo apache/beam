@@ -93,7 +93,6 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
         params: [
-          { "py_ver": "3.9", "tox_env": "py39" },
           { "py_ver": "3.10", "tox_env": "py310" },
           { "py_ver": "3.11", "tox_env": "py311" },
           { "py_ver": "3.12", "tox_env": "py312" },
@@ -134,7 +133,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

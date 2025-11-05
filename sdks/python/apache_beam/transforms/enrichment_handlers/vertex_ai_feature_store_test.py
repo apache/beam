@@ -17,10 +17,9 @@
 import unittest
 
 try:
-  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store \
-    import VertexAIFeatureStoreEnrichmentHandler
-  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store \
-    import VertexAIFeatureStoreLegacyEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import \
+      VertexAIFeatureStoreLegacyEnrichmentHandler
 except ImportError:
   raise unittest.SkipTest(
       'VertexAI Feature Store test dependencies '
