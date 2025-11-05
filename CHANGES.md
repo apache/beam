@@ -75,9 +75,6 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
   including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
-* Milvus sink I/O connector added (Python) ([#36702](
-  https://github.com/apache/beam/issues/36702)). Now Beam has full support for
-  Milvus integration including Milvus enrichment and sink operations.
 
 ## Breaking Changes
 
