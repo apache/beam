@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "Abacn",
-    "kafka": "johnjcasey"
+    "java": "chamikaramj",
+    "kafka": "Abacn"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
