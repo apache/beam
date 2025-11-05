@@ -31,8 +31,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
@@ -147,7 +149,7 @@ class FlinkPipelineExecutionEnvironment {
     if (flinkBatchEnv != null) {
       if (options.getAttachedMode()) {
         JobExecutionResult jobExecutionResult = flinkBatchEnv.execute(jobName);
-        ensureFlinkCleanupComplete();
+        ensureFlinkCleanupComplete(flinkBatchEnv);
         return createAttachedPipelineResult(jobExecutionResult);
       } else {
         JobClient jobClient = flinkBatchEnv.executeAsync(jobName);
@@ -156,7 +158,7 @@ class FlinkPipelineExecutionEnvironment {
     } else if (flinkStreamEnv != null) {
       if (options.getAttachedMode()) {
         JobExecutionResult jobExecutionResult = flinkStreamEnv.execute(jobName);
-        ensureFlinkCleanupComplete();
+        ensureFlinkCleanupComplete(flinkStreamEnv);
         return createAttachedPipelineResult(jobExecutionResult);
       } else {
         JobClient jobClient = flinkStreamEnv.executeAsync(jobName);
@@ -168,18 +170,14 @@ class FlinkPipelineExecutionEnvironment {
   }
 
   /** Prevents ThreadGroup destruction while Flink cleanup threads are still running. */
-  private void ensureFlinkCleanupComplete() {
+  private void ensureFlinkCleanupComplete(Object executionEnv) {
     String javaVersion = System.getProperty("java.version");
     if (javaVersion == null || !javaVersion.startsWith("1.8")) {
       return;
     }
 
-    if (flinkBatchEnv == null) {
-      return;
-    }
-
-    String flinkMaster = options.getFlinkMaster();
-    if (!flinkMaster.matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
+    if (!(executionEnv instanceof LocalStreamEnvironment
+        || executionEnv instanceof LocalEnvironment)) {
       return;
     }
 
