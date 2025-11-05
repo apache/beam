@@ -167,9 +167,7 @@ class FlinkPipelineExecutionEnvironment {
     }
   }
 
-  /**
-   * Prevents ThreadGroup destruction while Flink cleanup threads are still running.
-   */
+  /** Prevents ThreadGroup destruction while Flink cleanup threads are still running. */
   private void ensureFlinkCleanupComplete(Object executionEnv) {
     String javaVersion = System.getProperty("java.version");
     if (javaVersion == null || !javaVersion.startsWith("1.8")) {
@@ -183,15 +181,18 @@ class FlinkPipelineExecutionEnvironment {
 
     protectedThreadGroups.add(currentThreadGroup);
 
-    Thread cleanupReleaser = new Thread(() -> {
-      try {
-        Thread.sleep(2000); // 2 seconds should be enough for Flink cleanup
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      } finally {
-        protectedThreadGroups.remove(currentThreadGroup);
-      }
-    }, "FlinkCleanupReleaser");
+    Thread cleanupReleaser =
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(2000); // 2 seconds should be enough for Flink cleanup
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              } finally {
+                protectedThreadGroups.remove(currentThreadGroup);
+              }
+            },
+            "FlinkCleanupReleaser");
     cleanupReleaser.setDaemon(true);
     cleanupReleaser.start();
   }
