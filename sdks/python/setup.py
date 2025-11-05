@@ -166,11 +166,7 @@ ml_base = [
     'embeddings',
     'onnxruntime',
     'langchain',
-    # sentence-transformers 3.0+ requires transformers 4.34+
-    # which uses Python 3.10+ union syntax
-    # Use 2.x versions for Python 3.9 compatibility with transformers <4.55.0
-    'sentence-transformers>=2.2.2,<3.0.0; python_version < "3.10"',
-    'sentence-transformers>=2.2.2; python_version >= "3.10"',
+    'sentence-transformers>=2.2.2',
     'skl2onnx',
     'pillow',
     'pyod',
@@ -297,7 +293,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.9'
+python_requires = '>=3.10'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 14:
   warnings.warn(
@@ -457,8 +453,7 @@ if __name__ == '__main__':
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
               'sqlalchemy>=1.3,<3.0',
-              'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
-              'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
+              'psycopg2-binary>=2.8.5,<3.0',
               'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
@@ -585,19 +580,14 @@ if __name__ == '__main__':
           'torch': ['torch>=1.9.0,<2.8.0'],
           'tensorflow': ['tensorflow>=2.12rc1,<2.21'],
           'transformers': [
-              # Restrict transformers to <4.55.0 for Python 3.9 compatibility
-              # Versions 4.55.0+ use Python 3.10+ union syntax (int | None)
-              # which causes TypeError on Python 3.9
-              'transformers>=4.28.0,<4.55.0; python_version < "3.10"',
-              'transformers>=4.28.0,<4.56.0; python_version >= "3.10"',
+              'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
               'torch>=1.9.0'
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
               'torch==2.8.0+cpu',
-              'transformers>=4.28.0,<4.55.0; python_version < "3.10"',
-              'transformers>=4.28.0,<4.56.0; python_version >= "3.10"'
+              'transformers>=4.28.0,<4.56.0'
           ],
           'tft': [
               'tensorflow_transform>=1.14.0,<1.15.0'
