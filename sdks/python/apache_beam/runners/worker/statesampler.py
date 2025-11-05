@@ -134,7 +134,8 @@ class StateSampler(statesampler_impl.StateSampler):
       name_context: Union[str, 'common.NameContext'],
       state_name: str,
       io_target=None,
-      metrics_container: Optional['MetricsContainer'] = None
+      metrics_container: Optional['MetricsContainer'] = None,
+      suffix: str = '-msecs'
   ) -> statesampler_impl.ScopedState:
     """Returns a ScopedState object associated to a Step and a State.
 
@@ -152,7 +153,7 @@ class StateSampler(statesampler_impl.StateSampler):
       name_context = common.NameContext(name_context)
 
     counter_name = CounterName(
-        state_name + '-msecs',
+        state_name + suffix,
         stage_name=self._prefix,
         step_name=name_context.metrics_name(),
         io_target=io_target)
