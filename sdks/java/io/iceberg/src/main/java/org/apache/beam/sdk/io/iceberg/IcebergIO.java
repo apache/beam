@@ -463,8 +463,11 @@ public class IcebergIO {
           .apply("Assign Table Destinations", new AssignDestinations(destinations))
           .apply(
               "Write Rows to Destinations",
-              new WriteToDestinations(getCatalogConfig(), destinations, getTriggeringFrequency(),
-                getDirectWriteByteLimit()));
+              new WriteToDestinations(
+                  getCatalogConfig(),
+                  destinations,
+                  getTriggeringFrequency(),
+                  getDirectWriteByteLimit()));
     }
   }
 

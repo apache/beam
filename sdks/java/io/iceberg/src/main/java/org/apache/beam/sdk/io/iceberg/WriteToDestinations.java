@@ -59,10 +59,10 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private final @Nullable Integer directWriteByteLimit;
 
   WriteToDestinations(
-    IcebergCatalogConfig catalogConfig,
-    DynamicDestinations dynamicDestinations,
-    @Nullable Duration triggeringFrequency,
-    @Nullable Integer directWriteByteLimit) {
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Duration triggeringFrequency,
+      @Nullable Integer directWriteByteLimit) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
@@ -79,9 +79,9 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
       writtenFiles = writeTriggeredWithBundleLifting(input);
     } else {
       writtenFiles =
-        input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
-          ? writeTriggered(input)
-          : writeUntriggered(input);
+          input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
+              ? writeTriggered(input)
+              : writeUntriggered(input);
     }
 
     // Commit files to tables
@@ -92,9 +92,11 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   }
 
   private PCollection<FileWriteResult> writeTriggeredWithBundleLifting(
-    PCollection<KV<String, Row>> input) {
+      PCollection<KV<String, Row>> input) {
     checkArgumentNotNull(
-      triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
+        triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
+    checkArgumentNotNull(
+        directWriteByteLimit, "Must set non-null directWriteByteLimit for bundle lifting.");
 
     // Lift large bundles to separate output stream for direct writes.
     // https://beam.apache.org/documentation/pipelines/design-your-pipeline/#a-single-transform-that-produces-multiple-outputs
@@ -102,67 +104,67 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     final TupleTag<KV<String, Row>> directRecordsTag = new TupleTag<>("large_batches");
 
     PCollectionTuple bundleOutputs =
-      input.apply(
-        BundleLifter.of(
-          groupedRecordsTag, directRecordsTag, directWriteByteLimit, new RowSizer()));
+        input.apply(
+            BundleLifter.of(
+                groupedRecordsTag, directRecordsTag, directWriteByteLimit, new RowSizer()));
 
     PCollection<KV<String, Row>> smallBatches =
-      bundleOutputs
-        .get(groupedRecordsTag)
-        .setCoder(
-          KvCoder.of(StringUtf8Coder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
+        bundleOutputs
+            .get(groupedRecordsTag)
+            .setCoder(
+                KvCoder.of(StringUtf8Coder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
     PCollection<KV<String, Row>> largeBatches =
-      bundleOutputs
-        .get(directRecordsTag)
-        .setCoder(
-          KvCoder.of(StringUtf8Coder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
+        bundleOutputs
+            .get(directRecordsTag)
+            .setCoder(
+                KvCoder.of(StringUtf8Coder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
 
     // Group records into batches to avoid writing thousands of small files
     PCollection<KV<ShardedKey<String>, Iterable<Row>>> groupedRecords =
-      smallBatches
-        .apply("WindowIntoGlobal", Window.into(new GlobalWindows()))
-        // We rely on GroupIntoBatches to group and parallelize records properly,
-        // respecting our thresholds for number of records and bytes per batch.
-        // Each output batch will be written to a file.
-        .apply(
-          GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-            .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
-            .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency))
-            .withShardedKey())
-        .setCoder(
-          KvCoder.of(
-            Coder.of(StringUtf8Coder.of()),
-            IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
+        smallBatches
+            .apply("WindowIntoGlobal", Window.into(new GlobalWindows()))
+            // We rely on GroupIntoBatches to group and parallelize records properly,
+            // respecting our thresholds for number of records and bytes per batch.
+            // Each output batch will be written to a file.
+            .apply(
+                GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                    .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
+                    .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency))
+                    .withShardedKey())
+            .setCoder(
+                KvCoder.of(
+                    Coder.of(StringUtf8Coder.of()),
+                    IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
 
     // TODO(tomstepp): Need an ungrouped rows version which doesn't spill rows.
     PCollection<FileWriteResult> directFileWrites =
-      largeBatches
-        .apply(
-          "WriteUngroupedRows",
-          new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix))
-        .getWrittenFiles();
+        largeBatches
+            .apply(
+                "WriteUngroupedRows",
+                new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix))
+            .getWrittenFiles();
 
     PCollection<FileWriteResult> groupedFileWrites =
-      groupedRecords.apply(
-        "WriteGroupedRows",
-        new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
+        groupedRecords.apply(
+            "WriteGroupedRows",
+            new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
 
     // Flatten grouped write and direct write files.
     // https://beam.apache.org/documentation/pipelines/design-your-pipeline/#merging-pcollections
     PCollection<FileWriteResult> allFileWrites =
-      PCollectionList.of(groupedFileWrites)
-        .and(directFileWrites)
-        .apply(Flatten.<FileWriteResult>pCollections());
+        PCollectionList.of(groupedFileWrites)
+            .and(directFileWrites)
+            .apply(Flatten.<FileWriteResult>pCollections());
 
     // Respect user's triggering frequency before committing snapshots
     return allFileWrites.apply(
-      "ApplyUserTrigger",
-      Window.<FileWriteResult>into(new GlobalWindows())
-        .triggering(
-          Repeatedly.forever(
-            AfterProcessingTime.pastFirstElementInPane()
-              .plusDelayOf(checkArgumentNotNull(triggeringFrequency))))
-        .discardingFiredPanes());
+        "ApplyUserTrigger",
+        Window.<FileWriteResult>into(new GlobalWindows())
+            .triggering(
+                Repeatedly.forever(
+                    AfterProcessingTime.pastFirstElementInPane()
+                        .plusDelayOf(checkArgumentNotNull(triggeringFrequency))))
+            .discardingFiredPanes());
   }
 
   private PCollection<FileWriteResult> writeTriggered(PCollection<KV<String, Row>> input) {

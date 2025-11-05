@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -28,6 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,17 +68,20 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
     private transient List<T> buffer;
     private transient long bundleSize;
-    private transient MultiOutputReceiver receiver;
+    private transient @Nullable MultiOutputReceiver receiver;
 
     BundleLiftDoFn(
-      TupleTag<T> smallBatchTag,
-      TupleTag<T> largeBatchTag,
-      int threshold,
-      SerializableFunction<T, Integer> elementSizer) {
+        TupleTag<T> smallBatchTag,
+        TupleTag<T> largeBatchTag,
+        int threshold,
+        SerializableFunction<T, Integer> elementSizer) {
       this.smallBatchTag = smallBatchTag;
       this.largeBatchTag = largeBatchTag;
       this.threshold = threshold;
       this.elementSizer = elementSizer;
+      this.buffer = new ArrayList<>();
+      this.bundleSize = 0;
+      this.receiver = null;
     }
 
     @StartBundle
@@ -111,6 +117,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         LOG.debug("Emitting {} elements to large tag: '{}'", bundleSize, targetTag.getId());
       }
 
+      checkArgumentNotNull(this.receiver, "Receiver should be set by processElement.");
       OutputReceiver<T> taggedOutput = this.receiver.get(targetTag);
 
       for (T element : buffer) {
@@ -124,10 +131,10 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
   }
 
   public BundleLifter(
-    TupleTag<T> smallBatchTag,
-    TupleTag<T> largeBatchTag,
-    int threshold,
-    SerializableFunction<T, Integer> elementSizer) {
+      TupleTag<T> smallBatchTag,
+      TupleTag<T> largeBatchTag,
+      int threshold,
+      SerializableFunction<T, Integer> elementSizer) {
     if (smallBatchTag == null || largeBatchTag == null) {
       throw new IllegalArgumentException("smallBatchTag and largeBatchTag must not be null");
     }
@@ -145,15 +152,15 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
   }
 
   public static <T> BundleLifter<T> of(
-    TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, int threshold) {
+      TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, int threshold) {
     return new BundleLifter<>(smallBatchTag, largeBatchTag, threshold);
   }
 
   public static <T> BundleLifter<T> of(
-    TupleTag<T> smallBatchTag,
-    TupleTag<T> largeBatchTag,
-    int threshold,
-    SerializableFunction<T, Integer> elementSizer) {
+      TupleTag<T> smallBatchTag,
+      TupleTag<T> largeBatchTag,
+      int threshold,
+      SerializableFunction<T, Integer> elementSizer) {
     return new BundleLifter<>(smallBatchTag, largeBatchTag, threshold, elementSizer);
   }
 
@@ -162,8 +169,8 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     final TupleTag<Void> mainOutputTag = new TupleTag<Void>() {};
 
     return input.apply(
-      "BundleLiftDoFn",
-      ParDo.of(new BundleLiftDoFn<>(smallBatchTag, largeBatchTag, threshold, elementSizer))
-        .withOutputTags(mainOutputTag, TupleTagList.of(smallBatchTag).and(largeBatchTag)));
+        "BundleLiftDoFn",
+        ParDo.of(new BundleLiftDoFn<>(smallBatchTag, largeBatchTag, threshold, elementSizer))
+            .withOutputTags(mainOutputTag, TupleTagList.of(smallBatchTag).and(largeBatchTag)));
   }
 }

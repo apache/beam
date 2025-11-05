@@ -96,7 +96,7 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
     @SchemaFieldDescription(
-      "For a streaming pipeline, sets the limit for lifting bundles into the direct write path.")
+        "For a streaming pipeline, sets the limit for lifting bundles into the direct write path.")
     public abstract @Nullable Integer getDirectWriteByteLimit();
 
     @SchemaFieldDescription(
@@ -236,8 +236,6 @@ public class IcebergWriteSchemaTransformProvider
       Integer directWriteByteLimit = configuration.getDirectWriteByteLimit();
       if (directWriteByteLimit != null) {
         writeTransform = writeTransform.withDirectWriteByteLimit(directWriteByteLimit);
-      } else {
-        writeTransform = writeTransform.withDirectWriteByteLimit(null); // off
       }
 
       // TODO: support dynamic destinations
