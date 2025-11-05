@@ -36,6 +36,8 @@ except ImportError:
   from typing_extensions import is_typeddict
 
 # Python 3.12 adds TypeAliasType for `type` statements; keep optional import.
+# pylint: disable=ungrouped-imports
+# isort: off
 try:
   from typing import TypeAliasType  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover - pre-3.12
