@@ -505,7 +505,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
       self.skipTest('type statement not supported')
 
     AliasTuple = ns['AliasTuple']
-    self.assertTrue(isinstance(AliasTuple, TypeAliasType))
+    self.assertTrue(isinstance(AliasTuple, TypeAliasType))  # pylint: disable=isinstance-second-argument-not-valid-type
     self.assertEqual(
         typehints.Tuple[int, ...], convert_to_beam_type(AliasTuple))
 
