@@ -1185,7 +1185,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Configure all test tasks to use JUnit
         useJUnit {}
         // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
-        maxHeapSize = '3g'
+        maxHeapSize = '2g'
       }
 
       List<String> skipDefRegexes = []
