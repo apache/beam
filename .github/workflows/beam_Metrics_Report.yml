@@ -74,7 +74,7 @@ jobs:
           INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
           INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
       - name: Archive Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Metrics Report
           path: "${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html"

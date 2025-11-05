@@ -99,7 +99,7 @@ jobs:
             -Pposargs=apache_beam/examples/ \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: Python ${{ matrix.python_version }} Test Results

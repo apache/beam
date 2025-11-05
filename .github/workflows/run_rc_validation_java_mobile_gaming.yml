@@ -129,7 +129,7 @@ jobs:
 
       # Reporting (Optional: Keep if test results are generated)
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure() # Upload only on failure
         with:
           name: JUnit Test Results (Java MobileGaming RC)

@@ -105,7 +105,7 @@ jobs:
         exportDataset: performance_tests
         exportTable: io_performance_metrics_test
     - name: Archive JUnit Test Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: ${{ !success() }}
       with:
         name: JUnit Test Results
