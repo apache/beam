@@ -22,7 +22,6 @@
 import collections.abc
 import functools
 import re
-import sys
 import typing
 import unittest
 

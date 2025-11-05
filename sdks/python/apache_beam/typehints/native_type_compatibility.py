@@ -22,7 +22,6 @@
 import collections
 import collections.abc
 import logging
-import sys
 import types
 import typing
 from typing import Generic

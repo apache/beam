@@ -67,7 +67,6 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 import copy
 import logging
-import sys
 import types
 import typing
 from collections import abc
