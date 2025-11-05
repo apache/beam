@@ -27,11 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
@@ -52,6 +48,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgr
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ExpiringMemoizingSerializableSupplier;
 import org.apache.beam.sdk.util.MemoizingPerInstantiationSerializableSupplier;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.SerializableSupplier;
@@ -348,100 +345,37 @@ abstract class ReadFromKafkaDoFn<K, V>
    */
   private static class KafkaLatestOffsetEstimator
       implements GrowableOffsetRangeTracker.RangeEndEstimator, Closeable {
-    private static final AtomicReferenceFieldUpdater<KafkaLatestOffsetEstimator, @Nullable Runnable>
-        CURRENT_REFRESH_TASK =
-            (AtomicReferenceFieldUpdater<KafkaLatestOffsetEstimator, @Nullable Runnable>)
-                AtomicReferenceFieldUpdater.newUpdater(
-                    KafkaLatestOffsetEstimator.class, Runnable.class, "currentRefreshTask");
-    private final Executor executor;
     private final Consumer<byte[], byte[]> offsetConsumer;
-    private final TopicPartition topicPartition;
-    // TODO(sjvanrossum): Use VarHandle.setOpaque/getOpaque when Java 8 support is dropped
-    private long lastRefreshEndOffset;
-    // TODO(sjvanrossum): Use VarHandle.setOpaque/getOpaque when Java 8 support is dropped
-    private long nextRefreshNanos;
-    private volatile @Nullable Runnable currentRefreshTask;
-
-    /*
-    Periodic refreshes of lastRefreshEndOffset and nextRefreshNanos are guarded by the volatile
-    field currentRefreshTask. This guard's correctness depends on specific ordering of reads and
-    writes (loads and stores).
-
-    To validate the behavior of this guard please read the Java Memory Model (JMM) specification.
-    For the current context consider the following oversimplifications of the JMM:
-      - Writes to a non-volatile long or double field are non-atomic.
-      - Writes to a non-volatile field may never become visible to another core.
-      - Writes to a volatile field are atomic and will become visible to another core.
-      - Lazy writes to a volatile field are atomic and will become visible to another core for
-        reads of that volatile field.
-      - Writes preceeding writes or lazy writes to a volatile field are visible to another core.
-
-    In short, the contents of this class' guarded fields are visible if the guard field is (lazily)
-    written last and read first. The contents of the volatile guard may be stale in comparison to
-    the contents of the guarded fields. For this method it is important that no more than one
-    thread will schedule a refresh task. Using currentRefreshTask as the guard field ensures that
-    lastRefreshEndOffset and nextRefreshNanos are at least as stale as currentRefreshTask.
-    It's fine if lastRefreshEndOffset and nextRefreshNanos are less stale than currentRefreshTask.
-
-    Removing currentRefreshTask by guarding on nextRefreshNanos is possible, but executing
-    currentRefreshTask == null is practically free (measured in cycles) compared to executing
-    nextRefreshNanos < System.nanoTime() (measured in nanoseconds).
-
-    Note that the JMM specifies that writes to a long or double are not guaranteed to be atomic.
-    In practice, every 64-bit JVM will treat them as atomic (and the JMM encourages this).
-    There's no way to force atomicity without visibility in Java 8 so atomicity guards have been
-    omitted. Java 9 introduces VarHandle with "opaque" getters/setters which do provide this.
-    */
+    private final Supplier<Long> offsetSupplier;
 
     KafkaLatestOffsetEstimator(
         final Consumer<byte[], byte[]> offsetConsumer, final TopicPartition topicPartition) {
-      this.executor = Executors.newSingleThreadExecutor();
       this.offsetConsumer = offsetConsumer;
-      this.topicPartition = topicPartition;
-      this.lastRefreshEndOffset = -1L;
-      this.nextRefreshNanos = Long.MIN_VALUE;
-      this.currentRefreshTask = null;
+      this.offsetSupplier =
+          new ExpiringMemoizingSerializableSupplier<>(
+              () -> {
+                try {
+                  return offsetConsumer
+                      .endOffsets(Collections.singleton(topicPartition))
+                      .getOrDefault(topicPartition, Long.MIN_VALUE);
+                } catch (Throwable t) {
+                  LOG.error("Failed to get end offset for {}", topicPartition, t);
+                  return Long.MIN_VALUE;
+                }
+              },
+              Duration.ofSeconds(1),
+              Long.MIN_VALUE,
+              Duration.ZERO);
     }
 
     @Override
     public long estimate() {
-      final @Nullable Runnable task = currentRefreshTask; // volatile load (acquire)
-
-      final long currentNanos;
-      if (task == null
-          && nextRefreshNanos < (currentNanos = System.nanoTime()) // normal load
-          && CURRENT_REFRESH_TASK.compareAndSet(this, null, this::refresh)) { // volatile load/store
-        try {
-          executor.execute(this::refresh);
-        } catch (RejectedExecutionException ex) {
-          LOG.error("Execution of end offset refresh rejected for {}", topicPartition, ex);
-          nextRefreshNanos = currentNanos + TimeUnit.SECONDS.toNanos(1); // normal store
-          CURRENT_REFRESH_TASK.lazySet(this, null); // ordered store (release)
-        }
-      }
-
-      return lastRefreshEndOffset; // normal load
+      return offsetSupplier.get();
     }
 
     @Override
     public void close() {
       offsetConsumer.close();
-    }
-
-    private void refresh() {
-      try {
-        @Nullable
-        Long endOffset =
-            offsetConsumer.endOffsets(Collections.singleton(topicPartition)).get(topicPartition);
-        if (endOffset == null) {
-          LOG.warn("No end offset found for partition {}.", topicPartition);
-        } else {
-          lastRefreshEndOffset = endOffset; // normal store
-        }
-        nextRefreshNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(1); // normal store
-      } finally {
-        CURRENT_REFRESH_TASK.lazySet(this, null); // ordered store (release)
-      }
     }
   }
 
