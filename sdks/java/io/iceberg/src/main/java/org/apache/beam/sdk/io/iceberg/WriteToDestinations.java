@@ -52,7 +52,6 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private static final int FILE_TRIGGERING_RECORD_COUNT = 500_000;
   // Used for auto-sharding in streaming. Limits total byte size per batch/file
   public static final int FILE_TRIGGERING_BYTE_COUNT = 1 << 30; // 1GiB
-  static final int DEFAULT_NUM_FILE_SHARDS = 0;
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
   private final @Nullable Duration triggeringFrequency;
@@ -135,8 +134,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             Coder.of(StringUtf8Coder.of()),
             IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
 
-    // TODO(tomstepp): handle the spilled rows. Need an ungrouped rows version which doesn't do
-    // this.
+    // TODO(tomstepp): Need an ungrouped rows version which doesn't spill rows.
     PCollection<FileWriteResult> directFileWrites =
       largeBatches
         .apply(
@@ -238,15 +236,12 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     @Override
     public Integer apply(KV<String, Row> element) {
       Row row = element.getValue();
-      if (row == null) {
-        return 0;
-      }
       int size = 0;
       for (Object value : row.getValues()) {
-        if (value instanceof String string) {
-          size += string.getBytes(StandardCharsets.UTF_8).length;
-        } else if (value instanceof byte[] array) {
-          size += array.length;
+        if (value instanceof String) {
+          size += ((String) value).getBytes(StandardCharsets.UTF_8).length;
+        } else if (value instanceof byte[]) {
+          size += ((byte[]) value).length;
         } else {
           size += 8; // Approximation for non-string/byte fields
         }
