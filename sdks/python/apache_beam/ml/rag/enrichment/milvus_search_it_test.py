@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import logging
 import platform
 import unittest
 from dataclasses import dataclass
@@ -54,6 +53,7 @@ try:
   from apache_beam.transforms.enrichment import Enrichment
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
+
 
 def _construct_index_params():
   index_params = IndexParams()
