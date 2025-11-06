@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.fn.splittabledofn;
 
+import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
@@ -45,6 +46,9 @@ public class RestrictionTrackers {
   private static class RestrictionTrackerObserver<RestrictionT, PositionT>
       extends RestrictionTracker<RestrictionT, PositionT> {
     protected final RestrictionTracker<RestrictionT, PositionT> delegate;
+    protected ReentrantLock lock = new ReentrantLock();
+    protected volatile Progress lastProgress = Progress.NONE;
+    protected volatile boolean pendingProgress = false;
     private final ClaimObserver<PositionT> claimObserver;
 
     protected RestrictionTrackerObserver(
@@ -55,34 +59,70 @@ public class RestrictionTrackers {
     }
 
     @Override
-    public synchronized boolean tryClaim(PositionT position) {
-      if (delegate.tryClaim(position)) {
-        claimObserver.onClaimed(position);
-        return true;
-      } else {
-        claimObserver.onClaimFailed(position);
-        return false;
+    public boolean tryClaim(PositionT position) {
+      lock.lock();
+      try {
+        if (delegate.tryClaim(position)) {
+          claimObserver.onClaimed(position);
+          evalueteProgress();
+          return true;
+        } else {
+          claimObserver.onClaimFailed(position);
+          return false;
+        }
+      } finally {
+        lock.unlock();
       }
     }
 
     @Override
-    public synchronized RestrictionT currentRestriction() {
-      return delegate.currentRestriction();
+    public RestrictionT currentRestriction() {
+      lock.lock();
+      try {
+        return delegate.currentRestriction();
+      } finally {
+        lock.unlock();
+      }
     }
 
     @Override
-    public synchronized SplitResult<RestrictionT> trySplit(double fractionOfRemainder) {
-      return delegate.trySplit(fractionOfRemainder);
+    public SplitResult<RestrictionT> trySplit(double fractionOfRemainder) {
+      lock.lock();
+      try {
+        SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
+        evalueteProgress();
+        return result;
+      } finally {
+        lock.unlock();
+      }
     }
 
     @Override
-    public synchronized void checkDone() throws IllegalStateException {
-      delegate.checkDone();
+    public void checkDone() throws IllegalStateException {
+      lock.lock();
+      try {
+        delegate.checkDone();
+      } finally {
+        lock.unlock();
+      }
     }
 
     @Override
     public IsBounded isBounded() {
       return delegate.isBounded();
+    }
+
+    /** Evaluate progress if requested. */
+    protected void evalueteProgress() {
+      lock.lock();
+      try {
+        if (pendingProgress) {
+          lastProgress = ((HasProgress) delegate).getProgress();
+          pendingProgress = false;
+        }
+      } finally {
+        lock.unlock();
+      }
     }
   }
 
@@ -101,8 +141,16 @@ public class RestrictionTrackers {
     }
 
     @Override
-    public synchronized Progress getProgress() {
-      return ((HasProgress) delegate).getProgress();
+    public Progress getProgress() {
+      pendingProgress = true;
+      if (lock.tryLock()) {
+        try {
+          evalueteProgress();
+        } finally {
+          lock.unlock();
+        }
+      }
+      return lastProgress;
     }
   }
 

@@ -24,11 +24,14 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers.ClaimObserver;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -38,6 +41,8 @@ import org.junit.runners.JUnit4;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class RestrictionTrackersTest {
+  @Rule public Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
+
   @Test
   public void testObservingClaims() {
     RestrictionTracker<String, String> observedTracker =
@@ -95,14 +100,37 @@ public class RestrictionTrackersTest {
 
   private static class RestrictionTrackerWithProgress extends RestrictionTracker<Object, Object>
       implements HasProgress {
+    private boolean blockTryClaim;
+    private boolean blockTrySplit;
+    private boolean isBlocked;
+    public static Progress REPORT_PROGRESS = Progress.from(2.0, 3.0);
 
-    @Override
-    public Progress getProgress() {
-      return RestrictionTracker.Progress.from(2.0, 3.0);
+    public RestrictionTrackerWithProgress() {
+      this(false, false);
+    }
+
+    public RestrictionTrackerWithProgress(boolean blockTryClaim, boolean blockTrySplit) {
+      this.blockTryClaim = blockTryClaim;
+      this.blockTrySplit = blockTrySplit;
+      this.isBlocked = false;
     }
 
     @Override
-    public boolean tryClaim(Object position) {
+    public Progress getProgress() {
+      return REPORT_PROGRESS;
+    }
+
+    @Override
+    public synchronized boolean tryClaim(Object position) {
+      while (blockTryClaim) {
+        isBlocked = true;
+        try {
+          wait();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      isBlocked = false;
       return false;
     }
 
@@ -112,7 +140,16 @@ public class RestrictionTrackersTest {
     }
 
     @Override
-    public SplitResult<Object> trySplit(double fractionOfRemainder) {
+    public synchronized SplitResult<Object> trySplit(double fractionOfRemainder) {
+      while (blockTrySplit) {
+        isBlocked = true;
+        try {
+          wait();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      isBlocked = false;
       return null;
     }
 
@@ -123,6 +160,16 @@ public class RestrictionTrackersTest {
     public IsBounded isBounded() {
       return IsBounded.BOUNDED;
     }
+
+    public synchronized void releaseLock() {
+      blockTrySplit = false;
+      blockTryClaim = false;
+      notifyAll();
+    }
+
+    public boolean isBlocked() {
+      return isBlocked;
+    }
   }
 
   @Test
@@ -130,5 +177,47 @@ public class RestrictionTrackersTest {
     RestrictionTracker hasSize =
         RestrictionTrackers.observe(new RestrictionTrackerWithProgress(), null);
     assertThat(hasSize, instanceOf(HasProgress.class));
+  }
+
+  private void testBlocking(String testCase) throws InterruptedException {
+    RestrictionTrackerWithProgress withProgress;
+    if ("tryClaim".equals(testCase)) {
+      withProgress = new RestrictionTrackerWithProgress(true, false);
+    } else if ("trySplit".equals(testCase)) {
+      withProgress = new RestrictionTrackerWithProgress(false, true);
+    } else {
+      throw new IllegalArgumentException("unknown test case " + testCase);
+    }
+    RestrictionTracker<Object, Object> tracker =
+        RestrictionTrackers.observe(withProgress, new RestrictionTrackers.NoopClaimObserver<>());
+    Runnable runnable;
+    if ("tryClaim".equals(testCase)) {
+      runnable = () -> tracker.tryClaim(new Object());
+    } else {
+      runnable = () -> tracker.trySplit(0.5);
+    }
+    Thread blocking = new Thread(runnable);
+    blocking.start();
+    while (!withProgress.isBlocked()) {
+      Thread.sleep(1);
+    }
+    RestrictionTracker.Progress progress = ((HasProgress) tracker).getProgress();
+    assertEquals(RestrictionTracker.Progress.NONE, progress);
+    withProgress.releaseLock();
+    while (withProgress.isBlocked()) {
+      Thread.sleep(1);
+    }
+    progress = ((HasProgress) tracker).getProgress();
+    assertEquals(RestrictionTrackerWithProgress.REPORT_PROGRESS, progress);
+  }
+
+  @Test
+  public void testClaimObserversProgressNonBlockingOnTryClaim() throws InterruptedException {
+    testBlocking("tryClaim");
+  }
+
+  @Test
+  public void testClaimObserversProgressNonBlockingOnTrySplit() throws InterruptedException {
+    testBlocking("trySplit");
   }
 }
