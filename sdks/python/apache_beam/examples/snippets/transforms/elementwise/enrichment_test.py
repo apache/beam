@@ -52,10 +52,9 @@ try:
       ConnectionConfig,
       CloudSQLConnectionConfig,
       ExternalSQLDBConnectionConfig)
-  from apache_beam.ml.rag.enrichment.milvus_search import (
-      MilvusConnectionParameters)
-  from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
-      MilvusEnrichmentTestHelper, MilvusDBContainerInfo)
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusConnectionParameters
+  from apache_beam.ml.rag.test_utils import MilvusTestHelpers
+  from apache_beam.ml.rag.test_utils import VectorDBContainerInfo
   from apache_beam.ml.rag.test_utils import MilvusTestHelpers
   from apache_beam.ml.rag.utils import parse_chunk_strings
   from apache_beam.io.requestresponse import RequestResponseIO
@@ -261,7 +260,7 @@ class EnrichmentTestHelpers:
   @staticmethod
   @contextmanager
   def milvus_test_context():
-    db: Optional[MilvusDBContainerInfo] = None
+    db: Optional[VectorDBContainerInfo] = None
     try:
       db = EnrichmentTestHelpers.pre_milvus_enrichment()
       yield
@@ -374,16 +373,16 @@ class EnrichmentTestHelpers:
       os.environ.pop('GOOGLE_CLOUD_SQL_DB_TABLE_ID', None)
 
   @staticmethod
-  def pre_milvus_enrichment() -> MilvusDBContainerInfo:
+  def pre_milvus_enrichment() -> VectorDBContainerInfo:
     try:
-      db = MilvusEnrichmentTestHelper.start_db_container()
+      db = MilvusTestHelpers.start_db_container()
       connection_params = MilvusConnectionParameters(
           uri=db.uri,
           user=db.user,
           password=db.password,
           db_id=db.id,
           token=db.token)
-      collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
+      collection_name = MilvusTestHelpers.initialize_db_with_data(
           connection_params)
     except Exception as e:
       raise TestContainerStartupError(
@@ -401,9 +400,9 @@ class EnrichmentTestHelpers:
     return db
 
   @staticmethod
-  def post_milvus_enrichment(db: MilvusDBContainerInfo):
+  def post_milvus_enrichment(db: VectorDBContainerInfo):
     try:
-      MilvusEnrichmentTestHelper.stop_db_container(db)
+      MilvusTestHelpers.stop_db_container(db)
     except Exception as e:
       raise TestContainerTeardownError(
           f"Milvus container failed to tear down: {str(e)}")
