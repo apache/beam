@@ -445,9 +445,6 @@ class Operation(object):
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
 
     self.state_sampler = state_sampler
-    self.scoped_start_state = None
-    self.scoped_process_state = None
-    self.scoped_finish_state = None
     if self.state_sampler:
       self.scoped_start_state = self.state_sampler.scoped_state(
           self.name_context, 'start', metrics_container=self.metrics_container)
