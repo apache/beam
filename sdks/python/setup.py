@@ -595,7 +595,7 @@ if __name__ == '__main__':
               ,
               'dill'
           ],
-          'tfrecord': ['crcmod>=1.7,<2.0']
+          'tfrecord': ['crcmod>=1.7,<2.0'],
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',
