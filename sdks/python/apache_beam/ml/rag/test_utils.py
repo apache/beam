@@ -41,6 +41,7 @@ try:
   from testcontainers.core.config import testcontainers_config
   from testcontainers.core.generic import DbContainer
   from testcontainers.milvus import MilvusContainer
+
   from apache_beam.ml.rag.enrichment.milvus_search import MilvusConnectionParameters
 except ImportError as e:
   raise unittest.SkipTest(f'RAG test util dependencies not installed: {str(e)}')
