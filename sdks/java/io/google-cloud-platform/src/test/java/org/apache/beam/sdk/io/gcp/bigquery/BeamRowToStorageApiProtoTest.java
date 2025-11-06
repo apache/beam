@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -472,7 +473,7 @@ public class BeamRowToStorageApiProtoTest {
     Map<String, Object> recordFields =
         msg.getAllFields().entrySet().stream()
             .collect(Collectors.toMap(entry -> entry.getKey().getName(), Map.Entry::getValue));
-    assertEquals(BASE_PROTO_EXPECTED_FIELDS, recordFields);
+    assertEquals(new HashMap<>(BASE_PROTO_EXPECTED_FIELDS), new HashMap<>(recordFields));
   }
 
   @Test
