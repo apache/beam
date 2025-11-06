@@ -50,9 +50,9 @@ from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
 from apache_beam.runners.worker.data_sampler import DataSampler
-from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
+from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor

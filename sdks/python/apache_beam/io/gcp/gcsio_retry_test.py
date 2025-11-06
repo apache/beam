@@ -26,12 +26,16 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from apache_beam.io.gcp import gcsio_retry
   from google.api_core import exceptions as api_exceptions
+
+  from apache_beam.io.gcp import gcsio_retry
 except ImportError:
   gcsio_retry = None
   api_exceptions = None
+
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 @unittest.skipIf((gcsio_retry is None or api_exceptions is None),

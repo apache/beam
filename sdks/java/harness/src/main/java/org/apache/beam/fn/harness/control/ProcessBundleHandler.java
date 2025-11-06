@@ -450,11 +450,8 @@ public class ProcessBundleHandler {
                           pTransformId, pTransform.getUniqueName());
                   FnDataReceiver<Timer<T>> wrappedReceiver =
                       (Timer<T> timer) -> {
-                        executionState.activate();
-                        try {
+                        try (AutoCloseable ignored = executionState.scopedActivate()) {
                           receiver.accept(timer);
-                        } finally {
-                          executionState.deactivate();
                         }
                       };
                   addTimerEndpoint.accept(

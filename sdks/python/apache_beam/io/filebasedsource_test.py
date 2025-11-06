@@ -34,8 +34,8 @@ from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 # importing following private classes for testing
 from apache_beam.io.concat_source import ConcatSource
-from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
 from apache_beam.io.filebasedsource import FileBasedSource
+from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider

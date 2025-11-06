@@ -188,8 +188,8 @@ class PipelineTest(unittest.TestCase):
         pcoll = pipeline | 'label1' >> Create([1, 2, 3])
         assert_that(pcoll, equal_to([1, 2, 3]))
 
-        from apache_beam.internal import pickler
         from apache_beam.internal import dill_pickler
+        from apache_beam.internal import pickler
         self.assertIs(pickler.desired_pickle_lib, dill_pickler)
     mock_info.assert_any_call(
         'Runner defaulting to pickling library: %s.', 'dill')
