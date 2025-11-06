@@ -23,6 +23,7 @@ import os
 import threading
 import types
 import unittest
+from unittest import mock
 
 from apache_beam.coders import proto2_coder_test_messages_pb2
 from apache_beam.internal import cloudpickle_pickler as beam_cloudpickle
@@ -31,7 +32,6 @@ from apache_beam.internal import module_test
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
 from apache_beam.utils import shared
-from unittest import mock
 
 GLOBAL_DICT_REF = module_test.GLOBAL_DICT
 
@@ -225,13 +225,11 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
           '\n'.join(l.output))
 
   @mock.patch.object(
-      beam_cloudpickle.DEFAULT_CONFIG, 'filepath_interceptor', autospec=True
-  )
+      beam_cloudpickle.DEFAULT_CONFIG, 'filepath_interceptor', autospec=True)
   def test_default_config_interceptor(self, mock_filepath_interceptor):
     """Tests config.filepath_interceptor is called for CodeType pickling."""
     mock_filepath_interceptor.side_effect = (
-      code_object_pickler.get_normalized_path
-    )
+        code_object_pickler.get_normalized_path)
 
     def sample_func():
       return "Beam"
@@ -251,10 +249,9 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     except AttributeError as e:
       if 'get_code_object_params' in str(e):
         self.fail(
-              "Vendored cloudpickle BUG: AttributeError "
-              f"'get_code_object_params' raised during CodeType pickling. "
-              f"Error: {e}"
-        )
+            "Vendored cloudpickle BUG: AttributeError "
+            f"'get_code_object_params' raised during CodeType pickling. "
+            f"Error: {e}")
       else:
         raise
 
