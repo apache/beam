@@ -119,6 +119,8 @@ jobs:
       run: |
         gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://us.gcr.io
     - name: Clean
+      env:
+        CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
         gradle-command: :clean
@@ -127,6 +129,8 @@ jobs:
           -PdisableCheckStyle=true \
           -PskipCheckerFramework \
     - name: Build and Test
+      env:
+        CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
         gradle-command: :runners:google-cloud-dataflow-java:examples:preCommit :runners:google-cloud-dataflow-java:examplesJavaDistrolessRunnerV2PreCommit
