@@ -83,7 +83,6 @@ cdef class Operation(object):
   cdef readonly object scoped_start_state
   cdef readonly object scoped_process_state
   cdef readonly object scoped_finish_state
-  cdef readonly object scoped_timer_processing_state
 
   cdef readonly object data_sampler
 
@@ -118,6 +117,7 @@ cdef class DoOperation(Operation):
   cdef dict timer_specs
   cdef public object input_info
   cdef object fn
+  cdef readonly object scoped_timer_processing_state
 
 
 cdef class SdfProcessSizedElements(DoOperation):

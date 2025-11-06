@@ -49,6 +49,7 @@ from apache_beam.runners.common import Receiver
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
+from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
@@ -451,9 +452,15 @@ class Operation(object):
       self.scoped_start_state = self.state_sampler.scoped_state(
           self.name_context, 'start', metrics_container=self.metrics_container)
       self.scoped_process_state = self.state_sampler.scoped_state(
-          self.name_context, 'process', metrics_container=self.metrics_container)
+          self.name_context,
+          'process',
+          metrics_container=self.metrics_container)
       self.scoped_finish_state = self.state_sampler.scoped_state(
           self.name_context, 'finish', metrics_container=self.metrics_container)
+    else:
+      self.scoped_start_state = statesampler.NOOP_SCOPED_STATE
+      self.scoped_process_state = statesampler.NOOP_SCOPED_STATE
+      self.scoped_finish_state = statesampler.NOOP_SCOPED_STATE
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []  # type: List[ConsumerSet]
@@ -812,9 +819,9 @@ class DoOperation(Operation):
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
-    # Force clean rebuild 
+    # Force clean rebuild
     self.input_info = None  # type: Optional[OpInputInfo]
-    self.scoped_timer_processing_state = None
+    self.scoped_timer_processing_state = statesampler.NOOP_SCOPED_STATE
     if self.state_sampler:
       self.scoped_timer_processing_state = self.state_sampler.scoped_state(
           self.name_context,
