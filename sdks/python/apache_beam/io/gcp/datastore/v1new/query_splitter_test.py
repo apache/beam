@@ -25,11 +25,12 @@ import mock
 
 # Protect against environments where datastore library is not available.
 try:
+  from google.cloud.datastore import key
+
   from apache_beam.io.gcp.datastore.v1new import helper
   from apache_beam.io.gcp.datastore.v1new import query_splitter
   from apache_beam.io.gcp.datastore.v1new import types
   from apache_beam.io.gcp.datastore.v1new.query_splitter import SplitNotPossibleError
-  from google.cloud.datastore import key
 except ImportError:
   query_splitter = None  # type: ignore
 

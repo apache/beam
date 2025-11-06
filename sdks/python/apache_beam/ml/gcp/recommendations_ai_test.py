@@ -29,6 +29,7 @@ from apache_beam.metrics import MetricsFilter
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud import recommendationengine
+
   from apache_beam.ml.gcp import recommendations_ai
 except ImportError:
   recommendationengine = None

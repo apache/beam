@@ -123,7 +123,7 @@ _MethodDescriptorType = type(str.upper)
 
 _ANY_VAR_POSITIONAL = typehints.Tuple[typehints.Any, ...]
 _ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
-_disable_from_callable = False
+_disable_from_callable = False  # pylint: disable=invalid-name
 
 
 def get_signature(func):

@@ -582,7 +582,7 @@ with tags: `${RELEASE_VERSION}rc${RC_NUM}`
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
     RC_TAG=${RELEASE_VERSION}rc${RC_NUM}
-    for pyver in 3.9 3.10 3.11 3.12; do
+    for pyver in 3.10 3.11 3.12 3.13; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
