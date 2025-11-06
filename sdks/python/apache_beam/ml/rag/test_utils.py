@@ -20,25 +20,29 @@ import logging
 import os
 import socket
 import tempfile
+import unittest
 from dataclasses import dataclass
 from typing import Callable
 from typing import List
 from typing import Optional
 from typing import cast
 
-import yaml
-from pymilvus import CollectionSchema
-from pymilvus import FieldSchema
-from pymilvus import MilvusClient
-from pymilvus.exceptions import MilvusException
-from pymilvus.milvus_client import IndexParams
-from testcontainers.core.config import testcontainers_config
-from testcontainers.core.generic import DbContainer
-from testcontainers.milvus import MilvusContainer
-
-from apache_beam.ml.rag.enrichment.milvus_search import MilvusConnectionParameters
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.utils import retry_with_backoff
+
+try:
+  import yaml
+  from pymilvus import CollectionSchema
+  from pymilvus import FieldSchema
+  from pymilvus import MilvusClient
+  from pymilvus.exceptions import MilvusException
+  from pymilvus.milvus_client import IndexParams
+  from testcontainers.core.config import testcontainers_config
+  from testcontainers.core.generic import DbContainer
+  from testcontainers.milvus import MilvusContainer
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusConnectionParameters
+except ImportError as e:
+  raise unittest.SkipTest(f'RAG test util dependencies not installed: {str(e)}')
 
 _LOGGER = logging.getLogger(__name__)
 
