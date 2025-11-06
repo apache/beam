@@ -50,7 +50,7 @@ T_typing = typing.TypeVar('T')  # type: ignore
 
 
 @pytest.fixture(autouse=True)
-def skipif39_or_lower(request):
+def skipif310_or_lower(request):
   if sys.version_info < (3, 11) and "futureannotations" in str(
       request.node.name):
     # NOTE(hjtran): the futureannotation tests seem to pass on py3.10
