@@ -37,13 +37,14 @@ import zlib
 
 from apache_beam.internal import code_object_pickler
 from apache_beam.internal.cloudpickle import cloudpickle
+from apache_beam.internal.code_object_pickler import get_normalized_path
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
-    skip_reset_dynamic_type_state=True)
+    skip_reset_dynamic_type_state=True, filepath_interceptor=get_normalized_path)
 NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
-    id_generator=None, skip_reset_dynamic_type_state=True)
+    id_generator=None, skip_reset_dynamic_type_state=True, filepath_interceptor=get_normalized_path)
 STABLE_CODE_IDENTIFIER_CONFIG = cloudpickle.CloudPickleConfig(
-    skip_reset_dynamic_type_state=True,
+    skip_reset_dynamic_type_state=True, filepath_interceptor=get_normalized_path,
     get_code_object_params=cloudpickle.GetCodeObjectParams(
         get_code_object_identifier=code_object_pickler.
         get_code_object_identifier,

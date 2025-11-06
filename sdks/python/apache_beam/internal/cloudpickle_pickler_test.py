@@ -19,11 +19,14 @@
 
 # pytype: skip-file
 
+import os
 import threading
 import types
 import unittest
 
 from apache_beam.coders import proto2_coder_test_messages_pb2
+from apache_beam.internal import cloudpickle_pickler as beam_cloudpickle
+from apache_beam.internal import code_object_pickler
 from apache_beam.internal import module_test
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
@@ -219,6 +222,36 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
       self.assertIn(
           'Ignoring unsupported option: enable_best_effort_determinism',
           '\n'.join(l.output))
+
+  @unittest.mock.patch.object(
+      code_object_pickler,
+      'get_normalized_path',
+      wraps=code_object_pickler.get_normalized_path)
+  def test_default_config_interceptor(self, mock_get_normalized_path):
+    """Tests config.filepath_interceptor is called for CodeType pickling."""
+
+    def sample_func():
+      return "Beam"
+
+    code_obj = sample_func.__code__
+    original_filename = os.path.abspath(code_obj.co_filename)
+
+    try:
+      pickled_code = beam_cloudpickle.dumps(code_obj)
+      unpickled_code = beam_cloudpickle.loads(pickled_code)
+
+      mock_get_normalized_path.assert_called()
+
+      unpickled_filename = os.path.abspath(unpickled_code.co_filename)
+      self.assertEqual(unpickled_filename, original_filename)
+
+    except AttributeError as e:
+      if 'get_code_object_params' in str(e):
+        self.fail(
+            "Vendored cloudpickle BUG: AttributeError 'get_code_object_params' "
+            f"raised during CodeType pickling. Error: {e}")
+      else:
+        raise
 
 
 if __name__ == '__main__':
