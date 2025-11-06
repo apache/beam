@@ -167,7 +167,7 @@ public class RestrictionTrackersTest {
       notifyAll();
     }
 
-    public boolean isBlocked() {
+    public synchronized boolean isBlocked() {
       return isBlocked;
     }
   }

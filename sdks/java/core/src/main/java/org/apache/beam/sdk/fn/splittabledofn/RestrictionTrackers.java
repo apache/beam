@@ -64,7 +64,7 @@ public class RestrictionTrackers {
       try {
         if (delegate.tryClaim(position)) {
           claimObserver.onClaimed(position);
-          evalueteProgress();
+          evaluateProgress();
           return true;
         } else {
           claimObserver.onClaimFailed(position);
@@ -90,7 +90,7 @@ public class RestrictionTrackers {
       lock.lock();
       try {
         SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
-        evalueteProgress();
+        evaluateProgress();
         return result;
       } finally {
         lock.unlock();
@@ -113,7 +113,7 @@ public class RestrictionTrackers {
     }
 
     /** Evaluate progress if requested. */
-    protected void evalueteProgress() {
+    protected void evaluateProgress() {
       lock.lock();
       try {
         if (pendingProgress) {
@@ -145,7 +145,7 @@ public class RestrictionTrackers {
       pendingProgress = true;
       if (lock.tryLock()) {
         try {
-          evalueteProgress();
+          evaluateProgress();
         } finally {
           lock.unlock();
         }
