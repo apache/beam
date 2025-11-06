@@ -30,6 +30,7 @@ from typing import cast
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.utils import retry_with_backoff
 
+# pylint: disable=ungrouped-imports
 try:
   import yaml
   from pymilvus import CollectionSchema
