@@ -373,7 +373,6 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'crcmod>=1.7,<2.0',
           'cryptography>=39.0.0,<48.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
@@ -596,6 +595,7 @@ if __name__ == '__main__':
               ,
               'dill'
           ],
+          'tfrecord': ['crcmod>=1.7,<2.0']
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',
