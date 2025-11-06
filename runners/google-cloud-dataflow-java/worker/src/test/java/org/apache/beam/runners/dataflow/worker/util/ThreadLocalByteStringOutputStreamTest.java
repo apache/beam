@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.util;
 import static org.junit.Assert.*;
 
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
 public class ThreadLocalByteStringOutputStreamTest {
@@ -54,5 +55,23 @@ public class ThreadLocalByteStringOutputStreamTest {
               return stream.toByteStringAndReset();
             });
     assertEquals(ByteString.copyFrom(new byte[] {1, 3}), bytes);
+  }
+
+  @Test
+  public void resetDirtyStream() {
+    @Nullable
+    Object unused =
+        ThreadLocalByteStringOutputStream.withThreadLocalStream(
+            stream -> {
+              stream.write(1);
+              // Don't read/reset stream
+              return null;
+            });
+    ByteString bytes =
+        ThreadLocalByteStringOutputStream.withThreadLocalStream(
+            stream -> {
+              return stream.toByteStringAndReset();
+            });
+    assertEquals(ByteString.EMPTY, bytes);
   }
 }
