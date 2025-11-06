@@ -26,7 +26,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
@@ -52,8 +51,8 @@ public class WindmillStateInternals<K> implements StateInternals {
   private final @Nullable K key;
 
   private final WindmillStateCache.ForKeyAndFamily cache;
-  private final StateTable workItemState;
-  private final StateTable workItemDerivedState;
+  private final CachingStateTable workItemState;
+  private final CachingStateTable workItemDerivedState;
   private final Supplier<Closeable> scopedReadStateSupplier;
 
   public WindmillStateInternals(
@@ -82,7 +81,8 @@ public class WindmillStateInternals<K> implements StateInternals {
     return key;
   }
 
-  private void persist(List<Future<WorkItemCommitRequest>> commitsToMerge, StateTable stateTable) {
+  private void persist(
+      List<Future<WorkItemCommitRequest>> commitsToMerge, CachingStateTable stateTable) {
     for (State location : stateTable.values()) {
       if (!(location instanceof WindmillState)) {
         throw new IllegalStateException(

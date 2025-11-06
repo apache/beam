@@ -18,10 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import java.io.Closeable;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.HashMap;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
@@ -29,26 +30,32 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.*;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.CombineWithContext;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence.Wrapper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 
-final class CachingStateTable extends StateTable {
+final class CachingStateTable {
 
+  private final HashMap<
+          SimpleImmutableEntry<StateNamespace, Equivalence.Wrapper<StateTag<?>>>, State>
+      stateTable;
   private final String stateFamily;
   private final WindmillStateReader reader;
   private final WindmillStateCache.ForKeyAndFamily cache;
   private final boolean isSystemTable;
   private final Supplier<Closeable> scopedReadStateSupplier;
-  private final @Nullable StateTable derivedStateTable;
+  private final @Nullable CachingStateTable derivedStateTable;
   private final boolean isNewKey;
   private final boolean mapStateViaMultimapState;
   private final WindmillStateTagUtil windmillStateTagUtil;
 
   private CachingStateTable(Builder builder) {
+    this.stateTable = new HashMap<>();
     this.stateFamily = builder.stateFamily;
     this.reader = builder.reader;
     this.cache = builder.cache;
@@ -65,20 +72,52 @@ final class CachingStateTable extends StateTable {
     }
   }
 
-  static CachingStateTable.Builder builder(
+  static Builder builder(
       String stateFamily,
       WindmillStateReader reader,
       ForKeyAndFamily cache,
       boolean isNewKey,
       Supplier<Closeable> scopedReadStateSupplier,
       WindmillStateTagUtil windmillStateTagUtil) {
-    return new CachingStateTable.Builder(
+    return new Builder(
         stateFamily, reader, cache, scopedReadStateSupplier, isNewKey, windmillStateTagUtil);
   }
 
-  @Override
+  /**
+   * Gets the {@link State} in the specified {@link StateNamespace} with the specified {@link
+   * StateTag}, binding it using the {@link #binderForNamespace} if it is not already present in
+   * this {@link CachingStateTable}.
+   */
+  public <StateT extends State> StateT get(
+      StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
+
+    Equivalence.Wrapper<StateTag<?>> tagById = StateTags.ID_EQUIVALENCE.wrap(tag);
+
+    SimpleImmutableEntry<StateNamespace, Wrapper<StateTag<?>>> stateTableKey =
+        new SimpleImmutableEntry<>(namespace, tagById);
+    @org.checkerframework.checker.nullness.qual.Nullable
+    State storage = stateTable.get(stateTableKey);
+    if (storage != null) {
+      @SuppressWarnings("unchecked")
+      StateT typedStorage = (StateT) storage;
+      return typedStorage;
+    }
+
+    StateT typedStorage = tag.bind(binderForNamespace(namespace, c));
+    stateTable.put(stateTableKey, typedStorage);
+    return typedStorage;
+  }
+
+  public void clear() {
+    stateTable.clear();
+  }
+
+  public Iterable<State> values() {
+    return stateTable.values();
+  }
+
   @SuppressWarnings("deprecation")
-  protected StateTag.StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c) {
+  private StateTag.StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c) {
     // Look up state objects in the cache or create new ones if not found.  The state will
     // be added to the cache in persist().
     return new StateTag.StateBinder() {
@@ -190,7 +229,7 @@ final class CachingStateTable extends StateTable {
       public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
           StateTag<CombiningState<InputT, AccumT, OutputT>> address,
           Coder<AccumT> accumCoder,
-          Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+          CombineFn<InputT, AccumT, OutputT> combineFn) {
         StateTag<CombiningState<InputT, AccumT, OutputT>> addressOrInternalTag =
             addressOrInternalTag(address);
 
@@ -214,7 +253,7 @@ final class CachingStateTable extends StateTable {
           CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
               StateTag<CombiningState<InputT, AccumT, OutputT>> address,
               Coder<AccumT> accumCoder,
-              CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+              CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
         return bindCombiningValue(
             addressOrInternalTag(address), accumCoder, CombineFnUtil.bindContext(combineFn, c));
       }
@@ -248,7 +287,7 @@ final class CachingStateTable extends StateTable {
     private final boolean isNewKey;
     private final WindmillStateTagUtil windmillStateTagUtil;
     private boolean isSystemTable;
-    private @Nullable StateTable derivedStateTable;
+    private @Nullable CachingStateTable derivedStateTable;
     private boolean mapStateViaMultimapState = false;
 
     private Builder(
@@ -268,7 +307,7 @@ final class CachingStateTable extends StateTable {
       this.windmillStateTagUtil = windmillStateTagUtil;
     }
 
-    Builder withDerivedState(StateTable derivedStateTable) {
+    Builder withDerivedState(CachingStateTable derivedStateTable) {
       this.isSystemTable = false;
       this.derivedStateTable = derivedStateTable;
       return this;
