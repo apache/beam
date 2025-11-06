@@ -236,24 +236,13 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
 
     code_obj = sample_func.__code__
     original_filename = os.path.abspath(code_obj.co_filename)
+    pickled_code = beam_cloudpickle.dumps(code_obj)
+    unpickled_code = beam_cloudpickle.loads(pickled_code)
 
-    try:
-      pickled_code = beam_cloudpickle.dumps(code_obj)
-      unpickled_code = beam_cloudpickle.loads(pickled_code)
+    mock_filepath_interceptor.assert_called()
 
-      mock_filepath_interceptor.assert_called()
-
-      unpickled_filename = os.path.abspath(unpickled_code.co_filename)
-      self.assertEqual(unpickled_filename, original_filename)
-
-    except AttributeError as e:
-      if 'get_code_object_params' in str(e):
-        self.fail(
-            "Vendored cloudpickle BUG: AttributeError "
-            f"'get_code_object_params' raised during CodeType pickling. "
-            f"Error: {e}")
-      else:
-        raise
+    unpickled_filename = os.path.abspath(unpickled_code.co_filename)
+    self.assertEqual(unpickled_filename, original_filename)
 
 
 if __name__ == '__main__':
