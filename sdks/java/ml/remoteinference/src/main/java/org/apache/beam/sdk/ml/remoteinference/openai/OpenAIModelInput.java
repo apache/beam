@@ -28,7 +28,7 @@ public class OpenAIModelInput extends BaseInput {
     this.input = input;
   }
 
-  public String getInput() {
+  public String getModelInput() {
     return input;
   }
 

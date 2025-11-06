@@ -18,17 +18,18 @@
 package org.apache.beam.sdk.ml.remoteinference;
 
 import org.apache.beam.sdk.ml.remoteinference.base.*;
+import org.apache.beam.sdk.transforms.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+
 import org.apache.beam.sdk.values.PCollection;
 
 
 import com.google.auto.value.AutoValue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -50,7 +51,6 @@ public class RemoteInference {
 
     abstract @Nullable BaseModelParameters parameters();
 
-    abstract @Nullable BatchConfig batchConfig();
 
     abstract Builder<InputT, OutputT> builder();
 
@@ -61,7 +61,6 @@ public class RemoteInference {
 
       abstract Builder<InputT, OutputT> setParameters(BaseModelParameters modelParameters);
 
-      abstract Builder<InputT, OutputT> setBatchConfig(BatchConfig config);
 
       abstract Invoke<InputT, OutputT> build();
     }
@@ -74,17 +73,20 @@ public class RemoteInference {
       return builder().setParameters(modelParameters).build();
     }
 
-    public Invoke<InputT, OutputT> withBatchConfig(BatchConfig config) {
-      return builder().setBatchConfig(config).build();
-    }
 
     @Override
     public PCollection<Iterable<PredictionResult<InputT, OutputT>>> expand(PCollection<InputT> input) {
-      return input.apply(ParDo.of(new BatchElementsFn<>(this.batchConfig() != null ? this.batchConfig()
-          : this
-          .parameters()
-          .defaultBatchConfig())))
-        .apply(ParDo.of(new RemoteInferenceFn<>(this)));
+      checkArgument(handler() != null, "handler() is required");
+      checkArgument(parameters() != null, "withParameters() is required");
+      return input
+        .apply("WrapInputInList", MapElements.via(new SimpleFunction<InputT, List<InputT>>() {
+          @Override
+          public List<InputT> apply(InputT element) {
+            return Collections.singletonList(element);
+          }
+        }))
+        // Pass the list to the inference function
+        .apply("RemoteInference", ParDo.of(new RemoteInferenceFn<InputT, OutputT>(this)));
     }
 
     static class RemoteInferenceFn<InputT extends BaseInput, OutputT extends BaseResponse>
@@ -117,36 +119,5 @@ public class RemoteInference {
       }
     }
 
-    public static class BatchElementsFn<T> extends DoFn<T, List<T>> {
-      private final BatchConfig config;
-      private List<T> batch;
-
-      public BatchElementsFn(BatchConfig config) {
-        this.config = config;
-      }
-
-      @StartBundle
-      public void startBundle() {
-        batch = new ArrayList<>();
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext c) {
-        batch.add(c.element());
-        if (batch.size() >= config.getMaxBatchSize()) {
-          c.output(new ArrayList<>(batch));
-          batch.clear();
-        }
-      }
-
-      @FinishBundle
-      public void finishBundle(FinishBundleContext c) {
-        if (!batch.isEmpty()) {
-          c.output(new ArrayList<>(batch), null, null);
-          batch.clear();
-        }
-      }
-
-    }
   }
 }

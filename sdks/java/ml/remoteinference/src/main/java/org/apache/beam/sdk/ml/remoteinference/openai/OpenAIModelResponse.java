@@ -27,7 +27,7 @@ public class OpenAIModelResponse extends BaseResponse {
     this.output = output;
   }
 
-  public String getOutput() {
+  public String getModelResponse() {
     return output;
   }
 

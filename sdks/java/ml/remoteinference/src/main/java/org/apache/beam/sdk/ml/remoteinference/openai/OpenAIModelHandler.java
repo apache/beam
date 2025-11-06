@@ -53,7 +53,7 @@ public class OpenAIModelHandler
     try {
       // Convert input list to JSON string
       String inputBatch = new ObjectMapper()
-        .writeValueAsString(input.stream().map(OpenAIModelInput::getInput).toList());
+        .writeValueAsString(input.stream().map(OpenAIModelInput::getModelInput).toList());
 
       // Build structured response parameters
       this.clientParams = ResponseCreateParams.builder()
