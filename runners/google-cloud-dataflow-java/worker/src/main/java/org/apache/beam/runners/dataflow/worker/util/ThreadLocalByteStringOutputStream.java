@@ -41,7 +41,7 @@ public class ThreadLocalByteStringOutputStream {
    * local stream is already in use, a new one is used. The streams are cached and reused across
    * calls. Callers should not keep a reference to the stream after the function returns.
    */
-  public static <T> T swithThreadLocalStream(Function<ByteStringOutputStream, T> function) {
+  public static <T> T withThreadLocalStream(Function<ByteStringOutputStream, T> function) {
     RefHolder refHolder = getRefHolderFromThreadLocal();
     ByteStringOutputStream stream;
     boolean releaseThreadLocal;
