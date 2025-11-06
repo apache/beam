@@ -32,7 +32,6 @@ from pymilvus import FieldSchema
 from pymilvus import MilvusClient
 from pymilvus.exceptions import MilvusException
 from pymilvus.milvus_client import IndexParams
-
 from testcontainers.core.config import testcontainers_config
 from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer
