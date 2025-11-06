@@ -31,6 +31,7 @@ from apache_beam.internal import module_test
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
 from apache_beam.utils import shared
+from unittest import mock
 
 GLOBAL_DICT_REF = module_test.GLOBAL_DICT
 
@@ -223,12 +224,14 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
           'Ignoring unsupported option: enable_best_effort_determinism',
           '\n'.join(l.output))
 
-  @unittest.mock.patch.object(
-      code_object_pickler,
-      'get_normalized_path',
-      wraps=code_object_pickler.get_normalized_path)
-  def test_default_config_interceptor(self, mock_get_normalized_path):
+  @mock.patch.object(
+      beam_cloudpickle.DEFAULT_CONFIG, 'filepath_interceptor', autospec=True
+  )
+  def test_default_config_interceptor(self, mock_filepath_interceptor):
     """Tests config.filepath_interceptor is called for CodeType pickling."""
+    mock_filepath_interceptor.side_effect = (
+      code_object_pickler.get_normalized_path
+    )
 
     def sample_func():
       return "Beam"
@@ -240,7 +243,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
       pickled_code = beam_cloudpickle.dumps(code_obj)
       unpickled_code = beam_cloudpickle.loads(pickled_code)
 
-      mock_get_normalized_path.assert_called()
+      mock_filepath_interceptor.assert_called()
 
       unpickled_filename = os.path.abspath(unpickled_code.co_filename)
       self.assertEqual(unpickled_filename, original_filename)
@@ -248,8 +251,10 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     except AttributeError as e:
       if 'get_code_object_params' in str(e):
         self.fail(
-            "Vendored cloudpickle BUG: AttributeError 'get_code_object_params' "
-            f"raised during CodeType pickling. Error: {e}")
+              "Vendored cloudpickle BUG: AttributeError "
+              f"'get_code_object_params' raised during CodeType pickling. "
+              f"Error: {e}"
+        )
       else:
         raise
 
