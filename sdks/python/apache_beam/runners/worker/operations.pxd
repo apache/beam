@@ -83,6 +83,7 @@ cdef class Operation(object):
   cdef readonly object scoped_start_state
   cdef readonly object scoped_process_state
   cdef readonly object scoped_finish_state
+  cdef readonly object scoped_timer_processing_state
 
   cdef readonly object data_sampler
 
