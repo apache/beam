@@ -24,15 +24,16 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
-import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
@@ -165,18 +166,27 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
       if (bagUpdatesBuilder == null) {
         bagUpdatesBuilder = commitBuilder.addBagUpdatesBuilder();
       }
-      for (T value : localAdditions) {
-        ByteStringOutputStream stream = new ByteStringOutputStream();
-        // Encode the value
-        elemCoder.encode(value, stream, Coder.Context.OUTER);
-        ByteString encoded = stream.toByteString();
-        if (cachedValues != null) {
-          // We'll capture this value in the cache below.
-          // Capture the value's size now since we have it.
-          encodedSize += encoded.size();
-        }
-        bagUpdatesBuilder.addValues(encoded);
-      }
+      final Windmill.TagBag.Builder finalBagUpdatesBuilder = bagUpdatesBuilder;
+      @Nullable
+      Object unused =
+          ThreadLocalByteStringOutputStream.withThreadLocalStream(
+              (stream) -> {
+                for (T value : localAdditions) {
+                  try {
+                    elemCoder.encode(value, stream, Coder.Context.OUTER);
+                  } catch (IOException e) {
+                    throw new RuntimeException(e);
+                  }
+                  ByteString encoded = stream.toByteStringAndReset();
+                  if (cachedValues != null) {
+                    // We'll capture this value in the cache below.
+                    // Capture the value's size now since we have it.
+                    encodedSize += encoded.size();
+                  }
+                  finalBagUpdatesBuilder.addValues(encoded);
+                }
+                return null;
+              });
     }
 
     if (bagUpdatesBuilder != null) {
