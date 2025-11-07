@@ -151,7 +151,7 @@ class StateSamplerTest(unittest.TestCase):
     # Test that sampled state timings are close to their expected values.
     expected_counter_values = {
         CounterName(
-            'process-timers-millis', step_name='step1', stage_name='timer'): state_duration_ms,
+            'process-timers', step_name='step1', stage_name='timer'): state_duration_ms,
     }
     for counter in counter_factory.get_counters():
       self.assertIn(counter.name, expected_counter_values)
@@ -161,6 +161,59 @@ class StateSamplerTest(unittest.TestCase):
       _LOGGER.info('Sampling deviation from expectation: %f', deviation)
       self.assertGreater(actual_value, expected_value * (1.0 - margin_of_error))
       self.assertLess(actual_value, expected_value * (1.0 + margin_of_error))
+
+  @retry(reraise=True, stop=stop_after_attempt(3))
+  def test_process_timers_metric_is_recorded(self):
+    """
+    Tests that the 'process-timers-msecs' metric is correctly recorded
+    when a state sampler is active.
+    """
+    # Set up a real state sampler and counter factory.
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler(
+        'test_stage', counter_factory, sampling_period_ms=1)
+
+    state_duration_ms = 100
+    margin_of_error = 0.25
+
+    # Run a workload inside the 'process-timers' scoped state.
+    sampler.start()
+    with sampler.scoped_state('test_step', 'process-timers'):
+      time.sleep(state_duration_ms / 1000.0)
+    sampler.stop()
+    sampler.commit_counters()
+
+    if not statesampler.FAST_SAMPLER:
+      return
+
+    # Verify that the counter was created with the correct name and value.
+    expected_counter_name = CounterName(
+        'process-timers-msecs',
+        step_name='test_step',
+        stage_name='test_stage')
+
+    # Find the specific counter we are looking for.
+    found_counter = None
+    for counter in counter_factory.get_counters():
+      if counter.name == expected_counter_name:
+        found_counter = counter
+        break
+
+    self.assertIsNotNone(
+        found_counter,
+        f"The expected counter '{expected_counter_name}' was not created.")
+
+    # Check that its value is approximately correct.
+    actual_value = found_counter.value()
+    expected_value = state_duration_ms
+    self.assertGreater(
+        actual_value,
+        expected_value * (1.0 - margin_of_error),
+        "The timer metric was lower than expected.")
+    self.assertLess(
+        actual_value,
+        expected_value * (1.0 + margin_of_error),
+        "The timer metric was higher than expected.")
 
 
 if __name__ == '__main__':

@@ -823,8 +823,7 @@ class DoOperation(Operation):
       self.scoped_timer_processing_state = self.state_sampler.scoped_state(
           self.name_context,
           'process-timers',
-          metrics_container=self.metrics_container,
-          suffix="-millis")
+          metrics_container=self.metrics_container)
     # See fn_data in dataflow_runner.py
     # TODO: Store all the items from spec?
     self.fn, _, _, _, _ = (pickler.loads(self.spec.serialized_fn))
