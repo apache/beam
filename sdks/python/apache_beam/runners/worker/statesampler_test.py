@@ -188,9 +188,7 @@ class StateSamplerTest(unittest.TestCase):
 
     # Verify that the counter was created with the correct name and value.
     expected_counter_name = CounterName(
-        'process-timers-msecs',
-        step_name='test_step',
-        stage_name='test_stage')
+        'process-timers-msecs', step_name='test_step', stage_name='test_stage')
 
     # Find the specific counter we are looking for.
     found_counter = None
