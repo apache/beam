@@ -460,7 +460,7 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
-              'pg8000>=1.31.1',
+              'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
           ] + milvus_dependency,
@@ -494,7 +494,7 @@ if __name__ == '__main__':
               'google-cloud-aiplatform>=1.26.0, < 2.0',
               'cloud-sql-python-connector>=1.18.2,<2.0.0',
               'python-tds>=1.16.1',
-              'pg8000>=1.31.1',
+              'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
               # Authentication for Google Artifact Registry when using
               # --extra-index-url or --index-url in requirements.txt in
