@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
+import com.google.auto.value.AutoValue;
 import java.io.Closeable;
-import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.HashMap;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -34,16 +34,12 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence.Wrapper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 
 final class CachingStateTable {
 
-  private final HashMap<
-          SimpleImmutableEntry<StateNamespace, Equivalence.Wrapper<StateTag<?>>>, State>
-      stateTable;
+  private final HashMap<StateTableKey, State> stateTable;
   private final String stateFamily;
   private final WindmillStateReader reader;
   private final WindmillStateCache.ForKeyAndFamily cache;
@@ -91,10 +87,7 @@ final class CachingStateTable {
   public <StateT extends State> StateT get(
       StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
 
-    Equivalence.Wrapper<StateTag<?>> tagById = StateTags.ID_EQUIVALENCE.wrap(tag);
-
-    SimpleImmutableEntry<StateNamespace, Wrapper<StateTag<?>>> stateTableKey =
-        new SimpleImmutableEntry<>(namespace, tagById);
+    StateTableKey stateTableKey = StateTableKey.create(namespace, tag);
     @org.checkerframework.checker.nullness.qual.Nullable
     State storage = stateTable.get(stateTableKey);
     if (storage != null) {
@@ -276,6 +269,18 @@ final class CachingStateTable {
         return isSystemTable ? StateTags.makeSystemTagInternal(address) : address;
       }
     };
+  }
+
+  @AutoValue
+  abstract static class StateTableKey {
+
+    public abstract StateNamespace getStateNameSpace();
+
+    public abstract String getId();
+
+    public static StateTableKey create(StateNamespace namespace, StateTag<?> stateTag) {
+      return new AutoValue_CachingStateTable_StateTableKey(namespace, stateTag.getId());
+    }
   }
 
   static class Builder {
