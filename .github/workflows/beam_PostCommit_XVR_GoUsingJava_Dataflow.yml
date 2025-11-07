@@ -75,27 +75,39 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
+      - name: Set up writable gcloud config directory
+        run: |
+          mkdir -p /tmp/gcloud
+          echo "CLOUDSDK_CONFIG=/tmp/gcloud" >> $GITHUB_ENV
       - name: Authenticate to GCP
+        env:
+          CLOUDSDK_CONFIG: /tmp/gcloud
         uses: google-github-actions/auth@v3
         with:
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
+        env:
+          CLOUDSDK_CONFIG: /tmp/gcloud
         uses: google-github-actions/setup-gcloud@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Configure Docker auth for GCR
+        env:
+          CLOUDSDK_CONFIG: /tmp/gcloud
         run: |
           gcloud --quiet auth configure-docker us.gcr.io
           gcloud --quiet auth configure-docker gcr.io
           gcloud auth list
       - name: Docker login to GCR (explicit)
+        env:
+          CLOUDSDK_CONFIG: /tmp/gcloud
         run: |
           gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://us.gcr.io
       - name: run XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
-          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
+          CLOUDSDK_CONFIG: /tmp/gcloud
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
