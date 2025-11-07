@@ -139,7 +139,7 @@ class StateSamplerTest(unittest.TestCase):
     margin_of_error = 0.25
 
     sampler.start()
-    with sampler.scoped_state('step1', 'process-timers', suffix='-millis'):
+    with sampler.scoped_state('step1', 'process-timers'):
       time.sleep(state_duration_ms / 1000)
     sampler.stop()
     sampler.commit_counters()
@@ -151,7 +151,7 @@ class StateSamplerTest(unittest.TestCase):
     # Test that sampled state timings are close to their expected values.
     expected_counter_values = {
         CounterName(
-            'process-timers', step_name='step1', stage_name='timer'): state_duration_ms,
+            'process-timers-msecs', step_name='step1', stage_name='timer'): state_duration_ms,
     }
     for counter in counter_factory.get_counters():
       self.assertIn(counter.name, expected_counter_values)
