@@ -23,6 +23,8 @@ import grpc
 
 class GRPCChannelFactory(grpc.StreamStreamClientInterceptor):
   DEFAULT_OPTIONS = [
+      # keep 20 seconds for now. This is needed for other options to work.
+      ("grpc.keepalive_time_ms", 20000),
       # keep 5 minutes for now.
       ("grpc.keepalive_timeout_ms", 300000),
       # Default: 2, set to 0 to allow unlimited pings without data
