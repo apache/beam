@@ -24,8 +24,10 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
 import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream;
+import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream.StreamHandle;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
@@ -45,22 +47,20 @@ public class WindmillStateTagUtil {
    */
   @VisibleForTesting
   InternedByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
-    // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
-    // a lot, and this leads to better performance results. See associated benchmarks.
-    return ThreadLocalByteStringOutputStream.withThreadLocalStream(
-        stream -> {
-          try {
-            // stringKey starts and ends with a slash.  We separate it from the
-            // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
-            // ID comes from the user.
-            namespace.appendTo(stream);
-            stream.append('+');
-            address.appendTo(stream);
-            return InternedByteString.of(stream.toByteStringAndReset());
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
+    try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
+      // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
+      // a lot, and this leads to better performance results. See associated benchmarks.
+      ByteStringOutputStream stream = streamHandle.stream();
+      // stringKey starts and ends with a slash.  We separate it from the
+      // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
+      // ID comes from the user.
+      namespace.appendTo(stream);
+      stream.append('+');
+      address.appendTo(stream);
+      return InternedByteString.of(stream.toByteStringAndReset());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**

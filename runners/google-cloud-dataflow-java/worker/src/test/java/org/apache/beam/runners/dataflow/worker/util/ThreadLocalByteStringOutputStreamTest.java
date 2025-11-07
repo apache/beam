@@ -19,59 +19,50 @@ package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.junit.Assert.*;
 
+import org.apache.beam.runners.dataflow.worker.util.ThreadLocalByteStringOutputStream.StreamHandle;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
 public class ThreadLocalByteStringOutputStreamTest {
 
   @Test
   public void simple() {
-    ByteString bytes =
-        ThreadLocalByteStringOutputStream.withThreadLocalStream(
-            stream -> {
-              stream.write(1);
-              stream.write(2);
-              stream.write(3);
-              return stream.toByteStringAndReset();
-            });
-    assertEquals(ByteString.copyFrom(new byte[] {1, 2, 3}), bytes);
+    try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
+      ByteStringOutputStream stream = streamHandle.stream();
+      stream.write(1);
+      stream.write(2);
+      stream.write(3);
+      assertEquals(ByteString.copyFrom(new byte[] {1, 2, 3}), stream.toByteStringAndReset());
+    }
   }
 
   @Test
   public void nested() {
-    ByteString bytes =
-        ThreadLocalByteStringOutputStream.withThreadLocalStream(
-            stream -> {
-              stream.write(1);
-              ByteString nestedBytes =
-                  ThreadLocalByteStringOutputStream.withThreadLocalStream(
-                      nestedStream -> {
-                        nestedStream.write(2);
-                        return nestedStream.toByteStringAndReset();
-                      });
-              assertEquals(ByteString.copyFrom(new byte[] {2}), nestedBytes);
-              stream.write(3);
-              return stream.toByteStringAndReset();
-            });
-    assertEquals(ByteString.copyFrom(new byte[] {1, 3}), bytes);
+    try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
+      ByteStringOutputStream stream = streamHandle.stream();
+      stream.write(1);
+      try (StreamHandle streamHandle1 = ThreadLocalByteStringOutputStream.acquire()) {
+        ByteStringOutputStream stream1 = streamHandle.stream();
+        stream1.write(2);
+        assertEquals(ByteString.copyFrom(new byte[] {2}), stream1.toByteStringAndReset());
+      }
+      stream.write(3);
+      assertEquals(ByteString.copyFrom(new byte[] {1, 3}), stream.toByteStringAndReset());
+    }
   }
 
   @Test
   public void resetDirtyStream() {
-    @Nullable
-    Object unused =
-        ThreadLocalByteStringOutputStream.withThreadLocalStream(
-            stream -> {
-              stream.write(1);
-              // Don't read/reset stream
-              return null;
-            });
-    ByteString bytes =
-        ThreadLocalByteStringOutputStream.withThreadLocalStream(
-            stream -> {
-              return stream.toByteStringAndReset();
-            });
-    assertEquals(ByteString.EMPTY, bytes);
+    try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
+      ByteStringOutputStream stream = streamHandle.stream();
+      stream.write(1);
+      // Don't read/reset stream
+    }
+
+    try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
+      ByteStringOutputStream stream = streamHandle.stream();
+      assertEquals(ByteString.EMPTY, stream.toByteStringAndReset());
+    }
   }
 }

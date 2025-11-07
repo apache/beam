@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import java.lang.ref.SoftReference;
-import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
@@ -36,27 +35,44 @@ public class ThreadLocalByteStringOutputStream {
   // Private constructor to prevent instantiations from outside.
   private ThreadLocalByteStringOutputStream() {}
 
+  /** @return An AutoClosable StreamHandle that holds a cached ByteStringOutputStream. */
+  public static StreamHandle acquire() {
+    return new StreamHandle();
+  }
+
   /**
-   * Executes the given function with a thread-local {@link ByteStringOutputStream}. If the thread
-   * local stream is already in use, a new one is used. The streams are cached and reused across
-   * calls. Callers should not keep a reference to the stream after the function returns.
+   * Handle to a thread-local {@link ByteStringOutputStream}. If the thread local stream is already
+   * in use, a new one is used. The streams are cached and reused across calls. Users should not
+   * keep a reference to the stream after closing the StreamHandle.
    */
-  public static <T> T withThreadLocalStream(Function<ByteStringOutputStream, T> function) {
-    RefHolder refHolder = getRefHolderFromThreadLocal();
-    ByteStringOutputStream stream;
-    boolean releaseThreadLocal;
-    if (refHolder.inUse) {
-      // If the thread local stream is already in use, create a new one
-      stream = new ByteStringOutputStream();
-      releaseThreadLocal = false;
-    } else {
-      stream = getByteStringOutputStream(refHolder);
-      refHolder.inUse = true;
-      releaseThreadLocal = true;
+  public static class StreamHandle implements AutoCloseable {
+
+    private final boolean releaseThreadLocal;
+    private final RefHolder refHolder;
+    private final ByteStringOutputStream stream;
+
+    private StreamHandle() {
+      refHolder = getRefHolderFromThreadLocal();
+      if (refHolder.inUse) {
+        stream = new ByteStringOutputStream();
+        releaseThreadLocal = false;
+      } else {
+        refHolder.inUse = true;
+        releaseThreadLocal = true;
+        stream = getByteStringOutputStream(refHolder);
+      }
     }
-    try {
-      return function.apply(stream);
-    } finally {
+
+    /**
+     * Returns the underlying cached ByteStringOutputStream. Callers should not keep a reference to
+     * the stream after closing the StreamHandle.
+     */
+    public ByteStringOutputStream stream() {
+      return stream;
+    }
+
+    @Override
+    public void close() {
       stream.reset();
       if (releaseThreadLocal) {
         refHolder.inUse = false;
