@@ -47,8 +47,6 @@ import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -276,8 +274,8 @@ public class MultimapUserState<K, V> {
     Map<Object, KV<K, List<V>>> pendingAddsNow = new HashMap<>();
     for (Map.Entry<Object, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
       pendingAddsNow.put(
-        entry.getKey(),
-        KV.of(entry.getValue().getKey(), new ArrayList<>(entry.getValue().getValue())));
+          entry.getKey(),
+          KV.of(entry.getValue().getKey(), new ArrayList<>(entry.getValue().getValue())));
     }
     if (isCleared) {
       return PrefetchableIterables.maybePrefetchable(
