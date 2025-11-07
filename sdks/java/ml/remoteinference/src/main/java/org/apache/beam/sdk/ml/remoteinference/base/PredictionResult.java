@@ -19,6 +19,12 @@ package org.apache.beam.sdk.ml.remoteinference.base;
 
 import java.io.Serializable;
 
+/**
+ * Pairs an input with its corresponding inference output.
+ *
+ * <p>This class maintains the association between input data and its model's results
+ *  for Downstream processing
+ */
 public class PredictionResult<InputT, OutputT> implements Serializable {
 
   private final InputT input;
@@ -30,14 +36,17 @@ public class PredictionResult<InputT, OutputT> implements Serializable {
 
   }
 
+  /* Returns input to handler */
   public InputT getInput() {
     return input;
   }
 
+  /* Returns model handler's response*/
   public OutputT getOutput() {
     return output;
   }
 
+  /* Creates a PredictionResult instance of provided input, output and types */
   public static <InputT, OutputT> PredictionResult<InputT, OutputT> create(InputT input, OutputT output) {
     return new PredictionResult<>(input, output);
   }

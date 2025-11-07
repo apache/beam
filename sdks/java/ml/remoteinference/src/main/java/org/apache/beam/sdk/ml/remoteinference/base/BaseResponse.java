@@ -19,6 +19,16 @@ package org.apache.beam.sdk.ml.remoteinference.base;
 
 import java.io.Serializable;
 
+/**
+ * Base class for defining response types returned from remote inference operations.
+
+ * <p>Implementations:
+ * <ul>
+ *   <li>Contain the inference results (predictions, classifications, generated text, etc.)</li>
+ *   <li>Includes any relevant metadata </li>
+ * </ul>
+ *
+ */
 public abstract class BaseResponse implements Serializable {
 
 }

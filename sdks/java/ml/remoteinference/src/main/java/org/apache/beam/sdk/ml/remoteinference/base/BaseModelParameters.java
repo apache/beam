@@ -19,6 +19,22 @@ package org.apache.beam.sdk.ml.remoteinference.base;
 
 import java.io.Serializable;
 
+/**
+ * Base interface for defining model-specific parameters used to configure remote inference clients.
+ *
+ * <p>Implementations of this interface encapsulate all configuration needed to initialize
+ * and communicate with a remote model inference service. This typically includes:
+ * <ul>
+ *   <li>Authentication credentials (API keys, tokens)</li>
+ *   <li>Model identifiers or names</li>
+ *   <li>Endpoint URLs or connection settings</li>
+ *   <li>Inference configuration (temperature, max tokens, timeout values, etc.)</li>
+ * </ul>
+ *
+ * <p>Parameters must be serializable. Consider using
+ * the builder pattern for complex parameter objects.
+ *
+ */
 public interface BaseModelParameters extends Serializable {
 
 }

@@ -19,6 +19,19 @@ package org.apache.beam.sdk.ml.remoteinference.openai;
 
 import org.apache.beam.sdk.ml.remoteinference.base.BaseResponse;
 
+/**
+ * Response from OpenAI model inference results.
+ * <p>This class encapsulates the text output returned from OpenAI models..
+ *
+ * <h3>Example Usage</h3>
+ * <pre>{@code
+ * OpenAIModelResponse response = OpenAIModelResponse.create("Bonjour");
+ * String output = response.getModelResponse(); // "Bonjour"
+ * }</pre>
+ *
+ * @see OpenAIModelHandler
+ * @see OpenAIModelInput
+ */
 public class OpenAIModelResponse extends BaseResponse {
 
   private final String output;
@@ -27,10 +40,21 @@ public class OpenAIModelResponse extends BaseResponse {
     this.output = output;
   }
 
+  /**
+   * Returns the text output from the model.
+   *
+   * @return the output text string
+   */
   public String getModelResponse() {
     return output;
   }
 
+  /**
+   * Creates a new response instance with the specified output text.
+   *
+   * @param output the text returned by the model
+   * @return a new {@link OpenAIModelResponse} instance
+   */
   public static OpenAIModelResponse create(String output) {
     return new OpenAIModelResponse(output);
   }

@@ -19,6 +19,23 @@ package org.apache.beam.sdk.ml.remoteinference.openai;
 
 import org.apache.beam.sdk.ml.remoteinference.base.BaseModelParameters;
 
+/**
+ * Configuration parameters required for OpenAI model inference.
+ *
+ * <p>This class encapsulates all configuration needed to initialize and communicate with
+ * OpenAI's API, including authentication credentials, model selection, and inference instructions.
+ *
+ * <h3>Example Usage</h3>
+ * <pre>{@code
+ * OpenAIModelParameters params = OpenAIModelParameters.builder()
+ *     .apiKey("sk-...")
+ *     .modelName("gpt-4")
+ *     .instructionPrompt("Translate the following text to French:")
+ *     .build();
+ * }</pre>
+ *
+ * @see OpenAIModelHandler
+ */
 public class OpenAIModelParameters implements BaseModelParameters {
 
   private final String apiKey;
@@ -56,21 +73,40 @@ public class OpenAIModelParameters implements BaseModelParameters {
     private Builder() {
     }
 
+    /**
+     * Sets the OpenAI API key for authentication.
+     *
+     * @param apiKey the API key (required)
+     */
     public Builder apiKey(String apiKey) {
       this.apiKey = apiKey;
       return this;
     }
 
+    /**
+     * Sets the name of the OpenAI model to use.
+     *
+     * @param modelName the model name, e.g., "gpt-4" (required)
+     */
     public Builder modelName(String modelName) {
       this.modelName = modelName;
       return this;
     }
-
+    /**
+     * Sets the instruction prompt for the model.
+     * This prompt provides context or instructions to the model about how to process
+     * the input text.
+     *
+     * @param prompt the instruction text (required)
+     */
     public Builder instructionPrompt(String prompt) {
       this.instructionPrompt = prompt;
       return this;
     }
 
+    /**
+     * Builds the {@link OpenAIModelParameters} instance.
+     */
     public OpenAIModelParameters build() {
       return new OpenAIModelParameters(this);
     }

@@ -32,6 +32,31 @@ import org.apache.beam.sdk.ml.remoteinference.base.PredictionResult;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Model handler for OpenAI API inference requests.
+ *
+ * <p>This handler manages communication with OpenAI's API, including client initialization,
+ * request formatting, and response parsing. It uses OpenAI's structured output feature to
+ * ensure reliable input-output pairing.
+ *
+ * <h3>Usage</h3>
+ * <pre>{@code
+ * OpenAIModelParameters params = OpenAIModelParameters.builder()
+ *     .apiKey("sk-...")
+ *     .modelName("gpt-4")
+ *     .instructionPrompt("Classify the following text into one of the categories: {CATEGORIES}")
+ *     .build();
+ *
+ * PCollection<OpenAIModelInput> inputs = ...;
+ * PCollection<Iterable<PredictionResult<OpenAIModelInput, OpenAIModelResponse>>> results =
+ *     inputs.apply(
+ *         RemoteInference.<OpenAIModelInput, OpenAIModelResponse>invoke()
+ *             .handler(OpenAIModelHandler.class)
+ *             .withParameters(params)
+ *     );
+ * }</pre>
+ *
+ */
 public class OpenAIModelHandler
   implements BaseModelHandler<OpenAIModelParameters, OpenAIModelInput, OpenAIModelResponse> {
 
@@ -39,6 +64,14 @@ public class OpenAIModelHandler
   private transient StructuredResponseCreateParams<StructuredInputOutput> clientParams;
   private OpenAIModelParameters modelParameters;
 
+  /**
+   * Initializes the OpenAI client with the provided parameters.
+   *
+   * <p>This method is called once during setup. It creates an authenticated
+   * OpenAI client using the API key from the parameters.
+   *
+   * @param parameters the configuration parameters including API key and model name
+   */
   @Override
   public void createClient(OpenAIModelParameters parameters) {
     this.modelParameters = parameters;
@@ -47,6 +80,16 @@ public class OpenAIModelHandler
       .build();
   }
 
+  /**
+   * Performs inference on a batch of inputs using the OpenAI Client.
+   *
+   * <p>This method serializes the input batch to JSON string, sends it to OpenAI with structured
+   * output requirements, and parses the response into {@link PredictionResult} objects
+   * that pair each input with its corresponding output.
+   *
+   * @param input the list of inputs to process
+   * @return an iterable of model results and input pairs
+   */
   @Override
   public Iterable<PredictionResult<OpenAIModelInput, OpenAIModelResponse>> request(List<OpenAIModelInput> input) {
 
@@ -92,6 +135,11 @@ public class OpenAIModelHandler
     }
   }
 
+  /**
+   * Schema class for structured output response.
+   *
+   * <p>Represents a single input-output pair returned by the OpenAI API.
+   */
   public static class Response {
     @JsonProperty(required = true)
     @JsonPropertyDescription("The input string")
@@ -102,6 +150,12 @@ public class OpenAIModelHandler
     public String output;
   }
 
+  /**
+   * Schema class for structured output containing multiple responses.
+   *
+   * <p>This class defines the expected JSON structure for OpenAI's structured output,
+   * ensuring reliable parsing of batched inference results.
+   */
   public static class StructuredInputOutput {
     @JsonProperty(required = true)
     @JsonPropertyDescription("Array of input-output pairs")

@@ -19,6 +19,20 @@ package org.apache.beam.sdk.ml.remoteinference.openai;
 
 import org.apache.beam.sdk.ml.remoteinference.base.BaseInput;
 
+/**
+ * Input for OpenAI model inference requests.
+ *
+ * <p>This class encapsulates text input to be sent to OpenAI models.
+ *
+ * <h3>Example Usage</h3>
+ * <pre>{@code
+ * OpenAIModelInput input = OpenAIModelInput.create("Translate to French: Hello");
+ * String text = input.getModelInput(); // "Translate to French: Hello"
+ * }</pre>
+ *
+ * @see OpenAIModelHandler
+ * @see OpenAIModelResponse
+ */
 public class OpenAIModelInput extends BaseInput {
 
   private final String input;
@@ -28,10 +42,21 @@ public class OpenAIModelInput extends BaseInput {
     this.input = input;
   }
 
+  /**
+   * Returns the text input for the model.
+   *
+   * @return the input text string
+   */
   public String getModelInput() {
     return input;
   }
 
+  /**
+   * Creates a new input instance with the specified text.
+   *
+   * @param input the text to send to the model
+   * @return a new {@link OpenAIModelInput} instance
+   */
   public static OpenAIModelInput create(String input) {
     return new OpenAIModelInput(input);
   }

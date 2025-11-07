@@ -21,20 +21,49 @@ import org.apache.beam.sdk.ml.remoteinference.base.*;
 import org.apache.beam.sdk.transforms.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
-
 import org.apache.beam.sdk.values.PCollection;
-
-
 import com.google.auto.value.AutoValue;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * A {@link PTransform} for making remote inference calls to external machine learning services.
+ *
+ * <p>{@code RemoteInference} provides a framework for integrating remote ML model
+ * inference into Apache Beam pipelines and handles the communication between pipelines
+ * and external inference APIs.
+ *
+ * <h3>Example: OpenAI Model Inference</h3>
+ *
+ * <pre>{@code
+ * // Create model parameters
+ * OpenAIModelParameters params = OpenAIModelParameters.builder()
+ *     .apiKey("your-api-key")
+ *     .modelName("gpt-4")
+ *     .instructionPrompt("Analyse sentiment as positive or negative")
+ *     .build();
+ *
+ * // Apply remote inference transform
+ * PCollection<OpenAIModelInput> inputs = pipeline.apply(Create.of(
+ *     OpenAIModelInput.create("An excellent B2B SaaS solution that streamlines business processes efficiently."),
+ *     OpenAIModelInput.create("Really impressed with the innovative features!")
+ * ));
+ *
+ * PCollection<Iterable<PredictionResult<OpenAIModelInput, OpenAIModelResponse>>> results =
+ *     inputs.apply(
+ *         RemoteInference.<OpenAIModelInput, OpenAIModelResponse>invoke()
+ *             .handler(OpenAIModelHandler.class)
+ *             .withParameters(params)
+ *     );
+ * }</pre>
+ *
+ */
 @SuppressWarnings({ "rawtypes", "unchecked" })
 public class RemoteInference {
 
+  /** Invoke the model handler with model parameters */
   public static <InputT extends BaseInput, OutputT extends BaseResponse> Invoke<InputT, OutputT> invoke() {
     return new AutoValue_RemoteInference_Invoke.Builder<InputT, OutputT>().setParameters(null)
       .build();
@@ -65,10 +94,16 @@ public class RemoteInference {
       abstract Invoke<InputT, OutputT> build();
     }
 
+    /**
+     * Model handler class for inference.
+     */
     public Invoke<InputT, OutputT> handler(Class<? extends BaseModelHandler> modelHandler) {
       return builder().setHandler(modelHandler).build();
     }
 
+    /**
+     * Configures the parameters for model initialization.
+     */
     public Invoke<InputT, OutputT> withParameters(BaseModelParameters modelParameters) {
       return builder().setParameters(modelParameters).build();
     }
@@ -89,6 +124,16 @@ public class RemoteInference {
         .apply("RemoteInference", ParDo.of(new RemoteInferenceFn<InputT, OutputT>(this)));
     }
 
+    /**
+     *  A {@link DoFn} that performs remote inference operation.
+     *
+     *       <p>This function manages the lifecycle of the model handler:
+     *       <ul>
+     *         <li>Instantiates the handler during {@link Setup}</li>
+     *         <li>Initializes the remote client via {@link BaseModelHandler#createClient}</li>
+     *         <li>Processes elements by calling {@link BaseModelHandler#request}</li>
+     *       </ul>
+     */
     static class RemoteInferenceFn<InputT extends BaseInput, OutputT extends BaseResponse>
       extends DoFn<List<InputT>, Iterable<PredictionResult<InputT, OutputT>>> {
 
@@ -101,6 +146,7 @@ public class RemoteInference {
         this.parameters = spec.parameters();
       }
 
+      /** Instantiate the model handler and client*/
       @Setup
       public void setupHandler() {
         try {
@@ -111,7 +157,7 @@ public class RemoteInference {
             + handlerClass.getName(), e);
         }
       }
-
+      /** Perform Inference */
       @ProcessElement
       public void processElement(ProcessContext c) {
         Iterable<PredictionResult<InputT, OutputT>> response = this.handler.request(c.element());
