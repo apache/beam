@@ -39,7 +39,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 
 final class CachingStateTable {
 
-  private final HashMap<StateTableKey, State> stateTable;
+  private final HashMap<StateTableKey, WindmillState> stateTable;
   private final String stateFamily;
   private final WindmillStateReader reader;
   private final WindmillStateCache.ForKeyAndFamily cache;
@@ -88,24 +88,20 @@ final class CachingStateTable {
       StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
 
     StateTableKey stateTableKey = StateTableKey.create(namespace, tag);
-    @org.checkerframework.checker.nullness.qual.Nullable
-    State storage = stateTable.get(stateTableKey);
-    if (storage != null) {
-      @SuppressWarnings("unchecked")
-      StateT typedStorage = (StateT) storage;
-      return typedStorage;
-    }
-
-    StateT typedStorage = tag.bind(binderForNamespace(namespace, c));
-    stateTable.put(stateTableKey, typedStorage);
-    return typedStorage;
+    @SuppressWarnings("unchecked")
+    StateT storage =
+        (StateT)
+            stateTable.computeIfAbsent(
+                stateTableKey,
+                unusedKey -> (WindmillState) tag.bind(binderForNamespace(namespace, c)));
+    return storage;
   }
 
   public void clear() {
     stateTable.clear();
   }
 
-  public Iterable<State> values() {
+  public Iterable<WindmillState> values() {
     return stateTable.values();
   }
 
@@ -274,11 +270,14 @@ final class CachingStateTable {
   @AutoValue
   abstract static class StateTableKey {
 
-    public abstract StateNamespace getStateNameSpace();
+    public abstract StateNamespace getStateNamespace();
 
     public abstract String getId();
 
     public static StateTableKey create(StateNamespace namespace, StateTag<?> stateTag) {
+      // TODO(https://github.com/apache/beam/issues/36753): stateTag.getId() returns only the
+      // string tag without system/user prefix. This could cause a collision between system and
+      // user tag with the same id. Consider adding the prefix to state table key.
       return new AutoValue_CachingStateTable_StateTableKey(namespace, stateTag.getId());
     }
   }

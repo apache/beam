@@ -83,16 +83,9 @@ public class WindmillStateInternals<K> implements StateInternals {
 
   private void persist(
       List<Future<WorkItemCommitRequest>> commitsToMerge, CachingStateTable stateTable) {
-    for (State location : stateTable.values()) {
-      if (!(location instanceof WindmillState)) {
-        throw new IllegalStateException(
-            String.format(
-                "%s wasn't created by %s -- unable to persist it",
-                location.getClass().getSimpleName(), getClass().getSimpleName()));
-      }
-
+    for (WindmillState location : stateTable.values()) {
       try {
-        commitsToMerge.add(((WindmillState) location).persist(cache));
+        commitsToMerge.add(location.persist(cache));
       } catch (IOException e) {
         throw new RuntimeException("Unable to persist state", e);
       }
@@ -102,8 +95,8 @@ public class WindmillStateInternals<K> implements StateInternals {
     // Clear any references to the underlying reader to prevent space leaks.
     // The next work unit to use these cached State objects will reset the
     // reader to a current reader in case those values are modified.
-    for (State location : stateTable.values()) {
-      ((WindmillState) location).cleanupAfterWorkItem();
+    for (WindmillState location : stateTable.values()) {
+      location.cleanupAfterWorkItem();
     }
 
     // Clear out the map of already retrieved state instances.
