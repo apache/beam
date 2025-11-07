@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.fn.splittabledofn;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
 @SuppressWarnings({
@@ -131,8 +133,9 @@ public class RestrictionTrackers {
    * RestrictionTracker}.
    */
   @ThreadSafe
-  private static class RestrictionTrackerObserverWithProgress<RestrictionT, PositionT>
+  static class RestrictionTrackerObserverWithProgress<RestrictionT, PositionT>
       extends RestrictionTrackerObserver<RestrictionT, PositionT> implements HasProgress {
+    private static final int PROGRESS_TIMEOUT_SEC = 60;
 
     protected RestrictionTrackerObserverWithProgress(
         RestrictionTracker<RestrictionT, PositionT> delegate,
@@ -142,13 +145,22 @@ public class RestrictionTrackers {
 
     @Override
     public Progress getProgress() {
+      return getProgress(PROGRESS_TIMEOUT_SEC);
+    }
+
+    @VisibleForTesting
+    Progress getProgress(int timeOutSec) {
       pendingProgress = true;
-      if (lock.tryLock()) {
-        try {
-          evaluateProgress();
-        } finally {
-          lock.unlock();
+      try {
+        if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
+          try {
+            evaluateProgress();
+          } finally {
+            lock.unlock();
+          }
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
       return lastProgress;
     }

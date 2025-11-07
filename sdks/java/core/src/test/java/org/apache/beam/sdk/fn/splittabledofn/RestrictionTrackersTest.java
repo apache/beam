@@ -103,7 +103,7 @@ public class RestrictionTrackersTest {
     private boolean blockTryClaim;
     private boolean blockTrySplit;
     private boolean isBlocked;
-    public static Progress REPORT_PROGRESS = Progress.from(2.0, 3.0);
+    public static final Progress REPORT_PROGRESS = Progress.from(2.0, 3.0);
 
     public RestrictionTrackerWithProgress() {
       this(false, false);
@@ -201,7 +201,8 @@ public class RestrictionTrackersTest {
     while (!withProgress.isBlocked()) {
       Thread.sleep(1);
     }
-    RestrictionTracker.Progress progress = ((HasProgress) tracker).getProgress();
+    RestrictionTracker.Progress progress =
+        ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
     assertEquals(RestrictionTracker.Progress.NONE, progress);
     withProgress.releaseLock();
     while (withProgress.isBlocked()) {
