@@ -38,7 +38,7 @@ public class RetryHttpInitializerWrapper implements HttpRequestInitializer {
   /** A private logger. */
   private static final Logger LOG = Logger.getLogger(RetryHttpInitializerWrapper.class.getName());
 
-  /** One minutes in miliseconds. */
+  /** One minutes in milliseconds. */
   private static final int ONEMINITUES = 60000;
 
   /**

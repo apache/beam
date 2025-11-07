@@ -217,7 +217,7 @@ public class SubProcessKernel {
     } catch (Exception ex) {
       String log =
           String.format(
-              "Unexpected error runnng process. %s error message was %s",
+              "Unexpected error running process. %s error message was %s",
               createLogEntryFromInputs(builder.command()), ex.getMessage());
       throw new Exception(log);
     }
@@ -260,7 +260,7 @@ public class SubProcessKernel {
     } catch (Exception ex) {
       String log =
           String.format(
-              "Unexpected error runnng process. %s error message was %s",
+              "Unexpected error running process. %s error message was %s",
               createLogEntryFromInputs(builder.command()), ex.getMessage());
       throw new Exception(log);
     }
@@ -273,7 +273,7 @@ public class SubProcessKernel {
 
     // Highlight when no result file is found vs standard process error
     if (process.exitValue() == 0) {
-      stringBuilder.append(String.format("%nProcess succeded but no result file was found %n"));
+      stringBuilder.append(String.format("%nProcess succeeded but no result file was found %n"));
     } else {
       stringBuilder.append(
           String.format("%nProcess error failed with exit value of %s %n", process.exitValue()));

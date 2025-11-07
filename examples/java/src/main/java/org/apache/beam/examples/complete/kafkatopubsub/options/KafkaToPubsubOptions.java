@@ -48,7 +48,7 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
   void setOutputTopic(String outputTopic);
 
   @Description(
-      "Format which will be writen to output Pub/Sub topic. Supported formats: AVRO, PUBSUB")
+      "Format which will be written to output Pub/Sub topic. Supported formats: AVRO, PUBSUB")
   @Validation.Required
   FormatTransform.FORMAT getOutputFormat();
 
