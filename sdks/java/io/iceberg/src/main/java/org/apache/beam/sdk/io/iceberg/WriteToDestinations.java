@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Utf8;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -241,7 +241,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
       int size = 0;
       for (Object value : row.getValues()) {
         if (value instanceof String) {
-          size += ((String) value).getBytes(StandardCharsets.UTF_8).length;
+          size += Utf8.encodedLength(((String) value));
         } else if (value instanceof byte[]) {
           size += ((byte[]) value).length;
         } else {
