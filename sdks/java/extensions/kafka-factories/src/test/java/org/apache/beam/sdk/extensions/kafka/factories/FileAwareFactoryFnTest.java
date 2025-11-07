@@ -247,11 +247,6 @@ public class FileAwareFactoryFnTest {
     config.put("db.password", "password=" + invalidSecret);
 
     // Act & Assert
-<<<<<<<< HEAD:sdks/java/extensions/kafka-factories/src/test/java/org/apache/beam/sdk/extensions/kafka/factories/FileAwareFactoryFnTest.java
-========
-    // The spy will call the real method here, which will throw an exception
-    // because the secret path is not parsable.
->>>>>>>> 310d0224d6 (Migrate to a new module such that kafka remains GCP Agnostic.):sdks/java/io/kafka/file-aware-factories/src/test/java/org/apache/beam/sdk/io/kafka/file/aware/factories/FileAwareFactoryFnTest.java
     RuntimeException ex = Assert.assertThrows(RuntimeException.class, () -> factory.apply(config));
     Assert.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
   }
