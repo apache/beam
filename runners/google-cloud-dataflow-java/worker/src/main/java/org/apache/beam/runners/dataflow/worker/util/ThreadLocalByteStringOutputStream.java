@@ -21,6 +21,7 @@ import java.lang.ref.SoftReference;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
@@ -30,14 +31,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class ThreadLocalByteStringOutputStream {
 
-  private static final ThreadLocal<@Nullable RefHolder> threadLocalRefHolder = new ThreadLocal<>();
+  private static final ThreadLocal<@Nullable SoftReference<RefHolder>> threadLocalRefHolder =
+      new ThreadLocal<>();
 
   // Private constructor to prevent instantiations from outside.
   private ThreadLocalByteStringOutputStream() {}
 
   /** @return An AutoClosable StreamHandle that holds a cached ByteStringOutputStream. */
   public static StreamHandle acquire() {
-    return new StreamHandle();
+    RefHolder refHolder = getRefHolderFromThreadLocal();
+    if (refHolder.inUse) {
+      // Stream is already in use, create a new uncached one
+      return new StreamHandle();
+    }
+    refHolder.inUse = true;
+    return Preconditions.checkArgumentNotNull(
+        refHolder.streamHandle); // inUse will be unset when streamHandle closes.
   }
 
   /**
@@ -47,20 +56,19 @@ public class ThreadLocalByteStringOutputStream {
    */
   public static class StreamHandle implements AutoCloseable {
 
-    private final boolean releaseThreadLocal;
-    private final RefHolder refHolder;
+    // When Nonnull the StreamHandle is from the threadlocal and needs to be
+    // marked as not in use, in close.
+    private final @Nullable RefHolder refHolder;
     private final ByteStringOutputStream stream;
 
     private StreamHandle() {
-      refHolder = getRefHolderFromThreadLocal();
-      if (refHolder.inUse) {
-        stream = new ByteStringOutputStream();
-        releaseThreadLocal = false;
-      } else {
-        refHolder.inUse = true;
-        releaseThreadLocal = true;
-        stream = getByteStringOutputStream(refHolder);
-      }
+      this.refHolder = null;
+      this.stream = new ByteStringOutputStream();
+    }
+
+    private StreamHandle(RefHolder refHolder) {
+      this.refHolder = refHolder;
+      this.stream = refHolder.stream;
     }
 
     /**
@@ -74,7 +82,7 @@ public class ThreadLocalByteStringOutputStream {
     @Override
     public void close() {
       stream.reset();
-      if (releaseThreadLocal) {
+      if (refHolder != null) {
         refHolder.inUse = false;
       }
     }
@@ -82,30 +90,31 @@ public class ThreadLocalByteStringOutputStream {
 
   private static class RefHolder {
 
-    public SoftReference<@Nullable ByteStringOutputStream> streamRef =
-        new SoftReference<>(new ByteStringOutputStream());
+    public ByteStringOutputStream stream = new ByteStringOutputStream();
 
     // Boolean is true when the thread local stream is already in use by the current thread.
     // Used to avoid reusing the same stream from nested calls if any.
     public boolean inUse = false;
+
+    public @Nullable StreamHandle streamHandle = null;
+
+    public static RefHolder create() {
+      RefHolder refHolder = new RefHolder();
+      refHolder.streamHandle = new StreamHandle(refHolder);
+      return refHolder;
+    }
   }
 
   private static RefHolder getRefHolderFromThreadLocal() {
-    @Nullable RefHolder refHolder = threadLocalRefHolder.get();
-    if (refHolder == null) {
-      refHolder = new RefHolder();
-      threadLocalRefHolder.set(refHolder);
+    @Nullable SoftReference<RefHolder> refHolderSoftReference = threadLocalRefHolder.get();
+    @Nullable RefHolder refHolder = null;
+    if (refHolderSoftReference != null) {
+      refHolder = refHolderSoftReference.get();
+    }
+    if (refHolderSoftReference == null || refHolder == null) {
+      refHolder = RefHolder.create();
+      threadLocalRefHolder.set(new SoftReference<>(refHolder));
     }
     return refHolder;
-  }
-
-  private static ByteStringOutputStream getByteStringOutputStream(RefHolder refHolder) {
-    @Nullable
-    ByteStringOutputStream stream = refHolder.streamRef == null ? null : refHolder.streamRef.get();
-    if (stream == null) {
-      stream = new ByteStringOutputStream();
-      refHolder.streamRef = new SoftReference<>(stream);
-    }
-    return stream;
   }
 }
