@@ -241,7 +241,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
       int size = 0;
       for (Object value : row.getValues()) {
         if (value instanceof String) {
-          size += Utf8.encodedLength(((String) value));
+          size += Utf8.encodedLength((String) value);
         } else if (value instanceof byte[]) {
           size += ((byte[]) value).length;
         } else {
