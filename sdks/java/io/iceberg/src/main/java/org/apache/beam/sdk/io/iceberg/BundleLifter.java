@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +68,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     final int threshold;
     final SerializableFunction<T, Integer> elementSizer;
 
-    private transient List<T> buffer;
+    private transient @MonotonicNonNull List<T> buffer;
     private transient long bundleSize;
     private transient @Nullable MultiOutputReceiver receiver;
 
@@ -79,30 +81,29 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
       this.largeBatchTag = largeBatchTag;
       this.threshold = threshold;
       this.elementSizer = elementSizer;
-      this.buffer = new ArrayList<>();
-      this.bundleSize = 0;
-      this.receiver = null;
     }
 
     @StartBundle
     public void startBundle() {
-      this.buffer = new ArrayList<>();
-      this.receiver = null;
-      this.bundleSize = 0L;
+      buffer = new ArrayList<>();
+      receiver = null;
+      bundleSize = 0L;
     }
 
     @ProcessElement
     public void processElement(@Element T element, MultiOutputReceiver mor) {
-      if (this.receiver == null) {
-        this.receiver = mor;
+      if (receiver == null) {
+        receiver = mor;
       }
+      checkArgumentNotNull(buffer, "Buffer should be set by startBundle.");
       buffer.add(element);
-      bundleSize += this.elementSizer.apply(element);
+      bundleSize += elementSizer.apply(element);
     }
 
     @FinishBundle
     public void finishBundle() {
-      if (buffer.isEmpty() || this.receiver == null) {
+      checkArgumentNotNull(buffer, "Buffer should be set by startBundle.");
+      if (buffer.isEmpty()) {
         return;
       }
 
@@ -117,8 +118,8 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         LOG.debug("Emitting {} elements to large tag: '{}'", bundleSize, targetTag.getId());
       }
 
-      checkArgumentNotNull(this.receiver, "Receiver should be set by processElement.");
-      OutputReceiver<T> taggedOutput = this.receiver.get(targetTag);
+      checkArgumentNotNull(receiver, "Receiver should be set by startBundle.");
+      OutputReceiver<T> taggedOutput = receiver.get(targetTag);
 
       for (T element : buffer) {
         taggedOutput.output(element);
