@@ -123,9 +123,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
         drainingValueFromUpstream =
-            elementMetadata.hasDrain()
-                ? (elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING)
-                : false;
+            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING;
       }
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;

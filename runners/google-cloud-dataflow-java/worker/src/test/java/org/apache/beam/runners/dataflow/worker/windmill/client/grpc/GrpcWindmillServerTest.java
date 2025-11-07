@@ -413,7 +413,8 @@ public class GrpcWindmillServerTest {
                                 ComputationWorkItemMetadata.newBuilder()
                                     .setComputationId("comp")
                                     .setDependentRealtimeInputWatermark(17000)
-                                    .setInputDataWatermark(18000));
+                                    .setInputDataWatermark(18000)
+                                    .setDrainMode(true));
                     int loopVariant = loop % 3;
                     if (loopVariant < 1) {
                       responseChunk.addSerializedWorkItem(serializedResponses.pop());
@@ -477,6 +478,7 @@ public class GrpcWindmillServerTest {
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
               assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
+              assertTrue(drainMode);
               assertTrue(sentResponseIds.containsKey(workItem.getWorkToken()));
               sentResponseIds.remove(workItem.getWorkToken());
               latch.countDown();

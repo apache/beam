@@ -121,10 +121,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                   BeamFnApi.Elements.ElementMetadata elementMetadata =
                       WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
                   drainingValueFromUpstream =
-                      elementMetadata.hasDrain()
-                          ? (elementMetadata.getDrain()
-                              == BeamFnApi.Elements.DrainMode.Enum.DRAINING)
-                          : false;
+                      elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING;
                 }
                 InputStream inputStream = message.getData().newInput();
                 ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);

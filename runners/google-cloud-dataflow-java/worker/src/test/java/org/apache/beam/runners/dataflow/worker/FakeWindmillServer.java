@@ -275,7 +275,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
                   computationWork.getComputationId(),
                   inputDataWatermark,
                   Instant.now(),
-                  false,
+                  computationWork.getDrainMode(),
                   workItem,
                   workItem.getSerializedSize(),
                   ImmutableList.of(
