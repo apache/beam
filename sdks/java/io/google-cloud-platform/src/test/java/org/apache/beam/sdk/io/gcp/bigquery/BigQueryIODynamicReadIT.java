@@ -145,7 +145,7 @@ public class BigQueryIODynamicReadIT {
                         null, options.getInputTable(), null, null, null, null)))
             .apply(
                 "Read",
-                BigQueryIO.readDynamically(TableRowParser.INSTANCE, TableRowJsonCoder.of())
+                BigQueryIO.readDynamically(FailingTableRowParser.INSTANCE, TableRowJsonCoder.of())
                     .withFormat(options.getDataFormat())
                     .withBadRecordErrorHandler(errorHandler))
             .apply("Count", Count.globally());
