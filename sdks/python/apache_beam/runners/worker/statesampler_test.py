@@ -21,6 +21,7 @@
 import logging
 import time
 import unittest
+from unittest.mock import Mock
 
 from tenacity import retry
 from tenacity import stop_after_attempt
@@ -28,6 +29,10 @@ from tenacity import stop_after_attempt
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
+from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import operations
+from apache_beam.internal import pickler
+from apache_beam.transforms import core
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -212,6 +217,59 @@ class StateSamplerTest(unittest.TestCase):
         actual_value,
         expected_value * (1.0 + margin_of_error),
         "The timer metric was higher than expected.")
+
+  def test_do_operation_with_sampler(self):
+    """
+      Tests that a DoOperation with an active state_sampler correctly
+      creates a real ScopedState object for timer processing.
+      """
+    mock_spec = operation_specs.WorkerDoFn(
+        serialized_fn=pickler.dumps((core.DoFn(), None, None, None, None)),
+        output_tags=[],
+        input=None,
+        side_inputs=[],
+        output_coders=[])
+
+    sampler = statesampler.StateSampler(
+        'test_stage', CounterFactory(), sampling_period_ms=1)
+
+    # 1. Create the operation WITHOUT the unexpected keyword argument
+    op = operations.create_operation(
+        name_context='test_op',
+        spec=mock_spec,
+        counter_factory=CounterFactory(),
+        state_sampler=sampler)
+
+    # 2. Set the user_state_context attribute AFTER creation
+    op.user_state_context = Mock()
+
+    self.assertIsNot(
+        op.scoped_timer_processing_state, statesampler.NOOP_SCOPED_STATE)
+
+  def test_do_operation_without_sampler(self):
+    """
+    Tests that a DoOperation without a state_sampler correctly uses the
+    NOOP_SCOPED_STATE for timer processing.
+    """
+    mock_spec = operation_specs.WorkerDoFn(
+        serialized_fn=pickler.dumps((core.DoFn(), None, None, None, None)),
+        output_tags=[],
+        input=None,
+        side_inputs=[],
+        output_coders=[])
+
+    # 1. Create the operation WITHOUT the unexpected keyword argument
+    op = operations.create_operation(
+        name_context='test_op',
+        spec=mock_spec,
+        counter_factory=CounterFactory(),
+        state_sampler=None)
+
+    # 2. Set the user_state_context attribute AFTER creation
+    op.user_state_context = Mock()
+
+    self.assertIs(
+        op.scoped_timer_processing_state, statesampler.NOOP_SCOPED_STATE)
 
 
 if __name__ == '__main__':
