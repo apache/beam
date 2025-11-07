@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -122,12 +123,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract void output(OutputT output, Instant timestamp, BoundedWindow window);
 
-    public abstract void output(
-        OutputT output,
-        Instant timestamp,
-        BoundedWindow window,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
     /**
      * Adds the given element to the output {@code PCollection} with the given tag at the given
      * timestamp in the given window.
@@ -139,14 +134,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract <T> void output(
         TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window);
-
-    public abstract <T> void output(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        BoundedWindow window,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
   }
 
   /**
@@ -225,14 +212,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo);
 
-    public abstract void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
-
     /**
      * Adds the given element to the output {@code PCollection} with the given tag.
      *
@@ -305,15 +284,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo);
-
-    public abstract <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
   }
 
   /** Information accessible when running a {@link DoFn.ProcessElement} method. */
@@ -428,17 +398,22 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
   /** Receives values of the given type. */
   public interface OutputReceiver<T> {
-    void output(T output);
+    OutputBuilder<T> builder(T value);
 
-    void outputWithTimestamp(T output, Instant timestamp);
+    default void output(T value) {
+      builder(value).output();
+    }
+
+    default void outputWithTimestamp(T value, Instant timestamp) {
+      builder(value).setTimestamp(timestamp).output();
+    }
 
     default void outputWindowedValue(
-        T output,
+        T value,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      throw new UnsupportedOperationException(
-          String.format("Not implemented: %s.outputWindowedValue", this.getClass().getName()));
+      builder(value).setTimestamp(timestamp).setWindows(windows).setPaneInfo(paneInfo).output();
     }
   }
 

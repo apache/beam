@@ -425,8 +425,8 @@ from apache_beam.utils.annotations import deprecated
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
   from apache_beam.io.gcp.internal.clients.bigquery import JobReference
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
   DatasetReference = None
   TableReference = None
@@ -1029,6 +1029,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self._step_name = step_name
     self._source_uuid = unique_id
 
+  def _get_project(self):
+    """Returns the project that queries and exports will be billed to."""
+    if self.pipeline_options:
+      project = self.pipeline_options.view_as(GoogleCloudOptions).project
+      if isinstance(project, vp.ValueProvider):
+        project = project.get()
+      if project:
+        return project
+    return self.project
+
   def _get_parent_project(self):
     """Returns the project that will be billed."""
     if self.temp_table:
@@ -1163,6 +1173,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
       if self.query is not None:
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
+
+      if not self.table_reference.projectId:
+        self.table_reference.projectId = self._get_project()
 
       requested_session = bq_storage.types.ReadSession()
       requested_session.table = 'projects/{}/datasets/{}/tables/{}'.format(
@@ -1995,7 +2008,8 @@ class WriteToBigQuery(PTransform):
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
-      expansion_service=None):
+      expansion_service=None,
+      big_lake_configuration=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2216,6 +2230,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._num_streaming_keys = num_streaming_keys
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2328,6 +2343,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         find_in_nested_dict(self.schema)
 
       from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
+
       # Only cast to int when a value is given.
       # We only use an int for BigQueryBatchFileLoads
       if self.triggering_frequency is not None:
@@ -2378,6 +2394,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           num_storage_api_streams=self._num_storage_api_streams,
           use_cdc_writes=self._use_cdc_writes,
           primary_key=self._primary_key,
+          big_lake_configuration=self._big_lake_configuration,
           expansion_service=self.expansion_service)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
@@ -2626,6 +2643,7 @@ class StorageWriteToBigQuery(PTransform):
       num_storage_api_streams=0,
       use_cdc_writes: bool = False,
       primary_key: List[str] = None,
+      big_lake_configuration=None,
       expansion_service=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
@@ -2639,6 +2657,7 @@ class StorageWriteToBigQuery(PTransform):
     self._num_storage_api_streams = num_storage_api_streams
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2733,6 +2752,7 @@ class StorageWriteToBigQuery(PTransform):
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
             clustering_fields=clustering_fields,
+            big_lake_configuration=self._big_lake_configuration,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
@@ -2756,6 +2776,20 @@ class StorageWriteToBigQuery(PTransform):
         failed_rows=failed_rows,
         failed_rows_with_errors=failed_rows_with_errors)
 
+  class ConvertToBeamRowsSetupSchema:
+    def __init__(self, schema):
+      self._value = schema
+
+    def __enter__(self):
+      if not isinstance(self._value,
+                        (bigquery.TableSchema, bigquery.TableFieldSchema)):
+        return bigquery_tools.get_bq_tableschema(self._value)
+
+      return self._value
+
+    def __exit__(self, *args):
+      pass
+
   class ConvertToBeamRows(PTransform):
     def __init__(self, schema, dynamic_destinations):
       self.schema = schema
@@ -2766,18 +2800,22 @@ class StorageWriteToBigQuery(PTransform):
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.DESTINATION: row[
-                            0], StorageWriteToBigQuery.RECORD: bigquery_tools.
-                        beam_row_from_dict(row[1], self.schema)
-                    })))
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
+                    [self.schema]): beam.Row(
+                        **{
+                            StorageWriteToBigQuery.DESTINATION: row[0],
+                            StorageWriteToBigQuery.RECORD: bigquery_tools.
+                            beam_row_from_dict(row[1], schema)
+                        })))
       else:
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: bigquery_tools.beam_row_from_dict(row, self.schema))
-        )
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=[
+                        self.schema
+                    ]): bigquery_tools.beam_row_from_dict(row, schema)))
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(

@@ -37,6 +37,7 @@ import psycopg2
 import pytds
 import sqlalchemy
 import yaml
+from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
@@ -58,7 +59,6 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
-from apitools.base.py.exceptions import HttpError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -721,8 +721,9 @@ def create_test_methods(spec):
         for pipeline_spec in spec['pipelines']:
           with beam.Pipeline(options=PipelineOptions(
               pickle_library='cloudpickle',
-              **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
-                  'options', {})))) as p:
+              **replace_recursive(yaml_transform.SafeLineLoader.strip_metadata(
+                  pipeline_spec.get('options', {})),
+                                  vars))) as p:
             yaml_transform.expand_pipeline(
                 p, replace_recursive(pipeline_spec, vars))
 

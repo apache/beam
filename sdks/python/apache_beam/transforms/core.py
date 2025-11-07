@@ -39,6 +39,7 @@ from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -77,6 +78,7 @@ from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
+
   from apache_beam.io import iobase
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext
@@ -1506,25 +1508,28 @@ def _check_fn_use_yield_and_return(fn):
     source_code = _get_function_body_without_inners(fn)
     has_yield = False
     has_return = False
-    return_none_warning = (
-        "No iterator is returned by the process method in %s.",
-        fn.__self__.__class__)
+    has_return_none = False
     for line in source_code.split("\n"):
       lstripped_line = line.lstrip()
       if lstripped_line.startswith("yield ") or lstripped_line.startswith(
           "yield("):
         has_yield = True
-      if lstripped_line.startswith("return ") or lstripped_line.startswith(
-          "return("):
+      elif lstripped_line.rstrip() == "return":
         has_return = True
-        if lstripped_line.startswith(
-            "return None") or lstripped_line.rstrip() == "return":
-          _LOGGER.warning(return_none_warning)
+      elif lstripped_line.startswith("return ") or lstripped_line.startswith(
+          "return("):
+        if lstripped_line.rstrip() == "return None" or lstripped_line.rstrip(
+        ) == "return(None)":
+          has_return_none = True
+        has_return = True
       if has_yield and has_return:
         return True
 
-    if not has_yield and not has_return:
-      _LOGGER.warning(return_none_warning)
+    if has_return_none:
+      _LOGGER.warning(
+          "Process method returned None (element won't be emitted): %s."
+          " Check if intended.",
+          fn.__self__.__class__)
 
     return False
   except Exception as e:
@@ -2351,11 +2356,15 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
           else:
             return pcoll
 
+      # Map(lambda) produces a label formatted like this, but it cannot be
+      # changed without breaking update compat. Here, we pin to the transform
+      # name used in the 2.68 release to avoid breaking changes when the line
+      # number changes. Context: https://github.com/apache/beam/pull/36381
       input_count_view = pcoll | 'CountTotal' >> (
-          MaybeWindow() | Map(lambda _: 1)
+          MaybeWindow() | "Map(<lambda at core.py:2346>)" >> Map(lambda _: 1)
           | CombineGlobally(sum).as_singleton_view())
       bad_count_pcoll = result[self._dead_letter_tag] | 'CountBad' >> (
-          MaybeWindow() | Map(lambda _: 1)
+          MaybeWindow() | "Map(<lambda at core.py:2349>)" >> Map(lambda _: 1)
           | CombineGlobally(sum).without_defaults())
 
       def check_threshold(bad, total, threshold, window=DoFn.WindowParam):
@@ -2670,7 +2679,8 @@ class _TimeoutDoFn(DoFn):
       self._pool = concurrent.futures.ThreadPoolExecutor(10)
 
     # Import here to avoid circular dependency
-    from apache_beam.runners.worker.statesampler import get_current_tracker, set_current_tracker
+    from apache_beam.runners.worker.statesampler import get_current_tracker
+    from apache_beam.runners.worker.statesampler import set_current_tracker
 
     # State sampler/tracker is stored as a thread local variable, and is used
     # when incrementing counter metrics.
@@ -2999,8 +3009,7 @@ class CombinePerKey(PTransformWithSideInputs):
       # If the CombineFn has deferred side inputs, the python SDK
       # doesn't implement it.
       # Use a ParDo-based CombinePerKey instead.
-      from apache_beam.transforms.combiners import \
-        LiftedCombinePerKey
+      from apache_beam.transforms.combiners import LiftedCombinePerKey
       combine_fn, *args = args
       return LiftedCombinePerKey(combine_fn, args, kwargs)
     return super(CombinePerKey, cls).__new__(cls)
@@ -3053,6 +3062,10 @@ class CombinePerKey(PTransformWithSideInputs):
     return lambda element, *args, **kwargs: None
 
   def expand(self, pcoll):
+    # When using gbek, don't allow overriding default implementation
+    gbek_option = (pcoll.pipeline._options.view_as(SetupOptions).gbek)
+    self._using_gbek = (gbek_option is not None and len(gbek_option) > 0)
+
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
     return pcoll | GroupByKey() | 'Combine' >> CombineValues(
@@ -3078,7 +3091,9 @@ class CombinePerKey(PTransformWithSideInputs):
       self,
       context,  # type: PipelineContext
   ):
-    # type: (...) -> typing.Tuple[str, beam_runner_api_pb2.CombinePayload]
+    # type: (...) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
+    if getattr(self, '_using_gbek', False):
+      return super().to_runner_api_parameter(context)
     if self.args or self.kwargs:
       from apache_beam.transforms.combiners import curry_combine_fn
       combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
@@ -3256,7 +3271,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
         except Exception:
-          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+          self._combine_fn_copy = pickler.roundtrip(combine_fn)
 
         self.setup = self._combine_fn_copy.setup
         self.create_accumulator = self._combine_fn_copy.create_accumulator
@@ -3277,7 +3292,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         try:
           self._combine_fn_copy = copy.deepcopy(combine_fn)
         except Exception:
-          self._combine_fn_copy = pickler.loads(pickler.dumps(combine_fn))
+          self._combine_fn_copy = pickler.roundtrip(combine_fn)
 
         self.setup = self._combine_fn_copy.setup
         self.create_accumulator = self._combine_fn_copy.create_accumulator
@@ -3324,6 +3339,11 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
+  def __init__(self, label=None):
+    self._replaced_by_gbek = False
+    self._inside_gbek = False
+    super().__init__(label)
+
   class ReifyWindows(DoFn):
     def process(
         self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
@@ -3341,7 +3361,29 @@ class GroupByKey(PTransform):
       return typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
 
+  def get_windowing(self, inputs):
+    # Switch to the continuation trigger associated with the current trigger.
+    windowing = inputs[0].windowing
+    triggerfn = windowing.triggerfn.get_continuation_trigger()
+    return Windowing(
+        windowfn=windowing.windowfn,
+        triggerfn=triggerfn,
+        accumulation_mode=windowing.accumulation_mode,
+        timestamp_combiner=windowing.timestamp_combiner,
+        allowed_lateness=windowing.allowed_lateness,
+        environment_id=windowing.environment_id)
+
   def expand(self, pcoll):
+    replace_with_gbek_secret = (
+        pcoll.pipeline._options.view_as(SetupOptions).gbek)
+    if replace_with_gbek_secret is not None and not self._inside_gbek:
+      self._replaced_by_gbek = True
+      from apache_beam.transforms.util import GroupByEncryptedKey
+      from apache_beam.transforms.util import Secret
+
+      secret = Secret.parse_secret_option(replace_with_gbek_secret)
+      return (pcoll | "Group by encrypted key" >> GroupByEncryptedKey(secret))
+
     from apache_beam.transforms.trigger import DataLossReason
     from apache_beam.transforms.trigger import DefaultTrigger
     windowing = pcoll.windowing
@@ -3388,7 +3430,11 @@ class GroupByKey(PTransform):
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> typing.Tuple[str, None]
+    # type: (PipelineContext) -> tuple[str, typing.Optional[typing.Union[message.Message, bytes, str]]]
+    # if we're containing a GroupByEncryptedKey, don't allow runners to
+    # recognize this transform as a GBEK so that it doesn't get replaced.
+    if self._replaced_by_gbek:
+      return super().to_runner_api_parameter(unused_context)
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @staticmethod
@@ -3507,9 +3553,14 @@ class GroupBy(PTransform):
 
   def expand(self, pcoll):
     input_type = pcoll.element_type or typing.Any
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pcoll
-        | Map(lambda x: (self._key_func()(x), x)).with_output_types(
+        | "Map(<lambda at core.py:3503>)" >>
+        Map(lambda x: (self._key_func()(x), x)).with_output_types(
             typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
@@ -3564,14 +3615,19 @@ class _GroupAndAggregate(PTransform):
     key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint(
         pcoll.element_type)
 
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pcoll
-        | Map(lambda x: (key_func(x), value_func(x))).with_output_types(
+        | "Map(<lambda at core.py:3560>)" >>
+        Map(lambda x: (key_func(x), value_func(x))).with_output_types(
             typehints.Tuple[key_type_hint, typing.Any])
         | CombinePerKey(
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
-        | MapTuple(
+        | "MapTuple(<lambda at core.py:3565>)" >> MapTuple(
             lambda key, value: _dynamic_named_tuple('Result', result_fields)
             (*(key + value))))
 
@@ -3587,7 +3643,7 @@ class Select(PTransform):
 
   is the same as
 
-      pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
+      pcoll | 'label' >> beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
   def __init__(
       self,
@@ -3609,8 +3665,13 @@ class Select(PTransform):
     return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
 
   def expand(self, pcoll):
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
-        _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
+        _MaybePValueWithErrors(pcoll, self._exception_handling_args)
+        | "Map(<lambda at core.py:3605>)" >> Map(
             lambda x: pvalue.Row(
                 **{
                     name: expr(x)
@@ -3703,7 +3764,9 @@ class Windowing(object):
     """
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
+    from apache_beam.transforms.trigger import AccumulationMode
+    from apache_beam.transforms.trigger import DefaultTrigger
+
     # pylint: enable=wrong-import-order, wrong-import-position
     if triggerfn is None:
       triggerfn = DefaultTrigger()
@@ -4097,10 +4160,15 @@ class Create(PTransform):
         else:
           return pcoll
 
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
     return (
         pbegin
         | Impulse()
-        | FlatMap(lambda _: serialized_values).with_output_types(bytes)
+        | "FlatMap(<lambda at core.py:4094>)" >>
+        FlatMap(lambda _: serialized_values).with_output_types(bytes)
         | MaybeReshuffle().with_output_types(bytes)
         | Map(self._coder.decode).with_output_types(self.get_output_type()))
 

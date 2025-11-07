@@ -111,12 +111,17 @@ public class TimerUtils {
     }
 
     @Override
-    public @Nullable String getCurrentRecordId() {
+    public @Nullable String getRecordId() {
       return null;
     }
 
     @Override
-    public @Nullable Long getCurrentRecordOffset() {
+    public boolean causedByDrain() {
+      return false;
+    }
+
+    @Override
+    public @Nullable Long getRecordOffset() {
       return null;
     }
 

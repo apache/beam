@@ -32,6 +32,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=ungrouped-imports
 try:
   import vertexai  # pylint: disable=unused-import
+
   from apache_beam.ml.rag.embeddings.vertex_ai import VertexAITextEmbeddings
   VERTEX_AI_AVAILABLE = True
 except ImportError:

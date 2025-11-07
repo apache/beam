@@ -492,21 +492,7 @@ public class Schema implements Serializable {
 
   @Override
   public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("Fields:");
-    builder.append(System.lineSeparator());
-    for (Field field : fields) {
-      builder.append(field);
-      builder.append(System.lineSeparator());
-    }
-    builder.append("Encoding positions:");
-    builder.append(System.lineSeparator());
-    builder.append(encodingPositions);
-    builder.append(System.lineSeparator());
-    builder.append("Options:");
-    builder.append(options);
-    builder.append("UUID: " + uuid);
-    return builder.toString();
+    return SchemaUtils.toPrettyString(this);
   }
 
   @Override

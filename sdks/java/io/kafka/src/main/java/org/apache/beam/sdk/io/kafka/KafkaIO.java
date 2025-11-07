@@ -70,6 +70,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -79,6 +80,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeArbitrarily;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -92,7 +94,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
@@ -110,7 +111,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -731,6 +731,9 @@ public class KafkaIO {
     public abstract @Nullable Boolean getOffsetDeduplication();
 
     @Pure
+    public abstract @Nullable Boolean getRedistributeByRecordKey();
+
+    @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
@@ -799,6 +802,8 @@ public class KafkaIO {
       abstract Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
 
       abstract Builder<K, V> setOffsetDeduplication(Boolean offsetDeduplication);
+
+      abstract Builder<K, V> setRedistributeByRecordKey(Boolean redistributeByRecordKey);
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
@@ -915,11 +920,15 @@ public class KafkaIO {
               && config.offsetDeduplication != null) {
             builder.setOffsetDeduplication(config.offsetDeduplication);
           }
+          if (config.redistribute && config.redistributeByRecordKey != null) {
+            builder.setRedistributeByRecordKey(config.redistributeByRecordKey);
+          }
         } else {
           builder.setRedistributed(false);
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
           builder.setOffsetDeduplication(false);
+          builder.setRedistributeByRecordKey(false);
         }
       }
 
@@ -989,6 +998,7 @@ public class KafkaIO {
         private Boolean redistribute;
         private Boolean allowDuplicates;
         private Boolean offsetDeduplication;
+        private Boolean redistributeByRecordKey;
         private Long dynamicReadPollIntervalSeconds;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
@@ -1049,6 +1059,10 @@ public class KafkaIO {
 
         public void setOffsetDeduplication(Boolean offsetDeduplication) {
           this.offsetDeduplication = offsetDeduplication;
+        }
+
+        public void setRedistributeByRecordKey(Boolean redistributeByRecordKey) {
+          this.redistributeByRecordKey = redistributeByRecordKey;
         }
 
         public void setDynamicReadPollIntervalSeconds(Long dynamicReadPollIntervalSeconds) {
@@ -1159,6 +1173,10 @@ public class KafkaIO {
      */
     public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
       return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
+    }
+
+    public Read<K, V> withRedistributeByRecordKey(Boolean redistributeByRecordKey) {
+      return toBuilder().setRedistributeByRecordKey(redistributeByRecordKey).build();
     }
 
     /**
@@ -1679,6 +1697,11 @@ public class KafkaIO {
         LOG.warn(
             "Offsets used for deduplication are available in WindowedValue's metadata. Combining, aggregating, mutating them may risk with data loss.");
       }
+      if (getRedistributeByRecordKey() != null && getRedistributeByRecordKey()) {
+        checkState(
+            isRedistributed(),
+            "withRedistributeByRecordKey can only be used when withRedistribute is set.");
+      }
     }
 
     private void warnAboutUnsafeConfigurations(PBegin input) {
@@ -1858,18 +1881,25 @@ public class KafkaIO {
                 "Offsets committed due to usage of commitOffsetsInFinalize() and may not capture all work processed due to use of withRedistribute() with duplicates enabled");
           }
 
-          if (kafkaRead.getRedistributeNumKeys() == 0) {
-            return output.apply(
-                "Insert Redistribute",
-                Redistribute.<KafkaRecord<K, V>>arbitrarily()
-                    .withAllowDuplicates(kafkaRead.isAllowDuplicates()));
-          } else {
-            return output.apply(
-                "Insert Redistribute with Shards",
-                Redistribute.<KafkaRecord<K, V>>arbitrarily()
-                    .withAllowDuplicates(kafkaRead.isAllowDuplicates())
-                    .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
+          if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
+            if (kafkaRead.getRedistributeByRecordKey() != null
+                && kafkaRead.getRedistributeByRecordKey()) {
+              return output.apply(
+                  KafkaReadRedistribute.<K, V>byRecordKey(kafkaRead.getRedistributeNumKeys()));
+            } else {
+              return output.apply(
+                  KafkaReadRedistribute.<K, V>byOffsetShard(kafkaRead.getRedistributeNumKeys()));
+            }
           }
+          RedistributeArbitrarily<KafkaRecord<K, V>> redistribute =
+              Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                  .withAllowDuplicates(kafkaRead.isAllowDuplicates());
+          String redistributeName = "Insert Redistribute";
+          if (kafkaRead.getRedistributeNumKeys() != 0) {
+            redistribute = redistribute.withNumBuckets((int) kafkaRead.getRedistributeNumKeys());
+            redistributeName = "Insert Redistribute with Shards";
+          }
+          return output.apply(redistributeName, redistribute);
         }
         return output;
       }
@@ -1984,8 +2014,8 @@ public class KafkaIO {
         extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
 
       @ProcessElement
-      public void processElement(ProcessContext pc) {
-        KafkaRecord<K, V> element = pc.element();
+      public void processElement(
+          @Element KafkaRecord<K, V> element, OutputReceiver<KafkaRecord<K, V>> outputReceiver) {
         Long offset = null;
         String uniqueId = null;
         if (element != null) {
@@ -1993,13 +2023,7 @@ public class KafkaIO {
           uniqueId =
               (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
         }
-        pc.outputWindowedValue(
-            element,
-            pc.timestamp(),
-            Lists.newArrayList(GlobalWindow.INSTANCE),
-            pc.pane(),
-            uniqueId,
-            offset);
+        outputReceiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset).output();
       }
     }
 
@@ -2202,8 +2226,10 @@ public class KafkaIO {
    * generating Rows.
    */
   static class KafkaHeader {
-
+    @SchemaFieldNumber("0")
     String key;
+
+    @SchemaFieldNumber("1")
     byte @Nullable [] value;
 
     @SchemaCreate
@@ -2222,15 +2248,32 @@ public class KafkaIO {
    * Schema inference supports generics.
    */
   static class ByteArrayKafkaRecord {
-
+    @SchemaFieldNumber("0")
     String topic;
+
+    @SchemaFieldNumber("1")
     int partition;
+
+    @SchemaFieldNumber("2")
     long offset;
+
+    @SchemaFieldNumber("3")
     long timestamp;
+
+    @SchemaFieldNumber("4")
     byte @Nullable [] key;
+
+    @SchemaFieldNumber("5")
     byte @Nullable [] value;
-    @Nullable List<KafkaHeader> headers;
+
+    @SchemaFieldNumber("6")
+    @Nullable
+    List<KafkaHeader> headers;
+
+    @SchemaFieldNumber("7")
     int timestampTypeId;
+
+    @SchemaFieldNumber("8")
     String timestampTypeName;
 
     @SchemaCreate

@@ -582,7 +582,7 @@ with tags: `${RELEASE_VERSION}rc${RC_NUM}`
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
     RC_TAG=${RELEASE_VERSION}rc${RC_NUM}
-    for pyver in 3.9 3.10 3.11 3.12; do
+    for pyver in 3.10 3.11 3.12 3.13; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
@@ -1052,7 +1052,7 @@ svn rm $OLD_RELEASE_VERSION   # Delete all artifacts from old releases.
 svn commit -m "Adding artifacts for the ${RELEASE_VERSION} release and removing old artifacts"
 ```
 
-Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
+Make sure the old release's artifacts have been copied to [archive.apache.org](https://archive.apache.org/dist/beam/).
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
 
 #### Recordkeeping with ASF

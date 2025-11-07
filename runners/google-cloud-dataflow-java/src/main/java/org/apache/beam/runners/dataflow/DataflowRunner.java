@@ -108,9 +108,6 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.state.MapState;
-import org.apache.beam.sdk.state.MultimapState;
-import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
@@ -1040,9 +1037,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             && !updated
             // don't update if the container image is already configured by DataflowRunner
             && !containerImage.equals(getContainerImageForJob(options))) {
+          String imageAndTag =
+              normalizeDataflowImageAndTag(
+                  containerImage.substring(containerImage.lastIndexOf("/")));
           containerImage =
               DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository()
-                  + containerImage.substring(containerImage.lastIndexOf("/"));
+                  + imageAndTag;
         }
         environmentBuilder.setPayload(
             RunnerApi.DockerPayload.newBuilder()
@@ -1053,6 +1053,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       componentsBuilder.putEnvironments(entry.getKey(), environmentBuilder.build());
     }
     return pipelineBuilder.build();
+  }
+
+  static String normalizeDataflowImageAndTag(String imageAndTag) {
+    if (imageAndTag.startsWith("/beam_java")
+        || imageAndTag.startsWith("/beam_python")
+        || imageAndTag.startsWith("/beam_go_")) {
+      int tagIdx = imageAndTag.lastIndexOf(":");
+      if (tagIdx > 0) {
+        // For release candidates, apache/beam_ images has rc tag while Dataflow does not
+        String tag = imageAndTag.substring(tagIdx); // e,g, ":2.xx.0rc1"
+        int mayRc = tag.toLowerCase().lastIndexOf("rc");
+        if (mayRc > 0) {
+          imageAndTag = imageAndTag.substring(0, tagIdx) + tag.substring(0, mayRc);
+        }
+      }
+    }
+    return imageAndTag;
   }
 
   @VisibleForTesting
@@ -1171,7 +1188,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     String dataflowWorkerJar = options.getDataflowWorkerJar();
     if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty() && !useUnifiedWorker(options)) {
       // Put the user specified worker jar at the start of the classpath, to be consistent with the
-      // built in worker order.
+      // built-in worker order.
       pathsToStageBuilder.add("dataflow-worker.jar=" + dataflowWorkerJar);
     }
     pathsToStageBuilder.addAll(options.getFilesToStage());
@@ -1262,6 +1279,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // Ensure that logging via the FnApi is enabled
       options.as(SdkHarnessOptions.class).setEnableLogViaFnApi(true);
     }
+
+    // Add use_gbek to dataflow_service_options if gbek is set.
+    List<String> dataflowServiceOptions = options.getDataflowServiceOptions();
+    if (dataflowServiceOptions == null) {
+      dataflowServiceOptions = new ArrayList<>();
+    }
+    if (!Strings.isNullOrEmpty(options.as(DataflowPipelineDebugOptions.class).getGbek())) {
+      if (!dataflowServiceOptions.contains("use_gbek")) {
+        dataflowServiceOptions.add("use_gbek");
+      }
+    } else if (dataflowServiceOptions.contains("use_gbek")) {
+      throw new IllegalArgumentException(
+          "Do not set use_gbek directly, pass in the --gbek pipeline option "
+              + "with a valid secret instead.");
+    }
+    options.setDataflowServiceOptions(dataflowServiceOptions);
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
     logWarningIfBigqueryDLQUnused(pipeline);
@@ -2176,7 +2209,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
           byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));
 
-      // Using a GlobalWindowCoder as a place holder because GlobalWindowCoder is known coder.
+      // Using a GlobalWindowCoder as a placeholder because GlobalWindowCoder is known coder.
       stepContext.addEncodingInput(
           WindowedValues.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE));
       stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
@@ -2589,7 +2622,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 transform) {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In
       // streaming, there are large numbers of small bundles, resulting in many tiny files.
-      // Instead we pick max workers * 2 to ensure full parallelism, but prevent too-many files.
+      // Instead, we pick max workers * 2 to ensure full parallelism, but prevent too-many files.
       // (current_num_workers * 2 might be a better choice, but that value is not easily available
       // today).
       // If the user does not set either numWorkers or maxNumWorkers, default to 10 shards.
@@ -2696,12 +2729,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static void verifyDoFnSupported(
       DoFn<?, ?> fn, boolean streaming, DataflowPipelineOptions options) {
-    if (!streaming && DoFnSignatures.usesMultimapState(fn)) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support %s in batch mode",
-              DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
-    }
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
       throw new UnsupportedOperationException(
           String.format(
@@ -2709,25 +2736,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               DataflowRunner.class.getSimpleName()));
     }
     boolean isUnifiedWorker = useUnifiedWorker(options);
-
-    if (DoFnSignatures.usesMultimapState(fn) && isUnifiedWorker) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support %s running using streaming on unified worker",
-              DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
-    }
-    if (DoFnSignatures.usesSetState(fn) && streaming && isUnifiedWorker) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support %s when using streaming on unified worker",
-              DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
-    }
-    if (DoFnSignatures.usesMapState(fn) && streaming && isUnifiedWorker) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support %s when using streaming on unified worker",
-              DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
-    }
     if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
       throw new UnsupportedOperationException(
           String.format(

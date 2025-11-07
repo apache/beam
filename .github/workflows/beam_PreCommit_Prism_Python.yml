@@ -76,7 +76,7 @@ jobs:
       matrix:
         job_name: ['beam_PreCommit_Prism_Python']
         job_phrase: ['Run Prism_Python PreCommit']
-        python_version: ['3.9', '3.12']
+        python_version: ['3.10', '3.13']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -97,7 +97,7 @@ jobs:
           java-version: default
           python-version: |
             ${{ matrix.python_version }}
-            3.9
+            3.10
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |

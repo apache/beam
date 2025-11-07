@@ -583,7 +583,7 @@ public abstract class Row implements Serializable {
 
   @Override
   public String toString() {
-    return toString(true);
+    return SchemaUtils.toPrettyString(this);
   }
 
   /** Convert Row to String. */

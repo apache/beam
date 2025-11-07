@@ -47,17 +47,19 @@ public interface WindowedValue<T> {
   PaneInfo getPaneInfo();
 
   @Nullable
-  String getCurrentRecordId();
+  String getRecordId();
 
   @Nullable
-  Long getCurrentRecordOffset();
+  Long getRecordOffset();
+
+  boolean causedByDrain();
 
   /**
    * A representation of each of the actual values represented by this compressed {@link
    * WindowedValue}, one per window.
    */
   @Pure
-  Iterable<WindowedValue<T>> explodeWindows();
+  Iterable<? extends WindowedValue<T>> explodeWindows();
 
   /**
    * A {@link WindowedValue} with identical metadata to the current one, but with the provided

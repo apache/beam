@@ -219,6 +219,9 @@ public class EnvironmentsTest implements Serializable {
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.ORDERED_LIST_STATE)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.MULTIMAP_STATE)));
     // Check that SDF truncation is supported
     assertThat(
         Environments.getJavaCapabilities(),
@@ -298,6 +301,8 @@ public class EnvironmentsTest implements Serializable {
     assertEquals("java17", JavaVersion.java17.legacyName());
     assertEquals(JavaVersion.java21, JavaVersion.forSpecification("21"));
     assertEquals("java21", JavaVersion.java21.legacyName());
+    assertEquals(JavaVersion.java25, JavaVersion.forSpecification("25"));
+    assertEquals("java25", JavaVersion.java25.legacyName());
   }
 
   @Test
@@ -305,14 +310,12 @@ public class EnvironmentsTest implements Serializable {
     assertEquals(JavaVersion.java11, JavaVersion.forSpecification("9"));
     assertEquals(JavaVersion.java11, JavaVersion.forSpecification("10"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("12"));
-    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("13"));
-    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("14"));
-    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("15"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("16"));
     assertEquals(JavaVersion.java21, JavaVersion.forSpecification("18"));
-    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("19"));
     assertEquals(JavaVersion.java21, JavaVersion.forSpecification("20"));
-    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("22"));
+    assertEquals(JavaVersion.java25, JavaVersion.forSpecification("22"));
+    assertEquals(JavaVersion.java25, JavaVersion.forSpecification("24"));
+    assertEquals(JavaVersion.java25, JavaVersion.forSpecification("26"));
   }
 
   @Test(expected = UnsupportedOperationException.class)

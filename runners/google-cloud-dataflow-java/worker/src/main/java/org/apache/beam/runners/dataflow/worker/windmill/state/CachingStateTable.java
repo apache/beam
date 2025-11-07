@@ -17,34 +17,41 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
+import com.google.auto.value.AutoValue;
 import java.io.Closeable;
+import java.util.HashMap;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache.ForKeyAndFamily;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.*;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.CombineWithContext;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 
-final class CachingStateTable extends StateTable {
+final class CachingStateTable {
+
+  private final HashMap<StateTableKey, WindmillState> stateTable;
   private final String stateFamily;
   private final WindmillStateReader reader;
   private final WindmillStateCache.ForKeyAndFamily cache;
   private final boolean isSystemTable;
   private final Supplier<Closeable> scopedReadStateSupplier;
-  private final @Nullable StateTable derivedStateTable;
+  private final @Nullable CachingStateTable derivedStateTable;
   private final boolean isNewKey;
   private final boolean mapStateViaMultimapState;
+  private final WindmillStateTagUtil windmillStateTagUtil;
 
   private CachingStateTable(Builder builder) {
+    this.stateTable = new HashMap<>();
     this.stateFamily = builder.stateFamily;
     this.reader = builder.reader;
     this.cache = builder.cache;
@@ -53,7 +60,7 @@ final class CachingStateTable extends StateTable {
     this.scopedReadStateSupplier = builder.scopedReadStateSupplier;
     this.derivedStateTable = builder.derivedStateTable;
     this.mapStateViaMultimapState = builder.mapStateViaMultimapState;
-
+    this.windmillStateTagUtil = builder.windmillStateTagUtil;
     if (this.isSystemTable) {
       Preconditions.checkState(derivedStateTable == null);
     } else {
@@ -61,19 +68,45 @@ final class CachingStateTable extends StateTable {
     }
   }
 
-  static CachingStateTable.Builder builder(
+  static Builder builder(
       String stateFamily,
       WindmillStateReader reader,
-      WindmillStateCache.ForKeyAndFamily cache,
+      ForKeyAndFamily cache,
       boolean isNewKey,
-      Supplier<Closeable> scopedReadStateSupplier) {
-    return new CachingStateTable.Builder(
-        stateFamily, reader, cache, scopedReadStateSupplier, isNewKey);
+      Supplier<Closeable> scopedReadStateSupplier,
+      WindmillStateTagUtil windmillStateTagUtil) {
+    return new Builder(
+        stateFamily, reader, cache, scopedReadStateSupplier, isNewKey, windmillStateTagUtil);
   }
 
-  @Override
+  /**
+   * Gets the {@link State} in the specified {@link StateNamespace} with the specified {@link
+   * StateTag}, binding it using the {@link #binderForNamespace} if it is not already present in
+   * this {@link CachingStateTable}.
+   */
+  public <StateT extends State> StateT get(
+      StateNamespace namespace, StateTag<StateT> tag, StateContext<?> c) {
+
+    StateTableKey stateTableKey = StateTableKey.create(namespace, tag);
+    @SuppressWarnings("unchecked")
+    StateT storage =
+        (StateT)
+            stateTable.computeIfAbsent(
+                stateTableKey,
+                unusedKey -> (WindmillState) tag.bind(binderForNamespace(namespace, c)));
+    return storage;
+  }
+
+  public void clear() {
+    stateTable.clear();
+  }
+
+  public Iterable<WindmillState> values() {
+    return stateTable.values();
+  }
+
   @SuppressWarnings("deprecation")
-  protected StateTag.StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c) {
+  private StateTag.StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c) {
     // Look up state objects in the cache or create new ones if not found.  The state will
     // be added to the cache in persist().
     return new StateTag.StateBinder() {
@@ -81,18 +114,14 @@ final class CachingStateTable extends StateTable {
       public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
         StateTag<BagState<T>> resolvedAddress =
             isSystemTable ? StateTags.makeSystemTagInternal(address) : address;
+        InternedByteString encodedKey = windmillStateTagUtil.encodeKey(namespace, resolvedAddress);
 
-        WindmillBag<T> result =
-            cache
-                .get(namespace, resolvedAddress)
-                .map(bagState -> (WindmillBag<T>) bagState)
-                .orElseGet(
-                    () ->
-                        new WindmillBag<>(
-                            namespace, resolvedAddress, stateFamily, elemCoder, isNewKey));
-
-        result.initializeForWorkItem(reader, scopedReadStateSupplier);
-        return result;
+        @Nullable WindmillBag<T> bag = (WindmillBag<T>) cache.get(namespace, encodedKey);
+        if (bag == null) {
+          bag = new WindmillBag<>(namespace, encodedKey, stateFamily, elemCoder, isNewKey);
+        }
+        bag.initializeForWorkItem(reader, scopedReadStateSupplier);
+        return bag;
       }
 
       @Override
@@ -115,14 +144,13 @@ final class CachingStateTable extends StateTable {
               new WindmillMapViaMultimap<>(
                   bindMultimap(internalMultimapAddress, keyCoder, valueCoder));
         } else {
-          result =
-              cache
-                  .get(namespace, spec)
-                  .map(mapState -> (AbstractWindmillMap<KeyT, ValueT>) mapState)
-                  .orElseGet(
-                      () ->
-                          new WindmillMap<>(
-                              namespace, spec, stateFamily, keyCoder, valueCoder, isNewKey));
+          InternedByteString encodedKey = windmillStateTagUtil.encodeKey(namespace, spec);
+          result = (AbstractWindmillMap<KeyT, ValueT>) cache.get(namespace, encodedKey);
+          if (result == null) {
+            result =
+                new WindmillMap<>(
+                    namespace, encodedKey, stateFamily, keyCoder, valueCoder, isNewKey);
+          }
         }
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -133,14 +161,14 @@ final class CachingStateTable extends StateTable {
           StateTag<MultimapState<KeyT, ValueT>> spec,
           Coder<KeyT> keyCoder,
           Coder<ValueT> valueCoder) {
+        InternedByteString encodedKey = windmillStateTagUtil.encodeKey(namespace, spec);
         WindmillMultimap<KeyT, ValueT> result =
-            cache
-                .get(namespace, spec)
-                .map(multimapState -> (WindmillMultimap<KeyT, ValueT>) multimapState)
-                .orElseGet(
-                    () ->
-                        new WindmillMultimap<>(
-                            namespace, spec, stateFamily, keyCoder, valueCoder, isNewKey));
+            (WindmillMultimap<KeyT, ValueT>) cache.get(namespace, encodedKey);
+        if (result == null) {
+          result =
+              new WindmillMultimap<>(
+                  namespace, encodedKey, stateFamily, keyCoder, valueCoder, isNewKey);
+        }
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
       }
@@ -149,20 +177,21 @@ final class CachingStateTable extends StateTable {
       public <T> OrderedListState<T> bindOrderedList(
           StateTag<OrderedListState<T>> spec, Coder<T> elemCoder) {
         StateTag<OrderedListState<T>> specOrInternalTag = addressOrInternalTag(spec);
+        InternedByteString encodedKey =
+            windmillStateTagUtil.encodeKey(namespace, specOrInternalTag);
 
-        WindmillOrderedList<T> result =
-            cache
-                .get(namespace, specOrInternalTag)
-                .map(orderedList -> (WindmillOrderedList<T>) orderedList)
-                .orElseGet(
-                    () ->
-                        new WindmillOrderedList<>(
-                            Optional.ofNullable(derivedStateTable).orElse(CachingStateTable.this),
-                            namespace,
-                            specOrInternalTag,
-                            stateFamily,
-                            elemCoder,
-                            isNewKey));
+        WindmillOrderedList<T> result = (WindmillOrderedList<T>) cache.get(namespace, encodedKey);
+        if (result == null) {
+          result =
+              new WindmillOrderedList<>(
+                  Optional.ofNullable(derivedStateTable).orElse(CachingStateTable.this),
+                  namespace,
+                  encodedKey,
+                  specOrInternalTag,
+                  stateFamily,
+                  elemCoder,
+                  isNewKey);
+        }
 
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -172,16 +201,15 @@ final class CachingStateTable extends StateTable {
       public WatermarkHoldState bindWatermark(
           StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
         StateTag<WatermarkHoldState> addressOrInternalTag = addressOrInternalTag(address);
+        InternedByteString encodedKey =
+            windmillStateTagUtil.encodeKey(namespace, addressOrInternalTag);
 
-        WindmillWatermarkHold result =
-            cache
-                .get(namespace, addressOrInternalTag)
-                .map(watermarkHold -> (WindmillWatermarkHold) watermarkHold)
-                .orElseGet(
-                    () ->
-                        new WindmillWatermarkHold(
-                            namespace, address, stateFamily, timestampCombiner, isNewKey));
-
+        WindmillWatermarkHold result = (WindmillWatermarkHold) cache.get(namespace, encodedKey);
+        if (result == null) {
+          result =
+              new WindmillWatermarkHold(
+                  namespace, encodedKey, stateFamily, timestampCombiner, isNewKey);
+        }
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
       }
@@ -190,7 +218,7 @@ final class CachingStateTable extends StateTable {
       public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
           StateTag<CombiningState<InputT, AccumT, OutputT>> address,
           Coder<AccumT> accumCoder,
-          Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+          CombineFn<InputT, AccumT, OutputT> combineFn) {
         StateTag<CombiningState<InputT, AccumT, OutputT>> addressOrInternalTag =
             addressOrInternalTag(address);
 
@@ -202,7 +230,8 @@ final class CachingStateTable extends StateTable {
                 accumCoder,
                 combineFn,
                 cache,
-                isNewKey);
+                isNewKey,
+                windmillStateTagUtil);
 
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -213,7 +242,7 @@ final class CachingStateTable extends StateTable {
           CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
               StateTag<CombiningState<InputT, AccumT, OutputT>> address,
               Coder<AccumT> accumCoder,
-              CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+              CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
         return bindCombiningValue(
             addressOrInternalTag(address), accumCoder, CombineFnUtil.bindContext(combineFn, c));
       }
@@ -221,16 +250,13 @@ final class CachingStateTable extends StateTable {
       @Override
       public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
         StateTag<ValueState<T>> addressOrInternalTag = addressOrInternalTag(address);
+        InternedByteString encodedKey =
+            windmillStateTagUtil.encodeKey(namespace, addressOrInternalTag);
 
-        WindmillValue<T> result =
-            cache
-                .get(namespace, addressOrInternalTag)
-                .map(value -> (WindmillValue<T>) value)
-                .orElseGet(
-                    () ->
-                        new WindmillValue<>(
-                            namespace, addressOrInternalTag, stateFamily, coder, isNewKey));
-
+        WindmillValue<T> result = (WindmillValue<T>) cache.get(namespace, encodedKey);
+        if (result == null) {
+          result = new WindmillValue<>(namespace, encodedKey, stateFamily, coder, isNewKey);
+        }
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
       }
@@ -241,22 +267,40 @@ final class CachingStateTable extends StateTable {
     };
   }
 
+  @AutoValue
+  abstract static class StateTableKey {
+
+    public abstract StateNamespace getStateNamespace();
+
+    public abstract String getId();
+
+    public static StateTableKey create(StateNamespace namespace, StateTag<?> stateTag) {
+      // TODO(https://github.com/apache/beam/issues/36753): stateTag.getId() returns only the
+      // string tag without system/user prefix. This could cause a collision between system and
+      // user tag with the same id. Consider adding the prefix to state table key.
+      return new AutoValue_CachingStateTable_StateTableKey(namespace, stateTag.getId());
+    }
+  }
+
   static class Builder {
+
     private final String stateFamily;
     private final WindmillStateReader reader;
     private final WindmillStateCache.ForKeyAndFamily cache;
     private final Supplier<Closeable> scopedReadStateSupplier;
     private final boolean isNewKey;
+    private final WindmillStateTagUtil windmillStateTagUtil;
     private boolean isSystemTable;
-    private @Nullable StateTable derivedStateTable;
+    private @Nullable CachingStateTable derivedStateTable;
     private boolean mapStateViaMultimapState = false;
 
     private Builder(
         String stateFamily,
         WindmillStateReader reader,
-        WindmillStateCache.ForKeyAndFamily cache,
+        ForKeyAndFamily cache,
         Supplier<Closeable> scopedReadStateSupplier,
-        boolean isNewKey) {
+        boolean isNewKey,
+        WindmillStateTagUtil windmillStateTagUtil) {
       this.stateFamily = stateFamily;
       this.reader = reader;
       this.cache = cache;
@@ -264,9 +308,10 @@ final class CachingStateTable extends StateTable {
       this.isNewKey = isNewKey;
       this.isSystemTable = true;
       this.derivedStateTable = null;
+      this.windmillStateTagUtil = windmillStateTagUtil;
     }
 
-    Builder withDerivedState(StateTable derivedStateTable) {
+    Builder withDerivedState(CachingStateTable derivedStateTable) {
       this.isSystemTable = false;
       this.derivedStateTable = derivedStateTable;
       return this;

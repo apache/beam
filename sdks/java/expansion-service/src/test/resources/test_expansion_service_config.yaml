@@ -21,3 +21,6 @@ dependencies:
   "beam:transform:my_dummy_transform_3":
   - path: "jars/my_dummy_transform_3_dep1.jar"
   - path: "jars/my_dummy_transform_3_dep2.jar"
+  "dummy_id":
+  # using the mock prefix provided in Environments.java.
+  - path: "beam_testing_mock_artifact/my_dummy_schematransform_dep1.jar"

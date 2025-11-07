@@ -28,6 +28,7 @@ import json
 import logging
 import os
 import platform
+import re
 import shutil
 import stat
 import subprocess
@@ -75,9 +76,9 @@ class PrismRunner(portable_runner.PortableRunner):
     debug_options = options.view_as(pipeline_options.DebugOptions)
     get_job_server = lambda: job_server.StopOnExitJobServer(
         PrismJobServer(options))
-    if debug_options.lookup_experiment("enable_prism_server_singleton"):
-      return PrismRunner.shared_handle.acquire(get_job_server)
-    return get_job_server()
+    if debug_options.lookup_experiment("disable_prism_server_singleton"):
+      return get_job_server()
+    return PrismRunner.shared_handle.acquire(get_job_server)
 
   def create_job_service_handle(self, job_service, options):
     return portable_runner.JobServiceHandle(
@@ -121,7 +122,18 @@ class PrismRunnerLogFilter(logging.Filter):
       try:
         message = record.getMessage()
         json_record = json.loads(message)
-        record.levelno = getattr(logging, json_record["level"])
+        level_str = json_record["level"]
+        # Example level with offset: 'ERROR+2'
+        if "+" in level_str or "-" in level_str:
+          match = re.match(r"([A-Z]+)([+-]\d+)", level_str)
+          if match:
+            base, offset = match.groups()
+            base_level = getattr(logging, base, logging.INFO)
+            record.levelno = base_level + int(offset)
+          else:
+            record.levelno = getattr(logging, level_str, logging.INFO)
+        else:
+          record.levelno = getattr(logging, level_str, logging.INFO)
         record.levelname = logging.getLevelName(record.levelno)
         if "source" in json_record:
           record.funcName = json_record["source"]["function"]
@@ -483,6 +495,6 @@ class PrismJobServer(job_server.SubprocessJobServer):
         self._log_level,
         '--log_kind',
         self._log_kind,
-        '--serve_http',
-        False,
+        # Go does not support "-flag x" format for boolean flags.
+        '--serve_http=false',
     ]

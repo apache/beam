@@ -25,6 +25,7 @@ import os
 import pickle
 import random
 import re
+import sys
 import typing
 import unittest
 from functools import reduce
@@ -47,6 +48,7 @@ from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import StreamingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
@@ -61,6 +63,9 @@ from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterProcessingTime
+from apache_beam.transforms.trigger import _AfterSynchronizedProcessingTime
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
@@ -509,6 +514,21 @@ class PTransformTest(unittest.TestCase):
         'global windowing and a default trigger'):
       with TestPipeline(options=test_options) as pipeline:
         pipeline | TestStream() | beam.GroupByKey()
+
+  def test_group_by_key_trigger(self):
+    options = PipelineOptions(['--allow_unsafe_triggers'])
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(runner='BundleBasedDirectRunner',
+                      options=options) as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([(0, 0)])
+      triggered = pcoll | 'Trigger' >> beam.WindowInto(
+          window.GlobalWindows(),
+          trigger=AfterProcessingTime(1),
+          accumulation_mode=AccumulationMode.DISCARDING)
+      output = triggered | 'Gbk' >> beam.GroupByKey()
+      self.assertTrue(
+          isinstance(
+              output.windowing.triggerfn, _AfterSynchronizedProcessingTime))
 
   def test_group_by_key_unsafe_trigger(self):
     test_options = PipelineOptions()
@@ -2889,6 +2909,37 @@ class DeadLettersTest(unittest.TestCase):
                 threshold=0.5,
                 threshold_windowing=window.FixedWindows(10),
                 use_subprocess=self.use_subprocess))
+
+
+class PTransformTypeAliasTest(unittest.TestCase):
+  @unittest.skipIf(sys.version_info < (3, 12), "Python 3.12 required")
+  def test_type_alias_statement_supported_in_with_output_types(self):
+    ns = {}
+    exec("type InputType = tuple[int, ...]", ns)  # pylint: disable=exec-used
+    InputType = ns["InputType"]
+
+    def print_element(element: InputType) -> InputType:
+      return element
+
+    with beam.Pipeline() as p:
+      _ = (
+          p
+          | beam.Create([(1, 2)])
+          | beam.Map(lambda x: x)
+          | beam.Map(print_element))
+
+  @unittest.skipIf(sys.version_info < (3, 12), "Python 3.12 required")
+  def test_type_alias_supported_in_ptransform_with_output_types(self):
+    ns = {}
+    exec("type OutputType = tuple[int, int]", ns)  # pylint: disable=exec-used
+    OutputType = ns["OutputType"]
+
+    with beam.Pipeline() as p:
+      _ = (
+          p
+          | beam.Create([(1, 2)])
+          | beam.Map(lambda x: x)
+          | beam.Map(lambda x: x).with_output_types(OutputType))
 
 
 class TestPTransformFn(TypeHintTestCase):
