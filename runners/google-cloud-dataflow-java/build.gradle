@@ -372,11 +372,55 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
           root: "apache",
           tag: project.sdk_version)
   doLast {
+    def imageExists = false
+    try {
+      exec {
+        commandLine "docker", "inspect", "--type=image", "${defaultDockerImageName}"
+        ignoreExitValue = false
+      }
+      imageExists = true
+    } catch (Exception e) {
+      println "Image ${defaultDockerImageName} not found locally: ${e.message}"
+      println "Attempting to load image from buildx cache..."
+
+      def pythonContainerProject = project.project(":sdks:python:container:py${pythonVer.replace('.', '')}")
+      def dockerBuildDir = pythonContainerProject.tasks.getByName("dockerPrepare").destinationDir
+      def dockerfile = new File(pythonContainerProject.projectDir, "../Dockerfile")
+
+      def loadResult = exec {
+        commandLine "sh", "-c", """
+          cd ${dockerBuildDir} && \\
+          docker buildx build --output type=docker \\
+            --tag ${defaultDockerImageName} \\
+            --build-arg py_version=${pythonVer} \\
+            --build-arg pull_licenses=true \\
+            -f ${dockerfile.absolutePath} \\
+            .
+        """
+        ignoreExitValue = true
+      }
+
+      if (loadResult.exitValue != 0) {
+        println "Failed to load from buildx cache. Attempting to pull from registry..."
+        def pullResult = exec {
+          commandLine "docker", "pull", "${defaultDockerImageName}"
+          ignoreExitValue = true
+        }
+
+        if (pullResult.exitValue != 0) {
+          throw new GradleException(
+            "Docker image ${defaultDockerImageName} not found locally, in buildx cache, or in registry. " +
+            "Check the Docker build output for errors."
+          )
+        }
+      }
+    }
+
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerPythonImageName}"
     }
     exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerPythonImageName}"
+      commandLine "docker", "push", "${dockerPythonImageName}"
     }
   }
 }
