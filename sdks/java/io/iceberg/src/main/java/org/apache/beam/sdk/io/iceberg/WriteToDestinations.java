@@ -52,6 +52,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private static final int FILE_TRIGGERING_RECORD_COUNT = 500_000;
   // Used for auto-sharding in streaming. Limits total byte size per batch/file
   public static final int FILE_TRIGGERING_BYTE_COUNT = 1 << 30; // 1GiB
+  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
   private final @Nullable Duration triggeringFrequency;
@@ -98,11 +99,10 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     checkArgumentNotNull(
         directWriteByteLimit, "Must set non-null directWriteByteLimit for bundle lifting.");
 
-    // Lift large bundles to separate output stream for direct writes.
-    // https://beam.apache.org/documentation/pipelines/design-your-pipeline/#a-single-transform-that-produces-multiple-outputs
     final TupleTag<KV<String, Row>> groupedRecordsTag = new TupleTag<>("small_batches");
     final TupleTag<KV<String, Row>> directRecordsTag = new TupleTag<>("large_batches");
 
+    input = input.apply("WindowIntoGlobal", Window.into(new GlobalWindows()));
     PCollectionTuple bundleOutputs =
         input.apply(
             BundleLifter.of(
@@ -119,13 +119,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             .setCoder(
                 KvCoder.of(StringUtf8Coder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
 
-    // Group records into batches to avoid writing thousands of small files
     PCollection<KV<ShardedKey<String>, Iterable<Row>>> groupedRecords =
         smallBatches
-            .apply("WindowIntoGlobal", Window.into(new GlobalWindows()))
-            // We rely on GroupIntoBatches to group and parallelize records properly,
-            // respecting our thresholds for number of records and bytes per batch.
-            // Each output batch will be written to a file.
             .apply(
                 GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
                     .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
@@ -136,27 +131,23 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                     Coder.of(StringUtf8Coder.of()),
                     IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
 
-    // TODO(tomstepp): Need an ungrouped rows version which doesn't spill rows.
     PCollection<FileWriteResult> directFileWrites =
-        largeBatches
-            .apply(
-                "WriteUngroupedRows",
-                new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix))
-            .getWrittenFiles();
+        largeBatches.apply(
+            "WriteDirectRowsToFiles",
+            new WriteDirectRowsToFiles(
+                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
 
     PCollection<FileWriteResult> groupedFileWrites =
         groupedRecords.apply(
             "WriteGroupedRows",
-            new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
+            new WriteGroupedRowsToFiles(
+                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
 
-    // Flatten grouped write and direct write files.
-    // https://beam.apache.org/documentation/pipelines/design-your-pipeline/#merging-pcollections
     PCollection<FileWriteResult> allFileWrites =
         PCollectionList.of(groupedFileWrites)
             .and(directFileWrites)
             .apply(Flatten.<FileWriteResult>pCollections());
 
-    // Respect user's triggering frequency before committing snapshots
     return allFileWrites.apply(
         "ApplyUserTrigger",
         Window.<FileWriteResult>into(new GlobalWindows())
@@ -191,7 +182,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     return groupedRecords
         .apply(
             "WriteGroupedRows",
-            new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix))
+            new WriteGroupedRowsToFiles(
+                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE))
         // Respect user's triggering frequency before committing snapshots
         .apply(
             "ApplyUserTrigger",
@@ -214,7 +206,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     WriteUngroupedRowsToFiles.Result writeUngroupedResult =
         input.apply(
             "Fast-path write rows",
-            new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
+            new WriteUngroupedRowsToFiles(
+                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
 
     // Then write the rest by shuffling on the destination
     PCollection<FileWriteResult> writeGroupedResult =
@@ -223,7 +216,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             .apply("Group spilled rows by destination shard", GroupByKey.create())
             .apply(
                 "Write remaining rows to files",
-                new WriteGroupedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
+                new WriteGroupedRowsToFiles(
+                    catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)
