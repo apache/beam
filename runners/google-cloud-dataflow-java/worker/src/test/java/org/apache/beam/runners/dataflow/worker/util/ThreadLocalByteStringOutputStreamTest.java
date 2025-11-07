@@ -43,7 +43,7 @@ public class ThreadLocalByteStringOutputStreamTest {
       ByteStringOutputStream stream = streamHandle.stream();
       stream.write(1);
       try (StreamHandle streamHandle1 = ThreadLocalByteStringOutputStream.acquire()) {
-        ByteStringOutputStream stream1 = streamHandle.stream();
+        ByteStringOutputStream stream1 = streamHandle1.stream();
         stream1.write(2);
         assertEquals(ByteString.copyFrom(new byte[] {2}), stream1.toByteStringAndReset());
       }
