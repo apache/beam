@@ -421,7 +421,7 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
     }
     exec {
       environment "CLOUDSDK_CONFIG", System.getenv("CLOUDSDK_CONFIG") ?: System.getProperty("user.home") + "/.config/gcloud"
-      commandLine "gcloud", "docker", "--", "push", "${dockerPythonImageName}"
+      commandLine "docker", "push", "${dockerPythonImageName}"
     }
   }
 }
