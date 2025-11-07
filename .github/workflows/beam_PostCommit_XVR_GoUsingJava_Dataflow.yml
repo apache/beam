@@ -96,14 +96,21 @@ jobs:
         env:
           CLOUDSDK_CONFIG: /tmp/gcloud
         run: |
+          export CLOUDSDK_CONFIG=/tmp/gcloud
           gcloud --quiet auth configure-docker us.gcr.io
           gcloud --quiet auth configure-docker gcr.io
           gcloud auth list
+          cat ~/.docker/config.json | grep -A 5 "us.gcr.io" || echo "Docker config check..."
+          echo "CLOUDSDK_CONFIG=/tmp/gcloud" >> ~/.docker/config.json.env || true
       - name: Docker login to GCR (explicit)
         env:
           CLOUDSDK_CONFIG: /tmp/gcloud
         run: |
+          export CLOUDSDK_CONFIG=/tmp/gcloud
           gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://us.gcr.io
+          docker info | grep -i "username" || echo "Docker auth configured"
+          export CLOUDSDK_CONFIG=/tmp/gcloud
+          echo "export CLOUDSDK_CONFIG=/tmp/gcloud" >> ~/.bashrc || true
       - name: run XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
