@@ -24,6 +24,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
 @SuppressWarnings({
@@ -31,6 +33,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 })
 public class RestrictionTrackers {
 
+  private static final Logger LOG = LoggerFactory.getLogger(RestrictionTrackers.class);
   /** Interface allowing a runner to observe the calls to {@link RestrictionTracker#tryClaim}. */
   public interface ClaimObserver<PositionT> {
     /** Called when {@link RestrictionTracker#tryClaim} returns true. */
@@ -158,6 +161,8 @@ public class RestrictionTrackers {
           } finally {
             lock.unlock();
           }
+        } else {
+          LOG.info("Get progress acquire lock timed out. Last known progress is returned.");
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
