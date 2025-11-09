@@ -212,17 +212,17 @@ def commonLegacyExcludeCategories = [
 ]
 
 def commonRunnerV2ExcludeCategories = [
-        'org.apache.beam.sdk.testing.UsesExternalService',
-        'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-        'org.apache.beam.sdk.testing.UsesSetState',
-        'org.apache.beam.sdk.testing.UsesMapState',
-        'org.apache.beam.sdk.testing.UsesMultimapState',
-        'org.apache.beam.sdk.testing.UsesMetricsPusher',
-        'org.apache.beam.sdk.testing.UsesOrderedListState',
-        'org.apache.beam.sdk.testing.UsesTestStream',
-        'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
-        'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-        'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
+  'org.apache.beam.sdk.testing.UsesExternalService',
+  'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+  'org.apache.beam.sdk.testing.UsesSetState',
+  'org.apache.beam.sdk.testing.UsesMapState',
+  'org.apache.beam.sdk.testing.UsesMultimapState',
+  'org.apache.beam.sdk.testing.UsesMetricsPusher',
+  'org.apache.beam.sdk.testing.UsesOrderedListState',
+  'org.apache.beam.sdk.testing.UsesTestStream',
+  'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
+  'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+  'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
@@ -241,7 +241,7 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-            files(project(project.path).sourceSets.test.output.classesDirs)
+      files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonLegacyExcludeCategories.each {
@@ -274,7 +274,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-            files(project(project.path).sourceSets.test.output.classesDirs)
+      files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonRunnerV2ExcludeCategories.each {
@@ -306,9 +306,9 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
 
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
-          root: "apache",
-          tag: project.sdk_version)
+    name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
+    root: "apache",
+    tag: project.sdk_version)
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
@@ -368,60 +368,46 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
   def pythonVer = project.project(':sdks:python').pythonVersion
   dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
-          root: "apache",
-          tag: project.sdk_version)
-  doLast {
-    def imageExists = false
-    try {
+    name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
+    root: "apache",
+    tag: project.sdk_version)
+  doFirst {
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG")
+    if (cloudsdkConfig == null || !new File(cloudsdkConfig).canWrite()) {
+      def tmpGcloudDir = new File("/tmp/gcloud")
+      tmpGcloudDir.mkdirs()
+      System.setProperty("CLOUDSDK_CONFIG", "/tmp/gcloud")
       exec {
-        commandLine "docker", "inspect", "--type=image", "${defaultDockerImageName}"
+        environment "CLOUDSDK_CONFIG", "/tmp/gcloud"
+        commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
         ignoreExitValue = false
       }
-      imageExists = true
-    } catch (Exception e) {
-      println "Image ${defaultDockerImageName} not found locally: ${e.message}"
-      println "Attempting to load image from buildx cache..."
-
-      def pythonContainerProject = project.project(":sdks:python:container:py${pythonVer.replace('.', '')}")
-      def dockerBuildDir = pythonContainerProject.tasks.getByName("dockerPrepare").destinationDir
-      def dockerfile = new File(pythonContainerProject.projectDir, "../Dockerfile")
-
-      def loadResult = exec {
-        commandLine "sh", "-c", """
-          cd ${dockerBuildDir} && \\
-          docker buildx build --output type=docker \\
-            --tag ${defaultDockerImageName} \\
-            --build-arg py_version=${pythonVer} \\
-            --build-arg pull_licenses=true \\
-            -f ${dockerfile.absolutePath} \\
-            .
-        """
-        ignoreExitValue = true
+      exec {
+        environment "CLOUDSDK_CONFIG", "/tmp/gcloud"
+        commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
+        ignoreExitValue = false
       }
-
-      if (loadResult.exitValue != 0) {
-        println "Failed to load from buildx cache. Attempting to pull from registry..."
-        def pullResult = exec {
-          commandLine "docker", "pull", "${defaultDockerImageName}"
-          ignoreExitValue = true
-        }
-
-        if (pullResult.exitValue != 0) {
-          throw new GradleException(
-            "Docker image ${defaultDockerImageName} not found locally, in buildx cache, or in registry. " +
-            "Check the Docker build output for errors."
-          )
-        }
+    } else {
+      exec {
+        environment "CLOUDSDK_CONFIG", cloudsdkConfig
+        commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
+        ignoreExitValue = false
+      }
+      exec {
+        environment "CLOUDSDK_CONFIG", cloudsdkConfig
+        commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
+        ignoreExitValue = false
       }
     }
-
+  }
+  doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerPythonImageName}"
     }
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG") ?: System.getProperty("CLOUDSDK_CONFIG") ?: "/tmp/gcloud"
     exec {
-      environment "CLOUDSDK_CONFIG", System.getenv("CLOUDSDK_CONFIG") ?: System.getProperty("user.home") + "/.config/gcloud"
-      commandLine "docker", "push", "${dockerPythonImageName}"
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "docker", "--", "push", "${dockerPythonImageName}"
     }
   }
 }
@@ -639,13 +625,13 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-          "--firestoreDb=${firestoreDb}",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRoot}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
+    "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'
@@ -675,14 +661,14 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRootKms}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-          "--dataflowKmsKey=${dataflowKmsKey}",
-          "--firestoreDb=${firestoreDb}",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRootKms}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
+    "--dataflowKmsKey=${dataflowKmsKey}",
+    "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'
@@ -777,12 +763,12 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRoot}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
   ])
 
   include '**/*IT.class'
@@ -882,17 +868,17 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 
 // Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom
 createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
-        runner: 'DataflowBom',
-        gcpProject: gcpProject,
-        gcpRegion: gcpRegion,
-        gcsBucket: gcsBucket,
-        bqDataset: bqDataset,
-        pubsubTopic: pubsubTopic)
+  runner: 'DataflowBom',
+  gcpProject: gcpProject,
+  gcpRegion: gcpRegion,
+  gcsBucket: gcsBucket,
+  bqDataset: bqDataset,
+  pubsubTopic: pubsubTopic)
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PgcpTempRoot.
 task GCSUpload(type: JavaExec) {
   mainClass = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
   classpath = sourceSets.test.runtimeClasspath
   args "--stagingLocation=${dataflowUploadTemp}/staging",
-       "--filesToStage=${testFilesToStage}"
+    "--filesToStage=${testFilesToStage}"
 }
