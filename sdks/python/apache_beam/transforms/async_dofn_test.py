@@ -119,6 +119,41 @@ class AsyncTest(unittest.TestCase):
         expected_count,
     )
 
+  def test_custom_id_fn(self):
+    class CustomIdObject:
+      def __init__(self, element_id, value):
+        self.element_id = element_id
+        self.value = value
+
+      def __hash__(self):
+        return hash(self.element_id)
+
+      def __eq__(self, other):
+        return self.element_id == other.element_id
+
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(
+        dofn, id_fn=lambda x: x.element_id)
+    async_dofn.setup()
+    fake_bag_state = FakeBagState([])
+    fake_timer = FakeTimer(0)
+    msg1 = ('key1', CustomIdObject(1, 'a'))
+    msg2 = ('key1', CustomIdObject(1, 'b'))
+
+    result = async_dofn.process(
+        msg1, to_process=fake_bag_state, timer=fake_timer)
+    self.assertEqual(result, [])
+
+    # The second message should be a no-op as it has the same id.
+    result = async_dofn.process(
+        msg2, to_process=fake_bag_state, timer=fake_timer)
+    self.assertEqual(result, [])
+
+    self.wait_for_empty(async_dofn)
+    result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+    self.check_output(result, [('key1', msg1[1])])
+    self.assertEqual(fake_bag_state.items, [])
+
   def test_basic(self):
     # Setup an async dofn and send a message in to process.
     dofn = BasicDofn()

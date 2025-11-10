@@ -77,6 +77,7 @@ class AsyncWrapper(beam.DoFn):
       max_items_to_buffer=None,
       timeout=1,
       max_wait_time=0.5,
+      id_fn=None,
   ):
     """Wraps the sync_fn to create an asynchronous version.
 
@@ -101,6 +102,8 @@ class AsyncWrapper(beam.DoFn):
         locally before it goes in the queue of waiting work.
       max_wait_time: The maximum amount of sleep time while attempting to
         schedule an item.  Used in testing to ensure timeouts are met.
+      id_fn: A function that returns a hashable object from an element. This
+        will be used to track items instead of the element's default hash.
     """
     self._sync_fn = sync_fn
     self._uuid = uuid.uuid4().hex
@@ -108,6 +111,7 @@ class AsyncWrapper(beam.DoFn):
     self._timeout = timeout
     self._max_wait_time = max_wait_time
     self._timer_frequency = callback_frequency
+    self._id_fn = id_fn or (lambda x: x)
     if max_items_to_buffer is None:
       self._max_items_to_buffer = max(parallelism * 2, 10)
     else:
@@ -205,7 +209,8 @@ class AsyncWrapper(beam.DoFn):
       True if the item was scheduled False otherwise.
     """
     with AsyncWrapper._lock:
-      if element in AsyncWrapper._processing_elements[self._uuid]:
+      element_id = self._id_fn(element[1])
+      if element_id in AsyncWrapper._processing_elements[self._uuid]:
         logging.info('item %s already in processing elements', element)
         return True
       if self.accepting_items() or ignore_buffer:
@@ -214,7 +219,8 @@ class AsyncWrapper(beam.DoFn):
                 lambda: self.sync_fn_process(element, *args, **kwargs),
             )
         result.add_done_callback(self.decrement_items_in_buffer)
-        AsyncWrapper._processing_elements[self._uuid][element] = result
+        AsyncWrapper._processing_elements[self._uuid][element_id] = (
+            element, result)
         AsyncWrapper._items_in_buffer[self._uuid] += 1
         return True
       else:
@@ -362,27 +368,34 @@ class AsyncWrapper(beam.DoFn):
     # given key.  Skip items in processing_elements which are for a different
     # key.
     with AsyncWrapper._lock:
-      for x in AsyncWrapper._processing_elements[self._uuid]:
-        if x[0] == key and x not in to_process_local:
+      processing_elements = AsyncWrapper._processing_elements[self._uuid]
+      to_process_local_ids = {self._id_fn(e[1]) for e in to_process_local}
+      to_remove_ids = []
+      for element_id, (
+          element,
+          future) in processing_elements.items():
+        if element[0] == key and element_id not in to_process_local_ids:
           items_cancelled += 1
-          AsyncWrapper._processing_elements[self._uuid][x].cancel()
-          to_remove.append(x)
+          future.cancel()
+          to_remove_ids.append(element_id)
           logging.info(
-              'cancelling item %s which is no longer in processing state', x)
-      for x in to_remove:
-        AsyncWrapper._processing_elements[self._uuid].pop(x)
+              'cancelling item %s which is no longer in processing state',
+              element)
+      for element_id in to_remove_ids:
+        processing_elements.pop(element_id)
 
       # For all elements which have finished processing output their result.
       to_return = []
       finished_items = []
       for x in to_process_local:
         items_in_se_state += 1
-        if x in AsyncWrapper._processing_elements[self._uuid]:
-          if AsyncWrapper._processing_elements[self._uuid][x].done():
-            to_return.append(
-                AsyncWrapper._processing_elements[self._uuid][x].result())
+        x_id = self._id_fn(x[1])
+        if x_id in processing_elements:
+          _element, future = processing_elements[x_id]
+          if future.done():
+            to_return.append(future.result())
             finished_items.append(x)
-            AsyncWrapper._processing_elements[self._uuid].pop(x)
+            processing_elements.pop(x_id)
             items_finished += 1
           else:
             items_not_yet_finished += 1
@@ -444,3 +457,4 @@ class AsyncWrapper(beam.DoFn):
       A generator of elements that have finished processing for this key.
     """
     return self.commit_finished_items(to_process, timer)
+    
