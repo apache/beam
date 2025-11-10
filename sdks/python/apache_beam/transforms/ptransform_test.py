@@ -1402,6 +1402,36 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([6, 7, 8]))
     self.p.run()
 
+  def test_composite_child_without_explicit_hints_falls_back_to_any(self):
+    """
+    Verifies that child transforms in a composite need explicit type hints.
+    Without them, type variables fall back to Any despite parent decorators.
+    """
+    K = typehints.TypeVariable('K')
+    V = typehints.TypeVariable('V')
+
+    @typehints.with_input_types(typehints.Tuple[K, V])
+    @typehints.with_output_types(typehints.Tuple[K, V])
+    class TransformWithoutChildHints(beam.PTransform):
+      class MyDoFn(beam.DoFn):
+        def process(self, element):
+          k, v = element
+          yield (k, v.upper())
+
+      def expand(self, pcoll):
+        return pcoll | beam.ParDo(self.MyDoFn()).with_output_types(tuple[K, V])
+        # return pcoll | beam.ParDo(self.MyDoFn()).with_output_types(tuple[str,str])
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create([('a', 'hello'), ('b', 'world')])
+          | TransformWithoutChildHints())
+
+      # Current behavior: Types become Any
+      self.assertEqual(
+          result.element_type, typehints.Tuple[typehints.Any, typehints.Any])
+
   def test_do_fn_pipeline_pipeline_type_check_violated(self):
     @with_input_types(str, str)
     @with_output_types(str)
