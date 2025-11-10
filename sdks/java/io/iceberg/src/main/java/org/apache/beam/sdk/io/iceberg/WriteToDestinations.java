@@ -20,13 +20,8 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.util.UUID;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -91,14 +86,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             // respecting our thresholds for number of records and bytes per batch.
             // Each output batch will be written to a file.
             .apply(
-                GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                    .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
-                    .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency))
-                    .withShardedKey())
-            .setCoder(
-                KvCoder.of(
-                    org.apache.beam.sdk.util.ShardedKey.Coder.of(StringUtf8Coder.of()),
-                    IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
+                "LocalGroupIntoBatches", new LocalGroupIntoBatches(FILE_TRIGGERING_RECORD_COUNT));
 
     return groupedRecords
         .apply(
