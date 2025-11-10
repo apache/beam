@@ -49,10 +49,6 @@ project.tasks.register("postCommitPyDep") {}
 // For versions that we would like to prioritize for testing,
 // for example versions released in a timeframe of last 1-2 years.
 
-toxTask "testPy310pyarrow-3", "py310-pyarrow-3", "${posargs}"
-test.dependsOn "testPy310pyarrow-3"
-postCommitPyDep.dependsOn "testPy310pyarrow-3"
-
 toxTask "testPy310pyarrow-9", "py310-pyarrow-9", "${posargs}"
 test.dependsOn "testPy310pyarrow-9"
 postCommitPyDep.dependsOn "testPy310pyarrow-9"
@@ -121,13 +117,6 @@ postCommitPyDep.dependsOn "testPy310pandas-20"
 // TODO(https://github.com/apache/beam/issues/30908): Revise what are we testing
 
 // Create a test task for each minor version of pytorch
-toxTask "testPy310pytorch-19", "py310-pytorch-19", "${posargs}"
-test.dependsOn "testPy310pytorch-19"
-postCommitPyDep.dependsOn "testPy310pytorch-19"
-
-toxTask "testPy310pytorch-110", "py310-pytorch-110", "${posargs}"
-test.dependsOn "testPy310pytorch-110"
-postCommitPyDep.dependsOn "testPy310pytorch-110"
 
 toxTask "testPy310pytorch-111", "py310-pytorch-111", "${posargs}"
 test.dependsOn "testPy310pytorch-111"
