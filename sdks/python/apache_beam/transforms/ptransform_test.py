@@ -1476,12 +1476,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     When a child transform has input hints but no output hints, type inference
     from the DoFn's process method produces partially inferred types.
     
-    With .with_input_types(Tuple[K, V]) and actual input Tuple['a', 'hello'], K
-    binds to str from the input. However, without output hints, the DoFn's 
-    yield statement inference produces Tuple[str, Any].
+    Type inference is able to infer the first element of the tuple as str, but
+    not the v.upper() and falls back to any.
     """
     K = typehints.TypeVariable('K')
-    V = typehints.TypeVariable('K')
+    V = typehints.TypeVariable('V')
 
     @typehints.with_input_types(typehints.Tuple[K, V])
     @typehints.with_output_types(typehints.Tuple[K, V])
