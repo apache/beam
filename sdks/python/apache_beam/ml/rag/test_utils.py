@@ -407,3 +407,7 @@ class MilvusTestHelpers:
           # Validate field metadata.
           err_msg = f"Field Metadata doesn't match for chunk {actual.id}"
           assert a_f['metadata'] == e_f['metadata'], err_msg
+
+
+if __name__ == '__main__':
+  unittest.main()
