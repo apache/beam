@@ -17,27 +17,46 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.lineage.LineageReporter;
+import org.apache.beam.sdk.lineage.LineageReporterRegistrar;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Standard collection of metrics used to record source and sinks information for lineage tracking.
  */
 public class Lineage {
-
+  // Namespace for lineage metrics; used to filter queries in Lineage.query() and in MetricsLineageReporter
   public static final String LINEAGE_NAMESPACE = "lineage";
-  private static final Lineage SOURCES = new Lineage(Type.SOURCE);
-  private static final Lineage SINKS = new Lineage(Type.SINK);
+  private static final Logger LOG = LoggerFactory.getLogger(Lineage.class);
+  private static final AtomicReference<LineageReporter> SOURCES = new AtomicReference<>();
+  private static final AtomicReference<LineageReporter> SINKS = new AtomicReference<>();
+
+  private static final AtomicReference<KV<Long, Integer>> LINEAGE_REVISION =
+      new AtomicReference<>();
+
   // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
 
@@ -54,14 +73,84 @@ public class Lineage {
     }
   }
 
-  /** {@link Lineage} representing sources and optionally side inputs. */
-  public static Lineage getSources() {
-    return SOURCES;
+  @Internal
+  public static void initialize(PipelineOptions options) {
+    checkNotNull(options, "options cannot be null");
+    long optionsId = options.getOptionsId();
+    int nextRevision = options.revision();
+
+    while (true) {
+      KV<Long, Integer> currentRevision = LINEAGE_REVISION.get();
+
+      // Skip re-initialization if same options and revision hasn't changed
+      if (currentRevision != null
+          && currentRevision.getKey().equals(optionsId)
+          && currentRevision.getValue() >= nextRevision) {
+        LOG.debug("Lineage already initialized with options ID {} revision {}, skipping",
+            optionsId, currentRevision.getValue());
+        return;
+      }
+
+      if (LINEAGE_REVISION.compareAndSet(currentRevision, KV.of(optionsId, nextRevision))) {
+        LineageReporter sources = createReporter(options, Type.SOURCE);
+        LineageReporter sinks = createReporter(options, Type.SINK);
+
+        SOURCES.set(sources);
+        SINKS.set(sinks);
+
+        if (currentRevision == null) {
+          LOG.info("Lineage initialized with options ID {} revision {}", optionsId, nextRevision);
+        } else {
+          LOG.info("Lineage re-initialized from options ID {} to {} (revision {} -> {})",
+              currentRevision.getKey(), optionsId,
+              currentRevision.getValue(), nextRevision);
+        }
+        return;
+      }
+    }
   }
 
-  /** {@link Lineage} representing sinks. */
-  public static Lineage getSinks() {
-    return SINKS;
+  /// //// NEW METHOD
+  private static LineageReporter createReporter(PipelineOptions options, Type type) {
+    Set<LineageReporterRegistrar> registrars = Sets.newTreeSet(
+        ReflectHelpers.ObjectsClassComparator.INSTANCE);
+    registrars.addAll(Lists.newArrayList(
+        ServiceLoader.load(LineageReporterRegistrar.class,
+            ReflectHelpers.findClassLoader())));
+
+    for (LineageReporterRegistrar registrar : registrars) {
+      LineageReporter reporter = registrar.fromOptions(options, type);
+      if (reporter != null) {
+        LOG.info("Using {} for lineage type {}",
+            reporter.getClass().getName(), type);
+        return reporter;
+      }
+    }
+
+    LOG.debug("Using default Metrics-based lineage for type {}", type);
+    return new MetricsLineageReporter(type);
+  }
+
+  /**
+   * Get {@link LineageReporter} representing sources and optionally side inputs.
+   */
+  public static LineageReporter getSources() {
+    LineageReporter sources = SOURCES.get();
+    if (sources == null) {
+      initialize(PipelineOptionsFactory.create());
+      sources = SOURCES.get();
+    }
+    return sources;
+  }
+
+  /** {@link LineageReporter} representing sinks. */
+  public static LineageReporter getSinks() {
+    LineageReporter sinks = SINKS.get();
+    if (sinks == null) {
+      initialize(PipelineOptionsFactory.create());
+      sinks = SINKS.get();
+    }
+    return sinks;
   }
 
   @VisibleForTesting
@@ -156,6 +245,9 @@ public class Lineage {
    * @param truncatedMarker the marker to use to represent truncated FQNs.
    * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing
    *     truncatedMarker.
+   *
+   * <p>NOTE: When using a custom LineageReporter plugin, this method
+   * will return empty results since lineage is not stored in Metrics.
    */
   public static Set<String> query(MetricResults results, Type type, String truncatedMarker) {
     MetricQueryResults lineageQueryResults = getLineageQueryResults(results, type);
@@ -184,6 +276,9 @@ public class Lineage {
    * @param results FQNs from the result
    * @param type sources or sinks
    * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing '*'.
+   *
+   * <p>NOTE: When using a custom LineageReporter plugin, this method
+   * will return empty results since lineage is not stored in Metrics.
    */
   public static Set<String> query(MetricResults results, Type type) {
     if (MetricsFlag.lineageRollupEnabled()) {
