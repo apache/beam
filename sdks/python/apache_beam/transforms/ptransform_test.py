@@ -1402,10 +1402,15 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([6, 7, 8]))
     self.p.run()
 
-  def test_composite_child_without_explicit_hints_falls_back_to_any(self):
+  def test_child_with_both_input_and_output_hints_binds_typevars_correctly(
+      self):
     """
-    Verifies that child transforms in a composite need explicit type hints.
-    Without them, type variables fall back to Any despite parent decorators.
+    When a child transform has both input and output type hints with type
+    variables, those variables bind correctly from the actual input data.
+    
+    Example: Child with .with_input_types(Tuple[K, V])
+    .with_output_types(Tuple[K, V]) receiving Tuple['a', 'hello'] will bind
+    K=str, V=str correctly.
     """
     K = typehints.TypeVariable('K')
     V = typehints.TypeVariable('V')
@@ -1419,8 +1424,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           yield (k, v.upper())
 
       def expand(self, pcoll):
-        return pcoll | beam.ParDo(self.MyDoFn()).with_output_types(tuple[K, V])
-        # return pcoll | beam.ParDo(self.MyDoFn()).with_output_types(tuple[str,str])
+        return (
+            pcoll
+            | beam.ParDo(self.MyDoFn()).with_input_types(
+                tuple[K, V]).with_output_types(tuple[K, V]))
 
     with TestPipeline() as p:
       result = (
@@ -1428,9 +1435,72 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | beam.Create([('a', 'hello'), ('b', 'world')])
           | TransformWithoutChildHints())
 
-      # Current behavior: Types become Any
-      self.assertEqual(
-          result.element_type, typehints.Tuple[typehints.Any, typehints.Any])
+      self.assertEqual(result.element_type, typehints.Tuple[str, str])
+
+  def test_child_without_input_hints_fails_to_bind_typevars(self):
+    """
+    When a child transform lacks input type hints, type variables in its output
+    hints cannot bind and default to Any, even when parent composite has
+    decorated type hints.
+    
+    This test demonstrates the current limitation: without explicit input hints
+    on the child, the type variable K in .with_output_types(Tuple[K, str])
+    remains unbound, resulting in Tuple[Any, str] instead of the expected
+    Tuple[str, str].
+    """
+    K = typehints.TypeVariable('K')
+
+    @typehints.with_input_types(typehints.Tuple[K, str])
+    @typehints.with_output_types(typehints.Tuple[K, str])
+    class TransformWithoutChildHints(beam.PTransform):
+      class MyDoFn(beam.DoFn):
+        def process(self, element):
+          k, v = element
+          yield (k, v.upper())
+
+      def expand(self, pcoll):
+        return (
+            pcoll
+            | beam.ParDo(self.MyDoFn()).with_output_types(tuple[K, str]))
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create([('a', 'hello'), ('b', 'world')])
+          | TransformWithoutChildHints())
+
+      self.assertEqual(result.element_type, typehints.Tuple[typehints.Any, str])
+
+  def test_child_without_output_hints_infers_partial_types_from_dofn(self):
+    """
+    When a child transform has input hints but no output hints, type inference
+    from the DoFn's process method produces partially inferred types.
+    
+    With .with_input_types(Tuple[K, V]) and actual input Tuple['a', 'hello'], K
+    binds to str from the input. However, without output hints, the DoFn's 
+    yield statement inference produces Tuple[str, Any].
+    """
+    K = typehints.TypeVariable('K')
+    V = typehints.TypeVariable('K')
+
+    @typehints.with_input_types(typehints.Tuple[K, V])
+    @typehints.with_output_types(typehints.Tuple[K, V])
+    class TransformWithoutChildHints(beam.PTransform):
+      class MyDoFn(beam.DoFn):
+        def process(self, element):
+          k, v = element
+          yield (k, v.upper())
+
+      def expand(self, pcoll):
+        return (pcoll | beam.ParDo(self.MyDoFn()).with_input_types(tuple[K, V]))
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create([('a', 'hello'), ('b', 'world')])
+          | TransformWithoutChildHints())
+
+      self.assertEqual(result.element_type, typehints.Tuple[str, typing.Any])
 
   def test_do_fn_pipeline_pipeline_type_check_violated(self):
     @with_input_types(str, str)
