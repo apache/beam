@@ -195,6 +195,7 @@ class MilvusTestHelpers:
     db_info.container.stop()
     _LOGGER.info("milvus db container stopped successfully.")
 
+  @staticmethod
   def initialize_db_with_data(
       connc_params: MilvusConnectionParameters, config: dict):
     # Open the connection to the milvus db with retry.
