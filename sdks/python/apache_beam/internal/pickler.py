@@ -48,22 +48,22 @@ def dumps(
     enable_trace=True,
     use_zlib=False,
     enable_best_effort_determinism=False,
-    enable_stable_code_identifier_pickling=False) -> bytes:
+    enable_stable_code_identifier_pickling=False,
+    config=None) -> bytes:
+
+  kwargs = {
+      'enable_trace': enable_trace,
+      'use_zlib': use_zlib,
+      'enable_best_effort_determinism': enable_best_effort_determinism,
+  }
 
   if (desired_pickle_lib == cloudpickle_pickler):
-    return cloudpickle_pickler.dumps(
-        o,
-        enable_trace=enable_trace,
-        use_zlib=use_zlib,
-        enable_best_effort_determinism=enable_best_effort_determinism,
-        enable_stable_code_identifier_pickling=
-        enable_stable_code_identifier_pickling,
-    )
-  return desired_pickle_lib.dumps(
-      o,
-      enable_trace=enable_trace,
-      use_zlib=use_zlib,
-      enable_best_effort_determinism=enable_best_effort_determinism)
+    pickling_key = 'enable_stable_code_identifier_pickling'
+    kwargs[pickling_key] = enable_stable_code_identifier_pickling
+    if config is not None:
+      kwargs['config'] = config
+    return cloudpickle_pickler.dumps(o, **kwargs)
+  return desired_pickle_lib.dumps(o, **kwargs)
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):
