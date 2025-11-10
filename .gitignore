@@ -162,3 +162,8 @@ playground/cloudfunction.zip
 # as its generated with terraform
 .test-infra/metrics/sync/github/github_runs_prefetcher/code.zip
 .venv/
+
+# Ignore Gradle wrapper jar file and checksum files
+**/gradle/wrapper/gradle-wrapper.jar
+**/gradle/wrapper/gradle-wrapper-*.sha256
+
