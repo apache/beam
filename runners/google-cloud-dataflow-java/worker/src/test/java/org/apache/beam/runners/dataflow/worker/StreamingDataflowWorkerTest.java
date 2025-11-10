@@ -3623,8 +3623,8 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
 
     assertEquals(
-        awrSink.getLatencyAttributionDuration(workToken, State.QUEUED), Duration.millis(1000));
-    assertEquals(awrSink.getLatencyAttributionDuration(workToken + 1, State.QUEUED), Duration.ZERO);
+        Duration.millis(1000), awrSink.getLatencyAttributionDuration(workToken, State.QUEUED));
+    assertEquals(Duration.ZERO, awrSink.getLatencyAttributionDuration(workToken + 1, State.QUEUED));
   }
 
   @Test
@@ -3657,7 +3657,7 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
 
     assertEquals(
-        awrSink.getLatencyAttributionDuration(workToken, State.ACTIVE), Duration.millis(1000));
+        Duration.millis(1000), awrSink.getLatencyAttributionDuration(workToken, State.ACTIVE));
   }
 
   @Test
@@ -3695,7 +3695,7 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
 
     assertEquals(
-        awrSink.getLatencyAttributionDuration(workToken, State.READING), Duration.millis(1000));
+        Duration.millis(1000), awrSink.getLatencyAttributionDuration(workToken, State.READING));
   }
 
   @Test
@@ -3735,7 +3735,7 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
 
     assertEquals(
-        awrSink.getLatencyAttributionDuration(workToken, State.COMMITTING), Duration.millis(1000));
+        Duration.millis(1000), awrSink.getLatencyAttributionDuration(workToken, State.COMMITTING));
   }
 
   @Test
@@ -3784,11 +3784,11 @@ public class StreamingDataflowWorkerTest {
       // Initial fake latency provided to FakeWindmillServer when invoke receiveWork in
       // GetWorkStream().
       assertEquals(
-          workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(1),
           LatencyAttribution.newBuilder()
               .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)
               .setTotalDurationMillis(1000)
-              .build());
+              .build(),
+          workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(1));
     }
   }
 
@@ -4475,7 +4475,7 @@ public class StreamingDataflowWorkerTest {
       if (duration.isShorterThan(Duration.ZERO)) {
         throw new UnsupportedOperationException("Cannot sleep backwards in time");
       }
-      Instant endOfSleep = now.plus(duration);
+      final Instant endOfSleep = now.plus(duration);
       while (true) {
         Job job = jobs.peek();
         if (job == null || job.when.isAfter(endOfSleep)) {
@@ -4485,7 +4485,11 @@ public class StreamingDataflowWorkerTest {
         now = job.when;
         job.work.run();
       }
-      now = endOfSleep;
+      // Handle possibly re-entrant sleep.  The contained sleep may advance now
+      // past endOfSleep.
+      if (endOfSleep.isAfter(now)) {
+        now = endOfSleep;
+      }
     }
 
     private synchronized void schedule(Duration fromNow, Runnable work) {
