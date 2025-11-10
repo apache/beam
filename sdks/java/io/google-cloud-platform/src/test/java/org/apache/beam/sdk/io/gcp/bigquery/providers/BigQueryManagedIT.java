@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -83,9 +84,12 @@ public class BigQueryManagedIT {
 
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+
   private static final String BIG_QUERY_DATASET_ID = "bigquery_managed_" + System.nanoTime();
 
   private static final Clustering CLUSTERING = new Clustering().setFields(Arrays.asList("str"));
+
+  private static final TimePartitioning TIME_PARTITIONING = new TimePartitioning().setType("DAY");
 
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
@@ -102,8 +106,12 @@ public class BigQueryManagedIT {
   public void testBatchFileLoadsWriteRead() throws IOException, InterruptedException {
     String table =
         String.format("%s.%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
+
     Map<String, Object> writeConfig =
-        ImmutableMap.of("table", table, "clustering_fields", Collections.singletonList("str"));
+        ImmutableMap.of(
+            "table", table,
+            "clustering_fields", Collections.singletonList("str"),
+            "time_partitioning_config", ImmutableMap.of("type", "DAY"));
 
     // file loads requires a GCS temp location
     String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
@@ -124,10 +132,11 @@ public class BigQueryManagedIT {
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
     readPipeline.run().waitUntilFinish();
 
-    // Asserting clustering
+    // Asserting clustering and time partitioning
     Table tableMetadata =
         BQ_CLIENT.getTableResource(PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
     Assert.assertEquals(CLUSTERING, tableMetadata.getClustering());
+    Assert.assertEquals(TIME_PARTITIONING, tableMetadata.getTimePartitioning());
   }
 
   @Test
