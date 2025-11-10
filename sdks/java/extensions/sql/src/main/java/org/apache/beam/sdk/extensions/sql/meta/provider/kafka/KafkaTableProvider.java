@@ -52,6 +52,8 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Kafka table provider.
@@ -78,6 +80,8 @@ import org.joda.time.format.PeriodFormat;
  */
 @AutoService(TableProvider.class)
 public class KafkaTableProvider extends InMemoryMetaTableProvider {
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaTableProvider.class);
+
   private static class ParsedLocation {
     String brokerLocation = "";
     String topic = "";
@@ -153,30 +157,30 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
       }
     }
 
-    SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFnClass;
+    SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFnClass =
+        null;
     if (properties.has("consumer.factory.fn")) {
       String consumerFactoryFnAsString = properties.get("consumer.factory.fn").asText();
       if (consumerFactoryFnAsString.contains("KerberosConsumerFactoryFn")) {
-        if (!properties.has("consumer.factory.fn.params") || !properties.get("consumer.factory.fn.params").has("krb5Location")) {
-          throw new RuntimeException("KerberosConsumerFactoryFn requires a krb5Location parameter, but none was set.");
+        if (!properties.has("consumer.factory.fn.params")
+            || !properties.get("consumer.factory.fn.params").has("krb5Location")) {
+          throw new RuntimeException(
+              "KerberosConsumerFactoryFn requires a krb5Location parameter, but none was set.");
         }
       }
       try {
         consumerFactoryFnClass =
             InstanceBuilder.ofType(
-                new TypeDescriptor<
-                    SerializableFunction<
-                        Map<String, Object>, Consumer<byte[], byte[]>>>() {
-                })
+                    new TypeDescriptor<
+                        SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>>() {})
                 .fromClassName(properties.get("consumer.factory.fn").asText())
-                .withArg(String.class,
-                    Objects
-                        .requireNonNull(properties.get("consumer.factory.fn.params")
-                        .get("krb5Location")
-                        .asText()))
-              .build();
+                .withArg(
+                    String.class,
+                    Objects.requireNonNull(
+                        properties.get("consumer.factory.fn.params").get("krb5Location").asText()))
+                .build();
       } catch (Exception e) {
-        throw new RuntimeException("Unable to construct the ConsumerFactoryFn class.", e.getMessage());
+        throw new RuntimeException("Unable to construct the ConsumerFactoryFn class.", e);
       }
     }
 
@@ -191,7 +195,12 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
                       TableUtils.convertNode2Map(properties)));
       kafkaTable =
           new NestedPayloadKafkaTable(
-              schema, bootstrapServers, topics, serializer, timestampPolicyFactory, consumerFactoryFnClass);
+              schema,
+              bootstrapServers,
+              topics,
+              serializer,
+              timestampPolicyFactory,
+              consumerFactoryFnClass);
     } else {
       /*
        * CSV is handled separately because multiple rows can be produced from a single message, which
@@ -201,14 +210,20 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
        */
       if (payloadFormat.orElse("csv").equals("csv")) {
         kafkaTable =
-            new BeamKafkaCSVTable(schema, bootstrapServers, topics, timestampPolicyFactory, consumerFactoryFnClass);
+            new BeamKafkaCSVTable(
+                schema, bootstrapServers, topics, timestampPolicyFactory, consumerFactoryFnClass);
       } else {
         PayloadSerializer serializer =
             PayloadSerializers.getSerializer(
                 payloadFormat.get(), schema, TableUtils.convertNode2Map(properties));
         kafkaTable =
             new PayloadSerializerKafkaTable(
-                schema, bootstrapServers, topics, serializer, timestampPolicyFactory, consumerFactoryFnClass);
+                schema,
+                bootstrapServers,
+                topics,
+                serializer,
+                timestampPolicyFactory,
+                consumerFactoryFnClass);
       }
     }
 
@@ -217,11 +232,12 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     Iterator<Entry<String, JsonNode>> tableProperties = properties.fields();
     while (tableProperties.hasNext()) {
       Entry<String, JsonNode> field = tableProperties.next();
+      LOG.info("TABLE PROPERTY: {}", field.getKey());
       if (field.getKey().startsWith("properties.")) {
         configUpdates.put(field.getKey().replace("properties.", ""), field.getValue().textValue());
       }
     }
-
+    LOG.info("CONSUMER CONFIG UPDATES FROM BEAM SQL: {}", configUpdates);
     if (!configUpdates.isEmpty()) {
       kafkaTable.updateConsumerProperties(configUpdates);
     }

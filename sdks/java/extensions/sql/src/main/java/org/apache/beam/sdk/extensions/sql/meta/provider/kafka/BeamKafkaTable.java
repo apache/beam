@@ -26,7 +26,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
@@ -52,8 +54,6 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 /**
  * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to extend to convert
@@ -81,15 +81,21 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   }
 
   public BeamKafkaTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
-    this(beamSchema, bootstrapServers, topics, TimestampPolicyFactory.withLogAppendTime());
+    this(
+        beamSchema,
+        bootstrapServers,
+        topics,
+        TimestampPolicyFactory.withLogAppendTime(),
+        /*consumerFactoryFn=*/ null);
   }
 
   public BeamKafkaTable(
-    Schema beamSchema,
-    String bootstrapServers,
-    List<String> topics,
-    TimestampPolicyFactory timestampPolicyFactory,
-    SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
+      Schema beamSchema,
+      String bootstrapServers,
+      List<String> topics,
+      TimestampPolicyFactory timestampPolicyFactory,
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
@@ -100,18 +106,40 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
 
   public BeamKafkaTable(
       Schema beamSchema, List<TopicPartition> topicPartitions, String bootstrapServers) {
-    this(beamSchema, topicPartitions, bootstrapServers, TimestampPolicyFactory.withLogAppendTime());
+    this(
+        beamSchema,
+        topicPartitions,
+        bootstrapServers,
+        TimestampPolicyFactory.withLogAppendTime(),
+        /*consumerFactoryFn=*/ null);
   }
 
   public BeamKafkaTable(
       Schema beamSchema,
       List<TopicPartition> topicPartitions,
       String bootstrapServers,
-      TimestampPolicyFactory timestampPolicyFactory) {
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
+    this(
+        beamSchema,
+        topicPartitions,
+        bootstrapServers,
+        TimestampPolicyFactory.withLogAppendTime(),
+        consumerFactoryFn);
+  }
+
+  public BeamKafkaTable(
+      Schema beamSchema,
+      List<TopicPartition> topicPartitions,
+      String bootstrapServers,
+      TimestampPolicyFactory timestampPolicyFactory,
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topicPartitions = topicPartitions;
     this.timestampPolicyFactory = timestampPolicyFactory;
+    this.consumerFactoryFn = consumerFactoryFn;
   }
 
   public BeamKafkaTable updateConsumerProperties(Map<String, Object> configUpdates) {
@@ -146,8 +174,10 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
               .withBootstrapServers(bootstrapServers)
               .withTopics(topics)
               .withConsumerConfigUpdates(configUpdates)
-              .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+              .withKeyDeserializerAndCoder(
+                  ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+              .withValueDeserializerAndCoder(
+                  ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
               .withTimestampPolicyFactory(timestampPolicyFactory);
     } else if (topicPartitions != null) {
       kafkaRead =
@@ -155,8 +185,10 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
               .withBootstrapServers(bootstrapServers)
               .withTopicPartitions(topicPartitions)
               .withConsumerConfigUpdates(configUpdates)
-              .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+              .withKeyDeserializerAndCoder(
+                  ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+              .withValueDeserializerAndCoder(
+                  ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
               .withTimestampPolicyFactory(timestampPolicyFactory);
     } else {
       throw new InvalidTableException("One of topics and topicPartitions must be configurated.");

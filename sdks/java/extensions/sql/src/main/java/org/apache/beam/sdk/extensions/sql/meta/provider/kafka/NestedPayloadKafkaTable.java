@@ -81,7 +81,7 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
         topics,
         payloadSerializer,
         timestampPolicyFactory,
-        /*consumerFactoryFn=*/null);
+        /*consumerFactoryFn=*/ null);
   }
 
   public NestedPayloadKafkaTable(
@@ -90,7 +90,8 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
       List<String> topics,
       Optional<PayloadSerializer> payloadSerializer,
       TimestampPolicyFactory timestampPolicyFactory,
-      SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
     super(beamSchema, bootstrapServers, topics, timestampPolicyFactory, consumerFactoryFn);
 
     checkArgument(Schemas.isNestedSchema(schema));

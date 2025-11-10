@@ -23,17 +23,21 @@ import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvL
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.commons.csv.CSVFormat;
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 /** A Kafka topic that saves records as CSV format. */
@@ -41,7 +45,12 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
   private final CSVFormat csvFormat;
 
   public BeamKafkaCSVTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
-    this(beamSchema, bootstrapServers, topics, TimestampPolicyFactory.withProcessingTime());
+    this(
+        beamSchema,
+        bootstrapServers,
+        topics,
+        TimestampPolicyFactory.withProcessingTime(),
+        /*consumerFactoryFn=*/ null);
   }
 
   public BeamKafkaCSVTable(
@@ -49,7 +58,29 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
       String bootstrapServers,
       List<String> topics,
       TimestampPolicyFactory timestampPolicyFactory) {
-    this(beamSchema, bootstrapServers, topics, CSVFormat.DEFAULT, timestampPolicyFactory);
+    this(
+        beamSchema,
+        bootstrapServers,
+        topics,
+        CSVFormat.DEFAULT,
+        timestampPolicyFactory,
+        /*consumerFactoryFn=*/ null);
+  }
+
+  public BeamKafkaCSVTable(
+      Schema beamSchema,
+      String bootstrapServers,
+      List<String> topics,
+      TimestampPolicyFactory timestampPolicyFactory,
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
+    this(
+        beamSchema,
+        bootstrapServers,
+        topics,
+        CSVFormat.DEFAULT,
+        timestampPolicyFactory,
+        consumerFactoryFn);
   }
 
   public BeamKafkaCSVTable(
@@ -57,8 +88,10 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
       String bootstrapServers,
       List<String> topics,
       CSVFormat format,
-      TimestampPolicyFactory timestampPolicyFactory) {
-    super(beamSchema, bootstrapServers, topics, timestampPolicyFactory);
+      TimestampPolicyFactory timestampPolicyFactory,
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
+    super(beamSchema, bootstrapServers, topics, timestampPolicyFactory, consumerFactoryFn);
     this.csvFormat = format;
   }
 

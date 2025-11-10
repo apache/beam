@@ -116,6 +116,9 @@ dependencies {
   permitUnusedDeclared library.java.hadoop_client
   provided library.java.kafka_clients
 
+  implementation project(":sdks:java:extensions:kafka-factories")
+  permitUnusedDeclared project(":sdks:java:extensions:kafka-factories")
+
   testImplementation library.java.vendored_calcite_1_40_0
   testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
