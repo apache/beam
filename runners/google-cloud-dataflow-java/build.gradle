@@ -374,30 +374,22 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
   doFirst {
     def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG")
     if (cloudsdkConfig == null || !new File(cloudsdkConfig).canWrite()) {
-      def tmpGcloudDir = new File("/tmp/gcloud")
+      cloudsdkConfig = "/tmp/gcloud"
+    }
+    if (cloudsdkConfig == "/tmp/gcloud") {
+      def tmpGcloudDir = new File(cloudsdkConfig)
       tmpGcloudDir.mkdirs()
-      System.setProperty("CLOUDSDK_CONFIG", "/tmp/gcloud")
-      exec {
-        environment "CLOUDSDK_CONFIG", "/tmp/gcloud"
-        commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
-        ignoreExitValue = false
-      }
-      exec {
-        environment "CLOUDSDK_CONFIG", "/tmp/gcloud"
-        commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
-        ignoreExitValue = false
-      }
-    } else {
-      exec {
-        environment "CLOUDSDK_CONFIG", cloudsdkConfig
-        commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
-        ignoreExitValue = false
-      }
-      exec {
-        environment "CLOUDSDK_CONFIG", cloudsdkConfig
-        commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
-        ignoreExitValue = false
-      }
+      System.setProperty("CLOUDSDK_CONFIG", cloudsdkConfig)
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
+      ignoreExitValue = false
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
+      ignoreExitValue = false
     }
   }
   doLast {
