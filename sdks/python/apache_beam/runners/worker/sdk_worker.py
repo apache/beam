@@ -69,7 +69,7 @@ from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
 from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.sentinel import Sentinel
 from apache_beam.version import __version__ as beam_version
-
+import dataclasses
 if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
@@ -104,6 +104,44 @@ _GRPC_SERVICE_CONFIG = json.dumps({
     }]
 })
 
+@dataclasses.dataclass
+class AiWorkerPoolMetadata:
+  """Runtime metadata about AI worker pool resources, such as external IP and
+  port.
+
+  Attributes:
+    external_ip (str): The external IP address of the AI worker pool.
+    external_port (int): The external port of the AI worker pool.
+  """
+  external_ip: Optional[str] = None
+  external_port: Optional[int] = None
+
+  @classmethod
+  def from_proto(cls, proto):
+    # type: (beam_fn_api_pb2.AiWorkerPoolMetadata) -> AiWorkerPoolMetadata
+    """Creates an instance from an AiWorkerPoolMetadata proto."""
+    return cls(
+        external_ip=proto.external_ip if proto.external_ip else None,
+        external_port=proto.external_port if proto.external_port else None)
+
+
+class _AiMetadataHolder:
+  """Singleton holder for AiWorkerPoolMetadata."""
+  _metadata: Optional[AiWorkerPoolMetadata] = None
+  _lock = threading.Lock()
+
+  @classmethod
+  def set_metadata(cls, proto):
+    # type: (beam_fn_api_pb2.AiWorkerPoolMetadata) -> None
+    with cls._lock:
+        cls._metadata = AiWorkerPoolMetadata.from_proto(proto)
+
+  @classmethod
+  def get_metadata(cls) -> Optional[AiWorkerPoolMetadata]:
+    return cls._metadata
+
+def get_ai_worker_pool_metadata() -> Optional[AiWorkerPoolMetadata]:
+  return _AiMetadataHolder.get_metadata()
 
 class ShortIdCache(object):
   """ Cache for MonitoringInfo "short ids"
@@ -392,6 +430,13 @@ class SdkHarness(object):
     self._worker_thread_pool.submit(task)
     _LOGGER.debug(
         "Currently using %s threads." % len(self._worker_thread_pool._workers))
+
+  def _request_ai_worker_pool_metadata(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    _AiMetadataHolder.set_metadata(request.ai_worker_pool_metadata)
+    _LOGGER.info("received metadata for AI worker pool: %s", request.ai_worker_pool_metadata)
+    self._responses.put(
+        beam_fn_api_pb2.InstructionResponse(instruction_id=request.instruction_id))
 
   def _request_sample_data(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
