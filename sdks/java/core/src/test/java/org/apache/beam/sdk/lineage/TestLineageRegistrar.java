@@ -17,12 +17,22 @@
  */
 package org.apache.beam.sdk.lineage;
 
-import javax.annotation.Nullable;
+import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public interface LineageRegistrar {
+/**
+ * A test {@link LineageRegistrar} for ServiceLoader discovery testing. This registrar always
+ * returns a TestLineage instance.
+ */
+@AutoService(LineageRegistrar.class)
+public class TestLineageRegistrar implements LineageRegistrar {
 
-  @Nullable
-  Lineage fromOptions(PipelineOptions options, Lineage.LineageDirection direction);
+  @Override
+  public @Nullable Lineage fromOptions(
+      PipelineOptions options, Lineage.LineageDirection direction) {
+    // For testing, always return a TestLineage instance
+    return new TestLineage(direction);
+  }
 }
