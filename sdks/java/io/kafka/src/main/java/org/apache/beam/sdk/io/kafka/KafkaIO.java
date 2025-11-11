@@ -915,10 +915,9 @@ public class KafkaIO {
           if (config.allowDuplicates != null) {
             builder.setAllowDuplicates(config.allowDuplicates);
           }
-          if (config.redistribute
-              && (config.allowDuplicates == null || !config.allowDuplicates)
-              && config.offsetDeduplication != null) {
-            builder.setOffsetDeduplication(config.offsetDeduplication);
+          if (config.redistribute && (config.allowDuplicates == null || !config.allowDuplicates)) {
+            builder.setOffsetDeduplication(
+                config.offsetDeduplication == null ? Boolean.TRUE : config.offsetDeduplication);
           }
           if (config.redistribute && config.redistributeByRecordKey != null) {
             builder.setRedistributeByRecordKey(config.redistributeByRecordKey);
