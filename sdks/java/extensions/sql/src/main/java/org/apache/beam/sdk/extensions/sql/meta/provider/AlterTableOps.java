@@ -29,17 +29,17 @@ import org.apache.beam.sdk.schemas.Schema;
  */
 public interface AlterTableOps {
   /**
-   * Updates a table's properties. Includes setting properties (which overwrites existing values), and/or resetting properties (removes values of given keys).
+   * Updates a table's properties. Includes setting properties (which overwrites existing values),
+   * and/or resetting properties (removes values of given keys).
    */
   void updateTableProperties(Map<String, String> setProps, List<String> resetProps);
 
-  /**
-   * Updates a table's schema. Includes adding new columns and/or dropping existing columns.
-   */
+  /** Updates a table's schema. Includes adding new columns and/or dropping existing columns. */
   void updateSchema(List<Schema.Field> columnsToAdd, Collection<String> columnsToDrop);
 
   /**
-   * Updates a table's partition spec, if applicable. Includes adding new partitions and/or dropping existing partitions.
+   * Updates a table's partition spec, if applicable. Includes adding new partitions and/or dropping
+   * existing partitions.
    */
   void updatePartitionSpec(List<String> partitionsToAdd, Collection<String> partitionsToDrop);
 }

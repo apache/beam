@@ -84,7 +84,11 @@ public class SqlDropDatabase extends SqlDrop implements BeamSqlParser.Executable
 
     List<String> components = Lists.newArrayList(Splitter.on(".").split(databaseName.toString()));
     TableName pathOverride = TableName.create(components, "");
-    CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCatalogSchema(pathOverride);
+    CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
+    CatalogSchema catalogSchema =
+        pathOverride.catalog() != null
+            ? catalogManagerSchema.getCatalogSchema(pathOverride)
+            : catalogManagerSchema.getCurrentCatalogSchema();
     catalogSchema.dropDatabase(databaseName, cascade, ifExists);
   }
 
