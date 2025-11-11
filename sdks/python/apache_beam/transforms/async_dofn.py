@@ -371,9 +371,7 @@ class AsyncWrapper(beam.DoFn):
       processing_elements = AsyncWrapper._processing_elements[self._uuid]
       to_process_local_ids = {self._id_fn(e[1]) for e in to_process_local}
       to_remove_ids = []
-      for element_id, (
-          element,
-          future) in processing_elements.items():
+      for element_id, (element, future) in processing_elements.items():
         if element[0] == key and element_id not in to_process_local_ids:
           items_cancelled += 1
           future.cancel()
