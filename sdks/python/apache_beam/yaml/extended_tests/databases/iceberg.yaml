@@ -73,7 +73,9 @@ pipelines:
             catalog_properties:
               type: hadoop
               warehouse: "{TEMP_DIR}"
-            filter: '"label" = ''11a'''
+              from_timestamp: "2025-11-11 00:00:00 UTC"
+              to_timestamp:  "2035-11-11 00:00:00 UTC"
+            filter: '"label" = ''11a'' or "rank" = 1'
             keep:
               - label
               - rank
@@ -81,6 +83,7 @@ pipelines:
           config:
             elements:
               - {label: "11a", rank: 0}
+              - {label: "37a", rank: 1}
     options:
       project: "apache-beam-testing"
       temp_location: "{TEMP_DIR}"
