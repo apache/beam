@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 import logging
-
 from collections.abc import Callable
 from collections.abc import Mapping
 from typing import Any
