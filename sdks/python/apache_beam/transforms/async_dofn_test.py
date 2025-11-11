@@ -132,8 +132,7 @@ class AsyncTest(unittest.TestCase):
         return self.element_id == other.element_id
 
     dofn = BasicDofn()
-    async_dofn = async_lib.AsyncWrapper(
-        dofn, id_fn=lambda x: x.element_id)
+    async_dofn = async_lib.AsyncWrapper(dofn, id_fn=lambda x: x.element_id)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
