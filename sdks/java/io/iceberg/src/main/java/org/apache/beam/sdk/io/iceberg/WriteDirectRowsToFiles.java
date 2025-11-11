@@ -18,31 +18,32 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-class WriteGroupedRowsToFiles
-    extends PTransform<
-        PCollection<KV<ShardedKey<String>, Iterable<Row>>>, PCollection<FileWriteResult>> {
-  private final long maxBytesPerFile;
+class WriteDirectRowsToFiles
+    extends PTransform<PCollection<KV<String, Row>>, PCollection<FileWriteResult>> {
 
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
+  private final long maxBytesPerFile;
 
-  WriteGroupedRowsToFiles(
+  WriteDirectRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       String filePrefix,
@@ -54,24 +55,23 @@ class WriteGroupedRowsToFiles
   }
 
   @Override
-  public PCollection<FileWriteResult> expand(
-      PCollection<KV<ShardedKey<String>, Iterable<Row>>> input) {
+  public PCollection<FileWriteResult> expand(PCollection<KV<String, Row>> input) {
     return input.apply(
         ParDo.of(
-            new WriteGroupedRowsToFilesDoFn(
+            new WriteDirectRowsToFilesDoFn(
                 catalogConfig, dynamicDestinations, maxBytesPerFile, filePrefix)));
   }
 
-  private static class WriteGroupedRowsToFilesDoFn
-      extends DoFn<KV<ShardedKey<String>, Iterable<Row>>, FileWriteResult> {
+  private static class WriteDirectRowsToFilesDoFn extends DoFn<KV<String, Row>, FileWriteResult> {
 
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
     private final String filePrefix;
     private final long maxFileSize;
+    private transient @Nullable RecordWriterManager recordWriterManager;
 
-    WriteGroupedRowsToFilesDoFn(
+    WriteDirectRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         long maxFileSize,
@@ -80,6 +80,7 @@ class WriteGroupedRowsToFiles
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.maxFileSize = maxFileSize;
+      this.recordWriterManager = null;
     }
 
     private org.apache.iceberg.catalog.Catalog getCatalog() {
@@ -89,36 +90,52 @@ class WriteGroupedRowsToFiles
       return catalog;
     }
 
+    @StartBundle
+    public void startBundle() {
+      recordWriterManager =
+          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE);
+    }
+
     @ProcessElement
     public void processElement(
-        ProcessContext c,
-        @Element KV<ShardedKey<String>, Iterable<Row>> element,
+        ProcessContext context,
+        @Element KV<String, Row> element,
         BoundedWindow window,
         PaneInfo paneInfo)
         throws Exception {
-
-      String tableIdentifier = element.getKey().getKey();
+      String tableIdentifier = element.getKey();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
-      RecordWriterManager writer;
-      try (RecordWriterManager openWriter =
-          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
-        writer = openWriter;
-        for (Row e : element.getValue()) {
-          writer.write(windowedDestination, e);
+      Preconditions.checkNotNull(recordWriterManager)
+          .write(windowedDestination, element.getValue());
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) throws Exception {
+      if (recordWriterManager == null) {
+        return;
+      }
+      recordWriterManager.close();
+
+      for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
+          destinationAndFiles :
+              Preconditions.checkNotNull(recordWriterManager)
+                  .getSerializableDataFiles()
+                  .entrySet()) {
+        WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
+
+        for (SerializableDataFile dataFile : destinationAndFiles.getValue()) {
+          context.output(
+              FileWriteResult.builder()
+                  .setSerializableDataFile(dataFile)
+                  .setTableIdentifier(windowedDestination.getValue().getTableIdentifier())
+                  .build(),
+              windowedDestination.getTimestamp(),
+              Iterables.getFirst(windowedDestination.getWindows(), null));
         }
       }
-
-      List<SerializableDataFile> serializableDataFiles =
-          Preconditions.checkNotNull(writer.getSerializableDataFiles().get(windowedDestination));
-      for (SerializableDataFile dataFile : serializableDataFiles) {
-        c.output(
-            FileWriteResult.builder()
-                .setTableIdentifier(destination.getTableIdentifier())
-                .setSerializableDataFile(dataFile)
-                .build());
-      }
+      recordWriterManager = null;
     }
   }
 }
