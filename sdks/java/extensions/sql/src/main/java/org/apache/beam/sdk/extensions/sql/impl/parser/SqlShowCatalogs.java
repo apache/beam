@@ -29,26 +29,24 @@ import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCall;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSetOption;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class SqlShowCatalogs extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
+public class SqlShowCatalogs extends SqlCall implements BeamSqlParser.ExecutableStatement {
   private static final SqlOperator OPERATOR =
-      new SqlSpecialOperator("SHOW CATALOGS", SqlKind.OTHER);
+      new SqlSpecialOperator("SHOW CATALOGS", SqlKind.OTHER_DDL);
 
   private final boolean showCurrentOnly;
   private final @Nullable SqlNode regex;
 
-  public SqlShowCatalogs(
-      SqlParserPos pos, String scope, boolean showCurrentOnly, @Nullable SqlNode regex) {
-    super(pos, scope, new SqlIdentifier("", pos), null);
+  public SqlShowCatalogs(SqlParserPos pos, boolean showCurrentOnly, @Nullable SqlNode regex) {
+    super(pos);
     this.showCurrentOnly = showCurrentOnly;
     this.regex = regex;
   }

@@ -74,7 +74,7 @@ public class IcebergCatalog extends InMemoryCatalog {
   }
 
   @Override
-  public @Nullable Collection<String> databases() {
+  public Collection<String> databases() {
     return catalogConfig.listNamespaces();
   }
 

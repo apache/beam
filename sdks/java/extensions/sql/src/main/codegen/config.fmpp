@@ -428,10 +428,10 @@ data: {
       # Return type of method implementation should be 'SqlNode'.
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
-        "SqlShowTables(Span.of(), null)"
-        "SqlShowDatabases(Span.of(), null)"
-        "SqlShowCatalogs(Span.of(), null)"
-        "SqlShowCurrent(Span.of(), null)"
+        "SqlShowTables(Span.of())"
+        "SqlShowDatabases(Span.of())"
+        "SqlShowCatalogs(Span.of())"
+        "SqlShowCurrent(Span.of())"
         "SqlUseCatalog(Span.of(), null)"
         "SqlUseDatabase(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"

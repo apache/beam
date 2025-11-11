@@ -32,11 +32,11 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCall;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSetOption;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
@@ -44,17 +44,15 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class SqlShowTables extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
-  private static final SqlOperator OPERATOR = new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER);
+public class SqlShowTables extends SqlCall implements BeamSqlParser.ExecutableStatement {
+  private static final SqlOperator OPERATOR =
+      new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER_DDL);
   private final @Nullable SqlIdentifier databaseName;
   private final @Nullable SqlNode regex;
 
   public SqlShowTables(
-      SqlParserPos pos,
-      String scope,
-      @Nullable SqlIdentifier databaseName,
-      @Nullable SqlNode regex) {
-    super(pos, scope, new SqlIdentifier("", pos), null);
+      SqlParserPos pos, @Nullable SqlIdentifier databaseName, @Nullable SqlNode regex) {
+    super(pos);
     this.databaseName = databaseName;
     this.regex = regex;
   }

@@ -99,7 +99,7 @@ public class InMemoryCatalog implements Catalog {
   }
 
   @Override
-  public @Nullable Collection<String> databases() {
+  public Collection<String> databases() {
     return databases;
   }
 

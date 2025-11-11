@@ -29,19 +29,19 @@ import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCall;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSetOption;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class SqlShowDatabases extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
+public class SqlShowDatabases extends SqlCall implements BeamSqlParser.ExecutableStatement {
   private static final SqlOperator OPERATOR =
-      new SqlSpecialOperator("SHOW DATABASES", SqlKind.OTHER);
+      new SqlSpecialOperator("SHOW DATABASES", SqlKind.OTHER_DDL);
 
   private final boolean showCurrentOnly;
   private final @Nullable SqlIdentifier catalogName;
@@ -49,11 +49,10 @@ public class SqlShowDatabases extends SqlSetOption implements BeamSqlParser.Exec
 
   public SqlShowDatabases(
       SqlParserPos pos,
-      String scope,
       boolean showCurrentOnly,
       @Nullable SqlIdentifier catalogName,
       @Nullable SqlNode regex) {
-    super(pos, scope, new SqlIdentifier("", pos), null);
+    super(pos);
     this.showCurrentOnly = showCurrentOnly;
     this.catalogName = catalogName;
     this.regex = regex;
@@ -100,8 +99,7 @@ public class SqlShowDatabases extends SqlSetOption implements BeamSqlParser.Exec
     print(databases, catalogSchema.getCatalog().name(), SqlDdlNodes.getString(regex));
   }
 
-  private static void print(
-      @Nullable Collection<String> databases, String path, @Nullable String pattern) {
+  private static void print(Collection<String> databases, String path, @Nullable String pattern) {
     SqlFunctions.LikeFunction calciteLike = new SqlFunctions.LikeFunction();
 
     final String headerName = "Databases in " + path;
@@ -109,10 +107,8 @@ public class SqlShowDatabases extends SqlSetOption implements BeamSqlParser.Exec
 
     int nameWidth = headerName.length();
 
-    if (databases != null) {
-      for (String dbName : databases) {
-        nameWidth = Math.max(nameWidth, dbName.length());
-      }
+    for (String dbName : databases) {
+      nameWidth = Math.max(nameWidth, dbName.length());
     }
 
     nameWidth += 2;

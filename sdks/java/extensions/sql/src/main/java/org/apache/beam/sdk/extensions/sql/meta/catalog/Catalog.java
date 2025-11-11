@@ -51,7 +51,6 @@ public interface Catalog {
   @Nullable
   String currentDatabase();
 
-  @Nullable
   Collection<String> databases();
 
   /**

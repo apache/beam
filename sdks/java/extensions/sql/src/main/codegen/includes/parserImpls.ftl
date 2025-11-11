@@ -267,7 +267,7 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 /**
  * SHOW CATALOGS [ LIKE regex_pattern ]
  */
-SqlCall SqlShowCatalogs(Span s, String scope) :
+SqlCall SqlShowCatalogs(Span s) :
 {
     SqlNode regex = null;
 }
@@ -275,7 +275,7 @@ SqlCall SqlShowCatalogs(Span s, String scope) :
     <SHOW> <CATALOGS> { s.add(this); }
     [ <LIKE> regex = StringLiteral() ]
     {
-        return new SqlShowCatalogs(s.end(this), scope, false, regex);
+        return new SqlShowCatalogs(s.end(this), false, regex);
     }
 }
 
@@ -350,7 +350,7 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 /**
  * SHOW DATABASES [ ( FROM | IN )? catalog_name ] [LIKE regex_pattern ]
  */
-SqlCall SqlShowDatabases(Span s, String scope) :
+SqlCall SqlShowDatabases(Span s) :
 {
     SqlIdentifier catalogName = null;
     SqlNode regex = null;
@@ -360,22 +360,22 @@ SqlCall SqlShowDatabases(Span s, String scope) :
     [ ( <FROM> | <IN> ) catalogName = SimpleIdentifier() ]
     [ <LIKE> regex = StringLiteral() ]
     {
-        return new SqlShowDatabases(s.end(this), scope, false, catalogName, regex);
+        return new SqlShowDatabases(s.end(this), false, catalogName, regex);
     }
 }
 
-SqlCall SqlShowCurrent(Span s, String scope) :
+SqlCall SqlShowCurrent(Span s) :
 {
 }
 {
     <SHOW> <CURRENT> { s.add(this); }
     (
         <CATALOG> {
-            return new SqlShowCatalogs(s.end(this), scope, true, null);
+            return new SqlShowCatalogs(s.end(this), true, null);
         }
     |
         <DATABASE> {
-            return new SqlShowDatabases(s.end(this), scope, true, null, null);
+            return new SqlShowDatabases(s.end(this), true, null, null);
         }
     )
 }
@@ -508,7 +508,7 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
 /**
  * SHOW TABLES [ ( FROM | IN )? [ catalog_name '.' ] database_name ] [ LIKE regex_pattern ]
  */
-SqlCall SqlShowTables(Span s, String scope) :
+SqlCall SqlShowTables(Span s) :
 {
     SqlIdentifier database = null;
     SqlNode regex = null;
@@ -518,7 +518,7 @@ SqlCall SqlShowTables(Span s, String scope) :
     [ (<FROM> | <IN>) database = CompoundIdentifier() ]
     [ <LIKE> regex = StringLiteral() ]
     {
-        return new SqlShowTables(s.end(this), scope, database, regex);
+        return new SqlShowTables(s.end(this), database, regex);
     }
 }
 
