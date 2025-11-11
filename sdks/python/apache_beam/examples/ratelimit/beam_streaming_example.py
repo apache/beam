@@ -1,5 +1,6 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions, StandardOptions
+from apache_beam.runners.worker.sdk_worker import get_ai_worker_pool_metadata
 
 import grpc
 import logging
@@ -17,15 +18,12 @@ from envoy.extensions.common.ratelimit.v3 import ratelimit_pb2
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
-# Default Envoy proxy address
-ENVOY_PROXY_ADDRESS = 'localhost:8081'
-
 class GRPCRateLimitClient(beam.DoFn):
     """
     A DoFn that makes gRPC calls to an Envoy Rate Limit Service.
     """
-    def __init__(self, envoy_address):
-        self._envoy_address = envoy_address
+    def __init__(self):
+        self._envoy_address = None
         self._channel = None
         self._stub = None
 
@@ -33,6 +31,8 @@ class GRPCRateLimitClient(beam.DoFn):
         """
         Initializes the gRPC channel and stub.
         """
+        ai_worker_pool_metadata = get_ai_worker_pool_metadata()
+        self._envoy_address = f"{ai_worker_pool_metadata.external_ip}:{ai_worker_pool_metadata.external_port}"
         _LOGGER.info(f"Setting up gRPC client for Envoy at {self._envoy_address}")
         self._channel = grpc.insecure_channel(self._envoy_address)
         self._stub = rls_pb2_grpc.RateLimitServiceStub(self._channel)
@@ -47,11 +47,10 @@ class GRPCRateLimitClient(beam.DoFn):
         descriptor = ratelimit_pb2.RateLimitDescriptor()
         descriptor.entries.add(key="client_id", value=client_id)
         descriptor.entries.add(key="request_id", value=request_id)
-        # Add more descriptors as needed for your rate limiting policy
 
         # Create a RateLimitRequest
         request = rls_pb2.RateLimitRequest(
-            domain="my_service", # This should match your Envoy rate limit configuration
+            domain="my_service",
             descriptors=[descriptor],
             hits_addend=1
         )
@@ -93,7 +92,7 @@ def run():
         ])
 
         # Apply the gRPC client DoFn
-        rate_limit_results = requests | 'CheckRateLimit' >> beam.ParDo(GRPCRateLimitClient(ENVOY_PROXY_ADDRESS))
+        rate_limit_results = requests | 'CheckRateLimit' >> beam.ParDo(GRPCRateLimitClient())
 
         # Log the results
         rate_limit_results | 'LogResults' >> beam.Map(lambda x: _LOGGER.info(f"Result: {x}"))
