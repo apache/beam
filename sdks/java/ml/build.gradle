@@ -27,6 +27,4 @@ description = "Apache Beam :: SDKs :: Java :: ML"
 ext.summary = "Java ML module"
 
 dependencies {
-  
-  
 }
