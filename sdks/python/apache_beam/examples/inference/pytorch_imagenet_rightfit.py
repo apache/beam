@@ -216,7 +216,7 @@ def parse_known_args(argv):
   parser.add_argument('--trigger_proc_time_sec', type=int, default=30)
 
   # Dedup
-  parser.add_argument('--enable_dedup', default='true', choices=['true', 'false'])
+  parser.add_argument('--enable_dedup', default='false', choices=['true', 'false'])
 
   known_args, pipeline_args = parser.parse_known_args(argv)
   return known_args, pipeline_args

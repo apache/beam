@@ -42,4 +42,4 @@
 --inference_batch_size=auto
 --window_sec=60
 --trigger_proc_time_sec=30
---enable_dedup=true
+--enable_dedup=false
