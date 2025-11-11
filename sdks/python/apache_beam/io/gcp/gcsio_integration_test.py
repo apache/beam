@@ -242,7 +242,12 @@ class GcsIOIntegrationTest(unittest.TestCase):
     # verify soft delete policy is disabled by default in the default bucket
     # after creation
     self.assertEqual(bucket.soft_delete_policy.retention_duration_seconds, 0)
-    bucket.delete()
+    existing_bucket = self.gcsio.get_bucket(overridden_bucket_name)
+    if existing_bucket:
+      try:
+        existing_bucket.delete()
+      except NotFound:
+        pass
 
     self.assertIsNone(self.gcsio.get_bucket(overridden_bucket_name))
 
