@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.lineage;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
@@ -44,9 +43,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link LineageRegistrar} ServiceLoader discovery and DirectRunner integration.
- */
+/** Tests for {@link LineageRegistrar} ServiceLoader discovery and DirectRunner integration. */
 @RunWith(JUnit4.class)
 public class LineageRegistrarTest {
 
@@ -123,7 +120,9 @@ public class LineageRegistrarTest {
         .apply(
             ParDo.of(
                 new RecordSourceLineageWithSubtypeDoFn(
-                    "spanner", "table", Arrays.asList("project", "instance", "database", "table"))));
+                    "spanner",
+                    "table",
+                    Arrays.asList("project", "instance", "database", "table"))));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
