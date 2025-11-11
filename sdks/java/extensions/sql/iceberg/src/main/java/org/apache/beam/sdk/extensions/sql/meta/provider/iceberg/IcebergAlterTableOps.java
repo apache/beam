@@ -24,9 +24,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.AlterTableOps;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig.IcebergTableInfo;
 import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * {@link AlterTableOps} for Iceberg tables.
- */
+/** {@link AlterTableOps} for Iceberg tables. */
 public class IcebergAlterTableOps implements AlterTableOps {
   private final IcebergTableInfo table;
 
