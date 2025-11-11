@@ -23,8 +23,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A test {@link LineageRegistrar} for ServiceLoader discovery testing. This registrar always
- * returns a TestLineage instance.
+ * A test {@link LineageRegistrar} for ServiceLoader discovery testing.
+ *
+ * <p>This registrar only activates when {@link TestLineageOptions#getEnableTestLineage()} is true,
+ * ensuring it doesn't interfere with other tests in the suite.
  */
 @AutoService(LineageRegistrar.class)
 public class TestLineageRegistrar implements LineageRegistrar {
@@ -32,7 +34,12 @@ public class TestLineageRegistrar implements LineageRegistrar {
   @Override
   public @Nullable Lineage fromOptions(
       PipelineOptions options, Lineage.LineageDirection direction) {
-    // For testing, always return a TestLineage instance
-    return new TestLineage(direction);
+    // Only activate if explicitly enabled via TestLineageOptions
+    TestLineageOptions testOptions = options.as(TestLineageOptions.class);
+    if (testOptions.getEnableTestLineage()) {
+      return new TestLineage(direction);
+    }
+    // Return null to use default MetricsLineage
+    return null;
   }
 }
