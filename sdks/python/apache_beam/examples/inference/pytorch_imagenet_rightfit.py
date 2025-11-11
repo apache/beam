@@ -45,7 +45,7 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
-from PIL.Image import Image
+import PIL.Image as PILImage
 from google.cloud import pubsub_v1
 from apache_beam.io.filesystems import FileSystems
 
@@ -73,7 +73,7 @@ def load_image_from_uri(uri: str) -> bytes:
 
 def decode_and_preprocess(image_bytes: bytes, size: int = 224) -> torch.Tensor:
   """Decode bytes->RGB PIL->resize/crop->tensor->normalize."""
-  with Image.open(io.BytesIO(image_bytes)) as img:
+  with PILImage.open(io.BytesIO(image_bytes)) as img:
     img = img.convert("RGB")
     img.thumbnail((256, 256))
     w, h = img.size
