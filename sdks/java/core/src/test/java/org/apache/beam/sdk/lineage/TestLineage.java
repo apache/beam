@@ -17,12 +17,25 @@
  */
 package org.apache.beam.sdk.lineage;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.options.PipelineOptions;
 
-public interface LineageRegistrar {
+/**
+ * A test implementation of {@link Lineage} for testing LineageRegistrar ServiceLoader discovery.
+ */
+public class TestLineage extends Lineage {
 
-  @Nullable
-  Lineage fromOptions(PipelineOptions options, Lineage.LineageDirection direction);
+  private final LineageDirection direction;
+
+  public TestLineage(LineageDirection direction) {
+    this.direction = direction;
+  }
+
+  @Override
+  public void add(Iterable<String> rollupSegments) {
+    // Test implementation - no-op for discovery testing
+  }
+
+  public LineageDirection getDirection() {
+    return direction;
+  }
 }

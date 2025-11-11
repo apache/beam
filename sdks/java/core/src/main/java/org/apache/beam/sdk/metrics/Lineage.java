@@ -57,6 +57,11 @@ public abstract class Lineage {
   // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
   private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
 
+  public enum LineageDirection {
+    SOURCE,
+    SINK
+  }
+
   protected Lineage() {}
 
   @Internal
@@ -79,8 +84,8 @@ public abstract class Lineage {
       }
 
       if (LINEAGE_REVISION.compareAndSet(currentRevision, KV.of(optionsId, nextRevision))) {
-        Lineage sources = createLineage(options, Type.SOURCE);
-        Lineage sinks = createLineage(options, Type.SINK);
+        Lineage sources = createLineage(options, LineageDirection.SOURCE);
+        Lineage sinks = createLineage(options, LineageDirection.SINK);
 
         SOURCES.set(sources);
         SINKS.set(sinks);
@@ -100,7 +105,7 @@ public abstract class Lineage {
     }
   }
 
-  private static Lineage createLineage(PipelineOptions options, Type type) {
+  private static Lineage createLineage(PipelineOptions options, LineageDirection direction) {
     Set<LineageRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
     registrars.addAll(
@@ -108,18 +113,18 @@ public abstract class Lineage {
             ServiceLoader.load(LineageRegistrar.class, ReflectHelpers.findClassLoader())));
 
     for (LineageRegistrar registrar : registrars) {
-      Lineage reporter = registrar.fromOptions(options, type);
+      Lineage reporter = registrar.fromOptions(options, direction);
       if (reporter != null) {
-        LOG.info("Using {} for lineage type {}", reporter.getClass().getName(), type);
+        LOG.info("Using {} for lineage direction {}", reporter.getClass().getName(), direction);
         return reporter;
       }
     }
 
-    LOG.debug("Using default Metrics-based lineage for type {}", type);
-    return new MetricsLineage(type);
+    LOG.debug("Using default Metrics-based lineage for direction {}", direction);
+    return new MetricsLineage(direction);
   }
 
-  /** Get {@link Lineage} representing sources and optionally side inputs. */
+  /** {@link Lineage} representing sources and optionally side inputs. */
   public static Lineage getSources() {
     Lineage sources = SOURCES.get();
     if (sources == null) {
@@ -224,8 +229,8 @@ public abstract class Lineage {
    * @param truncatedMarker the marker to use to represent truncated FQNs.
    * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing
    *     truncatedMarker.
-   *     <p>NOTE: When using a custom LineageReporter plugin, this method will return empty results
-   *     since lineage is not stored in Metrics.
+   *     <p>NOTE: When using a custom Lineage plugin, this method will return empty results since
+   *     lineage is not stored in Metrics.
    */
   public static Set<String> query(MetricResults results, Type type, String truncatedMarker) {
     MetricQueryResults lineageQueryResults = getLineageQueryResults(results, type);
@@ -254,8 +259,8 @@ public abstract class Lineage {
    * @param results FQNs from the result
    * @param type sources or sinks
    * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing '*'.
-   *     <p>NOTE: When using a custom LineageReporter plugin, this method will return empty results
-   *     since lineage is not stored in Metrics.
+   *     <p>NOTE: When using a custom Lineage plugin, this method will return empty results since
+   *     lineage is not stored in Metrics.
    */
   public static Set<String> query(MetricResults results, Type type) {
     if (MetricsFlag.lineageRollupEnabled()) {

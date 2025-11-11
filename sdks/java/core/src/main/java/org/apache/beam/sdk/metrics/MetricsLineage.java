@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.lineage.LineageReporter;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
@@ -25,12 +24,16 @@ public class MetricsLineage extends Lineage {
 
   private final Metric metric;
 
-  public MetricsLineage(final Lineage.Type type) {
+  public MetricsLineage(final Lineage.LineageDirection direction) {
+    // Derive Metrics-specific Type from LineageDirection
+    Lineage.Type type =
+        (direction == Lineage.LineageDirection.SOURCE) ? Lineage.Type.SOURCE : Lineage.Type.SINK;
+
     if (MetricsFlag.lineageRollupEnabled()) {
       this.metric =
           Metrics.boundedTrie(
               Lineage.LINEAGE_NAMESPACE,
-              type == Lineage.Type.SOURCE
+              direction == Lineage.LineageDirection.SOURCE
                   ? Lineage.Type.SOURCEV2.toString()
                   : Lineage.Type.SINKV2.toString());
     } else {
@@ -46,14 +49,5 @@ public class MetricsLineage extends Lineage {
     } else {
       ((StringSet) this.metric).add(String.join("", segments));
     }
-  }
-
-  @Override
-  public void add(
-      final String system,
-      final String subtype,
-      final Iterable<String> segments,
-      final String lastSegmentSep) {
-    add(Lineage.getFQNParts(system, subtype, segments, lastSegmentSep));
   }
 }
