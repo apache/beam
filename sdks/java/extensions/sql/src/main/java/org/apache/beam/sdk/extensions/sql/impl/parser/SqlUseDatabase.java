@@ -78,7 +78,10 @@ public class SqlUseDatabase extends SqlSetOption implements BeamSqlParser.Execut
     }
 
     CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
-    CatalogSchema catalogSchema = catalogManagerSchema.getCatalogSchema(pathOverride);
+    CatalogSchema catalogSchema =
+        pathOverride.catalog() != null
+            ? catalogManagerSchema.getCatalogSchema(pathOverride)
+            : catalogManagerSchema.getCurrentCatalogSchema();
     // if database exists in a different catalog, we need to also switch to that catalog
     if (pathOverride.catalog() != null
         && !pathOverride

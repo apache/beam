@@ -143,7 +143,8 @@ public class CatalogManagerSchema implements Schema {
   // will attempt to do so.
   public void maybeRegisterProvider(TableName path, String type) {
     type = type.toLowerCase();
-    CatalogSchema catalogSchema = getCatalogSchema(path);
+    CatalogSchema catalogSchema =
+        path.catalog() != null ? getCatalogSchema(path) : getCurrentCatalogSchema();
     BeamCalciteSchema beamCalciteSchema = catalogSchema.getDatabaseSchema(path);
 
     if (beamCalciteSchema.getTableProvider() instanceof MetaStore) {

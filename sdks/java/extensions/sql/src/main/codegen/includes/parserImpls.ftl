@@ -381,6 +381,18 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
     }
 }
 
+SqlNodeList PartitionFieldsParens() :
+{
+    final SqlNodeList partitions;
+}
+{
+    <LPAREN>
+    partitions = PartitionFieldList()
+    <RPAREN>
+    {
+        return partitions;
+    }
+}
 
 SqlNodeList PartitionFieldList() :
 {
@@ -434,7 +446,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
     |
         type = SimpleIdentifier()
     )
-    [ <PARTITIONED> <BY> <LPAREN> partitionFields = PartitionFieldList() <RPAREN> ]
+    [ <PARTITIONED> <BY> partitionFields = PartitionFieldsParens() ]
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
@@ -451,6 +463,61 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
                 comment,
                 location,
                 tblProperties);
+    }
+}
+
+/**
+ * ALTER TABLE table_name
+ *   [ ADD COLUMN <> ]
+ *   [ DROP COLUMN <> ]
+ *   [ ADD PARTITION <> ]
+ *   [ DROP PARTITION <> ]
+ *   [ SET (key1=val1, key2=val2, ...) ]
+ *   [ (RESET | UNSET) (key1, key2, ...) ]
+ */
+SqlCall SqlAlterTable(Span s, String scope) :
+{
+    final SqlNode tableName;
+    List<Schema.Field> columnsToAdd = null;
+    SqlNodeList columnsToDrop = null;
+    SqlNodeList partitionsToAdd = null;
+    SqlNodeList partitionsToDrop = null;
+    SqlNodeList setProps = null;
+    SqlNodeList resetProps = null;
+}
+{
+    <ALTER> {
+        s.add(this);
+    }
+    <TABLE>
+    tableName = CompoundIdentifier()
+
+    [ <DROP> (
+      <COLUMNS> columnsToDrop = ParenthesizedSimpleIdentifierList()
+        |
+      <PARTITIONS> partitionsToDrop = ParenthesizedLiteralOptionCommaList()
+    ) ]
+
+    [ <ADD> (
+      <COLUMNS> columnsToAdd = FieldListParens()
+        |
+      <PARTITIONS> partitionsToAdd = ParenthesizedLiteralOptionCommaList()
+    ) ]
+
+    [ (<RESET> | <UNSET>) <LPAREN> resetProps = ArgList() <RPAREN> ]
+    [ <SET> <LPAREN> setProps = PropertyList() <RPAREN> ]
+
+    {
+        return new SqlAlterTable(
+            s.end(this),
+            scope,
+            tableName,
+            columnsToAdd,
+            columnsToDrop,
+            partitionsToAdd,
+            partitionsToDrop,
+            setProps,
+            resetProps);
     }
 }
 

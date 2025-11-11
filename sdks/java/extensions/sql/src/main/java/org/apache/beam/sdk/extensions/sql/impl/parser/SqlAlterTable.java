@@ -17,17 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
+import org.apache.beam.sdk.extensions.sql.meta.provider.AlterTableOps;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
@@ -45,21 +48,33 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class SqlAlterCatalog extends SqlAlter implements BeamSqlParser.ExecutableStatement {
+public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableStatement {
   private static final SqlOperator OPERATOR =
-      new SqlSpecialOperator("ALTER CATALOG", SqlKind.OTHER_DDL);
+      new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
   private final SqlIdentifier name;
+  private final @Nullable List<Field> columnsToAdd;
+  private final @Nullable SqlNodeList columnsToDrop;
+  private final @Nullable SqlNodeList partitionsToAdd;
+  private final @Nullable SqlNodeList partitionsToDrop;
   private final @Nullable SqlNodeList setProps;
   private final @Nullable SqlNodeList resetProps;
 
-  public SqlAlterCatalog(
+  public SqlAlterTable(
       SqlParserPos pos,
       @Nullable String scope,
       SqlNode name,
+      @Nullable List<Field> columnsToAdd,
+      @Nullable SqlNodeList columnsToDrop,
+      @Nullable SqlNodeList partitionsToAdd,
+      @Nullable SqlNodeList partitionsToDrop,
       @Nullable SqlNodeList setProps,
       @Nullable SqlNodeList resetProps) {
     super(pos, scope);
     this.name = SqlDdlNodes.getIdentifier(name, pos);
+    this.columnsToAdd = columnsToAdd;
+    this.columnsToDrop = columnsToDrop;
+    this.partitionsToAdd = partitionsToAdd;
+    this.partitionsToDrop = partitionsToDrop;
     this.setProps = setProps;
     this.resetProps = resetProps;
   }
@@ -67,70 +82,67 @@ public class SqlAlterCatalog extends SqlAlter implements BeamSqlParser.Executabl
   @Override
   public void execute(CalcitePrepare.Context context) {
     final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, name);
+    TableName pathOverride = TableName.create(name.toString());
     Schema schema = pair.left.schema;
 
-    if (!(schema instanceof CatalogManagerSchema)) {
+    BeamCalciteSchema beamCalciteSchema;
+    if (schema instanceof CatalogManagerSchema) {
+      CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
+      CatalogSchema catalogSchema =
+          pathOverride.catalog() != null
+              ? catalogManagerSchema.getCatalogSchema(pathOverride)
+              : catalogManagerSchema.getCurrentCatalogSchema();
+      beamCalciteSchema = catalogSchema.getDatabaseSchema(pathOverride);
+    } else if (schema instanceof BeamCalciteSchema) {
+      beamCalciteSchema = (BeamCalciteSchema) schema;
+    } else {
       throw SqlUtil.newContextException(
           name.getParserPosition(),
           RESOURCE.internal(
-              "Attempting to alter catalog '"
-                  + SqlDdlNodes.name(name)
-                  + "' with unexpected Calcite Schema of type "
+              "Attempting to drop a table using unexpected Calcite Schema of type "
                   + schema.getClass()));
     }
 
-    CatalogSchema catalogSchema =
-        ((CatalogManagerSchema) schema).getCatalogSchema(SqlDdlNodes.getString(name));
+    if (beamCalciteSchema.getTable(pair.right) == null) {
+      // Table does not exist.
+      throw SqlUtil.newContextException(
+          name.getParserPosition(), RESOURCE.tableNotFound(name.toString()));
+    }
 
-    Map<String, String> setPropsMap = parseSetProps();
-    Collection<String> resetProps = parseResetProps();
+    Map<String, String> setPropsMap = SqlDdlNodes.getStringMap(setProps);
+    List<String> resetPropsList = SqlDdlNodes.getStringList(resetProps);
+    List<String> columnsToDropList = SqlDdlNodes.getStringList(columnsToDrop);
+    List<String> partitionsToAddList = SqlDdlNodes.getStringList(partitionsToAdd);
+    List<String> partitionsToDropList = SqlDdlNodes.getStringList(partitionsToDrop);
 
+    AlterTableOps alterOps =
+        beamCalciteSchema.getTableProvider().alterTable(SqlDdlNodes.name(name));
+
+    if (!setPropsMap.isEmpty() || !resetPropsList.isEmpty()) {
+      validateNonOverlappingProps(setPropsMap, resetPropsList);
+
+      alterOps.updateTableProperties(setPropsMap, resetPropsList);
+    }
+    if (!columnsToDropList.isEmpty() || (columnsToAdd != null && !columnsToAdd.isEmpty())) {
+      alterOps.updateSchema(firstNonNull(columnsToAdd, Collections.emptyList()), columnsToDropList);
+    }
+    if (!partitionsToDropList.isEmpty() || !partitionsToAddList.isEmpty()) {
+      alterOps.updatePartitionSpec(partitionsToAddList, partitionsToDropList);
+    }
+  }
+
+  private void validateNonOverlappingProps(
+      Map<String, String> setPropsMap, Collection<String> resetPropsList) {
     ImmutableList.Builder<String> overlappingPropsBuilder = ImmutableList.builder();
-    resetProps.stream().filter(setPropsMap::containsKey).forEach(overlappingPropsBuilder::add);
+
+    resetPropsList.stream().filter(setPropsMap::containsKey).forEach(overlappingPropsBuilder::add);
+
     List<String> overlappingProps = overlappingPropsBuilder.build();
     checkState(
         overlappingProps.isEmpty(),
-        "Invalid %s call: Found overlapping properties between SET and RESET: %s.",
+        "Invalid '%s' call: Found overlapping properties between SET and RESET: %s.",
         OPERATOR,
         overlappingProps);
-
-    catalogSchema.updateProperties(setPropsMap, resetProps);
-  }
-
-  private Map<String, String> parseSetProps() {
-    if (setProps == null || setProps.isEmpty()) {
-      return Collections.emptyMap();
-    }
-
-    Map<String, String> props = new HashMap<>();
-
-    for (SqlNode property : setProps) {
-      checkState(
-          property instanceof SqlNodeList,
-          String.format(
-              "Unexpected properties entry '%s' of class '%s'", property, property.getClass()));
-      SqlNodeList kv = ((SqlNodeList) property);
-      checkState(kv.size() == 2, "Expected 2 items in properties entry, but got %s", kv.size());
-      String key = checkStateNotNull(SqlDdlNodes.getString(kv.get(0)));
-      String value = checkStateNotNull(SqlDdlNodes.getString(kv.get(1)));
-      props.put(key, value);
-    }
-
-    return props;
-  }
-
-  private Collection<String> parseResetProps() {
-    if (resetProps == null || resetProps.isEmpty()) {
-      return Collections.emptyList();
-    }
-    ImmutableList.Builder<String> resetPropsList = ImmutableList.builder();
-    for (SqlNode propNode : resetProps) {
-      @Nullable String prop = SqlDdlNodes.getString(propNode);
-      if (prop != null) {
-        resetPropsList.add(prop);
-      }
-    }
-    return resetPropsList.build();
   }
 
   @Override

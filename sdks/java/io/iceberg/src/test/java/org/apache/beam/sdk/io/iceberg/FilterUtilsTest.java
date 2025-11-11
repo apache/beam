@@ -823,14 +823,8 @@ public class FilterUtilsTest {
 
     ImmutableSet<Operation> inOperations = ImmutableSet.of(Operation.IN, Operation.NOT_IN);
     if (inOperations.contains(expected.op())) {
-      System.out.printf(
-          "xxx op: %s, literals: %s, ref: %s%n",
-          expected.op(), expected.literals(), expected.ref().name());
       assertEquals(expected.literals(), actual.literals());
     } else {
-      System.out.printf(
-          "xxx op: %s, literal: %s, ref: %s%n",
-          expected.op(), expected.literal(), expected.ref().name());
       assertEquals(expected.literal(), actual.literal());
     }
   }

@@ -94,8 +94,7 @@ public class IcebergCatalog extends InMemoryCatalog {
       }
     }
 
-    return
-      IcebergCatalogConfig.builder()
+    return IcebergCatalogConfig.builder()
         .setCatalogName(name)
         .setCatalogProperties(catalogProps.build())
         .setConfigProperties(hadoopProps.build())

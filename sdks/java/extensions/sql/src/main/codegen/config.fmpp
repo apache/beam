@@ -37,6 +37,7 @@ data: {
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseDatabase"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterCatalog"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterTable"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.beam.sdk.schemas.Schema"
       ]
@@ -51,6 +52,8 @@ data: {
         "TBLPROPERTIES"
         "PROPERTIES"
         "PARTITIONED"
+        "COLUMNS"
+        "PARTITIONS"
         "USE"
         "UNSET"
       ]
@@ -423,10 +426,11 @@ data: {
       # Return type of method implementation should be 'SqlNode'.
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
-        "SqlAlterCatalog(Span.of(), null)"
         "SqlUseCatalog(Span.of(), null)"
         "SqlUseDatabase(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"
+        "SqlAlterCatalog(Span.of(), null)"
+        "SqlAlterTable(Span.of(), null)"
       ]
 
       # List of methods for parsing custom literals.

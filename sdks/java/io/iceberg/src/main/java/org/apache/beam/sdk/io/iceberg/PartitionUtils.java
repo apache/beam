@@ -22,11 +22,14 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.expressions.Term;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class PartitionUtils {
@@ -89,5 +92,39 @@ class PartitionUtils {
     }
 
     return builder.build();
+  }
+
+  private static final Map<Pattern, Function<Matcher, Term>> TERMS =
+      ImmutableMap.of(
+          HOUR,
+          matcher -> Expressions.hour(checkStateNotNull(matcher.group(1))),
+          DAY,
+          matcher -> Expressions.day(checkStateNotNull(matcher.group(1))),
+          MONTH,
+          matcher -> Expressions.month(checkStateNotNull(matcher.group(1))),
+          YEAR,
+          matcher -> Expressions.year(checkStateNotNull(matcher.group(1))),
+          TRUNCATE,
+          matcher ->
+              Expressions.truncate(
+                  checkStateNotNull(matcher.group(1)),
+                  Integer.parseInt(checkStateNotNull(matcher.group(2)))),
+          BUCKET,
+          matcher ->
+              Expressions.bucket(
+                  checkStateNotNull(matcher.group(1)),
+                  Integer.parseInt(checkStateNotNull(matcher.group(2)))),
+          IDENTITY,
+          matcher -> Expressions.ref(checkStateNotNull(matcher.group(1))));
+
+  static Term toIcebergTerm(String field) {
+    for (Map.Entry<Pattern, Function<Matcher, Term>> entry : TERMS.entrySet()) {
+      Matcher matcher = entry.getKey().matcher(field);
+      if (matcher.find()) {
+        return entry.getValue().apply(matcher);
+      }
+    }
+
+    throw new IllegalArgumentException("Could not find a partition term for '" + field + "'.");
   }
 }
