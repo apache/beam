@@ -95,7 +95,7 @@ public class LineageRegistrarTest {
     // Enable test lineage plugin
     TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
     options.setEnableTestLineage(true);
-    Lineage.initialize(pipeline.getOptions());
+    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
 
     // Run pipeline that records lineage
     pipeline
@@ -115,7 +115,7 @@ public class LineageRegistrarTest {
     // Enable test lineage plugin
     TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
     options.setEnableTestLineage(true);
-    Lineage.initialize(pipeline.getOptions());
+    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
 
     // Run pipeline that records lineage with subtype
     pipeline
@@ -138,7 +138,7 @@ public class LineageRegistrarTest {
     // Enable test lineage plugin
     TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
     options.setEnableTestLineage(true);
-    Lineage.initialize(pipeline.getOptions());
+    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
 
     // Run pipeline that records lineage with custom separator
     pipeline
@@ -161,7 +161,7 @@ public class LineageRegistrarTest {
     // Enable test lineage plugin
     TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
     options.setEnableTestLineage(true);
-    Lineage.initialize(pipeline.getOptions());
+    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
 
     // Run pipeline that records both source and sink lineage
     pipeline
@@ -184,7 +184,7 @@ public class LineageRegistrarTest {
     // Enable test lineage plugin
     TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
     options.setEnableTestLineage(true);
-    Lineage.initialize(pipeline.getOptions());
+    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
 
     // Run pipeline with multiple elements to test thread safety
     pipeline
