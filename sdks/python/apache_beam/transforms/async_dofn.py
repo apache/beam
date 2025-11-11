@@ -351,9 +351,6 @@ class AsyncWrapper(beam.DoFn):
 
     to_process_local = list(to_process.read())
 
-    # For all elements that in local state but not processing state delete them
-    # from local state and cancel their futures.
-    to_remove = []
     key = None
     to_reschedule = []
     if to_process_local:
