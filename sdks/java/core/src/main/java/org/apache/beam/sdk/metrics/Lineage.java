@@ -65,7 +65,7 @@ public abstract class Lineage {
   protected Lineage() {}
 
   @Internal
-  public static void initialize(PipelineOptions options) {
+  public static void setDefaultPipelineOptions(PipelineOptions options) {
     checkNotNull(options, "options cannot be null");
     long optionsId = options.getOptionsId();
     int nextRevision = options.revision();
@@ -128,7 +128,7 @@ public abstract class Lineage {
   public static Lineage getSources() {
     Lineage sources = SOURCES.get();
     if (sources == null) {
-      initialize(PipelineOptionsFactory.create());
+      setDefaultPipelineOptions(PipelineOptionsFactory.create());
       sources = SOURCES.get();
     }
     return sources;
@@ -138,7 +138,7 @@ public abstract class Lineage {
   public static Lineage getSinks() {
     Lineage sinks = SINKS.get();
     if (sinks == null) {
-      initialize(PipelineOptionsFactory.create());
+      setDefaultPipelineOptions(PipelineOptionsFactory.create());
       sinks = SINKS.get();
     }
     return sinks;
