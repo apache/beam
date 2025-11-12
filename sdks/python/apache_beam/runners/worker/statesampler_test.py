@@ -133,41 +133,6 @@ class StateSamplerTest(unittest.TestCase):
     self.assertLess(overhead_us, 20.0)
 
   @retry(reraise=True, stop=stop_after_attempt(3))
-  def test_timer_sampler(self):
-    # Set up state sampler.
-    counter_factory = CounterFactory()
-    sampler = statesampler.StateSampler(
-        'timer', counter_factory, sampling_period_ms=1)
-
-    # Duration of the timer processing.
-    state_duration_ms = 100
-    margin_of_error = 0.25
-
-    sampler.start()
-    with sampler.scoped_state('step1', 'process-timers'):
-      time.sleep(state_duration_ms / 1000)
-    sampler.stop()
-    sampler.commit_counters()
-
-    if not statesampler.FAST_SAMPLER:
-      # The slow sampler does not implement sampling, so we won't test it.
-      return
-
-    # Test that sampled state timings are close to their expected values.
-    expected_counter_values = {
-        CounterName(
-            'process-timers-msecs', step_name='step1', stage_name='timer'): state_duration_ms,
-    }
-    for counter in counter_factory.get_counters():
-      self.assertIn(counter.name, expected_counter_values)
-      expected_value = expected_counter_values[counter.name]
-      actual_value = counter.value()
-      deviation = float(abs(actual_value - expected_value)) / expected_value
-      _LOGGER.info('Sampling deviation from expectation: %f', deviation)
-      self.assertGreater(actual_value, expected_value * (1.0 - margin_of_error))
-      self.assertLess(actual_value, expected_value * (1.0 + margin_of_error))
-
-  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_process_timers_metric_is_recorded(self):
     """
     Tests that the 'process-timers-msecs' metric is correctly recorded
