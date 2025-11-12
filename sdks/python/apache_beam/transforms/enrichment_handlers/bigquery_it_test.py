@@ -364,7 +364,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         row_restriction_template="id = {}",
         table_name=self.table_name,
         fields=['id'],
-        throw_execption_on_empty_results=True,
+        throw_exception_on_empty_results=True,
     )
 
     with self.assertRaisesRegex(ValueError, "no matching row found for query"):
