@@ -89,11 +89,12 @@ public class ThreadLocalByteStringOutputStream {
     // softRefHolder is only set by Threadlocal initializer and should not be null
     SoftRefHolder softRefHolder =
         Preconditions.checkArgumentNotNull(threadLocalSoftRefHolder.get());
-    StreamHandle streamHandle;
+    StreamHandle streamHandle = null;
     SoftReference<StreamHandle> softReference = softRefHolder.softReference;
-    if (softReference != null && softReference.get() != null) {
-      streamHandle = Preconditions.checkArgumentNotNull(softReference.get());
-    } else {
+    if (softReference != null) {
+      streamHandle = softReference.get();
+    }
+    if (streamHandle == null) {
       streamHandle = new StreamHandle();
       softRefHolder.softReference = new SoftReference<>(streamHandle);
     }
