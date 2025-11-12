@@ -224,10 +224,9 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
         else:
           _LOGGER.warning('no matching row found for query: ' + query)
           # append empty rows for missing responses
-          for req in request:
-            req_key = self.create_row_key(req)
-            if not any(req_key == self.create_row_key(resp[0])
-                       for resp in responses):
+          found_req_keys = {self.create_row_key(resp[0]) for resp in responses}
+          for req_key, req in requests_map.items():
+            if req_key not in found_req_keys:
               responses.append((req, beam.Row()))
       return responses
     else:
