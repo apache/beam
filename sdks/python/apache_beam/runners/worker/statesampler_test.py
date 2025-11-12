@@ -205,9 +205,6 @@ class StateSamplerTest(unittest.TestCase):
         counter_factory=CounterFactory(),
         state_sampler=sampler)
 
-    # 2. Set the user_state_context attribute AFTER creation
-    op.user_state_context = Mock()
-
     self.assertIsNot(
         op.scoped_timer_processing_state, statesampler.NOOP_SCOPED_STATE)
 
@@ -229,9 +226,6 @@ class StateSamplerTest(unittest.TestCase):
         spec=mock_spec,
         counter_factory=CounterFactory(),
         state_sampler=None)
-
-    # 2. Set the user_state_context attribute AFTER creation
-    op.user_state_context = Mock()
 
     self.assertIs(
         op.scoped_timer_processing_state, statesampler.NOOP_SCOPED_STATE)
