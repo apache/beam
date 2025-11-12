@@ -31,8 +31,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class ThreadLocalByteStringOutputStream {
 
-  private static final ThreadLocal<@Nullable SoftReference<RefHolder>> threadLocalRefHolder =
-      new ThreadLocal<>();
+  private static final ThreadLocal<SoftRefHolder> threadLocalSoftRefHolder =
+      ThreadLocal.withInitial(SoftRefHolder::new);
 
   // Private constructor to prevent instantiations from outside.
   private ThreadLocalByteStringOutputStream() {}
@@ -88,6 +88,11 @@ public class ThreadLocalByteStringOutputStream {
     }
   }
 
+  private static class SoftRefHolder {
+
+    private @Nullable SoftReference<RefHolder> softReference;
+  }
+
   private static class RefHolder {
 
     public ByteStringOutputStream stream = new ByteStringOutputStream();
@@ -106,14 +111,13 @@ public class ThreadLocalByteStringOutputStream {
   }
 
   private static RefHolder getRefHolderFromThreadLocal() {
-    @Nullable SoftReference<RefHolder> refHolderSoftReference = threadLocalRefHolder.get();
-    @Nullable RefHolder refHolder = null;
-    if (refHolderSoftReference != null) {
-      refHolder = refHolderSoftReference.get();
-    }
-    if (refHolderSoftReference == null || refHolder == null) {
+    SoftRefHolder softRefHolder = threadLocalSoftRefHolder.get();
+    RefHolder refHolder;
+    if (softRefHolder.softReference != null && softRefHolder.softReference.get() != null) {
+      refHolder = softRefHolder.softReference.get();
+    } else {
       refHolder = RefHolder.create();
-      threadLocalRefHolder.set(new SoftReference<>(refHolder));
+      softRefHolder.softReference = new SoftReference<>(refHolder);
     }
     return refHolder;
   }
