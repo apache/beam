@@ -90,7 +90,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       query_fn: Optional[QueryFn] = None,
       min_batch_size: int = 1,
       max_batch_size: int = 10000,
-      throw_execption_on_empty_results: bool = True,
+      throw_exception_on_empty_results: bool = True,
       **kwargs,
   ):
     """
