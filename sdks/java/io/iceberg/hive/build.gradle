@@ -48,8 +48,15 @@ dependencies {
         // old calcite vulnerabilities
         exclude group: "org.apache.calcite", module: "calcite-core"
         exclude group: "org.apache.calcite", module: "calcite-druid"
+        // old mssql vulnerabilities CVE-2025-59250
+        exclude group: "com.microsoft.sqlserver", module: "mssql-jdbc"
     }
-    runtimeOnly ("org.apache.hadoop:hadoop-yarn-server-resourcemanager:$hadoop_version")
+    runtimeOnly ("org.apache.hadoop:hadoop-yarn-server-resourcemanager:$hadoop_version") {
+        // old mssql vulnerabilities CVE-2025-59250
+        exclude group: "com.microsoft.sqlserver", module: "mssql-jdbc"
+    }
+    // add manually higher version to resolve CVE-2025-59250
+    runtimeOnly ("com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11")
     runtimeOnly ("org.apache.hbase:hbase-client:$hbase_version")
     runtimeOnly ("org.apache.calcite.avatica:avatica-core:$avatica_version")
     // these exlusions were inherit from hive-exec-3.1.3.pom
