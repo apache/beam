@@ -157,6 +157,7 @@ message InstructionRequest {
     MonitoringInfosMetadataRequest monitoring_infos = 1005;
     HarnessMonitoringInfosRequest harness_monitoring_infos = 1006;
     SampleDataRequest sample_data = 1007;
+    AiWorkerPoolMetadata ai_worker_pool_metadata = 1008;
 
     // DEPRECATED
     RegisterRequest register = 1000;
@@ -527,6 +528,13 @@ message ProcessBundleProgressResponse {
 message MonitoringInfosMetadataResponse {
   // A mapping from an identifier to the full metrics information.
   map<string, org.apache.beam.model.pipeline.v1.MonitoringInfo> monitoring_info = 1;
+}
+
+message AiWorkerPoolMetadata {
+  // The external IP address of the AI worker pool.
+  string external_ip = 1;
+  // The external port of the AI worker pool.
+  int32 external_port = 2;
 }
 
 // Represents a request to the SDK to split a currently active bundle.
