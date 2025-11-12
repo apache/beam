@@ -96,6 +96,7 @@ public class ThreadLocalByteStringOutputStream {
       streamHandle = Preconditions.checkArgumentNotNull(softReference.get());
     } else {
       streamHandle = new StreamHandle();
+      softRefHolder.softReference = new SoftReference<>(streamHandle);
     }
     return streamHandle;
   }
