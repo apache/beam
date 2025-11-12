@@ -386,7 +386,7 @@ class AsyncWrapper(beam.DoFn):
         items_in_se_state += 1
         x_id = self._id_fn(x[1])
         if x_id in processing_elements:
-          _element, future = processing_elements[x_id]
+          _, future = processing_elements[x_id]
           if future.done():
             to_return.append(future.result())
             finished_items.append(x)
