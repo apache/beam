@@ -396,7 +396,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
   def test_bigquery_enrichment_no_results_partial_graceful_batched_partial(
       self):
     requests = [
-        beam.Row(id=1, name='A'),  # This ID does not exist
+        beam.Row(id=1, name='A'),  # This ID exists
         beam.Row(id=1000, name='Y'),  # This ID does not exist
     ]
     # When no results are found and not throwing, Enrichment yields original.
