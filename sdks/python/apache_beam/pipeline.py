@@ -1046,7 +1046,7 @@ class Pipeline(HasDisplayData):
       runner: PipelineRunner,
       options: PipelineOptions,
       return_context: bool = False,
-  ) -> Pipeline:
+  ) -> 'Pipeline':
     """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(
         runner=runner,
