@@ -31,6 +31,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -38,8 +39,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -47,12 +48,20 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class LineageRegistrarTest {
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-
   @Before
   public void setUp() {
     // Clear any recorded lineage from previous tests
     TestLineage.clearRecorded();
+  }
+
+  /** Helper to create a TestPipeline with test lineage enabled. */
+  private TestPipeline createTestPipelineWithLineage() {
+    TestLineageOptions options = PipelineOptionsFactory.create().as(TestLineageOptions.class);
+    options.setEnableTestLineage(true);
+    TestPipeline pipeline = TestPipeline.fromOptions(options);
+    // Disable enforcement since we're not using @Rule
+    pipeline.enableAbandonedNodeEnforcement(false);
+    return pipeline;
   }
 
   @Test
@@ -88,11 +97,10 @@ public class LineageRegistrarTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testLineageIntegrationWithSimpleFQN() {
-    // Enable test lineage plugin
-    TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
-    options.setEnableTestLineage(true);
-    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
+    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
+    TestPipeline pipeline = createTestPipelineWithLineage();
 
     // Run pipeline that records lineage
     pipeline
@@ -108,11 +116,10 @@ public class LineageRegistrarTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testLineageIntegrationWithSubtype() {
-    // Enable test lineage plugin
-    TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
-    options.setEnableTestLineage(true);
-    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
+    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
+    TestPipeline pipeline = createTestPipelineWithLineage();
 
     // Run pipeline that records lineage with subtype
     pipeline
@@ -133,11 +140,10 @@ public class LineageRegistrarTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testLineageIntegrationWithLastSegmentSeparator() {
-    // Enable test lineage plugin
-    TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
-    options.setEnableTestLineage(true);
-    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
+    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
+    TestPipeline pipeline = createTestPipelineWithLineage();
 
     // Run pipeline that records lineage with custom separator
     pipeline
@@ -156,11 +162,10 @@ public class LineageRegistrarTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testLineageIntegrationWithBothSourcesAndSinks() {
-    // Enable test lineage plugin
-    TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
-    options.setEnableTestLineage(true);
-    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
+    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
+    TestPipeline pipeline = createTestPipelineWithLineage();
 
     // Run pipeline that records both source and sink lineage
     pipeline
@@ -179,11 +184,10 @@ public class LineageRegistrarTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testLineageIntegrationWithMultipleElements() {
-    // Enable test lineage plugin
-    TestLineageOptions options = pipeline.getOptions().as(TestLineageOptions.class);
-    options.setEnableTestLineage(true);
-    Lineage.setDefaultPipelineOptions(pipeline.getOptions());
+    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
+    TestPipeline pipeline = createTestPipelineWithLineage();
 
     // Run pipeline with multiple elements to test thread safety
     pipeline
