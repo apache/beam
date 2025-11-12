@@ -212,22 +212,21 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       query = raw_query.format(*values)
 
       responses_dict = self._execute_query(query)
-      if responses_dict is not None:
+      unmatched_requests = requests_map.copy()
+      if responses_dict:
         for response in responses_dict:
           response_row = beam.Row(**response)
           response_key = self.create_row_key(response_row)
-          if response_key in requests_map:
-            responses.append((requests_map[response_key], response_row))
-      if len(responses) < len(request):
+          if response_key in unmatched_requests:
+            req = unmatched_requests.pop(response_key)
+            responses.append((req, response_row))
+      if unmatched_requests:
         if self.throw_exception_on_empty_results:
           raise ValueError(f"no matching row found for query: {query}")
         else:
           _LOGGER.warning('no matching row found for query: %s', query)
-          # append empty rows for missing responses
-          found_req_keys = {self.create_row_key(resp[0]) for resp in responses}
-          for req_key, req in requests_map.items():
-            if req_key not in found_req_keys:
-              responses.append((req, beam.Row()))
+          for req in unmatched_requests.values():
+            responses.append((req, beam.Row()))
       return responses
     else:
       request_dict = request._asdict()
