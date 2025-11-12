@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import java.lang.ref.SoftReference;
-import java.util.Objects;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
@@ -112,11 +111,11 @@ public class ThreadLocalByteStringOutputStream {
   }
 
   private static RefHolder getRefHolderFromThreadLocal() {
-    SoftRefHolder softRefHolder = threadLocalSoftRefHolder.get();
-    RefHolder refHolder;
     // softRefHolder is only set by Threadlocal initializer and should not be null
-    if (Objects.requireNonNull(softRefHolder).softReference != null
-        && softRefHolder.softReference.get() != null) {
+    SoftRefHolder softRefHolder =
+        Preconditions.checkArgumentNotNull(threadLocalSoftRefHolder.get());
+    RefHolder refHolder;
+    if (softRefHolder.softReference != null && softRefHolder.softReference.get() != null) {
       refHolder = softRefHolder.softReference.get();
     } else {
       refHolder = RefHolder.create();
