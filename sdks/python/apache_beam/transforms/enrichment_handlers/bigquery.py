@@ -163,8 +163,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
     try:
       results = self.client.query(query=query).result()
       row_list = [dict(row.items()) for row in results]
-      # return None if no rows found
-      if len(row_list) == 0: return None
+      if not row_list:
+        return None
       if self._batching_kwargs:
         return row_list
       else:
