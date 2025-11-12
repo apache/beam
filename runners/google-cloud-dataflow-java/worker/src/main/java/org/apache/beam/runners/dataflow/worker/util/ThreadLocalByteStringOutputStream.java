@@ -28,6 +28,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @ThreadSafe
 /*
  * A utility class for caching a thread-local {@link ByteStringOutputStream}.
+ *
+ * Example Usage:
+ *   try (StreamHandle streamHandle = ThreadLocalByteStringOutputStream.acquire()) {
+ *        ByteStringOutputStream stream = streamHandle.stream();
+ *        stream.write(1);
+ *        ByteString byteString = stream.toByteStringAndReset();
+ *   }
  */
 public class ThreadLocalByteStringOutputStream {
 
@@ -39,14 +46,13 @@ public class ThreadLocalByteStringOutputStream {
 
   /** @return An AutoClosable StreamHandle that holds a cached ByteStringOutputStream. */
   public static StreamHandle acquire() {
-    RefHolder refHolder = getRefHolderFromThreadLocal();
-    if (refHolder.inUse) {
+    StreamHandle streamHandle = getStreamHandleFromThreadLocal();
+    if (streamHandle.inUse) {
       // Stream is already in use, create a new uncached one
       return new StreamHandle();
     }
-    refHolder.inUse = true;
-    return Preconditions.checkArgumentNotNull(
-        refHolder.streamHandle); // inUse will be unset when streamHandle closes.
+    streamHandle.inUse = true;
+    return streamHandle; // inUse will be unset when streamHandle closes.
   }
 
   /**
@@ -56,20 +62,9 @@ public class ThreadLocalByteStringOutputStream {
    */
   public static class StreamHandle implements AutoCloseable {
 
-    // When Nonnull the StreamHandle is from the threadlocal and needs to be
-    // marked as not in use, in close.
-    private final @Nullable RefHolder refHolder;
-    private final ByteStringOutputStream stream;
+    private final ByteStringOutputStream stream = new ByteStringOutputStream();
 
-    private StreamHandle() {
-      this.refHolder = null;
-      this.stream = new ByteStringOutputStream();
-    }
-
-    private StreamHandle(RefHolder refHolder) {
-      this.refHolder = refHolder;
-      this.stream = refHolder.stream;
-    }
+    private boolean inUse = false;
 
     /**
      * Returns the underlying cached ByteStringOutputStream. Callers should not keep a reference to
@@ -82,45 +77,26 @@ public class ThreadLocalByteStringOutputStream {
     @Override
     public void close() {
       stream.reset();
-      if (refHolder != null) {
-        refHolder.inUse = false;
-      }
+      inUse = false;
     }
   }
 
   private static class SoftRefHolder {
 
-    private @Nullable SoftReference<RefHolder> softReference;
+    private @Nullable SoftReference<StreamHandle> softReference;
   }
 
-  private static class RefHolder {
-
-    public ByteStringOutputStream stream = new ByteStringOutputStream();
-
-    // Boolean is true when the thread local stream is already in use by the current thread.
-    // Used to avoid reusing the same stream from nested calls if any.
-    public boolean inUse = false;
-
-    public @Nullable StreamHandle streamHandle = null;
-
-    public static RefHolder create() {
-      RefHolder refHolder = new RefHolder();
-      refHolder.streamHandle = new StreamHandle(refHolder);
-      return refHolder;
-    }
-  }
-
-  private static RefHolder getRefHolderFromThreadLocal() {
+  private static StreamHandle getStreamHandleFromThreadLocal() {
     // softRefHolder is only set by Threadlocal initializer and should not be null
     SoftRefHolder softRefHolder =
         Preconditions.checkArgumentNotNull(threadLocalSoftRefHolder.get());
-    RefHolder refHolder;
-    if (softRefHolder.softReference != null && softRefHolder.softReference.get() != null) {
-      refHolder = Preconditions.checkArgumentNotNull(softRefHolder.softReference.get());
+    StreamHandle streamHandle;
+    SoftReference<StreamHandle> softReference = softRefHolder.softReference;
+    if (softReference != null && softReference.get() != null) {
+      streamHandle = Preconditions.checkArgumentNotNull(softReference.get());
     } else {
-      refHolder = RefHolder.create();
-      softRefHolder.softReference = new SoftReference<>(refHolder);
+      streamHandle = new StreamHandle();
     }
-    return refHolder;
+    return streamHandle;
   }
 }
