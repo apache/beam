@@ -116,7 +116,7 @@ public class ThreadLocalByteStringOutputStream {
         Preconditions.checkArgumentNotNull(threadLocalSoftRefHolder.get());
     RefHolder refHolder;
     if (softRefHolder.softReference != null && softRefHolder.softReference.get() != null) {
-      refHolder = softRefHolder.softReference.get();
+      refHolder = Preconditions.checkArgumentNotNull(softRefHolder.softReference.get());
     } else {
       refHolder = RefHolder.create();
       softRefHolder.softReference = new SoftReference<>(refHolder);
