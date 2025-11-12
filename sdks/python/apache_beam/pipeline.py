@@ -639,7 +639,7 @@ class Pipeline(HasDisplayData):
       self,
       exc_type: Optional[Type[BaseException]],
       exc_val: Optional[BaseException],
-      exc_tb: Optional[TracebackType]) -> None:
+      exc_tb: Optional['TracebackType']) -> None:
 
     try:
       if not exc_type:
