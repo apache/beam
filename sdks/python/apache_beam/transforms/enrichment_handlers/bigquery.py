@@ -149,7 +149,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
     self.query_template = (
         "SELECT %s FROM %s WHERE %s" %
         (self.select_fields, self.table_name, self.row_restriction_template))
-    self.throw_execption_on_empty_results = throw_execption_on_empty_results
+    self.throw_exception_on_empty_results = throw_exception_on_empty_results
     self.kwargs = kwargs
     self._batching_kwargs = {}
     if not query_fn:
@@ -219,7 +219,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
           if response_key in requests_map:
             responses.append((requests_map[response_key], response_row))
       if len(responses) < len(request):
-        if self.throw_execption_on_empty_results:
+        if self.throw_exception_on_empty_results:
           raise ValueError("no matching row found for query: " + query)
         else:
           _LOGGER.warning('no matching row found for query: ' + query)
@@ -243,7 +243,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
         query = self.query_template.format(*values)
       response_dict = self._execute_query(query)
       if response_dict is None:
-        if self.throw_execption_on_empty_results:
+        if self.throw_exception_on_empty_results:
           raise ValueError("no matching row found for query: " + query)
         else:
           _LOGGER.warning('no matching row found for query: ' + query)

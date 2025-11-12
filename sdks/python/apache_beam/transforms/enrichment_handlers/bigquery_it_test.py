@@ -386,7 +386,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         fields=['id'],
         min_batch_size=1,
         max_batch_size=100,
-        throw_execption_on_empty_results=False,
+        throw_exception_on_empty_results=False,
     )
 
     with TestPipeline(is_integration_test=True) as test_pipeline:
@@ -413,7 +413,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         fields=['id'],
         min_batch_size=2,
         max_batch_size=100,
-        throw_execption_on_empty_results=False,
+        throw_exception_on_empty_results=False,
     )
 
     with TestPipeline(is_integration_test=True) as test_pipeline:
@@ -435,7 +435,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         fields=['id'],
         min_batch_size=2,
         max_batch_size=100,
-        throw_execption_on_empty_results=False,
+        throw_exception_on_empty_results=False,
     )
 
     with TestPipeline(is_integration_test=True) as test_pipeline:
@@ -451,7 +451,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
     handler = BigQueryEnrichmentHandler(
         project=self.project,
         query_fn=fn,
-        throw_execption_on_empty_results=True,
+        throw_exception_on_empty_results=True,
     )
 
     with self.assertRaisesRegex(ValueError, "no matching row found for query"):
@@ -471,7 +471,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
     handler = BigQueryEnrichmentHandler(
         project=self.project,
         query_fn=fn,
-        throw_execption_on_empty_results=False,
+        throw_exception_on_empty_results=False,
     )
 
     with TestPipeline(is_integration_test=True) as test_pipeline:
