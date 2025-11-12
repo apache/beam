@@ -393,8 +393,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
       assert_that(pcoll, equal_to(expected_rows))
 
-  def test_bigquery_enrichment_no_results_partial_graceful_batched_partial(
-      self):
+  def test_bigquery_enrichment_no_results_partial_graceful_batched(self):
     requests = [
         beam.Row(id=1, name='A'),  # This ID exists
         beam.Row(id=1000, name='Y'),  # This ID does not exist
@@ -477,6 +476,25 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
     with TestPipeline(is_integration_test=True) as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
       assert_that(pcoll, equal_to(expected_rows))
+
+  def test_bigquery_enrichment_partial_results_throws_exception_batched(self):
+    requests = [
+        beam.Row(id=1, name='A'),  # This ID exists
+        beam.Row(id=1000, name='Y'),  # This ID does not exist
+    ]
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        row_restriction_template="id = {}",
+        table_name=self.table_name,
+        fields=['id'],
+        min_batch_size=2,
+        max_batch_size=100,
+        throw_exception_on_empty_results=True,
+    )
+
+    with self.assertRaisesRegex(ValueError, "no matching row found for query"):
+      with TestPipeline(is_integration_test=True) as test_pipeline:
+        _ = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
 
 if __name__ == '__main__':

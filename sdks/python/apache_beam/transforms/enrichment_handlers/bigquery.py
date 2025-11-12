@@ -220,9 +220,9 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
             responses.append((requests_map[response_key], response_row))
       if len(responses) < len(request):
         if self.throw_exception_on_empty_results:
-          raise ValueError("no matching row found for query: " + query)
+          raise ValueError(f"no matching row found for query: {query}")
         else:
-          _LOGGER.warning('no matching row found for query: ' + query)
+          _LOGGER.warning('no matching row found for query: %s', query)
           # append empty rows for missing responses
           found_req_keys = {self.create_row_key(resp[0]) for resp in responses}
           for req_key, req in requests_map.items():
@@ -244,9 +244,9 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       response_dict = self._execute_query(query)
       if response_dict is None:
         if self.throw_exception_on_empty_results:
-          raise ValueError("no matching row found for query: " + query)
+          raise ValueError(f"no matching row found for query: {query}")
         else:
-          _LOGGER.warning('no matching row found for query: ' + query)
+          _LOGGER.warning('no matching row found for query: %s', query)
         return request, beam.Row()
       return request, beam.Row(**response_dict)
 
