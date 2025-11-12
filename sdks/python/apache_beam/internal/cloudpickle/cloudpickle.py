@@ -193,7 +193,7 @@ def _get_or_create_tracker_id(class_def, id_generator):
         class_tracker_id = id_generator(class_def)
         _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = class_tracker_id
         _DYNAMIC_CLASS_TRACKER_BY_ID[class_tracker_id] = class_def
-      except:
+      except Exception:
         _DYNAMIC_CLASS_TRACKER_BY_CLASS.pop(class_def, None)
         raise
   return class_tracker_id
@@ -1737,6 +1737,6 @@ CloudPickler = Pickler
 
 def hash_dynamic_classdef(classdef):
   """Generates a deterministic ID by hashing the pickled class definition."""
-  hexidgest = hashlib.sha256(
+  hexdigest = hashlib.sha256(
       dumps(classdef, config=CloudPickleConfig(id_generator=None))).hexdigest()
-  return hexidgest
+  return hexdigest
