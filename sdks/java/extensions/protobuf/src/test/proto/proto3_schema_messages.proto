@@ -33,6 +33,51 @@ import "proto3_schema_options.proto";
 
 option java_package = "org.apache.beam.sdk.extensions.protobuf";
 
+message PrimitiveEncodedFields {
+  int64 encoded_timestamp = 1;
+  int32 encoded_date = 2;
+  bytes encoded_numeric = 3;
+  bytes encoded_bignumeric = 4;
+  int64 encoded_packed_datetime = 5;
+  int64 encoded_packed_time = 6;
+}
+
+message NestedEncodedFields {
+  PrimitiveEncodedFields nested = 1;
+  repeated PrimitiveEncodedFields nested_list = 2;
+}
+
+message PrimitiveUnEncodedFields {
+  string timestamp = 1;
+  string date = 2;
+  string numeric = 3;
+  string bignumeric = 4;
+  string datetime = 5;
+  string time = 6;
+}
+
+message NestedUnEncodedFields {
+  PrimitiveUnEncodedFields nested = 1;
+  repeated PrimitiveUnEncodedFields nested_list = 2;
+}
+
+message WrapperUnEncodedFields {
+  google.protobuf.FloatValue float = 1;
+  google.protobuf.DoubleValue double = 2;
+  google.protobuf.BoolValue bool = 3;
+  google.protobuf.Int32Value int32 = 4;
+  google.protobuf.Int64Value int64 = 5;
+  google.protobuf.UInt32Value uint32 = 6;
+  google.protobuf.UInt64Value uint64 = 7;
+  google.protobuf.BytesValue bytes = 8;
+  google.protobuf.Timestamp timestamp = 9;
+}
+
+message NestedWrapperUnEncodedFields {
+  WrapperUnEncodedFields nested = 1;
+  repeated WrapperUnEncodedFields nested_list = 2;
+}
+
 message Primitive {
     double primitive_double = 1;
     float primitive_float = 2;

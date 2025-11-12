@@ -25,7 +25,6 @@ import java.util.SortedSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
@@ -68,7 +67,7 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
   private boolean cleared = false;
 
   WindmillOrderedList(
-      StateTable derivedStateTable,
+      CachingStateTable derivedStateTable,
       StateNamespace namespace,
       InternedByteString encodeKey,
       StateTag<OrderedListState<T>> spec,

@@ -52,8 +52,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20251002'
-ext.dataflowFnapiContainerVersion = 'beam-master-20251002'
+ext.dataflowLegacyContainerVersion = 'beam-master-20251107'
+ext.dataflowFnapiContainerVersion = 'beam-master-20251107'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -212,17 +212,17 @@ def commonLegacyExcludeCategories = [
 ]
 
 def commonRunnerV2ExcludeCategories = [
-        'org.apache.beam.sdk.testing.UsesExternalService',
-        'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-        'org.apache.beam.sdk.testing.UsesSetState',
-        'org.apache.beam.sdk.testing.UsesMapState',
-        'org.apache.beam.sdk.testing.UsesMultimapState',
-        'org.apache.beam.sdk.testing.UsesMetricsPusher',
-        'org.apache.beam.sdk.testing.UsesOrderedListState',
-        'org.apache.beam.sdk.testing.UsesTestStream',
-        'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
-        'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-        'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
+  'org.apache.beam.sdk.testing.UsesExternalService',
+  'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+  'org.apache.beam.sdk.testing.UsesSetState',
+  'org.apache.beam.sdk.testing.UsesMapState',
+  'org.apache.beam.sdk.testing.UsesMultimapState',
+  'org.apache.beam.sdk.testing.UsesMetricsPusher',
+  'org.apache.beam.sdk.testing.UsesOrderedListState',
+  'org.apache.beam.sdk.testing.UsesTestStream',
+  'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
+  'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+  'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
@@ -241,7 +241,7 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-            files(project(project.path).sourceSets.test.output.classesDirs)
+      files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonLegacyExcludeCategories.each {
@@ -274,7 +274,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-            files(project(project.path).sourceSets.test.output.classesDirs)
+      files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonRunnerV2ExcludeCategories.each {
@@ -306,9 +306,9 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
 
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
-          root: "apache",
-          tag: project.sdk_version)
+    name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
+    root: "apache",
+    tag: project.sdk_version)
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
@@ -368,14 +368,37 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
   def pythonVer = project.project(':sdks:python').pythonVersion
   dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
-          root: "apache",
-          tag: project.sdk_version)
+    name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
+    root: "apache",
+    tag: project.sdk_version)
+  doFirst {
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG")
+    if (cloudsdkConfig == null || !new File(cloudsdkConfig).canWrite()) {
+      cloudsdkConfig = "/tmp/gcloud"
+    }
+    if (cloudsdkConfig == "/tmp/gcloud") {
+      def tmpGcloudDir = new File(cloudsdkConfig)
+      tmpGcloudDir.mkdirs()
+      System.setProperty("CLOUDSDK_CONFIG", cloudsdkConfig)
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
+      ignoreExitValue = false
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
+      ignoreExitValue = false
+    }
+  }
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerPythonImageName}"
     }
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG") ?: System.getProperty("CLOUDSDK_CONFIG") ?: "/tmp/gcloud"
     exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
       commandLine "gcloud", "docker", "--", "push", "${dockerPythonImageName}"
     }
   }
@@ -594,18 +617,21 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-          "--firestoreDb=${firestoreDb}",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRoot}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
+    "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryIODynamicQueryIT.class'
+  exclude '**/BigQueryIODynamicReadIT.class'
+  exclude '**/BigQueryIODynamicReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/DicomIOReadIT.class'
@@ -630,14 +656,14 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRootKms}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-          "--dataflowKmsKey=${dataflowKmsKey}",
-          "--firestoreDb=${firestoreDb}",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRootKms}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
+    "--dataflowKmsKey=${dataflowKmsKey}",
+    "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'
@@ -658,6 +684,9 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryIODynamicQueryIT.class'
+  exclude '**/BigQueryIODynamicReadIT.class'
+  exclude '**/BigQueryIODynamicReadTableRowIT.class'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'
@@ -732,12 +761,12 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRoot}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
   ])
 
   include '**/*IT.class'
@@ -837,17 +866,17 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 
 // Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom
 createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
-        runner: 'DataflowBom',
-        gcpProject: gcpProject,
-        gcpRegion: gcpRegion,
-        gcsBucket: gcsBucket,
-        bqDataset: bqDataset,
-        pubsubTopic: pubsubTopic)
+  runner: 'DataflowBom',
+  gcpProject: gcpProject,
+  gcpRegion: gcpRegion,
+  gcsBucket: gcsBucket,
+  bqDataset: bqDataset,
+  pubsubTopic: pubsubTopic)
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PgcpTempRoot.
 task GCSUpload(type: JavaExec) {
   mainClass = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
   classpath = sourceSets.test.runtimeClasspath
   args "--stagingLocation=${dataflowUploadTemp}/staging",
-       "--filesToStage=${testFilesToStage}"
+    "--filesToStage=${testFilesToStage}"
 }

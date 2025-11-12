@@ -37,13 +37,14 @@ import zlib
 
 from apache_beam.internal import code_object_pickler
 from apache_beam.internal.cloudpickle import cloudpickle
+from apache_beam.internal.code_object_pickler import get_normalized_path
 
 DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
-    skip_reset_dynamic_type_state=True)
-NO_DYNAMIC_CLASS_TRACKING_CONFIG = cloudpickle.CloudPickleConfig(
-    id_generator=None, skip_reset_dynamic_type_state=True)
+    skip_reset_dynamic_type_state=True,
+    filepath_interceptor=get_normalized_path)
 STABLE_CODE_IDENTIFIER_CONFIG = cloudpickle.CloudPickleConfig(
     skip_reset_dynamic_type_state=True,
+    filepath_interceptor=get_normalized_path,
     get_code_object_params=cloudpickle.GetCodeObjectParams(
         get_code_object_identifier=code_object_pickler.
         get_code_object_identifier,
@@ -93,6 +94,27 @@ _pickle_lock = threading.RLock()
 RLOCK_TYPE = type(_pickle_lock)
 LOCK_TYPE = type(threading.Lock())
 _LOGGER = logging.getLogger(__name__)
+
+
+# Helper to return an object directly during unpickling.
+def _return_obj(obj):
+  return obj
+
+
+# Optional import for Python 3.12 TypeAliasType
+try:  # pragma: no cover - dependent on Python version
+  from typing import TypeAliasType as _TypeAliasType  # type: ignore[attr-defined]
+except Exception:
+  _TypeAliasType = None
+
+
+def _typealias_reduce(obj):
+  # Unwrap typing.TypeAliasType to its underlying value for robust pickling.
+  underlying = getattr(obj, '__value__', None)
+  if underlying is None:
+    # Fallback: return the object itself; lets default behavior handle it.
+    return _return_obj, (obj, )
+  return _return_obj, (underlying, )
 
 
 def _reconstruct_enum_descriptor(full_name):
@@ -171,6 +193,9 @@ def _dumps(
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
         pass
+      # Register Python 3.12 `type` alias reducer to unwrap to underlying value.
+      if _TypeAliasType is not None:
+        pickler.dispatch_table[_TypeAliasType] = _typealias_reduce
       try:
         pickler.dispatch_table[RLOCK_TYPE] = _pickle_rlock
       except NameError:

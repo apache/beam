@@ -425,8 +425,8 @@ from apache_beam.utils.annotations import deprecated
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
   from apache_beam.io.gcp.internal.clients.bigquery import JobReference
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
   DatasetReference = None
   TableReference = None
@@ -2343,6 +2343,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         find_in_nested_dict(self.schema)
 
       from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
+
       # Only cast to int when a value is given.
       # We only use an int for BigQueryBatchFileLoads
       if self.triggering_frequency is not None:

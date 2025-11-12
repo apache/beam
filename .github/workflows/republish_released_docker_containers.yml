@@ -32,7 +32,7 @@ on:
   - cron: "0 6 * * 1"
 env:
   docker_registry: gcr.io
-  release: "${{ github.event.inputs.RELEASE || '2.68.0' }}"
+  release: "${{ github.event.inputs.RELEASE || '2.69.0' }}"
   rc: "${{ github.event.inputs.RC || '2' }}"
 
 jobs:
@@ -68,10 +68,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '11'
-      - name: Install Python 3.9
+      - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - name: Authenticate on GCP
         uses: google-github-actions/auth@v3
         with:
