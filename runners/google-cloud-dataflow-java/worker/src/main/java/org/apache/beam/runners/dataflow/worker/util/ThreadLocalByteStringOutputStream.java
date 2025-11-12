@@ -82,7 +82,6 @@ public class ThreadLocalByteStringOutputStream {
   }
 
   private static class SoftRefHolder {
-
     private @Nullable SoftReference<StreamHandle> softReference;
   }
 
