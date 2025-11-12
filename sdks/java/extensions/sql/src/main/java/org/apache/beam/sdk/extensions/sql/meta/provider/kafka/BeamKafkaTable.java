@@ -26,7 +26,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
@@ -37,6 +39,7 @@ import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -63,6 +66,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
 
   private TimestampPolicyFactory timestampPolicyFactory =
       TimestampPolicyFactory.withProcessingTime();
+  private SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn;
   private String bootstrapServers;
   private List<String> topics;
   private List<TopicPartition> topicPartitions;
@@ -77,35 +81,65 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   }
 
   public BeamKafkaTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
-    this(beamSchema, bootstrapServers, topics, TimestampPolicyFactory.withLogAppendTime());
+    this(
+        beamSchema,
+        bootstrapServers,
+        topics,
+        TimestampPolicyFactory.withLogAppendTime(),
+        /*consumerFactoryFn=*/ null);
   }
 
   public BeamKafkaTable(
       Schema beamSchema,
       String bootstrapServers,
       List<String> topics,
-      TimestampPolicyFactory timestampPolicyFactory) {
+      TimestampPolicyFactory timestampPolicyFactory,
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
     this.configUpdates = new HashMap<>();
     this.timestampPolicyFactory = timestampPolicyFactory;
+    this.consumerFactoryFn = consumerFactoryFn;
   }
 
   public BeamKafkaTable(
       Schema beamSchema, List<TopicPartition> topicPartitions, String bootstrapServers) {
-    this(beamSchema, topicPartitions, bootstrapServers, TimestampPolicyFactory.withLogAppendTime());
+    this(
+        beamSchema,
+        topicPartitions,
+        bootstrapServers,
+        TimestampPolicyFactory.withLogAppendTime(),
+        /*consumerFactoryFn=*/ null);
   }
 
   public BeamKafkaTable(
       Schema beamSchema,
       List<TopicPartition> topicPartitions,
       String bootstrapServers,
-      TimestampPolicyFactory timestampPolicyFactory) {
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
+    this(
+        beamSchema,
+        topicPartitions,
+        bootstrapServers,
+        TimestampPolicyFactory.withLogAppendTime(),
+        consumerFactoryFn);
+  }
+
+  public BeamKafkaTable(
+      Schema beamSchema,
+      List<TopicPartition> topicPartitions,
+      String bootstrapServers,
+      TimestampPolicyFactory timestampPolicyFactory,
+      @Nullable
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topicPartitions = topicPartitions;
     this.timestampPolicyFactory = timestampPolicyFactory;
+    this.consumerFactoryFn = consumerFactoryFn;
   }
 
   public BeamKafkaTable updateConsumerProperties(Map<String, Object> configUpdates) {
@@ -140,8 +174,10 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
               .withBootstrapServers(bootstrapServers)
               .withTopics(topics)
               .withConsumerConfigUpdates(configUpdates)
-              .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+              .withKeyDeserializerAndCoder(
+                  ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+              .withValueDeserializerAndCoder(
+                  ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
               .withTimestampPolicyFactory(timestampPolicyFactory);
     } else if (topicPartitions != null) {
       kafkaRead =
@@ -149,12 +185,18 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
               .withBootstrapServers(bootstrapServers)
               .withTopicPartitions(topicPartitions)
               .withConsumerConfigUpdates(configUpdates)
-              .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+              .withKeyDeserializerAndCoder(
+                  ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
+              .withValueDeserializerAndCoder(
+                  ByteArrayDeserializer.class, NullableCoder.of(ByteArrayCoder.of()))
               .withTimestampPolicyFactory(timestampPolicyFactory);
     } else {
       throw new InvalidTableException("One of topics and topicPartitions must be configurated.");
     }
+    if (consumerFactoryFn != null) {
+      kafkaRead = kafkaRead.withConsumerFactoryFn(consumerFactoryFn);
+    }
+
     return kafkaRead;
   }
 
