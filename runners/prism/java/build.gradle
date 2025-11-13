@@ -146,7 +146,7 @@ def sickbayTests = [
     // java.util.NoSuchElementException: Empty PCollection accessed as a singleton view.
     'org.apache.beam.sdk.transforms.ViewTest.testDiscardingNonSingletonSideInput',
     // ava.lang.IllegalArgumentException: Duplicate values for a
-    'org.apache.beam.sdk.transforms.ViewTest.testMapSideInputWithNullValuesCatchesDuplicates',
+    'org.apache.beam.sdk.transforms.MapViewTest.testMapSideInputWithNullValuesCatchesDuplicates',
     // java.lang.IllegalArgumentException: PCollection with more than one element accessed as a singleton view....
     'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput',
     // java.util.NoSuchElementException: Empty PCollection accessed as a singleton view.

@@ -38,6 +38,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import logger
 from apache_beam.utils import proto_utils
 
 __all__ = [
@@ -475,7 +476,7 @@ class PipelineOptions(HasDisplayData):
         suggestions = difflib.get_close_matches(arg_name, all_known_options)
         if suggestions:
           msg += f". Did you mean '{suggestions[0]}'?'"
-      _LOGGER.warning(msg)
+      logger.log_first_n(logging.WARN, msg, key="message")
 
   def get_all_options(
       self,
@@ -507,7 +508,7 @@ class PipelineOptions(HasDisplayData):
     subset = {}
     parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in PipelineOptions.__subclasses__():
-      subset[str(cls)] = cls
+      subset.setdefault(str(cls), cls)
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:
@@ -1171,7 +1172,7 @@ class GoogleCloudOptions(PipelineOptions):
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
-      return 'gs://%s' % bucket.id
+      return 'gs://%s/' % bucket.id
     else:
       return None
 
@@ -1187,14 +1188,19 @@ class GoogleCloudOptions(PipelineOptions):
     try:
       from apache_beam.io.gcp import gcsio
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
-        _LOGGER.warning(
-            "Bucket specified in %s has soft-delete policy enabled."
+        logger.log_first_n(
+            logging.WARN,
+            "Bucket %s used as %s has soft-delete policy enabled."
             " To avoid being billed for unnecessary storage costs, turn"
             " off the soft delete feature on buckets that your Dataflow"
             " jobs use for temporary and staging storage. For more"
             " information, see"
             " https://cloud.google.com/storage/docs/use-soft-delete"
-            "#remove-soft-delete-policy." % arg_name)
+            "#remove-soft-delete-policy.",
+            gcs_path,
+            arg_name,
+            n=1,
+            key="message")
     except ImportError:
       _LOGGER.warning('Unable to check soft delete policy due to import error.')
 

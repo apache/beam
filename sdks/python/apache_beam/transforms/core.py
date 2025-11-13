@@ -78,6 +78,7 @@ from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
+
   from apache_beam.io import iobase
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext
@@ -1507,25 +1508,28 @@ def _check_fn_use_yield_and_return(fn):
     source_code = _get_function_body_without_inners(fn)
     has_yield = False
     has_return = False
-    return_none_warning = (
-        "No iterator is returned by the process method in %s.",
-        fn.__self__.__class__)
+    has_return_none = False
     for line in source_code.split("\n"):
       lstripped_line = line.lstrip()
       if lstripped_line.startswith("yield ") or lstripped_line.startswith(
           "yield("):
         has_yield = True
-      if lstripped_line.startswith("return ") or lstripped_line.startswith(
-          "return("):
+      elif lstripped_line.rstrip() == "return":
         has_return = True
-        if lstripped_line.startswith(
-            "return None") or lstripped_line.rstrip() == "return":
-          _LOGGER.warning(return_none_warning)
+      elif lstripped_line.startswith("return ") or lstripped_line.startswith(
+          "return("):
+        if lstripped_line.rstrip() == "return None" or lstripped_line.rstrip(
+        ) == "return(None)":
+          has_return_none = True
+        has_return = True
       if has_yield and has_return:
         return True
 
-    if not has_yield and not has_return:
-      _LOGGER.warning(return_none_warning)
+    if has_return_none:
+      _LOGGER.warning(
+          "Process method returned None (element won't be emitted): %s."
+          " Check if intended.",
+          fn.__self__.__class__)
 
     return False
   except Exception as e:
@@ -2675,7 +2679,8 @@ class _TimeoutDoFn(DoFn):
       self._pool = concurrent.futures.ThreadPoolExecutor(10)
 
     # Import here to avoid circular dependency
-    from apache_beam.runners.worker.statesampler import get_current_tracker, set_current_tracker
+    from apache_beam.runners.worker.statesampler import get_current_tracker
+    from apache_beam.runners.worker.statesampler import set_current_tracker
 
     # State sampler/tracker is stored as a thread local variable, and is used
     # when incrementing counter metrics.
@@ -3004,8 +3009,7 @@ class CombinePerKey(PTransformWithSideInputs):
       # If the CombineFn has deferred side inputs, the python SDK
       # doesn't implement it.
       # Use a ParDo-based CombinePerKey instead.
-      from apache_beam.transforms.combiners import \
-        LiftedCombinePerKey
+      from apache_beam.transforms.combiners import LiftedCombinePerKey
       combine_fn, *args = args
       return LiftedCombinePerKey(combine_fn, args, kwargs)
     return super(CombinePerKey, cls).__new__(cls)
@@ -3760,7 +3764,9 @@ class Windowing(object):
     """
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
+    from apache_beam.transforms.trigger import AccumulationMode
+    from apache_beam.transforms.trigger import DefaultTrigger
+
     # pylint: enable=wrong-import-order, wrong-import-position
     if triggerfn is None:
       triggerfn = DefaultTrigger()

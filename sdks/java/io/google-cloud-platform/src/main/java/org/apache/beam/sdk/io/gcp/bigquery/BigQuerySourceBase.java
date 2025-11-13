@@ -133,12 +133,16 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       String bqLocation =
           BigQueryHelpers.getDatasetLocation(
               datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
+      String bqProjectId =
+          bqOptions.getBigQueryProject() != null
+              ? bqOptions.getBigQueryProject()
+              : bqOptions.getProject();
       List<ResourceId> tempFiles =
           executeExtract(
               extractJobId,
               tableToExtract,
               jobService,
-              bqOptions.getProject(),
+              bqProjectId,
               extractDestinationDir,
               bqLocation,
               useAvroLogicalTypes);

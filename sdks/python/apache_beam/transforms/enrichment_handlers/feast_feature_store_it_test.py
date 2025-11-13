@@ -33,9 +33,9 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.feast_feature_store import \
-    FeastFeatureStoreEnrichmentHandler
-  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store_it_test import ValidateResponse  # pylint: disable=line-too-long
+  from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store_it_test import \
+      ValidateResponse  # pylint: disable=line-too-long
 except ImportError:
   raise unittest.SkipTest(
       'Feast feature store test dependencies are not installed.')

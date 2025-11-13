@@ -33,23 +33,28 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
+  from sqlalchemy import VARCHAR
+  from sqlalchemy import Column
+  from sqlalchemy import Engine
+  from sqlalchemy import Integer
+  from sqlalchemy import MetaData
+  from sqlalchemy import Table
+  from sqlalchemy import create_engine
   from testcontainers.core.generic import DbContainer
-  from testcontainers.postgres import PostgresContainer
-  from testcontainers.mysql import MySqlContainer
   from testcontainers.mssql import SqlServerContainer
+  from testcontainers.mysql import MySqlContainer
+  from testcontainers.postgres import PostgresContainer
   from testcontainers.redis import RedisContainer
-  from sqlalchemy import (
-      create_engine, MetaData, Table, Column, Integer, VARCHAR, Engine)
+
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.cloudsql import (
-      CloudSQLEnrichmentHandler,
-      DatabaseTypeAdapter,
-      CustomQueryConfig,
-      TableFieldsQueryConfig,
-      TableFunctionQueryConfig,
-      CloudSQLConnectionConfig,
-      ExternalSQLDBConnectionConfig,
-      ConnectionConfig)
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLConnectionConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.cloudsql import ConnectionConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CustomQueryConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import DatabaseTypeAdapter
+  from apache_beam.transforms.enrichment_handlers.cloudsql import ExternalSQLDBConnectionConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import TableFieldsQueryConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import TableFunctionQueryConfig
 except ImportError as e:
   raise unittest.SkipTest(f'CloudSQL dependencies not installed: {str(e)}')
 

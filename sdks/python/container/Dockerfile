@@ -29,11 +29,6 @@ COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
 
-# Enable GRPC experiments to mitigate timeout issues in later versions
-# of the grpc package. 
-ENV GRPC_EXPERIMENTS="event_engine_fork,event_engine_poller_for_python"
-ENV GRPC_ENABLE_FORK_SUPPORT=1
-
 # Use one RUN command to reduce the number of layers.
 ARG py_version
 RUN  \
@@ -55,7 +50,7 @@ RUN  \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install --no-deps -r /tmp/base_image_requirements.txt && \
+    pip install --no-deps -r /tmp/base_image_requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu && \
     rm -rf /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
