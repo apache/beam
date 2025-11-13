@@ -19,8 +19,8 @@ import unittest
 from parameterized import parameterized
 
 try:
-  from apache_beam.ml.rag.ingestion.milvus_search import (
-      MilvusWriteConfig, MilvusVectorWriterConfig)
+  from apache_beam.ml.rag.ingestion.milvus_search import MilvusVectorWriterConfig
+  from apache_beam.ml.rag.ingestion.milvus_search import MilvusWriteConfig
   from apache_beam.ml.rag.utils import MilvusConnectionParameters
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')

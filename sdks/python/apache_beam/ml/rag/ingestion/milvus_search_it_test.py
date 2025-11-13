@@ -42,8 +42,8 @@ from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
-  from apache_beam.ml.rag.ingestion.milvus_search import (
-      MilvusWriteConfig, MilvusVectorWriterConfig)
+  from apache_beam.ml.rag.ingestion.milvus_search import MilvusVectorWriterConfig
+  from apache_beam.ml.rag.ingestion.milvus_search import MilvusWriteConfig
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
 
