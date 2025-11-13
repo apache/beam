@@ -76,7 +76,6 @@ For an example, see PRs associated with https://github.com/apache/beam/issues/29
     * Remove the support for building wheels and source distributions for the unsupported Python version from [.github/workflows/build_wheels.yml](https://github.com/apache/beam/blob/ce1b1dcbc596d1e7c914ee0f7b0d48f2d2bf87e1/.github/workflows/build_wheels.yml)
     * Remove the unsupported Python version from [sdks/python/tox.ini](https://github.com/apache/beam/blob/master/sdks/python/tox.ini)
 
-
 1. Delete the unsupported Python version containers from [sdks/python/container](https://github.com/apache/beam/tree/master/sdks/python/container)
 
 1. Clean up any code that applies to the removed Python version.
