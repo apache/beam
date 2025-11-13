@@ -24,7 +24,7 @@ Python releases are now on an annual cadence, with new versions being released (
 ## Adding a Python Version
 
 1. Upgrade Beam direct dependencies to versions that support the new Python versions. Complex libraries, like pyarrow or numpy need to provide wheels for the new Python version. Infrastructure libraries, such as Beam build dependencies, cibuildwheel, and other libraries with a hardcoded version, may have to be upgraded as well.
-    * Some dependency versions may not support both the minimum and maximum Python version for Beam and will require version-specific dependencies.s
+    * Some dependency versions may not support both the minimum and maximum Python version for Beam and will require version-specific dependenciess.
 
 1. Add a Beam Python container for the new python version.
     * https://github.com/apache/beam/tree/master/sdks/python/container
