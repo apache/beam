@@ -62,7 +62,7 @@ For an example, see PRs associated with https://github.com/apache/beam/issues/29
         * Example PR: https://github.com/apache/beam/pull/32429
         * Make these changes on a branch in the main Beam repository if possible so you can execute the new workflows directly for testing.
         * Some workflows only run on the minimum supported Python version (like the linting and coverage precommits.) These may utilize libraries that need updates to run on the next Python version.
-    * Remove the unsuppported Python version from the following files/directories:
+    * Remove the unsupported Python version from the following files/directories:
         * sdks/python/test-suites/gradle.properties
         * apache_beam/testing/tox
             Move any workflows that exist only for the minimum Python version from tox/py3X to the next minimum Python version's folder
