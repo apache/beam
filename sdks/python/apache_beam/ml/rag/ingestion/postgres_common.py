@@ -318,13 +318,16 @@ class ColumnSpecsBuilder:
       conv_fn: Optional[Callable[[Tuple[List[int], List[float]]], Any]] = None
   ) -> 'ColumnSpecsBuilder':
     """Add sparse embedding :class:`.ColumnSpec` with optional conversion.
+
       Args:
           column_name: Name for the sparse embedding column
             (defaults to "sparse_embedding")
           conv_fn: Optional function to convert the sparse embedding tuple
                       If None, converts to PostgreSQL-compatible JSON format
+
       Returns:
           Self for method chaining
+
       Example:
           >>> builder.with_sparse_embedding_spec(
           ...     column_name="sparse_vector",
