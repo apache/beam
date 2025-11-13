@@ -752,8 +752,7 @@ class PipelineOptionsTest(unittest.TestCase):
             "store_true. It would be confusing "
             "to the user. Please specify the dest as the "
             "flag_name instead."))
-    from apache_beam.options.pipeline_options import (
-        _FLAG_THAT_SETS_FALSE_VALUE)
+    from apache_beam.options.pipeline_options import _FLAG_THAT_SETS_FALSE_VALUE
 
     self.assertDictEqual(
         _FLAG_THAT_SETS_FALSE_VALUE,

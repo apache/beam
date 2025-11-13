@@ -19,9 +19,10 @@
 import unittest
 
 try:
-  from apache_beam.ml.inference.vertex_ai_inference import _retry_on_appropriate_gcp_error
-  from apache_beam.ml.inference.vertex_ai_inference import VertexAIModelHandlerJSON
   from google.api_core.exceptions import TooManyRequests
+
+  from apache_beam.ml.inference.vertex_ai_inference import VertexAIModelHandlerJSON
+  from apache_beam.ml.inference.vertex_ai_inference import _retry_on_appropriate_gcp_error
 except ImportError:
   raise unittest.SkipTest('VertexAI dependencies are not installed')
 

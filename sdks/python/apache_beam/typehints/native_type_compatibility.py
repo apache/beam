@@ -35,6 +35,14 @@ try:
 except ImportError:
   from typing_extensions import is_typeddict
 
+# Python 3.12 adds TypeAliasType for `type` statements; keep optional import.
+# pylint: disable=ungrouped-imports
+# isort: off
+try:
+  from typing import TypeAliasType  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover - pre-3.12
+  TypeAliasType = None  # type: ignore[assignment]
+
 T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
@@ -331,6 +339,14 @@ def convert_to_beam_type(typ):
   if (sys.version_info.major == 3 and
       sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
+
+  # Unwrap Python 3.12 `type` aliases (TypeAliasType) to their underlying value.
+  # This ensures Beam sees the actual aliased type (e.g., tuple[int, ...]).
+  if sys.version_info >= (3, 12) and TypeAliasType is not None:
+    if isinstance(typ, TypeAliasType):  # pylint: disable=isinstance-second-argument-not-valid-type
+      underlying = getattr(typ, '__value__', None)
+      if underlying is not None:
+        typ = underlying
 
   if getattr(typ, '__module__', None) == 'typing':
     typ = convert_typing_to_builtin(typ)

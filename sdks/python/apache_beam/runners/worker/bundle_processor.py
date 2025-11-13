@@ -91,6 +91,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
+
   from apache_beam import pvalue
   from apache_beam.portability.api import metrics_pb2
   from apache_beam.runners.sdf_utils import SplitResultPrimary

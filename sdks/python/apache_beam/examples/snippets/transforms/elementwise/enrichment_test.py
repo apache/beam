@@ -52,13 +52,11 @@ try:
       ConnectionConfig,
       CloudSQLConnectionConfig,
       ExternalSQLDBConnectionConfig)
-  from apache_beam.ml.rag.enrichment.milvus_search import (
-      MilvusConnectionParameters)
-  from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
-      MilvusEnrichmentTestHelper,
-      MilvusDBContainerInfo,
-      parse_chunk_strings,
-      assert_chunks_equivalent)
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusConnectionParameters
+  from apache_beam.ml.rag.test_utils import MilvusTestHelpers
+  from apache_beam.ml.rag.test_utils import VectorDBContainerInfo
+  from apache_beam.ml.rag.test_utils import MilvusTestHelpers
+  from apache_beam.ml.rag.utils import parse_chunk_strings
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError as e:
   raise unittest.SkipTest(f'Examples dependencies are not installed: {str(e)}')
@@ -66,6 +64,11 @@ except ImportError as e:
 
 class TestContainerStartupError(Exception):
   """Raised when any test container fails to start."""
+  pass
+
+
+class TestContainerTeardownError(Exception):
+  """Raised when any test container fails to teardown."""
   pass
 
 
@@ -186,7 +189,7 @@ class EnrichmentTest(unittest.TestCase):
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_external_pg()
         self.assertEqual(output, expected)
-    except TestContainerStartupError as e:
+    except (TestContainerStartupError, TestContainerTeardownError) as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
       self.fail(f"Test failed with unexpected error: {e}")
@@ -199,7 +202,7 @@ class EnrichmentTest(unittest.TestCase):
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_external_mysql()
         self.assertEqual(output, expected)
-    except TestContainerStartupError as e:
+    except (TestContainerStartupError, TestContainerTeardownError) as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
       self.fail(f"Test failed with unexpected error: {e}")
@@ -212,7 +215,7 @@ class EnrichmentTest(unittest.TestCase):
         output = mock_stdout.getvalue().splitlines()
         expected = validate_enrichment_with_external_sqlserver()
         self.assertEqual(output, expected)
-    except TestContainerStartupError as e:
+    except (TestContainerStartupError, TestContainerTeardownError) as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
       self.fail(f"Test failed with unexpected error: {e}")
@@ -226,8 +229,8 @@ class EnrichmentTest(unittest.TestCase):
         self.maxDiff = None
         output = parse_chunk_strings(output)
         expected = parse_chunk_strings(expected)
-        assert_chunks_equivalent(output, expected)
-    except TestContainerStartupError as e:
+        MilvusTestHelpers.assert_chunks_equivalent(output, expected)
+    except (TestContainerStartupError, TestContainerTeardownError) as e:
       raise unittest.SkipTest(str(e))
     except Exception as e:
       self.fail(f"Test failed with unexpected error: {e}")
@@ -257,7 +260,7 @@ class EnrichmentTestHelpers:
   @staticmethod
   @contextmanager
   def milvus_test_context():
-    db: Optional[MilvusDBContainerInfo] = None
+    db: Optional[VectorDBContainerInfo] = None
     try:
       db = EnrichmentTestHelpers.pre_milvus_enrichment()
       yield
@@ -370,22 +373,20 @@ class EnrichmentTestHelpers:
       os.environ.pop('GOOGLE_CLOUD_SQL_DB_TABLE_ID', None)
 
   @staticmethod
-  def pre_milvus_enrichment() -> MilvusDBContainerInfo:
+  def pre_milvus_enrichment() -> VectorDBContainerInfo:
     try:
-      db = MilvusEnrichmentTestHelper.start_db_container()
+      db = MilvusTestHelpers.start_db_container()
+      connection_params = MilvusConnectionParameters(
+          uri=db.uri,
+          user=db.user,
+          password=db.password,
+          db_id=db.id,
+          token=db.token)
+      collection_name = MilvusTestHelpers.initialize_db_with_data(
+          connection_params)
     except Exception as e:
       raise TestContainerStartupError(
           f"Milvus container failed to start: {str(e)}")
-
-    connection_params = MilvusConnectionParameters(
-        uri=db.uri,
-        user=db.user,
-        password=db.password,
-        db_id=db.id,
-        token=db.token)
-
-    collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
-        connection_params)
 
     # Setup environment variables for db and collection configuration. This will
     # be used downstream by the milvus enrichment handler.
@@ -399,8 +400,13 @@ class EnrichmentTestHelpers:
     return db
 
   @staticmethod
-  def post_milvus_enrichment(db: MilvusDBContainerInfo):
-    MilvusEnrichmentTestHelper.stop_db_container(db)
+  def post_milvus_enrichment(db: VectorDBContainerInfo):
+    try:
+      MilvusTestHelpers.stop_db_container(db)
+    except Exception as e:
+      raise TestContainerTeardownError(
+          f"Milvus container failed to tear down: {str(e)}")
+
     os.environ.pop('MILVUS_VECTOR_DB_URI', None)
     os.environ.pop('MILVUS_VECTOR_DB_USER', None)
     os.environ.pop('MILVUS_VECTOR_DB_PASSWORD', None)

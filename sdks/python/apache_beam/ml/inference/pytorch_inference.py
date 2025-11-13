@@ -26,6 +26,7 @@ from typing import Any
 from typing import Optional
 
 import torch
+
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler

@@ -33,11 +33,11 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from testcontainers.redis import RedisContainer
-  from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.bigquery import \
-    BigQueryEnrichmentHandler
   from apitools.base.py.exceptions import HttpError
+  from testcontainers.redis import RedisContainer
+
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
 except ImportError:
   raise unittest.SkipTest(
       'Google Cloud BigQuery dependencies are not installed.')

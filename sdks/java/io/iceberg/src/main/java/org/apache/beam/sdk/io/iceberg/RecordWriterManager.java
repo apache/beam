@@ -228,8 +228,9 @@ class RecordWriterManager implements AutoCloseable {
       String transformName =
           Preconditions.checkArgumentNotNull(partitionFieldMap.get(name)).transform().toString();
       if (Transforms.month().toString().equals(transformName)) {
-        int month = YearMonth.parse(value).getMonthValue();
-        value = String.valueOf(month);
+        long months =
+            ChronoUnit.MONTHS.between(EPOCH, YearMonth.parse(value).atDay(1).atStartOfDay());
+        value = String.valueOf(months);
       } else if (Transforms.hour().toString().equals(transformName)) {
         long hour = ChronoUnit.HOURS.between(EPOCH, LocalDateTime.parse(value, HOUR_FORMATTER));
         value = String.valueOf(hour);

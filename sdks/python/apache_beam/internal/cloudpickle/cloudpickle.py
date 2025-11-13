@@ -168,7 +168,6 @@ class CloudPickleConfig:
 
 
 DEFAULT_CONFIG = CloudPickleConfig()
-
 builtin_code_type = None
 if PYPY:
   # builtin-code objects only exist in pypy

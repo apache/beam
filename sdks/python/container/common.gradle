@@ -42,7 +42,7 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "${files(configurations.sdkSourceTarball.files).singleFile} " +
               "base_image_requirements.txt " +
               "container " +
-              "[gcp,dataframe,test] " +
+              "[gcp,dataframe,test,tfrecord] " +
               "${pipExtraOptions}"
     }
     // Generate versions for ML dependencies
@@ -53,7 +53,7 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
               "${files(configurations.sdkSourceTarball.files).singleFile} " +
               "base_image_requirements.txt " +
               "container/ml " +
-              "[gcp,dataframe,test,ml_cpu] " +
+              "[gcp,dataframe,test,ml_cpu,tfrecord] " +
               "${pipExtraOptions}"
     }
     // TODO(https://github.com/apache/beam/issues/36637)
@@ -73,7 +73,7 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
                 "${files(configurations.sdkSourceTarball.files).singleFile} " +
                 "gpu_image_requirements.txt " +
                 "container/ml " +
-                "[gcp,dataframe,test,tensorflow,torch,transformers,vllm] " +
+                "[gcp,dataframe,test,tensorflow,tfrecord,torch,transformers,vllm] " +
                 "${pipExtraOptions}"
       }
     }

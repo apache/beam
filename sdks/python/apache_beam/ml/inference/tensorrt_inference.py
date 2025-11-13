@@ -110,8 +110,8 @@ class TensorRTEngine:
     Args:
       engine: trt.ICudaEngine object that contains TensorRT engine
     """
-    from cuda import cuda
     import tensorrt as trt
+    from cuda import cuda
     self.engine = engine
     self.context = engine.create_execution_context()
     self.context_lock = threading.RLock()

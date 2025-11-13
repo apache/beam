@@ -107,6 +107,7 @@ def read_csv(path, *args, splittable=False, binary=True, **kwargs):
 
 def _as_pc(df, label=None):
   from apache_beam.dataframe import convert  # avoid circular import
+
   # TODO(roberwb): Amortize the computation for multiple writes?
   return convert.to_pcollection(df, yield_elements='pandas', label=label)
 

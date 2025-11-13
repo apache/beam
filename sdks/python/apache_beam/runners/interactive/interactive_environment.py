@@ -181,7 +181,8 @@ class InteractiveEnvironment(object):
     try:
       import IPython  # pylint: disable=unused-import
       import timeloop  # pylint: disable=unused-import
-      from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
+      from facets_overview.generic_feature_statistics_generator import \
+          GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
       from google.cloud import dataproc_v1  # pylint: disable=unused-import
       self._is_interactive_ready = True
     except ImportError:
