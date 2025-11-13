@@ -19,21 +19,21 @@
 
 # Adding/Removing Python Versions in Apache Beam
 
-Python releases are now on an annual cadence, with new versions being released (and an old version reaching end-of-life) in October of a given year. The means that at any given time, Beam could be supporting up to five different versions of Python. Removing EOL versions is a higher priorty than adding new versions, as EOL Python versions may not get vulnerability fixes when dependencies fix them.
+Python releases are now on an annual cadence, with new versions being released (and an old version reaching end-of-life) in October of a given year. This means that at any given time, Beam could be supporting up to five different versions of Python. Removing EOL versions is a higher priority than adding new versions, as EOL Python versions may not get vulnerability fixes when dependencies fix them.
 
 ## Adding a Python Version
 
 1. Upgrade Beam direct dependencies to versions that support the new Python versions. Complex libraries, like pyarrow or numpy need to provide wheels for the new Python version. Infrastructure libraries, such as Beam build dependencies, cibuildwheel, and other libraries with a hardcoded version, may have to be upgraded as well.
-    * Some dependency versions may not support both the minimum and maximum Python version for Beam and will require version-specific dependenciess.
+    * Some dependency versions may not support both the minimum and maximum Python version for Beam and will require version-specific dependencies.
 
-1. Add a Beam Python container for the new python version.
+1. Add a Beam Python container for the new Python version.
     * https://github.com/apache/beam/tree/master/sdks/python/container
 
 1. Add a new Python version to different test suites:
-    * [Tox test suties](https://github.com/apache/beam/blob/master/sdks/python/tox.ini)
+    * [Tox test suites](https://github.com/apache/beam/blob/master/sdks/python/tox.ini)
     * Gradle tasks such as pre-commits, post-commits etc.
     * Runner-specific versioning checks
-    * Fix any tests that fail on the new Python version. 
+    * Fix any tests that fail on the new Python version.
         * Typically, a new Python version requires updating Beam Type Inference code. See https://github.com/apache/beam/issues/31047
 
 1. Add the GitHub actions workflows for the new Python version.
@@ -69,7 +69,7 @@ For an example, see PRs associated with https://github.com/apache/beam/issues/29
         * apache_beam/testing/dataflow
         * apache_beam/testing/direct
         * apache_beam/testing/portable
-    * Remove the unsupported python version gradle tasks from
+    * Remove the unsupported Python version gradle tasks from
         * build.gradle.kts
         * settings.gradle.kts
         * buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
