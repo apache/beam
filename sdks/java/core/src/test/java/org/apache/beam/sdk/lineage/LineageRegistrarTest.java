@@ -39,14 +39,46 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link LineageRegistrar} ServiceLoader discovery and DirectRunner integration. */
 @RunWith(JUnit4.class)
 public class LineageRegistrarTest {
+
+  /**
+   * TestWatcher that logs detailed lineage diagnostics only when tests fail.
+   * This keeps successful test output clean while providing deep debugging for failures.
+   */
+  @Rule
+  public TestWatcher lineageDebugLogger = new TestWatcher() {
+    @Override
+    protected void failed(Throwable e, Description description) {
+      System.err.println("=== Lineage Test Failure Diagnostics ===");
+      System.err.println("Test: " + description.getMethodName());
+      System.err.println("Error: " + e.getMessage());
+
+      List<String> sources = TestLineage.getRecordedSources();
+      List<String> sinks = TestLineage.getRecordedSinks();
+
+      System.err.println("\nRecorded Sources (" + sources.size() + "):");
+      for (int i = 0; i < sources.size(); i++) {
+        System.err.println("  [" + i + "] \"" + sources.get(i) + "\"");
+      }
+
+      System.err.println("\nRecorded Sinks (" + sinks.size() + "):");
+      for (int i = 0; i < sinks.size(); i++) {
+        System.err.println("  [" + i + "] \"" + sinks.get(i) + "\"");
+      }
+
+      System.err.println("========================================");
+    }
+  };
 
   @Before
   public void setUp() {
