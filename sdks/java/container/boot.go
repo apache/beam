@@ -276,6 +276,10 @@ func main() {
 				args = append(args, "--add-modules="+module.GetStringValue())
 			}
 		}
+		// Add trusted Avro serializable classes
+		if serializableClasses, ok := pipelineOptions.GetStructValue().GetFields()["avroSerializableClasses"]; ok {
+			args = append(args, "-Dorg.apache.avro.SERIALIZABLE_CLASSES="+strings.Join(serializableClasses.GetStringValue(), ",")
+		}
 	}
 	// Automatically open modules for Java 11+
 	openModuleAgentJar := "/opt/apache/beam/jars/open-module-agent.jar"
