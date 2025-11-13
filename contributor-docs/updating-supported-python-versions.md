@@ -55,7 +55,7 @@ For an example, see PRs associated with https://github.com/apache/beam/issues/29
 
 ## Removing a Python Version
 
-1. Bump the Python version in [setup.py](https://github.com/apache/beam/blob/0ef5d3a185c1420da118208353ceb0b40b3a27c9/sdks/python/setup.py#L152) and update the Python version warning in [__init__.py](https://github.com/apache/beam/blob/0ef5d3a185c1420da118208353ceb0b40b3a27c9/sdks/python/apache_beam/__init__.py#L78). 
+1. Bump the Python version in [setup.py](https://github.com/apache/beam/blob/0ef5d3a185c1420da118208353ceb0b40b3a27c9/sdks/python/setup.py#L152) and update the Python version warning in [__init__.py](https://github.com/apache/beam/blob/0ef5d3a185c1420da118208353ceb0b40b3a27c9/sdks/python/apache_beam/__init__.py#L78).
 
 1. Remove test suites for the unsupported Python version:
     * Migrate GitHub actions workflows from the deprecated Python version to the next one
