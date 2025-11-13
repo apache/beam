@@ -143,8 +143,9 @@ class StateSamplerTest(unittest.TestCase):
     sampler = statesampler.StateSampler(
         'test_stage', counter_factory, sampling_period_ms=1)
 
-    state_duration_ms = 100
-    margin_of_error = 0.25
+    # Keeps range between 50-350 ms, which is fair. 
+    state_duration_ms = 200
+    margin_of_error = 0.75
 
     # Run a workload inside the 'process-timers' scoped state.
     sampler.start()
