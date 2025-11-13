@@ -261,8 +261,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
       except NotFound:
         pass
     time.sleep(WAIT_BUCKET_PROPAGATION_SECONDS)
-    with self.assertRaises(NotFound):
-      self.gcsio.get_bucket(overridden_bucket_name)
+    bucket_after_delete = self.gcsio.get_bucket(overridden_bucket_name)
+    self.assertIsNone(bucket_after_delete)
 
 
 class GcsIOReadGzipTest(unittest.TestCase):
