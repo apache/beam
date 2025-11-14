@@ -19,10 +19,18 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.when;
 
 import com.google.auth.Credentials;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Options.RpcPriority;
+import com.google.cloud.spanner.ReadOnlyTransaction;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Statement;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
@@ -32,6 +40,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class SpannerIOReadChangeStreamTest {
@@ -120,7 +129,8 @@ public class SpannerIOReadChangeStreamTest {
 
   @Test
   public void testWithDefaultCredential() {
-    // Get the default credential, without setting any credentials in the pipeline options or
+    // Get the default credential, without setting any credentials in the pipeline
+    // options or
     // SpannerConfig.
     Credentials defaultCredential =
         testPipeline.getOptions().as(GcpOptions.class).getGcpCredential();
@@ -139,5 +149,54 @@ public class SpannerIOReadChangeStreamTest {
             metadataSpannerConfig, testPipeline.getOptions());
     assertEquals(defaultCredential, changeStreamSpannerConfigWithCredential.getCredentials().get());
     assertEquals(defaultCredential, metadataSpannerConfigWithCredential.getCredentials().get());
+  }
+
+  @Test
+  public void testFetchPartitionModeGoogleSql() {
+    DatabaseClient databaseClient = Mockito.mock(DatabaseClient.class);
+    ReadOnlyTransaction transaction = Mockito.mock(ReadOnlyTransaction.class);
+    ResultSet resultSet = Mockito.mock(ResultSet.class);
+
+    when(databaseClient.readOnlyTransaction()).thenReturn(transaction);
+    when(transaction.executeQuery(any(Statement.class))).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+    when(resultSet.getString(0)).thenReturn("MUTABLE_KEY_RANGE");
+
+    assertEquals(
+        true,
+        SpannerIO.isMutableChangeStream(
+            databaseClient, Dialect.GOOGLE_STANDARD_SQL, TEST_CHANGE_STREAM));
+  }
+
+  @Test
+  public void testFetchPartitionModePostgres() {
+    DatabaseClient databaseClient = Mockito.mock(DatabaseClient.class);
+    ReadOnlyTransaction transaction = Mockito.mock(ReadOnlyTransaction.class);
+    ResultSet resultSet = Mockito.mock(ResultSet.class);
+
+    when(databaseClient.readOnlyTransaction()).thenReturn(transaction);
+    when(transaction.executeQuery(any(Statement.class))).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+    when(resultSet.getString(0)).thenReturn("IMMUTABLE_KEY_RANGE");
+
+    assertEquals(
+        false,
+        SpannerIO.isMutableChangeStream(databaseClient, Dialect.POSTGRESQL, TEST_CHANGE_STREAM));
+  }
+
+  @Test
+  public void testFetchPartitionModeNotFound() {
+    DatabaseClient databaseClient = Mockito.mock(DatabaseClient.class);
+    ReadOnlyTransaction transaction = Mockito.mock(ReadOnlyTransaction.class);
+    ResultSet resultSet = Mockito.mock(ResultSet.class);
+
+    when(databaseClient.readOnlyTransaction()).thenReturn(transaction);
+    when(transaction.executeQuery(any(Statement.class))).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
+
+    assertEquals(
+        false,
+        SpannerIO.isMutableChangeStream(
+            databaseClient, Dialect.GOOGLE_STANDARD_SQL, TEST_CHANGE_STREAM));
   }
 }
