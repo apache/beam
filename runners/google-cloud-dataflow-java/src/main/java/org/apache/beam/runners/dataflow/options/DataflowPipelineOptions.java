@@ -266,4 +266,14 @@ public interface DataflowPipelineOptions
   List<String> getJdkAddOpenModules();
 
   void setJdkAddOpenModules(List<String> options);
+
+  /**
+   * Set trusted serializable classes for use with the Avro `java-class` schema property.
+   *
+   * <p>See: https://github.com/apache/avro/pull/3376
+   */
+  @Description("Serializable classes required by java-class props in Avro 1.11.4+")
+  List<String> getAvroSerializableClasses();
+
+  void setAvroSerializableClasses(List<String> options);
 }
