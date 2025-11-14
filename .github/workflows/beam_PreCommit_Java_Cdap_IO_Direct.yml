@@ -97,7 +97,7 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
@@ -111,7 +111,7 @@ jobs:
           files: '**/build/test-results/**/*.xml'
           large_files: true
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: SpotBugs Results

@@ -64,7 +64,7 @@ jobs:
           gradle-command: test
           arguments: -p sdks/java/core/
       - name: Upload test logs for :sdks:java:core:test
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: java_unit_tests-sdks-java-core-test-${{ matrix.os }}
@@ -77,7 +77,7 @@ jobs:
           arguments: -p sdks/java/harness/
         if: always()
       - name: Upload test logs for :sdks:java:harness:test
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: java_unit_tests-sdks-java-harness-test-${{ matrix.os }}
@@ -90,7 +90,7 @@ jobs:
           arguments: -p runners/core-java/
         if: always()
       - name: Upload test logs for :runners:core-java:test
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: java_unit_tests-runners-core-java-test-${{ matrix.os }}
@@ -122,7 +122,7 @@ jobs:
             -DintegrationTestRunner=direct
             -DintegrationTestPipelineOptions=[\"--runner=DirectRunner\",\"--tempRoot=./tmp\"]
       - name: Upload test logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: java_wordcount_direct_runner-${{matrix.os}}

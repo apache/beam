@@ -121,7 +121,7 @@ jobs:
           -Pjava21Home=$JAVA_HOME_21_X64 \
         max-workers: 12
     - name: Archive JUnit Test Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: ${{ !success() }}
       with:
         name: JUnit Test Results
@@ -135,7 +135,7 @@ jobs:
         files: '**/build/test-results/**/*.xml'
         large_files: true
     - name: Archive SpotBugs Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: SpotBugs Results
         path: '**/build/reports/spotbugs/*.html'

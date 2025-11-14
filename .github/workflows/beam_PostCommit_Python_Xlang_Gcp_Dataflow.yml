@@ -83,7 +83,7 @@ jobs:
           gradle-command: :sdks:python:test-suites:dataflow:gcpCrossLanguagePostCommit
           arguments: -PuseWheelDistribution
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: Python Test Results

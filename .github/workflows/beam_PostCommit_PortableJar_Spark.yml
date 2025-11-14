@@ -83,7 +83,7 @@ jobs:
           arguments: |
             -PpythonVersion=3.10 \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: Python Test Results

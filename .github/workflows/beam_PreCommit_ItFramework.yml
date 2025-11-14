@@ -90,7 +90,7 @@ jobs:
       - name: run ItFrameworkPrecommit script
         run: ./gradlew -p it build
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
