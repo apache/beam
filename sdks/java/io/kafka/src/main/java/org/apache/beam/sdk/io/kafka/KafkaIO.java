@@ -63,6 +63,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
@@ -1575,6 +1576,10 @@ public class KafkaIO {
       return new TypedWithoutMetadata<>(this);
     }
 
+    public PTransform<PBegin, PCollection<KV<Integer, V>>> keyedByPartition() {
+      return new ValuesKeyedByPartition<>(this);
+    }
+
     public PTransform<PBegin, PCollection<Row>> externalWithMetadata() {
       return new RowsWithMetadata<>(this);
     }
@@ -1815,6 +1820,28 @@ public class KafkaIO {
       public Map<PCollection<?>, ReplacementOutput> mapOutputs(
           Map<TupleTag<?>, PCollection<?>> outputs, PCollection<KafkaRecord<K, V>> newOutput) {
         return ReplacementOutputs.singleton(outputs, newOutput);
+      }
+    }
+
+    @Internal
+    public static final PTransformMatcher KEYED_BY_PARTITION_MATCHER =
+        PTransformMatchers.classEqualTo(KeyedByPartition.class);
+
+    public static class KeyedByPartition<K, V>
+        extends PTransform<PCollection<KafkaRecord<K, V>>, PCollection<KV<Integer, V>>> {
+
+      @Override
+      public PCollection<KV<Integer, V>> expand(PCollection<KafkaRecord<K, V>> input) {
+        return input.apply(
+            "Repartition",
+            ParDo.of(
+                new DoFn<KafkaRecord<K, V>, KV<Integer, V>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext ctx) {
+                    ctx.output(
+                        KV.of(ctx.element().getPartition(), ctx.element().getKV().getValue()));
+                  }
+                }));
       }
     }
 
@@ -2167,6 +2194,41 @@ public class KafkaIO {
           builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(value)));
         }
       }
+    }
+  }
+
+  public static class ValuesKeyedByPartition<K, V>
+      extends PTransform<PBegin, PCollection<KV<Integer, V>>> {
+    private final Read<K, V> read;
+
+    ValuesKeyedByPartition(Read<K, V> read) {
+      super("KafkaIO.Read");
+      this.read = read;
+    }
+
+    static class Builder<K, V>
+        implements ExternalTransformBuilder<
+            Read.External.Configuration, PBegin, PCollection<KV<Integer, V>>> {
+
+      @Override
+      public PTransform<PBegin, PCollection<KV<Integer, V>>> buildExternal(
+          Read.External.Configuration config) {
+        Read.Builder<K, V> readBuilder = new AutoValue_KafkaIO_Read.Builder<>();
+        Read.Builder.setupExternalBuilder(readBuilder, config);
+
+        return readBuilder.build().keyedByPartition();
+      }
+    }
+
+    @Override
+    public PCollection<KV<Integer, V>> expand(PBegin begin) {
+      return begin.apply(read).apply("KeyedByPartition", new Read.KeyedByPartition<>());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      read.populateDisplayData(builder);
     }
   }
 
