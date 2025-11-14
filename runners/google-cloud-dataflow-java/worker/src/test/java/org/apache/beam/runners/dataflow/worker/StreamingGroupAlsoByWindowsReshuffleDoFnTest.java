@@ -132,7 +132,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     return new ValueInEmptyWindows<>(
         (KeyedWorkItem<String, T>)
             new WindmillKeyedWorkItem<>(
-                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
+                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder, false));
   }
 
   @Test

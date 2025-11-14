@@ -95,6 +95,7 @@ public class WorkFailureProcessorTest {
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
+            false,
             clock),
         processWorkFn);
   }
