@@ -683,6 +683,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformMatchers.groupWithShardableStates(),
               new GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKeyOverrideFactory(
                   this)));
+      overridesBuilder.add(
+          PTransformOverride.of(
+              KafkaIO.Read.KEYED_BY_PARTITION_MATCHER,
+              new KeyedByPartitionOverride.StreamingKeyedByPartitionOverrideFactory(this)));
 
       overridesBuilder
           .add(
