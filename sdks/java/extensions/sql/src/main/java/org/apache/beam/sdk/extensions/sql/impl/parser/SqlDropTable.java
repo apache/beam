@@ -53,7 +53,11 @@ public class SqlDropTable extends SqlDropObject {
 
     BeamCalciteSchema beamCalciteSchema;
     if (schema instanceof CatalogManagerSchema) {
-      CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCatalogSchema(pathOverride);
+      CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
+      CatalogSchema catalogSchema =
+          pathOverride.catalog() != null
+              ? catalogManagerSchema.getCatalogSchema(pathOverride)
+              : catalogManagerSchema.getCurrentCatalogSchema();
       beamCalciteSchema = catalogSchema.getDatabaseSchema(pathOverride);
     } else if (schema instanceof BeamCalciteSchema) {
       beamCalciteSchema = (BeamCalciteSchema) schema;

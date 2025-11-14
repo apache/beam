@@ -148,6 +148,15 @@ public class IcebergMetastore extends InMemoryMetaStore {
   }
 
   @Override
+  public IcebergAlterTableOps alterTable(String name) {
+    IcebergTableInfo table =
+        checkStateNotNull(
+            catalogConfig.loadTable(getIdentifier(name)), "Could not find table '%s'", name);
+
+    return new IcebergAlterTableOps(table);
+  }
+
+  @Override
   public void registerProvider(TableProvider provider) {
     super.registerProvider(provider);
   }

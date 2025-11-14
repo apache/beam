@@ -330,4 +330,18 @@ public class BeamSqlCliCatalogTest {
     cli.execute("DROP TABLE catalog_1.db_1.person");
     assertNull(metastoreDb1.getTable("person"));
   }
+
+  @Test
+  public void testAlterCatalog() {
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local' PROPERTIES('foo'='abc', 'bar'='xyz')");
+    cli.execute("USE CATALOG my_catalog");
+    assertEquals(
+        ImmutableMap.of("foo", "abc", "bar", "xyz"), catalogManager.currentCatalog().properties());
+    cli.execute("ALTER CATALOG my_catalog SET ('foo'='123', 'new'='val')");
+    assertEquals(
+        ImmutableMap.of("foo", "123", "bar", "xyz", "new", "val"),
+        catalogManager.currentCatalog().properties());
+    cli.execute("ALTER CATALOG my_catalog RESET ('foo', 'bar')");
+    assertEquals(ImmutableMap.of("new", "val"), catalogManager.currentCatalog().properties());
+  }
 }
