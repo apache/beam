@@ -54,6 +54,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
@@ -600,6 +601,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                         fieldName,
                         Expressions.constant(LocalDateTime.class)),
                     LocalDateTime.class);
+          } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
+            value = Expressions.call(expression, "getDecimal", fieldName);
           } else {
             throw new UnsupportedOperationException("Unable to get logical type " + identifier);
           }
@@ -687,6 +690,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                     Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
                     Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
             return nullOr(value, returnValue);
+          } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
+            return Expressions.convert_(value, BigDecimal.class);
           } else {
             throw new UnsupportedOperationException("Unable to convert logical type " + identifier);
           }

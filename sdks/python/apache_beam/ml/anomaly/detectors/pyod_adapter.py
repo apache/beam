@@ -22,6 +22,7 @@ from typing import Any
 from typing import Optional
 
 import numpy as np
+from pyod.models.base import BaseDetector as PyODBaseDetector
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -33,7 +34,6 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import _PostProcessingModelHandler
 from apache_beam.ml.inference.utils import _convert_to_result
-from pyod.models.base import BaseDetector as PyODBaseDetector
 
 # Turn the used ModelHandler into specifiable, but without lazy init.
 KeyedModelHandler = specifiable(  # type: ignore[misc]

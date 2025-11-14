@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
@@ -641,14 +640,14 @@ public class BigQueryIOTranslation {
         if (formatFunctionBytes != null) {
           builder =
               builder.setFormatFunction(
-                  (SerializableFunction<?, TableRow>) fromByteArray(formatFunctionBytes));
+                  (BigQueryIO.TableRowFormatFunction<?>) fromByteArray(formatFunctionBytes));
         }
         byte[] formatRecordOnFailureFunctionBytes =
             configRow.getBytes("format_record_on_failure_function");
         if (formatRecordOnFailureFunctionBytes != null) {
           builder =
               builder.setFormatRecordOnFailureFunction(
-                  (SerializableFunction<?, TableRow>)
+                  (BigQueryIO.TableRowFormatFunction<?>)
                       fromByteArray(formatRecordOnFailureFunctionBytes));
         }
         byte[] avroRowWriterFactoryBytes = configRow.getBytes("avro_row_writer_factory");

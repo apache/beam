@@ -36,8 +36,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   private final SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord;
   private final SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
-  private final @javax.annotation.Nullable SerializableFunction<T, TableRow>
-      formatRecordOnFailureFunction;
+  private final BigQueryIO.@Nullable TableRowFormatFunction<T> formatRecordOnFailureFunction;
 
   private boolean usesCdc;
 
@@ -45,7 +44,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       DynamicDestinations<T, DestinationT> inner,
       SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
       SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord,
-      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
+      BigQueryIO.@Nullable TableRowFormatFunction<T> formatRecordOnFailureFunction,
       boolean usesCdc) {
     super(inner);
     this.toGenericRecord = toGenericRecord;
@@ -110,7 +109,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     @Override
     public TableRow toFailsafeTableRow(T element) {
       if (formatRecordOnFailureFunction != null) {
-        return formatRecordOnFailureFunction.apply(element);
+        return formatRecordOnFailureFunction.apply(null, element);
       } else {
         return BigQueryUtils.convertGenericRecordToTableRow(
             toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), bqTableSchema);

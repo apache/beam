@@ -111,11 +111,8 @@ public class PTransformFunctionRegistry {
 
     ThrowingRunnable wrapped =
         () -> {
-          executionState.activate();
-          try {
+          try (ExecutionState.ActiveState ignored = executionState.scopedActivate()) {
             runnable.run();
-          } finally {
-            executionState.deactivate();
           }
         };
     runnables.add(wrapped);

@@ -44,7 +44,7 @@ jobs:
         job_phrase: [Run Playground PreCommit]
     env:
       DATASTORE_EMULATOR_VERSION: '423.0.0'
-      PYTHON_VERSION: '3.9'
+      PYTHON_VERSION: '3.10'
       JAVA_VERSION: '11'
     steps:
       - uses: actions/checkout@v4

@@ -31,12 +31,13 @@ from dataclasses import dataclass
 from typing import Any
 from typing import Optional
 
+from openai import AsyncOpenAI
+from openai import OpenAI
+
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils import subprocess_server
-from openai import AsyncOpenAI
-from openai import OpenAI
 
 try:
   # VLLM logging config breaks beam logging.

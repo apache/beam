@@ -40,14 +40,16 @@ except ImportError:
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
+
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubImageEmbeddings
   from PIL import Image
+
+  from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubImageEmbeddings
 except ImportError:
   TensorflowHubImageEmbeddings = None  # type: ignore
   Image = None

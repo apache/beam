@@ -238,7 +238,7 @@ func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	}
 
 	// Add the refreshes now so our block prevention logic works.
-	emNow := em.ProcessingTimeNow()
+	emNow := em.processingTimeNow()
 	toRefresh := em.processTimeEvents.AdvanceTo(emNow)
 	em.changedStages.merge(toRefresh)
 }

@@ -79,6 +79,7 @@ except ImportError:
 
 if TYPE_CHECKING:
   import proto
+
   from apache_beam.transforms import userstate
   from apache_beam.transforms.window import IntervalWindow
 
@@ -93,9 +94,9 @@ is_compiled = False
 fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
 
 if TYPE_CHECKING or SLOW_STREAM:
+  from .slow_stream import ByteCountingOutputStream
   from .slow_stream import InputStream as create_InputStream
   from .slow_stream import OutputStream as create_OutputStream
-  from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
 
   try:
@@ -106,10 +107,11 @@ if TYPE_CHECKING or SLOW_STREAM:
 
 else:
   # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+  from .stream import ByteCountingOutputStream
   from .stream import InputStream as create_InputStream
   from .stream import OutputStream as create_OutputStream
-  from .stream import ByteCountingOutputStream
   from .stream import get_varint_size
+
   # Make it possible to import create_InputStream and other cdef-classes
   # from apache_beam.coders.coder_impl when Cython codepath is used.
   globals()['create_InputStream'] = create_InputStream

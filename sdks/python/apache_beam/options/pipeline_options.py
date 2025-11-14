@@ -508,7 +508,7 @@ class PipelineOptions(HasDisplayData):
     subset = {}
     parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in PipelineOptions.__subclasses__():
-      subset[str(cls)] = cls
+      subset.setdefault(str(cls), cls)
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:

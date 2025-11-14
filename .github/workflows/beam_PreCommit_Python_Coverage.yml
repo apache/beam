@@ -65,7 +65,7 @@ jobs:
       matrix:
         job_name: [beam_PreCommit_Python_Coverage]
         job_phrase: [Run Python_Coverage PreCommit]
-        python_version: ['3.9']
+        python_version: ['3.10']
         # Run on both self-hosted and GitHub-hosted runners.
         # Some tests (marked require_docker_in_docker) can't run on Beam's
         # self-hosted runners due to Docker-in-Docker environment constraint.
@@ -118,7 +118,7 @@ jobs:
           TC_SLEEP_TIME: "1"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py39:preCommitPyCoverage
+          gradle-command: :sdks:python:test-suites:tox:py310:preCommitPyCoverage
           arguments: |
             -Pposargs="${{
               contains(matrix.os, 'self-hosted') &&

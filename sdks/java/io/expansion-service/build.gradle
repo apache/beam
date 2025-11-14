@@ -49,6 +49,11 @@ configurations.runtimeClasspath {
       details.useVersion('9.4.57.v20241219')
     }
   }
+
+  // Pin logback to 1.5.20
+  // Cannot upgrade to io modules due to logback 1.4.x dropped Java 8 support
+  resolutionStrategy.force "ch.qos.logback:logback-classic:1.5.20"
+  resolutionStrategy.force "ch.qos.logback:logback-core:1.5.20"
 }
 
 shadowJar {
