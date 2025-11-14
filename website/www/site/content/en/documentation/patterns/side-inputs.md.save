@@ -52,7 +52,7 @@ For instance, the following code sample uses a `Map` to create a `DoFn`. The `Ma
 {{< /highlight >}}
 
 
-## Slowly updating side input using windowing
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}## Slowly updating side input using windowing
 
 You can read side input data periodically into distinct PCollection windows.
 When you apply the side input to your main input, each main input
