@@ -126,6 +126,10 @@ public class BeamCalciteSchema implements Schema {
         connection.getPipelineOptions());
   }
 
+  public Collection<Table> getTables() {
+    return tableProvider.getTables().values();
+  }
+
   @Override
   public Set<String> getFunctionNames() {
     return Collections.emptySet();
