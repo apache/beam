@@ -263,7 +263,6 @@ public class BeamRowToStorageApiProtoTest {
           .put("booleanvalue", true)
           .put("bytesvalue", ByteString.copyFrom(BYTES))
           .put("arrayvalue", ImmutableList.of("one", "two", "red", "blue"))
-          .put("arraynullvalue", Collections.emptyList())
           .put("iterablevalue", ImmutableList.of("blue", "red", "two", "one"))
           .put(
               "sqldatevalue",
