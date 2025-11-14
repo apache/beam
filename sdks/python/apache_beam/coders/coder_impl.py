@@ -1020,8 +1020,7 @@ class VarIntCoderImpl(StreamCoderImpl):
       raise OverflowError(
           f"Integer value '{value}' is out of the encodable range for VarIntCoder. "
           f"This coder is limited to values that fit within a 64-bit signed integer "
-          f"(-(2**63) to 2**63 - 1). Original error: {e}"
-      ) from e
+          f"(-(2**63) to 2**63 - 1). Original error: {e}") from e
 
   def decode_from_stream(self, in_stream, nested):
     # type: (create_InputStream, bool) -> int
@@ -1049,8 +1048,7 @@ class VarIntCoderImpl(StreamCoderImpl):
       raise OverflowError(
           f"Cannot estimate size for integer value '{value}'. "
           f"Value is out of the range for VarIntCoder (64-bit signed integer). "
-          f"Original error: {e}"
-      ) from e
+          f"Original error: {e}") from e
 
 
 class VarInt32CoderImpl(StreamCoderImpl):
