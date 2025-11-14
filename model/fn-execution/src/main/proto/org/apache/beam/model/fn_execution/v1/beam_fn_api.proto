@@ -416,10 +416,10 @@ message ProcessBundleRequest {
   // at https://s.apache.org/beam-fn-api-control-data-embedding.
   Elements elements = 3;
 
-  // indicates that the runner has no start for the keys in this bundle
+  // indicates that the runner has no stare for the keys in this bundle
   // so SDk can safely begin stateful processing with a locally-generated
   // initial empty state
-  bool has_no_keyed_state = 4;
+  bool has_no_state = 4;
 
   // indicates that the runner will never process another bundle for the keys
   // in this bundle so state need not be included in the bundle commit.
