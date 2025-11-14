@@ -21,7 +21,7 @@
 import logging
 import time
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from tenacity import retry
 from tenacity import stop_after_attempt
@@ -185,7 +185,8 @@ class StateSamplerTest(unittest.TestCase):
         expected_value * (1.0 + margin_of_error),
         "The timer metric was higher than expected.")
 
-  def test_do_operation_process_timer_metric(self):
+  @patch('apache_beam.runners.common.DoFnRunner')
+  def test_do_operation_process_timer_metric(self, mock_dofn_runner):
     """
     Tests that the 'process-timers-msecs' metric is correctly recorded
     when a timer is processed within a DoOperation.
@@ -256,7 +257,8 @@ class StateSamplerTest(unittest.TestCase):
         expected_value * (1.0 + margin_of_error),
         "The timer metric was higher than expected.")
 
-  def test_do_operation_process_timer_metric_with_exception(self):
+  @patch('apache_beam.runners.common.DoFnRunner')
+  def test_do_operation_process_timer_metric_with_exception(self, mock_dofn_runner):
     """
     Tests that the 'process-timers-msecs' metric is still recorded
     when a timer callback in a DoOperation raises an exception.
