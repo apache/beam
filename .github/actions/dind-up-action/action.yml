@@ -43,7 +43,7 @@ inputs:
   storage-driver:
     default: overlay2
   additional-dockerd-args:
-    default: ""
+    default: "--tls=false"
   use-host-network:
     description: "Run DinD with --network host instead of publishing a TCP port."
     default: "false"
@@ -206,20 +206,20 @@ runs:
       run: |
         set -euo pipefail
         NAME="${{ inputs.container-name || 'dind-daemon' }}"
-        
+
         # Use host daemon to inspect the DinD container
         nm=$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$NAME")
         echo "DinD NetworkMode=${nm}"
 
         # Try to find the bridge network IP
         ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$NAME" || true)
-        
+
         # If still empty, likely host networking -> use loopback
         if [[ -z "${ip}" || "${nm}" == "host" ]]; then
           echo "No bridge IP found or using host network. Falling back to 127.0.0.1."
           ip="127.0.0.1"
         fi
-        
+
         echo "Discovered DinD IP: ${ip}"
         echo "dind-ip=${ip}" >> "$GITHUB_OUTPUT"
 
@@ -237,7 +237,7 @@ runs:
         hostport=$(docker port redis-smoke 6379/tcp | sed 's/.*://')
         echo "Redis container started, mapped to host port ${hostport}"
         echo "Probing connection to ${DIND_IP}:${hostport} ..."
-        
+
         timeout 5 bash -c 'exec 3<>/dev/tcp/$DIND_IP/'"$hostport"
         if [[ $? -eq 0 ]]; then
           echo "TCP connection successful. Port mapping is working."
