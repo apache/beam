@@ -170,17 +170,3 @@ class StateSampler(statesampler_impl.StateSampler):
     for state in self._states_by_name.values():
       state_msecs = int(1e-6 * state.nsecs)
       state.counter.update(state_msecs - state.counter.value())
-
-
-class NoOpScopedState:
-  def __enter__(self):
-    pass
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    pass
-
-  def sampled_msecs_int(self):
-    return 0
-
-
-NOOP_SCOPED_STATE = NoOpScopedState()

@@ -49,7 +49,6 @@ from apache_beam.runners.common import Receiver
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
-from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
@@ -445,19 +444,12 @@ class Operation(object):
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
 
     self.state_sampler = state_sampler
-    if self.state_sampler:
-      self.scoped_start_state = self.state_sampler.scoped_state(
-          self.name_context, 'start', metrics_container=self.metrics_container)
-      self.scoped_process_state = self.state_sampler.scoped_state(
-          self.name_context,
-          'process',
-          metrics_container=self.metrics_container)
-      self.scoped_finish_state = self.state_sampler.scoped_state(
-          self.name_context, 'finish', metrics_container=self.metrics_container)
-    else:
-      self.scoped_start_state = statesampler.NOOP_SCOPED_STATE
-      self.scoped_process_state = statesampler.NOOP_SCOPED_STATE
-      self.scoped_finish_state = statesampler.NOOP_SCOPED_STATE
+    self.scoped_start_state = self.state_sampler.scoped_state(
+        self.name_context, 'start', metrics_container=self.metrics_container)
+    self.scoped_process_state = self.state_sampler.scoped_state(
+        self.name_context, 'process', metrics_container=self.metrics_container)
+    self.scoped_finish_state = self.state_sampler.scoped_state(
+        self.name_context, 'finish', metrics_container=self.metrics_container)
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.receivers = []  # type: List[ConsumerSet]
@@ -817,12 +809,10 @@ class DoOperation(Operation):
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
     self.input_info = None  # type: Optional[OpInputInfo]
-    self.scoped_timer_processing_state = statesampler.NOOP_SCOPED_STATE
-    if self.state_sampler:
-      self.scoped_timer_processing_state = self.state_sampler.scoped_state(
-          self.name_context,
-          'process-timers',
-          metrics_container=self.metrics_container)
+    self.scoped_timer_processing_state = self.state_sampler.scoped_state(
+        self.name_context,
+        'process-timers',
+        metrics_container=self.metrics_container)
     # See fn_data in dataflow_runner.py
     # TODO: Store all the items from spec?
     self.fn, _, _, _, _ = (pickler.loads(self.spec.serialized_fn))
@@ -984,7 +974,7 @@ class DoOperation(Operation):
     self.user_state_context.add_timer_info(timer_family_id, timer_info)
 
   def process_timer(self, tag, timer_data):
-    def process_timer_logic():
+    with self.scoped_timer_processing_state:
       timer_spec = self.timer_specs[tag]
       self.dofn_runner.process_user_timer(
           timer_spec,
@@ -993,12 +983,6 @@ class DoOperation(Operation):
           timer_data.fire_timestamp,
           timer_data.paneinfo,
           timer_data.dynamic_timer_tag)
-
-    if self.scoped_timer_processing_state:
-      with self.scoped_timer_processing_state:
-        process_timer_logic()
-    else:
-      process_timer_logic()
 
   def finish(self):
     # type: () -> None

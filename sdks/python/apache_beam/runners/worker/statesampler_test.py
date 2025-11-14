@@ -26,13 +26,14 @@ from unittest.mock import Mock
 from tenacity import retry
 from tenacity import stop_after_attempt
 
-from apache_beam.runners.worker import statesampler
-from apache_beam.utils.counters import CounterFactory
-from apache_beam.utils.counters import CounterName
+from apache_beam.internal import pickler
+from apache_beam.runners import common
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
-from apache_beam.internal import pickler
+from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import core
+from apache_beam.utils.counters import CounterFactory
+from apache_beam.utils.counters import CounterName
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ class StateSamplerTest(unittest.TestCase):
     sampler = statesampler.StateSampler(
         'test_stage', counter_factory, sampling_period_ms=1)
 
-    # Keeps range between 50-350 ms, which is fair. 
+    # Keeps range between 50-350 ms, which is fair.
     state_duration_ms = 200
     margin_of_error = 0.75
 
@@ -184,36 +185,15 @@ class StateSamplerTest(unittest.TestCase):
         expected_value * (1.0 + margin_of_error),
         "The timer metric was higher than expected.")
 
-  def test_do_operation_with_sampler(self):
+  def test_do_operation_process_timer_metric(self):
     """
-      Tests that a DoOperation with an active state_sampler correctly
-      creates a real ScopedState object for timer processing.
-      """
-    mock_spec = operation_specs.WorkerDoFn(
-        serialized_fn=pickler.dumps((core.DoFn(), None, None, None, None)),
-        output_tags=[],
-        input=None,
-        side_inputs=[],
-        output_coders=[])
-
+    Tests that the 'process-timers-msecs' metric is correctly recorded
+    when a timer is processed within a DoOperation.
+    """
+    counter_factory = CounterFactory()
     sampler = statesampler.StateSampler(
-        'test_stage', CounterFactory(), sampling_period_ms=1)
+        'test_stage', counter_factory, sampling_period_ms=1)
 
-    # 1. Create the operation WITHOUT the unexpected keyword argument
-    op = operations.create_operation(
-        name_context='test_op',
-        spec=mock_spec,
-        counter_factory=CounterFactory(),
-        state_sampler=sampler)
-
-    self.assertIsNot(
-        op.scoped_timer_processing_state, statesampler.NOOP_SCOPED_STATE)
-
-  def test_do_operation_without_sampler(self):
-    """
-    Tests that a DoOperation without a state_sampler correctly uses the
-    NOOP_SCOPED_STATE for timer processing.
-    """
     mock_spec = operation_specs.WorkerDoFn(
         serialized_fn=pickler.dumps((core.DoFn(), None, None, None, None)),
         output_tags=[],
@@ -221,15 +201,133 @@ class StateSamplerTest(unittest.TestCase):
         side_inputs=[],
         output_coders=[])
 
-    # 1. Create the operation WITHOUT the unexpected keyword argument
-    op = operations.create_operation(
-        name_context='test_op',
+    op = operations.DoOperation(
+        name=common.NameContext('test_op'),
         spec=mock_spec,
-        counter_factory=CounterFactory(),
-        state_sampler=None)
+        counter_factory=counter_factory,
+        sampler=sampler)
 
-    self.assertIs(
-        op.scoped_timer_processing_state, statesampler.NOOP_SCOPED_STATE)
+    op.dofn_runner = Mock()
+    op.timer_specs = {'timer_id': Mock()}
+    state_duration_ms = 200
+    margin_of_error = 0.75
+
+    def mock_process_user_timer(*args, **kwargs):
+      time.sleep(state_duration_ms / 1000.0)
+
+    op.dofn_runner.process_user_timer = mock_process_user_timer
+
+    mock_timer_data = Mock()
+    mock_timer_data.windows = [Mock()]
+    mock_timer_data.user_key = Mock()
+    mock_timer_data.fire_timestamp = Mock()
+    mock_timer_data.paneinfo = Mock()
+    mock_timer_data.dynamic_timer_tag = Mock()
+
+    sampler.start()
+    op.process_timer('timer_id', mock_timer_data)
+    sampler.stop()
+    sampler.commit_counters()
+
+    if not statesampler.FAST_SAMPLER:
+      return
+
+    expected_counter_name = CounterName(
+        'process-timers-msecs', step_name='test_op', stage_name='test_stage')
+
+    found_counter = None
+    for counter in counter_factory.get_counters():
+      if counter.name == expected_counter_name:
+        found_counter = counter
+        break
+
+    self.assertIsNotNone(
+        found_counter,
+        f"The expected counter '{expected_counter_name}' was not created.")
+
+    actual_value = found_counter.value()
+    expected_value = state_duration_ms
+    self.assertGreater(
+        actual_value,
+        expected_value * (1.0 - margin_of_error),
+        "The timer metric was lower than expected.")
+    self.assertLess(
+        actual_value,
+        expected_value * (1.0 + margin_of_error),
+        "The timer metric was higher than expected.")
+
+  def test_do_operation_process_timer_metric_with_exception(self):
+    """
+    Tests that the 'process-timers-msecs' metric is still recorded
+    when a timer callback in a DoOperation raises an exception.
+    """
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler(
+        'test_stage', counter_factory, sampling_period_ms=1)
+
+    mock_spec = operation_specs.WorkerDoFn(
+        serialized_fn=pickler.dumps((core.DoFn(), None, None, None, None)),
+        output_tags=[],
+        input=None,
+        side_inputs=[],
+        output_coders=[])
+
+    op = operations.DoOperation(
+        name=common.NameContext('test_op'),
+        spec=mock_spec,
+        counter_factory=counter_factory,
+        sampler=sampler)
+
+    op.dofn_runner = Mock()
+    op.timer_specs = {'timer_id': Mock()}
+    state_duration_ms = 200
+    margin_of_error = 0.75
+
+    def mock_process_user_timer(*args, **kwargs):
+      time.sleep(state_duration_ms / 1000.0)
+      raise ValueError("Test Exception")
+
+    op.dofn_runner.process_user_timer = mock_process_user_timer
+
+    mock_timer_data = Mock()
+    mock_timer_data.windows = [Mock()]
+    mock_timer_data.user_key = Mock()
+    mock_timer_data.fire_timestamp = Mock()
+    mock_timer_data.paneinfo = Mock()
+    mock_timer_data.dynamic_timer_tag = Mock()
+
+    sampler.start()
+    with self.assertRaises(ValueError):
+      op.process_timer('timer_id', mock_timer_data)
+    sampler.stop()
+    sampler.commit_counters()
+
+    if not statesampler.FAST_SAMPLER:
+      return
+
+    expected_counter_name = CounterName(
+        'process-timers-msecs', step_name='test_op', stage_name='test_stage')
+
+    found_counter = None
+    for counter in counter_factory.get_counters():
+      if counter.name == expected_counter_name:
+        found_counter = counter
+        break
+
+    self.assertIsNotNone(
+        found_counter,
+        f"The expected counter '{expected_counter_name}' was not created.")
+
+    actual_value = found_counter.value()
+    expected_value = state_duration_ms
+    self.assertGreater(
+        actual_value,
+        expected_value * (1.0 - margin_of_error),
+        "The timer metric was lower than expected.")
+    self.assertLess(
+        actual_value,
+        expected_value * (1.0 + margin_of_error),
+        "The timer metric was higher than expected.")
 
 
 if __name__ == '__main__':
