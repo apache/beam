@@ -237,7 +237,7 @@ class DataInputOperation(RunnerIOOperation):
         coder = str(self.windowed_coder)
         step = self.name_context.step_name
         raise ValueError(
-            f"Error decoding input stream with coder ${coder} in step ${step}"
+            f"Error decoding input stream with coder {coder} in step {step}"
         ) from exn
       self.output(decoded_value)
 
