@@ -57,6 +57,9 @@ inputs:
     default: 10s
   wait-timeout:
     default: "180"
+  dind-image:
+    description: "DinD image. Use a fixed version tag to avoid issues."
+    default: "docker:27-dind"
 
   # --- NEW: Optional Setup & Verification Steps ---
   cleanup-dind-on-start:
@@ -129,7 +132,11 @@ runs:
 
         docker volume create --name "${STORAGE_VOL}" --label "com.github.dind=1" --label "com.github.repo=${GITHUB_REPOSITORY}" >/dev/null
         docker volume create --name "${EXECROOT_VOL}" --label "com.github.dind=1" --label "com.github.repo=${GITHUB_REPOSITORY}" >/dev/null
+
+        # Clean up any existing DinD containers
+        docker ps -a -q --filter "label=com.github.dind=1" | xargs -r docker rm -f -v 2>/dev/null || true
         docker rm -f -v "$NAME" 2>/dev/null || true
+        sleep 2
 
         NET_ARGS=""
         PUBLISH_ARGS="-p ${BIND}:${PORT}:${PORT}"
@@ -137,6 +144,8 @@ runs:
           NET_ARGS="--network host"
           PUBLISH_ARGS=""
         fi
+
+        IMAGE="${{ inputs.dind-image || 'docker:27-dind' }}"
 
         docker run -d --privileged --name "$NAME" \
           --cgroupns=host \
@@ -152,10 +161,11 @@ runs:
           --health-interval=${HI} \
           --health-retries=${HR} \
           --health-start-period=${HSP} \
-          docker:dind \
+          "${IMAGE}" \
             --host=tcp://0.0.0.0:${PORT} \
             --host=unix:///var/run/docker.sock \
             --storage-driver=${SD} \
+            --iptables=false \
             --exec-root=/execroot ${EXTRA}
 
         {
