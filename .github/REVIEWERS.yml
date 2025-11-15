@@ -23,7 +23,6 @@ labels:
       - jrmccluskey
       - lostluck
       - shunping
-      - liferoad
     exclusionList: []
   - name: Python
     reviewers:
@@ -31,7 +30,6 @@ labels:
       - damccorm
       - jrmccluskey
       - tvalentyn
-      - liferoad
       - shunping
     exclusionList: []
   - name: Java
@@ -39,7 +37,6 @@ labels:
       - Abacn
       - ahmedabu98
       - chamikaramj
-      - m-trieu
       - kennknowles
     exclusionList: []
   - name: spanner
@@ -64,9 +61,10 @@ labels:
     exclusionList: []
   - name: website
     reviewers:
+      - Abacn
       - damccorm
-      - liferoad
       - kennknowles
+      - shunping
     exclusionList: []
 fallbackReviewers:
   - Abacn
@@ -74,6 +72,5 @@ fallbackReviewers:
   - damccorm
   - jrmccluskey
   - kennknowles
-  - liferoad
   - shunping
   - tvalentyn
