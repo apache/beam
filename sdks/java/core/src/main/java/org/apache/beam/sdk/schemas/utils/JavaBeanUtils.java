@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
@@ -39,6 +40,7 @@ import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import net.bytebuddy.implementation.bytecode.Removal;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
@@ -55,9 +57,9 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.TypeDescriptorWithSchema;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -101,7 +103,8 @@ public class JavaBeanUtils {
 
     for (FieldValueTypeInformation type : getters) {
       FieldValueTypeInformation setterType = setterMap.get(type.getName());
-      Method m = Preconditions.checkNotNull(type.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
+      Method m =
+          Preconditions.checkArgumentNotNull(type.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
       if (setterType == null) {
         throw new RuntimeException(
             String.format(
@@ -172,7 +175,8 @@ public class JavaBeanUtils {
           FieldValueTypeInformation typeInformation,
           TypeConversionsFactory typeConversionsFactory) {
     final Method m =
-        Preconditions.checkNotNull(typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
+        Preconditions.checkArgumentNotNull(
+            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
     DynamicType.Builder<FieldValueGetter<ObjectT, ValueT>> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
@@ -239,7 +243,8 @@ public class JavaBeanUtils {
   public static <ObjectT, ValueT> FieldValueSetter<ObjectT, ValueT> createSetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     final Method m =
-        Preconditions.checkNotNull(typeInformation.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
+        Preconditions.checkArgumentNotNull(
+            typeInformation.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
     DynamicType.Builder<FieldValueSetter<ObjectT, ValueT>> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
@@ -439,6 +444,14 @@ public class JavaBeanUtils {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
+        StackManipulation cast =
+            typeInformation
+                    .getRawType()
+                    .isAssignableFrom(
+                        Preconditions.checkStateNotNull(typeInformation.getMethod())
+                            .getReturnType())
+                ? StackManipulation.Trivial.INSTANCE
+                : TypeCasting.to(TypeDescription.ForLoadedType.of(typeInformation.getRawType()));
 
         // StackManipulation that will read the value from the class field.
         StackManipulation readValue =
@@ -448,8 +461,9 @@ public class JavaBeanUtils {
                 // Invoke the getter
                 MethodInvocation.invoke(
                     new ForLoadedMethod(
-                        Preconditions.checkNotNull(
-                            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR))));
+                        Preconditions.checkStateNotNull(
+                            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR))),
+                cast);
 
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
@@ -492,7 +506,7 @@ public class JavaBeanUtils {
         StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(2);
 
         Method method =
-            Preconditions.checkNotNull(
+            Preconditions.checkStateNotNull(
                 fieldValueTypeInformation.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
         boolean setterMethodReturnsVoid = method.getReturnType().equals(Void.TYPE);
         // Read the object onto the stack.
