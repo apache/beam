@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -36,7 +36,9 @@ public class MapTaskExecutor implements WorkExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(MapTaskExecutor.class);
 
   /** The operations in the map task, in execution order. */
-  public final List<Operation> operations;
+  public final ArrayList<Operation> operations;
+
+  private boolean closed = false;
 
   private final ExecutionStateTracker executionStateTracker;
 
@@ -54,7 +56,7 @@ public class MapTaskExecutor implements WorkExecutor {
       CounterSet counters,
       ExecutionStateTracker executionStateTracker) {
     this.counters = counters;
-    this.operations = operations;
+    this.operations = new ArrayList<>(operations);
     this.executionStateTracker = executionStateTracker;
   }
 
@@ -63,6 +65,7 @@ public class MapTaskExecutor implements WorkExecutor {
     return counters;
   }
 
+  /** May be reused if execute() returns without an exception being thrown. */
   @Override
   public void execute() throws Exception {
     LOG.debug("Executing map task");
@@ -74,13 +77,11 @@ public class MapTaskExecutor implements WorkExecutor {
         // Starting a root operation such as a ReadOperation does the work
         // of processing the input dataset.
         LOG.debug("Starting operations");
-        ListIterator<Operation> iterator = operations.listIterator(operations.size());
-        while (iterator.hasPrevious()) {
+        for (int i = operations.size() - 1; i >= 0; --i) {
           if (Thread.currentThread().isInterrupted()) {
             throw new InterruptedException("Worker aborted");
           }
-          Operation op = iterator.previous();
-          op.start();
+          operations.get(i).start();
         }
 
         // Finish operations, in forward-execution-order, so that a
@@ -94,16 +95,13 @@ public class MapTaskExecutor implements WorkExecutor {
           op.finish();
         }
       } catch (Exception | Error exn) {
-        LOG.debug("Aborting operations", exn);
-        for (Operation op : operations) {
-          try {
-            op.abort();
-          } catch (Exception | Error exn2) {
-            exn.addSuppressed(exn2);
-            if (exn2 instanceof InterruptedException) {
-              Thread.currentThread().interrupt();
-            }
-          }
+        try {
+          closeInternal();
+        } catch (Exception closeExn) {
+          exn.addSuppressed(closeExn);
+        }
+        if (exn instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
         }
         throw exn;
       }
@@ -161,6 +159,45 @@ public class MapTaskExecutor implements WorkExecutor {
       if (op instanceof ReadOperation) {
         ((ReadOperation) op).abortReadLoop();
       }
+    }
+  }
+
+  private void closeInternal() throws Exception {
+    if (closed) {
+      return;
+    }
+    LOG.debug("Aborting operations");
+    @Nullable Exception exn = null;
+    for (Operation op : operations) {
+      try {
+        op.abort();
+      } catch (Exception | Error exn2) {
+        if (exn2 instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        if (exn == null) {
+          if (exn2 instanceof Exception) {
+            exn = (Exception) exn2;
+          } else {
+            exn = new RuntimeException(exn2);
+          }
+        } else {
+          exn.addSuppressed(exn2);
+        }
+      }
+    }
+    closed = true;
+    if (exn != null) {
+      throw exn;
+    }
+  }
+
+  @Override
+  public void close() {
+    try {
+      closeInternal();
+    } catch (Exception e) {
+      LOG.error("Exception while closing MapTaskExecutor, ignoring", e);
     }
   }
 

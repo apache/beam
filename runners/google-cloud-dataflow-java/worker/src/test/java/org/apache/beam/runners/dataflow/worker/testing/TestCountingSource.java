@@ -65,6 +65,11 @@ public class TestCountingSource
     TestCountingSource.finalizeTracker = finalizeTracker;
   }
 
+  public static void resetStaticState() {
+    finalizeTracker = null;
+    thrown = false;
+  }
+
   public TestCountingSource(int numMessagesPerShard) {
     this(numMessagesPerShard, 0, false, false, true);
   }
