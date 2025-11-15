@@ -134,8 +134,8 @@ class StateSampler(statesampler_impl.StateSampler):
       name_context: Union[str, 'common.NameContext'],
       state_name: str,
       io_target=None,
-      metrics_container: Optional['MetricsContainer'] = None
-  ) -> statesampler_impl.ScopedState:
+      metrics_container: Optional['MetricsContainer'] = None,
+      suffix: str = '-msecs') -> statesampler_impl.ScopedState:
     """Returns a ScopedState object associated to a Step and a State.
 
     Args:
@@ -152,7 +152,7 @@ class StateSampler(statesampler_impl.StateSampler):
       name_context = common.NameContext(name_context)
 
     counter_name = CounterName(
-        state_name + '-msecs',
+        state_name + suffix,
         stage_name=self._prefix,
         step_name=name_context.metrics_name(),
         io_target=io_target)
@@ -170,3 +170,17 @@ class StateSampler(statesampler_impl.StateSampler):
     for state in self._states_by_name.values():
       state_msecs = int(1e-6 * state.nsecs)
       state.counter.update(state_msecs - state.counter.value())
+
+
+class NoOpScopedState:
+  def __enter__(self):
+    pass
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    pass
+
+  def sampled_msecs_int(self):
+    return 0
+
+
+NOOP_SCOPED_STATE = NoOpScopedState()
