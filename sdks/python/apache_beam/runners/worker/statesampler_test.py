@@ -186,22 +186,25 @@ class StateSamplerTest(unittest.TestCase):
         expected_value * (1.0 + margin_of_error),
         "The timer metric was higher than expected.")
 
-  @patch('apache_beam.runners.common.DoFnRunner.process_user_timer')
-  def test_do_operation_process_timer_metric(self, mock_process_user_timer):
+  @patch('apache_beam.runners.common.DoFnRunner')
+  def test_do_operation_process_timer_metric(self, mock_dofn_runner_class):
     """
-      Tests that the 'process-timers-msecs' metric is correctly recorded
-      when a timer is processed within a DoOperation.
-      """
+    Tests that the 'process-timers-msecs' metric is correctly recorded
+    when a timer is processed within a DoOperation.
+    """
+    mock_dofn_runner_instance = mock_dofn_runner_class.return_value
+    state_duration_ms = 200
+
+    def mock_process_user_timer(*args, **kwargs):
+      time.sleep(state_duration_ms / 1000.0)
+
+    mock_dofn_runner_instance.process_user_timer = mock_process_user_timer
     counter_factory = CounterFactory()
     sampler = statesampler.StateSampler(
         'test_stage', counter_factory, sampling_period_ms=1)
 
-    # Create a mock for the windowing function
-    mock_window_fn = Mock()
-
     mock_spec = operation_specs.WorkerDoFn(
-        serialized_fn=pickler.dumps(
-            (core.DoFn(), None, None, [], mock_window_fn)),
+        serialized_fn=pickler.dumps((core.DoFn(), None, None, None, None)),
         output_tags=[],
         input=None,
         side_inputs=[],
@@ -211,19 +214,17 @@ class StateSamplerTest(unittest.TestCase):
         name=common.NameContext('test_op'),
         spec=mock_spec,
         counter_factory=counter_factory,
-        sampler=sampler,
-        user_state_context=Mock())
+        sampler=sampler)
 
     op.setup()
+    op.dofn_runner = Mock()
     op.timer_specs = {'timer_id': Mock()}
-
-    state_duration_ms = 200
     margin_of_error = 0.75
 
-    def sleep_and_return(*args, **kwargs):
+    def mock_process_timer_usage(*args, **kwargs):
       time.sleep(state_duration_ms / 1000.0)
 
-    mock_process_user_timer.side_effect = sleep_and_return
+    op.dofn_runner.process_user_timer = mock_process_timer_usage
 
     mock_timer_data = Mock()
     mock_timer_data.windows = [Mock()]
@@ -264,23 +265,29 @@ class StateSamplerTest(unittest.TestCase):
         expected_value * (1.0 + margin_of_error),
         "The timer metric was higher than expected.")
 
-  @patch('apache_beam.runners.common.DoFnRunner.process_user_timer')
+  @patch('apache_beam.runners.common.DoFnRunner')
   def test_do_operation_process_timer_metric_with_exception(
-      self, mock_process_user_timer):
+      self, mock_dofn_runner_class):
     """
-      Tests that the 'process-timers-msecs' metric is still recorded
-      when a timer callback in a DoOperation raises an exception.
-      """
+    Tests that the 'process-timers-msecs' metric is still recorded
+    when a timer callback in a DoOperation raises an exception.
+    """
+    # Configure the mock instance to raise an exception
+    mock_dofn_runner_instance = mock_dofn_runner_class.return_value
+    state_duration_ms = 200
+
+    def mock_process_user_timer(*args, **kwargs):
+      time.sleep(state_duration_ms / 1000.0)
+      raise ValueError("Test Exception")
+
+    mock_dofn_runner_instance.process_user_timer = mock_process_user_timer
+
     counter_factory = CounterFactory()
     sampler = statesampler.StateSampler(
         'test_stage', counter_factory, sampling_period_ms=1)
 
-    # Create a mock for the windowing function
-    mock_window_fn = Mock()
-
     mock_spec = operation_specs.WorkerDoFn(
-        serialized_fn=pickler.dumps(
-            (core.DoFn(), None, None, [], mock_window_fn)),
+        serialized_fn=pickler.dumps((core.DoFn(), None, None, None, None)),
         output_tags=[],
         input=None,
         side_inputs=[],
@@ -291,19 +298,14 @@ class StateSamplerTest(unittest.TestCase):
         spec=mock_spec,
         counter_factory=counter_factory,
         sampler=sampler,
+        # Provide a mock context to satisfy the setup method
         user_state_context=Mock())
 
+    # The setup call now succeeds because DoFnRunner is mocked
     op.setup()
+
     op.timer_specs = {'timer_id': Mock()}
-
-    state_duration_ms = 200
     margin_of_error = 0.75
-
-    def sleep_and_raise(*args, **kwargs):
-      time.sleep(state_duration_ms / 1000.0)
-      raise ValueError("Test Exception")
-
-    mock_process_user_timer.side_effect = sleep_and_raise
 
     mock_timer_data = Mock()
     mock_timer_data.windows = [Mock()]
@@ -313,6 +315,7 @@ class StateSamplerTest(unittest.TestCase):
     mock_timer_data.dynamic_timer_tag = Mock()
 
     sampler.start()
+    # The test correctly asserts that a ValueError is raised
     with self.assertRaises(ValueError):
       op.process_timer('timer_id', mock_timer_data)
     sampler.stop()
@@ -334,6 +337,7 @@ class StateSamplerTest(unittest.TestCase):
         found_counter,
         f"The expected counter '{expected_counter_name}' was not created.")
 
+    # Assert that the timer metric was still recorded despite the exception
     actual_value = found_counter.value()
     expected_value = state_duration_ms
     self.assertGreater(
