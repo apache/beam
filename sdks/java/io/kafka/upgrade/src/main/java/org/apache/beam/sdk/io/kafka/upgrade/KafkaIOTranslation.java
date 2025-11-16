@@ -57,6 +57,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -90,6 +91,7 @@ public class KafkaIOTranslation {
             .addNullableStringField("topic_pattern")
             .addNullableByteArrayField("key_coder")
             .addNullableByteArrayField("value_coder")
+            .addByteArrayField("admin_factory_fn")
             .addByteArrayField("consumer_factory_fn")
             .addNullableByteArrayField("watermark_fn")
             .addInt64Field("max_num_records")
@@ -165,6 +167,9 @@ public class KafkaIOTranslation {
       }
       if (transform.getValueCoder() != null) {
         fieldValues.put("value_coder", toByteArray(transform.getValueCoder()));
+      }
+      if (transform.getAdminFactoryFn() != null) {
+        fieldValues.put("admin_factory_fn", toByteArray(transform.getAdminFactoryFn()));
       }
       if (transform.getConsumerFactoryFn() != null) {
         fieldValues.put("consumer_factory_fn", toByteArray(transform.getConsumerFactoryFn()));
@@ -326,6 +331,13 @@ public class KafkaIOTranslation {
                 transform.withValueDeserializer(
                     (DeserializerProvider) fromByteArray(valueDeserializerProvider));
           }
+        }
+
+        byte[] adminFactoryFn = configRow.getBytes("admin_factory_fn");
+        if (adminFactoryFn != null) {
+          transform =
+              transform.withAdminFactoryFn(
+                  (SerializableFunction<Map<String, Object>, Admin>) fromByteArray(adminFactoryFn));
         }
 
         byte[] consumerFactoryFn = configRow.getBytes("consumer_factory_fn");

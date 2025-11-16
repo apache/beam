@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
+import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -75,6 +76,10 @@ public final class KafkaIOUtils {
           // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
           //     lets allow these, applications can have better resume point for restarts.
           );
+
+  // Default Kafka Admin supplier.
+  static final SerializableFunction<Map<String, Object>, Admin> KAFKA_ADMIN_FACTORY_FN =
+      Admin::create;
 
   // default Kafka 0.9 Consumer supplier.
   static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
