@@ -114,6 +114,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -604,6 +605,7 @@ public class KafkaIO {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
         .setTopics(new ArrayList<>())
         .setTopicPartitions(new ArrayList<>())
+        .setAdminFactoryFn(KafkaIOUtils.KAFKA_ADMIN_FACTORY_FN)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
@@ -696,6 +698,9 @@ public class KafkaIO {
     public abstract @Nullable Coder<V> getValueCoder();
 
     @Pure
+    public abstract SerializableFunction<Map<String, Object>, Admin> getAdminFactoryFn();
+
+    @Pure
     public abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
@@ -777,6 +782,9 @@ public class KafkaIO {
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
 
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
+
+      abstract Builder<K, V> setAdminFactoryFn(
+          SerializableFunction<Map<String, Object>, Admin> adminFactoryFn);
 
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
@@ -861,6 +869,7 @@ public class KafkaIO {
 
         // Set required defaults
         builder.setTopicPartitions(Collections.emptyList());
+        builder.setAdminFactoryFn(KafkaIOUtils.KAFKA_ADMIN_FACTORY_FN);
         builder.setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
         if (config.maxReadTime != null) {
           builder.setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
@@ -1304,6 +1313,15 @@ public class KafkaIO {
           .setValueDeserializerProvider(deserializerProvider)
           .setValueCoder(valueCoder)
           .build();
+    }
+
+    /**
+     * A factory to create Kafka {@link Admin} from offset consumer configuration. This is useful
+     * for supporting another version of Kafka admin. Default is {@link Admin#create(Map)}.
+     */
+    public Read<K, V> withAdminFactoryFn(
+        SerializableFunction<Map<String, Object>, Admin> adminFactoryFn) {
+      return toBuilder().setAdminFactoryFn(adminFactoryFn).build();
     }
 
     /**
@@ -1963,6 +1981,7 @@ public class KafkaIO {
             ReadSourceDescriptors.<K, V>read()
                 .withConsumerConfigOverrides(kafkaRead.getConsumerConfig())
                 .withOffsetConsumerConfigOverrides(kafkaRead.getOffsetConsumerConfig())
+                .withAdminFactoryFn(kafkaRead.getAdminFactoryFn())
                 .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
                 .withKeyDeserializerProviderAndCoder(
                     kafkaRead.getKeyDeserializerProvider(), keyCoder)
@@ -2480,6 +2499,9 @@ public class KafkaIO {
     abstract @Nullable Coder<V> getValueCoder();
 
     @Pure
+    abstract SerializableFunction<Map<String, Object>, Admin> getAdminFactoryFn();
+
+    @Pure
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
@@ -2528,6 +2550,9 @@ public class KafkaIO {
 
       abstract ReadSourceDescriptors.Builder<K, V> setOffsetConsumerConfig(
           @Nullable Map<String, Object> offsetConsumerConfig);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setAdminFactoryFn(
+          SerializableFunction<Map<String, Object>, Admin> adminFactoryFn);
 
       abstract ReadSourceDescriptors.Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
@@ -2583,6 +2608,7 @@ public class KafkaIO {
 
     public static <K, V> ReadSourceDescriptors<K, V> read() {
       return new AutoValue_KafkaIO_ReadSourceDescriptors.Builder<K, V>()
+          .setAdminFactoryFn(KafkaIOUtils.KAFKA_ADMIN_FACTORY_FN)
           .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
           .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
           .setCommitOffsetEnabled(false)
@@ -2681,6 +2707,15 @@ public class KafkaIO {
           .setValueDeserializerProvider(deserializerProvider)
           .setValueCoder(valueCoder)
           .build();
+    }
+
+    /**
+     * A factory to create Kafka {@link Admin} from offset consumer configuration. This is useful
+     * for supporting another version of Kafka admin. Default is {@link Admin#create(Map)}.
+     */
+    public ReadSourceDescriptors<K, V> withAdminFactoryFn(
+        SerializableFunction<Map<String, Object>, Admin> adminFactoryFn) {
+      return toBuilder().setAdminFactoryFn(adminFactoryFn).build();
     }
 
     /**

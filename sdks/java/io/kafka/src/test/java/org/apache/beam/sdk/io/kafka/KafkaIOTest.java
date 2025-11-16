@@ -43,6 +43,7 @@ import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -65,7 +66,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
@@ -124,6 +128,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.ListOffsetsResult;
+import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -137,6 +144,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.DefaultPartitioner;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
@@ -165,6 +173,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,6 +197,8 @@ public class KafkaIOTest {
    *   - test KafkaRecordCoder
    */
 
+  @Rule public final MockitoRule m = MockitoJUnit.rule();
+
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -200,6 +213,36 @@ public class KafkaIOTest {
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
   static List<String> mkKafkaTopics = ImmutableList.of("topic_a", "topic_b");
   static String mkKafkaServers = "myServer1:9092,myServer2:9092";
+
+  private static Admin mkMockAdmin(
+      List<String> topics, int partitionsPerTopic, int numElements, Map<String, Object> config) {
+    final long timestampStartMillis =
+        (Long)
+            config.getOrDefault(TIMESTAMP_START_MILLIS_CONFIG, LOG_APPEND_START_TIME.getMillis());
+    final Admin mock = Mockito.mock(Admin.class);
+    Mockito.when(mock.listOffsets(Mockito.anyMap()))
+        .thenReturn(
+            Stream.generate(topics::stream)
+                .flatMap(
+                    stream ->
+                        stream.flatMap(
+                            topic ->
+                                IntStream.range(0, partitionsPerTopic)
+                                    .mapToObj(i -> new TopicPartition(topic, i))))
+                .limit(numElements)
+                .collect(
+                    Collectors.collectingAndThen(
+                        Collectors.groupingBy(
+                            Function.identity(),
+                            Collectors.collectingAndThen(
+                                Collectors.counting(),
+                                c ->
+                                    KafkaFuture.completedFuture(
+                                        new ListOffsetsResult.ListOffsetsResultInfo(
+                                            c, timestampStartMillis, Optional.empty())))),
+                        ListOffsetsResult::new)));
+    return mock;
+  }
 
   // Update mock consumer with records distributed among the given topics, each with given number
   // of partitions. Records are assigned in round-robin order among the partitions.
@@ -338,8 +381,7 @@ public class KafkaIOTest {
     return consumer;
   }
 
-  private static class ConsumerFactoryFn
-      implements SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> {
+  private static class FactoryFns implements Serializable {
     private final List<String> topics;
     private final int partitionsPerTopic;
     private final int numElements;
@@ -347,7 +389,7 @@ public class KafkaIOTest {
     private SerializableFunction<Integer, byte[]> keyFunction;
     private SerializableFunction<Integer, byte[]> valueFunction;
 
-    ConsumerFactoryFn(
+    FactoryFns(
         List<String> topics,
         int partitionsPerTopic,
         int numElements,
@@ -360,7 +402,7 @@ public class KafkaIOTest {
       valueFunction = i -> ByteBuffer.wrap(new byte[8]).putLong(i).array();
     }
 
-    ConsumerFactoryFn(
+    FactoryFns(
         List<String> topics,
         int partitionsPerTopic,
         int numElements,
@@ -375,8 +417,11 @@ public class KafkaIOTest {
       this.valueFunction = valueFunction;
     }
 
-    @Override
-    public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
+    public Admin createAdmin(Map<String, Object> config) {
+      return mkMockAdmin(topics, partitionsPerTopic, numElements, config);
+    }
+
+    public Consumer<byte[], byte[]> createConsumer(Map<String, Object> config) {
       return mkMockConsumer(
           topics,
           partitionsPerTopic,
@@ -462,19 +507,21 @@ public class KafkaIOTest {
       @Nullable Boolean offsetDeduplication,
       @Nullable List<String> topics,
       @Nullable Boolean redistributeByRecordKey) {
+    FactoryFns factoryFns =
+        new FactoryFns(
+            topics != null
+                ? topics.stream().distinct().collect(Collectors.toList())
+                : mkKafkaTopics,
+            10,
+            numElements,
+            OffsetResetStrategy.EARLIEST); // 20 partitions
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers(mkKafkaServers)
             .withTopics(topics != null ? topics : mkKafkaTopics)
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    topics != null
-                        ? topics.stream().distinct().collect(Collectors.toList())
-                        : mkKafkaTopics,
-                    10,
-                    numElements,
-                    OffsetResetStrategy.EARLIEST)) // 20 partitions
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class);
     if (maxNumRecords != null) {
@@ -558,6 +605,15 @@ public class KafkaIOTest {
               new AvroGeneratedUser("ValueName" + i, i, "color" + i)));
     }
 
+    FactoryFns factoryFns =
+        new FactoryFns(
+            ImmutableList.of(topic),
+            1,
+            numElements,
+            OffsetResetStrategy.EARLIEST,
+            new KeyAvroSerializableFunction(topic, schemaRegistryUrl),
+            new ValueAvroSerializableFunction(topic, schemaRegistryUrl));
+
     KafkaIO.Read<GenericRecord, GenericRecord> reader =
         KafkaIO.<GenericRecord, GenericRecord>read()
             .withBootstrapServers("localhost:9092")
@@ -566,14 +622,8 @@ public class KafkaIOTest {
                 mockDeserializerProvider(schemaRegistryUrl, keySchemaSubject, null))
             .withValueDeserializer(
                 mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of(topic),
-                    1,
-                    numElements,
-                    OffsetResetStrategy.EARLIEST,
-                    new KeyAvroSerializableFunction(topic, schemaRegistryUrl),
-                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withMaxNumRecords(numElements);
 
     PCollection<KV<GenericRecord, GenericRecord>> input = p.apply(reader.withoutMetadata());
@@ -603,6 +653,15 @@ public class KafkaIOTest {
       inputs.add(KV.of(i, new AvroGeneratedUser("ValueName" + i, i, "color" + i)));
     }
 
+    FactoryFns factoryFns =
+        new FactoryFns(
+            ImmutableList.of(topic),
+            1,
+            numElements,
+            OffsetResetStrategy.EARLIEST,
+            i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
+            new ValueAvroSerializableFunction(topic, schemaRegistryUrl));
+
     KafkaIO.Read<Integer, AvroGeneratedUser> reader =
         KafkaIO.<Integer, AvroGeneratedUser>read()
             .withBootstrapServers("localhost:9092")
@@ -610,14 +669,8 @@ public class KafkaIOTest {
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(
                 mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of(topic),
-                    1,
-                    numElements,
-                    OffsetResetStrategy.EARLIEST,
-                    i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
-                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withMaxNumRecords(numElements);
 
     PCollection<KV<Integer, AvroGeneratedUser>> input = p.apply(reader.withoutMetadata());
@@ -666,14 +719,15 @@ public class KafkaIOTest {
     // onwards
     int numElements = 1000;
     String topic = "my_topic";
+    FactoryFns factoryFns =
+        new FactoryFns(ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST);
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers("none")
             .withTopic("my_topic")
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withMaxNumRecords(numElements)
             .withKeyDeserializerAndCoder(
                 KafkaIOTest.IntegerDeserializerWithHeadersAssertor.class,
@@ -968,14 +1022,15 @@ public class KafkaIOTest {
     int numElements = 1000;
     String topic = "my_topic";
     String bootStrapServer = "none";
+    FactoryFns factoryFns =
+        new FactoryFns(ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST);
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers(bootStrapServer)
             .withTopic("my_topic")
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withMaxNumRecords(numElements)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class);
@@ -996,14 +1051,15 @@ public class KafkaIOTest {
     String topic = "test";
     List<String> topics = ImmutableList.of(topic);
     String bootStrapServer = "none";
+    FactoryFns factoryFns =
+        new FactoryFns(topics, 10, numElements, OffsetResetStrategy.EARLIEST); // 10 partitions
 
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers(bootStrapServer)
             .withTopicPartitions(ImmutableList.of(new TopicPartition(topic, 5)))
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 10 partitions
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withKeyDeserializer(ByteArrayDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .withMaxNumRecords(numElements / 10);
@@ -1030,13 +1086,14 @@ public class KafkaIOTest {
             "best", "gest", "hest", "jest", "lest", "nest", "pest", "rest", "test", "vest", "west",
             "zest");
     String bootStrapServer = "none";
+    FactoryFns factoryFns = new FactoryFns(topics, 10, numElements, OffsetResetStrategy.EARLIEST);
 
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers("none")
             .withTopicPattern("[a-z]est")
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withKeyDeserializer(ByteArrayDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .withMaxNumRecords(numElements);
@@ -1059,13 +1116,14 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("test", "Test");
     String bootStrapServer = "none";
+    FactoryFns factoryFns = new FactoryFns(topics, 1, numElements, OffsetResetStrategy.EARLIEST);
 
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers(bootStrapServer)
             .withTopicPattern("[a-z]est")
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(topics, 1, numElements, OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withKeyDeserializer(ByteArrayDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .withMaxNumRecords(numMatchedElements);
@@ -1099,13 +1157,14 @@ public class KafkaIOTest {
     int numElements = 1000;
 
     List<String> topics = ImmutableList.of("chest", "crest", "egest", "guest", "quest", "wrest");
+    FactoryFns factoryFns = new FactoryFns(topics, 10, numElements, OffsetResetStrategy.EARLIEST);
 
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers("none")
             .withTopicPattern("[a-z]est")
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withKeyDeserializer(ByteArrayDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .withMaxNumRecords(numElements);
@@ -1126,13 +1185,15 @@ public class KafkaIOTest {
                 + "configuration and (?:make sure that provided topics exist|topic names).*"));
 
     int numElements = 1000;
+    FactoryFns factoryFns =
+        new FactoryFns(ImmutableList.of("my_topic"), 10, numElements, OffsetResetStrategy.EARLIEST);
+
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers("none")
             .withTopic("wrong_topic") // read from topic that doesn't exist
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of("my_topic"), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withMaxNumRecords(numElements)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class);
@@ -1317,14 +1378,15 @@ public class KafkaIOTest {
 
     int numElements = 1000;
     String topic = "my_topic";
+    FactoryFns factoryFns =
+        new FactoryFns(ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST);
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers("none")
             .withTopic("my_topic")
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withMaxNumRecords(2 * numElements) // Try to read more messages than available.
             .withConsumerConfigUpdates(ImmutableMap.of("inject.error.at.eof", true))
             .withKeyDeserializer(IntegerDeserializer.class)
@@ -1349,17 +1411,16 @@ public class KafkaIOTest {
     final int numElements = 1000;
     final int numPartitions = 10;
     String topic = "testUnboundedSourceWithoutBoundedWrapper";
+    FactoryFns factoryFns =
+        new FactoryFns(
+            ImmutableList.of(topic), numPartitions, numElements, OffsetResetStrategy.EARLIEST);
 
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers(topic)
             .withTopic(topic)
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of(topic),
-                    numPartitions,
-                    numElements,
-                    OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withKeyDeserializer(ByteArrayDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .withTimestampPolicyFactory(
@@ -1528,13 +1589,14 @@ public class KafkaIOTest {
 
     int numElements = 100; // all the 20 partitions will have elements
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
+    FactoryFns factoryFns = new FactoryFns(topics, 10, numElements, OffsetResetStrategy.LATEST);
 
     source =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers("none")
             .withTopics(topics)
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.LATEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .withMaxNumRecords(numElements)
@@ -1670,6 +1732,29 @@ public class KafkaIOTest {
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopics(topics)
+            .withAdminFactoryFn(
+                config -> {
+                  Admin mock = Mockito.mock(Admin.class);
+                  Mockito.when(mock.listOffsets(Mockito.anyMap()))
+                      .thenAnswer(
+                          invocation -> {
+                            final Map<TopicPartition, OffsetSpec> topicPartitionOffsets =
+                                invocation.getArgument(0);
+
+                            return KafkaFuture.completedFuture(
+                                topicPartitionOffsets.entrySet().stream()
+                                    .collect(
+                                        Collectors.collectingAndThen(
+                                            Collectors.toMap(
+                                                Map.Entry::getKey,
+                                                entry ->
+                                                    KafkaFuture.completedFuture(
+                                                        new ListOffsetsResult.ListOffsetsResultInfo(
+                                                            0L, 0L, Optional.empty()))),
+                                            ListOffsetsResult::new)));
+                          });
+                  return mock;
+                })
             .withConsumerFactoryFn(endOffsetErrorConsumerFactory)
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
@@ -2109,6 +2194,8 @@ public class KafkaIOTest {
 
       String topic = "test-eos";
       String bootStrapServer = "none";
+      FactoryFns factoryFns =
+          new FactoryFns(Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST);
 
       p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
           .apply(
@@ -2118,9 +2205,7 @@ public class KafkaIOTest {
                   .withKeySerializer(IntegerSerializer.class)
                   .withValueSerializer(LongSerializer.class)
                   .withEOS(1, "test-eos")
-                  .withConsumerFactoryFn(
-                      new ConsumerFactoryFn(
-                          Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                  .withConsumerFactoryFn(factoryFns::createConsumer)
                   .withPublishTimestampFunction((e, ts) -> ts)
                   .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
@@ -2148,6 +2233,8 @@ public class KafkaIOTest {
     thrown.expectMessage("fakeException");
 
     String topic = "test";
+    FactoryFns factoryFns =
+        new FactoryFns(Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST);
 
     p.apply(Create.of(ImmutableList.of(KV.of(1, 1L), KV.of(2, 2L))))
         .apply(
@@ -2157,9 +2244,7 @@ public class KafkaIOTest {
                 .withKeySerializer(IntegerSerializer.class)
                 .withValueSerializer(LongSerializer.class)
                 .withEOS(1, "testException")
-                .withConsumerFactoryFn(
-                    new ConsumerFactoryFn(
-                        Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                .withConsumerFactoryFn(factoryFns::createConsumer)
                 .withProducerFactoryFn(new SendErrorProducerFactory()));
 
     try {
@@ -2323,18 +2408,19 @@ public class KafkaIOTest {
     final String readStep = "readFromKafka";
     final int numElements = 1000;
     final int numPartitionsPerTopic = 10;
-    final int recordSize = 12; // The size of key and value is defined in ConsumerFactoryFn.
+    final int recordSize = 12; // The size of key and value is defined in FactoryFns.
 
     List<String> topics = ImmutableList.of("test");
+    FactoryFns factoryFns =
+        new FactoryFns(topics, numPartitionsPerTopic, numElements, OffsetResetStrategy.EARLIEST);
 
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
             .withBootstrapServers("none")
             .withTopicPartitions(
                 ImmutableList.of(new TopicPartition("test", 5), new TopicPartition("test", 8)))
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    topics, numPartitionsPerTopic, numElements, OffsetResetStrategy.EARLIEST))
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer)
             .withKeyDeserializer(ByteArrayDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
             .withMaxNumRecords(numElements / numPartitionsPerTopic * 2); // 2 is the # of partitions
@@ -2394,17 +2480,17 @@ public class KafkaIOTest {
 
   @Test
   public void testSourceWithExplicitPartitionsDisplayData() {
+    FactoryFns factoryFns =
+        new FactoryFns(
+            Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST); // 10 partitions
+
     KafkaIO.Read<byte[], byte[]> read =
         KafkaIO.readBytes()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopicPartitions(
                 ImmutableList.of(new TopicPartition("test", 5), new TopicPartition("test", 6)))
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    Lists.newArrayList("test"),
-                    10,
-                    10,
-                    OffsetResetStrategy.EARLIEST)); // 10 partitions
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer);
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -2417,13 +2503,15 @@ public class KafkaIOTest {
 
   @Test
   public void testSourceWithPatternDisplayData() {
+    FactoryFns factoryFns =
+        new FactoryFns(Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST);
+
     KafkaIO.Read<byte[], byte[]> read =
         KafkaIO.readBytes()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopicPattern("[a-z]est")
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST));
+            .withAdminFactoryFn(factoryFns::createAdmin)
+            .withConsumerFactoryFn(factoryFns::createConsumer);
 
     DisplayData displayData = DisplayData.from(read);
 
