@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -210,6 +211,15 @@ abstract class ReadFromKafkaDoFn<K, V>
         transform.getAdminFactoryFn();
     final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn =
         transform.getConsumerFactoryFn();
+    final @Nullable Map<String, Object> offsetConsumerConfigOverrides =
+        transform.getOffsetConsumerConfig();
+    final Map<String, Object> offsetConsumerConfig;
+    if (offsetConsumerConfigOverrides == null) {
+      offsetConsumerConfig = transform.getConsumerConfig();
+    } else {
+      offsetConsumerConfig = new HashMap<>(transform.getConsumerConfig());
+      offsetConsumerConfig.putAll(offsetConsumerConfigOverrides);
+    }
     this.consumerConfig = transform.getConsumerConfig();
     this.keyDeserializerProvider =
         Preconditions.checkArgumentNotNull(transform.getKeyDeserializerProvider());
@@ -260,7 +270,7 @@ abstract class ReadFromKafkaDoFn<K, V>
                                 sourceDescriptor);
                             final Map<String, Object> config =
                                 KafkaIOUtils.overrideBootstrapServersConfig(
-                                    consumerConfig, sourceDescriptor);
+                                    offsetConsumerConfig, sourceDescriptor);
                             final Admin admin = adminFactoryFn.apply(config);
                             return new KafkaLatestOffsetEstimator(
                                 admin, sourceDescriptor.getTopicPartition());
