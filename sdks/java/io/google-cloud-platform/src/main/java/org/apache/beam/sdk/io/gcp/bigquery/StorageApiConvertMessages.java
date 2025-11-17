@@ -186,10 +186,15 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
           badRecordRouter.route(o, element, elementCoder, e, "Unable to convert value to TableRow");
           return;
         }
+        String tableUrn = null;
+        TableDestination tableDestination = dynamicDestinations.getTable(element.getKey());
+        if (tableDestination != null) {
+          tableUrn = tableDestination.getTableUrn(pipelineOptions.as(BigQueryOptions.class));
+        }
         o.get(failedWritesTag)
             .output(
                 new BigQueryStorageApiInsertError(
-                    failsafeTableRow, conversionException.toString()));
+                    failsafeTableRow, conversionException.toString(), tableUrn));
       } catch (Exception e) {
         badRecordRouter.route(
             o, element, elementCoder, e, "Unable to convert value to StorageWriteApiPayload");

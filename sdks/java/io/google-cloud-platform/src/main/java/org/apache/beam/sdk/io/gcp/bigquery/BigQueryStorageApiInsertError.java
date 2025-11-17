@@ -25,13 +25,23 @@ public class BigQueryStorageApiInsertError {
 
   private @Nullable String errorMessage;
 
+  private @Nullable String tableUrn;
+
+  private @Nullable String[] parsedParts;
+
   public BigQueryStorageApiInsertError(TableRow row) {
-    this.row = row;
+    this(row, null, null);
   }
 
   public BigQueryStorageApiInsertError(TableRow row, @Nullable String errorMessage) {
+    this(row, errorMessage, null);
+  }
+
+  public BigQueryStorageApiInsertError(
+      TableRow row, @Nullable String errorMessage, @Nullable String tableUrn) {
     this.row = row;
     this.errorMessage = errorMessage;
+    this.tableUrn = tableUrn;
   }
 
   public TableRow getRow() {
@@ -41,6 +51,40 @@ public class BigQueryStorageApiInsertError {
   @Nullable
   public String getErrorMessage() {
     return errorMessage;
+  }
+
+  @Nullable
+  public String getTableUrn() {
+    return tableUrn;
+  }
+
+  @Nullable
+  public String getProjectId() {
+    return getParsedPart(1);
+  }
+
+  @Nullable
+  public String getDatasetId() {
+    return getParsedPart(3);
+  }
+
+  @Nullable
+  public String getTableId() {
+    return getParsedPart(5);
+  }
+
+  @Nullable
+  private String getParsedPart(int index) {
+    if (parsedParts == null && tableUrn != null && !tableUrn.isEmpty()) {
+      String[] parts = tableUrn.split("/");
+      if (parts.length == 6
+          && "projects".equals(parts[0])
+          && "datasets".equals(parts[2])
+          && "tables".equals(parts[4])) {
+        parsedParts = parts;
+      }
+    }
+    return parsedParts != null ? parsedParts[index] : null;
   }
 
   @Override

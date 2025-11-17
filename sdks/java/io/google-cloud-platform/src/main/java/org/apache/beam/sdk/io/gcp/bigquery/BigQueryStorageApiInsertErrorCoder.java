@@ -42,12 +42,15 @@ public class BigQueryStorageApiInsertErrorCoder extends AtomicCoder<BigQueryStor
       throws IOException {
     TABLE_ROW_CODER.encode(value.getRow(), outStream);
     STRING_CODER.encode(value.getErrorMessage(), outStream);
+    STRING_CODER.encode(value.getTableUrn(), outStream);
   }
 
   @Override
   public BigQueryStorageApiInsertError decode(InputStream inStream)
       throws CoderException, IOException {
     return new BigQueryStorageApiInsertError(
-        TABLE_ROW_CODER.decode(inStream), STRING_CODER.decode(inStream));
+        TABLE_ROW_CODER.decode(inStream),
+        STRING_CODER.decode(inStream),
+        STRING_CODER.decode(inStream));
   }
 }
