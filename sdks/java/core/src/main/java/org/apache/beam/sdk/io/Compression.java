@@ -101,7 +101,7 @@ public enum Compression {
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       // Increase the default deflate output stream buffer size from 512 to 4096 for performance.
       return Channels.newChannel(
-        new GZIPOutputStream(Channels.newOutputStream(channel), 4096, true));
+          new GZIPOutputStream(Channels.newOutputStream(channel), 4096, true));
     }
   },
 
