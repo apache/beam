@@ -277,12 +277,23 @@ func main() {
 			}
 		}
 		// Add trusted Avro serializable classes
+		var serializableClassesList []string
 		if serializableClasses, ok := pipelineOptions.GetStructValue().GetFields()["avroSerializableClasses"]; ok {
-			var serializableClassesSlice []string
 			for _, cls := range serializableClasses.GetListValue().GetValues() {
-				serializableClassesSlice = append(serializableClassesSlice, cls.GetStringValue())
+				serializableClassesList = append(serializableClassesList, cls.GetStringValue())
 			}
-			args = append(args, "-Dorg.apache.avro.SERIALIZABLE_CLASSES="+strings.Join(serializableClassesSlice, ","))
+		} else {
+			serializableClassesList = []string{
+				"java.math.BigDecimal",
+				"java.math.BigInteger",
+				"java.net.URI",
+				"java.net.URL",
+				"java.io.File",
+				"java.lang.Integer",
+			}
+		}
+		if len(serializableClassesList) > 0 {
+			args = append(args, "-Dorg.apache.avro.SERIALIZABLE_CLASSES="+strings.Join(serializableClassesList, ","))
 		}
 	}
 	// Automatically open modules for Java 11+

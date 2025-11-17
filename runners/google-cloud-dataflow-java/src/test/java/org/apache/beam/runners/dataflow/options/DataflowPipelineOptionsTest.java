@@ -29,7 +29,6 @@ import static org.mockito.Mockito.mockStatic;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
@@ -251,28 +250,6 @@ public class DataflowPipelineOptionsTest {
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("us-west1", options.getRegion());
     }
-  }
-
-  @Test
-  public void testDefaultAvroSerializableClasses() {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    assertEquals(
-        Arrays.asList(
-            "java.math.BigDecimal",
-            "java.math.BigInteger",
-            "java.net.URI",
-            "java.net.URL",
-            "java.io.File",
-            "java.lang.Integer"),
-        options.getAvroSerializableClasses());
-  }
-
-  @Test
-  public void testOverriddenAvroSerializableClasses() {
-    final List<String> opts = Arrays.asList("foo", "bar");
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setAvroSerializableClasses(opts);
-    assertEquals(opts, options.getAvroSerializableClasses());
   }
 
   /**

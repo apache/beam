@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.options;
 
 import com.google.api.services.dataflow.Dataflow;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -267,30 +266,4 @@ public interface DataflowPipelineOptions
   List<String> getJdkAddOpenModules();
 
   void setJdkAddOpenModules(List<String> options);
-
-  class AvroSerializableClassesFactory implements DefaultValueFactory<List<String>> {
-    @Override
-    public List<String> create(PipelineOptions options) {
-      return Arrays.asList(
-          "java.math.BigDecimal",
-          "java.math.BigInteger",
-          "java.net.URI",
-          "java.net.URL",
-          "java.io.File",
-          "java.lang.Integer");
-    }
-  }
-
-  /**
-   * The Avro spec supports the `java-class` schema annotation, which allows fields to be serialized
-   * and deserialized via their toString/String constructor. As of Avro 1.11.4+, allowed Java
-   * classes must be explicitly specified via the jvm option. The comma-separated String value of
-   * this pipeline option will be passed to the Dataflow worker via the
-   * -Dorg.apache.avro.SERIALIZABLE_CLASSES jvm option.
-   */
-  @Description("Serializable classes required by java-class props in Avro 1.11.4+")
-  @Default.InstanceFactory(AvroSerializableClassesFactory.class)
-  List<String> getAvroSerializableClasses();
-
-  void setAvroSerializableClasses(List<String> options);
 }
