@@ -1018,9 +1018,10 @@ class VarIntCoderImpl(StreamCoderImpl):
       out.write_var_int64(value)
     except OverflowError as e:
       raise OverflowError(
-          f"Integer value '{value}' is out of the encodable range for VarIntCoder. "
-          f"This coder is limited to values that fit within a 64-bit signed integer "
-          f"(-(2**63) to 2**63 - 1). Original error: {e}") from e
+          f"Integer value '{value}' is out of the encodable range for "
+          f"VarIntCoder. This coder is limited to values that fit "
+          f"within a 64-bit signed integer (-(2**63) to 2**63 - 1). "
+          f"Original error: {e}") from e
 
   def decode_from_stream(self, in_stream, nested):
     # type: (create_InputStream, bool) -> int
