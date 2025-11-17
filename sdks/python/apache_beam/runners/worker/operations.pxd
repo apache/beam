@@ -117,7 +117,7 @@ cdef class DoOperation(Operation):
   cdef dict timer_specs
   cdef public object input_info
   cdef object fn
-  cdef readonly object scoped_timer_processing_state
+  cdef object scoped_timer_processing_state
 
 
 cdef class SdfProcessSizedElements(DoOperation):
