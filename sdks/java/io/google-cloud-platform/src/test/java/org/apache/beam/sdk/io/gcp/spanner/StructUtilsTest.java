@@ -33,8 +33,10 @@ import com.google.cloud.spanner.Type;
 import com.google.spanner.v1.StructType;
 import com.google.spanner.v1.TypeCode;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -284,6 +286,43 @@ public class StructUtilsTest {
             () -> StructUtils.structTypeToBeamRowSchema(structTypeWithStruct, true));
     checkMessage(
         "Error processing struct to row: Unsupported type 'STRUCT'.", exception.getMessage());
+  }
+
+  @Test
+  public void testStructToBeamRowWithMicrosInstant() {
+    Schema schema =
+        Schema.builder()
+            .addInt64Field("f_int64")
+            .addNullableField("f_micros_instant", Schema.FieldType.logicalType(new MicrosInstant()))
+            .addNullableField(
+                "f_micros_instant_array",
+                Schema.FieldType.array(Schema.FieldType.logicalType(new MicrosInstant())))
+            .build();
+
+    Timestamp ts = Timestamp.ofTimeMicroseconds(1234567890123456L);
+    Struct struct =
+        Struct.newBuilder()
+            .set("f_int64")
+            .to(42L)
+            .set("f_micros_instant")
+            .to(ts)
+            .set("f_micros_instant_array")
+            .toTimestampArray(ImmutableList.of(ts, ts))
+            .build();
+
+    Row result = StructUtils.structToBeamRow(struct, schema);
+
+    assertEquals(42L, result.getInt64("f_int64").longValue());
+
+    Instant expectedInstant =
+        Instant.ofEpochSecond(
+            1234567890123456L / 1_000_000L, (1234567890123456L % 1_000_000L) * 1_000L);
+    assertEquals(expectedInstant, result.getValue("f_micros_instant"));
+
+    @SuppressWarnings("unchecked")
+    List<Instant> instants = (List<Instant>) result.getValue("f_micros_instant_array");
+    assertEquals(2, instants.size());
+    assertEquals(expectedInstant, instants.get(0));
   }
 
   private StructType.Field getFieldForTypeCode(String name, TypeCode typeCode) {

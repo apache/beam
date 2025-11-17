@@ -37,6 +37,7 @@ from apache_beam.io.gcp.spanner import SpannerUpdate
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import Timestamp
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -59,11 +60,13 @@ class SpannerTestRow(NamedTuple):
   f_string: str
   f_int64: Optional[int]
   f_boolean: Optional[bool]
+  f_timestamp: Optional[Timestamp]
 
 
 class SpannerPartTestRow(NamedTuple):
   f_string: str
   f_int64: Optional[int]
+  f_timestamp: Optional[Timestamp]
 
 
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
@@ -118,66 +121,102 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
 
   def test_spanner_insert_or_update(self):
     self.spanner_helper.insert_values(
-        self.database_id, [('or_update0', 5, False), ('or_update1', 9, False)])
+        self.database_id,
+        [('or_update0', 5, False, Timestamp.of(1234567890.0).to_rfc3339()),
+         ('or_update1', 9, False, Timestamp.of(1234567891.0).to_rfc3339())])
 
     def to_row_fn(i):
       return SpannerTestRow(
-          f_int64=i, f_string=f'or_update{i}', f_boolean=i % 2 == 0)
+          f_int64=i,
+          f_string=f'or_update{i}',
+          f_boolean=i % 2 == 0,
+          f_timestamp=Timestamp.of(1234567890.0 + i))
 
     self.run_write_pipeline(3, to_row_fn, SpannerTestRow, SpannerInsertOrUpdate)
 
-    self.assertEqual(
-        self.spanner_helper.read_data(self.database_id, prefix='or_update'),
-        [[f'or_update{i}', i, i % 2 == 0] for i in range(3)])
+    results = self.spanner_helper.read_data(
+        self.database_id, prefix='or_update')
+    self.assertEqual(len(results), 3)
+    for i, row in enumerate(results):
+      self.assertEqual(row[0], f'or_update{i}')
+      self.assertEqual(row[1], i)
+      self.assertEqual(row[2], i % 2 == 0)
+      self.assertIsNotNone(row[3])  # timestamp field
 
   def test_spanner_insert(self):
     def to_row_fn(num):
       return SpannerTestRow(
-          f_string=f'insert{num}', f_int64=num, f_boolean=None)
+          f_string=f'insert{num}',
+          f_int64=num,
+          f_boolean=None,
+          f_timestamp=Timestamp.of(1234567890.0 + num))
 
     self.run_write_pipeline(1000, to_row_fn, SpannerTestRow, SpannerInsert)
 
     def compare_row(row):
       return row[1]
 
-    self.assertEqual(
-        sorted(
-            self.spanner_helper.read_data(self.database_id, 'insert'),
-            key=compare_row), [[f'insert{i}', i, None] for i in range(1000)])
+    results = sorted(
+        self.spanner_helper.read_data(self.database_id, 'insert'),
+        key=compare_row)
+
+    self.assertEqual(len(results), 1000)
+    for i, row in enumerate(results):
+      self.assertEqual(row[0], f'insert{i}')
+      self.assertEqual(row[1], i)
+      self.assertIsNone(row[2])
+      self.assertIsNotNone(row[3])
 
   def test_spanner_replace(self):
     self.spanner_helper.insert_values(
-        self.database_id, [('replace0', 0, True), ('replace1', 1, False)])
+        self.database_id,
+        [('replace0', 0, True, Timestamp.of(1234567890.0).to_rfc3339()),
+         ('replace1', 1, False, Timestamp.of(1234567891.0).to_rfc3339())])
 
     def to_row_fn(num):
-      return SpannerPartTestRow(f_string=f'replace{num}', f_int64=num + 10)
+      return SpannerPartTestRow(
+          f_string=f'replace{num}',
+          f_int64=num + 10,
+          f_timestamp=Timestamp.of(1234567900.0 + num))
 
     self.run_write_pipeline(2, to_row_fn, SpannerPartTestRow, SpannerReplace)
 
-    self.assertEqual(
-        self.spanner_helper.read_data(self.database_id, prefix='replace'),
-        [['replace0', 10, None], ['replace1', 11, None]])
+    results = self.spanner_helper.read_data(self.database_id, prefix='replace')
+    self.assertEqual(len(results), 2)
+    # In REPLACE, boolean should be NULL but timestamp should be updated
+    self.assertEqual(results[0][0], 'replace0')
+    self.assertEqual(results[0][1], 10)
+    self.assertIsNone(results[0][2])  # boolean replaced with NULL
+    self.assertIsNotNone(results[0][3])  # timestamp updated
 
   def test_spanner_update(self):
     self.spanner_helper.insert_values(
-        self.database_id, [('update0', 5, False), ('update1', 9, False)])
+        self.database_id,
+        [('update0', 5, False, Timestamp.of(1234567890.0).to_rfc3339()),
+         ('update1', 9, False, Timestamp.of(1234567891.0).to_rfc3339())])
 
     def to_row_fn(num):
-      return SpannerPartTestRow(f_string=f'update{num}', f_int64=num + 10)
+      return SpannerPartTestRow(
+          f_string=f'update{num}',
+          f_int64=num + 10,
+          f_timestamp=Timestamp.of(1234567900.0 + num))
 
     self.run_write_pipeline(2, to_row_fn, SpannerPartTestRow, SpannerUpdate)
 
-    self.assertEqual(
-        self.spanner_helper.read_data(self.database_id, 'update'),
-        [['update0', 10, False], ['update1', 11, False]])
+    results = self.spanner_helper.read_data(self.database_id, 'update')
+    self.assertEqual(len(results), 2)
+    # In UPDATE, boolean preserved but timestamp updated
+    self.assertEqual(results[0][1], 10)
+    self.assertEqual(results[0][2], False)  # boolean preserved
+    self.assertIsNotNone(results[0][3])  # timestamp updated
 
   def test_spanner_delete(self):
     self.spanner_helper.insert_values(
         self.database_id,
         values=[
-            ('delete0', 0, None),
-            ('delete6', 6, False),
-            ('delete20', 20, True),
+            ('delete0', 0, None, Timestamp.of(1234567890.0).to_rfc3339()),
+            ('delete6', 6, False, Timestamp.of(1234567896.0).to_rfc3339()),
+            ('delete20', 20, True, Timestamp.of(1234567910.0).to_rfc3339()),
         ])
 
     def to_row_fn(num):
@@ -185,9 +224,12 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
 
     self.run_write_pipeline(10, to_row_fn, SpannerTestKey, SpannerDelete)
 
-    self.assertEqual(
-        self.spanner_helper.read_data(self.database_id, prefix='delete'),
-        [['delete20', 20, True]])
+    results = self.spanner_helper.read_data(self.database_id, prefix='delete')
+    self.assertEqual(len(results), 1)
+    self.assertEqual(results[0][0], 'delete20')
+    self.assertEqual(results[0][1], 20)
+    self.assertEqual(results[0][2], True)
+    self.assertIsNotNone(results[0][3])  # timestamp preserved
 
   def test_spanner_read_query(self):
     self.insert_read_values('query_read')
@@ -215,9 +257,21 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
       assert_that(
           result,
           equal_to([
-              SpannerTestRow(f_int64=0, f_string=f'{prefix}0', f_boolean=None),
-              SpannerTestRow(f_int64=1, f_string=f'{prefix}1', f_boolean=True),
-              SpannerTestRow(f_int64=2, f_string=f'{prefix}2', f_boolean=False),
+              SpannerTestRow(
+                  f_int64=0,
+                  f_string=f'{prefix}0',
+                  f_boolean=None,
+                  f_timestamp=Timestamp.of(1234567890.0)),
+              SpannerTestRow(
+                  f_int64=1,
+                  f_string=f'{prefix}1',
+                  f_boolean=True,
+                  f_timestamp=Timestamp.of(1234567891.0)),
+              SpannerTestRow(
+                  f_int64=2,
+                  f_string=f'{prefix}2',
+                  f_boolean=False,
+                  f_timestamp=Timestamp.of(1234567892.0)),
           ]))
 
   def run_write_pipeline(
@@ -242,9 +296,9 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
     self.spanner_helper.insert_values(
         self.database_id,
         values=[
-            (f'{prefix}0', 0, None),
-            (f'{prefix}1', 1, True),
-            (f'{prefix}2', 2, False),
+            (f'{prefix}0', 0, None, Timestamp.of(1234567890.0).to_rfc3339()),
+            (f'{prefix}1', 1, True, Timestamp.of(1234567891.0).to_rfc3339()),
+            (f'{prefix}2', 2, False, Timestamp.of(1234567892.0).to_rfc3339()),
         ])
 
 
@@ -288,14 +342,15 @@ class SpannerHelper(object):
           CREATE TABLE {self.table} (
               f_string  STRING(1024) NOT NULL,
               f_int64   INT64,
-              f_boolean BOOL
+              f_boolean BOOL,
+              f_timestamp TIMESTAMP
           ) PRIMARY KEY (f_string)'''
         ])
     database.create().result(120)
 
   def insert_values(self, database_id, values, columns=None):
     values = values or []
-    columns = columns or ('f_string', 'f_int64', 'f_boolean')
+    columns = columns or ('f_string', 'f_int64', 'f_boolean', 'f_timestamp')
     with self.instance.database(database_id).batch() as batch:
       batch.insert(
           table=self.table,

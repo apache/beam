@@ -28,11 +28,13 @@ import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -147,6 +149,22 @@ final class MutationUtils {
         keyBuilder.append(row.getDecimal(columnName));
         break;
         // TODO: Implement logical date and datetime
+      case LOGICAL_TYPE:
+        Schema.LogicalType<?, ?> logicalType = checkNotNull(field.getLogicalType());
+        String identifier = logicalType.getIdentifier();
+        if (identifier.equals(MicrosInstant.IDENTIFIER)) {
+          Instant instant = row.getValue(columnName);
+          if (instant == null) {
+            keyBuilder.append((Timestamp) null);
+          } else {
+            long micros = instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1_000L;
+            keyBuilder.append(Timestamp.ofTimeMicroseconds(micros));
+          }
+        } else {
+          throw new IllegalArgumentException(
+              String.format("Unsupported logical type in key: %s", identifier));
+        }
+        break;
       case DATETIME:
         @Nullable ReadableDateTime dateTime = row.getDateTime(columnName);
         if (dateTime == null) {
@@ -224,7 +242,22 @@ final class MutationUtils {
           mutationBuilder.set(columnName).to(decimal);
         }
         break;
-        // TODO: Implement logical date and datetime
+      case LOGICAL_TYPE:
+        Schema.LogicalType<?, ?> logicalType = checkNotNull(fieldType.getLogicalType());
+        String identifier = logicalType.getIdentifier();
+        if (identifier.equals(MicrosInstant.IDENTIFIER)) {
+          @Nullable Instant instant = row.getValue(columnName);
+          if (instant == null) {
+            mutationBuilder.set(columnName).to((Timestamp) null);
+          } else {
+            long micros = instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1_000L;
+            mutationBuilder.set(columnName).to(Timestamp.ofTimeMicroseconds(micros));
+          }
+        } else {
+          throw new IllegalArgumentException(
+              String.format("Unsupported logical type: %s", identifier));
+        }
+        break;
       case DATETIME:
         @Nullable ReadableDateTime dateTime = row.getDateTime(columnName);
         if (dateTime == null) {
@@ -334,6 +367,31 @@ final class MutationUtils {
         break;
       case STRING:
         mutationBuilder.set(column).toStringArray((Iterable<String>) ((Object) iterable));
+        break;
+      case LOGICAL_TYPE:
+        String identifier = checkNotNull(beamIterableType.getLogicalType()).getIdentifier();
+        if (identifier.equals(MicrosInstant.IDENTIFIER)) {
+          if (iterable == null) {
+            mutationBuilder.set(column).toTimestampArray(null);
+          } else {
+            mutationBuilder
+                .set(column)
+                .toTimestampArray(
+                    StreamSupport.stream(iterable.spliterator(), false)
+                        .map(
+                            instant -> {
+                              Instant javaInstant = (java.time.Instant) instant;
+                              long micros =
+                                  javaInstant.getEpochSecond() * 1_000_000L
+                                      + javaInstant.getNano() / 1_000L;
+                              return Timestamp.ofTimeMicroseconds(micros);
+                            })
+                        .collect(toList()));
+          }
+        } else {
+          throw new IllegalArgumentException(
+              String.format("Unsupported logical type in iterable: %s", identifier));
+        }
         break;
       case DATETIME:
         if (iterable == null) {
