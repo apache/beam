@@ -459,7 +459,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           .setPaneInfo(paneInfo)
           .setReceiver(
               wv -> {
-                checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
                 SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
               })
           .output();
