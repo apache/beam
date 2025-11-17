@@ -452,6 +452,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
+      // Capturing here to eliminate mutable field access from lambda
+      Instant elemTimestamp = elem.getTimestamp();
       builderSupplier
           .builder(output)
           .setTimestamp(timestamp)
@@ -459,7 +461,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           .setPaneInfo(paneInfo)
           .setReceiver(
               wv -> {
-                checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
+                checkTimestamp(elemTimestamp, wv.getTimestamp());
                 SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
               })
           .output();
