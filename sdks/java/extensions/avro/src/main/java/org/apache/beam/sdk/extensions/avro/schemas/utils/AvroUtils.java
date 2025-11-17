@@ -1214,6 +1214,16 @@ public class AvroUtils {
     return fieldType.getNullable() ? ReflectData.makeNullable(baseType) : baseType;
   }
 
+  private static final org.apache.avro.Schema INT_AVRO_TYPE =
+      org.apache.avro.Schema.create(Type.INT);
+  private static final org.apache.avro.Schema LONG_AVRO_TYPE =
+      org.apache.avro.Schema.create(Type.LONG);
+  private static final org.apache.avro.Schema FLOAT_AVRO_TYPE =
+      org.apache.avro.Schema.create(Type.FLOAT);
+  private static final org.apache.avro.Schema DOUBLE_AVRO_TYPE =
+      org.apache.avro.Schema.create(Type.DOUBLE);
+
+  /** Convert a value from Beam Row to a vlue used for Avro GenericRecord. */
   private static @Nullable Object genericFromBeamField(
       FieldType fieldType, org.apache.avro.Schema avroSchema, @Nullable Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
@@ -1230,6 +1240,18 @@ public class AvroUtils {
       return value;
     }
 
+    // Handle implicit up-cast: use avroSchema
+    if (INT_AVRO_TYPE.equals(typeWithNullability.type)) {
+      return ((Number) value).intValue();
+    } else if (LONG_AVRO_TYPE.equals(typeWithNullability.type)) {
+      return ((Number) value).longValue();
+    } else if (FLOAT_AVRO_TYPE.equals(typeWithNullability.type)) {
+      return ((Number) value).floatValue();
+    } else if (DOUBLE_AVRO_TYPE.equals(typeWithNullability.type)) {
+      return ((Number) value).doubleValue();
+    }
+
+    // TODO: should we use Avro Schema as the source-of-truth in general?
     switch (fieldType.getTypeName()) {
       case BYTE:
       case INT16:
