@@ -57,22 +57,22 @@ Installation steps may look as follows:
 2. Install Python intepreter for each supported Python minor version. Leaving out the patch version will install the latest.
 
 ```bash
-pyenv install 3.9
 pyenv install 3.10
 pyenv install 3.11
 pyenv install 3.12
+pyenv install 3.13
 ```
 
 3. Make installed interpreters available in your shell by first running:
 
 ```bash
-pyenv global 3.9 3.10 3.11 3.12
+pyenv global 3.10 3.11 3.12 3.13
 ```
 
 4. (**OPTIONAL**) Pyenv will sometimes [fail to make these interpreters directly available](https://github.com/pyenv/pyenv/issues/34) without a local configuration. If you see errors trying to use `python3.x`, then also run `pyenv local`  
 
 ```bash
-pyenv local 3.9 3.10 3.11 3.12
+pyenv local 3.10 3.11 3.12 3.13
 ```
 
 After these steps, all `python3.x` interpreters should be available in your shell. The first version in the list passed to pyenv global will be used as default `python` / `python3` interpreter if the minor version is not specified.
@@ -156,11 +156,11 @@ curl https://pyenv.run | bash
 # Run the outputted commands to initialize pyenv in .bashrc
 ```
 
-#### Example: How to Run Unit Tests with PyCharm Using Python 3.9.4 in a virtualenv
-1. Install Python 3.9.4 and create a virtualenv
+#### Example: How to Run Unit Tests with PyCharm Using Python 3.10.10 in a virtualenv
+1. Install Python 3.10.10 and create a virtualenv
 ```bash
-pyenv install 3.9.4
-pyenv virtualenv 3.9.4 ENV_NAME
+pyenv install 3.10.10
+pyenv virtualenv 3.10.10 ENV_NAME
 pyenv activate ENV_NAME
 ```
 
@@ -171,7 +171,7 @@ pip install --upgrade pip setuptools
 
 3. Set up PyCharm
     * Start by adding a new project interpreter (from the bottom right or in Settings).
-    * Select Existing environment and the interpreter, which should be under ~/.pyenv/versions/3.9.4/envs/ENV_NAME/bin/python or ~/.pyenv/versions/ENV_NAME/bin/python.
+    * Select Existing environment and the interpreter, which should be under ~/.pyenv/versions/3.10.10/envs/ENV_NAME/bin/python or ~/.pyenv/versions/ENV_NAME/bin/python.
     * Switch interpreters at the bottom right.
 
 #### Cleaning up environments
@@ -519,7 +519,7 @@ NOTE for RELEASE MANAGERS: We should update dependencies at least once per relea
 You may see that the pip command will lead to segmentation fault as well. If this happens, remove the python version from pyenv, and reinstall the version like this.
 
 ```bash
-CFLAGS="-O2" pyenv install 3.9.4
+CFLAGS="-O2" pyenv install 3.10.10
 ```
 
 There have been issues with older Python versions. See [here](https://github.com/pyenv/pyenv/issues/2046) for details.

@@ -20,18 +20,15 @@ from parameterized import parameterized
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.transforms.enrichment_handlers.cloudsql import (
-      CloudSQLEnrichmentHandler,
-      DatabaseTypeAdapter,
-      CustomQueryConfig,
-      TableFieldsQueryConfig,
-      TableFunctionQueryConfig,
-      CloudSQLConnectionConfig,
-      ExternalSQLDBConnectionConfig)
-  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
-      query_fn,
-      where_clause_value_fn,
-  )
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLConnectionConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CustomQueryConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import DatabaseTypeAdapter
+  from apache_beam.transforms.enrichment_handlers.cloudsql import ExternalSQLDBConnectionConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import TableFieldsQueryConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import TableFunctionQueryConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import query_fn
+  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import where_clause_value_fn
 except ImportError as e:
   raise unittest.SkipTest(f'CloudSQL dependencies not installed: {str(e)}')
 

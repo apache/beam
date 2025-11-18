@@ -52,6 +52,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -77,6 +78,26 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         parseFn,
         outputCoder,
         bqServices);
+  }
+
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (obj == null || getClass() != obj.getClass()) {
+      return false;
+    }
+    BigQueryStorageStreamSource<?> other = (BigQueryStorageStreamSource<?>) obj;
+    return readSession.equals(other.readSession)
+        && readStream.equals(other.readStream)
+        && jsonTableSchema.equals(other.jsonTableSchema)
+        && outputCoder.equals(other.outputCoder);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(readSession, readStream, jsonTableSchema, outputCoder);
   }
 
   /**

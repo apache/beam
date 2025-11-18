@@ -30,14 +30,15 @@ from typing import Union
 
 import tensorflow as tf
 import torch
-from apache_beam.ml.inference import utils
-from apache_beam.ml.inference.base import ModelHandler
-from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.pytorch_inference import _convert_to_device
 from transformers import AutoModel
 from transformers import Pipeline
 from transformers import TFAutoModel
 from transformers import pipeline
+
+from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.pytorch_inference import _convert_to_device
 
 _LOGGER = logging.getLogger(__name__)
 
