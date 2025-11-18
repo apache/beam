@@ -53,9 +53,11 @@ const (
 	disableJammAgentOption              = "disable_jamm_agent"
 	enableGoogleCloudProfilerOption     = "enable_google_cloud_profiler"
 	enableGoogleCloudHeapSamplingOption = "enable_google_cloud_heap_sampling"
+	enableOpenTelemetryAgentOption      = "enable_open_telemetry_agent"
 	googleCloudProfilerAgentBaseArgs    = "-agentpath:/opt/google_cloud_profiler/profiler_java_agent.so=-logtostderr,-cprof_service=%s,-cprof_service_version=%s"
 	googleCloudProfilerAgentHeapArgs    = googleCloudProfilerAgentBaseArgs + ",-cprof_enable_heap_sampling,-cprof_heap_sampling_interval=2097152"
 	jammAgentArgs                       = "-javaagent:/opt/apache/beam/jars/jamm.jar"
+	openTelemetryAgentArgs              = "-javaagent:/opt/apache/beam/jars/opentelemetry-javaagent.jar"
 )
 
 func main() {
@@ -185,6 +187,7 @@ func main() {
 		lim = HeapSizeLimit(size)
 	}
 
+	env := map[string]string{}
 	args := []string{
 		"-Xmx" + strconv.FormatUint(lim, 10),
 		// ParallelGC the most adequate for high throughput and lower CPU utilization
@@ -219,6 +222,19 @@ func main() {
 		logger.Printf(ctx, "Disabling Jamm agent. Measuring object size will be inaccurate.")
 	} else {
 		args = append(args, jammAgentArgs)
+	}
+
+	enableOpenTelemetryAgent := strings.Contains(options, enableOpenTelemetryAgentOption)
+	if enableOpenTelemetryAgent {
+		args = append(args, openTelemetryAgentArgs)
+		os.Setenv("OTEL_JAVAAGENT_EXTENSIONS", "/opt/opentelemetry/extensions")
+		os.Setenv("OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED", "true")
+		if metadata := info.GetMetadata(); metadata != nil {
+			if jobName, ok := metadata["job_name"]; ok {
+				os.Setenv("OTEL_SERVICE_NAME", jobName)
+			}
+		}
+		logger.Printf(ctx, "Enabling OpenTelemetry agent.")
 	}
 
 	// If heap dumping is enabled, configure the JVM to dump it on oom events.
@@ -276,6 +292,26 @@ func main() {
 				args = append(args, "--add-modules="+module.GetStringValue())
 			}
 		}
+
+		// Add OpenTelemetry properties specified in pipeline options
+		if properties, ok := pipelineOptions.GetStructValue().GetFields()["openTelemetryProperties"]; ok {
+			for key, value := range properties.GetStructValue().GetFields() {
+				if strings.HasPrefix(key, "otel.") {
+					args = append(args, "-D"+key+"="+value.GetStringValue())
+				}
+			}
+		}
+
+		// TODO(sjvanrossum): Remove this section when Dataflow sets this environment variable
+		// Add GOOGLE_CLOUD_PROJECT environment variable if unset
+		if _, ok := os.LookupEnv("GOOGLE_CLOUD_PROJECT"); !ok {
+			if project, ok := pipelineOptions.GetStructValue().GetFields()["project"]; ok {
+				if p := project.GetStringValue(); len(p) > 0 {
+					env["GOOGLE_CLOUD_PROJECT"] = p
+					logger.Printf(ctx, "Setting GOOGLE_CLOUD_PROJECT environment variable.")
+				}
+			}
+		}
 	}
 	// Automatically open modules for Java 11+
 	openModuleAgentJar := "/opt/apache/beam/jars/open-module-agent.jar"
@@ -285,7 +321,7 @@ func main() {
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
 
-	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
+	logger.Fatalf(ctx, "Java exited: %v", execx.ExecuteEnv(env, "java", args...))
 }
 
 // heapSizeLimit returns 80% of the runner limit, if provided. If not provided,
