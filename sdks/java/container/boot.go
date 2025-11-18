@@ -280,7 +280,10 @@ func main() {
 		var serializableClassesList []string
 		if serializableClasses, ok := pipelineOptions.GetStructValue().GetFields()["avroSerializableClasses"]; ok {
 			for _, cls := range serializableClasses.GetListValue().GetValues() {
-				serializableClassesList = append(serializableClassesList, cls.GetStringValue())
+				// User can specify an empty list, which is serialized as a single, blank value
+				if cls.GetStringValue() != "" {
+					serializableClassesList = append(serializableClassesList, cls.GetStringValue())
+				}
 			}
 		} else {
 			serializableClassesList = []string{
