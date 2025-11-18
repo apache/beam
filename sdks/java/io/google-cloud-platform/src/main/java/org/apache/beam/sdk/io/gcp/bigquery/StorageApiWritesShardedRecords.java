@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
@@ -481,6 +482,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               });
       final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final String shortTableId = tableDestination.getShortTableUrn();
+      final TableReference tableReference = tableDestination.getTableReference();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
 
@@ -620,7 +622,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
                         new BigQueryStorageApiInsertError(
-                            failedRow.getValue(), errorMessage, tableId),
+                            failedRow.getValue(), errorMessage, tableReference),
                         failedRow.getTimestamp());
                 rowsSentToFailedRowsCollection.inc();
                 BigQuerySinkMetrics.appendRowsRowStatusCounter(
@@ -740,7 +742,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
                         new BigQueryStorageApiInsertError(
-                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex), tableId),
+                            failedRow,
+                            error.getRowIndexToErrorMessage().get(failedIndex),
+                            tableReference),
                         timestamp);
               }
               int failedRows = failedRowIndices.size();
@@ -913,7 +917,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     new BigQueryStorageApiInsertError(
                         failedRow,
                         "Row payload too large. Maximum size " + maxRequestSize,
-                        tableId),
+                        tableReference),
                     timestamp);
           }
           int numRowsFailed = splitValue.getProtoRows().getSerializedRowsCount();

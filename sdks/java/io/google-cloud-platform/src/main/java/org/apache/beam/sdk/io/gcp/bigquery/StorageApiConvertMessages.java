@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
@@ -186,15 +187,15 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
           badRecordRouter.route(o, element, elementCoder, e, "Unable to convert value to TableRow");
           return;
         }
-        String tableUrn = null;
+        TableReference tableReference = null;
         TableDestination tableDestination = dynamicDestinations.getTable(element.getKey());
         if (tableDestination != null) {
-          tableUrn = tableDestination.getTableUrn(pipelineOptions.as(BigQueryOptions.class));
+          tableReference = tableDestination.getTableReference();
         }
         o.get(failedWritesTag)
             .output(
                 new BigQueryStorageApiInsertError(
-                    failsafeTableRow, conversionException.toString(), tableUrn));
+                    failsafeTableRow, conversionException.toString(), tableReference));
       } catch (Exception e) {
         badRecordRouter.route(
             o, element, elementCoder, e, "Unable to convert value to StorageWriteApiPayload");

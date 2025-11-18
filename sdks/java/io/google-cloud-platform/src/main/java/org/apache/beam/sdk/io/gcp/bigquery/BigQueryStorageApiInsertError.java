@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import javax.annotation.Nullable;
 
@@ -25,9 +26,7 @@ public class BigQueryStorageApiInsertError {
 
   private @Nullable String errorMessage;
 
-  private @Nullable String tableUrn;
-
-  private @Nullable String[] parsedParts;
+  private @Nullable TableReference table;
 
   public BigQueryStorageApiInsertError(TableRow row) {
     this(row, null, null);
@@ -38,10 +37,10 @@ public class BigQueryStorageApiInsertError {
   }
 
   public BigQueryStorageApiInsertError(
-      TableRow row, @Nullable String errorMessage, @Nullable String tableUrn) {
+      TableRow row, @Nullable String errorMessage, @Nullable TableReference table) {
     this.row = row;
     this.errorMessage = errorMessage;
-    this.tableUrn = tableUrn;
+    this.table = table;
   }
 
   public TableRow getRow() {
@@ -54,37 +53,8 @@ public class BigQueryStorageApiInsertError {
   }
 
   @Nullable
-  public String getTableUrn() {
-    return tableUrn;
-  }
-
-  @Nullable
-  public String getProjectId() {
-    return getParsedPart(1);
-  }
-
-  @Nullable
-  public String getDatasetId() {
-    return getParsedPart(3);
-  }
-
-  @Nullable
-  public String getTableId() {
-    return getParsedPart(5);
-  }
-
-  @Nullable
-  private String getParsedPart(int index) {
-    if (parsedParts == null && tableUrn != null && !tableUrn.isEmpty()) {
-      String[] parts = tableUrn.split("/");
-      if (parts.length == 6
-          && "projects".equals(parts[0])
-          && "datasets".equals(parts[2])
-          && "tables".equals(parts[4])) {
-        parsedParts = parts;
-      }
-    }
-    return parsedParts != null ? parsedParts[index] : null;
+  public TableReference getTable() {
+    return table;
   }
 
   @Override
