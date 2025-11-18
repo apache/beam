@@ -54,20 +54,20 @@ public final class KafkaReadWithRedistributeOverride {
    * withOffsetDeduplication} when {@code withRedistribute} is enabled.
    */
   static class Factory<K, V>
-    implements PTransformOverrideFactory<
-    PBegin, PCollection<KafkaRecord<K, V>>, KafkaIO.Read<K, V>> {
+      implements PTransformOverrideFactory<
+          PBegin, PCollection<KafkaRecord<K, V>>, KafkaIO.Read<K, V>> {
 
     @Override
     public PTransformReplacement<PBegin, PCollection<KafkaRecord<K, V>>> getReplacementTransform(
-      AppliedPTransform<PBegin, PCollection<KafkaRecord<K, V>>, KafkaIO.Read<K, V>> transform) {
+        AppliedPTransform<PBegin, PCollection<KafkaRecord<K, V>>, KafkaIO.Read<K, V>> transform) {
       KafkaIO.Read<K, V> read = transform.getTransform();
       return PTransformReplacement.of(
-        transform.getPipeline().begin(), read.withOffsetDeduplication(true));
+          transform.getPipeline().begin(), read.withOffsetDeduplication(true));
     }
 
     @Override
     public Map<PCollection<?>, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PCollection<?>> outputs, PCollection<KafkaRecord<K, V>> newOutput) {
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<KafkaRecord<K, V>> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
