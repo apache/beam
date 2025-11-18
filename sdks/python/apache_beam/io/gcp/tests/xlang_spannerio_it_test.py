@@ -26,6 +26,8 @@ import uuid
 from typing import NamedTuple
 from typing import Optional
 
+import pytest
+
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io.gcp.spanner import ReadFromSpanner
@@ -69,6 +71,11 @@ class SpannerPartTestRow(NamedTuple):
   f_timestamp: Optional[Timestamp]
 
 
+@pytest.mark.uses_gcp_java_expansion_service
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
 @unittest.skipIf(
     DockerContainer is None, 'testcontainers package is not installed.')
