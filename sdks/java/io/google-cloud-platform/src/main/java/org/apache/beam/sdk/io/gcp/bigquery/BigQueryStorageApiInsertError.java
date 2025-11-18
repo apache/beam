@@ -65,6 +65,8 @@ public class BigQueryStorageApiInsertError {
         + ", errorMessage='"
         + errorMessage
         + '\''
+        + ", table="
+        + table
         + '}';
   }
 }
