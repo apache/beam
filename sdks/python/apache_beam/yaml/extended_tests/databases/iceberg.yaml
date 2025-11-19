@@ -61,3 +61,55 @@ pipelines:
     options:
       project: "apache-beam-testing"
       temp_location: "{TEMP_DIR}"
+
+  - name: read_cdc_batch
+    pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIcebergCDC
+          config:
+            table: db.labels
+            catalog_name: hadoop_catalog
+            catalog_properties:
+              type: hadoop
+              warehouse: "{TEMP_DIR}"
+            from_timestamp: 1762819200000
+            to_timestamp:  2078352000000
+            filter: '"label" = ''11a'' or "rank" = 1'
+            keep:
+              - label
+              - rank
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: "11a", rank: 0}
+              - {label: "37a", rank: 1}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"
+
+  - name: read_cdc_streaming
+    pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIcebergCDC
+          config:
+            table: db.labels
+            catalog_name: hadoop_catalog
+            catalog_properties:
+              type: hadoop
+              warehouse: "{TEMP_DIR}"
+            streaming: True
+            to_timestamp: 2078352000000
+            filter: '"label" = ''11a'' or "rank" = 1'
+            keep:
+              - label
+              - rank
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: "11a", rank: 0}
+              - {label: "37a", rank: 1}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"
