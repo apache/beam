@@ -28,6 +28,10 @@ from tenacity import stop_after_attempt
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
+from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import operations
+from apache_beam.internal import pickler
+from apache_beam.transforms import core
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,6 +130,118 @@ class StateSamplerTest(unittest.TestCase):
     # take 0.17us when compiled in opt mode or 0.48 us when compiled with in
     # debug mode).
     self.assertLess(overhead_us, 20.0)
+
+  @retry(reraise=True, stop=stop_after_attempt(3))
+  def test_timer_sampler(self):
+    # Set up state sampler.
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler(
+        'timer', counter_factory, sampling_period_ms=1)
+
+    # Duration of the timer processing.
+    state_duration_ms = 100
+    margin_of_error = 0.25
+
+    sampler.start()
+    with sampler.scoped_state('step1', 'process-timers'):
+      time.sleep(state_duration_ms / 1000)
+    sampler.stop()
+    sampler.commit_counters()
+
+    if not statesampler.FAST_SAMPLER:
+      # The slow sampler does not implement sampling, so we won't test it.
+      return
+
+    # Test that sampled state timings are close to their expected values.
+    c = CounterName(
+        'process-timers-msecs', step_name='step1', stage_name='timer')
+    expected_counter_values = {
+        c: state_duration_ms,
+    }
+    for counter in counter_factory.get_counters():
+      self.assertIn(counter.name, expected_counter_values)
+      expected_value = expected_counter_values[counter.name]
+      actual_value = counter.value()
+      deviation = float(abs(actual_value - expected_value)) / expected_value
+      _LOGGER.info('Sampling deviation from expectation: %f', deviation)
+      self.assertGreater(actual_value, expected_value * (1.0 - margin_of_error))
+      self.assertLess(actual_value, expected_value * (1.0 + margin_of_error))
+
+  @retry(reraise=True, stop=stop_after_attempt(3))
+  def test_process_timers_metric_is_recorded(self):
+    """
+    Tests that the 'process-timers-msecs' metric is correctly recorded
+    when a state sampler is active.
+    """
+    # Set up a real state sampler and counter factory.
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler(
+        'test_stage', counter_factory, sampling_period_ms=1)
+
+    state_duration_ms = 100
+    margin_of_error = 0.25
+
+    # Run a workload inside the 'process-timers' scoped state.
+    sampler.start()
+    with sampler.scoped_state('test_step', 'process-timers'):
+      time.sleep(state_duration_ms / 1000.0)
+    sampler.stop()
+    sampler.commit_counters()
+
+    if not statesampler.FAST_SAMPLER:
+      return
+
+    # Verify that the counter was created with the correct name and value.
+    expected_counter_name = CounterName(
+        'process-timers-msecs', step_name='test_step', stage_name='test_stage')
+
+    # Find the specific counter we are looking for.
+    found_counter = None
+    for counter in counter_factory.get_counters():
+      if counter.name == expected_counter_name:
+        found_counter = counter
+        break
+
+    self.assertIsNotNone(
+        found_counter,
+        f"The expected counter '{expected_counter_name}' was not created.")
+
+    # Check that its value is approximately correct.
+    actual_value = found_counter.value()
+    expected_value = state_duration_ms
+    self.assertGreater(
+        actual_value,
+        expected_value * (1.0 - margin_of_error),
+        "The timer metric was lower than expected.")
+    self.assertLess(
+        actual_value,
+        expected_value * (1.0 + margin_of_error),
+        "The timer metric was higher than expected.")
+
+  def test_do_operation_with_sampler(self):
+    """
+      Tests that a DoOperation with an active state_sampler correctly
+      creates a real ScopedState object for timer processing.
+      """
+    mock_spec = operation_specs.WorkerDoFn(
+        serialized_fn=pickler.dumps((core.DoFn(), None, None, None, None)),
+        output_tags=[],
+        input=None,
+        side_inputs=[],
+        output_coders=[])
+
+    sampler = statesampler.StateSampler(
+        'test_stage', CounterFactory(), sampling_period_ms=1)
+
+    # 1. Create the operation WITHOUT the unexpected keyword argument
+    op = operations.create_operation(
+        name_context='test_op',
+        spec=mock_spec,
+        counter_factory=CounterFactory(),
+        state_sampler=sampler)
+
+    self.assertIsNot(
+        op.scoped_timer_processing_state, statesampler.NOOP_SCOPED_STATE)
 
 
 if __name__ == '__main__':
