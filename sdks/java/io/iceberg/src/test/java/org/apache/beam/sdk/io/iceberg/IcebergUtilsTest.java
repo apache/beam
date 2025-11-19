@@ -35,7 +35,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.*;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -615,6 +615,20 @@ public class IcebergUtilsTest {
     }
 
     @Test
+    public void testLogicalBeamFieldTypeToIcebergFieldType() {
+      // primitive types don't use the nested field ID
+      List<BeamFieldTypeTestCase> primitives =
+          Arrays.asList(
+              new BeamFieldTypeTestCase(
+                  12,
+                  Schema.FieldType.logicalType(VariableString.of("VARCHAR", 25)),
+                  11,
+                  Types.StringType.get()));
+
+      checkTypes(primitives);
+    }
+
+    @Test
     public void testArrayBeamFieldTypeToIcebergFieldType() {
       // Iceberg's ListType reserves one nested ID for its element type
       List<BeamFieldTypeTestCase> listTypes =
@@ -936,6 +950,104 @@ public class IcebergUtilsTest {
       Schema convertedBeamSchema = IcebergUtils.icebergSchemaToBeamSchema(ICEBERG_SCHEMA_STRUCT);
 
       assertEquals(BEAM_SCHEMA_STRUCT, convertedBeamSchema);
+    }
+
+    static final Schema BEAM_SCHEMA_JDBC_ALL_TYPES =
+        Schema.builder()
+            .addField("array_field", Schema.FieldType.array(Schema.FieldType.STRING)) // from ARRAY
+            .addField("bigint_field", Schema.FieldType.INT64) // from BIGINT
+            .addField(
+                "binary_field",
+                Schema.FieldType.logicalType(VariableBytes.of("BINARY", 10))) // from BINARY
+            .addField("bit_field", Schema.FieldType.BOOLEAN) // from BIT
+            .addField("boolean_field", Schema.FieldType.BOOLEAN) // from BOOLEAN
+            .addField(
+                "char_field", Schema.FieldType.logicalType(FixedString.of("CHAR", 10))) // from CHAR
+            .addField("date_field", Schema.FieldType.logicalType(SqlTypes.DATE)) // from DATE
+            .addField("decimal_field", Schema.FieldType.DECIMAL) // from DECIMAL
+            .addField("double_field", Schema.FieldType.DOUBLE) // from DOUBLE
+            .addField("float_field", Schema.FieldType.DOUBLE) // from FLOAT
+            .addField("integer_field", Schema.FieldType.INT32) // from INTEGER
+            .addField(
+                "longnvarchar_field",
+                Schema.FieldType.logicalType(
+                    VariableString.of("LONGNVARCHAR", 100))) // from LONGNVARCHAR
+            .addField(
+                "longvarbinary_field",
+                Schema.FieldType.logicalType(
+                    VariableBytes.of("LONGVARBINARY", 100))) // from LONGVARBINARY
+            .addField(
+                "longvarchar_field",
+                Schema.FieldType.logicalType(
+                    VariableString.of("LONGVARCHAR", 100))) // from LONGVARCHAR
+            .addField(
+                "nchar_field",
+                Schema.FieldType.logicalType(FixedString.of("NCHAR", 10))) // from NCHAR
+            .addField(
+                "numeric_field",
+                Schema.FieldType.logicalType(FixedPrecisionNumeric.of(10, 5))) // from NUMERIC
+            .addField(
+                "nvarchar_field",
+                Schema.FieldType.logicalType(VariableString.of("NVARCHAR", 100))) // from NVARCHAR
+            .addField("real_field", Schema.FieldType.FLOAT) // from REAL
+            .addField("smallint_field", Schema.FieldType.INT16) // from SMALLINT
+            .addField("time_field", Schema.FieldType.logicalType(SqlTypes.TIME)) // from TIME
+            .addField(
+                "timestamp_field",
+                Schema.FieldType.logicalType(SqlTypes.DATETIME)) // from TIMESTAMP
+            .addField(
+                "timestamp_with_timezone_field",
+                Schema.FieldType.DATETIME) // from TIMESTAMP_WITH_TIMEZONE
+            .addField("tinyint_field", Schema.FieldType.BYTE) // from TINYINT
+            .addField(
+                "varbinary_field",
+                Schema.FieldType.logicalType(VariableBytes.of("VARBINARY", 100))) // from VARBINARY
+            .addField(
+                "varchar_field",
+                Schema.FieldType.logicalType(VariableString.of("VARCHAR", 100))) // from VARCHAR
+            .addField("blob_field", Schema.FieldType.BYTES) // from BLOB
+            .addField("clob_field", Schema.FieldType.STRING) // from CLOB
+            .addField(
+                "uuid_field", Schema.FieldType.logicalType(new UuidLogicalType())) // from UUID
+            .build();
+
+    static final org.apache.iceberg.Schema ICEBERG_SCHEMA_JDBC_ALL_TYPES =
+        new org.apache.iceberg.Schema(
+            required(1, "array_field", Types.ListType.ofRequired(29, Types.StringType.get())),
+            required(2, "bigint_field", Types.LongType.get()),
+            required(3, "binary_field", Types.BinaryType.get()),
+            required(4, "bit_field", Types.BooleanType.get()),
+            required(5, "boolean_field", Types.BooleanType.get()),
+            required(6, "char_field", Types.StringType.get()),
+            required(7, "date_field", Types.DateType.get()),
+            required(8, "decimal_field", Types.StringType.get()),
+            required(9, "double_field", Types.DoubleType.get()),
+            required(10, "float_field", Types.DoubleType.get()),
+            required(11, "integer_field", Types.IntegerType.get()),
+            required(12, "longnvarchar_field", Types.StringType.get()),
+            required(13, "longvarbinary_field", Types.BinaryType.get()),
+            required(14, "longvarchar_field", Types.StringType.get()),
+            required(15, "nchar_field", Types.StringType.get()),
+            required(16, "numeric_field", Types.DecimalType.of(10, 5)),
+            required(17, "nvarchar_field", Types.StringType.get()),
+            required(18, "real_field", Types.FloatType.get()),
+            required(19, "smallint_field", Types.StringType.get()),
+            required(20, "time_field", Types.TimeType.get()),
+            required(21, "timestamp_field", Types.TimestampType.withoutZone()),
+            required(22, "timestamp_with_timezone_field", Types.TimestampType.withZone()),
+            required(23, "tinyint_field", Types.StringType.get()),
+            required(24, "varbinary_field", Types.BinaryType.get()),
+            required(25, "varchar_field", Types.StringType.get()),
+            required(26, "blob_field", Types.BinaryType.get()),
+            required(27, "clob_field", Types.StringType.get()),
+            required(28, "uuid_field", Types.UUIDType.get()));
+
+    @Test
+    public void testJdbcBeamSchemaToIcebergSchema() {
+      org.apache.iceberg.Schema convertedIcebergSchema =
+          IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA_JDBC_ALL_TYPES);
+
+      assertTrue(convertedIcebergSchema.sameSchema(ICEBERG_SCHEMA_JDBC_ALL_TYPES));
     }
   }
 }
