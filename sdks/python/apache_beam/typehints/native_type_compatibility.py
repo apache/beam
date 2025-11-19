@@ -22,6 +22,7 @@
 import collections
 import collections.abc
 import logging
+import sys
 import types
 import typing
 from typing import Generic
@@ -335,7 +336,8 @@ def convert_to_beam_type(typ):
   # pipe operator as Union and types.UnionType are introduced
   # in Python 3.10.
   # GH issue: https://github.com/apache/beam/issues/21972
-  if isinstance(typ, types.UnionType):
+  if (sys.version_info.major == 3 and
+      sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
 
   # Unwrap Python 3.12 `type` aliases (TypeAliasType) to their underlying value.
@@ -366,7 +368,7 @@ def convert_to_beam_type(typ):
     # TODO(https://github.com/apache/beam/issues/19954): Currently unhandled.
     _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
     return typehints.Any
-  elif isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
+  elif sys.version_info >= (3, 10) and isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
     # Special case for NewType, where, since Python 3.10, NewType is now a class
     # rather than a function.
     # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.
