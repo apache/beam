@@ -47,6 +47,10 @@ import org.junit.Test;
 public class StructUtilsTest {
   private static final Schema EMPTY_SCHEMA = Schema.builder().build();
   private static final Schema INT64_SCHEMA = Schema.builder().addInt64Field("int64").build();
+  private static final Timestamp TIMESTAMP = Timestamp.ofTimeMicroseconds(1234567890123456L);
+  private static final Instant INSTANT =
+      Instant.ofEpochSecond(
+          1234567890123456L / 1_000_000L, (1234567890123456L % 1_000_000L) * 1_000L);
 
   @Test
   public void testStructToBeamRow() {
@@ -299,30 +303,26 @@ public class StructUtilsTest {
                 Schema.FieldType.array(Schema.FieldType.logicalType(new MicrosInstant())))
             .build();
 
-    Timestamp ts = Timestamp.ofTimeMicroseconds(1234567890123456L);
     Struct struct =
         Struct.newBuilder()
             .set("f_int64")
             .to(42L)
             .set("f_micros_instant")
-            .to(ts)
+            .to(TIMESTAMP)
             .set("f_micros_instant_array")
-            .toTimestampArray(ImmutableList.of(ts, ts))
+            .toTimestampArray(ImmutableList.of(TIMESTAMP, TIMESTAMP))
             .build();
 
     Row result = StructUtils.structToBeamRow(struct, schema);
 
     assertEquals(42L, result.getInt64("f_int64").longValue());
 
-    Instant expectedInstant =
-        Instant.ofEpochSecond(
-            1234567890123456L / 1_000_000L, (1234567890123456L % 1_000_000L) * 1_000L);
-    assertEquals(expectedInstant, result.getValue("f_micros_instant"));
+    assertEquals(INSTANT, result.getValue("f_micros_instant"));
 
     @SuppressWarnings("unchecked")
     List<Instant> instants = (List<Instant>) result.getValue("f_micros_instant_array");
     assertEquals(2, instants.size());
-    assertEquals(expectedInstant, instants.get(0));
+    assertEquals(INSTANT, instants.get(0));
   }
 
   private StructType.Field getFieldForTypeCode(String name, TypeCode typeCode) {

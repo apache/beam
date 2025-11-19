@@ -353,6 +353,11 @@ final class StructUtils {
     }
   }
 
+  private static java.time.Instant fromSpannerTimestamp(Timestamp spannerTimestamp) {
+    long micros = spannerTimestamp.getSeconds() * 1_000_000L + spannerTimestamp.getNanos() / 1_000L;
+    return java.time.Instant.ofEpochSecond(micros / 1_000_000L, (micros % 1_000_000L) * 1_000L);
+  }
+
   private static @Nullable Object getStructValue(Struct struct, Schema.Field field) {
     String column = field.getName();
     Type.Code typeCode = struct.getColumnType(column).getCode();
@@ -373,11 +378,7 @@ final class StructUtils {
         if (fieldType.getTypeName().isLogicalType()) {
           Schema.@Nullable LogicalType<?, ?> logicalType = fieldType.getLogicalType();
           if (logicalType != null && logicalType.getIdentifier().equals(MicrosInstant.IDENTIFIER)) {
-            // Convert to java.time.Instant with microsecond precision
-            long micros =
-                spannerTimestamp.getSeconds() * 1_000_000L + spannerTimestamp.getNanos() / 1_000L;
-            return java.time.Instant.ofEpochSecond(
-                micros / 1_000_000L, (micros % 1_000_000L) * 1_000L);
+            return fromSpannerTimestamp(spannerTimestamp);
           }
         }
         // Default DATETIME behavior: convert to Joda DateTime
@@ -434,10 +435,7 @@ final class StructUtils {
             return struct.getTimestampList(column).stream()
                 .map(
                     timestamp -> {
-                      long micros =
-                          timestamp.getSeconds() * 1_000_000L + timestamp.getNanos() / 1_000L;
-                      return java.time.Instant.ofEpochSecond(
-                          micros / 1_000_000L, (micros % 1_000_000L) * 1_000L);
+                      return fromSpannerTimestamp(timestamp);
                     })
                 .collect(toList());
           }

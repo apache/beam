@@ -104,6 +104,11 @@ final class MutationUtils {
     return mutationBuilder.build();
   }
 
+  private static Timestamp toSpannerTimestamp(Instant instant) {
+    long micros = instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1_000L;
+    return Timestamp.ofTimeMicroseconds(micros);
+  }
+
   private static void setBeamValueToKey(
       Key.Builder keyBuilder, Schema.FieldType field, String columnName, Row row) {
     switch (field.getTypeName()) {
@@ -157,8 +162,7 @@ final class MutationUtils {
           if (instant == null) {
             keyBuilder.append((Timestamp) null);
           } else {
-            long micros = instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1_000L;
-            keyBuilder.append(Timestamp.ofTimeMicroseconds(micros));
+            keyBuilder.append(toSpannerTimestamp(instant));
           }
         } else {
           throw new IllegalArgumentException(
@@ -250,8 +254,7 @@ final class MutationUtils {
           if (instant == null) {
             mutationBuilder.set(columnName).to((Timestamp) null);
           } else {
-            long micros = instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1_000L;
-            mutationBuilder.set(columnName).to(Timestamp.ofTimeMicroseconds(micros));
+            mutationBuilder.set(columnName).to(toSpannerTimestamp(instant));
           }
         } else {
           throw new IllegalArgumentException(
@@ -380,11 +383,7 @@ final class MutationUtils {
                     StreamSupport.stream(iterable.spliterator(), false)
                         .map(
                             instant -> {
-                              Instant javaInstant = (java.time.Instant) instant;
-                              long micros =
-                                  javaInstant.getEpochSecond() * 1_000_000L
-                                      + javaInstant.getNano() / 1_000L;
-                              return Timestamp.ofTimeMicroseconds(micros);
+                              return toSpannerTimestamp((java.time.Instant) instant);
                             })
                         .collect(toList()));
           }
