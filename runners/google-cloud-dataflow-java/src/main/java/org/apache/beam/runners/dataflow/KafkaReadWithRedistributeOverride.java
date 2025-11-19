@@ -61,8 +61,11 @@ public final class KafkaReadWithRedistributeOverride {
     public PTransformReplacement<PBegin, PCollection<KafkaRecord<K, V>>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<KafkaRecord<K, V>>, KafkaIO.Read<K, V>> transform) {
       KafkaIO.Read<K, V> read = transform.getTransform();
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(), read.withOffsetDeduplication(true));
+      if (read.getOffsetDeduplication() == null) {
+        return PTransformReplacement.of(
+            transform.getPipeline().begin(), read.withOffsetDeduplication(true));
+      }
+      return PTransformReplacement.of(transform.getPipeline().begin(), read);
     }
 
     @Override

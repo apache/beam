@@ -49,12 +49,20 @@ public class KafkaReadWithRedistributeOverrideTest implements Serializable {
             .withValueDeserializer(StringDeserializer.class)
             .withRedistribute());
     p.apply(
-        "NonMatchingRead",
+        "NoRedistribute",
         KafkaIO.<String, String>read()
             .withBootstrapServers("localhost:9092")
-            .withTopic("test_nomatch")
+            .withTopic("test_no_redistribute")
             .withKeyDeserializer(StringDeserializer.class)
             .withValueDeserializer(StringDeserializer.class));
+    p.apply(
+        "ExplicitlyDisable",
+        KafkaIO.<String, String>read()
+            .withBootstrapServers("localhost:9092")
+            .withTopic("test_disable")
+            .withKeyDeserializer(StringDeserializer.class)
+            .withValueDeserializer(StringDeserializer.class)
+            .withOffsetDeduplication(false));
 
     p.replaceAll(
         Collections.singletonList(
@@ -66,7 +74,8 @@ public class KafkaReadWithRedistributeOverrideTest implements Serializable {
         new Pipeline.PipelineVisitor.Defaults() {
 
           private boolean matchingVisited = false;
-          private boolean nonMatchingVisited = false;
+          private boolean noRedistributeVisited = false;
+          private boolean explicitlyDisabledVisited = false;
 
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
@@ -76,10 +85,14 @@ public class KafkaReadWithRedistributeOverrideTest implements Serializable {
                 assertThat(read.isRedistributed(), is(true));
                 assertThat(read.getOffsetDeduplication(), is(true));
                 matchingVisited = true;
-              } else if (read.getTopics().contains("test_nomatch")) {
+              } else if (read.getTopics().contains("test_no_redistribute")) {
                 assertThat(read.isRedistributed(), is(false));
                 assertThat(read.getOffsetDeduplication(), nullValue());
-                nonMatchingVisited = true;
+                noRedistributeVisited = true;
+              } else if (read.getTopics().contains("test_disable")) {
+                assertThat(read.isRedistributed(), is(false));
+                assertThat(read.getOffsetDeduplication(), is(false));
+                explicitlyDisabledVisited = true;
               }
             }
             return CompositeBehavior.ENTER_TRANSFORM;
@@ -89,7 +102,12 @@ public class KafkaReadWithRedistributeOverrideTest implements Serializable {
           public void leaveCompositeTransform(Node node) {
             if (node.isRootNode()) {
               assertThat("Matching transform was not visited", matchingVisited, is(true));
-              assertThat("Non-matching transform was not visited", nonMatchingVisited, is(true));
+              assertThat(
+                  "No redistribute transform was not visited", noRedistributeVisited, is(true));
+              assertThat(
+                  "Explicitly disable transform was not visited",
+                  explicitlyDisabledVisited,
+                  is(true));
             }
           }
         };
