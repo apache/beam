@@ -341,6 +341,44 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       env._get_gcs_cache_dir(p, cache_root)
 
+  def test_pcollection_computing_state(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    pcoll1 = p | 'Create1' >> beam.Create([1])
+    pcoll2 = p | 'Create2' >> beam.Create([2])
+
+    self.assertFalse(env.is_pcollection_computing(pcoll1))
+    self.assertFalse(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, set())
+
+    env.mark_pcollection_computing({pcoll1})
+    self.assertTrue(env.is_pcollection_computing(pcoll1))
+    self.assertFalse(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, {pcoll1})
+
+    env.mark_pcollection_computing({pcoll2})
+    self.assertTrue(env.is_pcollection_computing(pcoll1))
+    self.assertTrue(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, {pcoll1, pcoll2})
+
+    env.unmark_pcollection_computing({pcoll1})
+    self.assertFalse(env.is_pcollection_computing(pcoll1))
+    self.assertTrue(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, {pcoll2})
+
+    env.unmark_pcollection_computing({pcoll2})
+    self.assertFalse(env.is_pcollection_computing(pcoll1))
+    self.assertFalse(env.is_pcollection_computing(pcoll2))
+    self.assertEqual(env.computing_pcollections, set())
+
+  def test_mark_unmark_empty(self):
+    env = ie.InteractiveEnvironment()
+    # Ensure no errors with empty sets
+    env.mark_pcollection_computing(set())
+    self.assertEqual(env.computing_pcollections, set())
+    env.unmark_pcollection_computing(set())
+    self.assertEqual(env.computing_pcollections, set())
+
 
 if __name__ == '__main__':
   unittest.main()

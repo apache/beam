@@ -57,6 +57,7 @@ from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
 from apache_beam.runners.interactive.options import interactive_options
+from apache_beam.runners.interactive.recording_manager import AsyncComputationResult
 from apache_beam.runners.interactive.utils import deferred_df_to_pcollection
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import find_pcoll_name
@@ -1010,6 +1011,88 @@ def collect(
     return result_tuple[0]
   else:
     return result_tuple
+
+
+@progress_indicated
+def compute(
+    *pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection],
+    wait_for_inputs: bool = True,
+    blocking: bool = False,
+    runner=None,
+    options=None,
+    force_compute=False,
+) -> Optional[AsyncComputationResult]:
+  """Computes the given PCollections, potentially asynchronously.
+
+  Args:
+    *pcolls: PCollections to compute. Can be a single PCollection, an iterable
+      of PCollections, or a dictionary with PCollections as values.
+    wait_for_inputs: Whether to wait until the asynchronous dependencies are
+      computed. Setting this to False allows to immediately schedule the
+      computation, but also potentially results in running the same pipeline
+      stages multiple times.
+    blocking: If False, the computation will run in non-blocking fashion. In
+      Colab/IPython environment this mode will also provide the controls for the
+      running pipeline. If True, the computation will block until the pipeline
+      is done.
+    runner: (optional) the runner with which to compute the results.
+    options: (optional) any additional pipeline options to use to compute the
+      results.
+    force_compute: (optional) if True, forces recomputation rather than using
+      cached PCollections.
+
+  Returns:
+    An AsyncComputationResult object if blocking is False, otherwise None.
+  """
+  flatten_pcolls = []
+  for pcoll_container in pcolls:
+    if isinstance(pcoll_container, dict):
+      flatten_pcolls.extend(pcoll_container.values())
+    elif isinstance(pcoll_container, (beam.pvalue.PCollection, DeferredBase)):
+      flatten_pcolls.append(pcoll_container)
+    else:
+      try:
+        flatten_pcolls.extend(iter(pcoll_container))
+      except TypeError:
+        raise ValueError(
+            f'The given pcoll {pcoll_container} is not a dict, an iterable or '
+            'a PCollection.')
+
+  pcolls_set = set()
+  for pcoll in flatten_pcolls:
+    if isinstance(pcoll, DeferredBase):
+      pcoll, _ = deferred_df_to_pcollection(pcoll)
+      watch({f'anonymous_pcollection_{id(pcoll)}': pcoll})
+    assert isinstance(
+        pcoll, beam.pvalue.PCollection
+    ), f'{pcoll} is not an apache_beam.pvalue.PCollection.'
+    pcolls_set.add(pcoll)
+
+  if not pcolls_set:
+    _LOGGER.info('No PCollections to compute.')
+    return None
+
+  pcoll_pipeline = next(iter(pcolls_set)).pipeline
+  user_pipeline = ie.current_env().user_pipeline(pcoll_pipeline)
+  if not user_pipeline:
+    watch({f'anonymous_pipeline_{id(pcoll_pipeline)}': pcoll_pipeline})
+    user_pipeline = pcoll_pipeline
+
+  for pcoll in pcolls_set:
+    if pcoll.pipeline is not user_pipeline:
+      raise ValueError('All PCollections must belong to the same pipeline.')
+
+  recording_manager = ie.current_env().get_recording_manager(
+      user_pipeline, create_if_absent=True)
+
+  return recording_manager.compute_async(
+      pcolls_set,
+      wait_for_inputs=wait_for_inputs,
+      blocking=blocking,
+      runner=runner,
+      options=options,
+      force_compute=force_compute,
+  )
 
 
 @progress_indicated
