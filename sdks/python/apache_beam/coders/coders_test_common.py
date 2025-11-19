@@ -38,8 +38,8 @@ import pytest
 from parameterized import param
 from parameterized import parameterized
 
-from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.runners import pipeline_context
@@ -650,6 +650,7 @@ class CodersTest(unittest.TestCase):
   def test_param_windowed_value_coder(self):
     from apache_beam.transforms.window import IntervalWindow
     from apache_beam.utils.windowed_value import PaneInfo
+
     # pylint: disable=too-many-function-args
     wv = windowed_value.create(
         b'',

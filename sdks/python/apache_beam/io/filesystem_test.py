@@ -518,6 +518,7 @@ atomized in instants hammered around the
     # interface does not allow you to modify the read_size.
     import random
     import threading
+
     from six import int2byte
     num_test_lines = 10
     timeout = 30

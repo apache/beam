@@ -25,12 +25,12 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
+import datatable
 import numpy
 import pandas
 import scipy
-
-import datatable
 import xgboost
+
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ExampleT
 from apache_beam.ml.inference.base import ModelHandler

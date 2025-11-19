@@ -34,6 +34,7 @@ from apache_beam.testing.util import is_not_empty
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud import recommendationengine
+
   from apache_beam.ml.gcp import recommendations_ai
 except ImportError:
   recommendationengine = None

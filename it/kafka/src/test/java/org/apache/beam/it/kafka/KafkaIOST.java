@@ -155,7 +155,7 @@ public final class KafkaIOST extends IOStressTestBase {
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"rowsPerSecond\":50000,\"numRecords\":5000000,\"valueSizeBytes\":1000,\"minutes\":60,\"pipelineTimeout\":240,\"runner\":\"DataflowRunner\"}",
+                  "{\"rowsPerSecond\":50000,\"numRecords\":5000000,\"valueSizeBytes\":1000,\"minutes\":60,\"pipelineTimeout\":180,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -178,6 +178,13 @@ public final class KafkaIOST extends IOStressTestBase {
     PipelineLauncher.LaunchInfo readInfo = readData();
 
     try {
+      // Add monitoring for write job progress
+      PipelineOperator.Result writeResult =
+          pipelineOperator.waitUntilDone(
+              createConfig(writeInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
+      assertNotEquals(PipelineOperator.Result.LAUNCH_FAILED, writeResult);
+
+      // Add monitoring for read job progress
       PipelineOperator.Result readResult =
           pipelineOperator.waitUntilDone(
               createConfig(readInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
@@ -271,8 +278,12 @@ public final class KafkaIOST extends IOStressTestBase {
             .withProducerConfigUpdates(
                 ImmutableMap.of(
                     ProducerConfig.RETRIES_CONFIG, 10,
-                    ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 600000,
-                    ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 5000))
+                    ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 300000, // Reduced from 600000
+                    ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 5000,
+                    ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 300000, // Add delivery timeout
+                    ProducerConfig.BATCH_SIZE_CONFIG, 16384, // Add batch size
+                    ProducerConfig.LINGER_MS_CONFIG, 100, // Add linger time
+                    ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432)) // Add buffer memory
             .values());
 
     PipelineLauncher.LaunchConfig options =
@@ -287,6 +298,7 @@ public final class KafkaIOST extends IOStressTestBase {
             .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .addParameter("maxNumWorkers", String.valueOf(configuration.maxNumWorkers))
             .addParameter("experiments", configuration.useDataflowRunnerV2 ? "use_runner_v2" : "")
+            .addParameter("enableStreamingEngine", "true") // Enable streaming engine
             .build();
 
     return pipelineLauncher.launch(project, region, options);
@@ -298,7 +310,14 @@ public final class KafkaIOST extends IOStressTestBase {
         KafkaIO.readBytes()
             .withBootstrapServers(configuration.bootstrapServers)
             .withTopic(kafkaTopic)
-            .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"));
+            .withConsumerConfigUpdates(
+                ImmutableMap.of(
+                    "auto.offset.reset", "earliest",
+                    "session.timeout.ms", "30000", // Add session timeout
+                    "heartbeat.interval.ms", "10000", // Add heartbeat interval
+                    "max.poll.interval.ms", "300000", // Add max poll interval
+                    "fetch.min.bytes", "1", // Add fetch min bytes
+                    "fetch.max.wait.ms", "500")); // Add fetch max wait
 
     readPipeline
         .apply("Read from Kafka", readFromKafka)
@@ -311,6 +330,7 @@ public final class KafkaIOST extends IOStressTestBase {
             .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .addParameter("runner", configuration.runner)
             .addParameter("experiments", configuration.useDataflowRunnerV2 ? "use_runner_v2" : "")
+            .addParameter("enableStreamingEngine", "true") // Enable streaming engine
             .build();
 
     return pipelineLauncher.launch(project, region, options);

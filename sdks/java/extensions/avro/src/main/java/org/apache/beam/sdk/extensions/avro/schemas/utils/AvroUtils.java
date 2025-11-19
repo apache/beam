@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
@@ -97,6 +98,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -1219,6 +1221,15 @@ public class AvroUtils {
     return fieldType.getNullable() ? ReflectData.makeNullable(baseType) : baseType;
   }
 
+  private static final Map<org.apache.avro.Schema, Function<Number, ? extends Number>>
+      NUMERIC_CONVERTERS =
+          ImmutableMap.of(
+              org.apache.avro.Schema.create(Type.INT), Number::intValue,
+              org.apache.avro.Schema.create(Type.LONG), Number::longValue,
+              org.apache.avro.Schema.create(Type.FLOAT), Number::floatValue,
+              org.apache.avro.Schema.create(Type.DOUBLE), Number::doubleValue);
+
+  /** Convert a value from Beam Row to a vlue used for Avro GenericRecord. */
   private static @Nullable Object genericFromBeamField(
       FieldType fieldType, org.apache.avro.Schema avroSchema, @Nullable Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
@@ -1235,6 +1246,11 @@ public class AvroUtils {
       return value;
     }
 
+    if (NUMERIC_CONVERTERS.containsKey(typeWithNullability.type)) {
+      return NUMERIC_CONVERTERS.get(typeWithNullability.type).apply((Number) value);
+    }
+
+    // TODO: should we use Avro Schema as the source-of-truth in general?
     switch (fieldType.getTypeName()) {
       case BYTE:
       case INT16:

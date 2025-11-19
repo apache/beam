@@ -394,13 +394,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   inst_size = 2
   opt_arg_size = 0
 
-  # Python 3.10: bpo-27129 changes jump offsets to use instruction offsets,
-  # not byte offsets. The offsets were halved (16 bits fro instructions vs 8
-  # bits for bytes), so we have to double the value of arg.
-  if (sys.version_info.major, sys.version_info.minor) >= (3, 10):
-    jump_multiplier = 2
-  else:
-    jump_multiplier = 1
+  jump_multiplier = 2
 
   last_pc = -1
   last_real_opname = opname = None

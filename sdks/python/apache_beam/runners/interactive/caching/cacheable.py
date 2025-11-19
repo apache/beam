@@ -68,6 +68,7 @@ class CacheKey:
 
   def __post_init__(self):
     from apache_beam.runners.interactive.utils import obfuscate
+
     # Normalize arbitrary variable name to a fixed length hex str.
     self.var = obfuscate(self.var)[:10]
 

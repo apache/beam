@@ -65,7 +65,7 @@ if [ -z "$BASE_PATH" ]; then
 fi
 
 if [ -z "$EXTRAS" ]; then
-  EXTRAS="[gcp,dataframe,test]"
+  EXTRAS="[gcp,dataframe,test,yaml]"
 fi
 
 set -ex
@@ -76,6 +76,16 @@ python"${PY_VERSION}" -m venv "$ENV_PATH"
 source "$ENV_PATH"/bin/activate
 pip install --upgrade pip setuptools wheel
 
+# For non-vllm (non-gpu) requirement files, force downloading torch from CPU wheels
+INDEX_URL_OPTION="--extra-index-url https://download.pytorch.org/whl/cpu"
+if [[ $EXTRAS == *"vllm"* ]]; then
+  # Explicitly install torch to avoid https://github.com/facebookresearch/xformers/issues/740
+  # A different version of torch may be installed later since torch is a requirement for vllm
+  pip install --no-cache-dir torch
+
+  INDEX_URL_OPTION=""
+fi
+
 # Install gcp extra deps since these deps are commonly used with Apache Beam.
 # Install dataframe deps to add have Dataframe support in released images.
 # Install test deps since some integration tests need dependencies,
@@ -83,7 +93,7 @@ pip install --upgrade pip setuptools wheel
 # Force torch dependencies to be pulled from the PyTorch CPU wheel
 # repository so that they don't include GPU dependencies with
 # non-compliant licenses
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS" --extra-index-url https://download.pytorch.org/whl/cpu
+pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS" $INDEX_URL_OPTION
 pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
 
 pip uninstall -y apache-beam

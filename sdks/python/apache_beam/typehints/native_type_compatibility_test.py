@@ -491,6 +491,24 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
       builtin_type = convert_typing_to_builtin(typing_type)
       self.assertEqual(builtin_type, expected_builtin_type, description)
 
+  def test_type_alias_type_unwrapped(self):
+    # Only applicable on Python 3.12+, where typing.TypeAliasType exists
+    # and the `type` statement is available.
+    TypeAliasType = getattr(typing, 'TypeAliasType', None)
+    if TypeAliasType is None:
+      self.skipTest('TypeAliasType not available')
+
+    ns = {}
+    try:
+      exec('type AliasTuple = tuple[int, ...]', {}, ns)  # pylint: disable=exec-used
+    except SyntaxError:
+      self.skipTest('type statement not supported')
+
+    AliasTuple = ns['AliasTuple']
+    self.assertTrue(isinstance(AliasTuple, TypeAliasType))  # pylint: disable=isinstance-second-argument-not-valid-type
+    self.assertEqual(
+        typehints.Tuple[int, ...], convert_to_beam_type(AliasTuple))
+
 
 if __name__ == '__main__':
   unittest.main()
