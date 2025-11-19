@@ -71,7 +71,7 @@ docker {
    buildArgs(
          ['BASE_IMAGE'   : project.rootProject.hasProperty(["base-image"]) ?
                project.rootProject["base-image"] :
-               "openjdk:11",
+               "eclipse-temurin:11",
           'GIT_COMMIT'   : getGitCommitHash(),
           'GIT_TIMESTAMP': getGitCommitTimestamp()])
 }

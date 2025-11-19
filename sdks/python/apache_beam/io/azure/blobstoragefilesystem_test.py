@@ -32,8 +32,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 # Protect against environments where azure library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.io.azure import blobstorageio
   from apache_beam.io.azure import blobstoragefilesystem
+  from apache_beam.io.azure import blobstorageio
 except ImportError:
   blobstoragefilesystem = None  # type: ignore[assignment]
 # pylint: enable=wrong-import-order, wrong-import-position

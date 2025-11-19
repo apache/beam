@@ -506,8 +506,9 @@ class YamlProvider(Provider):
       yaml_create_transform: Callable[
           [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
   ) -> beam.PTransform:
-    from apache_beam.yaml.yaml_transform import expand_jinja, preprocess
     from apache_beam.yaml.yaml_transform import SafeLineLoader
+    from apache_beam.yaml.yaml_transform import expand_jinja
+    from apache_beam.yaml.yaml_transform import preprocess
     spec = self._transforms[type]
     try:
       import jsonschema
@@ -1629,9 +1630,9 @@ def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
 @functools.cache
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
-  from apache_beam.yaml.yaml_mapping import create_mapping_providers
-  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
+  from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_specifiable import create_spec_providers
 
   return merge_providers(

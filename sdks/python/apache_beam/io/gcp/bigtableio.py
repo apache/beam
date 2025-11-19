@@ -60,8 +60,9 @@ MAX_ROW_BYTES = 5242880  # 5MB
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable.row import Cell, PartialRowData
   from google.cloud.bigtable.batcher import MutationsBatcher
+  from google.cloud.bigtable.row import Cell
+  from google.cloud.bigtable.row import PartialRowData
 
 except ImportError:
   _LOGGER.warning(

@@ -35,6 +35,14 @@ try:
 except ImportError:
   from typing_extensions import is_typeddict
 
+# Python 3.12 adds TypeAliasType for `type` statements; keep optional import.
+# pylint: disable=ungrouped-imports
+# isort: off
+try:
+  from typing import TypeAliasType  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover - pre-3.12
+  TypeAliasType = None  # type: ignore[assignment]
+
 T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
@@ -328,9 +336,16 @@ def convert_to_beam_type(typ):
   # pipe operator as Union and types.UnionType are introduced
   # in Python 3.10.
   # GH issue: https://github.com/apache/beam/issues/21972
-  if (sys.version_info.major == 3 and
-      sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
+  if isinstance(typ, types.UnionType):
     typ = typing.Union[typ]
+
+  # Unwrap Python 3.12 `type` aliases (TypeAliasType) to their underlying value.
+  # This ensures Beam sees the actual aliased type (e.g., tuple[int, ...]).
+  if sys.version_info >= (3, 12) and TypeAliasType is not None:
+    if isinstance(typ, TypeAliasType):  # pylint: disable=isinstance-second-argument-not-valid-type
+      underlying = getattr(typ, '__value__', None)
+      if underlying is not None:
+        typ = underlying
 
   if getattr(typ, '__module__', None) == 'typing':
     typ = convert_typing_to_builtin(typ)
@@ -352,7 +367,7 @@ def convert_to_beam_type(typ):
     # TODO(https://github.com/apache/beam/issues/19954): Currently unhandled.
     _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
     return typehints.Any
-  elif sys.version_info >= (3, 10) and isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
+  elif isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
     # Special case for NewType, where, since Python 3.10, NewType is now a class
     # rather than a function.
     # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.

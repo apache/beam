@@ -19,10 +19,11 @@
 import unittest
 
 try:
-  from apache_beam.ml.inference.gemini_inference import _retry_on_appropriate_service_error
-  from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
-  from apache_beam.ml.inference.gemini_inference import generate_from_string
   from google.genai import errors
+
+  from apache_beam.ml.inference.gemini_inference import GeminiModelHandler
+  from apache_beam.ml.inference.gemini_inference import _retry_on_appropriate_service_error
+  from apache_beam.ml.inference.gemini_inference import generate_from_string
 except ImportError:
   raise unittest.SkipTest('Gemini dependencies are not installed')
 

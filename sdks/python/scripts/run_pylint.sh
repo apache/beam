@@ -57,6 +57,9 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py"
+"apache_beam/runners/dataflow/internal/clients/cloudbuild/cloudbuild_v1_client.py"
+"apache_beam/runners/dataflow/internal/clients/cloudbuild/cloudbuild_v1_messages.py"
+"apache_beam/io/aws/clients/s3/boto3_client.py"
 )
 
 # more portable than shopt -s globstar
@@ -113,7 +116,7 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
 isort ${MODULE} -p apache_beam --line-width 120 --check-only --order-by-type \
-    --combine-star --force-single-line-imports --diff --recursive ${SKIP_PARAM}
+    --combine-star --force-single-line-imports --diff --magic-placement ${SKIP_PARAM}
 
 echo "Checking unittest.main..."
 TESTS_MISSING_MAIN=$(

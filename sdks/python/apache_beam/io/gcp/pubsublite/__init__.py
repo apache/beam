@@ -15,7 +15,8 @@
 # limitations under the License.
 #
 
-from .proto_api import ReadFromPubSubLite, WriteToPubSubLite
+from .proto_api import ReadFromPubSubLite
+from .proto_api import WriteToPubSubLite
 
 __all__ = [
     "ReadFromPubSubLite",

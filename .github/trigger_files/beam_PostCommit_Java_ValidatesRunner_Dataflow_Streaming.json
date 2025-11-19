@@ -4,5 +4,6 @@
   "https://github.com/apache/beam/pull/31156": "noting that PR #31156 should run this test",
   "https://github.com/apache/beam/pull/31268": "noting that PR #31268 should run this test",
   "https://github.com/apache/beam/pull/31490": "noting that PR #31490 should run this test",
-  "https://github.com/apache/beam/pull/35159": "moving WindowedValue and making an interface"
+  "https://github.com/apache/beam/pull/35159": "moving WindowedValue and making an interface",
+  "https://github.com/apache/beam/pull/36631": "dofn lifecycle",
 }
