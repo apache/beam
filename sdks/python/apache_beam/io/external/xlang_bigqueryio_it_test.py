@@ -66,47 +66,47 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   BIGQUERY_DATASET = 'python_xlang_storage_write'
 
   ELEMENTS = [
-    # (int, float, numeric, string, bool, bytes, timestamp)
-    {
-      "int": 1,
-      "float": 0.1,
-      "numeric": Decimal("1.11"),
-      "str": "a",
-      "bool": True,
-      "bytes": b'a',
-      "timestamp": Timestamp(1000, 100)
-    },
-    {
-      "int": 2,
-      "float": 0.2,
-      "numeric": Decimal("2.22"),
-      "str": "b",
-      "bool": False,
-      "bytes": b'b',
-      "timestamp": Timestamp(2000, 200)
-    },
-    {
-      "int": 3,
-      "float": 0.3,
-      "numeric": Decimal("3.33"),
-      "str": "c",
-      "bool": True,
-      "bytes": b'd',
-      "timestamp": Timestamp(3000, 300)
-    },
-    {
-      "int": 4,
-      "float": 0.4,
-      "numeric": Decimal("4.44"),
-      "str": "d",
-      "bool": False,
-      "bytes": b'd',
-      "timestamp": Timestamp(4000, 400)
-    }
+      # (int, float, numeric, string, bool, bytes, timestamp)
+      {
+          "int": 1,
+          "float": 0.1,
+          "numeric": Decimal("1.11"),
+          "str": "a",
+          "bool": True,
+          "bytes": b'a',
+          "timestamp": Timestamp(1000, 100)
+      },
+      {
+          "int": 2,
+          "float": 0.2,
+          "numeric": Decimal("2.22"),
+          "str": "b",
+          "bool": False,
+          "bytes": b'b',
+          "timestamp": Timestamp(2000, 200)
+      },
+      {
+          "int": 3,
+          "float": 0.3,
+          "numeric": Decimal("3.33"),
+          "str": "c",
+          "bool": True,
+          "bytes": b'd',
+          "timestamp": Timestamp(3000, 300)
+      },
+      {
+          "int": 4,
+          "float": 0.4,
+          "numeric": Decimal("4.44"),
+          "str": "d",
+          "bool": False,
+          "bytes": b'd',
+          "timestamp": Timestamp(4000, 400)
+      }
   ]
   ALL_TYPES_SCHEMA = (
-    "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
-    "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
+      "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
+      "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -114,26 +114,27 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
     self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
-    self.bigquery_client = BigQueryWrapper.from_pipeline_options(self.test_pipeline.options)
+    self.bigquery_client = BigQueryWrapper.from_pipeline_options(
+        self.test_pipeline.options)
     self.dataset_id = '%s_%s_%s' % (
-      self.BIGQUERY_DATASET, str(int(time.time())), secrets.token_hex(3))
+        self.BIGQUERY_DATASET, str(int(time.time())), secrets.token_hex(3))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     _LOGGER.info(
-      "Created dataset %s in project %s", self.dataset_id, self.project)
+        "Created dataset %s in project %s", self.dataset_id, self.project)
 
   def tearDown(self):
     try:
       _LOGGER.info(
-        "Deleting dataset %s in project %s", self.dataset_id, self.project)
+          "Deleting dataset %s in project %s", self.dataset_id, self.project)
       self.bigquery_client._delete_dataset(
-        project_id=self.project,
-        dataset_id=self.dataset_id,
-        delete_contents=True)
+          project_id=self.project,
+          dataset_id=self.dataset_id,
+          delete_contents=True)
     except HttpError:
       _LOGGER.debug(
-        'Failed to clean up dataset %s in project %s',
-        self.dataset_id,
-        self.project)
+          'Failed to clean up dataset %s in project %s',
+          self.dataset_id,
+          self.project)
 
   def parse_expected_data(self, expected_elements):
     if not isinstance(expected_elements, list):
@@ -145,13 +146,13 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         if isinstance(val, Timestamp):
           # BigQuery matcher query returns a datetime.datetime object
           values[i] = val.to_utc_datetime().replace(
-            tzinfo=datetime.timezone.utc)
+              tzinfo=datetime.timezone.utc)
       data.append(tuple(values))
 
     return data
 
   def assert_iceberg_tables_created(
-    self, table_prefix, storage_uri, expected_count=1):
+      self, table_prefix, storage_uri, expected_count=1):
     """Verify that Iceberg table directories are created in
     the warehouse location.
 
@@ -162,7 +163,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     """
     if GcsIO is None:
       _LOGGER.warning(
-        "GcsIO not available, skipping warehouse location verification")
+          "GcsIO not available, skipping warehouse location verification")
       return
 
     gcs_io = GcsIO()
@@ -180,8 +181,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     # Following the pattern:
     # {base_prefix}/{project}/{dataset}/{table_prefix}
     search_prefix = (
-      f"{base_prefix}/"
-      f"{self.project}/{self.dataset_id}/{table_prefix}")
+        f"{base_prefix}/"
+        f"{self.project}/{self.dataset_id}/{table_prefix}")
 
     # List objects in the bucket with the constructed prefix
     try:
@@ -190,40 +191,40 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
       if object_count < expected_count:
         raise AssertionError(
-          f"Expected at least {expected_count} objects in warehouse "
-          f"location gs://{bucket_name}/{search_prefix}, but found "
-          f"{object_count}")
+            f"Expected at least {expected_count} objects in warehouse "
+            f"location gs://{bucket_name}/{search_prefix}, but found "
+            f"{object_count}")
 
       _LOGGER.info(
-        "Successfully verified %s objects created in "
-        "warehouse location gs://%s/%s",
-        object_count,
-        bucket_name,
-        search_prefix)
+          "Successfully verified %s objects created in "
+          "warehouse location gs://%s/%s",
+          object_count,
+          bucket_name,
+          search_prefix)
 
     except Exception as e:
       raise AssertionError(
-        f"Failed to verify table creation in warehouse location "
-        f"gs://{bucket_name}/{search_prefix}: {str(e)}")
+          f"Failed to verify table creation in warehouse location "
+          f"gs://{bucket_name}/{search_prefix}: {str(e)}")
 
   def run_storage_write_test(
-    self, table_name, items, schema, use_at_least_once=False):
+      self, table_name, items, schema, use_at_least_once=False):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table_name)
 
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM %s" % '{}.{}'.format(self.dataset_id, table_name),
-      data=self.parse_expected_data(items))
+        project=self.project,
+        query="SELECT * FROM %s" % '{}.{}'.format(self.dataset_id, table_name),
+        data=self.parse_expected_data(items))
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | beam.Create(items)
-        | beam.io.WriteToBigQuery(
-        table=table_id,
-        method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-        schema=schema,
-        use_at_least_once=use_at_least_once))
+          p
+          | beam.Create(items)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=schema,
+              use_at_least_once=use_at_least_once))
     hamcrest_assert(p, bq_matcher)
 
   def test_all_types(self):
@@ -235,46 +236,46 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table_name = "with_at_least_once_semantics"
     schema = self.ALL_TYPES_SCHEMA
     self.run_storage_write_test(
-      table_name, self.ELEMENTS, schema, use_at_least_once=True)
+        table_name, self.ELEMENTS, schema, use_at_least_once=True)
 
   def test_nested_records_and_lists(self):
     table_name = "nested_records_and_lists"
     schema = {
-      "fields": [{
-        "name": "repeated_int", "type": "INTEGER", "mode": "REPEATED"
-      },
-        {
-          "name": "struct",
-          "type": "STRUCT",
-          "fields": [{
-            "name": "nested_int", "type": "INTEGER"
-          }, {
-            "name": "nested_str", "type": "STRING"
-          }]
+        "fields": [{
+            "name": "repeated_int", "type": "INTEGER", "mode": "REPEATED"
         },
-        {
-          "name": "repeated_struct",
-          "type": "STRUCT",
-          "mode": "REPEATED",
-          "fields": [{
-            "name": "nested_numeric", "type": "NUMERIC"
-          }, {
-            "name": "nested_bytes", "type": "BYTES"
-          }]
-        }]
+                   {
+                       "name": "struct",
+                       "type": "STRUCT",
+                       "fields": [{
+                           "name": "nested_int", "type": "INTEGER"
+                       }, {
+                           "name": "nested_str", "type": "STRING"
+                       }]
+                   },
+                   {
+                       "name": "repeated_struct",
+                       "type": "STRUCT",
+                       "mode": "REPEATED",
+                       "fields": [{
+                           "name": "nested_numeric", "type": "NUMERIC"
+                       }, {
+                           "name": "nested_bytes", "type": "BYTES"
+                       }]
+                   }]
     }
     items = [{
-      "repeated_int": [1, 2, 3],
-      "struct": {
-        "nested_int": 1, "nested_str": "a"
-      },
-      "repeated_struct": [{
-        "nested_numeric": Decimal("1.23"), "nested_bytes": b'a'
-      },
-        {
-          "nested_numeric": Decimal("3.21"),
-          "nested_bytes": b'aa'
-        }]
+        "repeated_int": [1, 2, 3],
+        "struct": {
+            "nested_int": 1, "nested_str": "a"
+        },
+        "repeated_struct": [{
+            "nested_numeric": Decimal("1.23"), "nested_bytes": b'a'
+        },
+                            {
+                                "nested_numeric": Decimal("3.21"),
+                                "nested_bytes": b'aa'
+                            }]
     }]
 
     self.run_storage_write_test(table_name, items, schema)
@@ -284,26 +285,26 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
     row_elements = [
-      beam.Row(
-        my_int=e['int'],
-        my_float=e['float'],
-        my_numeric=e['numeric'],
-        my_string=e['str'],
-        my_bool=e['bool'],
-        my_bytes=e['bytes'],
-        my_timestamp=e['timestamp']) for e in self.ELEMENTS
+        beam.Row(
+            my_int=e['int'],
+            my_float=e['float'],
+            my_numeric=e['numeric'],
+            my_string=e['str'],
+            my_bool=e['bool'],
+            my_bytes=e['bytes'],
+            my_timestamp=e['timestamp']) for e in self.ELEMENTS
     ]
 
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-      data=self.parse_expected_data(self.ELEMENTS))
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(self.ELEMENTS))
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | beam.Create(row_elements)
-        | StorageWriteToBigQuery(table=table_id))
+          p
+          | beam.Create(row_elements)
+          | StorageWriteToBigQuery(table=table_id))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_with_clustering(self):
@@ -311,23 +312,23 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-      data=self.parse_expected_data(self.ELEMENTS))
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(self.ELEMENTS))
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | "Create test data" >> beam.Create(self.ELEMENTS)
-        | beam.io.WriteToBigQuery(
-        table=table_id,
-        method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-        schema=self.ALL_TYPES_SCHEMA,
-        create_disposition='CREATE_IF_NEEDED',
-        write_disposition='WRITE_TRUNCATE',
-        additional_bq_parameters={'clustering': {
-          'fields': ['int']
-        }}))
+          p
+          | "Create test data" >> beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              create_disposition='CREATE_IF_NEEDED',
+              write_disposition='WRITE_TRUNCATE',
+              additional_bq_parameters={'clustering': {
+                  'fields': ['int']
+              }}))
 
     # After pipeline finishes, verify clustering is applied
     table = self.bigquery_client.get_table(self.project, self.dataset_id, table)
@@ -341,39 +342,39 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
     expected_data_on_bq = [
-      # (name, value)
-      {
-        "name": "cdc_test",
-        "value": 5,
-      }
+        # (name, value)
+        {
+            "name": "cdc_test",
+            "value": 5,
+        }
     ]
 
     rows_with_cdc = [
-      beam.Row(
-        row_mutation_info=beam.Row(
-          mutation_type="UPSERT", change_sequence_number="AAA/2"),
-        record=beam.Row(name="cdc_test", value=5)),
-      beam.Row(
-        row_mutation_info=beam.Row(
-          mutation_type="UPSERT", change_sequence_number="AAA/1"),
-        record=beam.Row(name="cdc_test", value=3))
+        beam.Row(
+            row_mutation_info=beam.Row(
+                mutation_type="UPSERT", change_sequence_number="AAA/2"),
+            record=beam.Row(name="cdc_test", value=5)),
+        beam.Row(
+            row_mutation_info=beam.Row(
+                mutation_type="UPSERT", change_sequence_number="AAA/1"),
+            record=beam.Row(name="cdc_test", value=3))
     ]
 
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-      data=self.parse_expected_data(expected_data_on_bq))
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(expected_data_on_bq))
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | beam.Create(rows_with_cdc)
-        | beam.io.WriteToBigQuery(
-        table=table_id,
-        method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-        use_at_least_once=True,
-        use_cdc_writes=True,
-        primary_key=["name"]))
+          p
+          | beam.Create(rows_with_cdc)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              use_at_least_once=True,
+              use_cdc_writes=True,
+              primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_with_dicts_cdc(self):
@@ -381,81 +382,81 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
     expected_data_on_bq = [
-      # (name, value)
-      {
-        "name": "cdc_test",
-        "value": 5,
-      }
+        # (name, value)
+        {
+            "name": "cdc_test",
+            "value": 5,
+        }
     ]
 
     data_with_cdc = [
-      # record: (name, value)
-      {
-        'row_mutation_info': {
-          'mutation_type': 'UPSERT', 'change_sequence_number': 'AAA/2'
+        # record: (name, value)
+        {
+            'row_mutation_info': {
+                'mutation_type': 'UPSERT', 'change_sequence_number': 'AAA/2'
+            },
+            'record': {
+                'name': 'cdc_test', 'value': 5
+            }
         },
-        'record': {
-          'name': 'cdc_test', 'value': 5
+        {
+            'row_mutation_info': {
+                'mutation_type': 'UPSERT', 'change_sequence_number': 'AAA/1'
+            },
+            'record': {
+                'name': 'cdc_test', 'value': 3
+            }
         }
-      },
-      {
-        'row_mutation_info': {
-          'mutation_type': 'UPSERT', 'change_sequence_number': 'AAA/1'
-        },
-        'record': {
-          'name': 'cdc_test', 'value': 3
-        }
-      }
     ]
 
     schema = {
-      "fields": [
-        # include both record and mutation info fields as part of the schema
-        {
-          "name": "row_mutation_info",
-          "type": "STRUCT",
-          "fields": [
-            # setting both fields are required
+        "fields": [
+            # include both record and mutation info fields as part of the schema
             {
-              "name": "mutation_type",
-              "type": "STRING",
-              "mode": "REQUIRED"
+                "name": "row_mutation_info",
+                "type": "STRUCT",
+                "fields": [
+                    # setting both fields are required
+                    {
+                        "name": "mutation_type",
+                        "type": "STRING",
+                        "mode": "REQUIRED"
+                    },
+                    {
+                        "name": "change_sequence_number",
+                        "type": "STRING",
+                        "mode": "REQUIRED"
+                    }
+                ]
             },
             {
-              "name": "change_sequence_number",
-              "type": "STRING",
-              "mode": "REQUIRED"
+                "name": "record",
+                "type": "STRUCT",
+                "fields": [{
+                    "name": "name", "type": "STRING"
+                }, {
+                    "name": "value", "type": "INTEGER"
+                }]
             }
-          ]
-        },
-        {
-          "name": "record",
-          "type": "STRUCT",
-          "fields": [{
-            "name": "name", "type": "STRING"
-          }, {
-            "name": "value", "type": "INTEGER"
-          }]
-        }
-      ]
+        ]
     }
 
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-      data=self.parse_expected_data(expected_data_on_bq))
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(expected_data_on_bq))
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | beam.Create(data_with_cdc)
-        | beam.io.WriteToBigQuery(
-        table=table_id,
-        method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-        use_at_least_once=True,
-        use_cdc_writes=True,
-        schema=schema,
-        primary_key=["name"]))
+          p
+          | beam.Create(data_with_cdc)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              use_at_least_once=True,
+              use_cdc_writes=True,
+              schema=schema,
+              primary_key=["name"]))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):
@@ -464,22 +465,22 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
 
     bq_matchers = [
-      BigqueryFullResultMatcher(
-        project=self.project,
-        query="SELECT * FROM %s" % tables[i],
-        data=self.parse_expected_data(self.ELEMENTS[i]))
-      for i in range(len(tables))
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % tables[i],
+            data=self.parse_expected_data(self.ELEMENTS[i]))
+        for i in range(len(tables))
     ]
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | beam.Create(self.ELEMENTS)
-        | beam.io.WriteToBigQuery(
-        table=lambda record: spec_with_project + str(record['int']),
-        method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-        schema=self.ALL_TYPES_SCHEMA,
-        use_at_least_once=False))
+          p
+          | beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=lambda record: spec_with_project + str(record['int']),
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
 
   def test_write_to_dynamic_destinations_with_beam_rows(self):
@@ -488,32 +489,32 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
 
     bq_matchers = [
-      BigqueryFullResultMatcher(
-        project=self.project,
-        query="SELECT * FROM %s" % tables[i],
-        data=self.parse_expected_data(self.ELEMENTS[i]))
-      for i in range(len(tables))
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % tables[i],
+            data=self.parse_expected_data(self.ELEMENTS[i]))
+        for i in range(len(tables))
     ]
 
     row_elements = [
-      beam.Row(
-        my_int=e['int'],
-        my_float=e['float'],
-        my_numeric=e['numeric'],
-        my_string=e['str'],
-        my_bool=e['bool'],
-        my_bytes=e['bytes'],
-        my_timestamp=e['timestamp']) for e in self.ELEMENTS
+        beam.Row(
+            my_int=e['int'],
+            my_float=e['float'],
+            my_numeric=e['numeric'],
+            my_string=e['str'],
+            my_bool=e['bool'],
+            my_bytes=e['bytes'],
+            my_timestamp=e['timestamp']) for e in self.ELEMENTS
     ]
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | beam.Create(row_elements)
-        | beam.io.WriteToBigQuery(
-        table=lambda record: spec_with_project + str(record.my_int),
-        method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-        use_at_least_once=False))
+          p
+          | beam.Create(row_elements)
+          | beam.io.WriteToBigQuery(
+              table=lambda record: spec_with_project + str(record.my_int),
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
 
   def run_streaming(self, table_name, num_streams=0, use_at_least_once=False):
@@ -522,38 +523,38 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table_name)
 
     bq_matcher = BigqueryFullResultStreamingMatcher(
-      project=self.project,
-      query="SELECT * FROM {}.{}".format(self.dataset_id, table_name),
-      data=self.parse_expected_data(self.ELEMENTS))
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table_name),
+        data=self.parse_expected_data(self.ELEMENTS))
 
     args = self.test_pipeline.get_full_options_as_args(
-      on_success_matcher=bq_matcher,
-      streaming=True,
-      allow_unsafe_triggers=True)
+        on_success_matcher=bq_matcher,
+        streaming=True,
+        allow_unsafe_triggers=True)
 
     auto_sharding = (num_streams == 0)
     with beam.Pipeline(argv=args) as p:
       _ = (
-        p
-        | PeriodicImpulse(0, 4, 1)
-        | beam.Map(lambda t: elements[t])
-        | beam.io.WriteToBigQuery(
-        table=table_id,
-        method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-        schema=schema,
-        triggering_frequency=1,
-        with_auto_sharding=auto_sharding,
-        num_storage_api_streams=num_streams,
-        use_at_least_once=use_at_least_once))
+          p
+          | PeriodicImpulse(0, 4, 1)
+          | beam.Map(lambda t: elements[t])
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=schema,
+              triggering_frequency=1,
+              with_auto_sharding=auto_sharding,
+              num_storage_api_streams=num_streams,
+              use_at_least_once=use_at_least_once))
     hamcrest_assert(p, bq_matcher)
 
   def skip_if_not_dataflow_runner(self) -> bool:
     # skip if dataflow runner is not specified
     if not self._runner or "dataflowrunner" not in self._runner.lower():
       self.skipTest(
-        "Streaming with exactly-once route has the requirement "
-        "`beam:requirement:pardo:on_window_expiration:v1`, "
-        "which is currently only supported by the Dataflow runner")
+          "Streaming with exactly-once route has the requirement "
+          "`beam:requirement:pardo:on_window_expiration:v1`, "
+          "which is currently only supported by the Dataflow runner")
 
   def test_streaming_with_fixed_num_streams(self):
     self.skip_if_not_dataflow_runner()
@@ -561,8 +562,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.run_streaming(table_name=table, num_streams=4)
 
   @unittest.skip(
-    "Streaming to the Storage Write API sink with autosharding is broken "
-    "with Dataflow Runner V2.")
+      "Streaming to the Storage Write API sink with autosharding is broken "
+      "with Dataflow Runner V2.")
   def test_streaming_with_auto_sharding(self):
     self.skip_if_not_dataflow_runner()
     table = 'streaming_with_auto_sharding'
@@ -586,21 +587,21 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     }
 
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-      data=self.parse_expected_data(self.ELEMENTS))
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(self.ELEMENTS))
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | "Create test data" >> beam.Create(self.ELEMENTS)
-        | beam.io.WriteToBigQuery(
-        table=table_id,
-        method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-        schema=self.ALL_TYPES_SCHEMA,
-        create_disposition='CREATE_IF_NEEDED',
-        write_disposition='WRITE_TRUNCATE',
-        big_lake_configuration=big_lake_config))
+          p
+          | "Create test data" >> beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              create_disposition='CREATE_IF_NEEDED',
+              write_disposition='WRITE_TRUNCATE',
+              big_lake_configuration=big_lake_config))
 
     hamcrest_assert(p, bq_matcher)
 
@@ -612,13 +613,13 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
     row_elements = [
-      beam.Row(
-        my_int=e['int'],
-        my_float=e['float'],
-        my_string=e['str'],
-        my_bool=e['bool'],
-        my_bytes=e['bytes'],
-        my_timestamp=e['timestamp']) for e in self.ELEMENTS
+        beam.Row(
+            my_int=e['int'],
+            my_float=e['float'],
+            my_string=e['str'],
+            my_bool=e['bool'],
+            my_bytes=e['bytes'],
+            my_timestamp=e['timestamp']) for e in self.ELEMENTS
     ]
 
     expected = []
@@ -626,15 +627,15 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       del e["numeric"]
       expected.append(e)
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-      data=self.parse_expected_data(expected))
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(expected))
 
     with beam.Pipeline(argv=self.args) as p:
       _ = (
-        p
-        | beam.Create(row_elements)
-        | beam.managed.Write("bigquery", config={"table": table_id}))
+          p
+          | beam.Create(row_elements)
+          | beam.managed.Write("bigquery", config={"table": table_id}))
     hamcrest_assert(p, bq_matcher)
 
 
