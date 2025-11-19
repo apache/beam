@@ -495,10 +495,8 @@ class SideInputsTest(unittest.TestCase):
     """Test that the default window mapping function will propagate the
     source window when attempting to assign context.
     """
-
     class StringIDWindow(window.BoundedWindow):
       """A window defined by an arbitrary string ID."""
-
       def __init__(self, window_id: str):
         super().__init__(self._getTimestampFromProto())
         self.id = window_id
@@ -506,14 +504,15 @@ class SideInputsTest(unittest.TestCase):
     class StringIDWindows(window.NonMergingWindowFn):
       """ A windowing function that assigns each element a window with ID."""
       def assign(
-        self, assign_context: window.WindowFn.AssignContext
+          self, assign_context: window.WindowFn.AssignContext
       ) -> Iterable[StringIDWindow]:
         if assign_context.element is None:
           return [assign_context.window]
         return [StringIDWindow(str(assign_context.element))]
 
     mapping_fn = sideinputs.default_window_mapping_fn(StringIDWindows())
-    source_window = StringIDWindows().assign(window.WindowFn.AssignContext(Timestamp(10), element='element'))[0]
+    source_window = StringIDWindows().assign(
+        window.WindowFn.AssignContext(Timestamp(10), element='element'))[0]
     bounded_window = mapping_fn(source_window)
     assert bounded_window is not None
     assert bounded_window.id == 'element'
