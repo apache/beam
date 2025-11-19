@@ -35,6 +35,7 @@ dependencies {
   implementation("org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1")
   implementation("org.slf4j:slf4j-api:2.0.9")
   implementation("org.slf4j:slf4j-simple:2.0.9")
+  implementation("joda-time:joda-time:2.11.1")
 
   // testing
   testImplementation(project(":runners:direct-java"))

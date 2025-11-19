@@ -139,19 +139,21 @@ public class RemoteInference {
 
       private final Class<? extends BaseModelHandler> handlerClass;
       private final BaseModelParameters parameters;
-      private transient BaseModelHandler handler;
+      private transient BaseModelHandler modelHandler;
+      private final RetryHandler retryHandler;
 
       RemoteInferenceFn(Invoke<InputT, OutputT> spec) {
         this.handlerClass = spec.handler();
         this.parameters = spec.parameters();
+        retryHandler = RetryHandler.withDefaults();
       }
 
       /** Instantiate the model handler and client*/
       @Setup
       public void setupHandler() {
         try {
-          this.handler = handlerClass.getDeclaredConstructor().newInstance();
-          this.handler.createClient(parameters);
+          this.modelHandler = handlerClass.getDeclaredConstructor().newInstance();
+          this.modelHandler.createClient(parameters);
         } catch (Exception e) {
           throw new RuntimeException("Failed to instantiate handler: "
             + handlerClass.getName(), e);
@@ -159,8 +161,9 @@ public class RemoteInference {
       }
       /** Perform Inference */
       @ProcessElement
-      public void processElement(ProcessContext c) {
-        Iterable<PredictionResult<InputT, OutputT>> response = this.handler.request(c.element());
+      public void processElement(ProcessContext c) throws Exception {
+        Iterable<PredictionResult<InputT, OutputT>> response = retryHandler
+          .execute(() -> modelHandler.request(c.element()));
         c.output(response);
       }
     }

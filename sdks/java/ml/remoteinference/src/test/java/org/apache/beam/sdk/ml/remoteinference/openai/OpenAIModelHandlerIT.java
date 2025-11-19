@@ -306,18 +306,20 @@ public class OpenAIModelHandlerIT {
           .instructionPrompt("Test")
           .build()));
 
-    // Expect pipeline to fail with authentication error
     try {
       pipeline.run().waitUntilFinish();
-      fail("Expected pipeline to fail with invalid API key");
+      fail("Expected pipeline failure due to invalid API key");
     } catch (Exception e) {
-      // Expected - verify it's an authentication error
-      String message = e.getMessage().toLowerCase();
-      assertTrue("Exception should mention authentication or API key issue, got: " + message,
-        message.contains("auth") ||
-          message.contains("api") ||
-          message.contains("key") ||
-          message.contains("401"));
+      String msg = e.toString().toLowerCase();
+
+      assertTrue(
+        "Expected retry exhaustion or API key issue. Got: " + msg,
+        msg.contains("exhaust") ||
+          msg.contains("max retries") ||
+          msg.contains("401") ||
+          msg.contains("api key") ||
+          msg.contains("incorrect api key")
+      );
     }
   }
 
@@ -363,4 +365,42 @@ public class OpenAIModelHandlerIT {
 
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void testRetryWithInvalidModel() {
+
+    PCollection<OpenAIModelInput> inputs =
+      pipeline
+        .apply("CreateInput", Create.of("Test input"))
+        .apply("MapToInput",
+          MapElements.into(TypeDescriptor.of(OpenAIModelInput.class))
+            .via(OpenAIModelInput::create));
+
+    inputs.apply(
+      "FailingOpenAIRequest",
+      RemoteInference.<OpenAIModelInput, OpenAIModelResponse>invoke()
+        .handler(OpenAIModelHandler.class)
+        .withParameters(
+          OpenAIModelParameters.builder()
+            .apiKey(apiKey)
+            .modelName("fake-model")
+            .instructionPrompt("test retry")
+            .build()));
+
+    try {
+      pipeline.run().waitUntilFinish();
+      fail("Pipeline should fail after retry exhaustion.");
+    } catch (Exception e) {
+      String message = e.getMessage().toLowerCase();
+
+      assertTrue(
+        "Expected retry-exhaustion error. Actual: " + message,
+        message.contains("exhaust") ||
+          message.contains("retry") ||
+          message.contains("max retries") ||
+          message.contains("request failed") ||
+          message.contains("fake-model"));
+    }
+  }
+
 }
