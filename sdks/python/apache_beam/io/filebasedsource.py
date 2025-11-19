@@ -147,7 +147,7 @@ class FileBasedSource(iobase.BoundedSource):
       # with each _SingleFileSource. To prevent this FileBasedSource from having
       # a reference to ConcatSource (resulting in quadratic space complexity)
       # we clone it here.
-      file_based_source_ref = pickler.loads(pickler.dumps(self))
+      file_based_source_ref = pickler.roundtrip(self)
 
       for file_metadata in files_metadata:
         file_name = file_metadata.path
@@ -284,7 +284,7 @@ class _SingleFileSource(iobase.BoundedSource):
             split.stop - split.start,
             _SingleFileSource(
                 # Copying this so that each sub-source gets a fresh instance.
-                pickler.loads(pickler.dumps(self._file_based_source)),
+                pickler.roundtrip(self._file_based_source),
                 self._file_name,
                 split.start,
                 split.stop,

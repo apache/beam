@@ -28,6 +28,8 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Construct an oauth credential to be used by the SDK and the SDK workers. Returns a GCP
@@ -38,6 +40,8 @@ public class GcpCredentialFactory implements CredentialFactory {
   private List<String> oauthScopes;
   // If non-null, a list of service account emails to be used as an impersonation chain.
   private @Nullable List<String> impersonateServiceAccountChain;
+  // Logger for logging credentials fails
+  private static final Logger LOG = LoggerFactory.getLogger(GcpCredentialFactory.class);
 
   private GcpCredentialFactory(
       List<String> oauthScopes, @Nullable List<String> impersonateServiceAccountChain) {
@@ -86,6 +90,7 @@ public class GcpCredentialFactory implements CredentialFactory {
     } catch (IOException e) {
       // Ignore the exception
       // Pipelines that only access to public data should be able to run without credentials.
+      LOG.warn("Failed to get GCP credentials; proceeding with 'null' credentials.", e);
       return null;
     }
   }

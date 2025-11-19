@@ -169,11 +169,14 @@ type processingTimeFn struct {
 	Offset      int
 	TimerOutput int
 	Cap         int
+
+	InitialDelaySec   int
+	RecurringDelaySec int
 }
 
 func (fn *processingTimeFn) ProcessElement(sp state.Provider, tp timers.Provider, key string, value int, emit func(string, int)) {
 	// Sets a processing time callback to occur.
-	fn.Callback.Set(tp, time.Now().Add(9*time.Second))
+	fn.Callback.Set(tp, time.Now().Add(time.Duration(fn.InitialDelaySec)*time.Second))
 
 	// Only write to the state if we haven't done so already.
 	// Writing blind would reset the state, and cause duplicated outputs.
@@ -205,7 +208,7 @@ func (fn *processingTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp s
 				if err := fn.MyValue.Write(sp, read+1); err != nil {
 					panic(err)
 				}
-				fn.Callback.Set(tp, time.Now().Add(9*time.Second))
+				fn.Callback.Set(tp, time.Now().Add(time.Duration(fn.RecurringDelaySec)*time.Second))
 			}
 			if num, _, err := fn.Emissions.Read(sp); err != nil {
 				panic(err)
@@ -237,6 +240,15 @@ func init() {
 	register.Function3x0(regroup)
 }
 
+// timersProcessingTimePipelineBuilder constructs a pipeline to validate the behavior of processing time timers.
+// It generates a set of keyed elements and uses a DoFn (`processingTimeFn`) to set an initial processing time
+// timer for each key. When a timer fires, the DoFn emits an element, increments a counter in state, and
+// sets a new timer to fire after a recurring delay, continuing until a specified number of emissions for that
+// key is reached.
+//
+// The total approximate runtime of the timer-based logic for each key is calculated as:
+// InitialDelay + (numDuplicateTimers - 1) * RecurringDelay.
+// Note that the number of keys is irrelevant to the runtime, because keys are processed in parallel.
 func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection) func(s beam.Scope) {
 	return func(s beam.Scope) {
 		var inputs, wantOutputs []kv[string, int]
@@ -244,8 +256,12 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 		offset := 5000
 		timerOutput := 4093
 
+		// Control the total runtime of the test to under 30 secs.
+		// The runtime for the current setting is 3 + (5 - 1) * 1 = 7 secs
 		numKeys := 40
-		numDuplicateTimers := 15
+		numDuplicateTimers := 5
+		initialDelaySec := 3
+		recurringDelaySec := 1
 
 		for key := 0; key < numKeys; key++ {
 			k := strconv.Itoa(key)
@@ -261,11 +277,13 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 			Inputs: inputs,
 		}, imp)
 		times := beam.ParDo(s, &processingTimeFn{
-			Offset:      offset,
-			TimerOutput: timerOutput,
-			Callback:    timers.InProcessingTime("Callback"),
-			MyValue:     state.MakeValueState[int]("MyValue"),
-			Cap:         numDuplicateTimers, // Syncs the cycles to the number of duplicate keyed inputs.
+			Offset:            offset,
+			TimerOutput:       timerOutput,
+			Callback:          timers.InProcessingTime("Callback"),
+			MyValue:           state.MakeValueState[int]("MyValue"),
+			Cap:               numDuplicateTimers, // Syncs the cycles to the number of duplicate keyed inputs.
+			InitialDelaySec:   initialDelaySec,
+			RecurringDelaySec: recurringDelaySec,
 		}, keyed)
 		// We GroupByKey here so input to passert is blocked until teststream advances time to Infinity.
 		gbk := beam.GroupByKey(s, times)
@@ -298,6 +316,6 @@ func TimersProcessingTime_Bounded(s beam.Scope) {
 func TimersProcessingTime_Unbounded(s beam.Scope) {
 	timersProcessingTimePipelineBuilder(func(s beam.Scope) beam.PCollection {
 		now := time.Now()
-		return periodic.Impulse(s, now, now.Add(10*time.Second), 0, false)
+		return periodic.Impulse(s, now, now.Add(10*time.Second), 5*time.Second, false)
 	})(s)
 }

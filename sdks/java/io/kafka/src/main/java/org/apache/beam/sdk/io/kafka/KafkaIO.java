@@ -70,6 +70,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -93,7 +94,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
@@ -111,7 +111,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -2015,8 +2014,8 @@ public class KafkaIO {
         extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
 
       @ProcessElement
-      public void processElement(ProcessContext pc) {
-        KafkaRecord<K, V> element = pc.element();
+      public void processElement(
+          @Element KafkaRecord<K, V> element, OutputReceiver<KafkaRecord<K, V>> outputReceiver) {
         Long offset = null;
         String uniqueId = null;
         if (element != null) {
@@ -2024,13 +2023,7 @@ public class KafkaIO {
           uniqueId =
               (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
         }
-        pc.outputWindowedValue(
-            element,
-            pc.timestamp(),
-            Lists.newArrayList(GlobalWindow.INSTANCE),
-            pc.pane(),
-            uniqueId,
-            offset);
+        outputReceiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset).output();
       }
     }
 
@@ -2233,8 +2226,10 @@ public class KafkaIO {
    * generating Rows.
    */
   static class KafkaHeader {
-
+    @SchemaFieldNumber("0")
     String key;
+
+    @SchemaFieldNumber("1")
     byte @Nullable [] value;
 
     @SchemaCreate
@@ -2253,15 +2248,32 @@ public class KafkaIO {
    * Schema inference supports generics.
    */
   static class ByteArrayKafkaRecord {
-
+    @SchemaFieldNumber("0")
     String topic;
+
+    @SchemaFieldNumber("1")
     int partition;
+
+    @SchemaFieldNumber("2")
     long offset;
+
+    @SchemaFieldNumber("3")
     long timestamp;
+
+    @SchemaFieldNumber("4")
     byte @Nullable [] key;
+
+    @SchemaFieldNumber("5")
     byte @Nullable [] value;
-    @Nullable List<KafkaHeader> headers;
+
+    @SchemaFieldNumber("6")
+    @Nullable
+    List<KafkaHeader> headers;
+
+    @SchemaFieldNumber("7")
     int timestampTypeId;
+
+    @SchemaFieldNumber("8")
     String timestampTypeName;
 
     @SchemaCreate

@@ -269,6 +269,7 @@ createCrossLanguageValidatesRunnerTask(
     "--environmentCacheMillis=10000",
     "--experiments=beam_fn_api",
     "--parallelism=2",
+    "--customBeamRequirement=${project.project(":sdks:python").projectDir}/build/apache-beam.tar.gz",
   ],
   goScriptOptions: [
     "--runner flink",

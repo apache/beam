@@ -1029,6 +1029,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self._step_name = step_name
     self._source_uuid = unique_id
 
+  def _get_project(self):
+    """Returns the project that queries and exports will be billed to."""
+    if self.pipeline_options:
+      project = self.pipeline_options.view_as(GoogleCloudOptions).project
+      if isinstance(project, vp.ValueProvider):
+        project = project.get()
+      if project:
+        return project
+    return self.project
+
   def _get_parent_project(self):
     """Returns the project that will be billed."""
     if self.temp_table:
@@ -1163,6 +1173,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
       if self.query is not None:
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
+
+      if not self.table_reference.projectId:
+        self.table_reference.projectId = self._get_project()
 
       requested_session = bq_storage.types.ReadSession()
       requested_session.table = 'projects/{}/datasets/{}/tables/{}'.format(
@@ -2762,6 +2775,20 @@ class StorageWriteToBigQuery(PTransform):
         failed_rows=failed_rows,
         failed_rows_with_errors=failed_rows_with_errors)
 
+  class ConvertToBeamRowsSetupSchema:
+    def __init__(self, schema):
+      self._value = schema
+
+    def __enter__(self):
+      if not isinstance(self._value,
+                        (bigquery.TableSchema, bigquery.TableFieldSchema)):
+        return bigquery_tools.get_bq_tableschema(self._value)
+
+      return self._value
+
+    def __exit__(self, *args):
+      pass
+
   class ConvertToBeamRows(PTransform):
     def __init__(self, schema, dynamic_destinations):
       self.schema = schema
@@ -2772,18 +2799,22 @@ class StorageWriteToBigQuery(PTransform):
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.DESTINATION: row[
-                            0], StorageWriteToBigQuery.RECORD: bigquery_tools.
-                        beam_row_from_dict(row[1], self.schema)
-                    })))
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
+                    [self.schema]): beam.Row(
+                        **{
+                            StorageWriteToBigQuery.DESTINATION: row[0],
+                            StorageWriteToBigQuery.RECORD: bigquery_tools.
+                            beam_row_from_dict(row[1], schema)
+                        })))
       else:
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: bigquery_tools.beam_row_from_dict(row, self.schema))
-        )
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=[
+                        self.schema
+                    ]): bigquery_tools.beam_row_from_dict(row, schema)))
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(

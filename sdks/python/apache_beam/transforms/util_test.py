@@ -28,7 +28,7 @@ import logging
 import math
 import random
 import re
-import string
+import sys
 import time
 import unittest
 import warnings
@@ -50,6 +50,7 @@ from apache_beam import WindowInto
 from apache_beam.coders import coders
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
@@ -92,11 +93,6 @@ from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
 
 try:
-  import dill
-except ImportError:
-  dill = None
-
-try:
   from google.cloud import secretmanager
 except ImportError:
   secretmanager = None  # type: ignore[assignment]
@@ -128,13 +124,6 @@ class _UnpicklableCoder(beam.coders.Coder):
 
   def is_deterministic(self):
     return True
-
-
-def maybe_skip(compat_version):
-  if compat_version and not dill:
-    raise unittest.SkipTest(
-        'Dill dependency not installed which is required for compat_version'
-        ' <= 2.67.0')
 
 
 class CoGroupByKeyTest(unittest.TestCase):
@@ -252,7 +241,7 @@ class CoGroupByKeyTest(unittest.TestCase):
 
 
 class FakeSecret(beam.Secret):
-  def __init__(self, should_throw=False):
+  def __init__(self, version_name=None, should_throw=False):
     self._secret = b'aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE='
     self._should_throw = should_throw
 
@@ -273,6 +262,12 @@ class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
     super().__init__(hmac_key_secret, key_coder, value_coder)
 
   def process(self, element):
+    final_elements = list(super().process(element))
+    # Check if we're looking at the actual elements being encoded/decoded
+    # There is also a gbk on assertEqual, which uses None as the key type.
+    final_element_keys = [e for e in final_elements if e[0] in ['a', 'b', 'c']]
+    if len(final_element_keys) == 0:
+      return final_elements
     hmac_key, actual_elements = element
     if hmac_key not in self.known_hmacs:
       raise ValueError(f'GBK produced unencrypted value {hmac_key}')
@@ -286,43 +281,79 @@ class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
       except InvalidToken:
         raise ValueError(f'GBK produced unencrypted value {e[1]}')
 
-    return super().process(element)
+    return final_elements
+
+
+class SecretTest(unittest.TestCase):
+  @parameterized.expand([
+      param(
+          secret_string='type:GcpSecret;version_name:my_secret/versions/latest',
+          secret=GcpSecret('my_secret/versions/latest')),
+      param(
+          secret_string='type:GcpSecret;version_name:foo',
+          secret=GcpSecret('foo')),
+      param(
+          secret_string='type:gcpsecreT;version_name:my_secret/versions/latest',
+          secret=GcpSecret('my_secret/versions/latest')),
+  ])
+  def test_secret_manager_parses_correctly(self, secret_string, secret):
+    self.assertEqual(secret, Secret.parse_secret_option(secret_string))
+
+  @parameterized.expand([
+      param(
+          secret_string='version_name:foo',
+          exception_str='must contain a valid type parameter'),
+      param(
+          secret_string='type:gcpsecreT',
+          exception_str='missing 1 required positional argument'),
+      param(
+          secret_string='type:gcpsecreT;version_name:foo;extra:val',
+          exception_str='Invalid secret parameter extra'),
+  ])
+  def test_secret_manager_throws_on_invalid(self, secret_string, exception_str):
+    with self.assertRaisesRegex(Exception, exception_str):
+      Secret.parse_secret_option(secret_string)
 
 
 class GroupByEncryptedKeyTest(unittest.TestCase):
-  def setUp(self):
+  @classmethod
+  def setUpClass(cls):
     if secretmanager is not None:
-      self.project_id = 'apache-beam-testing'
-      secret_postfix = ''.join(random.choice(string.digits) for _ in range(6))
-      self.secret_id = 'gbek_secret_tests_' + secret_postfix
-      self.client = secretmanager.SecretManagerServiceClient()
-      self.project_path = f'projects/{self.project_id}'
-      self.secret_path = f'{self.project_path}/secrets/{self.secret_id}'
+      cls.project_id = 'apache-beam-testing'
+      py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
+      secret_postfix = datetime.now().strftime('%m%d_%H%M%S') + py_version
+      cls.secret_id = 'gbek_util_secret_tests_' + secret_postfix
+      cls.client = secretmanager.SecretManagerServiceClient()
+      cls.project_path = f'projects/{cls.project_id}'
+      cls.secret_path = f'{cls.project_path}/secrets/{cls.secret_id}'
       try:
-        self.client.get_secret(request={'name': self.secret_path})
+        cls.client.get_secret(request={'name': cls.secret_path})
       except Exception:
-        self.client.create_secret(
+        cls.client.create_secret(
             request={
-                'parent': self.project_path,
-                'secret_id': self.secret_id,
+                'parent': cls.project_path,
+                'secret_id': cls.secret_id,
                 'secret': {
                     'replication': {
                         'automatic': {}
                     }
                 }
             })
-        self.client.add_secret_version(
+        cls.client.add_secret_version(
             request={
-                'parent': self.secret_path,
+                'parent': cls.secret_path,
                 'payload': {
                     'data': Secret.generate_secret_bytes()
                 }
             })
-      self.gcp_secret = GcpSecret(f'{self.secret_path}/versions/latest')
+      version_name = f'{cls.secret_path}/versions/latest'
+      cls.gcp_secret = GcpSecret(version_name)
+      cls.secret_option = f'type:GcpSecret;version_name:{version_name}'
 
-  def tearDown(self):
+  @classmethod
+  def tearDownClass(cls):
     if secretmanager is not None:
-      self.client.delete_secret(request={'name': self.secret_path})
+      cls.client.delete_secret(request={'name': cls.secret_path})
 
   def test_gbek_fake_secret_manager_roundtrips(self):
     fakeSecret = FakeSecret()
@@ -333,6 +364,20 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
       result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
       assert_that(
           result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbk_with_gbek_option_fake_secret_manager_roundtrips(self):
+    options = PipelineOptions()
+    options.view_as(SetupOptions).gbek = self.secret_option
+
+    with beam.Pipeline(options=options) as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByKey()
+      sorted_result = result | beam.Map(lambda x: (x[0], sorted(x[1])))
+      assert_that(
+          sorted_result,
+          equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
   @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
   def test_gbek_fake_secret_manager_actually_does_encryption(self):
@@ -345,8 +390,23 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
       assert_that(
           result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
 
+  @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
+  @mock.patch('apache_beam.transforms.util.GcpSecret', FakeSecret)
+  def test_gbk_actually_does_encryption(self):
+    options = PipelineOptions()
+    # Version of GcpSecret doesn't matter since it is replaced by FakeSecret
+    options.view_as(SetupOptions).gbek = 'type:GcpSecret;version_name:Foo'
+
+    with TestPipeline('FnApiRunner', options=options) as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)],
+                                                    reshuffle=False)
+      result = pcoll_1 | beam.GroupByKey()
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
   def test_gbek_fake_secret_manager_throws(self):
-    fakeSecret = FakeSecret(True)
+    fakeSecret = FakeSecret(None, True)
 
     with self.assertRaisesRegex(RuntimeError, r'Exception retrieving secret'):
       with TestPipeline() as pipeline:
@@ -1150,10 +1210,10 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
-  @pytest.mark.uses_dill
   def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves pane info."""
-    maybe_skip(compat_version)
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
     element_count = 12
     timestamp_value = timestamp.Timestamp(0)
     l = [
@@ -1217,7 +1277,6 @@ class ReshuffleTest(unittest.TestCase):
                           expected_timestamp, [GlobalWindow()],
                           PANE_INFO_UNKNOWN)
     ])
-
     options = PipelineOptions(update_compatibility_version=compat_version)
     options.view_as(StandardOptions).streaming = True
 
@@ -1248,16 +1307,17 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected),
           label='CheckMetadataPreserved',
           reify_windows=True)
+    typecoders.registry.force_dill_deterministic_coders = False
 
   @parameterized.expand([
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
-  @pytest.mark.uses_dill
   def test_reshuffle_default_window_preserves_metadata(self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
-    maybe_skip(compat_version)
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
     no_firing = PaneInfo(
         is_first=True,
         is_last=True,
@@ -1331,6 +1391,7 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected),
           label='CheckMetadataPreserved',
           reify_windows=True)
+    typecoders.registry.force_dill_deterministic_coders = False
 
   @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):

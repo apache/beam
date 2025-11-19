@@ -467,7 +467,7 @@ public class ExpansionServiceTest {
     assertTrue(config.getAllowlist().contains("beam:transform:my_dummy_transform_2"));
     assertTrue(config.getAllowlist().contains("beam:transform:my_dummy_transform_3"));
 
-    assertEquals(2, config.getDependencies().size());
+    assertEquals(3, config.getDependencies().size());
     assertTrue(config.getDependencies().containsKey("beam:transform:my_dummy_transform_2"));
     assertTrue(config.getDependencies().containsKey("beam:transform:my_dummy_transform_3"));
 
