@@ -58,10 +58,10 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-# @unittest.skipUnless(
-#     os.environ.get('EXPANSION_JARS'),
-#     "EXPANSION_JARS environment var is not provided, "
-#     "indicating that jars have not been built")
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class BigQueryXlangStorageWriteIT(unittest.TestCase):
   BIGQUERY_DATASET = 'python_xlang_storage_write'
 
