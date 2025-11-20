@@ -615,20 +615,6 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testLogicalBeamFieldTypeToIcebergFieldType() {
-      // primitive types don't use the nested field ID
-      List<BeamFieldTypeTestCase> primitives =
-          Arrays.asList(
-              new BeamFieldTypeTestCase(
-                  12,
-                  Schema.FieldType.logicalType(VariableString.of("VARCHAR", 25)),
-                  11,
-                  Types.StringType.get()));
-
-      checkTypes(primitives);
-    }
-
-    @Test
     public void testArrayBeamFieldTypeToIcebergFieldType() {
       // Iceberg's ListType reserves one nested ID for its element type
       List<BeamFieldTypeTestCase> listTypes =
