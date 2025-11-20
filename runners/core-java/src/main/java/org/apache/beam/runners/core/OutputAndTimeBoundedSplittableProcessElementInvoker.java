@@ -387,12 +387,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
-    public String currentRecordId() {
+    public @Nullable String currentRecordId() {
       return element.getRecordId();
     }
 
     @Override
-    public Long currentRecordOffset() {
+    public @Nullable Long currentRecordOffset() {
       return element.getRecordOffset();
     }
 

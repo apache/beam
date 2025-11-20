@@ -234,9 +234,11 @@ class DataInputOperation(RunnerIOOperation):
         decoded_value = self.windowed_coder_impl.decode_from_stream(
             input_stream, True)
       except Exception as exn:
+        coder = str(self.windowed_coder)
+        step = self.name_context.step_name
         raise ValueError(
-            "Error decoding input stream with coder " +
-            str(self.windowed_coder)) from exn
+            f"Error decoding input stream with coder {coder} in step {step}"
+        ) from exn
       self.output(decoded_value)
 
   def monitoring_infos(
