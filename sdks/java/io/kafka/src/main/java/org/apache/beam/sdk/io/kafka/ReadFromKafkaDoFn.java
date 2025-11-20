@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,10 +67,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalN
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closeables;
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.ListOffsetsResult;
+import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigDef;
@@ -192,8 +197,19 @@ abstract class ReadFromKafkaDoFn<K, V>
   private ReadFromKafkaDoFn(
       ReadSourceDescriptors<K, V> transform,
       TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
+    final SerializableFunction<Map<String, Object>, Admin> adminFactoryFn =
+        transform.getAdminFactoryFn();
     final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn =
         transform.getConsumerFactoryFn();
+    final @Nullable Map<String, Object> offsetConsumerConfigOverrides =
+        transform.getOffsetConsumerConfig();
+    final Map<String, Object> offsetConsumerConfig;
+    if (offsetConsumerConfigOverrides == null) {
+      offsetConsumerConfig = transform.getConsumerConfig();
+    } else {
+      offsetConsumerConfig = new HashMap<>(transform.getConsumerConfig());
+      offsetConsumerConfig.putAll(offsetConsumerConfigOverrides);
+    }
     this.consumerConfig = transform.getConsumerConfig();
     this.keyDeserializerProvider =
         Preconditions.checkArgumentNotNull(transform.getKeyDeserializerProvider());
@@ -240,15 +256,14 @@ abstract class ReadFromKafkaDoFn<K, V>
                           public KafkaLatestOffsetEstimator load(
                               final KafkaSourceDescriptor sourceDescriptor) {
                             LOG.info(
-                                "Creating Kafka consumer for offset estimation for {}",
+                                "Creating Kafka admin for offset estimation for {}",
                                 sourceDescriptor);
                             final Map<String, Object> config =
                                 KafkaIOUtils.overrideBootstrapServersConfig(
-                                    consumerConfig, sourceDescriptor);
-                            final Consumer<byte[], byte[]> consumer =
-                                consumerFactoryFn.apply(config);
+                                    offsetConsumerConfig, sourceDescriptor);
+                            final Admin admin = adminFactoryFn.apply(config);
                             return new KafkaLatestOffsetEstimator(
-                                consumer, sourceDescriptor.getTopicPartition());
+                                admin, sourceDescriptor.getTopicPartition());
                           }
                         }));
     this.pollConsumerCacheSupplier =
@@ -345,37 +360,43 @@ abstract class ReadFromKafkaDoFn<K, V>
    */
   private static class KafkaLatestOffsetEstimator
       implements GrowableOffsetRangeTracker.RangeEndEstimator, Closeable {
-    private final Consumer<byte[], byte[]> offsetConsumer;
-    private final Supplier<Long> offsetSupplier;
+    private static final ListOffsetsResult.ListOffsetsResultInfo DEFAULT_RESULT =
+        new ListOffsetsResult.ListOffsetsResultInfo(
+            Long.MIN_VALUE, Long.MIN_VALUE, Optional.empty());
 
-    KafkaLatestOffsetEstimator(
-        final Consumer<byte[], byte[]> offsetConsumer, final TopicPartition topicPartition) {
-      this.offsetConsumer = offsetConsumer;
-      this.offsetSupplier =
+    private final Admin admin;
+    private final Supplier<KafkaFuture<ListOffsetsResult.ListOffsetsResultInfo>>
+        latestOffsetFutureSupplier;
+    private ListOffsetsResult.ListOffsetsResultInfo latestOffsetResult;
+
+    KafkaLatestOffsetEstimator(final Admin admin, final TopicPartition topicPartition) {
+      this.admin = admin;
+      this.latestOffsetFutureSupplier =
           new ExpiringMemoizingSerializableSupplier<>(
-              () -> {
-                try {
-                  return offsetConsumer
-                      .endOffsets(Collections.singleton(topicPartition))
-                      .getOrDefault(topicPartition, Long.MIN_VALUE);
-                } catch (Throwable t) {
-                  LOG.error("Failed to get end offset for {}", topicPartition, t);
-                  return Long.MIN_VALUE;
-                }
-              },
+              () ->
+                  admin
+                      .listOffsets(Collections.singletonMap(topicPartition, OffsetSpec.latest()))
+                      .partitionResult(topicPartition),
               Duration.ofSeconds(1),
-              Long.MIN_VALUE,
+              KafkaFuture.completedFuture(DEFAULT_RESULT),
               Duration.ZERO);
+      this.latestOffsetResult = DEFAULT_RESULT;
     }
 
     @Override
     public long estimate() {
-      return offsetSupplier.get();
+      try {
+        latestOffsetResult = latestOffsetFutureSupplier.get().getNow(latestOffsetResult);
+      } catch (Throwable t) {
+        LOG.error("Failed to get latest offset", t);
+      }
+
+      return latestOffsetResult.offset();
     }
 
     @Override
     public void close() {
-      offsetConsumer.close();
+      admin.close();
     }
   }
 
