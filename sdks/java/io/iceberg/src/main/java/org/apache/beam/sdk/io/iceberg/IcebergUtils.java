@@ -71,10 +71,7 @@ public class IcebergUtils {
           .put(SqlTypes.DATE.getIdentifier(), Types.DateType.get())
           .put(SqlTypes.TIME.getIdentifier(), Types.TimeType.get())
           .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
-          .put(VariableString.IDENTIFIER, Types.StringType.get())
-          .put(VariableBytes.IDENTIFIER, Types.BinaryType.get())
-          .put(FixedString.IDENTIFIER, Types.StringType.get())
-          .put(UuidLogicalType.IDENTIFIER, Types.UUIDType.get())
+          .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
           .build();
 
   private static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
@@ -180,13 +177,16 @@ public class IcebergUtils {
           --nestedFieldId, BEAM_TYPES_TO_ICEBERG_TYPES.get(beamType.getTypeName()));
     } else if (beamType.getTypeName().isLogicalType()) {
       Schema.LogicalType<?, ?> logicalType = checkArgumentNotNull(beamType.getLogicalType());
-      String logicalTypeIdentifier = logicalType.getIdentifier();
       if (logicalType instanceof FixedPrecisionNumeric) {
         Row args = Preconditions.checkArgumentNotNull(logicalType.getArgument());
         Integer precision = Preconditions.checkArgumentNotNull(args.getInt32("precision"));
         Integer scale = Preconditions.checkArgumentNotNull(args.getInt32("scale"));
         return new TypeAndMaxId(--nestedFieldId, Types.DecimalType.of(precision, scale));
       }
+      if (logicalType instanceof PassThroughLogicalType) {
+        return beamFieldTypeToIcebergFieldType(logicalType.getBaseType(), nestedFieldId);
+      }
+      String logicalTypeIdentifier = logicalType.getIdentifier();
       @Nullable Type type = BEAM_LOGICAL_TYPES_TO_ICEBERG_TYPES.get(logicalTypeIdentifier);
       if (type == null) {
         throw new RuntimeException("Unsupported Beam logical type " + logicalTypeIdentifier);
