@@ -18,8 +18,9 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -92,20 +93,24 @@ public class KafkaReadWithRedistributeOverrideTest implements Serializable {
             if (node.getTransform() instanceof KafkaIO.Read) {
               KafkaIO.Read<?, ?> read = (KafkaIO.Read<?, ?>) node.getTransform();
               if (read.getTopics().contains("test_match")) {
-                assertThat(read.isRedistributed(), is(true));
-                assertThat(read.getOffsetDeduplication(), is(true));
+                assertTrue(read.isRedistributed());
+                assertTrue(read.getOffsetDeduplication());
+                assertFalse(matchingVisited);
                 matchingVisited = true;
               } else if (read.getTopics().contains("test_no_redistribute")) {
-                assertThat(read.isRedistributed(), is(false));
+                assertFalse(read.isRedistributed());
                 assertThat(read.getOffsetDeduplication(), nullValue());
+                assertFalse(noRedistributeVisited);
                 noRedistributeVisited = true;
               } else if (read.getTopics().contains("test_disabled")) {
-                assertThat(read.isRedistributed(), is(false));
-                assertThat(read.getOffsetDeduplication(), is(false));
+                assertFalse(read.isRedistributed());
+                assertFalse(read.getOffsetDeduplication());
+                assertFalse(explicitlyDisabledVisited);
                 explicitlyDisabledVisited = true;
               } else if (read.getTopics().contains("test_enabled")) {
-                assertThat(read.isRedistributed(), is(true));
-                assertThat(read.getOffsetDeduplication(), is(true));
+                assertTrue(read.isRedistributed());
+                assertTrue(read.getOffsetDeduplication());
+                assertFalse(explicitlyEnabledVisited);
                 explicitlyEnabledVisited = true;
               }
             }
@@ -115,17 +120,11 @@ public class KafkaReadWithRedistributeOverrideTest implements Serializable {
           @Override
           public void leaveCompositeTransform(Node node) {
             if (node.isRootNode()) {
-              assertThat("Matching transform was not visited", matchingVisited, is(true));
-              assertThat(
-                  "No redistribute transform was not visited", noRedistributeVisited, is(true));
-              assertThat(
-                  "Explicitly disabled transform was not visited",
-                  explicitlyDisabledVisited,
-                  is(true));
-              assertThat(
-                  "Explicitly enabled transform was not visited",
-                  explicitlyEnabledVisited,
-                  is(true));
+              assertTrue("Matching transform was not visited", matchingVisited);
+              assertTrue("No redistribute transform was not visited", noRedistributeVisited);
+              assertTrue(
+                  "Explicitly disabled transform was not visited", explicitlyDisabledVisited);
+              assertTrue("Explicitly enabled transform was not visited", explicitlyEnabledVisited);
             }
           }
         };

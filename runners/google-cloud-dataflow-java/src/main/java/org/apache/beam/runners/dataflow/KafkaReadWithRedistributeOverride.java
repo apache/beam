@@ -28,17 +28,15 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "PatternMatchingInstanceof"
-})
 public final class KafkaReadWithRedistributeOverride {
 
   private KafkaReadWithRedistributeOverride() {}
 
   public static PTransformMatcher matcher() {
     return new PTransformMatcher() {
+      @SuppressWarnings({
+        "PatternMatchingInstanceof" // For compiling on older Java versions.
+      })
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         if (application.getTransform() instanceof KafkaIO.Read) {
