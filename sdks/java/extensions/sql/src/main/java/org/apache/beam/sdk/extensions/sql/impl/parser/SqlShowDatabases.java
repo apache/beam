@@ -108,7 +108,9 @@ public class SqlShowDatabases extends SqlCall implements BeamSqlParser.Executabl
     int nameWidth = headerName.length();
 
     for (String dbName : databases) {
-      nameWidth = Math.max(nameWidth, dbName.length());
+      if (pattern == null || calciteLike.like(dbName, pattern)) {
+        nameWidth = Math.max(nameWidth, dbName.length());
+      }
     }
 
     nameWidth += 2;
@@ -117,16 +119,14 @@ public class SqlShowDatabases extends SqlCall implements BeamSqlParser.Executabl
     int separatorWidth = nameWidth + 2;
     String separator =
         String.format(
-            "+" + new String(new char[separatorWidth]).replace("\0", separatorChar) + "+%n");
+            "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+%n");
 
     System.out.printf(separator);
     System.out.printf(format, headerName);
     System.out.printf(separator);
-    if (databases != null) {
-      for (String dbName : databases.stream().sorted().collect(Collectors.toList())) {
-        if (pattern == null || calciteLike.like(dbName, pattern)) {
-          System.out.printf(format, dbName);
-        }
+    for (String dbName : databases.stream().sorted().collect(Collectors.toList())) {
+      if (pattern == null || calciteLike.like(dbName, pattern)) {
+        System.out.printf(format, dbName);
       }
     }
     System.out.printf(separator);

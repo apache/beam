@@ -364,6 +364,9 @@ SqlCall SqlShowDatabases(Span s) :
     }
 }
 
+/**
+ * SHOW CURRENT ( CATALOG | DATABASE )
+ */
 SqlCall SqlShowCurrent(Span s) :
 {
 }

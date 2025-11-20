@@ -107,8 +107,7 @@ public class SqlShowTables extends SqlCall implements BeamSqlParser.ExecutableSt
     print(tables, path, SqlDdlNodes.getString(regex));
   }
 
-  private static void print(
-      @Nullable Collection<Table> tables, String path, @Nullable String pattern) {
+  private static void print(Collection<Table> tables, String path, @Nullable String pattern) {
     SqlFunctions.LikeFunction calciteLike = new SqlFunctions.LikeFunction();
 
     final String headerName = "Tables in " + path;
@@ -118,8 +117,8 @@ public class SqlShowTables extends SqlCall implements BeamSqlParser.ExecutableSt
     int nameWidth = headerName.length();
     int typeWidth = headerType.length();
 
-    if (tables != null) {
-      for (Table table : tables) {
+    for (Table table : tables) {
+      if (pattern == null || calciteLike.like(table.getName(), pattern)) {
         nameWidth = Math.max(nameWidth, table.getName().length());
         typeWidth = Math.max(typeWidth, table.getType().length());
       }
@@ -132,21 +131,17 @@ public class SqlShowTables extends SqlCall implements BeamSqlParser.ExecutableSt
     int separatorWidth = nameWidth + typeWidth + 5;
     String separator =
         String.format(
-            "+" + new String(new char[separatorWidth]).replace("\0", separatorChar) + "+%n");
+            "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+%n");
 
     System.out.printf(separator);
     System.out.printf(format, headerName, headerType);
     System.out.printf(separator);
-    if (tables != null) {
-      for (Table table :
-          tables.stream()
-              .sorted(Comparator.comparing(Table::getName))
-              .collect(Collectors.toList())) {
-        if (pattern == null || calciteLike.like(table.getName(), pattern)) {
-          System.out.printf(format, table.getName(), table.getType());
-        }
+    for (Table table :
+        tables.stream().sorted(Comparator.comparing(Table::getName)).collect(Collectors.toList())) {
+      if (pattern == null || calciteLike.like(table.getName(), pattern)) {
+        System.out.printf(format, table.getName(), table.getType());
       }
-      System.out.printf(separator);
     }
+    System.out.printf(separator);
   }
 }

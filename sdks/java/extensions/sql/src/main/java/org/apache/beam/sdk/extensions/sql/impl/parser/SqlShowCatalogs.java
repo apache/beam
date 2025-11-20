@@ -75,7 +75,7 @@ public class SqlShowCatalogs extends SqlCall implements BeamSqlParser.Executable
     CatalogManagerSchema managerSchema = ((CatalogManagerSchema) schema);
     if (showCurrentOnly) {
       Catalog currentCatalog = managerSchema.getCurrentCatalogSchema().getCatalog();
-      System.out.printf("%s (type: %s)", currentCatalog.name(), currentCatalog.type());
+      System.out.printf("%s (type: %s)%n", currentCatalog.name(), currentCatalog.type());
       return;
     }
     Collection<Catalog> catalogs = managerSchema.catalogs();
@@ -94,8 +94,10 @@ public class SqlShowCatalogs extends SqlCall implements BeamSqlParser.Executable
 
     // find the longest string in each column
     for (Catalog catalog : catalogs) {
-      nameWidth = Math.max(nameWidth, catalog.name().length());
-      typeWidth = Math.max(typeWidth, catalog.type().length());
+      if (pattern == null || calciteLike.like(catalog.name(), pattern)) {
+        nameWidth = Math.max(nameWidth, catalog.name().length());
+        typeWidth = Math.max(typeWidth, catalog.type().length());
+      }
     }
 
     // add a small padding
@@ -109,9 +111,9 @@ public class SqlShowCatalogs extends SqlCall implements BeamSqlParser.Executable
     int separatorWidth = nameWidth + typeWidth + 5;
     String separator =
         String.format(
-            "+" + new String(new char[separatorWidth]).replace("\0", separatorChar) + "+%n");
+            "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+%n");
 
-    // printing the table
+    // printing the catalogs
     System.out.printf(separator);
     System.out.printf(format, headerName, headerType);
     System.out.printf(separator);
