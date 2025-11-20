@@ -1860,7 +1860,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           .withValue(value)
           .setReceiver(
               windowedValue -> {
-                checkTimestamp(windowedValue.getTimestamp());
+                // checkTimestamp(windowedValue.getTimestamp());
                 outputTo(mainOutputConsumer, windowedValue);
               });
     }
