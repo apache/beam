@@ -24,8 +24,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
 @SuppressWarnings({
@@ -33,7 +31,6 @@ import org.slf4j.LoggerFactory;
 })
 public class RestrictionTrackers {
 
-  private static final Logger LOG = LoggerFactory.getLogger(RestrictionTrackers.class);
   /** Interface allowing a runner to observe the calls to {@link RestrictionTracker#tryClaim}. */
   public interface ClaimObserver<PositionT> {
     /** Called when {@link RestrictionTracker#tryClaim} returns true. */
@@ -52,8 +49,7 @@ public class RestrictionTrackers {
       extends RestrictionTracker<RestrictionT, PositionT> {
     protected final RestrictionTracker<RestrictionT, PositionT> delegate;
     protected ReentrantLock lock = new ReentrantLock();
-    protected volatile Progress lastProgress = Progress.NONE;
-    protected volatile boolean pendingProgress = false;
+    protected volatile boolean hasInitialProgress = false;
     private final ClaimObserver<PositionT> claimObserver;
 
     protected RestrictionTrackerObserver(
@@ -69,7 +65,6 @@ public class RestrictionTrackers {
       try {
         if (delegate.tryClaim(position)) {
           claimObserver.onClaimed(position);
-          evaluateProgress();
           return true;
         } else {
           claimObserver.onClaimFailed(position);
@@ -95,7 +90,6 @@ public class RestrictionTrackers {
       lock.lock();
       try {
         SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
-        evaluateProgress();
         return result;
       } finally {
         lock.unlock();
@@ -118,13 +112,10 @@ public class RestrictionTrackers {
     }
 
     /** Evaluate progress if requested. */
-    protected void evaluateProgress() {
+    protected Progress getProgressBlocking() {
       lock.lock();
       try {
-        if (pendingProgress) {
-          lastProgress = ((HasProgress) delegate).getProgress();
-          pendingProgress = false;
-        }
+        return ((HasProgress) delegate).getProgress();
       } finally {
         lock.unlock();
       }
@@ -138,7 +129,7 @@ public class RestrictionTrackers {
   @ThreadSafe
   static class RestrictionTrackerObserverWithProgress<RestrictionT, PositionT>
       extends RestrictionTrackerObserver<RestrictionT, PositionT> implements HasProgress {
-    private static final int PROGRESS_TIMEOUT_SEC = 60;
+    private static final int FIRST_PROGRESS_TIMEOUT_SEC = 60;
 
     protected RestrictionTrackerObserverWithProgress(
         RestrictionTracker<RestrictionT, PositionT> delegate,
@@ -148,26 +139,32 @@ public class RestrictionTrackers {
 
     @Override
     public Progress getProgress() {
-      return getProgress(PROGRESS_TIMEOUT_SEC);
+      return getProgress(FIRST_PROGRESS_TIMEOUT_SEC);
     }
 
     @VisibleForTesting
     Progress getProgress(int timeOutSec) {
-      pendingProgress = true;
-      try {
-        if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
-          try {
-            evaluateProgress();
-          } finally {
-            lock.unlock();
+      if (!hasInitialProgress) {
+        Progress progress = Progress.NONE;
+        try {
+          // lock can be held long by long-running tryClaim/trySplit. We tolerate this scenario
+          // by returning zero progress when initial progress never evaluated before due to lock
+          // timeout.
+          if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
+            try {
+              progress = getProgressBlocking();
+              hasInitialProgress = true;
+            } finally {
+              lock.unlock();
+            }
           }
-        } else {
-          LOG.info("Get progress acquire lock timed out. Last known progress is returned.");
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
         }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+        return progress;
+      } else {
+        return getProgressBlocking();
       }
-      return lastProgress;
     }
   }
 
