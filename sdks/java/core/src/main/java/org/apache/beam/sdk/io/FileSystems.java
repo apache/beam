@@ -78,6 +78,8 @@ public class FileSystems {
   private static final Pattern FILE_SCHEME_PATTERN =
       Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):/.*");
   private static final Pattern GLOB_PATTERN = Pattern.compile("[*?{}]");
+  private static final Pattern ESCAPED_GLOB_PATTERN = Pattern.compile("\\\\[*?{}]");
+  private static final String GLOB_ESCAPE_PREFIX = "\\";
 
   private static final AtomicReference<KV<Long, Integer>> FILESYSTEM_REVISION =
       new AtomicReference<>();
@@ -90,6 +92,40 @@ public class FileSystems {
   /** Checks whether the given spec contains a glob wildcard character. */
   public static boolean hasGlobWildcard(String spec) {
     return GLOB_PATTERN.matcher(spec).find();
+  }
+
+  /**
+   * Escapes glob wildcard characters in the given spec so they are treated as literals.
+   *
+   * <p>This method escapes the characters '*', '?', '{', and '}' by prefixing them with a
+   * backslash, allowing them to be treated as literal characters in a file path rather than as
+   * glob wildcards.
+   *
+   * <p>Example: {@code escapeGlobWildcards("file*.txt")} returns {@code "file\\*.txt"}
+   *
+   * @param spec the file path specification to escape
+   * @return the escaped specification
+   */
+  public static String escapeGlobWildcards(String spec) {
+    checkNotNull(spec, "spec cannot be null");
+    return spec.replaceAll("([*?{}])", "\\\\$1");
+  }
+
+  /**
+   * Unescapes glob wildcard characters in the given spec that were previously escaped with {@link
+   * #escapeGlobWildcards(String)}.
+   *
+   * <p>This method removes the backslash prefix from escaped glob characters ('*', '?', '{', '}'),
+   * restoring them to their unescaped form.
+   *
+   * <p>Example: {@code unescapeGlobWildcards("file\\*.txt")} returns {@code "file*.txt"}
+   *
+   * @param spec the file path specification to unescape
+   * @return the unescaped specification
+   */
+  public static String unescapeGlobWildcards(String spec) {
+    checkNotNull(spec, "spec cannot be null");
+    return spec.replaceAll("\\\\([*?{}])", "$1");
   }
 
   /**
