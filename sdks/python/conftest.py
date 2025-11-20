@@ -17,8 +17,11 @@
 
 """Pytest configuration and custom hooks."""
 
+import gc
 import os
 import sys
+import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -37,13 +40,9 @@ def pytest_addoption(parser):
   parser.addoption(
       '--enable-test-cleanup',
       action='store_true',
-      default=None,
-      help='Enable expensive cleanup operations. Auto-enabled in CI.')
-  parser.addoption(
-      '--disable-test-cleanup',
-      action='store_true',
       default=False,
-      help='Disable expensive cleanup operations even in CI.')
+      help='Enable expensive cleanup operations. Auto-enabled in CI by default. '
+           'Use this flag to explicitly enable cleanup in local development.')
 
 
 # See pytest.ini for main collection rules.
@@ -121,11 +120,14 @@ def _running_in_ci():
 
 
 def _should_enable_test_cleanup(config):
-  """Returns True if expensive cleanup operations should run."""
-  if config.getoption('--disable-test-cleanup'):
-    result = False
-    reason = "disabled via --disable-test-cleanup"
-  elif config.getoption('--enable-test-cleanup'):
+  """Returns True if expensive cleanup operations should run.
+
+  Result is cached on config object to avoid re-computation per test.
+  """
+  if hasattr(config, '_should_enable_test_cleanup_result'):
+    return config._should_enable_test_cleanup_result
+
+  if config.getoption('--enable-test-cleanup'):
     result = True
     reason = "enabled via --enable-test-cleanup"
   else:
@@ -141,6 +143,7 @@ def _should_enable_test_cleanup(config):
     print(f"\n[Test Cleanup] Enabled: {result} ({reason})")
     config._cleanup_decision_logged = True
 
+  config._should_enable_test_cleanup_result = result
   return result
 
 
@@ -152,10 +155,6 @@ def ensure_clean_state(request):
   Expensive operations (sleeps, extra GC) only run in CI or when
   explicitly enabled to keep local tests fast.
   """
-  import gc
-  import threading
-  import time
-
   enable_cleanup = _should_enable_test_cleanup(request.config)
 
   if enable_cleanup:
@@ -182,8 +181,6 @@ def ensure_clean_state(request):
 @pytest.fixture(autouse=True)
 def enhance_mock_stability(request):
   """Improves mock stability in DinD environment."""
-  import time
-
   enable_cleanup = _should_enable_test_cleanup(request.config)
 
   if enable_cleanup:

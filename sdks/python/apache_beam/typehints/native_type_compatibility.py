@@ -342,7 +342,6 @@ def convert_to_beam_type(typ):
 
   # Unwrap Python 3.12 `type` aliases (TypeAliasType) to their underlying value.
   # This ensures Beam sees the actual aliased type (e.g., tuple[int, ...]).
-  import sys
   if sys.version_info >= (3, 12) and TypeAliasType is not None:
     if isinstance(typ, TypeAliasType):  # pylint: disable=isinstance-second-argument-not-valid-type
       underlying = getattr(typ, '__value__', None)
