@@ -75,6 +75,7 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
   including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
+* Added plugin mechanism to support different Lineage implementations (Java) ([#36790](https://github.com/apache/beam/issues/36790)).
 
 ## Breaking Changes
 
