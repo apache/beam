@@ -25,10 +25,7 @@ import warnings
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Set
 from typing import Union
 
 import pandas as pd
@@ -66,7 +63,7 @@ class AsyncComputationResult:
   def __init__(
       self,
       future: Future,
-      pcolls: Set[beam.pvalue.PCollection],
+      pcolls: set[beam.pvalue.PCollection],
       user_pipeline: beam.Pipeline,
       recording_manager: 'RecordingManager',
   ):
@@ -323,7 +320,7 @@ class Recording:
   def __init__(
       self,
       user_pipeline: beam.Pipeline,
-      pcolls: List[beam.pvalue.PCollection],  # noqa: F821
+      pcolls: list[beam.pvalue.PCollection],  # noqa: F821
       result: 'beam.runner.PipelineResult',
       max_n: int,
       max_duration_secs: float,
@@ -416,7 +413,7 @@ class Recording:
     self._mark_computed.join()
     return self._result.state
 
-  def describe(self) -> Dict[str, int]:
+  def describe(self) -> dict[str, int]:
     """Returns a dictionary describing the cache and recording."""
     cache_manager = ie.current_env().get_cache_manager(self._user_pipeline)
 
@@ -431,7 +428,7 @@ class RecordingManager:
       self,
       user_pipeline: beam.Pipeline,
       pipeline_var: str = None,
-      test_limiters: List['Limiter'] = None) -> None:  # noqa: F821
+      test_limiters: list['Limiter'] = None) -> None:  # noqa: F821
 
     self.user_pipeline: beam.Pipeline = user_pipeline
     self.pipeline_var: str = pipeline_var if pipeline_var else ''
@@ -440,12 +437,12 @@ class RecordingManager:
     self._test_limiters = test_limiters if test_limiters else []
     self._executor = ThreadPoolExecutor(max_workers=os.cpu_count())
     self._env = ie.current_env()
-    self._async_computations: Dict[str, AsyncComputationResult] = {}
+    self._async_computations: dict[str, AsyncComputationResult] = {}
     self._pipeline_graph = PipelineGraph(self.user_pipeline)
 
   def _execute_pipeline_fragment(
       self,
-      pcolls_to_compute: Set[beam.pvalue.PCollection],
+      pcolls_to_compute: set[beam.pvalue.PCollection],
       async_result: Optional['AsyncComputationResult'] = None,
       runner: runner.PipelineRunner = None,
       options: pipeline_options.PipelineOptions = None,
@@ -483,7 +480,7 @@ class RecordingManager:
 
   def _run_async_computation(
       self,
-      pcolls_to_compute: Set[beam.pvalue.PCollection],
+      pcolls_to_compute: set[beam.pvalue.PCollection],
       async_result: 'AsyncComputationResult',
       wait_for_inputs: bool,
       runner: runner.PipelineRunner = None,
@@ -522,7 +519,7 @@ class RecordingManager:
     # finally:
     #   self._env.unmark_pcollection_computing(pcolls_to_compute)
 
-  def _watch(self, pcolls: List[beam.pvalue.PCollection]) -> None:
+  def _watch(self, pcolls: list[beam.pvalue.PCollection]) -> None:
     """Watch any pcollections not being watched.
 
     This allows for the underlying caching layer to identify the PCollection as
@@ -592,7 +589,7 @@ class RecordingManager:
     # evict the BCJ after they complete.
     ie.current_env().evict_background_caching_job(self.user_pipeline)
 
-  def describe(self) -> Dict[str, int]:
+  def describe(self) -> dict[str, int]:
     """Returns a dictionary describing the cache and recording."""
 
     cache_manager = ie.current_env().get_cache_manager(self.user_pipeline)
@@ -643,7 +640,7 @@ class RecordingManager:
 
   def compute_async(
       self,
-      pcolls: Set[beam.pvalue.PCollection],
+      pcolls: set[beam.pvalue.PCollection],
       wait_for_inputs: bool = True,
       blocking: bool = False,
       runner: runner.PipelineRunner = None,
@@ -721,7 +718,7 @@ class RecordingManager:
 
   def _get_all_dependencies(
       self,
-      pcolls: Set[beam.pvalue.PCollection]) -> Set[beam.pvalue.PCollection]:
+      pcolls: set[beam.pvalue.PCollection]) -> set[beam.pvalue.PCollection]:
     """Gets all upstream PCollection dependencies
     for the given set of PCollections."""
     if not self._pipeline_graph:
@@ -780,13 +777,13 @@ class RecordingManager:
 
   def _wait_for_dependencies(
       self,
-      pcolls: Set[beam.pvalue.PCollection],
+      pcolls: set[beam.pvalue.PCollection],
       async_result: Optional[AsyncComputationResult] = None,
   ) -> bool:
     """Waits for any dependencies of the given
     PCollections that are currently being computed."""
     dependencies = self._get_all_dependencies(pcolls)
-    computing_deps: Dict[beam.pvalue.PCollection, AsyncComputationResult] = {}
+    computing_deps: dict[beam.pvalue.PCollection, AsyncComputationResult] = {}
 
     for dep in dependencies:
       if self._env.is_pcollection_computing(dep):
@@ -829,7 +826,7 @@ class RecordingManager:
 
   def record(
       self,
-      pcolls: List[beam.pvalue.PCollection],
+      pcolls: list[beam.pvalue.PCollection],
       *,
       max_n: int,
       max_duration: Union[int, str],

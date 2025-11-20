@@ -35,11 +35,9 @@ this module in your notebook or application code.
 # pytype: skip-file
 
 import logging
+from collections.abc import Iterable
 from datetime import timedelta
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import Union
 
@@ -276,7 +274,7 @@ class Recordings():
   """
   def describe(
       self,
-      pipeline: Optional[beam.Pipeline] = None) -> Dict[str, Any]:  # noqa: F821
+      pipeline: Optional[beam.Pipeline] = None) -> dict[str, Any]:  # noqa: F821
     """Returns a description of all the recordings for the given pipeline.
 
     If no pipeline is given then this returns a dictionary of descriptions for
@@ -418,10 +416,10 @@ class Clusters:
   # DATAPROC_IMAGE_VERSION = '2.0.XX-debian10'
 
   def __init__(self) -> None:
-    self.dataproc_cluster_managers: Dict[ClusterMetadata,
+    self.dataproc_cluster_managers: dict[ClusterMetadata,
                                          DataprocClusterManager] = {}
-    self.master_urls: Dict[str, ClusterMetadata] = {}
-    self.pipelines: Dict[beam.Pipeline, DataprocClusterManager] = {}
+    self.master_urls: dict[str, ClusterMetadata] = {}
+    self.pipelines: dict[beam.Pipeline, DataprocClusterManager] = {}
     self.default_cluster_metadata: Optional[ClusterMetadata] = None
 
   def create(
@@ -512,7 +510,7 @@ class Clusters:
   def describe(
       self,
       cluster_identifier: Optional[ClusterIdentifier] = None
-  ) -> Union[ClusterMetadata, List[ClusterMetadata]]:
+  ) -> Union[ClusterMetadata, list[ClusterMetadata]]:
     """Describes the ClusterMetadata by a ClusterIdentifier.
 
     If no cluster_identifier is given or if the cluster_identifier is unknown,
@@ -680,7 +678,7 @@ def watch(watchable):
 
 @progress_indicated
 def show(
-    *pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection],
+    *pcolls: Union[dict[Any, PCollection], Iterable[PCollection], PCollection],
     include_window_info: bool = False,
     visualize_data: bool = False,
     n: Union[int, str] = 'inf',
@@ -1015,7 +1013,7 @@ def collect(
 
 @progress_indicated
 def compute(
-    *pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection],
+    *pcolls: Union[dict[Any, PCollection], Iterable[PCollection], PCollection],
     wait_for_inputs: bool = True,
     blocking: bool = False,
     runner=None,
