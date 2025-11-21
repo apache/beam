@@ -25,10 +25,12 @@ This module is experimental. No backwards-compatibility guarantees.
 import collections
 import logging
 import threading
+from typing import Any
 from typing import DefaultDict
 from typing import Dict
 from typing import Iterator
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -40,8 +42,12 @@ from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
 try:
   import pydot
+  PydotDot = pydot.Dot
+  PydotNode = pydot.Node
+  PydotEdge = pydot.Edge
 except ImportError:
-  pass
+  pydot = None
+  PydotDot = PydotNode = PydotEdge = Any
 
 # pylint does not understand context
 # pylint:disable=dangerous-default-value
@@ -74,7 +80,7 @@ class PipelineGraph(object):
           rendered. See display.pipeline_graph_renderer for available options.
     """
     self._lock = threading.Lock()
-    self._graph: pydot.Dot = None
+    self._graph: Optional[PydotDot] = None  # type: ignore
     self._pipeline_instrument = None
     if isinstance(pipeline, beam.Pipeline):
       self._pipeline_instrument = inst.PipelineInstrument(
@@ -116,7 +122,11 @@ class PipelineGraph(object):
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
 
   def get_dot(self) -> str:
-    return self._get_graph().to_string()
+    graph: Optional[PydotDot] = self._get_graph()  # type: ignore
+    if graph:
+      return graph.to_string()
+    else:
+      return ""
 
   def display_graph(self):
     """Displays the graph generated."""
@@ -236,6 +246,10 @@ class PipelineGraph(object):
       default_vertex_attrs: (Dict[str, str]) a dict of attributes
       default_edge_attrs: (Dict[str, str]) a dict of attributes
     """
+    if not pydot:
+      self._graph = None
+      return
+
     with self._lock:
       self._graph = pydot.Dot()
 
@@ -270,6 +284,10 @@ class PipelineGraph(object):
           Or (Dict[(str, str), Dict[str, str]]) which maps vertex pairs to edge
           attributes
     """
+    graph: Optional[PydotDot] = self._get_graph()  # type: ignore
+    if not pydot or not graph:
+      return
+
     def set_attrs(ref, attrs):
       for attr_name, attr_val in attrs.items():
         ref.set(attr_name, attr_val)

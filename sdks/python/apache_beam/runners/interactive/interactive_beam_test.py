@@ -696,6 +696,9 @@ class InteractiveBeamComputeTest(unittest.TestCase):
     collected = ib.collect(pcoll, raw_records=True)
     self.assertEqual(collected, data)
 
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
   def test_compute_non_blocking(self):
     p = beam.Pipeline(ir.InteractiveRunner())
     data = list(range(5))
@@ -757,6 +760,9 @@ class InteractiveBeamComputeTest(unittest.TestCase):
       mock_evict.assert_called_once_with(p)
     self.assertTrue(pcoll in self.env.computed_pcollections)
 
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
   def test_compute_non_blocking_exception(self):
     p = beam.Pipeline(ir.InteractiveRunner())
 
@@ -777,6 +783,9 @@ class InteractiveBeamComputeTest(unittest.TestCase):
     self.assertIsInstance(async_result.exception(), ValueError)
     self.assertFalse(pcoll in self.env.computed_pcollections)
 
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
   @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
   @patch('apache_beam.runners.interactive.recording_manager.display')
   @patch('apache_beam.runners.interactive.recording_manager.clear_output')
@@ -824,6 +833,9 @@ class InteractiveBeamComputeTest(unittest.TestCase):
     mock_clear_output.assert_called_once()
     async_result.result(timeout=60)  # Let it finish
 
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
   def test_compute_dependency_wait_true(self):
     p = beam.Pipeline(ir.InteractiveRunner())
     pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
@@ -855,6 +867,9 @@ class InteractiveBeamComputeTest(unittest.TestCase):
       async_res2.result(timeout=60)
       self.assertTrue(pcoll2 in self.env.computed_pcollections)
 
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
   @patch.object(ie.InteractiveEnvironment, 'is_pcollection_computing')
   def test_compute_dependency_wait_false(self, mock_is_computing):
     p = beam.Pipeline(ir.InteractiveRunner())
@@ -878,6 +893,9 @@ class InteractiveBeamComputeTest(unittest.TestCase):
       spy_execute.assert_called_with({pcoll2}, async_res2, ANY, ANY)
       self.assertTrue(pcoll2 in self.env.computed_pcollections)
 
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
   def test_async_computation_result_cancel(self):
     p = beam.Pipeline(ir.InteractiveRunner())
     # A stream that never finishes to test cancellation
@@ -904,6 +922,9 @@ class InteractiveBeamComputeTest(unittest.TestCase):
     with self.assertRaises(TimeoutError):
       async_result.result(timeout=1)  # It should not complete successfully
 
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
   @patch(
       'apache_beam.runners.interactive.recording_manager.RecordingManager.'
       '_execute_pipeline_fragment')

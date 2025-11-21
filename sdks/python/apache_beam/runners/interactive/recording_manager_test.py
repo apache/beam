@@ -47,6 +47,9 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 class AsyncComputationResultTest(unittest.TestCase):
   def setUp(self):
     self.mock_future = MagicMock(spec=Future)
@@ -962,6 +965,9 @@ class RecordingManagerTest(unittest.TestCase):
       mock_execute.assert_called_once()
       self.assertTrue(pcoll in ie.current_env().computed_pcollections)
 
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
   @patch(
       'apache_beam.runners.interactive.recording_manager.AsyncComputationResult'
   )

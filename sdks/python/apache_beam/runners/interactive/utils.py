@@ -49,6 +49,18 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 _LOGGER = logging.getLogger(__name__)
 
+try:
+  from google.cloud.exceptions import ClientError
+  from google.cloud.exceptions import NotFound
+
+  from apache_beam.io.gcp.gcsio import create_storage_client  # pylint: disable=ungrouped-imports
+  GCP_LIBS_AVAILABLE = True
+except ImportError:
+  GCP_LIBS_AVAILABLE = False
+  ClientError = None
+  NotFound = None
+  create_storage_client = None
+
 # Add line breaks to the IPythonLogHandler's HTML output.
 _INTERACTIVE_LOG_STYLE = """
   <style>
@@ -447,11 +459,14 @@ def assert_bucket_exists(bucket_name: str) -> None:
 
     Logs a warning if the bucket cannot be verified to exist.
   """
-  try:
-    from google.cloud.exceptions import ClientError
-    from google.cloud.exceptions import NotFound
+  if not GCP_LIBS_AVAILABLE:
+    _LOGGER.warning(
+        'google-cloud-storage is not installed. '
+        'Unable to verify whether bucket %s exists.',
+        bucket_name)
+    return
 
-    from apache_beam.io.gcp.gcsio import create_storage_client
+  try:
     storage_client = create_storage_client(PipelineOptions())
     storage_client.get_bucket(bucket_name)
   except ClientError as e:
