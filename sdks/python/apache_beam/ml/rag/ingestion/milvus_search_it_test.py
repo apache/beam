@@ -370,10 +370,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     for chunk in test_chunks:
       self.assertIn(chunk.id, result_by_id)
       result_item = result_by_id[chunk.id]
-      self.assertEqual(
-          result_item["content"],
-          chunk.content.text
-          if hasattr(chunk.content, 'text') else chunk.content)
+      self.assertEqual(result_item["content"], chunk.content.text)
       self.assertEqual(result_item["metadata"], chunk.metadata)
 
       # Verify embedding is present and has correct length.
@@ -388,11 +385,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
 
     custom_column_specs = [
         ColumnSpec("id", int, lambda chunk: int(chunk.id) if chunk.id else 0),
-        ColumnSpec(
-            "content",
-            str, lambda chunk: (
-                chunk.content.text
-                if hasattr(chunk.content, 'text') else chunk.content)),
+        ColumnSpec("content", str, lambda chunk: chunk.content.text),
         ColumnSpec("metadata", dict, lambda chunk: chunk.metadata or {}),
         ColumnSpec(
             "embedding",
