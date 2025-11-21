@@ -87,7 +87,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python_ML PreCommit')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Free Disk Space (Ubuntu)
         if: contains(matrix.os, 'ubuntu-latest')
         uses: jlumbroso/free-disk-space@v1.3.1

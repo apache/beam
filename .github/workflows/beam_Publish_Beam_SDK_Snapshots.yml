@@ -77,7 +77,7 @@ jobs:
           - "python:container:ml:py313:docker"
           - "java:expansion-service:container:docker"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository

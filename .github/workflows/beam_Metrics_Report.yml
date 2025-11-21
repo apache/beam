@@ -60,7 +60,7 @@ jobs:
       )
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
