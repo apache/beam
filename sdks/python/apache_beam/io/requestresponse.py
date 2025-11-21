@@ -694,8 +694,9 @@ class RedisCache(Cache):
     self._source_caller = None
 
     if redis is None:
-      raise ImportError('Failed to import redis. You can ensure it is '
-                        'installed by installing the redis beam extra')
+      raise ImportError(
+          'Failed to import redis. You can ensure it is '
+          'installed by installing the redis beam extra')
 
   def get_read(self):
     """get_read returns a PTransform for reading from the cache."""
