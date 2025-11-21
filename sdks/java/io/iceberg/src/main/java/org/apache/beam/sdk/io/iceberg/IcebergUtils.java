@@ -598,11 +598,11 @@ public class IcebergUtils {
     return icebergValue;
   }
 
-  public static <T> boolean isUnbounded(PCollection<T> input) {
+  static <T> boolean isUnbounded(PCollection<T> input) {
     return input.isBounded().equals(PCollection.IsBounded.UNBOUNDED);
   }
 
-  public static boolean validDirectWriteLimit(@Nullable Integer directWriteByteLimit) {
+  static boolean validDirectWriteLimit(@Nullable Integer directWriteByteLimit) {
     return directWriteByteLimit != null && directWriteByteLimit >= 0;
   }
 }
