@@ -62,6 +62,7 @@ public class OpenAIModelHandler
 
   private transient OpenAIClient client;
   private OpenAIModelParameters modelParameters;
+  private transient ObjectMapper objectMapper;
 
   /**
    * Initializes the OpenAI client with the provided parameters.
@@ -77,6 +78,7 @@ public class OpenAIModelHandler
     this.client = OpenAIOkHttpClient.builder()
       .apiKey(this.modelParameters.getApiKey())
       .build();
+    this.objectMapper = new ObjectMapper();
   }
 
   /**
@@ -94,7 +96,7 @@ public class OpenAIModelHandler
 
     try {
       // Convert input list to JSON string
-      String inputBatch = new ObjectMapper()
+      String inputBatch = objectMapper
         .writeValueAsString(input.stream().map(OpenAIModelInput::getModelInput).toList());
 
       // Build structured response parameters
