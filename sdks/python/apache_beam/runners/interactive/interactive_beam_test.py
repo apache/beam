@@ -71,6 +71,9 @@ def _get_watched_pcollections_with_variable_names():
   return watched_pcollections
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 @isolated_env
 class InteractiveBeamTest(unittest.TestCase):
   def setUp(self):

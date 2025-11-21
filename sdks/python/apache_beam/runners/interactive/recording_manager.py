@@ -712,9 +712,16 @@ class RecordingManager:
   def _get_pipeline_graph(self):
     """Lazily initializes and returns the PipelineGraph."""
     if self._pipeline_graph is None:
-      # Only create it when requested.
-      # This prevents 'pydot' errors in tests that don't use async features.
-      self._pipeline_graph = PipelineGraph(self.user_pipeline)
+      try:
+        # Try to create the graph.
+        self._pipeline_graph = PipelineGraph(self.user_pipeline)
+      except (ImportError, NameError, AttributeError):
+        # If pydot is missing, PipelineGraph() might crash.
+        _LOGGER.warning(
+            "Could not create PipelineGraph (pydot missing?). " \
+            "Async features disabled."
+        )
+        self._pipeline_graph = None
     return self._pipeline_graph
 
   def _get_pcoll_id_map(self):
