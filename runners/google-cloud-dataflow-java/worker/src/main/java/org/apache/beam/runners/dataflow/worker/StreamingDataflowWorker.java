@@ -389,6 +389,7 @@ public final class StreamingDataflowWorker {
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,
+                drainMode,
                 getWorkStreamLatencies) ->
                 computationStateCache
                     .get(processingContext.computationId())
@@ -401,6 +402,7 @@ public final class StreamingDataflowWorker {
                               serializedWorkItemSize,
                               watermarks,
                               processingContext,
+                              drainMode,
                               getWorkStreamLatencies);
                         }),
             ChannelCachingRemoteStubFactory.create(options.getGcpCredential(), channelCache),
