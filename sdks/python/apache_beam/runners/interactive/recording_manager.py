@@ -492,7 +492,6 @@ class RecordingManager:
         if not self._wait_for_dependencies(pcolls_to_compute, async_result):
           raise RuntimeError('Dependency computation failed or was cancelled.')
 
-      self._env.mark_pcollection_computing(pcolls_to_compute)
       _LOGGER.info(
           'Starting asynchronous computation for %d PCollections.',
           len(pcolls_to_compute))
@@ -696,6 +695,7 @@ class RecordingManager:
       async_result = AsyncComputationResult(
           future, pcolls_to_compute, self.user_pipeline, self)
       self._async_computations[async_result._display_id] = async_result
+      self._env.mark_pcollection_computing(pcolls_to_compute)
 
       def task():
         try:

@@ -993,12 +993,6 @@ class RecordingManagerTest(unittest.TestCase):
 
     mock_submit.side_effect = capture_task
 
-    res = rm.compute_async({pcoll}, blocking=False)
-    self.assertIs(res, mock_async_res_instance)
-    mock_submit.assert_called_once()
-    self.assertIsNotNone(task_submitted)
-
-    # Patch dependencies of _run_async_computation
     with patch.object(
         rm, '_wait_for_dependencies', return_value=True
     ), patch.object(
@@ -1008,9 +1002,21 @@ class RecordingManagerTest(unittest.TestCase):
         'mark_pcollection_computing',
         wraps=ie.current_env().mark_pcollection_computing,
     ) as wrapped_mark:
-      # Run the task to trigger the marks
-      task_submitted()
+
+      res = rm.compute_async({pcoll}, blocking=False)
       wrapped_mark.assert_called_once_with({pcoll})
+
+    # Run the task to trigger the marks
+    self.assertIs(res, mock_async_res_instance)
+    mock_submit.assert_called_once()
+    self.assertIsNotNone(task_submitted)
+
+    with patch.object(
+        rm, '_wait_for_dependencies', return_value=True
+    ), patch.object(
+        rm, '_execute_pipeline_fragment'
+    ) as _:
+      task_submitted()
 
     self.assertTrue(pcoll in ie.current_env().computing_pcollections)
 

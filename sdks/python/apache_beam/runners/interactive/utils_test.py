@@ -244,7 +244,9 @@ class IPythonLogHandlerTest(unittest.TestCase):
     reason='[interactive] dependency is not installed.')
 class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
-    ie.new_env()
+    with patch(
+        'apache_beam.runners.interactive.cache_manager.CacheManager.cleanup'):
+      ie.new_env()
 
   @patch('IPython.get_ipython', new_callable=mock_get_ipython)
   @patch(
