@@ -62,7 +62,7 @@ pipelines:
               project: apache-beam-testing
               table_name: "{BQ_TABLE}"
               fields: ['label']
-              row_restriction_template: "label = '{}'"
+              row_restriction_template: "label = '{{}}'"
             timeout: 30
           
         - type: MapToFields
