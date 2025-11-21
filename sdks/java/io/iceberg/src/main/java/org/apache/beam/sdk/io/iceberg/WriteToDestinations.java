@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -34,7 +37,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
-import org.apache.beam.sdk.util.ShardedKey.Coder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -42,7 +44,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Utf8;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -76,13 +77,13 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   public IcebergWriteResult expand(PCollection<KV<String, Row>> input) {
     // Write records to files
     PCollection<FileWriteResult> writtenFiles;
-    if (directWriteByteLimit != null && directWriteByteLimit >= 0) {
-      writtenFiles = writeTriggeredWithBundleLifting(input);
-    } else {
+    if (IcebergUtils.isUnbounded(input)) {
       writtenFiles =
-          input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
-              ? writeTriggered(input)
-              : writeUntriggered(input);
+          IcebergUtils.validDirectWriteLimit(directWriteByteLimit)
+              ? writeTriggeredWithBundleLifting(input)
+              : writeTriggered(input);
+    } else {
+      writtenFiles = writeUntriggered(input);
     }
 
     // Commit files to tables
@@ -90,6 +91,39 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
         writtenFiles.apply(new AppendFilesToTables(catalogConfig, filePrefix));
 
     return new IcebergWriteResult(input.getPipeline(), snapshots);
+  }
+
+  private PCollection<FileWriteResult> groupAndWriteRecords(PCollection<KV<String, Row>> input) {
+    // We rely on GroupIntoBatches to group and parallelize records properly,
+    // respecting our thresholds for number of records and bytes per batch.
+    // Each output batch will be written to a file.
+    PCollection<KV<ShardedKey<String>, Iterable<Row>>> groupedRecords =
+        input
+            .apply(
+                GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                    .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
+                    .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency))
+                    .withShardedKey())
+            .setCoder(
+                KvCoder.of(
+                    org.apache.beam.sdk.util.ShardedKey.Coder.of(StringUtf8Coder.of()),
+                    IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
+
+    return groupedRecords.apply(
+        "WriteGroupedRows",
+        new WriteGroupedRowsToFiles(
+            catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+  }
+
+  private PCollection<FileWriteResult> applyUserTriggering(PCollection<FileWriteResult> input) {
+    return input.apply(
+        "ApplyUserTrigger",
+        Window.<FileWriteResult>into(new GlobalWindows())
+            .triggering(
+                Repeatedly.forever(
+                    AfterProcessingTime.pastFirstElementInPane()
+                        .plusDelayOf(checkArgumentNotNull(triggeringFrequency))))
+            .discardingFiredPanes());
   }
 
   private PCollection<FileWriteResult> writeTriggeredWithBundleLifting(
@@ -119,80 +153,28 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             .setCoder(
                 KvCoder.of(StringUtf8Coder.of(), RowCoder.of(dynamicDestinations.getDataSchema())));
 
-    PCollection<KV<ShardedKey<String>, Iterable<Row>>> groupedRecords =
-        smallBatches
-            .apply(
-                GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                    .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
-                    .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency))
-                    .withShardedKey())
-            .setCoder(
-                KvCoder.of(
-                    Coder.of(StringUtf8Coder.of()),
-                    IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
-
     PCollection<FileWriteResult> directFileWrites =
         largeBatches.apply(
             "WriteDirectRowsToFiles",
             new WriteDirectRowsToFiles(
                 catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
 
-    PCollection<FileWriteResult> groupedFileWrites =
-        groupedRecords.apply(
-            "WriteGroupedRows",
-            new WriteGroupedRowsToFiles(
-                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+    PCollection<FileWriteResult> groupedFileWrites = groupAndWriteRecords(smallBatches);
 
     PCollection<FileWriteResult> allFileWrites =
         PCollectionList.of(groupedFileWrites)
             .and(directFileWrites)
             .apply(Flatten.<FileWriteResult>pCollections());
 
-    return allFileWrites.apply(
-        "ApplyUserTrigger",
-        Window.<FileWriteResult>into(new GlobalWindows())
-            .triggering(
-                Repeatedly.forever(
-                    AfterProcessingTime.pastFirstElementInPane()
-                        .plusDelayOf(checkArgumentNotNull(triggeringFrequency))))
-            .discardingFiredPanes());
+    return applyUserTriggering(allFileWrites);
   }
 
   private PCollection<FileWriteResult> writeTriggered(PCollection<KV<String, Row>> input) {
     checkArgumentNotNull(
         triggeringFrequency, "Streaming pipelines must set a triggering frequency.");
-
-    // Group records into batches to avoid writing thousands of small files
-    PCollection<KV<ShardedKey<String>, Iterable<Row>>> groupedRecords =
-        input
-            .apply("WindowIntoGlobal", Window.into(new GlobalWindows()))
-            // We rely on GroupIntoBatches to group and parallelize records properly,
-            // respecting our thresholds for number of records and bytes per batch.
-            // Each output batch will be written to a file.
-            .apply(
-                GroupIntoBatches.<String, Row>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                    .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
-                    .withMaxBufferingDuration(checkArgumentNotNull(triggeringFrequency))
-                    .withShardedKey())
-            .setCoder(
-                KvCoder.of(
-                    org.apache.beam.sdk.util.ShardedKey.Coder.of(StringUtf8Coder.of()),
-                    IterableCoder.of(RowCoder.of(dynamicDestinations.getDataSchema()))));
-
-    return groupedRecords
-        .apply(
-            "WriteGroupedRows",
-            new WriteGroupedRowsToFiles(
-                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE))
-        // Respect user's triggering frequency before committing snapshots
-        .apply(
-            "ApplyUserTrigger",
-            Window.<FileWriteResult>into(new GlobalWindows())
-                .triggering(
-                    Repeatedly.forever(
-                        AfterProcessingTime.pastFirstElementInPane()
-                            .plusDelayOf(checkArgumentNotNull(triggeringFrequency))))
-                .discardingFiredPanes());
+    input = input.apply("WindowIntoGlobal", Window.into(new GlobalWindows()));
+    PCollection<FileWriteResult> files = groupAndWriteRecords(input);
+    return applyUserTriggering(files);
   }
 
   private PCollection<FileWriteResult> writeUntriggered(PCollection<KV<String, Row>> input) {
@@ -231,18 +213,45 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private static class RowSizer implements SerializableFunction<KV<String, Row>, Integer> {
     @Override
     public Integer apply(KV<String, Row> element) {
-      Row row = element.getValue();
+      return estimateRowSize(element.getValue());
+    }
+
+    private int estimateRowSize(Row row) {
+      if (row == null) {
+        return 0;
+      }
       int size = 0;
       for (Object value : row.getValues()) {
-        if (value instanceof String) {
-          size += Utf8.encodedLength((String) value);
-        } else if (value instanceof byte[]) {
-          size += ((byte[]) value).length;
-        } else {
-          size += 8; // Approximation for non-string/byte fields
-        }
+        size += estimateObjectSize(value);
       }
       return size;
+    }
+
+    private int estimateObjectSize(@Nullable Object value) {
+      if (value == null) {
+        return 0;
+      }
+      if (value instanceof String) {
+        return ((String) value).getBytes(UTF_8).length;
+      } else if (value instanceof byte[]) {
+        return ((byte[]) value).length;
+      } else if (value instanceof Row) {
+        return estimateRowSize((Row) value);
+      } else if (value instanceof List) {
+        int listSize = 0;
+        for (Object item : (List) value) {
+          listSize += estimateObjectSize(item);
+        }
+        return listSize;
+      } else if (value instanceof Map) {
+        int mapSize = 0;
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+          mapSize += estimateObjectSize(entry.getKey()) + estimateObjectSize(entry.getValue());
+        }
+        return mapSize;
+      } else {
+        return 8; // Approximation for other fields
+      }
     }
   }
 }

@@ -40,8 +40,6 @@ import org.slf4j.LoggerFactory;
  * A PTransform that buffers elements and outputs them to one of two TupleTags based on the total
  * size of the bundle in finish_bundle.
  *
- * <p>This is the Java equivalent of the BundleLifter PTransform in Python.
- *
  * @param <T> The type of elements in the input PCollection.
  */
 public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple> {
@@ -55,9 +53,6 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
    * A private, static DoFn that buffers elements within a bundle and outputs them to different tags
    * in finish_bundle based on the total bundle size.
    *
-   * <p>This is the Java equivalent of the _BundleLiftDoFn in Python, now merged inside the
-   * PTransform.
-   *
    * @param <T> The type of elements being processed.
    */
   private static class BundleLiftDoFn<T> extends DoFn<T, Void> {
@@ -69,7 +64,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     final SerializableFunction<T, Integer> elementSizer;
 
     private transient @MonotonicNonNull List<T> buffer;
-    private transient long bundleSize;
+    private transient long bundleSizeBytes;
     private transient @Nullable MultiOutputReceiver receiver;
 
     BundleLiftDoFn(
@@ -87,7 +82,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     public void startBundle() {
       buffer = new ArrayList<>();
       receiver = null;
-      bundleSize = 0L;
+      bundleSizeBytes = 0L;
     }
 
     @ProcessElement
@@ -97,7 +92,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
       }
       checkArgumentNotNull(buffer, "Buffer should be set by startBundle.");
       buffer.add(element);
-      bundleSize += elementSizer.apply(element);
+      bundleSizeBytes += elementSizer.apply(element);
     }
 
     @FinishBundle
@@ -107,16 +102,14 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         return;
       }
 
-      TupleTag<T> targetTag;
-
       // Select the target tag based on the bundle size
-      if (bundleSize < threshold) {
-        targetTag = smallBatchTag;
-        LOG.debug("Emitting {} elements to small tag: '{}'", bundleSize, targetTag.getId());
-      } else {
-        targetTag = largeBatchTag;
-        LOG.debug("Emitting {} elements to large tag: '{}'", bundleSize, targetTag.getId());
-      }
+      TupleTag<T> targetTag;
+      targetTag = (bundleSizeBytes < threshold) ? smallBatchTag : largeBatchTag;
+      LOG.debug(
+          "Emitting {} elements of {} estimated bytes to tag: '{}'",
+          buffer.size(),
+          bundleSizeBytes,
+          targetTag.getId());
 
       checkArgumentNotNull(receiver, "Receiver should be set by startBundle.");
       OutputReceiver<T> taggedOutput = receiver.get(targetTag);
@@ -127,11 +120,11 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     }
   }
 
-  public BundleLifter(TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, int threshold) {
+  private BundleLifter(TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, int threshold) {
     this(smallBatchTag, largeBatchTag, threshold, x -> 1);
   }
 
-  public BundleLifter(
+  private BundleLifter(
       TupleTag<T> smallBatchTag,
       TupleTag<T> largeBatchTag,
       int threshold,

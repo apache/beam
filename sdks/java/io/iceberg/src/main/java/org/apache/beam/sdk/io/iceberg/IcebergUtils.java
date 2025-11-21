@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -595,5 +596,13 @@ public class IcebergUtils {
     }
     // LocalDateTime, LocalDate, LocalTime
     return icebergValue;
+  }
+
+  public static <T> boolean isUnbounded(PCollection<T> input) {
+    return input.isBounded().equals(PCollection.IsBounded.UNBOUNDED);
+  }
+
+  public static boolean validDirectWriteLimit(@Nullable Integer directWriteByteLimit) {
+    return directWriteByteLimit != null && directWriteByteLimit >= 0;
   }
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+// import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -459,6 +460,11 @@ public class IcebergIO {
 
       // Assign destinations before re-windowing to global in WriteToDestinations because
       // user's dynamic destination may depend on windowing properties
+      if (IcebergUtils.validDirectWriteLimit(getDirectWriteByteLimit())) {
+        Preconditions.checkArgument(
+            IcebergUtils.isUnbounded(input),
+            "Must only provide direct write limit for unbounded pipelines.");
+      }
       return input
           .apply("Assign Table Destinations", new AssignDestinations(destinations))
           .apply(
