@@ -43,6 +43,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Note: This does not uniquely identify a pane, and should not be used for comparisons.
  */
 public final class PaneInfo {
+
   /**
    * Enumerates the possibilities for the timing of this pane firing related to the input and output
    * watermarks for its computation.
@@ -322,6 +323,7 @@ public final class PaneInfo {
 
   /** A Coder for encoding PaneInfo instances. */
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
+
     private static final byte ELEMENT_METADATA_MASK = (byte) 0x80;
 
     private enum Encoding {
@@ -411,5 +413,20 @@ public final class PaneInfo {
 
     @Override
     public void verifyDeterministic() {}
+
+    @Override
+    protected long getEncodedElementByteSize(PaneInfo value) throws Exception {
+      Encoding encoding = chooseEncoding(value);
+      switch (encoding) {
+        case FIRST:
+          return 1;
+        case ONE_INDEX:
+          return 1L + VarInt.getLength(value.index);
+        case TWO_INDICES:
+          return 1L + VarInt.getLength(value.index) + VarInt.getLength(value.nonSpeculativeIndex);
+        default:
+          throw new CoderException("Unknown encoding " + encoding);
+      }
+    }
   }
 }
