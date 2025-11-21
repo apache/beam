@@ -107,7 +107,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class GcsUtil {
+public class GcsUtilLegacy {
 
   @AutoValue
   public abstract static class GcsCountersOptions {
@@ -121,7 +121,7 @@ public class GcsUtil {
 
     public static GcsCountersOptions create(
         @Nullable String readCounterPrefix, @Nullable String writeCounterPrefix) {
-      return new AutoValue_GcsUtil_GcsCountersOptions(readCounterPrefix, writeCounterPrefix);
+      return new AutoValue_GcsUtilLegacy_GcsCountersOptions(readCounterPrefix, writeCounterPrefix);
     }
   }
 
@@ -134,22 +134,22 @@ public class GcsUtil {
   }
 
   /**
-   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtil} using any transport
-   * flags specified on the {@link PipelineOptions}.
+   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtilLegacy} using any
+   * transport flags specified on the {@link PipelineOptions}.
    */
-  public static class GcsUtilFactory implements DefaultValueFactory<GcsUtil> {
+  public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilLegacy> {
     /**
-     * Returns an instance of {@link GcsUtil} based on the {@link PipelineOptions}.
+     * Returns an instance of {@link GcsUtilLegacy} based on the {@link PipelineOptions}.
      *
      * <p>If no instance has previously been created, one is created and the value stored in {@code
      * options}.
      */
     @Override
-    public GcsUtil create(PipelineOptions options) {
+    public GcsUtilLegacy create(PipelineOptions options) {
       LOG.debug("Creating new GcsUtil");
       GcsOptions gcsOptions = options.as(GcsOptions.class);
       Storage.Builder storageBuilder = Transport.newStorageClient(gcsOptions);
-      return new GcsUtil(
+      return new GcsUtilLegacy(
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
@@ -167,8 +167,8 @@ public class GcsUtil {
           gcsOptions.getGoogleCloudStorageReadOptions());
     }
 
-    /** Returns an instance of {@link GcsUtil} based on the given parameters. */
-    public static GcsUtil create(
+    /** Returns an instance of {@link GcsUtilLegacy} based on the given parameters. */
+    public static GcsUtilLegacy create(
         PipelineOptions options,
         Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
@@ -177,7 +177,7 @@ public class GcsUtil {
         @Nullable Integer uploadBufferSizeBytes,
         GcsCountersOptions gcsCountersOptions,
         GoogleCloudStorageReadOptions gcsReadOptions) {
-      return new GcsUtil(
+      return new GcsUtilLegacy(
           storageClient,
           httpRequestInitializer,
           executorService,
@@ -190,7 +190,7 @@ public class GcsUtil {
     }
   }
 
-  private static final Logger LOG = LoggerFactory.getLogger(GcsUtil.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GcsUtilLegacy.class);
 
   /** Maximum number of items to retrieve per Objects.List request. */
   private static final long MAX_LIST_ITEMS_PER_CALL = 1024;
@@ -267,7 +267,7 @@ public class GcsUtil {
   }
 
   @VisibleForTesting
-  GcsUtil(
+  GcsUtilLegacy(
       Storage storageClient,
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
@@ -296,7 +296,7 @@ public class GcsUtil {
         () -> {
           // Capture reference to this so that the most recent storageClient and initializer
           // are used.
-          GcsUtil util = this;
+          GcsUtilLegacy util = this;
           return new BatchInterface() {
             final BatchRequest batch = util.storageClient.batch(util.httpRequestInitializer);
 
@@ -528,7 +528,8 @@ public class GcsUtil {
    * Create an integer consumer that updates the counter identified by a prefix and a bucket name.
    */
   private static Consumer<Integer> createCounterConsumer(String counterNamePrefix, String bucket) {
-    return Metrics.counter(GcsUtil.class, String.format("%s_%s", counterNamePrefix, bucket))::inc;
+    return Metrics.counter(GcsUtilLegacy.class, String.format("%s_%s", counterNamePrefix, bucket))
+        ::inc;
   }
 
   private WritableByteChannel wrapInCounting(
@@ -675,7 +676,7 @@ public class GcsUtil {
     public abstract @Nullable String getContentType();
 
     public static Builder builder() {
-      return new AutoValue_GcsUtil_CreateOptions.Builder().setExpectFileToNotExist(false);
+      return new AutoValue_GcsUtilLegacy_CreateOptions.Builder().setExpectFileToNotExist(false);
     }
 
     @AutoValue.Builder
@@ -1406,13 +1407,13 @@ public class GcsUtil {
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(StorageObject storageObject) {
-      return new AutoValue_GcsUtil_StorageObjectOrIOException(
+      return new AutoValue_GcsUtilLegacy_StorageObjectOrIOException(
           checkNotNull(storageObject, "storageObject"), null /* ioException */);
     }
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(IOException ioException) {
-      return new AutoValue_GcsUtil_StorageObjectOrIOException(
+      return new AutoValue_GcsUtilLegacy_StorageObjectOrIOException(
           null /* storageObject */, checkNotNull(ioException, "ioException"));
     }
   }
