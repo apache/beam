@@ -667,6 +667,9 @@ class RecordingTest(unittest.TestCase):
         cache_manager.size('full', letters_stream.cache_key))
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 class RecordingManagerTest(unittest.TestCase):
   def test_basic_execution(self):
     """A basic pipeline to be used as a smoke test."""
@@ -965,9 +968,6 @@ class RecordingManagerTest(unittest.TestCase):
       mock_execute.assert_called_once()
       self.assertTrue(pcoll in ie.current_env().computed_pcollections)
 
-  @unittest.skipIf(
-      not ie.current_env().is_interactive_ready,
-      '[interactive] dependency is not installed.')
   @patch(
       'apache_beam.runners.interactive.recording_manager.AsyncComputationResult'
   )
