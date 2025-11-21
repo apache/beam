@@ -167,8 +167,10 @@ public class RestrictionTrackersTest {
       notifyAll();
     }
 
-    public synchronized boolean isBlocked() {
-      return isBlocked;
+    public void waitUntil(boolean blocking) throws InterruptedException {
+      while (isBlocked != blocking) {
+        Thread.sleep(1);
+      }
     }
   }
 
@@ -179,46 +181,37 @@ public class RestrictionTrackersTest {
     assertThat(hasSize, instanceOf(HasProgress.class));
   }
 
-  private void testBlocking(String testCase) throws InterruptedException {
-    RestrictionTrackerWithProgress withProgress;
-    if ("tryClaim".equals(testCase)) {
-      withProgress = new RestrictionTrackerWithProgress(true, false);
-    } else if ("trySplit".equals(testCase)) {
-      withProgress = new RestrictionTrackerWithProgress(false, true);
-    } else {
-      throw new IllegalArgumentException("unknown test case " + testCase);
-    }
+  @Test
+  public void testClaimObserversProgressNonBlockingOnTryClaim() throws InterruptedException {
+    RestrictionTrackerWithProgress withProgress = new RestrictionTrackerWithProgress(true, false);
     RestrictionTracker<Object, Object> tracker =
         RestrictionTrackers.observe(withProgress, new RestrictionTrackers.NoopClaimObserver<>());
-    Runnable runnable;
-    if ("tryClaim".equals(testCase)) {
-      runnable = () -> tracker.tryClaim(new Object());
-    } else {
-      runnable = () -> tracker.trySplit(0.5);
-    }
-    Thread blocking = new Thread(runnable);
+    Thread blocking = new Thread(() -> tracker.tryClaim(new Object()));
     blocking.start();
-    while (!withProgress.isBlocked()) {
-      Thread.sleep(1);
-    }
+    withProgress.waitUntil(true);
     RestrictionTracker.Progress progress =
         ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
     assertEquals(RestrictionTracker.Progress.NONE, progress);
     withProgress.releaseLock();
-    while (withProgress.isBlocked()) {
-      Thread.sleep(1);
-    }
+    withProgress.waitUntil(false);
     progress = ((HasProgress) tracker).getProgress();
     assertEquals(RestrictionTrackerWithProgress.REPORT_PROGRESS, progress);
   }
 
   @Test
-  public void testClaimObserversProgressNonBlockingOnTryClaim() throws InterruptedException {
-    testBlocking("tryClaim");
-  }
-
-  @Test
   public void testClaimObserversProgressNonBlockingOnTrySplit() throws InterruptedException {
-    testBlocking("trySplit");
+    RestrictionTrackerWithProgress withProgress = new RestrictionTrackerWithProgress(false, true);
+    RestrictionTracker<Object, Object> tracker =
+        RestrictionTrackers.observe(withProgress, new RestrictionTrackers.NoopClaimObserver<>());
+    Thread blocking = new Thread(() -> tracker.trySplit(0.5));
+    blocking.start();
+    withProgress.waitUntil(true);
+    RestrictionTracker.Progress progress =
+        ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
+    assertEquals(RestrictionTracker.Progress.NONE, progress);
+    withProgress.releaseLock();
+    withProgress.waitUntil(false);
+    progress = ((HasProgress) tracker).getProgress();
+    assertEquals(RestrictionTrackerWithProgress.REPORT_PROGRESS, progress);
   }
 }
