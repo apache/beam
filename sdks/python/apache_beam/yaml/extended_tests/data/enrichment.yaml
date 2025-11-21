@@ -62,7 +62,7 @@ pipelines:
               project: apache-beam-testing
               table_name: "{BQ_TABLE}"
               fields: ['label']
-              row_restriction_template: "label = '37a'"
+              row_restriction_template: "label = '{{}}'"
             timeout: 30
           
         - type: MapToFields
@@ -82,6 +82,8 @@ pipelines:
         - type: AssertEqual
           config:
             elements:
+              - {label: '11a', rank: 0, name: 'S1'}
               - {label: '37a', rank: 1, name: 'S2'}
+              - {label: '389a', rank: 2, name: 'S3'}
     options:
       yaml_experimental_features: [ 'Enrichment' ]
