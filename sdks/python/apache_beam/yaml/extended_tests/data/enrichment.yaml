@@ -64,7 +64,7 @@ pipelines:
               fields: ['label']
               row_restriction_template: "label = '37a'"
             timeout: 30
-          
+
         - type: MapToFields
           config:
             language: python
@@ -82,6 +82,8 @@ pipelines:
         - type: AssertEqual
           config:
             elements:
+              - {label: '11a', rank: 0, name: 'S1'}
               - {label: '37a', rank: 1, name: 'S2'}
+              - {label: '389a', rank: 2, name: 'S3'}
     options:
       yaml_experimental_features: [ 'Enrichment' ]
