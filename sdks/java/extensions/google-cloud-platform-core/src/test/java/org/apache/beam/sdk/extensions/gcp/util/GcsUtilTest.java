@@ -98,10 +98,10 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.BatchInterface;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
-import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.RewriteOp;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilLegacy.BatchInterface;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtilLegacy.RewriteOp;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -1626,8 +1626,6 @@ public class GcsUtilTest {
   }
 
   public static class GcsUtilMock extends GcsUtil {
-
-    // public GoogleCloudStorage googleCloudStorage;
 
     public static GcsUtilMock createMockWithMockStorage(PipelineOptions options, byte[] readPayload)
         throws IOException {

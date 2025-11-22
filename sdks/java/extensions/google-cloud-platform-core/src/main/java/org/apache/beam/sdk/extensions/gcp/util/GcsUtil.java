@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
-import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
-import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
@@ -28,6 +25,7 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -133,8 +131,8 @@ public class GcsUtil {
     delegate.setStorageClient(storageClient);
   }
 
-  protected void setBatchRequestSupplier(Supplier<BatchInterface> supplier) {
-    delegate.setBatchRequestSupplier(() -> new LegacyBatchAdapter(supplier.get()));
+  protected void setBatchRequestSupplier(Supplier<GcsUtilLegacy.BatchInterface> supplier) {
+    delegate.setBatchRequestSupplier(supplier);
   }
 
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
@@ -307,19 +305,20 @@ public class GcsUtil {
   }
 
   @VisibleForTesting
-  List<BatchInterface> makeGetBatches(
+  List<GcsUtilLegacy.BatchInterface> makeGetBatches(
       Collection<GcsPath> paths, List<StorageObjectOrIOException[]> results) throws IOException {
     List<GcsUtilLegacy.StorageObjectOrIOException[]> legacyResults = new java.util.ArrayList<>();
-    List<GcsUtilLegacy.BatchInterface> legacyBatches =
-        delegate.makeGetBatches(paths, legacyResults);
-    for (int i = 0; i < legacyResults.size(); i++) {
-      results.add(new StorageObjectOrIOException[1]);
+    List<GcsUtilLegacy.BatchInterface> legacyBatch = delegate.makeGetBatches(paths, legacyResults);
+
+    for (GcsUtilLegacy.StorageObjectOrIOException[] legacyResult : legacyResults) {
+      StorageObjectOrIOException[] result = new StorageObjectOrIOException[legacyResult.length];
+      for (int i = 0; i < legacyResult.length; ++i) {
+        result[i] = StorageObjectOrIOException.fromLegacy(legacyResult[i]);
+      }
+      results.add(result);
     }
-    List<BatchInterface> mapped = new java.util.ArrayList<>();
-    for (GcsUtilLegacy.BatchInterface b : legacyBatches) {
-      mapped.add(new BatchAdapter(b));
-    }
-    return mapped;
+
+    return legacyBatch;
   }
 
   public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
@@ -335,53 +334,35 @@ public class GcsUtil {
 
   @VisibleForTesting
   @SuppressWarnings("JdkObsolete")
-  java.util.LinkedList<RewriteOp> makeRewriteOps(
+  java.util.LinkedList<GcsUtilLegacy.RewriteOp> makeRewriteOps(
       Iterable<String> srcFilenames,
       Iterable<String> destFilenames,
       boolean deleteSource,
       boolean ignoreMissingSource,
       boolean ignoreExistingDest)
       throws IOException {
-    java.util.LinkedList<GcsUtilLegacy.RewriteOp> legacy =
-        delegate.makeRewriteOps(
-            srcFilenames, destFilenames, deleteSource, ignoreMissingSource, ignoreExistingDest);
-    java.util.LinkedList<RewriteOp> mapped = new java.util.LinkedList<>();
-    for (GcsUtilLegacy.RewriteOp op : legacy) {
-      mapped.add(new RewriteOp(op));
-    }
-    return mapped;
+    return delegate.makeRewriteOps(
+        srcFilenames, destFilenames, deleteSource, ignoreMissingSource, ignoreExistingDest);
   }
 
   @VisibleForTesting
   @SuppressWarnings("JdkObsolete")
-  List<BatchInterface> makeRewriteBatches(java.util.LinkedList<RewriteOp> rewrites)
-      throws IOException {
-    java.util.LinkedList<GcsUtilLegacy.RewriteOp> legacy = new java.util.LinkedList<>();
-    for (RewriteOp op : rewrites) {
-      legacy.add(op.delegate);
-    }
-    List<GcsUtilLegacy.BatchInterface> legacyBatches = delegate.makeRewriteBatches(legacy);
-    List<BatchInterface> mapped = new java.util.ArrayList<>();
-    for (GcsUtilLegacy.BatchInterface b : legacyBatches) {
-      mapped.add(new BatchAdapter(b));
-    }
-    return mapped;
+  List<GcsUtilLegacy.BatchInterface> makeRewriteBatches(
+      java.util.LinkedList<GcsUtilLegacy.RewriteOp> rewrites) throws IOException {
+    return delegate.makeRewriteBatches(rewrites);
   }
 
   @VisibleForTesting
-  List<BatchInterface> makeRemoveBatches(Collection<String> filenames) throws IOException {
-    List<GcsUtilLegacy.BatchInterface> legacy = delegate.makeRemoveBatches(filenames);
-    List<BatchInterface> mapped = new java.util.ArrayList<>();
-    for (GcsUtilLegacy.BatchInterface b : legacy) {
-      mapped.add(new BatchAdapter(b));
-    }
-    return mapped;
+  List<GcsUtilLegacy.BatchInterface> makeRemoveBatches(Collection<String> filenames)
+      throws IOException {
+    return delegate.makeRemoveBatches(filenames);
   }
 
   public void remove(Collection<String> filenames) throws IOException {
     delegate.remove(filenames);
   }
 
+  @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")
   public static class StorageObjectOrIOException {
     final GcsUtilLegacy.StorageObjectOrIOException delegate;
 
@@ -409,97 +390,6 @@ public class GcsUtil {
 
     public @Nullable IOException ioException() {
       return delegate.ioException();
-    }
-  }
-
-  public interface BatchInterface {
-    <T> void queue(AbstractGoogleJsonClientRequest<T> request, JsonBatchCallback<T> cb)
-        throws IOException;
-
-    void execute() throws IOException;
-
-    int size();
-  }
-
-  static class BatchAdapter implements BatchInterface {
-    private final GcsUtilLegacy.BatchInterface legacy;
-
-    BatchAdapter(GcsUtilLegacy.BatchInterface legacy) {
-      this.legacy = legacy;
-    }
-
-    @Override
-    public <T> void queue(AbstractGoogleJsonClientRequest<T> request, JsonBatchCallback<T> cb)
-        throws IOException {
-      legacy.queue(request, cb);
-    }
-
-    @Override
-    public void execute() throws IOException {
-      legacy.execute();
-    }
-
-    @Override
-    public int size() {
-      return legacy.size();
-    }
-  }
-
-  static class LegacyBatchAdapter implements GcsUtilLegacy.BatchInterface {
-    private final BatchInterface modern;
-
-    LegacyBatchAdapter(BatchInterface modern) {
-      this.modern = modern;
-    }
-
-    @Override
-    public <T> void queue(AbstractGoogleJsonClientRequest<T> request, JsonBatchCallback<T> cb)
-        throws IOException {
-      modern.queue(request, cb);
-    }
-
-    @Override
-    public void execute() throws IOException {
-      modern.execute();
-    }
-
-    @Override
-    public int size() {
-      return modern.size();
-    }
-  }
-
-  public static class RewriteOp {
-    final GcsUtilLegacy.RewriteOp delegate;
-    Storage.Objects.Rewrite rewriteRequest;
-
-    RewriteOp(GcsUtilLegacy.RewriteOp delegate) {
-      this.delegate = delegate;
-      this.rewriteRequest = delegate.rewriteRequest;
-    }
-
-    public boolean getReadyToEnqueue() {
-      return delegate.getReadyToEnqueue();
-    }
-
-    public @Nullable GoogleJsonError getLastError() {
-      return delegate.getLastError();
-    }
-
-    public GcsPath getFrom() {
-      return delegate.getFrom();
-    }
-
-    public GcsPath getTo() {
-      return delegate.getTo();
-    }
-
-    public boolean isMetadataOperation() {
-      return delegate.isMetadataOperation();
-    }
-
-    public void enqueue(BatchInterface batch) throws IOException {
-      delegate.enqueue(new LegacyBatchAdapter(batch));
     }
   }
 }
