@@ -104,28 +104,6 @@ public class GcsUtil {
                   : null),
           gcsOptions.getGoogleCloudStorageReadOptions());
     }
-
-    public static GcsUtil create(
-        PipelineOptions options,
-        Storage storageClient,
-        HttpRequestInitializer httpRequestInitializer,
-        ExecutorService executorService,
-        Credentials credentials,
-        @Nullable Integer uploadBufferSizeBytes,
-        GcsCountersOptions gcsCountersOptions,
-        GoogleCloudStorageReadOptions gcsReadOptions) {
-      return new GcsUtil(
-          storageClient,
-          httpRequestInitializer,
-          executorService,
-          org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment(
-              options, "use_grpc_for_gcs"),
-          credentials,
-          uploadBufferSizeBytes,
-          null,
-          gcsCountersOptions,
-          gcsReadOptions);
-    }
   }
 
   public static String getNonWildcardPrefix(String globExp) {

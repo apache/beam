@@ -166,28 +166,6 @@ public class GcsUtilLegacy {
                   : null),
           gcsOptions.getGoogleCloudStorageReadOptions());
     }
-
-    /** Returns an instance of {@link GcsUtilLegacy} based on the given parameters. */
-    public static GcsUtilLegacy create(
-        PipelineOptions options,
-        Storage storageClient,
-        HttpRequestInitializer httpRequestInitializer,
-        ExecutorService executorService,
-        Credentials credentials,
-        @Nullable Integer uploadBufferSizeBytes,
-        GcsCountersOptions gcsCountersOptions,
-        GoogleCloudStorageReadOptions gcsReadOptions) {
-      return new GcsUtilLegacy(
-          storageClient,
-          httpRequestInitializer,
-          executorService,
-          hasExperiment(options, "use_grpc_for_gcs"),
-          credentials,
-          uploadBufferSizeBytes,
-          null,
-          gcsCountersOptions,
-          gcsReadOptions);
-    }
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(GcsUtilLegacy.class);
