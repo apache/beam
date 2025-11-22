@@ -187,11 +187,13 @@ public class GcsUtil {
     return delegate.open(path);
   }
 
+  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
     return delegate.create(path, type);
   }
 
+  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
