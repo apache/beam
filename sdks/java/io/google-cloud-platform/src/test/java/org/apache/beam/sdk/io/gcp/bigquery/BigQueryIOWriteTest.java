@@ -4924,4 +4924,49 @@ public class BigQueryIOWriteTest implements Serializable {
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
   }
+
+  @Test
+  public void testCdcWithStorageWriteApiDoesNotThrowIllegalStateException() throws Exception {
+    // Test for issue #31422: CDC with STORAGE_WRITE_API should not throw IllegalStateException
+    assumeTrue(useStorageApi);
+    assumeTrue(!useStorageApiApproximate); // Test STORAGE_WRITE_API specifically
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("id").setType("INTEGER"),
+                    new TableFieldSchema().setName("name").setType("STRING")));
+
+    // Create a write transform with CDC enabled using RowMutationInformation
+    BigQueryIO.Write<Row> write =
+        BigQueryIO.<Row>write()
+            .to("project-id:dataset-id.table-id")
+            .withSchema(schema)
+            .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+            .withRowMutationInformationFn(
+                (Row row) -> {
+                  return RowMutationInformation.of(
+                      RowMutationInformation.MutationType.UPSERT, row.getValue("id").toString());
+                })
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+
+    // Create test data with CDC-style updates
+    Schema beamSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
+
+    List<Row> testData =
+        ImmutableList.of(
+            Row.withSchema(beamSchema).addValues(1, "Alice").build(),
+            Row.withSchema(beamSchema).addValues(2, "Bob").build(),
+            Row.withSchema(beamSchema).addValues(1, "Alice Updated").build() // Update row with id=1
+            );
+
+    // This should not throw an IllegalStateException
+    PCollection<Row> input = p.apply(Create.of(testData).withRowSchema(beamSchema));
+
+    WriteResult result = input.apply("WriteCdcToBQ", write);
+
+    p.run(); // Should complete successfully without IllegalStateException
+  }
 }
