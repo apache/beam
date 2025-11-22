@@ -1003,7 +1003,7 @@ public class GcsUtilTest {
     GoogleCloudStorageReadOptions readOptions =
         GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
     SeekableByteChannel channel =
-        gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject"), readOptions);
+        gcsUtil.delegate.open(GcsPath.fromComponents("testbucket", "testobject"), readOptions);
     channel.close();
     channel.close();
   }
@@ -1022,7 +1022,8 @@ public class GcsUtilTest {
         GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
     assertThrows(
         IOException.class,
-        () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testbucket"), readOptions));
+        () ->
+            gcsUtil.delegate.open(GcsPath.fromComponents("testbucket", "testbucket"), readOptions));
     verifyMetricWasSet("my_project", "testbucket", "GcsGet", "permission_denied", 1);
   }
 
@@ -1650,7 +1651,7 @@ public class GcsUtilTest {
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
                   : null),
-          gcsOptions.getGoogleCloudStorageReadOptions());
+          gcsOptions);
     }
 
     private GcsUtilMock(
@@ -1662,7 +1663,7 @@ public class GcsUtilTest {
         @Nullable Integer uploadBufferSizeBytes,
         @Nullable Integer rewriteDataOpBatchLimit,
         GcsUtil.GcsCountersOptions gcsCountersOptions,
-        GoogleCloudStorageReadOptions gcsReadOptions) {
+        GcsOptions gcsOptions) {
       super(
           storageClient,
           httpRequestInitializer,
@@ -1672,7 +1673,7 @@ public class GcsUtilTest {
           uploadBufferSizeBytes,
           rewriteDataOpBatchLimit,
           gcsCountersOptions,
-          gcsReadOptions);
+          gcsOptions);
     }
   }
 
@@ -1833,7 +1834,7 @@ public class GcsUtilTest {
     GcsPath gcsPath = new GcsPath(null, bucketName, "o1");
     // act
     try (SeekableByteChannel byteChannel =
-        readOptions != null ? gcsUtil.open(gcsPath, readOptions) : gcsUtil.open(gcsPath)) {
+        readOptions != null ? gcsUtil.delegate.open(gcsPath, readOptions) : gcsUtil.open(gcsPath)) {
       int bytesReadReportedByChannel = byteChannel.read(ByteBuffer.allocate(payload.length));
       long bytesReadReportedByMetric =
           testMetricsContainer

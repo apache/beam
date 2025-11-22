@@ -254,6 +254,29 @@ public class GcsUtilLegacy {
       @Nullable Integer uploadBufferSizeBytes,
       @Nullable Integer rewriteDataOpBatchLimit,
       GcsCountersOptions gcsCountersOptions,
+      GcsOptions gcsOptions) {
+    this(
+        storageClient,
+        httpRequestInitializer,
+        executorService,
+        shouldUseGrpc,
+        credentials,
+        uploadBufferSizeBytes,
+        rewriteDataOpBatchLimit,
+        gcsCountersOptions,
+        gcsOptions.getGoogleCloudStorageReadOptions());
+  }
+
+  @VisibleForTesting
+  GcsUtilLegacy(
+      Storage storageClient,
+      HttpRequestInitializer httpRequestInitializer,
+      ExecutorService executorService,
+      Boolean shouldUseGrpc,
+      Credentials credentials,
+      @Nullable Integer uploadBufferSizeBytes,
+      @Nullable Integer rewriteDataOpBatchLimit,
+      GcsCountersOptions gcsCountersOptions,
       GoogleCloudStorageReadOptions gcsReadOptions) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
@@ -604,9 +627,11 @@ public class GcsUtilLegacy {
     ServiceCallMetric serviceCallMetric =
         new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
     try {
-      SeekableByteChannel channel =
-          googleCloudStorage.open(
-              new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
+      // override readOptions
+      this.googleCloudStorageOptions =
+          this.googleCloudStorageOptions.toBuilder().setReadChannelOptions(readOptions).build();
+      // call public open api
+      SeekableByteChannel channel = open(path);
       serviceCallMetric.call("ok");
       return wrapInCounting(channel, path.getBucket());
     } catch (IOException e) {

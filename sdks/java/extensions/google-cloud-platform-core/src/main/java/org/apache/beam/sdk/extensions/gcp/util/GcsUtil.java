@@ -28,7 +28,6 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -73,14 +72,6 @@ public class GcsUtil {
     }
   }
 
-  public static class GcsReadOptionsFactory
-      implements DefaultValueFactory<GoogleCloudStorageReadOptions> {
-    @Override
-    public GoogleCloudStorageReadOptions create(PipelineOptions options) {
-      return new GcsUtilLegacy.GcsReadOptionsFactory().create(options);
-    }
-  }
-
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtil> {
     @Override
     public GcsUtil create(PipelineOptions options) {
@@ -102,7 +93,7 @@ public class GcsUtil {
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
                   : null),
-          gcsOptions.getGoogleCloudStorageReadOptions());
+          gcsOptions);
     }
   }
 
@@ -124,7 +115,7 @@ public class GcsUtil {
       @Nullable Integer uploadBufferSizeBytes,
       @Nullable Integer rewriteDataOpBatchLimit,
       GcsCountersOptions gcsCountersOptions,
-      GoogleCloudStorageReadOptions gcsReadOptions) {
+      GcsOptions gcsOptions) {
     this.delegate =
         new GcsUtilLegacy(
             storageClient,
@@ -135,7 +126,7 @@ public class GcsUtil {
             uploadBufferSizeBytes,
             rewriteDataOpBatchLimit,
             gcsCountersOptions.delegate,
-            gcsReadOptions);
+            gcsOptions);
   }
 
   protected void setStorageClient(Storage storageClient) {
@@ -194,12 +185,6 @@ public class GcsUtil {
 
   public SeekableByteChannel open(GcsPath path) throws IOException {
     return delegate.open(path);
-  }
-
-  @VisibleForTesting
-  SeekableByteChannel open(GcsPath path, GoogleCloudStorageReadOptions readOptions)
-      throws IOException {
-    return delegate.open(path, readOptions);
   }
 
   @Deprecated
