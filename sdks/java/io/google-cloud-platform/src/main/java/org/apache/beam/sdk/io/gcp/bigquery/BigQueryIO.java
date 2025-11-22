@@ -3330,8 +3330,9 @@ public class BigQueryIO {
     /**
      * Choose the frequency at which file writes are triggered.
      *
-     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS} or
-     * {@link Method#STORAGE_WRITE_API}, and only when writing an unbounded {@link PCollection}.
+     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS}, {@link
+     * Method#STORAGE_WRITE_API}, or {@link Method#STORAGE_API_AT_LEAST_ONCE}, and only when writing
+     * an unbounded {@link PCollection}.
      *
      * <p>Every triggeringFrequency duration, a BigQuery load job will be generated for all the data
      * written since the last load job. BigQuery has limits on how many load jobs can be triggered
@@ -3736,19 +3737,22 @@ public class BigQueryIO {
       BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
       Write.Method method = resolveMethod(input);
       if (input.isBounded() == IsBounded.UNBOUNDED) {
-        if (method == Write.Method.FILE_LOADS || method == Write.Method.STORAGE_WRITE_API) {
+        if (method == Write.Method.FILE_LOADS
+            || method == Write.Method.STORAGE_WRITE_API
+            || method == Write.Method.STORAGE_API_AT_LEAST_ONCE) {
           Duration triggeringFrequency =
-              (method == Write.Method.STORAGE_WRITE_API)
+              (method == Write.Method.STORAGE_WRITE_API
+                      || method == Write.Method.STORAGE_API_AT_LEAST_ONCE)
                   ? getStorageApiTriggeringFrequency(bqOptions)
                   : getTriggeringFrequency();
           checkArgument(
               triggeringFrequency != null,
-              "When writing an unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API, "
+              "When writing an unbounded PCollection via FILE_LOADS, STORAGE_WRITE_API, or STORAGE_API_AT_LEAST_ONCE, "
                   + "triggering frequency must be specified");
         } else {
           checkArgument(
               getTriggeringFrequency() == null,
-              "Triggering frequency can be specified only when writing via FILE_LOADS or STORAGE_WRITE_API, but the method was %s.",
+              "Triggering frequency can be specified only when writing via FILE_LOADS, STORAGE_WRITE_API, or STORAGE_API_AT_LEAST_ONCE, but the method was %s.",
               method);
         }
         if (method != Method.FILE_LOADS) {
@@ -3757,13 +3761,7 @@ public class BigQueryIO {
               "Number of file shards can be specified only when writing via FILE_LOADS, but the method was %s.",
               method);
         }
-        if (method == Method.STORAGE_API_AT_LEAST_ONCE
-            && getStorageApiTriggeringFrequency(bqOptions) != null) {
-          LOG.warn(
-              "Storage API triggering frequency option will be ignored is it can only be specified only "
-                  + "when writing via STORAGE_WRITE_API, but the method was {}.",
-              method);
-        }
+
         if (getAutoSharding()) {
           if (method == Method.STORAGE_WRITE_API && getStorageApiNumStreams(bqOptions) > 0) {
             LOG.warn(
