@@ -2632,7 +2632,8 @@ public class BigQueryIOWriteTest implements Serializable {
     Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("unbounded PCollection via FILE_LOADS or STORAGE_WRITE_API");
+    thrown.expectMessage(
+        "unbounded PCollection via FILE_LOADS, STORAGE_WRITE_API, or STORAGE_API_AT_LEAST_ONCE");
     thrown.expectMessage("triggering frequency must be specified");
 
     p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
@@ -2644,6 +2645,72 @@ public class BigQueryIOWriteTest implements Serializable {
                 .to("dataset.table")
                 .withMethod(method)
                 .withCreateDisposition(CreateDisposition.CREATE_NEVER));
+  }
+
+  @Test
+  public void testStreamingWriteValidateFailsWithoutTriggeringFrequencyForStorageApiAtLeastOnce() {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApiApproximate); // Test STORAGE_API_AT_LEAST_ONCE specifically
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "unbounded PCollection via FILE_LOADS, STORAGE_WRITE_API, or STORAGE_API_AT_LEAST_ONCE");
+    thrown.expectMessage("triggering frequency must be specified");
+
+    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .to("dataset.table")
+                .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER));
+  }
+
+  @Test
+  public void testStreamingWriteValidateSucceedsWithTriggeringFrequencyForStorageApiAtLeastOnce() {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApiApproximate); // Test STORAGE_API_AT_LEAST_ONCE specifically
+    p.enableAbandonedNodeEnforcement(false);
+
+    // This should not throw - STORAGE_API_AT_LEAST_ONCE with triggering frequency should be valid
+    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(30);
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .to("dataset.table")
+                .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    // Should validate without throwing
+    p.run();
+  }
+
+  @Test
+  public void testBoundedWriteValidateSucceedsWithoutTriggeringFrequencyForStorageApiAtLeastOnce() {
+    assumeTrue(!useStreaming); // Test bounded PCollection
+    assumeTrue(useStorageApiApproximate); // Test STORAGE_API_AT_LEAST_ONCE specifically
+
+    // Bounded collections should not require triggering frequency even for
+    // STORAGE_API_AT_LEAST_ONCE
+    p.getOptions().as(BigQueryOptions.class).setStorageWriteApiTriggeringFrequencySec(null);
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .setIsBoundedInternal(PCollection.IsBounded.BOUNDED)
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
+                .to("dataset.table")
+                .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    // Should validate without throwing
+    p.run();
   }
 
   @Test
