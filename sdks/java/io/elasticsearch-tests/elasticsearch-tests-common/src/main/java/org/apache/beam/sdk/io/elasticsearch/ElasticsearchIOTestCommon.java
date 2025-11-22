@@ -60,6 +60,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -383,8 +384,8 @@ class ElasticsearchIOTestCommon {
             // the other messages are matched using .+
             return message.matches(
                 "(?is).*Error writing to Elasticsearch, some elements could not be inserted"
-                    + ".*Document id .+: failed to parse \\(.+\\).*Caused by: .+ \\(.+\\).*"
-                    + "Document id .+: failed to parse \\(.+\\).*Caused by: .+ \\(.+\\).*");
+                    + ".*Document id .+:.*failed to parse.*\\(.+\\).*Caused by: .+ \\(.+\\).*"
+                    + "Document id .+:.*failed to parse.*\\(.+\\).*Caused by: .+ \\(.+\\).*");
           }
         });
 
@@ -429,12 +430,15 @@ class ElasticsearchIOTestCommon {
   }
 
   void testWriteWithErrorsReturnedAllowedErrors() throws Exception {
+    Set<String> allowedErrors = new HashSet<>();
+    allowedErrors.add("json_parse_exception");
+    allowedErrors.add("document_parsing_exception");
     Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE)
             .withThrowWriteErrors(false)
-            .withAllowableResponseErrors(Collections.singleton("json_parse_exception"));
+            .withAllowableResponseErrors(allowedErrors);
 
     List<String> data =
         ElasticsearchIOTestUtils.createDocuments(
@@ -503,11 +507,14 @@ class ElasticsearchIOTestCommon {
   }
 
   void testWriteWithAllowedErrors() throws Exception {
+    Set<String> allowedErrors = new HashSet<>();
+    allowedErrors.add("json_parse_exception");
+    allowedErrors.add("document_parsing_exception");
     Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE)
-            .withAllowableResponseErrors(Collections.singleton("json_parse_exception"));
+            .withAllowableResponseErrors(allowedErrors);
     List<String> input =
         ElasticsearchIOTestUtils.createDocuments(
             numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);

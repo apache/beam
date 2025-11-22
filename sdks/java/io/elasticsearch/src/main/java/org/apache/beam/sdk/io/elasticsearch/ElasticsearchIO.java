@@ -205,7 +205,7 @@ import org.slf4j.LoggerFactory;
 })
 public class ElasticsearchIO {
 
-  private static final List<Integer> VALID_CLUSTER_VERSIONS = Arrays.asList(5, 6, 7, 8);
+  private static final List<Integer> VALID_CLUSTER_VERSIONS = Arrays.asList(5, 6, 7, 8, 9);
   private static final Set<Integer> DEPRECATED_CLUSTER_VERSIONS =
       new HashSet<>(Arrays.asList(5, 6));
   private static final List<String> VERSION_TYPES =
