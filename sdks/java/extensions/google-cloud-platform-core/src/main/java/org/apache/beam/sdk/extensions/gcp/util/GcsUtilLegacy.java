@@ -592,12 +592,7 @@ public class GcsUtilLegacy {
    * @return a SeekableByteChannel that can read the object data
    */
   public SeekableByteChannel open(GcsPath path) throws IOException {
-    String bucket = path.getBucket();
-    SeekableByteChannel channel =
-        googleCloudStorage.open(
-            new StorageResourceId(path.getBucket(), path.getObject()),
-            this.googleCloudStorageOptions.getReadChannelOptions());
-    return wrapInCounting(channel, bucket);
+    return open(path, this.googleCloudStorageOptions.getReadChannelOptions());
   }
 
   /**
@@ -627,11 +622,9 @@ public class GcsUtilLegacy {
     ServiceCallMetric serviceCallMetric =
         new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
     try {
-      // override readOptions
-      this.googleCloudStorageOptions =
-          this.googleCloudStorageOptions.toBuilder().setReadChannelOptions(readOptions).build();
-      // call public open api
-      SeekableByteChannel channel = open(path);
+      SeekableByteChannel channel =
+          googleCloudStorage.open(
+              new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
       serviceCallMetric.call("ok");
       return wrapInCounting(channel, path.getBucket());
     } catch (IOException e) {

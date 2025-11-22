@@ -1002,8 +1002,16 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorageReadOptions readOptions =
         GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
-    SeekableByteChannel channel =
-        gcsUtil.delegate.open(GcsPath.fromComponents("testbucket", "testobject"), readOptions);
+
+    gcsUtil.delegate.setCloudStorageImpl(
+        GoogleCloudStorageOptions.builder()
+            .setAppName("Beam")
+            .setGrpcEnabled(true)
+            .setProjectId("my_project")
+            .setReadChannelOptions(readOptions)
+            .build());
+
+    SeekableByteChannel channel = gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject"));
     channel.close();
     channel.close();
   }
@@ -1012,18 +1020,17 @@ public class GcsUtilTest {
   public void testGCSReadMetricsIsSet() {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
     gcsUtil.delegate.setCloudStorageImpl(
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setGrpcEnabled(true)
             .setProjectId("my_project")
+            .setReadChannelOptions(readOptions)
             .build());
-    GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
     assertThrows(
-        IOException.class,
-        () ->
-            gcsUtil.delegate.open(GcsPath.fromComponents("testbucket", "testbucket"), readOptions));
+        IOException.class, () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testbucket")));
     verifyMetricWasSet("my_project", "testbucket", "GcsGet", "permission_denied", 1);
   }
 
@@ -1828,13 +1835,15 @@ public class GcsUtilTest {
     GcsOptions gcsOptions = PipelineOptionsFactory.create().as(GcsOptions.class);
     gcsOptions.setEnableBucketReadMetricCounter(enabled);
     gcsOptions.setGcsReadCounterPrefix("test_counter");
+    if (readOptions != null) {
+      gcsOptions.setGoogleCloudStorageReadOptions(readOptions);
+    }
     byte[] payload = "some_bytes".getBytes(StandardCharsets.UTF_8);
     GcsUtilMock gcsUtil = GcsUtilMock.createMockWithMockStorage(gcsOptions, payload);
     String bucketName = "some_bucket";
     GcsPath gcsPath = new GcsPath(null, bucketName, "o1");
     // act
-    try (SeekableByteChannel byteChannel =
-        readOptions != null ? gcsUtil.delegate.open(gcsPath, readOptions) : gcsUtil.open(gcsPath)) {
+    try (SeekableByteChannel byteChannel = gcsUtil.open(gcsPath)) {
       int bytesReadReportedByChannel = byteChannel.read(ByteBuffer.allocate(payload.length));
       long bytesReadReportedByMetric =
           testMetricsContainer
