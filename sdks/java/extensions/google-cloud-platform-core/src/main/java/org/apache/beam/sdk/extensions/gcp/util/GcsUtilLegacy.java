@@ -528,8 +528,7 @@ public class GcsUtilLegacy {
    * Create an integer consumer that updates the counter identified by a prefix and a bucket name.
    */
   private static Consumer<Integer> createCounterConsumer(String counterNamePrefix, String bucket) {
-    return Metrics.counter(GcsUtilLegacy.class, String.format("%s_%s", counterNamePrefix, bucket))
-        ::inc;
+    return Metrics.counter(GcsUtil.class, String.format("%s_%s", counterNamePrefix, bucket))::inc;
   }
 
   private WritableByteChannel wrapInCounting(

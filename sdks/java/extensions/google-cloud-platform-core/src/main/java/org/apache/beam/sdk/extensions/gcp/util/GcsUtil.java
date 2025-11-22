@@ -28,8 +28,6 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
@@ -47,7 +45,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class GcsUtil {
-  @VisibleForTesting final GcsUtilLegacy delegate;
+  @VisibleForTesting GcsUtilLegacy delegate;
 
   public static class GcsCountersOptions {
     final GcsUtilLegacy.GcsCountersOptions delegate;
@@ -216,16 +214,6 @@ public class GcsUtil {
     return delegate.fileSizes(paths);
   }
 
-  @VisibleForTesting
-  void setCloudStorageImpl(GoogleCloudStorage g) {
-    delegate.setCloudStorageImpl(g);
-  }
-
-  @VisibleForTesting
-  void setCloudStorageImpl(GoogleCloudStorageOptions g) {
-    delegate.setCloudStorageImpl(g);
-  }
-
   public SeekableByteChannel open(GcsPath path) throws IOException {
     return delegate.open(path);
   }
@@ -300,11 +288,6 @@ public class GcsUtil {
 
   public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
     return delegate.create(path, options.delegate);
-  }
-
-  GoogleCloudStorage createGoogleCloudStorage(
-      GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
-    return delegate.createGoogleCloudStorage(options, storage, credentials);
   }
 
   public void verifyBucketAccessible(GcsPath path) throws IOException {
