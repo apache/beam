@@ -244,9 +244,10 @@ class IPythonLogHandlerTest(unittest.TestCase):
     reason='[interactive] dependency is not installed.')
 class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
-    with patch(
-        'apache_beam.runners.interactive.cache_manager.CacheManager.cleanup'):
-      ie.new_env()
+    self.patcher = patch(
+        'apache_beam.runners.interactive.cache_manager.CacheManager.cleanup')
+    self.patcher.start()
+    ie.new_env()
 
   @patch('IPython.get_ipython', new_callable=mock_get_ipython)
   @patch(
@@ -281,6 +282,9 @@ class ProgressIndicatorTest(unittest.TestCase):
         mocked_html.assert_called()
       mocked_js.assert_called()
 
+  def tearDown(self):
+    self.patcher.stop()
+
 
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
@@ -289,6 +293,9 @@ class MessagingUtilTest(unittest.TestCase):
   SAMPLE_DATA = {'a': [1, 2, 3], 'b': 4, 'c': '5', 'd': {'e': 'f'}}
 
   def setUp(self):
+    self.patcher = patch(
+        'apache_beam.runners.interactive.cache_manager.CacheManager.cleanup')
+    self.patcher.start()
     ie.new_env()
 
   def test_as_json_decorator(self):
@@ -299,6 +306,9 @@ class MessagingUtilTest(unittest.TestCase):
     # As of Python 3.6, for the CPython implementation of Python,
     # dictionaries remember the order of items inserted.
     self.assertEqual(json.loads(dummy()), MessagingUtilTest.SAMPLE_DATA)
+
+  def tearDown(self):
+    self.patcher.stop()
 
 
 class GeneralUtilTest(unittest.TestCase):
