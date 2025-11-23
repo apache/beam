@@ -37,12 +37,6 @@ def pytest_addoption(parser):
       '--test-pipeline-options',
       help='Options to use in test pipelines. NOTE: Tests may '
       'ignore some or all of these options.')
-  parser.addoption(
-      '--enable-test-cleanup',
-      action='store_true',
-      default=False,
-      help='Enable expensive cleanup operations. Auto-enabled in CI by default. '
-           'Use this flag to explicitly enable cleanup in local development.')
 
 
 # See pytest.ini for main collection rules.
@@ -110,86 +104,51 @@ def configure_beam_rpc_timeouts():
   print("Successfully configured Beam RPC timeouts")
 
 
-def _running_in_ci():
-  """Returns True if running in a CI environment."""
-  return (
-      os.getenv('GITHUB_ACTIONS') == 'true' or
-      os.getenv('CI') == 'true' or
-      os.getenv('CONTINUOUS_INTEGRATION') == 'true'
-  )
-
-
-def _should_enable_test_cleanup(config):
-  """Returns True if expensive cleanup operations should run.
-
-  Result is cached on config object to avoid re-computation per test.
+@pytest.fixture(scope="class", autouse=True)
+def ensure_clean_state():
   """
-  if hasattr(config, '_should_enable_test_cleanup_result'):
-    return config._should_enable_test_cleanup_result
-
-  if config.getoption('--enable-test-cleanup'):
-    result = True
-    reason = "enabled via --enable-test-cleanup"
-  else:
-    if _running_in_ci():
-      result = True
-      reason = "CI detected"
-    else:
-      result = False
-      reason = "local development"
-
-  # Log once per session
-  if not hasattr(config, '_cleanup_decision_logged'):
-    print(f"\n[Test Cleanup] Enabled: {result} ({reason})")
-    config._cleanup_decision_logged = True
-
-  config._should_enable_test_cleanup_result = result
-  return result
-
-
-@pytest.fixture(autouse=True)
-def ensure_clean_state(request):
+  Ensure clean state before each test class
+  to prevent cross-test contamination.
+  Runs once per test class instead of per test to reduce overhead.
   """
-  Ensures clean state between tests to prevent contamination.
+  # Force garbage collection to clean up any lingering resources
+  gc.collect()
 
-  Expensive operations (sleeps, extra GC) only run in CI or when
-  explicitly enabled to keep local tests fast.
-  """
-  enable_cleanup = _should_enable_test_cleanup(request.config)
-
-  if enable_cleanup:
-    gc.collect()
-
+  # Log active thread count for debugging
   thread_count = threading.active_count()
   if thread_count > 50:
-    print(f"Warning: {thread_count} active threads detected before test")
-    if enable_cleanup:
-      time.sleep(0.5)
-      gc.collect()
+    print(f"Warning: {thread_count} active threads detected before test class")
+    # Force a brief pause to let threads settle
+    time.sleep(0.5)
+    gc.collect()
 
   yield
 
+  # Enhanced cleanup after test class
   try:
-    if enable_cleanup:
-      gc.collect()
-      time.sleep(0.1)
-      gc.collect()
+    # Force more aggressive cleanup
+    gc.collect()
+    # Brief pause to let any async operations complete
+    time.sleep(0.1)
+    # Additional garbage collection
+    gc.collect()
   except Exception as e:
     print(f"Warning: Cleanup error: {e}")
 
 
-@pytest.fixture(autouse=True)
-def enhance_mock_stability(request):
-  """Improves mock stability in DinD environment."""
-  enable_cleanup = _should_enable_test_cleanup(request.config)
-
-  if enable_cleanup:
-    time.sleep(0.05)
+@pytest.fixture(scope="class", autouse=True)
+def enhance_mock_stability():
+  """
+  Enhance mock stability in DinD environment.
+  Runs once per test class instead of per test to reduce overhead.
+  """
+  # Brief pause before test class to ensure clean mock state
+  time.sleep(0.05)
 
   yield
 
-  if enable_cleanup:
-    time.sleep(0.05)
+  # Brief pause after test class to let mocks clean up
+  time.sleep(0.05)
 
 
 def pytest_configure(config):
