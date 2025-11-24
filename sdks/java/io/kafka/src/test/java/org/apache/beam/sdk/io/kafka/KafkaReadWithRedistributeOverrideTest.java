@@ -128,5 +128,6 @@ public class KafkaReadWithRedistributeOverrideTest implements Serializable {
           }
         };
     p.traverseTopologically(visitor);
+    p.enableAbandonedNodeEnforcement(false);
   }
 }
