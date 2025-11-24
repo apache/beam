@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -94,6 +95,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
@@ -930,6 +932,34 @@ public class KafkaIO {
           builder.setOffsetDeduplication(false);
           builder.setRedistributeByRecordKey(false);
         }
+
+        if (config.consumerFactoryFnClass != null) {
+          if (config.consumerFactoryFnClass.contains("KerberosConsumerFactoryFn")) {
+            try {
+              if (!config.consumerFactoryFnParams.containsKey("krb5Location")) {
+                throw new IllegalArgumentException(
+                    "The KerberosConsumerFactoryFn requires a location for the krb5.conf file. "
+                        + "Please provide either a GCS location or Google Secret Manager location for this file.");
+              }
+              String krb5Location = config.consumerFactoryFnParams.get("krb5Location");
+              builder.setConsumerFactoryFn(
+                  InstanceBuilder.ofType(
+                          new TypeDescriptor<
+                              SerializableFunction<
+                                  Map<String, Object>, Consumer<byte[], byte[]>>>() {})
+                      .fromClassName(config.consumerFactoryFnClass)
+                      .withArg(String.class, Objects.requireNonNull(krb5Location))
+                      .build());
+            } catch (Exception e) {
+              throw new RuntimeException(
+                  "Unable to construct FactoryFn "
+                      + config.consumerFactoryFnClass
+                      + ": "
+                      + e.getMessage(),
+                  e);
+            }
+          }
+        }
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -1000,6 +1030,8 @@ public class KafkaIO {
         private Boolean offsetDeduplication;
         private Boolean redistributeByRecordKey;
         private Long dynamicReadPollIntervalSeconds;
+        private String consumerFactoryFnClass;
+        private Map<String, String> consumerFactoryFnParams;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -1067,6 +1099,14 @@ public class KafkaIO {
 
         public void setDynamicReadPollIntervalSeconds(Long dynamicReadPollIntervalSeconds) {
           this.dynamicReadPollIntervalSeconds = dynamicReadPollIntervalSeconds;
+        }
+
+        public void setConsumerFactoryFnClass(String consumerFactoryFnClass) {
+          this.consumerFactoryFnClass = consumerFactoryFnClass;
+        }
+
+        public void setConsumerFactoryFnParams(Map<String, String> consumerFactoryFnParams) {
+          this.consumerFactoryFnParams = consumerFactoryFnParams;
         }
       }
     }

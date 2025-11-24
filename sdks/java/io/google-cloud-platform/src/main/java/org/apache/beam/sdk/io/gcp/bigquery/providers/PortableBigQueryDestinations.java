@@ -122,7 +122,7 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
         row = checkStateNotNull(row.getRow(RECORD));
       }
       Row filtered = rowFilter.filter(row);
-      return AvroUtils.toGenericRecord(filtered);
+      return AvroUtils.toGenericRecord(filtered, request.getSchema());
     };
   }
 }
