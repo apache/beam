@@ -445,6 +445,18 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   void setElementProcessingTimeoutMinutes(int value);
 
   /**
+   * The Avro spec supports the `java-class` schema annotation, which allows fields to be serialized
+   * and deserialized via their toString/String constructor. As of Avro 1.11.4+, allowed Java
+   * classes must be explicitly specified via the jvm option. The comma-separated String value of
+   * this pipeline option will be passed to the Dataflow worker via the
+   * -Dorg.apache.avro.SERIALIZABLE_CLASSES jvm option.
+   */
+  @Description("Serializable classes required by java-class props in Avro 1.11.4+")
+  List<String> getAvroSerializableClasses();
+
+  void setAvroSerializableClasses(List<String> options);
+
+  /**
    * The OpenTelemetry properties that will be appended to the set of system properties for SDK
    * harness instances. Property names must be specified without the 'otel.' prefix.
    */

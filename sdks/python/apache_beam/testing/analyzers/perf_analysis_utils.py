@@ -28,11 +28,11 @@ from typing import Union
 import pandas as pd
 import yaml
 from google.api_core import exceptions
+from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
 
 from apache_beam.testing.analyzers import constants
 from apache_beam.testing.load_tests import load_test_metrics_utils
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
-from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
 
 # pylint: disable=ungrouped-imports
 try:

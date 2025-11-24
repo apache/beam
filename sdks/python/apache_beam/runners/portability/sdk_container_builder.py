@@ -27,6 +27,7 @@ to build the new image.
 import json
 import logging
 import os
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -81,7 +82,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
 
   def _build(self):
     container_image_tag = str(uuid.uuid4())
-    container_image_name = os.path.join(
+    container_image_name = posixpath.join(
         self._docker_registry_push_url or '',
         'beam_python_prebuilt_sdk:%s' % container_image_tag)
     with tempfile.TemporaryDirectory() as temp_folder:

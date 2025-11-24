@@ -326,6 +326,12 @@ func (m *distributionInt64) accumulate(pyld []byte) error {
 	if dist.Count, err = coder.DecodeVarInt(buf); err != nil {
 		return err
 	}
+	if dist.Count == 0 {
+		// When there is no elements reported, the payload may contain the values
+		// for count, sum, min and max, or it may contain only one 0x00 byte for
+		// count. No matter what, we will skip aggregation in this case.
+		return nil
+	}
 	if dist.Sum, err = coder.DecodeVarInt(buf); err != nil {
 		return err
 	}
