@@ -1817,12 +1817,12 @@ public class KafkaIO {
       return true;
     }
 
-    /** A {@link PTransformOverride} for runners to override redistributed Kafka Read transforms.*/
+    /** A {@link PTransformOverride} for runners to override redistributed Kafka Read transforms. */
     @Internal
     public static final PTransformOverride KAFKA_REDISTRIBUTE_OVERRIDE =
         PTransformOverride.of(
             KafkaReadWithRedistributeOverride.matcher(),
-            new KafkaReadWithRedistributeOverride.Factory());
+            new KafkaReadWithRedistributeOverride.Factory<>());
 
     /**
      * A {@link PTransformOverride} for runners to swap {@link ReadFromKafkaViaSDF} to legacy Kafka
