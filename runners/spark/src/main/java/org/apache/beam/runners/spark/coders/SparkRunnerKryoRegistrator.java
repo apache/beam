@@ -30,19 +30,23 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.spark.serializer.KryoRegistrator;
-import scala.collection.mutable.WrappedArray;
 
 /**
- * Custom {@link KryoRegistrator}s for Beam's Spark runner needs and registering used class in spark
- * translation for better serialization performance. This is not the default serialization
+ * Custom {@link KryoRegistrator}s for Beam's Spark runner needs and registering
+ * used class in spark
+ * translation for better serialization performance. This is not the default
+ * serialization
  * mechanism.
  *
- * <p>To use it you must enable the Kryo based serializer using {@code spark.serializer} with value
- * {@code org.apache.spark.serializer.KryoSerializer} and register this class via Spark {@code
+ * <p>
+ * To use it you must enable the Kryo based serializer using
+ * {@code spark.serializer} with value
+ * {@code org.apache.spark.serializer.KryoSerializer} and register this class
+ * via Spark {@code
  * spark.kryo.registrator} configuration.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SparkRunnerKryoRegistrator implements KryoRegistrator {
 
@@ -61,7 +65,14 @@ public class SparkRunnerKryoRegistrator implements KryoRegistrator {
     kryo.register(PaneInfo.class);
     kryo.register(StateAndTimers.class);
     kryo.register(TupleTag.class);
-    kryo.register(WrappedArray.ofRef.class);
+    try {
+      kryo.register(Class.forName("scala.collection.mutable.WrappedArray$ofRef"));
+    } catch (ClassNotFoundException e) {
+      // WrappedArray is deprecated/removed in Scala 2.13, so this is expected.
+      // We can try to register ArraySeq if needed, or just ignore.
+      // But for now, let's just ignore if not found, or try ArraySeq.
+      // Actually, let's just wrap it in try-catch.
+    }
 
     try {
       kryo.register(

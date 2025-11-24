@@ -647,6 +647,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
+    def spark4_version = "4.0.0-preview2"
     def spotbugs_version = "4.8.3"
     def testcontainers_version = "1.19.7"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
@@ -656,6 +657,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
+    project.ext.spark4_version = spark4_version
     // version for BigQueryMetastore catalog (used by sdks:java:io:iceberg:bqms)
     // TODO: remove this and download the jar normally when the catalog gets
     // open-sourced (https://github.com/apache/iceberg/pull/11039)

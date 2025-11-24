@@ -50,18 +50,20 @@ import org.apache.spark.rdd.RDD;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
-import scala.collection.JavaConversions;
+import scala.collection.JavaConverters;
 
 /** Classes implementing Beam {@link Source} {@link RDD}s. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SourceRDD {
 
   /**
-   * A {@link SourceRDD.Bounded} reads input from a {@link BoundedSource} and creates a Spark {@link
-   * RDD}. This is the default way for the SparkRunner to read data from Beam's BoundedSources.
+   * A {@link SourceRDD.Bounded} reads input from a {@link BoundedSource} and
+   * creates a Spark {@link
+   * RDD}. This is the default way for the SparkRunner to read data from Beam's
+   * BoundedSources.
    */
   public static class Bounded<T> extends RDD<WindowedValue<T>> {
     private static final Logger LOG = LoggerFactory.getLogger(SourceRDD.Bounded.class);
@@ -74,8 +76,8 @@ public class SourceRDD {
     private final MetricsContainerStepMapAccumulator metricsAccum;
 
     // to satisfy Scala API.
-    private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
-        JavaConversions.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+    private static final scala.collection.immutable.Seq<Dependency<?>> NIL = JavaConverters
+        .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Bounded(
         SparkContext sc,
@@ -90,7 +92,8 @@ public class SourceRDD {
       // when running on Mesos it's 8.
       // when running local it's the total number of cores (local = 1, local[N] = N,
       // local[*] = estimation of the machine's cores).
-      // ** the configuration "spark.default.parallelism" takes precedence over all of the above **
+      // ** the configuration "spark.default.parallelism" takes precedence over all of
+      // the above **
       this.numPartitions = sc.defaultParallelism();
       checkArgument(this.numPartitions > 0, "Number of partitions must be greater than zero.");
       this.bundleSize = options.get().as(SparkPipelineOptions.class).getBundleSize();
@@ -116,8 +119,7 @@ public class SourceRDD {
           }
         }
 
-        List<? extends Source<T>> partitionedSources =
-            source.split(desiredSizeBytes, options.get());
+        List<? extends Source<T>> partitionedSources = source.split(desiredSizeBytes, options.get());
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] = new SourcePartition<>(id(), i, partitionedSources.get(i));
@@ -145,22 +147,29 @@ public class SourceRDD {
       @SuppressWarnings("unchecked")
       final BoundedSource.BoundedReader<T> reader = createReader((SourcePartition<T>) split);
 
-      final Iterator<WindowedValue<T>> readerIterator =
-          new ReaderToIteratorAdapter<>(metricsContainer, reader);
+      final Iterator<WindowedValue<T>> readerIterator = new ReaderToIteratorAdapter<>(metricsContainer, reader);
 
-      return new InterruptibleIterator<>(context, JavaConversions.asScalaIterator(readerIterator));
+      return new InterruptibleIterator<>(context, JavaConverters.asScalaIterator(readerIterator));
     }
 
     /**
-     * Exposes an <code>Iterator</code>&lt;{@link WindowedValue}&gt; interface on top of a {@link
+     * Exposes an <code>Iterator</code>&lt;{@link WindowedValue}&gt; interface on
+     * top of a {@link
      * Source.Reader}.
      *
-     * <p><code>hasNext</code> is idempotent and returns <code>true</code> iff further items are
-     * available for reading using the underlying reader. Consequently, when the reader is closed,
-     * or when the reader has no further elements available (i.e, {@link Source.Reader#advance()}
-     * returned <code>false</code>), <code>hasNext</code> returns <code>false</code>.
+     * <p>
+     * <code>hasNext</code> is idempotent and returns <code>true</code> iff further
+     * items are
+     * available for reading using the underlying reader. Consequently, when the
+     * reader is closed,
+     * or when the reader has no further elements available (i.e,
+     * {@link Source.Reader#advance()}
+     * returned <code>false</code>), <code>hasNext</code> returns
+     * <code>false</code>.
      *
-     * <p>Since this is a read-only iterator, an attempt to call <code>remove</code> will throw an
+     * <p>
+     * Since this is a read-only iterator, an attempt to call <code>remove</code>
+     * will throw an
      * <code>UnsupportedOperationException</code>.
      */
     @VisibleForTesting
@@ -189,9 +198,8 @@ public class SourceRDD {
           } else {
             checkState(next == null, "unexpected non-null value for next");
             if (seekNext()) {
-              next =
-                  WindowedValues.timestampedValueInGlobalWindow(
-                      reader.getCurrent(), reader.getCurrentTimestamp());
+              next = WindowedValues.timestampedValueInGlobalWindow(
+                  reader.getCurrent(), reader.getCurrentTimestamp());
               return SUCCESSFULLY_OBTAINED_NEXT;
             } else {
               close();
@@ -284,11 +292,15 @@ public class SourceRDD {
   }
 
   /**
-   * A {@link SourceRDD.Unbounded} is the implementation of a micro-batch in a {@link
+   * A {@link SourceRDD.Unbounded} is the implementation of a micro-batch in a
+   * {@link
    * SourceDStream}.
    *
-   * <p>This RDD is made of P partitions, each containing a single pair-element of the partitioned
-   * {@link MicrobatchSource} and an optional starting {@link UnboundedSource.CheckpointMark}.
+   * <p>
+   * This RDD is made of P partitions, each containing a single pair-element of
+   * the partitioned
+   * {@link MicrobatchSource} and an optional starting
+   * {@link UnboundedSource.CheckpointMark}.
    */
   public static class Unbounded<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       extends RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> {
@@ -298,8 +310,8 @@ public class SourceRDD {
     private final Partitioner partitioner;
 
     // to satisfy Scala API.
-    private static final scala.collection.immutable.List<Dependency<?>> NIL =
-        JavaConversions.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+    private static final scala.collection.immutable.List<Dependency<?>> NIL = JavaConverters
+        .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Unbounded(
         SparkContext sc,
@@ -318,9 +330,8 @@ public class SourceRDD {
         final List<? extends Source<T>> partitionedSources = microbatchSource.split(options.get());
         final Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
-          partitions[i] =
-              new CheckpointableSourcePartition<>(
-                  id(), i, partitionedSources.get(i), EmptyCheckpointMark.get());
+          partitions[i] = new CheckpointableSourcePartition<>(
+              id(), i, partitionedSources.get(i), EmptyCheckpointMark.get());
         }
         return partitions;
       } catch (Exception e) {
@@ -340,17 +351,15 @@ public class SourceRDD {
     public scala.collection.Iterator<scala.Tuple2<Source<T>, CheckpointMarkT>> compute(
         Partition split, TaskContext context) {
       @SuppressWarnings("unchecked")
-      CheckpointableSourcePartition<T, CheckpointMarkT> partition =
-          (CheckpointableSourcePartition<T, CheckpointMarkT>) split;
-      scala.Tuple2<Source<T>, CheckpointMarkT> tuple2 =
-          new scala.Tuple2<>(partition.getSource(), partition.checkpointMark);
-      return JavaConversions.asScalaIterator(Collections.singleton(tuple2).iterator());
+      CheckpointableSourcePartition<T, CheckpointMarkT> partition = (CheckpointableSourcePartition<T, CheckpointMarkT>) split;
+      scala.Tuple2<Source<T>, CheckpointMarkT> tuple2 = new scala.Tuple2<>(partition.getSource(),
+          partition.checkpointMark);
+      return JavaConverters.asScalaIterator(Collections.singleton(tuple2).iterator());
     }
   }
 
   /** A {@link SourcePartition} with a {@link UnboundedSource.CheckpointMark}. */
-  private static class CheckpointableSourcePartition<
-          T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+  private static class CheckpointableSourcePartition<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       extends SourcePartition<T> {
     private final CheckpointMarkT checkpointMark;
 
