@@ -50,12 +50,12 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
   final SerializableFunction<T, Integer> elementSizer;
 
   /**
-   * A private, static DoFn that buffers elements within a bundle and outputs them to different tags
-   * in finish_bundle based on the total bundle size.
+   * A DoFn that buffers elements within a bundle and outputs them to different tags in
+   * finish_bundle based on the total bundle size.
    *
    * @param <T> The type of elements being processed.
    */
-  private static class BundleLiftDoFn<T> extends DoFn<T, Void> {
+  static class BundleLiftDoFn<T> extends DoFn<T, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(BundleLiftDoFn.class);
 
     final TupleTag<T> smallBatchTag;
