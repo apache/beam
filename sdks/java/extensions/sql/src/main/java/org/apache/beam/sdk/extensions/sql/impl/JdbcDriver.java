@@ -45,6 +45,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelCollatio
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rules.CoreRules;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.Hook;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Calcite JDBC driver with Beam defaults.
@@ -56,10 +57,6 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
  * <p>The querystring-style parameters are parsed as {@link PipelineOptions}.
  */
 @AutoService(java.sql.Driver.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class JdbcDriver extends Driver {
   public static final JdbcDriver INSTANCE = new JdbcDriver();
   public static final String CONNECT_STRING_PREFIX = "jdbc:beam:";
@@ -129,10 +126,18 @@ public class JdbcDriver extends Driver {
    * CalciteConnection}.
    */
   @Override
-  public Connection connect(String url, Properties info) throws SQLException {
+  @SuppressWarnings("override.return") // https://github.com/typetools/jdk/pull/246
+  public @Nullable Connection connect(String url, Properties info) throws SQLException {
+    @Nullable CalciteConnection connection = (CalciteConnection) super.connect(url, info);
+
+    // null here means that CalciteConnection is not a "suitable driver" based on the parameters
+    if (connection == null) {
+      return null;
+    }
+
     // calciteConnection is initialized with an empty Beam schema,
     // we need to populate it with pipeline options, load table providers, etc
-    return JdbcConnection.initialize((CalciteConnection) super.connect(url, info));
+    return JdbcConnection.initialize(connection);
   }
 
   /**
@@ -176,6 +181,12 @@ public class JdbcDriver extends Driver {
     JdbcConnection connection;
     try {
       connection = (JdbcConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, properties);
+      // Normally, #connect is allowed to return null when the URL is not suitable. Here, however,
+      // we are
+      // deliberately passing a bogus URL to instantiate a connection, so it should never be null.
+      if (connection == null) {
+        throw new SQLException("Unexpected null when creating synthetic Beam JdbcDriver");
+      }
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
