@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,7 +42,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * org.apache.beam.sdk.extensions.sql.meta.store.MetaStore}. In Beam SQL, a DATABASE refers to a
  * {@link BeamCalciteSchema}.
  */
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class BeamCalciteSchema implements Schema {
   private JdbcConnection connection;
   private TableProvider tableProvider;
@@ -94,7 +95,9 @@ public class BeamCalciteSchema implements Schema {
   }
 
   @Override
-  public Expression getExpression(SchemaPlus parentSchema, String name) {
+  public Expression getExpression(@Nullable SchemaPlus parentSchema, String name) {
+    checkArgumentNotNull(
+        parentSchema, "Cannot convert BeamCalciteSchema to Expression without parent schema");
     return Schemas.subSchemaExpression(parentSchema, name, getClass());
   }
 
@@ -114,7 +117,7 @@ public class BeamCalciteSchema implements Schema {
   }
 
   @Override
-  public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Table getTable(
+  public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.@Nullable Table getTable(
       String name) {
     Table table = tableProvider.getTable(name);
     if (table == null) {
@@ -148,14 +151,20 @@ public class BeamCalciteSchema implements Schema {
    * <p>Otherwise, the sub-schema is derived from the {@link TableProvider} implementation.
    */
   @Override
-  public Schema getSubSchema(String name) {
-    if (!subSchemas.containsKey(name)) {
-      BeamCalciteSchema subSchema;
-      @Nullable TableProvider subProvider = tableProvider.getSubProvider(name);
-      subSchema = subProvider != null ? new BeamCalciteSchema(name, connection, subProvider) : null;
-      subSchemas.put(name, subSchema);
+  public @Nullable Schema getSubSchema(String name) {
+    BeamCalciteSchema subSchema = subSchemas.get(name);
+
+    if (subSchema != null) {
+      return subSchema;
     }
 
-    return subSchemas.get(name);
+    @Nullable TableProvider subProvider = tableProvider.getSubProvider(name);
+    if (subProvider == null) {
+      return null;
+    }
+
+    subSchema = new BeamCalciteSchema(name, connection, subProvider);
+    subSchemas.put(name, subSchema);
+    return subSchema;
   }
 }
