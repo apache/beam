@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
+import org.gradle.kotlin.dsl.project
 
 pluginManagement {
     plugins {
@@ -128,17 +129,12 @@ include(":runners:extensions-java:metrics")
   * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
  */
 // Flink 1.17
-include(":runners:flink:1.17")
-include(":runners:flink:1.17:job-server")
-include(":runners:flink:1.17:job-server-container")
-// Flink 1.18
-include(":runners:flink:1.18")
-include(":runners:flink:1.18:job-server")
-include(":runners:flink:1.18:job-server-container")
-// Flink 1.19
-include(":runners:flink:1.19")
-include(":runners:flink:1.19:job-server")
-include(":runners:flink:1.19:job-server-container")
+val flink_versions: String by settings
+for (version in flink_versions.split(',')) {
+    include(":runners:flink:${version}")
+    include(":runners:flink:${version}:job-server")
+    include(":runners:flink:${version}:job-server-container")
+}
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
