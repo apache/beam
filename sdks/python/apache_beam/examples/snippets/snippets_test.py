@@ -1469,6 +1469,20 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
         os.unlink(src_file_pattern + str(first_ts + interval * i))
 
 
+class SideInputGlobalWindowTest(unittest.TestCase):
+  """Tests for side input pattern with global windows."""
+  def test_side_input_slow_update_global_window(self):
+    """Test the global window side input pattern with mock data."""
+    # This test validates that the pattern can be constructed without external dependencies
+    try:
+      pipeline, result = snippets.side_input_slow_update_global_window()
+      self.assertIsNotNone(pipeline)
+      self.assertIsNotNone(result)
+    except ImportError as e:
+      # Skip test if PeriodicSequence is not available in this environment
+      self.skipTest(f"PeriodicSequence not available: {e}")
+
+
 class ValueProviderInfoTest(unittest.TestCase):
   """Tests for accessing value provider info after run."""
   def test_accessing_valueprovider_info_after_run(self):
