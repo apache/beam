@@ -281,6 +281,30 @@ public class BigQueryAvroUtilsTest {
     }
 
     {
+      // timestamp-nanos
+      // TODO: Use LogicalTypes.TimestampNanos once avro version is updated.
+      String timestampNanosJson = "{\"type\": \"long\", \"logicalType\": \"timestamp-nanos\"}";
+      Schema timestampType = new Schema.Parser().parse(timestampNanosJson);
+
+      // 2000-01-01 01:02:03.123456789 UTC
+      LocalDate date = LocalDate.of(2000, 1, 1);
+      LocalTime time = LocalTime.of(1, 2, 3, 123456789);
+      LocalDateTime ts = LocalDateTime.of(date, time);
+      long seconds = ts.toInstant(ZoneOffset.UTC).getEpochSecond();
+      int nanos = ts.toInstant(ZoneOffset.UTC).getNano();
+      long totalNanos = seconds * 1_000_000_000L + nanos;
+      GenericRecord record =
+          new GenericRecordBuilder(avroSchema(f -> f.type(timestampType).noDefault()))
+              .set("value", totalNanos)
+              .build();
+      TableRow expected = new TableRow().set("value", "2000-01-01 01:02:03.123456789 UTC");
+      TableRow row = BigQueryAvroUtils.convertGenericRecordToTableRow(record);
+
+      assertEquals(expected, row);
+      assertEquals(expected, row.clone());
+    }
+
+    {
       // timestamp-micros
       LogicalType lt = LogicalTypes.timestampMillis();
       Schema timestampType = lt.addToSchema(SchemaBuilder.builder().longType());
@@ -924,6 +948,19 @@ public class BigQueryAvroUtilsTest {
     }
 
     {
+      // timestamp-nanos
+      // TODO: Use LogicalTypes.TimestampNanos once avro version is updated.
+      String timestampNanosJson = "{\"type\": \"long\", \"logicalType\": \"timestamp-nanos\"}";
+      Schema timestampType = new Schema.Parser().parse(timestampNanosJson);
+      Schema avroSchema = avroSchema(f -> f.type(timestampType).noDefault());
+      TableSchema expected = tableSchema(f -> f.setType("TIMESTAMP").setMode("REQUIRED"));
+      TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
+
+      assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));
+      assertEquals(expectedRaw, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema, false));
+    }
+
+    {
       // string prop: sqlType=GEOGRAPHY
       Schema avroSchema =
           avroSchema(
@@ -978,39 +1015,67 @@ public class BigQueryAvroUtilsTest {
   }
 
   @Test
-  public void testFormatTimestamp() {
+  public void testFormatTimestampInputMillis() {
+    long millis = 1452062291123L;
+    String expected = "2016-01-06 06:38:11.123";
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(millis, BigQueryAvroUtils.TimestampPrecision.MILLISECONDS),
+        equalTo(expected));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(
+            millis, BigQueryAvroUtils.TimestampPrecision.MILLISECONDS),
+        equalTo(expected + " UTC"));
+  }
+
+  @Test
+  public void testFormatTimestampInputMicros() {
     long micros = 1452062291123456L;
     String expected = "2016-01-06 06:38:11.123456";
-    assertThat(BigQueryAvroUtils.formatDatetime(micros), equalTo(expected));
-    assertThat(BigQueryAvroUtils.formatTimestamp(micros), equalTo(expected + " UTC"));
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(micros, BigQueryAvroUtils.TimestampPrecision.MICROSECONDS),
+        equalTo(expected));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(
+            micros, BigQueryAvroUtils.TimestampPrecision.MICROSECONDS),
+        equalTo(expected + " UTC"));
   }
 
   @Test
-  public void testFormatTimestampMillis() {
-    long millis = 1452062291123L;
-    long micros = millis * 1000L;
-    String expected = "2016-01-06 06:38:11.123";
-    assertThat(BigQueryAvroUtils.formatDatetime(micros), equalTo(expected));
-    assertThat(BigQueryAvroUtils.formatTimestamp(micros), equalTo(expected + " UTC"));
+  public void testFormatTimestampInputNanos() {
+    long nanos = 1452062291123456789L;
+    String expected = "2016-01-06 06:38:11.123456789";
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(nanos, BigQueryAvroUtils.TimestampPrecision.NANOSECONDS),
+        equalTo(expected));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(nanos, BigQueryAvroUtils.TimestampPrecision.NANOSECONDS),
+        equalTo(expected + " UTC"));
   }
 
   @Test
-  public void testFormatTimestampSeconds() {
+  public void testFormatTimestampInputMicrosOutputSecondsFormat() {
+    BigQueryAvroUtils.TimestampPrecision precision =
+        BigQueryAvroUtils.TimestampPrecision.MICROSECONDS;
     long seconds = 1452062291L;
     long micros = seconds * 1000L * 1000L;
     String expected = "2016-01-06 06:38:11";
-    assertThat(BigQueryAvroUtils.formatDatetime(micros), equalTo(expected));
-    assertThat(BigQueryAvroUtils.formatTimestamp(micros), equalTo(expected + " UTC"));
+    assertThat(BigQueryAvroUtils.formatDatetime(micros, precision), equalTo(expected));
+    assertThat(BigQueryAvroUtils.formatTimestamp(micros, precision), equalTo(expected + " UTC"));
   }
 
   @Test
   public void testFormatTimestampNegative() {
-    assertThat(BigQueryAvroUtils.formatDatetime(-1L), equalTo("1969-12-31 23:59:59.999999"));
-    assertThat(BigQueryAvroUtils.formatDatetime(-100_000L), equalTo("1969-12-31 23:59:59.900"));
-    assertThat(BigQueryAvroUtils.formatDatetime(-1_000_000L), equalTo("1969-12-31 23:59:59"));
+    BigQueryAvroUtils.TimestampPrecision precision =
+        BigQueryAvroUtils.TimestampPrecision.MICROSECONDS;
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(-1L, precision), equalTo("1969-12-31 23:59:59.999999"));
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(-100_000L, precision), equalTo("1969-12-31 23:59:59.900"));
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(-1_000_000L, precision), equalTo("1969-12-31 23:59:59"));
     // No leap seconds before 1972. 477 leap years from 1 through 1969.
     assertThat(
-        BigQueryAvroUtils.formatDatetime(-(1969L * 365 + 477) * 86400 * 1_000_000),
+        BigQueryAvroUtils.formatDatetime(-(1969L * 365 + 477) * 86400 * 1_000_000, precision),
         equalTo("0001-01-01 00:00:00"));
   }
 
