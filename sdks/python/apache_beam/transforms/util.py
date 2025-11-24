@@ -30,6 +30,7 @@ import re
 import threading
 import time
 import uuid
+from datetime import datetime
 from collections.abc import Callable
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
@@ -366,10 +367,15 @@ class Secret():
     if secret_type == 'gcpsecret':
       secret_class = GcpSecret
       secret_params = ['version_name']
+    elif secret_type == 'gcphsmgeneratedsecret':
+      secret_class = GcpHsmGeneratedSecret
+      secret_params = [
+          'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
+      ]
     else:
       raise ValueError(
           f'Invalid secret type {secret_type}, currently only '
-          'GcpSecret is supported')
+          'GcpSecret and GcpHsmGeneratedSecret are supported')
 
     for param_name in param_map.keys():
       if param_name not in secret_params:
@@ -411,6 +417,116 @@ class GcpSecret(Secret):
 
   def __eq__(self, secret):
     return self._version_name == getattr(secret, '_version_name', None)
+
+
+class GcpHsmGeneratedSecret(Secret):
+  def __init__(
+      self, project_id: str, location_id: str, key_ring_id: str, key_id: str, job_name: str):
+    self._project_id = project_id
+    self._location_id = location_id
+    self._key_ring_id = key_ring_id
+    self._key_id = key_id
+    self._secret_version_name = f'HsmGeneratedSecret_{job_name}'
+
+  def get_secret_bytes(self) -> bytes:
+    try:
+      from google.cloud import secretmanager
+      from google.api_core import exceptions as api_exceptions
+      client = secretmanager.SecretManagerServiceClient()
+
+      project_path = f"projects/{self._project_id}"
+      secret_path = f"{project_path}/secrets/{self._secret_version_name}"
+      # Since we may generate multiple versions when doing this on workers,
+      # just always take the first version added to maintain consistency.
+      secret_version_path = f"{secret_path}/versions/1"
+
+      try:
+        response = client.access_secret_version(
+            request={"name": secret_version_path})
+        return response.payload.data
+      except api_exceptions.NotFound:
+        # Don't bother logging yet, we'll only log if we actually add the
+        # secret version below
+        pass
+
+      try:
+        client.create_secret(
+            request={
+                "parent": project_path,
+                "secret_id": self._secret_version_name,
+                "secret": {"replication": {"automatic": {}}},
+            })
+      except api_exceptions.AlreadyExists:
+        # Don't bother logging yet, we'll only log if we actually add the
+        # secret version below
+        pass
+
+      new_key = self.generate_dek()
+      try:
+        # Try one more time in case it was created while we were generating the
+        # DEK.
+        response = client.access_secret_version(
+            request={"name": secret_version_path})
+        return response.payload.data
+      except api_exceptions.NotFound:
+        logging.info(
+            f"Secret version {secret_version_path} not found. "
+            "Creating new secret and version.")
+      client.add_secret_version(
+          request={"parent": secret_path, "payload": {"data": new_key}})
+      response = client.access_secret_version(
+          request={"name": secret_version_path})
+      return response.payload.data
+
+    except Exception as e:
+      raise RuntimeError(
+          f'Failed to retrieve or create secret bytes for secret '
+          f'{self._secret_version_name} with exception {e}')
+    
+  def generate_dek(self, dek_size: int = 32) -> bytes:
+    """Generates a new Data Encryption Key (DEK) using an HSM-backed key.
+
+    This function follows a key derivation process that incorporates entropy
+    from the HSM-backed key into the nonce used for key derivation.
+
+    Returns:
+        A new DEK of the specified size.
+    """
+    try:
+      import base64
+      import os
+      from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+      from cryptography.hazmat.primitives import hashes
+      from google.cloud import kms
+
+      # 1. Generate a random nonce (nonce_one)
+      nonce_one = os.urandom(dek_size)
+
+      # 2. Use the HSM-backed key to encrypt nonce_one to create nonce_two
+      kms_client = kms.KeyManagementServiceClient()
+      key_path = kms_client.crypto_key_path(
+          self._project_id,
+          self._location_id,
+          self._key_ring_id,
+          self._key_id)
+      response = kms_client.encrypt(
+          request={'name': key_path, 'plaintext': nonce_one})
+      nonce_two = response.ciphertext
+
+      # 3. Generate a Derivation Key (DK)
+      dk = os.urandom(dek_size)
+
+      # 4. Use a KDF to derive the DEK using DK and nonce_two
+      hkdf = HKDF(
+          algorithm=hashes.SHA256(),
+          length=dek_size,
+          salt=nonce_two,
+          info=None,
+      )
+      dek = hkdf.derive(dk)
+      return base64.urlsafe_b64encode(dek)
+    except Exception as e:
+      raise RuntimeError(f'Failed to generate DEK with exception {e}')
 
 
 class _EncryptMessage(DoFn):
