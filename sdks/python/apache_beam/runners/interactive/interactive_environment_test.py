@@ -34,6 +34,9 @@ from apache_beam.runners.interactive.testing.mock_env import isolated_env
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 @isolated_env
 class InteractiveEnvironmentTest(unittest.TestCase):
   def setUp(self):

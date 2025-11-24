@@ -438,7 +438,7 @@ class RecordingManager:
     self._executor = ThreadPoolExecutor(max_workers=os.cpu_count())
     self._env = ie.current_env()
     self._async_computations: dict[str, AsyncComputationResult] = {}
-    self._pipeline_graph = PipelineGraph(self.user_pipeline)
+    self._pipeline_graph = None
 
   def _execute_pipeline_fragment(
       self,
@@ -492,7 +492,6 @@ class RecordingManager:
         if not self._wait_for_dependencies(pcolls_to_compute, async_result):
           raise RuntimeError('Dependency computation failed or was cancelled.')
 
-      self._env.mark_pcollection_computing(pcolls_to_compute)
       _LOGGER.info(
           'Starting asynchronous computation for %d PCollections.',
           len(pcolls_to_compute))
@@ -696,6 +695,7 @@ class RecordingManager:
       async_result = AsyncComputationResult(
           future, pcolls_to_compute, self.user_pipeline, self)
       self._async_computations[async_result._display_id] = async_result
+      self._env.mark_pcollection_computing(pcolls_to_compute)
 
       def task():
         try:
@@ -709,11 +709,27 @@ class RecordingManager:
       self._executor.submit(task)
       return async_result
 
+  def _get_pipeline_graph(self):
+    """Lazily initializes and returns the PipelineGraph."""
+    if self._pipeline_graph is None:
+      try:
+        # Try to create the graph.
+        self._pipeline_graph = PipelineGraph(self.user_pipeline)
+      except (ImportError, NameError, AttributeError):
+        # If pydot is missing, PipelineGraph() might crash.
+        _LOGGER.warning(
+            "Could not create PipelineGraph (pydot missing?). " \
+            "Async features disabled."
+        )
+        self._pipeline_graph = None
+    return self._pipeline_graph
+
   def _get_pcoll_id_map(self):
     """Creates a map from PCollection object to its ID in the proto."""
     pcoll_to_id = {}
-    if self._pipeline_graph._pipeline_instrument:
-      pcoll_to_id = self._pipeline_graph._pipeline_instrument._pcoll_to_pcoll_id
+    graph = self._get_pipeline_graph()
+    if graph and graph._pipeline_instrument:
+      pcoll_to_id = graph._pipeline_instrument._pcoll_to_pcoll_id
     return {v: k for k, v in pcoll_to_id.items()}
 
   def _get_all_dependencies(
@@ -721,10 +737,11 @@ class RecordingManager:
       pcolls: set[beam.pvalue.PCollection]) -> set[beam.pvalue.PCollection]:
     """Gets all upstream PCollection dependencies
     for the given set of PCollections."""
-    if not self._pipeline_graph:
+    graph = self._get_pipeline_graph()
+    if not graph:
       return set()
 
-    analyzer = self._pipeline_graph._pipeline_instrument
+    analyzer = graph._pipeline_instrument
     if not analyzer:
       return set()
 
@@ -751,8 +768,8 @@ class RecordingManager:
     queue = collections.deque(target_pcoll_ids)
     visited_pcoll_ids = set(target_pcoll_ids)
 
-    producers = self._pipeline_graph._producers
-    transforms = self._pipeline_graph._pipeline_proto.components.transforms
+    producers = graph._producers
+    transforms = graph._pipeline_proto.components.transforms
 
     while queue:
       pcoll_id = queue.popleft()

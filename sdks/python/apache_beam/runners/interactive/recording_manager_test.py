@@ -47,6 +47,9 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 class AsyncComputationResultTest(unittest.TestCase):
   def setUp(self):
     self.mock_future = MagicMock(spec=Future)
@@ -664,6 +667,9 @@ class RecordingTest(unittest.TestCase):
         cache_manager.size('full', letters_stream.cache_key))
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 class RecordingManagerTest(unittest.TestCase):
   def test_basic_execution(self):
     """A basic pipeline to be used as a smoke test."""
@@ -987,12 +993,6 @@ class RecordingManagerTest(unittest.TestCase):
 
     mock_submit.side_effect = capture_task
 
-    res = rm.compute_async({pcoll}, blocking=False)
-    self.assertIs(res, mock_async_res_instance)
-    mock_submit.assert_called_once()
-    self.assertIsNotNone(task_submitted)
-
-    # Patch dependencies of _run_async_computation
     with patch.object(
         rm, '_wait_for_dependencies', return_value=True
     ), patch.object(
@@ -1002,9 +1002,21 @@ class RecordingManagerTest(unittest.TestCase):
         'mark_pcollection_computing',
         wraps=ie.current_env().mark_pcollection_computing,
     ) as wrapped_mark:
-      # Run the task to trigger the marks
-      task_submitted()
+
+      res = rm.compute_async({pcoll}, blocking=False)
       wrapped_mark.assert_called_once_with({pcoll})
+
+    # Run the task to trigger the marks
+    self.assertIs(res, mock_async_res_instance)
+    mock_submit.assert_called_once()
+    self.assertIsNotNone(task_submitted)
+
+    with patch.object(
+        rm, '_wait_for_dependencies', return_value=True
+    ), patch.object(
+        rm, '_execute_pipeline_fragment'
+    ) as _:
+      task_submitted()
 
     self.assertTrue(pcoll in ie.current_env().computing_pcollections)
 
