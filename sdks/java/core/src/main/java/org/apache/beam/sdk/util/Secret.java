@@ -76,10 +76,29 @@ public interface Secret extends Serializable {
               "version_name must contain a valid value for versionName parameter");
         }
         return new GcpSecret(versionName);
+      case "gcphsmgeneratedsecret":
+        Set<String> gcpHsmGeneratedSecretParams =
+            new HashSet<>(
+                Arrays.asList("project_id", "location_id", "key_ring_id", "key_id", "job_name"));
+        for (String paramName : paramMap.keySet()) {
+          if (!gcpHsmGeneratedSecretParams.contains(paramName)) {
+            throw new RuntimeException(
+                String.format(
+                    "Invalid secret parameter %s, GcpHsmGeneratedSecret only supports the following parameters: %s",
+                    paramName, gcpHsmGeneratedSecretParams));
+          }
+        }
+        return new GcpHsmGeneratedSecret(
+            paramMap.get("project_id"),
+            paramMap.get("location_id"),
+            paramMap.get("key_ring_id"),
+            paramMap.get("key_id"),
+            paramMap.get("job_name"));
       default:
         throw new RuntimeException(
             String.format(
-                "Invalid secret type %s, currently only GcpSecret is supported", secretType));
+                "Invalid secret type %s, currently only GcpSecret and GcpHsmGeneratedSecret are supported",
+                secretType));
     }
   }
 }

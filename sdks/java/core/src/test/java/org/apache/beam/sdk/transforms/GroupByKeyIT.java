@@ -18,6 +18,12 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.cloud.secretmanager.v1.ProjectName;
+import com.google.cloud.kms.v1.CryptoKey;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.kms.v1.CryptoKeyVersion;
+import com.google.cloud.kms.v1.KeyManagementServiceClient;
+import com.google.cloud.kms.v1.KeyRingName;
+import com.google.cloud.secretmanager.v1.ProjectName;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretName;
 import com.google.cloud.secretmanager.v1.SecretPayload;
@@ -51,7 +57,10 @@ public class GroupByKeyIT {
   private static final String PROJECT_ID = "apache-beam-testing";
   private static final String SECRET_ID = "gbek-test";
   private static String gcpSecretVersionName;
+  private static String gcpHsmSecretOption;
   private static String secretId;
+  private static String keyRingId;
+  private static String keyId;
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -88,6 +97,31 @@ public class GroupByKeyIT {
               .build());
     }
     gcpSecretVersionName = secretName.toString() + "/versions/latest";
+
+    try {
+      KeyManagementServiceClient kmsClient = KeyManagementServiceClient.create();
+      String locationId = "global";
+      keyRingId = "gbekit-key-ring-" + new SecureRandom().nextInt(10000);
+      KeyRingName keyRingName = KeyRingName.of(PROJECT_ID, locationId, keyRingId);
+      kmsClient.createKeyRing(
+          keyRingName.getProject(),
+          keyRingName.getLocation(),
+          keyRingId,
+          com.google.cloud.kms.v1.KeyRing.newBuilder().build());
+
+      keyId = "gbekit-key-" + new SecureRandom().nextInt(10000);
+      CryptoKey key =
+          CryptoKey.newBuilder()
+              .setPurpose(CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT)
+              .build();
+      kmsClient.createCryptoKey(keyRingName, keyId, key);
+      gcpHsmSecretOption =
+          String.format(
+              "type:gcphsmgeneratedsecret;project_id:%s;location_id:%s;key_ring_id:%s;key_id:%s;job_name:%s",
+              PROJECT_ID, locationId, keyRingId, keyId, secretId);
+    } catch (Exception e) {
+      gcpHsmSecretOption = null;
+    }
   }
 
   @AfterClass
@@ -96,6 +130,16 @@ public class GroupByKeyIT {
       SecretManagerServiceClient client = SecretManagerServiceClient.create();
       SecretName secretName = SecretName.of(PROJECT_ID, secretId);
       client.deleteSecret(secretName);
+    }
+    if (gcpHsmSecretOption != null) {
+      KeyManagementServiceClient kmsClient = KeyManagementServiceClient.create();
+      CryptoKeyName keyName = CryptoKeyName.of(PROJECT_ID, "global", keyRingId, keyId);
+      for (CryptoKeyVersion version : kmsClient.listCryptoKeyVersions(keyName).iterateAll()) {
+        if (version.getState() == CryptoKeyVersion.CryptoKeyVersionState.ENABLED
+            || version.getState() == CryptoKeyVersion.CryptoKeyVersionState.DISABLED) {
+          kmsClient.destroyCryptoKeyVersion(version.getName());
+        }
+      }
     }
   }
 
@@ -107,6 +151,81 @@ public class GroupByKeyIT {
     }
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+    Pipeline p = Pipeline.create(options);
+    List<KV<String, Integer>> ungroupedPairs =
+        Arrays.asList(
+            KV.of("k1", 3),
+            KV.of("k5", Integer.MAX_VALUE),
+            KV.of("k5", Integer.MIN_VALUE),
+            KV.of("k2", 66),
+            KV.of("k1", 4),
+            KV.of("k2", -33),
+            KV.of("k3", 0));
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+            Create.of(ungroupedPairs)
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            KV.of("k1", Arrays.asList(3, 4)),
+            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
+            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k3", Arrays.asList(0)));
+
+    p.run();
+  }
+
+  @Test
+  public void testGroupByKeyWithValidGcpHsmGeneratedSecretOption() throws Exception {
+    if (gcpHsmSecretOption == null) {
+      // Skip test if we couldn't set up KMS
+      return;
+    }
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setGbek(gcpHsmSecretOption);
+    Pipeline p = Pipeline.create(options);
+    List<KV<String, Integer>> ungroupedPairs =
+        Arrays.asList(
+            KV.of("k1", 3),
+            KV.of("k5", Integer.MAX_VALUE),
+            KV.of("k5", Integer.MIN_VALUE),
+            KV.of("k2", 66),
+            KV.of("k1", 4),
+            KV.of("k2", -33),
+            KV.of("k3", 0));
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+            Create.of(ungroupedPairs)
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            KV.of("k1", Arrays.asList(3, 4)),
+            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
+            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k3", Arrays.asList(0)));
+
+    p.run();
+  }
+
+  @Test
+  public void testGroupByKeyWithExistingGcpHsmGeneratedSecretOption() throws Exception {
+    if (gcpHsmSecretOption == null) {
+      // Skip test if we couldn't set up KMS
+      return;
+    }
+    // Create the secret beforehand
+    new GcpHsmGeneratedSecret(PROJECT_ID, "global", keyRingId, keyId, secretId).getSecretBytes();
+
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setGbek(gcpHsmSecretOption);
     Pipeline p = Pipeline.create(options);
     List<KV<String, Integer>> ungroupedPairs =
         Arrays.asList(
