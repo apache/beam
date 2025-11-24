@@ -214,9 +214,6 @@ def commonLegacyExcludeCategories = [
 def commonRunnerV2ExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesExternalService',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-  'org.apache.beam.sdk.testing.UsesSetState',
-  'org.apache.beam.sdk.testing.UsesMapState',
-  'org.apache.beam.sdk.testing.UsesMultimapState',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
@@ -448,9 +445,6 @@ task validatesRunner {
   description "Validates Dataflow runner"
   dependsOn(createLegacyWorkerValidatesRunnerTest(
     name: 'validatesRunnerLegacyWorkerTest',
-    excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesMultimapState',
-    ],
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
