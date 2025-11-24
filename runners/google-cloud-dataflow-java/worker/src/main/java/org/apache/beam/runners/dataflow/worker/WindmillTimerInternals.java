@@ -398,7 +398,8 @@ class WindmillTimerInternals implements TimerInternals {
         timestamp,
         outputTimestamp,
         timerTypeToTimeDomain(timer.getType()));
-    // todo add draining
+    // todo add draining (https://github.com/apache/beam/issues/36884)
+
   }
 
   private static boolean useNewTimerTagEncoding(TimerData timerData) {

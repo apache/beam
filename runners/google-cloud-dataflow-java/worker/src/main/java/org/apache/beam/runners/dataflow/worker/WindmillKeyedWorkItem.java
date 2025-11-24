@@ -61,6 +61,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
 
   private final Windmill.WorkItem workItem;
   private final K key;
+  // used to inform that timer was caused by drain
   private final boolean drainMode;
 
   private final transient Coder<? extends BoundedWindow> windowCoder;
@@ -115,7 +116,10 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                 Collection<? extends BoundedWindow> windows =
                     WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
                 PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
-                // Draining value is based on upstream data
+                /**
+                 * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry
+                 * induced by drain happened upstream
+                 */
                 boolean drainingValueFromUpstream = false;
                 if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
                   BeamFnApi.Elements.ElementMetadata elementMetadata =
@@ -125,7 +129,6 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                 }
                 InputStream inputStream = message.getData().newInput();
                 ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
-                // todo #33176 specify additional metadata in the future
                 return WindowedValues.of(
                     value, timestamp, windows, paneInfo, null, null, drainingValueFromUpstream);
               } catch (IOException e) {

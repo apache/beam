@@ -118,6 +118,10 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
       Collection<? extends BoundedWindow> windows =
           WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
       PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
+      /**
+       * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry induced by
+       * drain happened upstream
+       */
       boolean drainingValueFromUpstream = false;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
@@ -133,12 +137,10 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
         @SuppressWarnings("unchecked")
         T result =
             (T) KV.of(decode(kvCoder.getKeyCoder(), key), decode(kvCoder.getValueCoder(), data));
-        // todo #33176 propagate metadata to windowed value
         return WindowedValues.of(
             result, timestampMillis, windows, paneInfo, null, null, drainingValueFromUpstream);
       } else {
         notifyElementRead(data.available() + metadata.available());
-        // todo #33176 propagate metadata to windowed value
         return WindowedValues.of(
             decode(valueCoder, data),
             timestampMillis,
