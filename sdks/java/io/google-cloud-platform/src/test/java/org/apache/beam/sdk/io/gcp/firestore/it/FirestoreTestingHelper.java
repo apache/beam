@@ -64,6 +64,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -109,7 +110,6 @@ final class FirestoreTestingHelper implements TestRule {
   private final GcpOptions gcpOptions;
   private final org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions firestoreBeamOptions;
   private final FirestoreOptions firestoreOptions;
-
   private final Firestore fs;
   private final FirestoreRpc rpc;
   private final CleanupMode cleanupMode;
@@ -125,7 +125,7 @@ final class FirestoreTestingHelper implements TestRule {
 
   @SuppressWarnings(
       "initialization.fields.uninitialized") // testClass and testName are managed via #apply
-  public FirestoreTestingHelper(CleanupMode cleanupMode) {
+  public FirestoreTestingHelper(CleanupMode cleanupMode, @Nullable String databaseId) {
     this.cleanupMode = cleanupMode;
     gcpOptions = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     firestoreBeamOptions =
@@ -136,7 +136,7 @@ final class FirestoreTestingHelper implements TestRule {
             .setCredentials(gcpOptions.getGcpCredential())
             .setProjectId(
                 firstNonNull(firestoreBeamOptions.getFirestoreProject(), gcpOptions.getProject()))
-            .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
+            .setDatabaseId(firstNonNull(databaseId, firestoreBeamOptions.getFirestoreDb()))
             .setHost(firestoreBeamOptions.getFirestoreHost())
             .build();
     fs = firestoreOptions.getService();

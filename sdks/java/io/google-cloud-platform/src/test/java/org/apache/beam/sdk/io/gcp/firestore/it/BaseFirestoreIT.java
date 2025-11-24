@@ -76,7 +76,8 @@ abstract class BaseFirestoreIT {
   public final TestName testName = new TestName();
 
   @Rule(order = 2)
-  public final FirestoreTestingHelper helper = new FirestoreTestingHelper(CleanupMode.ALWAYS);
+  public final FirestoreTestingHelper helper =
+      new FirestoreTestingHelper(CleanupMode.ALWAYS, "firestoredb");
 
   @Rule(order = 3)
   public final TestPipeline testPipeline = TestPipeline.create();
