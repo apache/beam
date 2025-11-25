@@ -111,7 +111,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     when(rpcQos.newWriteAttempt(any())).thenReturn(attempt, attempt2);
 
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
-    when(ff.getFirestoreStub(pipelineOptions)).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(stub.batchWriteCallable()).thenReturn(callable);
     metricsFixture = new MetricsFixture();
   }
