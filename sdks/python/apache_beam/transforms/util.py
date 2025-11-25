@@ -420,8 +420,26 @@ class GcpSecret(Secret):
 
 
 class GcpHsmGeneratedSecret(Secret):
+  """A secret manager implementation that generates a secret using a GCP HSM key
+  and stores it in Google Cloud Secret Manager. If the secret already exists,
+  it will be retrieved.
+  """
   def __init__(
-      self, project_id: str, location_id: str, key_ring_id: str, key_id: str, job_name: str):
+      self,
+      project_id: str,
+      location_id: str,
+      key_ring_id: str,
+      key_id: str,
+      job_name: str):
+    """Initializes a GcpHsmGeneratedSecret object.
+
+    Args:
+      project_id: The GCP project ID.
+      location_id: The GCP location ID for the HSM key.
+      key_ring_id: The ID of the KMS key ring.
+      key_id: The ID of the KMS key.
+      job_name: The name of the job, used to generate a unique secret name.
+    """
     self._project_id = project_id
     self._location_id = location_id
     self._key_ring_id = key_ring_id
@@ -429,6 +447,15 @@ class GcpHsmGeneratedSecret(Secret):
     self._secret_version_name = f'HsmGeneratedSecret_{job_name}'
 
   def get_secret_bytes(self) -> bytes:
+    """Retrieves the secret bytes.
+
+    If the secret version already exists in Secret Manager, it is retrieved.
+    Otherwise, a new secret and version are created. The new secret is
+    generated using the HSM key.
+
+    Returns:
+      The secret as a byte string.
+    """
     try:
       from google.cloud import secretmanager
       from google.api_core import exceptions as api_exceptions
@@ -454,7 +481,11 @@ class GcpHsmGeneratedSecret(Secret):
             request={
                 "parent": project_path,
                 "secret_id": self._secret_version_name,
-                "secret": {"replication": {"automatic": {}}},
+                "secret": {
+                    "replication": {
+                        "automatic": {}
+                    }
+                },
             })
       except api_exceptions.AlreadyExists:
         # Don't bother logging yet, we'll only log if we actually add the
@@ -473,7 +504,11 @@ class GcpHsmGeneratedSecret(Secret):
             f"Secret version {secret_version_path} not found. "
             "Creating new secret and version.")
       client.add_secret_version(
-          request={"parent": secret_path, "payload": {"data": new_key}})
+          request={
+              "parent": secret_path, "payload": {
+                  "data": new_key
+              }
+          })
       response = client.access_secret_version(
           request={"name": secret_version_path})
       return response.payload.data
@@ -482,15 +517,18 @@ class GcpHsmGeneratedSecret(Secret):
       raise RuntimeError(
           f'Failed to retrieve or create secret bytes for secret '
           f'{self._secret_version_name} with exception {e}')
-    
+
   def generate_dek(self, dek_size: int = 32) -> bytes:
     """Generates a new Data Encryption Key (DEK) using an HSM-backed key.
 
     This function follows a key derivation process that incorporates entropy
     from the HSM-backed key into the nonce used for key derivation.
 
+    Args:
+      dek_size: The size of the DEK to generate.
+
     Returns:
-        A new DEK of the specified size.
+        A new DEK of the specified size, url-safe base64-encoded.
     """
     try:
       import base64
@@ -505,12 +543,11 @@ class GcpHsmGeneratedSecret(Secret):
       # 2. Use the HSM-backed key to encrypt nonce_one to create nonce_two
       kms_client = kms.KeyManagementServiceClient()
       key_path = kms_client.crypto_key_path(
-          self._project_id,
-          self._location_id,
-          self._key_ring_id,
-          self._key_id)
+          self._project_id, self._location_id, self._key_ring_id, self._key_id)
       response = kms_client.encrypt(
-          request={'name': key_path, 'plaintext': nonce_one})
+          request={
+              'name': key_path, 'plaintext': nonce_one
+          })
       nonce_two = response.ciphertext
 
       # 3. Generate a Derivation Key (DK)
