@@ -362,7 +362,7 @@ class Secret():
 
     secret_type = param_map['type'].lower()
     del param_map['type']
-    secret_class = None
+    secret_class: Secret
     secret_params = None
     if secret_type == 'gcpsecret':
       secret_class = GcpSecret
