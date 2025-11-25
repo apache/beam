@@ -139,4 +139,24 @@ public class GcpHsmGeneratedSecret implements Secret {
       return Base64.getUrlEncoder().encode(dek);
     }
   }
+
+  public String getProjectId() {
+    return projectId;
+  }
+
+  public String getLocationId() {
+    return locationId;
+  }
+
+  public String getKeyRingId() {
+    return keyRingId;
+  }
+
+  public String getKeyId() {
+    return keyId;
+  }
+
+  public String getSecretId() {
+    return secretId;
+  }
 }
