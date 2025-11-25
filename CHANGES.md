@@ -65,6 +65,7 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Flink 1.20 support added ([#32647](https://github.com/apache/beam/issues/32647)).
 
 ## I/Os
 

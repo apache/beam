@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
-import org.gradle.kotlin.dsl.project
 
 pluginManagement {
     plugins {
@@ -128,7 +127,6 @@ include(":runners:extensions-java:metrics")
   * verify versions in website/www/site/content/en/documentation/runners/flink.md
   * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
  */
-// Flink 1.17
 val flink_versions: String by settings
 for (version in flink_versions.split(',')) {
     include(":runners:flink:${version}")
