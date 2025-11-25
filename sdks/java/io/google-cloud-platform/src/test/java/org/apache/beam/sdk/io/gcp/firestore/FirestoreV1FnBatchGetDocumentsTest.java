@@ -54,7 +54,12 @@ import org.mockito.junit.MockitoRule;
 @RunWith(Parameterized.class)
 public final class FirestoreV1FnBatchGetDocumentsTest
     extends BaseFirestoreV1ReadFnTest<BatchGetDocumentsRequest, BatchGetDocumentsResponse> {
-  @Parameterized.Parameter public Instant readTime;
+
+  @Parameterized.Parameter(0)
+  public Instant readTime;
+
+  @Parameterized.Parameter(1)
+  public boolean setDatabaseOnReadFn;
 
   @Rule public MockitoRule rule = MockitoJUnit.rule();
 
@@ -65,9 +70,12 @@ public final class FirestoreV1FnBatchGetDocumentsTest
   @Mock private ServerStream<BatchGetDocumentsResponse> responseStream2;
   @Mock private ServerStream<BatchGetDocumentsResponse> responseStream3;
 
-  @Parameterized.Parameters(name = "readTime = {0}")
-  public static Collection<Object> data() {
-    return Arrays.asList(null, Instant.now());
+  @Parameterized.Parameters(name = "readTime = {0}, setDatabaseOnReadFn = {1}")
+  public static Collection<Object[]> data() {
+    return Arrays.asList(
+        new Object[][] {
+          {null, false}, {null, true}, {Instant.now(), false}, {Instant.now(), true}
+        });
   }
 
   private BatchGetDocumentsRequest withReadTime(
@@ -75,6 +83,14 @@ public final class FirestoreV1FnBatchGetDocumentsTest
     return readTime == null
         ? request
         : request.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
+  }
+
+  private void mockFirestoreStub() {
+    if (setDatabaseOnReadFn) {
+      when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
+    } else {
+      when(ff.getFirestoreStub(any())).thenReturn(stub);
+    }
   }
 
   @Test
@@ -98,7 +114,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
 
     when(stub.batchGetDocumentsCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    mockFirestoreStub();
     when(ff.getRpcQos(any()))
         .thenReturn(FirestoreStatefulComponentFactory.INSTANCE.getRpcQos(rpcQosOptions));
 
@@ -108,7 +124,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
 
     when(processContext.element()).thenReturn(request);
 
-    runFunction(new BatchGetDocumentsFn(clock, ff, rpcQosOptions, readTime));
+    runFunction(getFnWithParameters());
 
     List<BatchGetDocumentsResponse> allValues = responsesCaptor.getAllValues();
     assertEquals(responses, allValues);
@@ -184,7 +200,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
 
     when(stub.batchGetDocumentsCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    mockFirestoreStub();
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newReadAttempt(any())).thenReturn(attempt);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
@@ -196,7 +212,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
 
     when(processContext.element()).thenReturn(request1);
 
-    BatchGetDocumentsFn fn = new BatchGetDocumentsFn(clock, ff, rpcQosOptions, readTime);
+    BatchGetDocumentsFn fn = getFnWithParameters();
 
     runFunction(fn);
 
@@ -244,6 +260,14 @@ public final class FirestoreV1FnBatchGetDocumentsTest
       FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
       RpcQosOptions rpcQosOptions) {
     return new BatchGetDocumentsFn(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+  }
+
+  private BatchGetDocumentsFn getFnWithParameters() {
+    if (setDatabaseOnReadFn) {
+      return new BatchGetDocumentsFn(clock, ff, rpcQosOptions, readTime, projectId, "(default)");
+    } else {
+      return new BatchGetDocumentsFn(clock, ff, rpcQosOptions, readTime);
+    }
   }
 
   private static BatchGetDocumentsResponse newFound(int docNumber) {

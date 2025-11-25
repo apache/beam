@@ -738,6 +738,7 @@ final class FirestoreV1ReadFn {
     @Override
     public void finishBundle() throws Exception {
       projectId = null;
+      databaseId = null;
       firestoreStub.close();
     }
 

@@ -2096,6 +2096,16 @@ public final class FirestoreV1 {
         this.readTime = readTime;
         return self();
       }
+
+      public final BldrT withProjectId(@Nullable String projectId) {
+        this.projectId = projectId;
+        return self();
+      }
+
+      public final BldrT withDatabaseId(@Nullable String databaseId) {
+        this.databaseId = databaseId;
+        return self();
+      }
     }
   }
 }
