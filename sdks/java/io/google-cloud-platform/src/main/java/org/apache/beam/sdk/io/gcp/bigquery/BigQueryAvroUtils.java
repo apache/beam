@@ -650,7 +650,8 @@ class BigQueryAvroUtils {
         }
       case LONG:
         // TODO: Use LogicalTypes.TimestampNanos once avro version is updated.
-        if (useAvroLogicalTypes && (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getProp("logicalType")))) {
+        if (useAvroLogicalTypes
+            && (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getProp("logicalType")))) {
           return fieldSchema.setType("TIMESTAMP");
         }
         if (logicalType instanceof LogicalTypes.TimeMicros) {
