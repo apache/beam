@@ -88,12 +88,30 @@ public interface Secret extends Serializable {
                     paramName, gcpHsmGeneratedSecretParams));
           }
         }
-        return new GcpHsmGeneratedSecret(
-            paramMap.get("project_id"),
-            paramMap.get("location_id"),
-            paramMap.get("key_ring_id"),
-            paramMap.get("key_id"),
-            paramMap.get("job_name"));
+        String projectId = paramMap.get("project_id");
+        if (projectId == null) {
+          throw new RuntimeException(
+              "project_id must contain a valid value for projectId parameter");
+        }
+        String locationId = paramMap.get("location_id");
+        if (locationId == null) {
+          throw new RuntimeException(
+              "location_id must contain a valid value for locationId parameter");
+        }
+        String keyRingId = paramMap.get("key_ring_id");
+        if (keyRingId == null) {
+          throw new RuntimeException(
+              "key_ring_id must contain a valid value for keyRingId parameter");
+        }
+        String keyId = paramMap.get("key_id");
+        if (keyId == null) {
+          throw new RuntimeException("key_id must contain a valid value for keyId parameter");
+        }
+        String jobName = paramMap.get("job_name");
+        if (jobName == null) {
+          throw new RuntimeException("job_name must contain a valid value for jobName parameter");
+        }
+        return new GcpHsmGeneratedSecret(projectId, locationId, keyRingId, keyId, jobName);
       default:
         throw new RuntimeException(
             String.format(

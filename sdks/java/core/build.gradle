@@ -100,6 +100,8 @@ dependencies {
   shadow library.java.snappy_java
   shadow library.java.joda_time
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation library.java.google_cloud_kms
+  implementation library.java.google_cloud_tink
   implementation library.java.google_cloud_secret_manager
   implementation library.java.proto_google_cloud_secret_manager_v1
   implementation library.java.protobuf_java

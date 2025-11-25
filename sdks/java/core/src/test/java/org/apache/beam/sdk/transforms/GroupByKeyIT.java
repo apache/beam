@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.secretmanager.v1.ProjectName;
 import com.google.cloud.kms.v1.CryptoKey;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.kms.v1.CryptoKeyVersion;
@@ -111,9 +110,7 @@ public class GroupByKeyIT {
 
       keyId = "gbekit-key-" + new SecureRandom().nextInt(10000);
       CryptoKey key =
-          CryptoKey.newBuilder()
-              .setPurpose(CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT)
-              .build();
+          CryptoKey.newBuilder().setPurpose(CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT).build();
       kmsClient.createCryptoKey(keyRingName, keyId, key);
       gcpHsmSecretOption =
           String.format(

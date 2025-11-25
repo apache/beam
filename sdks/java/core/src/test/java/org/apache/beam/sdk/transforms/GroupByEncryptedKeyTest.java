@@ -152,8 +152,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
       keyId = "gbek-test-key-" + System.currentTimeMillis();
       com.google.cloud.kms.v1.CryptoKey key =
           com.google.cloud.kms.v1.CryptoKey.newBuilder()
-              .setPurpose(
-                  com.google.cloud.kms.v1.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT)
+              .setPurpose(com.google.cloud.kms.v1.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT)
               .build();
       kmsClient.createCryptoKey(keyRingName, keyId, key);
       gcpHsmGeneratedSecret =

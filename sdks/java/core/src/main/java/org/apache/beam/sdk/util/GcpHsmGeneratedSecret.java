@@ -25,9 +25,9 @@ import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
 import com.google.cloud.secretmanager.v1.ProjectName;
 import com.google.cloud.secretmanager.v1.Replication;
-import com.google.cloud.secretmanager.v1.SecretPayload;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretName;
+import com.google.cloud.secretmanager.v1.SecretPayload;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
 import com.google.crypto.tink.subtle.Hkdf;
 import com.google.protobuf.ByteString;
@@ -104,7 +104,8 @@ public class GcpHsmGeneratedSecret implements Secret {
             secretVersionName.toString());
       }
 
-      SecretPayload payload = SecretPayload.newBuilder().setData(ByteString.copyFrom(newKey)).build();
+      SecretPayload payload =
+          SecretPayload.newBuilder().setData(ByteString.copyFrom(newKey)).build();
       client.addSecretVersion(secretName, payload);
       AccessSecretVersionResponse response = client.accessSecretVersion(secretVersionName);
       return response.getPayload().getData().toByteArray();
