@@ -197,7 +197,7 @@ final class FirestoreV1ReadFn {
         @Nullable String projectId,
         @Nullable String databaseId) {
       super(
-          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, databaseId, projectId);
+          clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime, projectId, databaseId);
     }
 
     @Override
@@ -696,7 +696,9 @@ final class FirestoreV1ReadFn {
           requireNonNull(firestoreStatefulComponentFactory, "firestoreFactory must be non null");
       this.rpcQosOptions = requireNonNull(rpcQosOptions, "rpcQosOptions must be non null");
       this.readTime = readTime;
-      this.projectId = projectId;
+      if (projectId != null) {
+        this.projectId = projectId;
+      }
       this.databaseId = databaseId;
     }
 

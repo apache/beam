@@ -80,12 +80,14 @@ class FirestoreStatefulComponentFactory implements Serializable {
    * <p>The instance returned by this method is expected to bind to the lifecycle of a bundle.
    *
    * @param options The instance of options to read from
-   * @param projectId The Project ID to target.
-   * @param databaseId The Database ID to target.
+   * @param configuredProjectId The Project ID to target.
+   * @param configuredDatabaseId The Database ID to target.
    * @return a new {@link FirestoreStub} pre-configured with values from the provided options
    */
   FirestoreStub getFirestoreStub(
-      PipelineOptions options, @Nullable String projectId, @Nullable String databaseId) {
+      PipelineOptions options,
+      @Nullable String configuredProjectId,
+      @Nullable String configuredDatabaseId) {
     try {
       FirestoreSettings.Builder builder = FirestoreSettings.newBuilder();
 
@@ -115,13 +117,17 @@ class FirestoreStatefulComponentFactory implements Serializable {
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
             .setEndpoint(firestoreOptions.getFirestoreHost());
+        String projectId =
+            configuredProjectId != null
+                ? configuredProjectId
+                : firestoreOptions.getFirestoreProject();
+        if (projectId == null) {
+          projectId = gcpOptions.getProject();
+        }
+        String databaseId =
+            configuredDatabaseId != null ? configuredDatabaseId : firestoreOptions.getFirestoreDb();
         headers.put(
-            "x-goog-request-params",
-            "project_id=" + projectId != null
-                ? projectId
-                : gcpOptions.getProject() + "&database_id=" + databaseId != null
-                    ? databaseId
-                    : firestoreOptions.getFirestoreDb());
+            "x-goog-request-params", "project_id=" + projectId + "&database_id=" + databaseId);
       }
 
       builder.setHeaderProvider(
