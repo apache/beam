@@ -22,6 +22,7 @@ import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.kms.v1.CryptoKeyVersion;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.kms.v1.KeyRingName;
+import com.google.cloud.kms.v1.LocationName;
 import com.google.cloud.secretmanager.v1.ProjectName;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretName;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.util.GcpHsmGeneratedSecret;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
@@ -102,11 +104,9 @@ public class GroupByKeyIT {
       String locationId = "global";
       keyRingId = "gbekit-key-ring-" + new SecureRandom().nextInt(10000);
       KeyRingName keyRingName = KeyRingName.of(PROJECT_ID, locationId, keyRingId);
+      LocationName locationName = LocationName.of(PROJECT_ID, locationId);
       kmsClient.createKeyRing(
-          keyRingName.getProject(),
-          keyRingName.getLocation(),
-          keyRingId,
-          com.google.cloud.kms.v1.KeyRing.newBuilder().build());
+          locationName, keyRingId, com.google.cloud.kms.v1.KeyRing.newBuilder().build());
 
       keyId = "gbekit-key-" + new SecureRandom().nextInt(10000);
       CryptoKey key =

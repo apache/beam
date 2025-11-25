@@ -143,11 +143,10 @@ public class GroupByEncryptedKeyTest implements Serializable {
       keyRingId = "gbek-test-key-ring-" + System.currentTimeMillis();
       com.google.cloud.kms.v1.KeyRingName keyRingName =
           com.google.cloud.kms.v1.KeyRingName.of(PROJECT_ID, locationId, keyRingId);
+      com.google.cloud.kms.v1.LocationName locationName =
+          com.google.cloud.kms.v1.LocationName.of(PROJECT_ID, locationId);
       kmsClient.createKeyRing(
-          keyRingName.getProject(),
-          keyRingName.getLocation(),
-          keyRingId,
-          com.google.cloud.kms.v1.KeyRing.newBuilder().build());
+          locationName, keyRingId, com.google.cloud.kms.v1.KeyRing.newBuilder().build());
 
       keyId = "gbek-test-key-" + System.currentTimeMillis();
       com.google.cloud.kms.v1.CryptoKey key =
