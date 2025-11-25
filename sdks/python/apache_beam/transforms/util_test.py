@@ -72,8 +72,8 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import FlatMapTuple
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import Repeatedly
-from apache_beam.transforms.util import GcpSecret
 from apache_beam.transforms.util import GcpHsmGeneratedSecret
+from apache_beam.transforms.util import GcpSecret
 from apache_beam.transforms.util import Secret
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
