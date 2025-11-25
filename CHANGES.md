@@ -87,7 +87,7 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed #36895 (Java) ([#36895](https://github.com/apache/beam/issues/36895)).
 
 ## Known Issues
 
