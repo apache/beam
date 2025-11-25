@@ -31,6 +31,7 @@ import com.google.cloud.secretmanager.v1.SecretPayload;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
 import com.google.crypto.tink.subtle.Hkdf;
 import com.google.protobuf.ByteString;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -39,8 +40,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link Secret} manager implementation that generates a secret using entropy from a GCP HSM key
- * and stores it in Google Cloud Secret Manager. If the secret already exists, it will be retrieved.
+ * A {@link org.apache.beam.sdk.util.Secret} manager implementation that generates a secret using
+ * entropy from a GCP HSM key and stores it in Google Cloud Secret Manager. If the secret already
+ * exists, it will be retrieved.
  */
 public class GcpHsmGeneratedSecret implements Secret {
   private static final Logger LOG = LoggerFactory.getLogger(GcpHsmGeneratedSecret.class);
@@ -116,10 +118,12 @@ public class GcpHsmGeneratedSecret implements Secret {
     }
   }
 
+  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE") // intended, used for non-random nonceOne
   private byte[] generateDek() throws IOException, GeneralSecurityException {
     int dekSize = 32;
     try (KeyManagementServiceClient client = KeyManagementServiceClient.create()) {
-      // 1. Generate nonce_one
+      // 1. Generate nonce_one. This doesn't need to have baked in randomness since the
+      // actual randomness comes from KMS.
       SecureRandom random = new SecureRandom();
       byte[] nonceOne = new byte[dekSize];
       random.nextBytes(nonceOne);

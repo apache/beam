@@ -100,7 +100,9 @@ dependencies {
   shadow library.java.snappy_java
   shadow library.java.joda_time
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation library.java.gax
   implementation library.java.google_cloud_kms
+  implementation library.java.proto_google_cloud_kms_v1
   implementation library.java.google_cloud_tink
   implementation library.java.google_cloud_secret_manager
   implementation library.java.proto_google_cloud_secret_manager_v1
@@ -130,6 +132,8 @@ dependencies {
   shadowTest library.java.log4j2_api
   shadowTest library.java.jamm
   shadowTest 'com.google.cloud:google-cloud-secretmanager:2.75.0'
+  shadowTest 'com.google.cloud:google-cloud-kms:2.75.0'
+  shadowTest 'com.google.crypto.tink:tink:1.19.0'
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
