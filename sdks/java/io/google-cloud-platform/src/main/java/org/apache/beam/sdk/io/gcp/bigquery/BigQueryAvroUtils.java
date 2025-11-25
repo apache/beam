@@ -193,7 +193,6 @@ class BigQueryAvroUtils {
   @VisibleForTesting
   @SuppressWarnings("JavaInstantGetSecondsGetNano")
   static String formatDatetime(java.time.Instant instant) {
-    System.out.println(instant);
     String dateTime = DATE_TIME_FORMATTER.format(instant);
     int nanos = instant.getNano();
 
