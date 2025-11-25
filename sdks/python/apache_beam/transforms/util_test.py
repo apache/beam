@@ -495,8 +495,8 @@ class GcpHsmGeneratedSecretTest(unittest.TestCase):
 
     # Assertions on mocks
     secret_version_path = (
-        f'projects/{project_id}/secrets/{secret._secret_version_name}/versions/1'
-    )
+        f'projects/{project_id}/secrets/{secret._secret_version_name}'
+        '/versions/1')
     self.mock_secret_manager_client.access_secret_version.assert_any_call(
         request={'name': secret_version_path})
     self.assertEqual(

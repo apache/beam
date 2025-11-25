@@ -30,7 +30,6 @@ import re
 import threading
 import time
 import uuid
-from datetime import datetime
 from collections.abc import Callable
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
@@ -362,7 +361,7 @@ class Secret():
 
     secret_type = param_map['type'].lower()
     del param_map['type']
-    secret_class: Secret
+    secret_class = Secret
     secret_params = None
     if secret_type == 'gcpsecret':
       secret_class = GcpSecret
@@ -501,8 +500,9 @@ class GcpHsmGeneratedSecret(Secret):
         return response.payload.data
       except api_exceptions.NotFound:
         logging.info(
-            f"Secret version {secret_version_path} not found. "
-            "Creating new secret and version.")
+            "Secret version %s not found. "
+            "Creating new secret and version.",
+            secret_version_path)
       client.add_secret_version(
           request={
               "parent": secret_path, "payload": {

@@ -90,9 +90,10 @@ class GbekIT(unittest.TestCase):
       try:
         cls.kms_client.get_key_ring(request={'name': cls.key_ring_path})
       except Exception:
+        parent = f'projects/{cls.project_id}/locations/{cls.location_id}'
         cls.kms_client.create_key_ring(
             request={
-                'parent': f'projects/{cls.project_id}/locations/{cls.location_id}',
+                'parent': parent,
                 'key_ring_id': cls.key_ring_id,
             })
       cls.key_id = 'gbekit_key_tests_' + secret_postfix
@@ -125,7 +126,7 @@ class GbekIT(unittest.TestCase):
         try:
           cls.kms_client.destroy_crypto_key_version(
               request={'name': version.name})
-        except:
+        except Exception:
           # Best effort deletion
           pass
 
