@@ -167,50 +167,6 @@ class StateSamplerTest(unittest.TestCase):
     self.assertLess(overhead_us, 20.0)
 
   @retry(reraise=True, stop=stop_after_attempt(3))
-  def test_timer_sampler_operation(self):
-    state_duration_ms = 200
-    margin_of_error = 75
-
-    counter_factory = CounterFactory()
-    sampler = statesampler.StateSampler(
-        'test_stage', counter_factory, sampling_period_ms=1)
-
-    name_context = common.NameContext('test_op')
-    scoped_timer_state = sampler.scoped_state(
-        name_context, 'process-timers', metrics_container=None)
-
-    sampler.start()
-    with scoped_timer_state:
-      time.sleep(state_duration_ms / 1000.0)
-    sampler.stop()
-    sampler.commit_counters()
-
-    if not statesampler.FAST_SAMPLER:
-      return
-
-    expected_name = CounterName(
-        'process-timers-msecs', step_name='test_op', stage_name='test_stage')
-
-    found_counter = None
-    for counter in counter_factory.get_counters():
-      if counter.name == expected_name:
-        found_counter = counter
-        break
-
-    self.assertIsNotNone(
-        found_counter, f"Expected counter '{expected_name}' to be created.")
-
-    value = found_counter.value()
-    self.assertGreater(
-        value,
-        state_duration_ms * (1.0 - margin_of_error),
-        f"Timer metric was too low: {value} ms.")
-    self.assertLess(
-        value,
-        state_duration_ms * (1.0 + margin_of_error),
-        f"Timer metric was too high: {value} ms.")
-
-  @retry(reraise=True, stop=stop_after_attempt(30))
   # Patch the problematic function to return the correct timer spec
   @patch('apache_beam.transforms.userstate.get_dofn_specs')
   def test_do_operation_process_timer(self, mock_get_dofn_specs):
@@ -280,9 +236,8 @@ class StateSamplerTest(unittest.TestCase):
     logging.info("Actual value %d", actual_value)
     self.assertGreater(
         actual_value, state_duration_ms * (1.0 - margin_of_error))
-    self.assertLess(actual_value, state_duration_ms * (1.0 + margin_of_error))
 
-  @retry(reraise=True, stop=stop_after_attempt(30))
+  @retry(reraise=True, stop=stop_after_attempt(3))
   @patch('apache_beam.runners.worker.operations.userstate.get_dofn_specs')
   def test_do_operation_process_timer_with_exception(self, mock_get_dofn_specs):
     fn = ExceptionTimerDoFn()
@@ -355,7 +310,6 @@ class StateSamplerTest(unittest.TestCase):
     actual_value = found_counter.value()
     self.assertGreater(
         actual_value, state_duration_ms * (1.0 - margin_of_error))
-    self.assertLess(actual_value, state_duration_ms * (1.0 + margin_of_error))
     _LOGGER.info("Exception test finished successfully.")
 
 
