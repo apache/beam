@@ -364,10 +364,10 @@ class Secret():
     secret_class = Secret
     secret_params = None
     if secret_type == 'gcpsecret':
-      secret_class = GcpSecret  # pylint: disable=assignment
+      secret_class = GcpSecret # type: ignore[assignment]
       secret_params = ['version_name']
     elif secret_type == 'gcphsmgeneratedsecret':
-      secret_class = GcpHsmGeneratedSecret  # pylint: disable=assignment
+      secret_class = GcpHsmGeneratedSecret # type: ignore[assignment]
       secret_params = [
           'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
       ]
