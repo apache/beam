@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -62,37 +63,33 @@ import org.apache.spark.streaming.State;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Collections;
 import scala.Option;
 import scala.Tuple2;
 import scala.runtime.AbstractFunction3;
 
 /**
- * A function to handle stateful processing in Apache Beam's SparkRunner. This
- * class processes
- * stateful DoFn operations by managing state updates in a Spark streaming
- * context.
+ * A function to handle stateful processing in Apache Beam's SparkRunner. This class processes
+ * stateful DoFn operations by managing state updates in a Spark streaming context.
  *
- * <p>
- * Current Implementation Status:
+ * <p>Current Implementation Status:
  *
  * <ul>
- * <li>State: Fully implemented and supported through
- * {@link SparkStateInternals}
- * <li>Timers: Processing time timers are now supported through
- * {@link SparkTimerInternals}.
+ *   <li>State: Fully implemented and supported through {@link SparkStateInternals}
+ *   <li>Timers: Processing time timers are now supported through {@link SparkTimerInternals}.
  * </ul>
  *
- * @param <KeyT>    The type of the key in the input KV pairs
- * @param <ValueT>  The type of the value in the input KV pairs
- * @param <InputT>  The input type, must be a KV of KeyT and ValueT
+ * @param <KeyT> The type of the key in the input KV pairs
+ * @param <ValueT> The type of the value in the input KV pairs
+ * @param <InputT> The input type, must be a KV of KeyT and ValueT
  * @param <OutputT> The output type produced by the DoFn
  */
-@SuppressWarnings({ "rawtypes", "unchecked" })
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, OutputT>
     extends AbstractFunction3<
-        /* Serialized KeyT */ ByteArray, Option</* Serialized WindowedValue<ValueT> */ byte[]>,
-        /* State */ State<StateAndTimers>, List<Tuple2</* Output Tag */ TupleTag<?>, /*
+        /* Serialized KeyT */ ByteArray,
+        Option</* Serialized WindowedValue<ValueT> */ byte[]>,
+        /* State */ State<StateAndTimers>,
+        List<Tuple2</* Output Tag */ TupleTag<?>, /*
                                                                                       * Serialized
                                                                                       * WindowedValue<OutputT>
                                                                                       */ byte[]>>>
@@ -157,20 +154,22 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
     this.sideInputMapping = sideInputMapping;
     this.watermarks = watermarks;
     this.sourceIds = sourceIds;
-    this.timerDataCoder = TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
+    this.timerDataCoder =
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
     this.useStreamingSideInput = useStreamingSideInput;
   }
 
   @Override
-  public List<Tuple2</* Output Tag */ TupleTag<?>, /* Serialized WindowedValue<OutputT> */ byte[]>> apply(
-      ByteArray serializedKey, Option<byte[]> serializedValue, State<StateAndTimers> state) {
+  public List<Tuple2</* Output Tag */ TupleTag<?>, /* Serialized WindowedValue<OutputT> */ byte[]>>
+      apply(ByteArray serializedKey, Option<byte[]> serializedValue, State<StateAndTimers> state) {
     if (serializedValue.isEmpty()) {
       return Lists.newArrayList();
     }
 
     SparkStateInternals<KeyT> stateInternals;
     final KeyT key = CoderHelpers.fromByteArray(serializedKey.getValue(), this.keyCoder);
-    final SparkTimerInternals timerInternals = SparkTimerInternals.forStreamFromSources(sourceIds, watermarks);
+    final SparkTimerInternals timerInternals =
+        SparkTimerInternals.forStreamFromSources(sourceIds, watermarks);
 
     if (state.exists()) {
       final StateAndTimers stateAndTimers = state.get();
@@ -186,57 +185,60 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
       this.wasSetupCalled = true;
     }
 
-    SparkInputDataProcessor<InputT, OutputT, Tuple2<TupleTag<?>, WindowedValue<?>>> processor = SparkInputDataProcessor
-        .createUnbounded();
+    SparkInputDataProcessor<InputT, OutputT, Tuple2<TupleTag<?>, WindowedValue<?>>> processor =
+        SparkInputDataProcessor.createUnbounded();
 
-    final StepContext context = new StepContext() {
-      @Override
-      public StateInternals stateInternals() {
-        return stateInternals;
-      }
+    final StepContext context =
+        new StepContext() {
+          @Override
+          public StateInternals stateInternals() {
+            return stateInternals;
+          }
 
-      @Override
-      public TimerInternals timerInternals() {
-        return timerInternals;
-      }
-    };
+          @Override
+          public TimerInternals timerInternals() {
+            return timerInternals;
+          }
+        };
 
-    final Coder<? extends BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
+    final Coder<? extends BoundedWindow> windowCoder =
+        windowingStrategy.getWindowFn().windowCoder();
 
-    final StatefulDoFnRunner.CleanupTimer<InputT> cleanUpTimer = new StatefulDoFnRunner.TimeInternalsCleanupTimer<>(
-        timerInternals, windowingStrategy);
+    final StatefulDoFnRunner.CleanupTimer<InputT> cleanUpTimer =
+        new StatefulDoFnRunner.TimeInternalsCleanupTimer<>(timerInternals, windowingStrategy);
 
-    final StatefulDoFnRunner.StateCleaner<? extends BoundedWindow> stateCleaner = new StatefulDoFnRunner.StateInternalsStateCleaner<>(
-        doFn, stateInternals, windowCoder);
+    final StatefulDoFnRunner.StateCleaner<? extends BoundedWindow> stateCleaner =
+        new StatefulDoFnRunner.StateInternalsStateCleaner<>(doFn, stateInternals, windowCoder);
 
     // simple runner --> stateful runner --> metrics runner
-    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
-        options.get(),
-        doFn,
-        SideInputReaderFactory.create(this.useStreamingSideInput, this.sideInputs),
-        processor.getOutputManager(),
-        (TupleTag<OutputT>) mainOutputTag,
-        additionalOutputTags,
-        context,
-        inputCoder,
-        outputCoders,
-        windowingStrategy,
-        doFnSchemaInformation,
-        sideInputMapping);
+    DoFnRunner<InputT, OutputT> doFnRunner =
+        DoFnRunners.simpleRunner(
+            options.get(),
+            doFn,
+            SideInputReaderFactory.create(this.useStreamingSideInput, this.sideInputs),
+            processor.getOutputManager(),
+            (TupleTag<OutputT>) mainOutputTag,
+            additionalOutputTags,
+            context,
+            inputCoder,
+            outputCoders,
+            windowingStrategy,
+            doFnSchemaInformation,
+            sideInputMapping);
 
-    doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
-        doFn, inputCoder, doFnRunner, context, windowingStrategy, cleanUpTimer, stateCleaner);
+    doFnRunner =
+        DoFnRunners.defaultStatefulDoFnRunner(
+            doFn, inputCoder, doFnRunner, context, windowingStrategy, cleanUpTimer, stateCleaner);
 
     doFnRunner = new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
-    SparkProcessContext<KeyT, InputT, OutputT> ctx = new SparkProcessContext<>(
-        stepName, doFn, doFnRunner, key, new SparkTimerInternalsIterator(timerInternals));
+    SparkProcessContext<KeyT, InputT, OutputT> ctx =
+        new SparkProcessContext<>(
+            stepName, doFn, doFnRunner, key, new SparkTimerInternalsIterator(timerInternals));
 
     final byte[] byteValue = serializedValue.get();
-    @Nullable
-    WindowedValue<ValueT> windowedValue;
-    @Nullable
-    WindowedValue<KV<KeyT, ValueT>> keyedWindowedValue;
+    @Nullable WindowedValue<ValueT> windowedValue;
+    @Nullable WindowedValue<KV<KeyT, ValueT>> keyedWindowedValue;
     Iterator<WindowedValue<KV<KeyT, ValueT>>> iterator = Collections.emptyIterator();
     if (byteValue.length > 0) {
       windowedValue = CoderHelpers.fromByteArray(byteValue, this.wvCoder);
@@ -244,38 +246,41 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
       iterator = Lists.newArrayList(keyedWindowedValue).iterator();
     }
 
-    final AbstractInOutIterator outputIterator = (AbstractInOutIterator) processor
-        .createOutputIterator((Iterator) iterator, ctx);
+    final AbstractInOutIterator outputIterator =
+        (AbstractInOutIterator) processor.createOutputIterator((Iterator) iterator, ctx);
 
-    final List<Tuple2<TupleTag<?>, WindowedValue<?>>> resultList = Lists.newArrayList(outputIterator);
+    final List<Tuple2<TupleTag<?>, WindowedValue<?>>> resultList =
+        Lists.newArrayList(outputIterator);
 
     TimerUtils.triggerExpiredTimers(timerInternals, windowingStrategy, outputIterator);
 
-    final Collection<byte[]> serializedTimers = SparkTimerInternals.serializeTimers(timerInternals.getTimers(),
-        timerDataCoder);
+    final Collection<byte[]> serializedTimers =
+        SparkTimerInternals.serializeTimers(timerInternals.getTimers(), timerDataCoder);
 
     state.update(StateAndTimers.of(stateInternals.getState(), serializedTimers));
 
-    return (List<Tuple2<TupleTag<?>, byte[]>>) (List) resultList.stream()
-        .map(
-            (Tuple2<TupleTag<?>, WindowedValue<?>> e) -> {
-              final TupleTag<OutputT> tupleTag = (TupleTag<OutputT>) e._1();
-              final Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(tupleTag);
+    return (List<Tuple2<TupleTag<?>, byte[]>>)
+        (List)
+            resultList.stream()
+                .map(
+                    (Tuple2<TupleTag<?>, WindowedValue<?>> e) -> {
+                      final TupleTag<OutputT> tupleTag = (TupleTag<OutputT>) e._1();
+                      final Coder<OutputT> outputCoder =
+                          (Coder<OutputT>) outputCoders.get(tupleTag);
 
-              @SuppressWarnings("nullness")
-              final WindowedValues.FullWindowedValueCoder<OutputT> outputWindowCoder = WindowedValues.FullWindowedValueCoder
-                  .of(outputCoder, windowCoder);
+                      @SuppressWarnings("nullness")
+                      final WindowedValues.FullWindowedValueCoder<OutputT> outputWindowCoder =
+                          WindowedValues.FullWindowedValueCoder.of(outputCoder, windowCoder);
 
-              return Tuple2.apply(
-                  tupleTag,
-                  CoderHelpers.toByteArray((WindowedValue) e._2(), outputWindowCoder));
-            })
-        .collect(Collectors.toList());
+                      return Tuple2.apply(
+                          tupleTag,
+                          CoderHelpers.toByteArray((WindowedValue) e._2(), outputWindowCoder));
+                    })
+                .collect(Collectors.toList());
   }
 
   /**
-   * An iterator implementation that processes timers from
-   * {@link SparkTimerInternals}. This
+   * An iterator implementation that processes timers from {@link SparkTimerInternals}. This
    * iterator is used in stateful processing to handle timer-based operations.
    */
   @SuppressWarnings("nullness")

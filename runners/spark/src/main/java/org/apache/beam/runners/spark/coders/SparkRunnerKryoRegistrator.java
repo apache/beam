@@ -32,21 +32,16 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBa
 import org.apache.spark.serializer.KryoRegistrator;
 
 /**
- * Custom {@link KryoRegistrator}s for Beam's Spark runner needs and registering
- * used class in spark
- * translation for better serialization performance. This is not the default
- * serialization
+ * Custom {@link KryoRegistrator}s for Beam's Spark runner needs and registering used class in spark
+ * translation for better serialization performance. This is not the default serialization
  * mechanism.
  *
- * <p>
- * To use it you must enable the Kryo based serializer using
- * {@code spark.serializer} with value
- * {@code org.apache.spark.serializer.KryoSerializer} and register this class
- * via Spark {@code
+ * <p>To use it you must enable the Kryo based serializer using {@code spark.serializer} with value
+ * {@code org.apache.spark.serializer.KryoSerializer} and register this class via Spark {@code
  * spark.kryo.registrator} configuration.
  */
 @SuppressWarnings({
-    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SparkRunnerKryoRegistrator implements KryoRegistrator {
 

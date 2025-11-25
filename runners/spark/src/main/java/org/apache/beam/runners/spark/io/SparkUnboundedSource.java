@@ -66,26 +66,20 @@ import scala.runtime.BoxedUnit;
 /**
  * A "composite" InputDStream implementation for {@link UnboundedSource}s.
  *
- * <p>
- * This read is a composite of the following steps:
+ * <p>This read is a composite of the following steps:
  *
  * <ul>
- * <li>Create a single-element (per-partition) stream, that contains the
- * (partitioned) {@link
- * Source} and an optional {@link CheckpointMark} to start from.
- * <li>Read from within a stateful operation
- * {@link JavaPairInputDStream#mapWithState(StateSpec)}
- * using the {@link StateSpecFunctions#mapSourceFunction} mapping function,
- * which manages the
- * state of the CheckpointMark per partition.
- * <li>Since the stateful operation is a map operation, the read iterator needs
- * to be flattened,
- * while reporting the properties of the read (such as number of records) to the
- * tracker.
+ *   <li>Create a single-element (per-partition) stream, that contains the (partitioned) {@link
+ *       Source} and an optional {@link CheckpointMark} to start from.
+ *   <li>Read from within a stateful operation {@link JavaPairInputDStream#mapWithState(StateSpec)}
+ *       using the {@link StateSpecFunctions#mapSourceFunction} mapping function, which manages the
+ *       state of the CheckpointMark per partition.
+ *   <li>Since the stateful operation is a map operation, the read iterator needs to be flattened,
+ *       while reporting the properties of the read (such as number of records) to the tracker.
  * </ul>
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SparkUnboundedSource {
 
@@ -97,19 +91,23 @@ public class SparkUnboundedSource {
 
     SparkPipelineOptions options = rc.get().as(SparkPipelineOptions.class);
     Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
-    SourceDStream<T, CheckpointMarkT> sourceDStream = new SourceDStream<>(jssc.ssc(), source, rc, maxRecordsPerBatch);
+    SourceDStream<T, CheckpointMarkT> sourceDStream =
+        new SourceDStream<>(jssc.ssc(), source, rc, maxRecordsPerBatch);
 
-    JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream = JavaPairInputDStream$.MODULE$.fromInputDStream(
-        sourceDStream,
-        JavaSparkContext$.MODULE$.fakeClassTag(),
-        JavaSparkContext$.MODULE$.fakeClassTag());
+    JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
+        JavaPairInputDStream$.MODULE$.fromInputDStream(
+            sourceDStream,
+            JavaSparkContext$.MODULE$.fakeClassTag(),
+            JavaSparkContext$.MODULE$.fakeClassTag());
 
     // call mapWithState to read from a checkpointable sources.
-    JavaMapWithStateDStream<Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>, Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream = inputDStream
-        .mapWithState(
-            StateSpec.function(
-                StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc, stepName))
-                .numPartitions(sourceDStream.getNumPartitions()));
+    JavaMapWithStateDStream<
+            Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>, Tuple2<Iterable<byte[]>, Metadata>>
+        mapWithStateDStream =
+            inputDStream.mapWithState(
+                StateSpec.function(
+                        StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc, stepName))
+                    .numPartitions(sourceDStream.getNumPartitions()));
 
     // set checkpoint duration for read stream, if set.
     checkpointStream(mapWithStateDStream, options);
@@ -124,17 +122,20 @@ public class SparkUnboundedSource {
         .register();
 
     // output the actual (deserialized) stream.
-    WindowedValues.FullWindowedValueCoder<T> coder = WindowedValues.FullWindowedValueCoder.of(
-        source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
-    JavaDStream<WindowedValue<T>> readUnboundedStream = mapWithStateDStream
-        .flatMap(new Tuple2byteFlatMapFunction())
-        .map(CoderHelpers.fromByteFunction(coder));
+    WindowedValues.FullWindowedValueCoder<T> coder =
+        WindowedValues.FullWindowedValueCoder.of(
+            source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
+    JavaDStream<WindowedValue<T>> readUnboundedStream =
+        mapWithStateDStream
+            .flatMap(new Tuple2byteFlatMapFunction())
+            .map(CoderHelpers.fromByteFunction(coder));
     return new UnboundedDataset<>(readUnboundedStream, Collections.singletonList(id));
   }
 
   private static <T> String getSourceName(Source<T> source, int id) {
     StringBuilder sb = new StringBuilder();
-    for (String s : Splitter.onPattern("(?=[A-Z])").split(source.getClass().getSimpleName().replace("$", ""))) {
+    for (String s :
+        Splitter.onPattern("(?=[A-Z])").split(source.getClass().getSimpleName().replace("$", ""))) {
       String trimmed = s.trim();
       if (!trimmed.isEmpty()) {
         sb.append(trimmed).append(" ");
@@ -153,16 +154,12 @@ public class SparkUnboundedSource {
   /**
    * A DStream function for reporting information related to the read process.
    *
-   * <p>
-   * Reports properties of the read to {@link
-   * org.apache.spark.streaming.scheduler.InputInfoTracker} for RateControl
-   * purposes and visibility.
+   * <p>Reports properties of the read to {@link
+   * org.apache.spark.streaming.scheduler.InputInfoTracker} for RateControl purposes and visibility.
    *
-   * <p>
-   * Updates {@link GlobalWatermarkHolder}.
+   * <p>Updates {@link GlobalWatermarkHolder}.
    *
-   * <p>
-   * Updates {@link MetricsAccumulator} with metrics reported in the read.
+   * <p>Updates {@link MetricsAccumulator} with metrics reported in the read.
    */
   private static class ReadReportDStream extends DStream<BoxedUnit> {
 
@@ -191,7 +188,7 @@ public class SparkUnboundedSource {
     @Override
     public scala.collection.immutable.List<DStream<?>> dependencies() {
       return scala.collection.JavaConverters.asScalaBuffer(
-          Collections.<DStream<?>>singletonList(parent))
+              Collections.<DStream<?>>singletonList(parent))
           .toList();
     }
 
@@ -211,13 +208,15 @@ public class SparkUnboundedSource {
           count += metadata.getNumRecords();
           // compute the global input watermark - advance to latest of all partitions.
           Instant partitionLowWatermark = metadata.getLowWatermark();
-          globalLowWatermarkForBatch = globalLowWatermarkForBatch.isBefore(partitionLowWatermark)
-              ? partitionLowWatermark
-              : globalLowWatermarkForBatch;
+          globalLowWatermarkForBatch =
+              globalLowWatermarkForBatch.isBefore(partitionLowWatermark)
+                  ? partitionLowWatermark
+                  : globalLowWatermarkForBatch;
           Instant partitionHighWatermark = metadata.getHighWatermark();
-          globalHighWatermarkForBatch = globalHighWatermarkForBatch.isBefore(partitionHighWatermark)
-              ? partitionHighWatermark
-              : globalHighWatermarkForBatch;
+          globalHighWatermarkForBatch =
+              globalHighWatermarkForBatch.isBefore(partitionHighWatermark)
+                  ? partitionHighWatermark
+                  : globalHighWatermarkForBatch;
           // Update metrics reported in the read
           final Gauge gauge = Metrics.gauge(NAMESPACE, READ_DURATION_MILLIS);
           final MetricsContainer container = metadata.getMetricsContainers().getContainer(stepName);
@@ -232,10 +231,11 @@ public class SparkUnboundedSource {
           metricsAccum.value().updateAll(metadata.getMetricsContainers());
         }
 
-        sparkWatermark = new SparkWatermarks(
-            globalLowWatermarkForBatch,
-            globalHighWatermarkForBatch,
-            new Instant(validTime.milliseconds()));
+        sparkWatermark =
+            new SparkWatermarks(
+                globalLowWatermarkForBatch,
+                globalHighWatermarkForBatch,
+                new Instant(validTime.milliseconds()));
         // add to watermark queue.
         GlobalWatermarkHolder.add(inputDStreamId, sparkWatermark);
       }
@@ -246,11 +246,12 @@ public class SparkUnboundedSource {
 
     private void report(Time batchTime, long count, SparkWatermarks sparkWatermark) {
       // metadata - #records read and a description.
-      scala.collection.immutable.Map<String, Object> metadata = new scala.collection.immutable.Map.Map1<>(
-          StreamInputInfo.METADATA_KEY_DESCRIPTION(),
-          String.format(
-              "Read %d records with observed watermarks %s, from %s for batch time: %s",
-              count, sparkWatermark == null ? "N/A" : sparkWatermark, sourceName, batchTime));
+      scala.collection.immutable.Map<String, Object> metadata =
+          new scala.collection.immutable.Map.Map1<>(
+              StreamInputInfo.METADATA_KEY_DESCRIPTION(),
+              String.format(
+                  "Read %d records with observed watermarks %s, from %s for batch time: %s",
+                  count, sparkWatermark == null ? "N/A" : sparkWatermark, sourceName, batchTime));
       StreamInputInfo streamInputInfo = new StreamInputInfo(inputDStreamId, count, metadata);
       ssc().scheduler().inputInfoTracker().reportInfo(batchTime, streamInputInfo);
     }
