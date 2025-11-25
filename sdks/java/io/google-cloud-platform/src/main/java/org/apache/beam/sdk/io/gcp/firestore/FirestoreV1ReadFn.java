@@ -35,7 +35,6 @@ import com.google.firestore.v1.BatchGetDocumentsRequest;
 import com.google.firestore.v1.BatchGetDocumentsResponse;
 import com.google.firestore.v1.BatchGetDocumentsResponse.ResultCase;
 import com.google.firestore.v1.Cursor;
-import com.google.firestore.v1.DatabaseRootName;
 import com.google.firestore.v1.ListCollectionIdsRequest;
 import com.google.firestore.v1.ListCollectionIdsResponse;
 import com.google.firestore.v1.ListDocumentsRequest;
@@ -141,12 +140,6 @@ final class FirestoreV1ReadFn {
     }
 
     @Override
-    protected RunQueryRequest setDatabase(
-        RunQueryRequest element, String projectId, String databaseId) {
-      return element.toBuilder().setParent(DocumentRootName.format(projectId, databaseId)).build();
-    }
-
-    @Override
     protected @Nullable RunQueryResponse resumptionValue(
         @Nullable RunQueryResponse previousValue, RunQueryResponse nextValue) {
       // We need a document to resume, may be null if reporting partial progress.
@@ -206,10 +199,6 @@ final class FirestoreV1ReadFn {
         try {
           PartitionQueryRequest request = setPageToken(element, aggregate);
           request = readTime == null ? request : setReadTime(request, readTime);
-          request =
-              projectId == null || databaseId == null
-                  ? request
-                  : setDatabase(request, projectId, databaseId);
           attempt.recordRequestStart(clock.instant());
           PartitionQueryPagedResponse pagedResponse =
               firestoreStub.partitionQueryPagedCallable().call(request);
@@ -254,12 +243,6 @@ final class FirestoreV1ReadFn {
     @Override
     protected PartitionQueryRequest setReadTime(PartitionQueryRequest element, Instant readTime) {
       return element.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
-    }
-
-    @Override
-    protected PartitionQueryRequest setDatabase(
-        PartitionQueryRequest element, String projectId, String databaseId) {
-      return element.toBuilder().setParent().build();
     }
   }
 
@@ -626,9 +609,7 @@ final class FirestoreV1ReadFn {
     // transient running state information, not important to any possible checkpointing
     protected transient FirestoreStub firestoreStub;
     protected transient RpcQos rpcQos;
-    private transient DatabaseRootName databaseRootName;
     protected transient String projectId;
-    protected transient @Nullable String databaseId;
 
     @SuppressWarnings(
         "initialization.fields.uninitialized") // allow transient fields to be managed by component
@@ -637,16 +618,12 @@ final class FirestoreV1ReadFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        @Nullable Instant readTime,
-        @Nullable String projectId,
-        @Nullable String databaseId) {
+        @Nullable Instant readTime) {
       this.clock = requireNonNull(clock, "clock must be non null");
       this.firestoreStatefulComponentFactory =
           requireNonNull(firestoreStatefulComponentFactory, "firestoreFactory must be non null");
       this.rpcQosOptions = requireNonNull(rpcQosOptions, "rpcQosOptions must be non null");
       this.readTime = readTime;
-      this.projectId = projectId;
-      this.databaseId = databaseId;
     }
 
     /** {@inheritDoc} */
@@ -658,10 +635,7 @@ final class FirestoreV1ReadFn {
     /** {@inheritDoc} */
     @Override
     public final void startBundle(StartBundleContext c) {
-      String project =
-          this.projectId != null
-              ? this.projectId
-              : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
+      String project = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
       if (project == null) {
         project = c.getPipelineOptions().as(GcpOptions.class).getProject();
       }
@@ -669,18 +643,6 @@ final class FirestoreV1ReadFn {
           requireNonNull(
               project,
               "project must be defined on FirestoreOptions or GcpOptions of PipelineOptions");
-      databaseId =
-          this.databaseId != null
-              ? this.databaseId
-              : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
-      databaseRootName =
-          DatabaseRootName.of(
-              requireNonNull(
-                  project,
-                  "project must be defined on FirestoreOptions or GcpOptions of PipelineOptions"),
-              requireNonNull(
-                  databaseId,
-                  "firestoreDb must be defined on FirestoreOptions of PipelineOptions"));
       firestoreStub = firestoreStatefulComponentFactory.getFirestoreStub(c.getPipelineOptions());
     }
 
@@ -700,8 +662,6 @@ final class FirestoreV1ReadFn {
     }
 
     protected abstract InT setReadTime(InT element, Instant readTime);
-
-    protected abstract InT setDatabase(InT element, String projectId, String databaseId);
   }
 
   /**

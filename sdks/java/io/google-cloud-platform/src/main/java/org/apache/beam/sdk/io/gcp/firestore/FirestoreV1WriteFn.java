@@ -244,9 +244,7 @@ final class FirestoreV1WriteFn {
               requireNonNull(
                   databaseId,
                   "firestoreDb must be defined on FirestoreOptions of PipelineOptions"));
-      firestoreStub =
-          firestoreStatefulComponentFactory.getFirestoreStub(
-              c.getPipelineOptions(), project, databaseId);
+      firestoreStub = firestoreStatefulComponentFactory.getFirestoreStub(c.getPipelineOptions());
     }
 
     /**
