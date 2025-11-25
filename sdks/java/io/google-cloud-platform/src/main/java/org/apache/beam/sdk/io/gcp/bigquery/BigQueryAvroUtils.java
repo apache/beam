@@ -50,8 +50,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 /** A set of utilities for working with Avro files. */
 class BigQueryAvroUtils {
@@ -161,77 +159,66 @@ class BigQueryAvroUtils {
    * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
    * immutable.
    */
-  private static final DateTimeFormatter DATE_AND_SECONDS_FORMATTER =
-      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
+  private static final java.time.format.DateTimeFormatter DATE_TIME_FORMATTER =
+      java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+          .withZone(java.time.ZoneOffset.UTC);
 
-  /**
-   * Enum to define the precision of a timestamp since the epoch. It provides methods to normalize
-   * any precision to seconds and nanoseconds.
-   */
+  /** Enum to define the precision of a timestamp since the epoch. */
   enum TimestampPrecision {
-    MILLISECONDS(1_000L, 1_000_000L),
-    MICROSECONDS(1_000_000L, 1_000L),
-    NANOSECONDS(1_000_000_000L, 1L);
+    MILLISECONDS,
+    MICROSECONDS,
+    NANOSECONDS;
 
-    private final long divisorForSeconds;
-    private final long nanoMultiplier;
-
-    TimestampPrecision(long divisorForSeconds, long nanoMultiplier) {
-      this.divisorForSeconds = divisorForSeconds;
-      this.nanoMultiplier = nanoMultiplier;
-    }
-
-    public long getDivisorForSeconds() {
-      return divisorForSeconds;
-    }
-
-    public long toNanos(long fractionalPart) {
-      return fractionalPart * this.nanoMultiplier;
-    }
-
-    public String formatFractional(long nanoOfSecond) {
-      if (nanoOfSecond % 1_000_000 == 0) {
-        return String.format(".%03d", nanoOfSecond / 1_000_000);
-      } else if (nanoOfSecond % 1000 == 0) {
-        return String.format(".%06d", nanoOfSecond / 1000);
-      } else {
-        return String.format(".%09d", nanoOfSecond);
+    /** Converts an epoch value of this precision to an Instant. */
+    java.time.Instant toInstant(long epochValue) {
+      switch (this) {
+        case MILLISECONDS:
+          return java.time.Instant.ofEpochMilli(epochValue);
+        case MICROSECONDS:
+          return java.time.Instant.ofEpochSecond(
+              epochValue / 1_000_000L, (epochValue % 1_000_000L) * 1_000L);
+        case NANOSECONDS:
+          return java.time.Instant.ofEpochSecond(
+              epochValue / 1_000_000_000L, epochValue % 1_000_000_000L);
+        default:
+          throw new IllegalStateException("Unknown precision: " + this);
       }
     }
   }
 
   /**
-   * Formats a timestamp value with specified precision.
-   *
-   * @param timestamp The timestamp value in units specified by precision (milliseconds,
-   *     microseconds, or nanoseconds since epoch)
-   * @param precision The precision of the input timestamp
-   * @return Formatted string in "yyyy-MM-dd HH:mm:ss[.fraction]" format
+   * Formats an Instant with minimal fractional second precision. Shows 0, 3, 6, or 9 decimal places
+   * based on actual precision of the value.
    */
   @VisibleForTesting
-  static String formatDatetime(long timestamp, TimestampPrecision precision) {
-    long divisor = precision.getDivisorForSeconds();
-    long timestampSec = timestamp / divisor;
-    long fractionalPart = timestamp % divisor;
+  @SuppressWarnings("JavaInstantGetSecondsGetNano")
+  static String formatDatetime(java.time.Instant instant) {
+    System.out.println(instant);
+    String dateTime = DATE_TIME_FORMATTER.format(instant);
+    int nanos = instant.getNano();
 
-    if (fractionalPart < 0) {
-      fractionalPart += divisor;
-      timestampSec -= 1;
-    }
-
-    String dayAndTime = DATE_AND_SECONDS_FORMATTER.print(timestampSec * 1000);
-
-    long nanoOfSecond = precision.toNanos(fractionalPart);
-
-    if (nanoOfSecond == 0) {
-      return dayAndTime;
+    if (nanos == 0) {
+      return dateTime;
+    } else if (nanos % 1_000_000 == 0) {
+      return dateTime + String.format(".%03d", nanos / 1_000_000);
+    } else if (nanos % 1_000 == 0) {
+      return dateTime + String.format(".%06d", nanos / 1_000);
     } else {
-      return dayAndTime + precision.formatFractional(nanoOfSecond);
+      return dateTime + String.format(".%09d", nanos);
     }
   }
 
-  static String formatTimestamp(long timestamp, TimestampPrecision precision) {
-    return formatDatetime(timestamp, precision) + " UTC";
+  @VisibleForTesting
+  static String formatDatetime(long epochValue, TimestampPrecision precision) {
+    return formatDatetime(precision.toInstant(epochValue));
+  }
+
+  static String formatTimestamp(java.time.Instant instant) {
+    return formatDatetime(instant) + " UTC";
+  }
+
+  static String formatTimestamp(long epochValue, TimestampPrecision precision) {
+    return formatTimestamp(precision.toInstant(epochValue));
   }
 
   /**

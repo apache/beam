@@ -1016,6 +1016,19 @@ public class BigQueryAvroUtilsTest {
 
   @Test
   public void testFormatTimestampInputMillis() {
+    // Min: Earliest timestamp supported by BQ
+    long minMillis = -62135596800000L;
+    String expectedMin = "0001-01-01 00:00:00";
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(
+            minMillis, BigQueryAvroUtils.TimestampPrecision.MILLISECONDS),
+        equalTo(expectedMin));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(
+            minMillis, BigQueryAvroUtils.TimestampPrecision.MILLISECONDS),
+        equalTo(expectedMin + " UTC"));
+
+    // Existing: Regular timestamp
     long millis = 1452062291123L;
     String expected = "2016-01-06 06:38:11.123";
     assertThat(
@@ -1025,11 +1038,34 @@ public class BigQueryAvroUtilsTest {
         BigQueryAvroUtils.formatTimestamp(
             millis, BigQueryAvroUtils.TimestampPrecision.MILLISECONDS),
         equalTo(expected + " UTC"));
+
+    // Max: Latest timestamp supported by BQ
+    long maxMillis = 253402300799999L;
+    String expectedMax = "9999-12-31 23:59:59.999";
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(
+            maxMillis, BigQueryAvroUtils.TimestampPrecision.MILLISECONDS),
+        equalTo(expectedMax));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(
+            maxMillis, BigQueryAvroUtils.TimestampPrecision.MILLISECONDS),
+        equalTo(expectedMax + " UTC"));
   }
 
   @Test
   public void testFormatTimestampInputMicros() {
-    long micros = 1452062291123456L;
+    long minMicro = -62_135_596_800_000_000L;
+    String expectedMin = "0001-01-01 00:00:00";
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(
+            minMicro, BigQueryAvroUtils.TimestampPrecision.MICROSECONDS),
+        equalTo(expectedMin));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(
+            minMicro, BigQueryAvroUtils.TimestampPrecision.MICROSECONDS),
+        equalTo(expectedMin + " UTC"));
+
+    long micros = 1452_062_291_123_456L;
     String expected = "2016-01-06 06:38:11.123456";
     assertThat(
         BigQueryAvroUtils.formatDatetime(micros, BigQueryAvroUtils.TimestampPrecision.MICROSECONDS),
@@ -1038,10 +1074,33 @@ public class BigQueryAvroUtilsTest {
         BigQueryAvroUtils.formatTimestamp(
             micros, BigQueryAvroUtils.TimestampPrecision.MICROSECONDS),
         equalTo(expected + " UTC"));
+
+    // Max: Latest timestamp supported by BQ
+    long maxMicros = 253_402_300_799_999_000L;
+    String expectedMax = "9999-12-31 23:59:59.999";
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(
+            maxMicros, BigQueryAvroUtils.TimestampPrecision.MICROSECONDS),
+        equalTo(expectedMax));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(
+            maxMicros, BigQueryAvroUtils.TimestampPrecision.MICROSECONDS),
+        equalTo(expectedMax + " UTC"));
   }
 
   @Test
   public void testFormatTimestampInputNanos() {
+    long minNanos = Long.MIN_VALUE; // -9223372036854775808L
+    String expectedMin = "1677-09-21 00:12:43.145224192";
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(
+            minNanos, BigQueryAvroUtils.TimestampPrecision.NANOSECONDS),
+        equalTo(expectedMin));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(
+            minNanos, BigQueryAvroUtils.TimestampPrecision.NANOSECONDS),
+        equalTo(expectedMin + " UTC"));
+
     long nanos = 1452062291123456789L;
     String expected = "2016-01-06 06:38:11.123456789";
     assertThat(
@@ -1050,6 +1109,17 @@ public class BigQueryAvroUtilsTest {
     assertThat(
         BigQueryAvroUtils.formatTimestamp(nanos, BigQueryAvroUtils.TimestampPrecision.NANOSECONDS),
         equalTo(expected + " UTC"));
+
+    long maxNanos = Long.MAX_VALUE; // 9223372036854775807L
+    String expectedMax = "2262-04-11 23:47:16.854775807";
+    assertThat(
+        BigQueryAvroUtils.formatDatetime(
+            maxNanos, BigQueryAvroUtils.TimestampPrecision.NANOSECONDS),
+        equalTo(expectedMax));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(
+            maxNanos, BigQueryAvroUtils.TimestampPrecision.NANOSECONDS),
+        equalTo(expectedMax + " UTC"));
   }
 
   @Test

@@ -27,6 +27,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -1355,9 +1356,13 @@ public class AvroUtils {
               + TimeUnit.NANOSECONDS.toMicros(instant.getNano());
         } else if (Timestamp.IDENTIFIER.equals(identifier)) {
           java.time.Instant instant = (java.time.Instant) value;
-          long epochSeconds = instant.getEpochSecond();
-          int nanoOfSecond = instant.getNano();
-          return (epochSeconds * 1_000_000_000L) + nanoOfSecond;
+          // Use BigInteger to work around long overflows so that minimum timestamp can be
+          // supported.
+          BigInteger epochSeconds = BigInteger.valueOf(instant.getEpochSecond());
+          BigInteger nanosOfSecond = BigInteger.valueOf(instant.getNano());
+          BigInteger epochNanos =
+              epochSeconds.multiply(BigInteger.valueOf(1_000_000_000L)).add(nanosOfSecond);
+          return epochNanos.longValueExact();
         } else {
           throw new RuntimeException("Unhandled logical type " + identifier);
         }

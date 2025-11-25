@@ -594,6 +594,8 @@ public class AvroUtilsTest {
       java.time.Instant.parse("2000-01-01T00:00:00.000000001Z"), // 1 nano
       java.time.Instant.parse("2000-01-01T00:00:00.123456789Z"), // full nanos
       java.time.Instant.parse("2000-01-01T00:00:00.999999999Z"), // max nanos
+      java.time.Instant.ofEpochSecond(0L, Long.MAX_VALUE), // max supported
+      java.time.Instant.ofEpochSecond(0L, Long.MIN_VALUE), // min supported
     };
 
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
