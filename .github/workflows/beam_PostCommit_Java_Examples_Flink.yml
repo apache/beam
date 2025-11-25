@@ -80,7 +80,7 @@ jobs:
       - name: run examplesIntegrationTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:1.19:examplesIntegrationTest
+          gradle-command: :runners:flink:1.20:examplesIntegrationTest
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
