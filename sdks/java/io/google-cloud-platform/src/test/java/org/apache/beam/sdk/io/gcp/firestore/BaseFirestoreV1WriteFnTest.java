@@ -129,7 +129,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     Write write = newWrite();
     Element<Write> element1 = new WriteElement(0, write, window);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newWriteAttempt(FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.BatchWrite))
         .thenReturn(attempt);
@@ -175,7 +175,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
   @Override
   @Test
   public final void noRequestIsSentIfNotSafeToProceed() throws Exception {
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newWriteAttempt(FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.BatchWrite))
         .thenReturn(attempt);
@@ -369,7 +369,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     LOG.debug("options = {}", options);
 
     FirestoreStatefulComponentFactory ff = mock(FirestoreStatefulComponentFactory.class);
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     Random random = new Random(12345);
     TestClock clock = new TestClock(Instant.EPOCH, Duration.standardSeconds(1));
     Sleeper sleeper = millis -> clock.setNext(advanceClockBy(Duration.millis(millis)));

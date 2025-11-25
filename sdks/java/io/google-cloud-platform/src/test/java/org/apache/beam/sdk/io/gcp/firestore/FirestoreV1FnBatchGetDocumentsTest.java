@@ -59,7 +59,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
   public Instant readTime;
 
   @Parameterized.Parameter(1)
-  public boolean setDatabaseOnReadFn;
+  public boolean setDatabaseOnFn;
 
   @Rule public MockitoRule rule = MockitoJUnit.rule();
 
@@ -70,7 +70,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
   @Mock private ServerStream<BatchGetDocumentsResponse> responseStream2;
   @Mock private ServerStream<BatchGetDocumentsResponse> responseStream3;
 
-  @Parameterized.Parameters(name = "readTime = {0}, setDatabaseOnReadFn = {1}")
+  @Parameterized.Parameters(name = "readTime = {0}, setDatabaseOnFn = {1}")
   public static Collection<Object[]> data() {
     return Arrays.asList(
         new Object[][] {
@@ -83,14 +83,6 @@ public final class FirestoreV1FnBatchGetDocumentsTest
     return readTime == null
         ? request
         : request.toBuilder().setReadTime(Timestamps.fromMillis(readTime.getMillis())).build();
-  }
-
-  private void mockFirestoreStub() {
-    if (setDatabaseOnReadFn) {
-      when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
-    } else {
-      when(ff.getFirestoreStub(any())).thenReturn(stub);
-    }
   }
 
   @Test
@@ -114,7 +106,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
 
     when(stub.batchGetDocumentsCallable()).thenReturn(callable);
 
-    mockFirestoreStub();
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any()))
         .thenReturn(FirestoreStatefulComponentFactory.INSTANCE.getRpcQos(rpcQosOptions));
 
@@ -200,7 +192,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
 
     when(stub.batchGetDocumentsCallable()).thenReturn(callable);
 
-    mockFirestoreStub();
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newReadAttempt(any())).thenReturn(attempt);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
@@ -263,7 +255,7 @@ public final class FirestoreV1FnBatchGetDocumentsTest
   }
 
   private BatchGetDocumentsFn getFnWithParameters() {
-    if (setDatabaseOnReadFn) {
+    if (setDatabaseOnFn) {
       return new BatchGetDocumentsFn(clock, ff, rpcQosOptions, readTime, projectId, "(default)");
     } else {
       return new BatchGetDocumentsFn(clock, ff, rpcQosOptions, readTime);
