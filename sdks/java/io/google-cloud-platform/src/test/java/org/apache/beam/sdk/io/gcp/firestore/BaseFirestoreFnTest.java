@@ -39,6 +39,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 abstract class BaseFirestoreFnTest<InT, OutT, FnT extends FirestoreDoFn<InT, OutT>> {
 
   protected final String projectId = "testing-project";
+  protected final String databaseId = "firestoredb";
 
   // @Rule public final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
   @Mock protected DoFn<InT, OutT>.StartBundleContext startBundleContext;
