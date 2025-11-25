@@ -39,7 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link Secret} manager implementation that retrieves secrets from Google Cloud Secret Manager.
+ * A {@link Secret} manager implementation that generates a secret using entropy from a GCP HSM key
+ * and stores it in Google Cloud Secret Manager. If the secret already exists, it will be retrieved.
  */
 public class GcpHsmGeneratedSecret implements Secret {
   private static final Logger LOG = LoggerFactory.getLogger(GcpHsmGeneratedSecret.class);
@@ -140,22 +141,47 @@ public class GcpHsmGeneratedSecret implements Secret {
     }
   }
 
+  /**
+   * Returns the project ID of the secret.
+   *
+   * @return The project ID as a String.
+   */
   public String getProjectId() {
     return projectId;
   }
 
+  /**
+   * Returns the location ID of the secret.
+   *
+   * @return The location ID as a String.
+   */
   public String getLocationId() {
     return locationId;
   }
 
+  /**
+   * Returns the key ring ID of the secret.
+   *
+   * @return The key ring ID as a String.
+   */
   public String getKeyRingId() {
     return keyRingId;
   }
 
+  /**
+   * Returns the key ID of the secret.
+   *
+   * @return The key ID as a String.
+   */
   public String getKeyId() {
     return keyId;
   }
 
+  /**
+   * Returns the secret ID of the secret.
+   *
+   * @return The secret ID as a String.
+   */
   public String getSecretId() {
     return secretId;
   }
