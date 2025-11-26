@@ -84,7 +84,7 @@ class GbekIT(unittest.TestCase):
       cls.location_id = 'global'
       py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
       secret_postfix = datetime.now().strftime('%m%d_%H%M%S') + py_version
-      cls.key_ring_id = 'gbekit_key_ring_tests_' + secret_postfix
+      cls.key_ring_id = 'gbekit_key_ring_tests'
       cls.key_ring_path = cls.kms_client.key_ring_path(
           cls.project_id, cls.location_id, cls.key_ring_id)
       try:
@@ -96,7 +96,7 @@ class GbekIT(unittest.TestCase):
                 'parent': parent,
                 'key_ring_id': cls.key_ring_id,
             })
-      cls.key_id = 'gbekit_key_tests_' + secret_postfix
+      cls.key_id = 'gbekit_key_tests'
       cls.key_path = cls.kms_client.crypto_key_path(
           cls.project_id, cls.location_id, cls.key_ring_id, cls.key_id)
       try:
@@ -119,16 +119,6 @@ class GbekIT(unittest.TestCase):
   def tearDownClass(cls):
     if secretmanager is not None:
       cls.client.delete_secret(request={'name': cls.secret_path})
-    if kms is not None and hasattr(cls, 'kms_client') and hasattr(cls,
-                                                                  'key_path'):
-      for version in cls.kms_client.list_crypto_key_versions(
-          request={'parent': cls.key_path}):
-        try:
-          cls.kms_client.destroy_crypto_key_version(
-              request={'name': version.name})
-        except Exception:
-          # Best effort deletion
-          pass
 
   @pytest.mark.it_postcommit
   @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
