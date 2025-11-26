@@ -109,6 +109,7 @@ final class FirestoreTestingHelper implements TestRule {
   private final GcpOptions gcpOptions;
   private final org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions firestoreBeamOptions;
   private final FirestoreOptions firestoreOptions;
+
   private final Firestore fs;
   private final FirestoreRpc rpc;
   private final CleanupMode cleanupMode;
