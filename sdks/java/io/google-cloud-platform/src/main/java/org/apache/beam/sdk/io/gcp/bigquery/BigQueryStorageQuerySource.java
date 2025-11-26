@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.JobStatistics;
@@ -25,6 +26,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
@@ -187,5 +189,27 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
   @Override
   protected @Nullable String getTargetTableId(BigQueryOptions options) throws Exception {
     return null;
+  }
+
+  void removeDestinationIfExists(BigQueryOptions options) throws Exception {
+    DatasetService datasetService = bqServices.getDatasetService(options.as(BigQueryOptions.class));
+    String project = queryTempProject;
+    if (project == null) {
+      project =
+          options.as(BigQueryOptions.class).getBigQueryProject() == null
+              ? options.as(BigQueryOptions.class).getProject()
+              : options.as(BigQueryOptions.class).getBigQueryProject();
+    }
+    String tempTableID =
+        BigQueryResourceNaming.createJobIdPrefix(
+            options.getJobName(), stepUuid, BigQueryResourceNaming.JobType.QUERY);
+    TableReference tempTableReference =
+        createTempTableReference(project, tempTableID, Optional.ofNullable(queryTempDataset));
+    Table destTable = datasetService.getTable(tempTableReference);
+    System.out.println("remoooving" + tempTableReference);
+    if (destTable != null) {
+      System.out.println("remoooving" + tempTableReference);
+      datasetService.deleteTable(tempTableReference);
+    }
   }
 }
