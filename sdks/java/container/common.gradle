@@ -113,11 +113,9 @@ docker {
             'base_image': javaBaseImage,
             'java_version': imageJavaVersion,
     ])
-    // buildx project.useBuildx()
-    buildx true
+    buildx project.useBuildx()
     platform(*project.containerPlatforms())
-    // load project.useBuildx() && !pushContainers
-    load true
+    load project.useBuildx() && !pushContainers
     push pushContainers
 }
 

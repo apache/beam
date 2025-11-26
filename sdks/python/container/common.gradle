@@ -122,11 +122,9 @@ docker {
   buildArgs(['py_version': "${project.ext.pythonVersion}",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
-  // buildx project.useBuildx()
-  buildx true
+  buildx project.useBuildx()
   platform(*project.containerPlatforms())
-  // load project.useBuildx() && !pushContainers
-  load true
+  load project.useBuildx() && !pushContainers
   push pushContainers
 }
 
