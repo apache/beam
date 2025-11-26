@@ -175,11 +175,17 @@ class BigQueryAvroUtils {
         case MILLISECONDS:
           return java.time.Instant.ofEpochMilli(epochValue);
         case MICROSECONDS:
-          return java.time.Instant.ofEpochSecond(
-              epochValue / 1_000_000L, (epochValue % 1_000_000L) * 1_000L);
+          {
+            long seconds = Math.floorDiv(epochValue, 1_000_000L);
+            long microsOfSecond = Math.floorMod(epochValue, 1_000_000L);
+            return java.time.Instant.ofEpochSecond(seconds, microsOfSecond * 1_000L);
+          }
         case NANOSECONDS:
-          return java.time.Instant.ofEpochSecond(
-              epochValue / 1_000_000_000L, epochValue % 1_000_000_000L);
+          {
+            long seconds = Math.floorDiv(epochValue, 1_000_000_000L);
+            long nanosOfSecond = Math.floorMod(epochValue, 1_000_000_000L);
+            return java.time.Instant.ofEpochSecond(seconds, nanosOfSecond);
+          }
         default:
           throw new IllegalStateException("Unknown precision: " + this);
       }

@@ -1197,9 +1197,8 @@ public class AvroUtils {
           baseType =
               LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG));
         } else if (Timestamp.IDENTIFIER.equals(identifier)) {
-          baseType =
-              new org.apache.avro.Schema.Parser()
-                  .parse("{\"type\": \"long\", \"logicalType\": \"timestamp-nanos\"}");
+          baseType = org.apache.avro.Schema.create(Type.LONG);
+          baseType.addProp("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE);
         } else {
           throw new RuntimeException(
               "Unhandled logical type " + checkNotNull(fieldType.getLogicalType()).getIdentifier());
@@ -1419,7 +1418,9 @@ public class AvroUtils {
         if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE
             && org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
                 fieldType.getLogicalType().getIdentifier())) {
-          return java.time.Instant.ofEpochSecond(0L, nanos);
+          long seconds = Math.floorDiv(nanos, 1_000_000_000L);
+          long nanoAdjustment = Math.floorMod(nanos, 1_000_000_000L);
+          return java.time.Instant.ofEpochSecond(seconds, nanoAdjustment);
         } else {
           return nanos;
         }
