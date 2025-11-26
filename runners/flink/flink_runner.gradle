@@ -175,6 +175,11 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.args4j
 
+  // flink-core-api is introduced in Flink 1.20+
+  if (flink_major == '1.20' || flink_major.startsWith('2')) {
+    implementation "org.apache.flink:flink-core-api:$flink_version"
+  }
+
   implementation "org.apache.flink:flink-clients:$flink_version"
   // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
   // configuration (https://issues.apache.org/jira/browse/BEAM-11732).

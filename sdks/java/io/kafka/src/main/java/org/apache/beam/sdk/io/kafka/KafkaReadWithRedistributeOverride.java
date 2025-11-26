@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow;
+package org.apache.beam.sdk.io.kafka;
 
 import java.util.Map;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
-import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -48,8 +46,8 @@ public final class KafkaReadWithRedistributeOverride {
   }
 
   /**
-   * {@link PTransformOverrideFactory} for {@link KafkaIO.Read} that enables {@code
-   * withOffsetDeduplication} when {@code withRedistribute} is enabled.
+   * {@link PTransformOverrideFactory} for {@link org.apache.beam.sdk.io.kafka.KafkaIO.Read} that
+   * enables {@code withOffsetDeduplication} when {@code withRedistribute} is enabled.
    */
   static class Factory<K, V>
       implements PTransformOverrideFactory<

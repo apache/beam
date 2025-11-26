@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow;
+package org.apache.beam.sdk.io.kafka;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
@@ -25,7 +25,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -129,5 +128,6 @@ public class KafkaReadWithRedistributeOverrideTest implements Serializable {
           }
         };
     p.traverseTopologically(visitor);
+    p.enableAbandonedNodeEnforcement(false);
   }
 }
