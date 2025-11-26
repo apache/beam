@@ -55,7 +55,6 @@ ext.dataflowFnapiEnvironmentMajorVersion = '8'
 ext.dataflowLegacyContainerVersion = 'beam-master-20251107'
 ext.dataflowFnapiContainerVersion = 'beam-master-20251107'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
-ext.useDockerBuildx = true
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
