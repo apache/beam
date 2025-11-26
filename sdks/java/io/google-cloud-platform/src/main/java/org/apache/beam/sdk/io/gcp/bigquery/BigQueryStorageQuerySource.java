@@ -206,9 +206,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
     TableReference tempTableReference =
         createTempTableReference(project, tempTableID, Optional.ofNullable(queryTempDataset));
     Table destTable = datasetService.getTable(tempTableReference);
-    System.out.println("remoooving" + tempTableReference);
     if (destTable != null) {
-      System.out.println("remoooving" + tempTableReference);
       datasetService.deleteTable(tempTableReference);
     }
   }
