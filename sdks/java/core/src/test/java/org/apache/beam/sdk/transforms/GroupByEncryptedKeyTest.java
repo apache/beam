@@ -104,8 +104,8 @@ public class GroupByEncryptedKeyTest implements Serializable {
   private static final String SECRET_ID = "gbek-test";
   private static Secret gcpSecret;
   private static Secret gcpHsmGeneratedSecret;
-  private static String keyRingId;
-  private static String keyId;
+  private static final String KEY_RING_ID = "gbek-test-key-ring";
+  private static final String KEY_ID = "gbek-test-key";
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -140,26 +140,34 @@ public class GroupByEncryptedKeyTest implements Serializable {
       com.google.cloud.kms.v1.KeyManagementServiceClient kmsClient =
           com.google.cloud.kms.v1.KeyManagementServiceClient.create();
       String locationId = "global";
-      keyRingId = "gbek-test-key-ring-" + System.currentTimeMillis();
       com.google.cloud.kms.v1.KeyRingName keyRingName =
-          com.google.cloud.kms.v1.KeyRingName.of(PROJECT_ID, locationId, keyRingId);
+          com.google.cloud.kms.v1.KeyRingName.of(PROJECT_ID, locationId, KEY_RING_ID);
       com.google.cloud.kms.v1.LocationName locationName =
           com.google.cloud.kms.v1.LocationName.of(PROJECT_ID, locationId);
-      kmsClient.createKeyRing(
-          locationName, keyRingId, com.google.cloud.kms.v1.KeyRing.newBuilder().build());
+      try {
+        kmsClient.getKeyRing(keyRingName);
+      } catch (Exception e) {
+        kmsClient.createKeyRing(
+            locationName, KEY_RING_ID, com.google.cloud.kms.v1.KeyRing.newBuilder().build());
+      }
 
-      keyId = "gbek-test-key-" + System.currentTimeMillis();
-      com.google.cloud.kms.v1.CryptoKey key =
-          com.google.cloud.kms.v1.CryptoKey.newBuilder()
-              .setPurpose(com.google.cloud.kms.v1.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT)
-              .build();
-      kmsClient.createCryptoKey(keyRingName, keyId, key);
+      com.google.cloud.kms.v1.CryptoKeyName keyName =
+          com.google.cloud.kms.v1.CryptoKeyName.of(PROJECT_ID, locationId, KEY_RING_ID, KEY_ID);
+      try {
+        kmsClient.getCryptoKey(keyName);
+      } catch (Exception e) {
+        com.google.cloud.kms.v1.CryptoKey key =
+            com.google.cloud.kms.v1.CryptoKey.newBuilder()
+                .setPurpose(com.google.cloud.kms.v1.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT)
+                .build();
+        kmsClient.createCryptoKey(keyRingName, KEY_ID, key);
+      }
       gcpHsmGeneratedSecret =
           new GcpHsmGeneratedSecret(
               PROJECT_ID,
               locationId,
-              keyRingId,
-              keyId,
+              KEY_RING_ID,
+              KEY_ID,
               String.format("gbek-test-job-%d", new SecureRandom().nextInt(10000)));
     } catch (Exception e) {
       gcpHsmGeneratedSecret = null;
@@ -171,21 +179,6 @@ public class GroupByEncryptedKeyTest implements Serializable {
     SecretManagerServiceClient client = SecretManagerServiceClient.create();
     SecretName secretName = SecretName.of(PROJECT_ID, SECRET_ID);
     client.deleteSecret(secretName);
-    if (gcpHsmGeneratedSecret != null) {
-      com.google.cloud.kms.v1.KeyManagementServiceClient kmsClient =
-          com.google.cloud.kms.v1.KeyManagementServiceClient.create();
-      com.google.cloud.kms.v1.CryptoKeyName keyName =
-          com.google.cloud.kms.v1.CryptoKeyName.of(PROJECT_ID, "global", keyRingId, keyId);
-      for (com.google.cloud.kms.v1.CryptoKeyVersion version :
-          kmsClient.listCryptoKeyVersions(keyName).iterateAll()) {
-        if (version.getState()
-                == com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionState.ENABLED
-            || version.getState()
-                == com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionState.DISABLED) {
-          kmsClient.destroyCryptoKeyVersion(version.getName());
-        }
-      }
-    }
   }
 
   @Test

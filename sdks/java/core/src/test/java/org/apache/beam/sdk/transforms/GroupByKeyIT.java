@@ -19,10 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import com.google.cloud.kms.v1.CryptoKey;
 import com.google.cloud.kms.v1.CryptoKeyName;
-import com.google.cloud.kms.v1.CryptoKeyVersion;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.kms.v1.KeyRingName;
-import com.google.cloud.kms.v1.LocationName;
 import com.google.cloud.secretmanager.v1.ProjectName;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretName;
@@ -60,8 +58,8 @@ public class GroupByKeyIT {
   private static String gcpSecretVersionName;
   private static String gcpHsmSecretOption;
   private static String secretId;
-  private static String keyRingId;
-  private static String keyId;
+  private static final String KEY_RING_ID = "gbek-it-key-ring";
+  private static final String KEY_ID = "gbek-it-key";
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -102,20 +100,28 @@ public class GroupByKeyIT {
     try {
       KeyManagementServiceClient kmsClient = KeyManagementServiceClient.create();
       String locationId = "global";
-      keyRingId = "gbekit-key-ring-" + new SecureRandom().nextInt(10000);
-      KeyRingName keyRingName = KeyRingName.of(PROJECT_ID, locationId, keyRingId);
-      LocationName locationName = LocationName.of(PROJECT_ID, locationId);
-      kmsClient.createKeyRing(
-          locationName, keyRingId, com.google.cloud.kms.v1.KeyRing.newBuilder().build());
+      KeyRingName keyRingName = KeyRingName.of(PROJECT_ID, locationId, KEY_RING_ID);
+      com.google.cloud.kms.v1.LocationName locationName =
+          com.google.cloud.kms.v1.LocationName.of(PROJECT_ID, locationId);
+      try {
+        kmsClient.getKeyRing(keyRingName);
+      } catch (Exception e) {
+        kmsClient.createKeyRing(
+            locationName, KEY_RING_ID, com.google.cloud.kms.v1.KeyRing.newBuilder().build());
+      }
 
-      keyId = "gbekit-key-" + new SecureRandom().nextInt(10000);
-      CryptoKey key =
-          CryptoKey.newBuilder().setPurpose(CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT).build();
-      kmsClient.createCryptoKey(keyRingName, keyId, key);
+      CryptoKeyName keyName = CryptoKeyName.of(PROJECT_ID, locationId, KEY_RING_ID, KEY_ID);
+      try {
+        kmsClient.getCryptoKey(keyName);
+      } catch (Exception e) {
+        CryptoKey key =
+            CryptoKey.newBuilder().setPurpose(CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT).build();
+        kmsClient.createCryptoKey(keyRingName, KEY_ID, key);
+      }
       gcpHsmSecretOption =
           String.format(
               "type:gcphsmgeneratedsecret;project_id:%s;location_id:%s;key_ring_id:%s;key_id:%s;job_name:%s",
-              PROJECT_ID, locationId, keyRingId, keyId, secretId);
+              PROJECT_ID, locationId, KEY_RING_ID, KEY_ID, secretId);
     } catch (Exception e) {
       gcpHsmSecretOption = null;
     }
@@ -127,16 +133,6 @@ public class GroupByKeyIT {
       SecretManagerServiceClient client = SecretManagerServiceClient.create();
       SecretName secretName = SecretName.of(PROJECT_ID, secretId);
       client.deleteSecret(secretName);
-    }
-    if (gcpHsmSecretOption != null) {
-      KeyManagementServiceClient kmsClient = KeyManagementServiceClient.create();
-      CryptoKeyName keyName = CryptoKeyName.of(PROJECT_ID, "global", keyRingId, keyId);
-      for (CryptoKeyVersion version : kmsClient.listCryptoKeyVersions(keyName).iterateAll()) {
-        if (version.getState() == CryptoKeyVersion.CryptoKeyVersionState.ENABLED
-            || version.getState() == CryptoKeyVersion.CryptoKeyVersionState.DISABLED) {
-          kmsClient.destroyCryptoKeyVersion(version.getName());
-        }
-      }
     }
   }
 
@@ -219,7 +215,7 @@ public class GroupByKeyIT {
       return;
     }
     // Create the secret beforehand
-    new GcpHsmGeneratedSecret(PROJECT_ID, "global", keyRingId, keyId, secretId).getSecretBytes();
+    new GcpHsmGeneratedSecret(PROJECT_ID, "global", KEY_RING_ID, KEY_ID, secretId).getSecretBytes();
 
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     options.setGbek(gcpHsmSecretOption);
