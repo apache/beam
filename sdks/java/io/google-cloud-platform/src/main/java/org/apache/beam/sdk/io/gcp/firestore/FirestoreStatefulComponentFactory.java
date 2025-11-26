@@ -63,6 +63,8 @@ class FirestoreStatefulComponentFactory implements Serializable {
    * <p>The instance returned by this method is expected to bind to the lifecycle of a bundle.
    *
    * @param options The instance of options to read from
+   * @param configuredProjectId The project to target, if null, falls back to value in options.
+   * @param configuredDatabaseId The database to target, if null, falls back to value in options.
    * @return a new {@link FirestoreStub} pre-configured with values from the provided options
    */
   FirestoreStub getFirestoreStub(
