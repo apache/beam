@@ -101,16 +101,16 @@ class FirestoreStatefulComponentFactory implements Serializable {
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
             .setEndpoint(firestoreOptions.getFirestoreHost());
         String projectId =
-          configuredProjectId != null
-            ? configuredProjectId
-            : firestoreOptions.getFirestoreProject();
+            configuredProjectId != null
+                ? configuredProjectId
+                : firestoreOptions.getFirestoreProject();
         if (projectId == null) {
           projectId = gcpOptions.getProject();
         }
         String databaseId =
-          configuredDatabaseId != null ? configuredDatabaseId : firestoreOptions.getFirestoreDb();
+            configuredDatabaseId != null ? configuredDatabaseId : firestoreOptions.getFirestoreDb();
         headers.put(
-          "x-goog-request-params", "project_id=" + projectId + "&database_id=" + databaseId);
+            "x-goog-request-params", "project_id=" + projectId + "&database_id=" + databaseId);
       }
 
       builder.setHeaderProvider(
