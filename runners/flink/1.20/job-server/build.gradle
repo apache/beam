@@ -16,13 +16,16 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'base'
-    id 'org.apache.beam.module'
+def basePath = '../../job-server'
+
+project.ext {
+  // Look for the source code in the parent module
+  main_source_dirs = ["$basePath/src/main/java"]
+  test_source_dirs = ["$basePath/src/test/java"]
+  main_resources_dirs = ["$basePath/src/main/resources"]
+  test_resources_dirs = ["$basePath/src/test/resources"]
+  archives_base_name = 'beam-runners-flink-1.20-job-server'
 }
-applyDockerNature()
-applyPythonNature()
 
-pythonVersion = '3.9'
-
-apply from: "../common.gradle"
+// Load the main build script which contains all build logic.
+apply from: "$basePath/flink_job_server.gradle"

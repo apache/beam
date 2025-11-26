@@ -212,6 +212,7 @@
   permissions:
   - role: roles/artifactregistry.createOnPushWriter
   - role: roles/artifactregistry.reader
+  - role: roles/artifactregistry.writer
   - role: roles/autoscaling.metricsWriter
   - role: roles/bigquery.dataEditor
   - role: roles/bigtable.admin

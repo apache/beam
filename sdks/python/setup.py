@@ -401,7 +401,6 @@ if __name__ == '__main__':
           'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
-          'redis>=5.0.0,<6',
           'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
@@ -588,6 +587,7 @@ if __name__ == '__main__':
               'torch==2.8.0+cpu',
               'transformers>=4.28.0,<4.56.0'
           ],
+          'redis': ['redis>=5.0.0,<6'],
           'tft': [
               'tensorflow_transform>=1.14.0,<1.15.0'
               # tensorflow-transform requires dill, but doesn't set dill as a

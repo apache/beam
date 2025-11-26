@@ -17,8 +17,11 @@
 
 """Pytest configuration and custom hooks."""
 
+import gc
 import os
 import sys
+import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -101,55 +104,50 @@ def configure_beam_rpc_timeouts():
   print("Successfully configured Beam RPC timeouts")
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="class", autouse=True)
 def ensure_clean_state():
   """
-  Ensure clean state before each test
+  Ensure clean state before each test class
   to prevent cross-test contamination.
+  Runs once per test class instead of per test to reduce overhead.
   """
-  import gc
-  import threading
-  import time
-
   # Force garbage collection to clean up any lingering resources
   gc.collect()
 
   # Log active thread count for debugging
   thread_count = threading.active_count()
-  if thread_count > 50:  # Increased threshold since we see 104 threads
-    print(f"Warning: {thread_count} active threads detected before test")
-
+  if thread_count > 50:
+    print(f"Warning: {thread_count} active threads detected before test class")
     # Force a brief pause to let threads settle
     time.sleep(0.5)
     gc.collect()
 
   yield
 
-  # Enhanced cleanup after test
+  # Enhanced cleanup after test class
   try:
     # Force more aggressive cleanup
     gc.collect()
-
     # Brief pause to let any async operations complete
     time.sleep(0.1)
-
     # Additional garbage collection
     gc.collect()
   except Exception as e:
     print(f"Warning: Cleanup error: {e}")
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="class", autouse=True)
 def enhance_mock_stability():
-  """Enhance mock stability in DinD environment."""
-  import time
-
-  # Brief pause before test to ensure clean mock state
+  """
+  Enhance mock stability in DinD environment.
+  Runs once per test class instead of per test to reduce overhead.
+  """
+  # Brief pause before test class to ensure clean mock state
   time.sleep(0.05)
 
   yield
 
-  # Brief pause after test to let mocks clean up
+  # Brief pause after test class to let mocks clean up
   time.sleep(0.05)
 
 
