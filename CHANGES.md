@@ -59,13 +59,12 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.70.0] - Unreleased
+# [2.71.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* Flink 1.20 support added ([#32647](https://github.com/apache/beam/issues/32647)).
 
 ## I/Os
 
@@ -74,10 +73,6 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
-  including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
-* Milvus sink I/O connector added (Python) ([#36702](https://github.com/apache/beam/issues/36702)).
-Now Beam has full support for Milvus integration including Milvus enrichment and sink operations.
 
 ## Breaking Changes
 
@@ -86,7 +81,6 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) Python 3.9 reached EOL in October 2025 and support for the lanugage version has been removed. ([#36665](https://github.com/apache/beam/issues/36665)).
 
 ## Bugfixes
 
@@ -95,6 +89,23 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.70.0] - Unreleased
+
+## Highlights
+
+* Flink 1.20 support added ([#32647](https://github.com/apache/beam/issues/32647)).
+
+## New Features / Improvements
+
+* Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
+  including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
+* Milvus sink I/O connector added (Python) ([#36702](https://github.com/apache/beam/issues/36702)).
+Now Beam has full support for Milvus integration including Milvus enrichment and sink operations.
+
+## Deprecations
+
+* (Python) Python 3.9 reached EOL in October 2025 and support for the language version has been removed. ([#36665](https://github.com/apache/beam/issues/36665)).
 
 # [2.69.0] - 2025-10-28
 
