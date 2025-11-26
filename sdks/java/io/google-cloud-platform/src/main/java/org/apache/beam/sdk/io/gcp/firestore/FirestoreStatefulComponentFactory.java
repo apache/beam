@@ -65,25 +65,6 @@ class FirestoreStatefulComponentFactory implements Serializable {
    * @param options The instance of options to read from
    * @return a new {@link FirestoreStub} pre-configured with values from the provided options
    */
-  FirestoreStub getFirestoreStub(PipelineOptions options) {
-    return getFirestoreStub(options, null, null);
-  }
-
-  /**
-   * Given a {@link PipelineOptions}, return a pre-configured {@link FirestoreStub} with values set
-   * based on those options.
-   *
-   * <p>The provided {@link PipelineOptions} is expected to provide {@link FirestoreOptions} and
-   * {@link org.apache.beam.sdk.extensions.gcp.options.GcpOptions GcpOptions} for access to {@link
-   * GcpOptions#getProject()}
-   *
-   * <p>The instance returned by this method is expected to bind to the lifecycle of a bundle.
-   *
-   * @param options The instance of options to read from
-   * @param configuredProjectId The Project ID to target.
-   * @param configuredDatabaseId The Database ID to target.
-   * @return a new {@link FirestoreStub} pre-configured with values from the provided options
-   */
   FirestoreStub getFirestoreStub(
       PipelineOptions options,
       @Nullable String configuredProjectId,
@@ -118,16 +99,16 @@ class FirestoreStatefulComponentFactory implements Serializable {
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
             .setEndpoint(firestoreOptions.getFirestoreHost());
         String projectId =
-            configuredProjectId != null
-                ? configuredProjectId
-                : firestoreOptions.getFirestoreProject();
+          configuredProjectId != null
+            ? configuredProjectId
+            : firestoreOptions.getFirestoreProject();
         if (projectId == null) {
           projectId = gcpOptions.getProject();
         }
         String databaseId =
-            configuredDatabaseId != null ? configuredDatabaseId : firestoreOptions.getFirestoreDb();
+          configuredDatabaseId != null ? configuredDatabaseId : firestoreOptions.getFirestoreDb();
         headers.put(
-            "x-goog-request-params", "project_id=" + projectId + "&database_id=" + databaseId);
+          "x-goog-request-params", "project_id=" + projectId + "&database_id=" + databaseId);
       }
 
       builder.setHeaderProvider(
