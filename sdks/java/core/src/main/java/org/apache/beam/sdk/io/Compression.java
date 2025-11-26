@@ -99,7 +99,9 @@ public enum Compression {
 
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
-      return Channels.newChannel(new GZIPOutputStream(Channels.newOutputStream(channel), true));
+      // Increase the default deflate output stream buffer size from 512 to 4096 for performance.
+      return Channels.newChannel(
+          new GZIPOutputStream(Channels.newOutputStream(channel), 4096, true));
     }
   },
 

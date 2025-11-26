@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-plugins {
-    id 'base'
-    id 'org.apache.beam.module'
+def basePath = '../../job-server-container'
+
+project.ext {
+  resource_path = basePath
 }
-applyDockerNature()
-applyPythonNature()
 
-pythonVersion = '3.9'
-
-apply from: "../common.gradle"
+// Load the main build script which contains all build logic.
+apply from: "$basePath/flink_job_server_container.gradle"

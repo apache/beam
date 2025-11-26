@@ -42,6 +42,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.CleanupMode;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.DataLayout;
@@ -97,7 +98,7 @@ abstract class BaseFirestoreIT {
   @Before
   public void setup() {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    databaseId = "firestoredb";
+    databaseId = TestPipeline.testingPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
   }
 
   private static Instant toWriteTime(WriteResult result) {

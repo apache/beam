@@ -97,6 +97,8 @@ jobs:
         id: dind
         if: contains(matrix.os, 'self-hosted')
         with:
+          # Pin to stable Docker version to avoid compatibility issues
+          dind-image: "docker:27-dind"
           # Enable all the new features
           cleanup-dind-on-start: "true"
           smoke-test-port-mapping: "true"

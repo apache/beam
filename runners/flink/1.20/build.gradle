@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
-applyPythonNature()
+project.ext {
+    flink_major = '1.20'
+    flink_version = '1.20.3'
+}
 
-// Required to setup a Python 3 virtualenv and task names.
-pythonVersion = '3.9'
-apply from: '../common.gradle'
+// Load the main build script which contains all build logic.
+apply from: "../flink_runner.gradle"

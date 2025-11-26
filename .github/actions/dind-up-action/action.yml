@@ -43,7 +43,7 @@ inputs:
   storage-driver:
     default: overlay2
   additional-dockerd-args:
-    default: ""
+    default: "--tls=false"
   use-host-network:
     description: "Run DinD with --network host instead of publishing a TCP port."
     default: "false"
@@ -57,6 +57,9 @@ inputs:
     default: 10s
   wait-timeout:
     default: "180"
+  dind-image:
+    description: "DinD image. Use a fixed version tag to avoid issues."
+    default: "docker:27-dind"
 
   # --- NEW: Optional Setup & Verification Steps ---
   cleanup-dind-on-start:
@@ -129,7 +132,11 @@ runs:
 
         docker volume create --name "${STORAGE_VOL}" --label "com.github.dind=1" --label "com.github.repo=${GITHUB_REPOSITORY}" >/dev/null
         docker volume create --name "${EXECROOT_VOL}" --label "com.github.dind=1" --label "com.github.repo=${GITHUB_REPOSITORY}" >/dev/null
+
+        # Clean up any existing DinD containers
+        docker ps -a -q --filter "label=com.github.dind=1" | xargs -r docker rm -f -v 2>/dev/null || true
         docker rm -f -v "$NAME" 2>/dev/null || true
+        sleep 2
 
         NET_ARGS=""
         PUBLISH_ARGS="-p ${BIND}:${PORT}:${PORT}"
@@ -137,6 +144,8 @@ runs:
           NET_ARGS="--network host"
           PUBLISH_ARGS=""
         fi
+
+        IMAGE="${{ inputs.dind-image || 'docker:27-dind' }}"
 
         docker run -d --privileged --name "$NAME" \
           --cgroupns=host \
@@ -152,10 +161,11 @@ runs:
           --health-interval=${HI} \
           --health-retries=${HR} \
           --health-start-period=${HSP} \
-          docker:dind \
+          "${IMAGE}" \
             --host=tcp://0.0.0.0:${PORT} \
             --host=unix:///var/run/docker.sock \
             --storage-driver=${SD} \
+            --iptables=false \
             --exec-root=/execroot ${EXTRA}
 
         {
@@ -206,20 +216,20 @@ runs:
       run: |
         set -euo pipefail
         NAME="${{ inputs.container-name || 'dind-daemon' }}"
-        
+
         # Use host daemon to inspect the DinD container
         nm=$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$NAME")
         echo "DinD NetworkMode=${nm}"
 
         # Try to find the bridge network IP
         ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$NAME" || true)
-        
+
         # If still empty, likely host networking -> use loopback
         if [[ -z "${ip}" || "${nm}" == "host" ]]; then
           echo "No bridge IP found or using host network. Falling back to 127.0.0.1."
           ip="127.0.0.1"
         fi
-        
+
         echo "Discovered DinD IP: ${ip}"
         echo "dind-ip=${ip}" >> "$GITHUB_OUTPUT"
 
@@ -237,7 +247,7 @@ runs:
         hostport=$(docker port redis-smoke 6379/tcp | sed 's/.*://')
         echo "Redis container started, mapped to host port ${hostport}"
         echo "Probing connection to ${DIND_IP}:${hostport} ..."
-        
+
         timeout 5 bash -c 'exec 3<>/dev/tcp/$DIND_IP/'"$hostport"
         if [[ $? -eq 0 ]]; then
           echo "TCP connection successful. Port mapping is working."
