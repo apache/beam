@@ -72,8 +72,7 @@
 
 ## New Features / Improvements
 
-* Python examples added for Milvus search enrichment handler on [Beam Website](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/)
-  including jupyter notebook example (Python) ([#36176](https://github.com/apache/beam/issues/36176)).
+* Support configuring Firestore database on ReadFn transforms (Java) ([#36904](https://github.com/apache/beam/issues/36904)).
 
 ## Breaking Changes
 
