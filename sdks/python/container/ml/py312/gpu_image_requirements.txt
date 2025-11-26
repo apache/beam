@@ -236,7 +236,7 @@ python-tds==1.17.1
 pytz==2025.2
 PyYAML==6.0.3
 pyzmq==27.1.0
-ray==2.51.1
+ray==2.52.0
 redis==5.3.1
 referencing==0.37.0
 regex==2025.10.23
