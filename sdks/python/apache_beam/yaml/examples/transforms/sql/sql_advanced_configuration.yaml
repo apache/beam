@@ -1,0 +1,87 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Advanced SQL Transform Configuration Examples
+# This example demonstrates multiple calcite_connection_properties and their effects.
+
+pipeline:
+  transforms:
+    - type: Create
+      name: CreateComplexData
+      config:
+        elements:
+          - {id: 1, name: "Product A", price: 29.99, tags: ["electronics", "gadget"], metadata: '{"brand": "TechCorp", "warranty": 12}'}
+          - {id: 2, name: "Product B", price: 15.50, tags: ["books", "fiction"], metadata: '{"author": "John Doe", "pages": 320}'}
+          - {id: 3, name: "Product C", price: 199.99, tags: ["electronics", "computer"], metadata: '{"brand": "CompuTech", "warranty": 24}'}
+
+    # Example 1: Standard SQL with strict conformance
+    - type: Sql
+      name: StandardSQL
+      input: CreateComplexData
+      config:
+        query: |
+          SELECT 
+            id,
+            name,
+            price,
+            CASE 
+              WHEN price < 20 THEN 'Budget'
+              WHEN price < 100 THEN 'Mid-range'
+              ELSE 'Premium'
+            END as price_category
+          FROM PCOLLECTION
+          WHERE price > 10
+          ORDER BY price
+
+    # Example 2: Using Oracle-style functions
+    - type: Sql
+      name: OracleStyleSQL
+      input: CreateComplexData
+      config:
+        query: |
+          SELECT 
+            id,
+            name,
+            price,
+            -- Oracle-style string functions
+            SUBSTR(name, 1, 10) as short_name,
+            LENGTH(name) as name_length,
+            NVL(name, 'Unknown') as safe_name
+          FROM PCOLLECTION
+
+    - type: LogForTesting
+      input: StandardSQL
+      
+    - type: LogForTesting
+      input: OracleStyleSQL
+
+# Multiple calcite_connection_properties can be configured:
+# - conformance: Controls SQL conformance level (LENIENT, STRICT, etc.)
+# - caseSensitive: Whether identifiers are case sensitive
+# - quotedCasing: How to handle quoted identifiers (UNCHANGED, TO_UPPER, TO_LOWER)
+# - unquotedCasing: How to handle unquoted identifiers
+# - fun: SQL function library (standard, oracle, mysql, postgresql, bigquery, etc.)
+# - lex: Lexical analysis rules (standard, oracle, mysql, big_query, etc.)
+options:
+  calcite_connection_properties:
+    conformance: "LENIENT"
+    fun: "oracle"
+    lex: "oracle" 
+    caseSensitive: "false"
+    quotedCasing: "UNCHANGED"
+    unquotedCasing: "TO_UPPER"
+  streaming: false

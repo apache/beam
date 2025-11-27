@@ -1,0 +1,66 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# SQL Transform with MySQL Functions and Syntax
+# This example shows how to configure calcite_connection_properties for MySQL-specific SQL features.
+
+pipeline:
+  transforms:
+    - type: Create
+      name: CreateUserData
+      config:
+        elements:
+          - {user_id: 1, username: "alice_123", registration_date: "2024-01-15", last_login: "2024-01-20 14:30:15", profile_data: '{"age": 30, "city": "Seattle"}'}
+          - {user_id: 2, username: "bob.jones", registration_date: "2024-01-10", last_login: "2024-01-19 09:45:22", profile_data: '{"age": 25, "city": "Portland"}'}
+          - {user_id: 3, username: "charlie_brown", registration_date: "2024-01-05", last_login: "2024-01-21 16:20:33", profile_data: '{"age": 35, "city": "San Francisco"}'}
+
+    - type: Sql
+      name: ProcessUserData
+      input: CreateUserData
+      config:
+        query: |
+          SELECT 
+            user_id,
+            username,
+            registration_date,
+            last_login,
+            -- MySQL date/time functions
+            DATEDIFF(last_login, registration_date) as days_since_registration,
+            DATE_FORMAT(last_login, '%Y-%m-%d') as login_date,
+            DATE_FORMAT(last_login, '%H:%i:%s') as login_time,
+            -- MySQL string functions
+            SUBSTRING_INDEX(username, '_', 1) as username_prefix,
+            CASE 
+              WHEN LOCATE('_', username) > 0 THEN 'has_underscore'
+              WHEN LOCATE('.', username) > 0 THEN 'has_dot'
+              ELSE 'alphanumeric_only'
+            END as username_format,
+            -- MySQL conditional functions
+            IF(DATEDIFF(CURRENT_DATE, registration_date) < 7, 'new_user', 'existing_user') as user_type
+          FROM PCOLLECTION
+          ORDER BY days_since_registration DESC
+
+    - type: LogForTesting
+      input: ProcessUserData
+
+# Configure Calcite for MySQL SQL dialect
+# This enables MySQL-specific functions like DATEDIFF, SUBSTRING_INDEX, LOCATE, etc.
+options:
+  calcite_connection_properties:
+    fun: "mysql"
+    lex: "mysql"
+  streaming: false
