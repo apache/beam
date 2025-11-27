@@ -231,7 +231,13 @@ public class WindowedValues {
 
     public WindowedValue<T> build() {
       return WindowedValues.of(
-          getValue(), getTimestamp(), getWindows(), getPaneInfo(), null, null, causedByDrain());
+          getValue(),
+          getTimestamp(),
+          getWindows(),
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain());
     }
 
     @Override
