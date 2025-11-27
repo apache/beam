@@ -27,7 +27,4 @@ RedirectMatch "/contribute/release-guide" "https://github.com/apache/beam/blob/m
 
 RedirectMatch "/contribute/committer-guide" "https://github.com/apache/beam/blob/master/contributor-docs/committer-guide.md"
 
-# Allow embedding content from play.beam.apache.org, youtube.com, drive.google.com, platform.twitter.com,
-# static.hotjar.com, cse.google.com, www.google.com/cse, clients1.google.com and fonts.gstatic.com.
-# This is the standard way to add local exceptions to the CSP, see https://infra.apache.org/tools/csp.html
-SetEnv CSP_PROJECT_DOMAINS "https://play.beam.apache.org/ https://www.youtube.com/ https://drive.google.com/ https://platform.twitter.com/ https://static.hotjar.com/ https://cse.google.com/ http://cse.google.com/ https://www.google.com/cse/ https://fonts.gstatic.com/"
+Header set Content-Security-Policy "frame-src 'self' https://play.beam.apache.org/ https://www.youtube.com/ https://drive.google.com/ ;"
