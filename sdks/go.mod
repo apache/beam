@@ -31,7 +31,7 @@ require (
 	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/pubsub v1.50.1
 	cloud.google.com/go/spanner v1.86.1
-	cloud.google.com/go/storage v1.57.1
+	cloud.google.com/go/storage v1.57.2
 	github.com/aws/aws-sdk-go-v2 v1.40.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.2
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.2
@@ -141,7 +141,7 @@ require (
 	cloud.google.com/go v0.121.6 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
-	cloud.google.com/go/longrunning v0.6.7 // indirect
+	cloud.google.com/go/longrunning v0.7.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20211112161151-bc219186db40 // indirect
