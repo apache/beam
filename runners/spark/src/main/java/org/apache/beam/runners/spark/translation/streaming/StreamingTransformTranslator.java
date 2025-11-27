@@ -106,22 +106,25 @@ import scala.collection.JavaConverters;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
-/** Supports translation between a Beam transform, and Spark's operations on DStreams. */
+/**
+ * Supports translation between a Beam transform, and Spark's operations on
+ * DStreams.
+ */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class StreamingTransformTranslator {
 
-  private StreamingTransformTranslator() {}
+  private StreamingTransformTranslator() {
+  }
 
   private static <T> TransformEvaluator<ConsoleIO.Write.Unbound<T>> print() {
     return new TransformEvaluator<ConsoleIO.Write.Unbound<T>>() {
       @Override
       public void evaluate(ConsoleIO.Write.Unbound<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
-        JavaDStream<WindowedValue<T>> dstream =
-            ((UnboundedDataset<T>) context.borrowDataset(transform)).getDStream();
+        JavaDStream<WindowedValue<T>> dstream = ((UnboundedDataset<T>) context.borrowDataset(transform)).getDStream();
         dstream.map(WindowedValue::getValue).print(transform.getNum());
       }
 
@@ -137,16 +140,14 @@ public final class StreamingTransformTranslator {
       @Override
       public void evaluate(Impulse transform, EvaluationContext context) {
         ClassTag<WindowedValue<byte[]>> classTag = ClassTag$.MODULE$.apply(WindowedValue.class);
-        JavaRDD<WindowedValue<byte[]>> rdd =
-            context
-                .getSparkContext()
-                .parallelize(
-                    Collections.singletonList(WindowedValues.valueInGlobalWindow(new byte[0])));
-        ConstantInputDStream<WindowedValue<byte[]>> inputStream =
-            new ConstantInputDStream<>(context.getStreamingContext().ssc(), rdd.rdd(), classTag);
+        JavaRDD<WindowedValue<byte[]>> rdd = context
+            .getSparkContext()
+            .parallelize(
+                Collections.singletonList(WindowedValues.valueInGlobalWindow(new byte[0])));
+        ConstantInputDStream<WindowedValue<byte[]>> inputStream = new ConstantInputDStream<>(
+            context.getStreamingContext().ssc(), rdd.rdd(), classTag);
         JavaDStream<WindowedValue<byte[]>> stream = new JavaDStream<>(inputStream, classTag);
-        UnboundedDataset<byte[]> output =
-            new UnboundedDataset<>(stream, Collections.singletonList(inputStream.id()));
+        UnboundedDataset<byte[]> output = new UnboundedDataset<>(stream, Collections.singletonList(inputStream.id()));
         context.putDataset(transform, output);
       }
 
@@ -185,11 +186,10 @@ public final class StreamingTransformTranslator {
       @Override
       public void evaluate(TestStream<T> transform, EvaluationContext context) {
         TestDStream<T> dStream = new TestDStream<>(transform, context.getStreamingContext().ssc());
-        JavaInputDStream<WindowedValue<T>> javaDStream =
-            new JavaInputDStream<>(dStream, JavaSparkContext$.MODULE$.fakeClassTag());
+        JavaInputDStream<WindowedValue<T>> javaDStream = new JavaInputDStream<>(dStream,
+            JavaSparkContext$.MODULE$.fakeClassTag());
 
-        UnboundedDataset<T> dataset =
-            new UnboundedDataset<>(javaDStream, Collections.singletonList(dStream.id()));
+        UnboundedDataset<T> dataset = new UnboundedDataset<>(javaDStream, Collections.singletonList(dStream.id()));
         context.putDataset(transform, dataset);
       }
 
@@ -205,18 +205,15 @@ public final class StreamingTransformTranslator {
       @Override
       public void evaluate(CreateStream<T> transform, EvaluationContext context) {
 
-        final Queue<JavaRDD<WindowedValue<T>>> rddQueue =
-            buildRdds(
-                transform.getBatches(),
-                context.getStreamingContext(),
-                context.getOutput(transform).getCoder());
+        final Queue<JavaRDD<WindowedValue<T>>> rddQueue = buildRdds(
+            transform.getBatches(),
+            context.getStreamingContext(),
+            context.getOutput(transform).getCoder());
 
-        final JavaInputDStream<WindowedValue<T>> javaInputDStream =
-            buildInputStream(rddQueue, transform, context);
+        final JavaInputDStream<WindowedValue<T>> javaInputDStream = buildInputStream(rddQueue, transform, context);
 
-        final UnboundedDataset<T> unboundedDataset =
-            new UnboundedDataset<>(
-                javaInputDStream, Collections.singletonList(javaInputDStream.inputDStream().id()));
+        final UnboundedDataset<T> unboundedDataset = new UnboundedDataset<>(
+            javaInputDStream, Collections.singletonList(javaInputDStream.inputDStream().id()));
 
         // add pre-baked Watermarks for the pre-baked batches.
         GlobalWatermarkHolder.addAll(
@@ -228,27 +225,24 @@ public final class StreamingTransformTranslator {
       private Queue<JavaRDD<WindowedValue<T>>> buildRdds(
           Queue<Iterable<TimestampedValue<T>>> batches, JavaStreamingContext jssc, Coder<T> coder) {
 
-        final WindowedValues.FullWindowedValueCoder<T> windowCoder =
-            WindowedValues.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
+        final WindowedValues.FullWindowedValueCoder<T> windowCoder = WindowedValues.FullWindowedValueCoder.of(coder,
+            GlobalWindow.Coder.INSTANCE);
 
         final Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
 
         for (final Iterable<TimestampedValue<T>> timestampedValues : batches) {
-          final Iterable<WindowedValue<T>> windowedValues =
-              StreamSupport.stream(timestampedValues.spliterator(), false)
-                  .map(
-                      timestampedValue ->
-                          WindowedValues.of(
-                              timestampedValue.getValue(),
-                              timestampedValue.getTimestamp(),
-                              GlobalWindow.INSTANCE,
-                              PaneInfo.NO_FIRING))
-                  .collect(Collectors.toList());
+          final Iterable<WindowedValue<T>> windowedValues = StreamSupport.stream(timestampedValues.spliterator(), false)
+              .map(
+                  timestampedValue -> WindowedValues.of(
+                      timestampedValue.getValue(),
+                      timestampedValue.getTimestamp(),
+                      GlobalWindow.INSTANCE,
+                      PaneInfo.NO_FIRING))
+              .collect(Collectors.toList());
 
-          final JavaRDD<WindowedValue<T>> rdd =
-              jssc.sparkContext()
-                  .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
-                  .map(CoderHelpers.fromByteFunction(windowCoder));
+          final JavaRDD<WindowedValue<T>> rdd = jssc.sparkContext()
+              .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
+              .map(CoderHelpers.fromByteFunction(windowCoder));
 
           rddQueue.offer(rdd);
         }
@@ -305,20 +299,18 @@ public final class StreamingTransformTranslator {
           }
         }
         // start by unifying streams into a single stream.
-        JavaDStream<WindowedValue<T>> unifiedStreams =
-            context
-                .getStreamingContext()
-                .<WindowedValue<T>>union(
-                    (scala.collection.immutable.Seq)
-                        JavaConverters.asScalaBuffer(dStreams).toSeq());
+        JavaDStream<WindowedValue<T>> unifiedStreams = context
+            .getStreamingContext()
+            .<WindowedValue<T>>union(
+                (scala.collection.immutable.Seq) JavaConverters.asScalaBuffer(dStreams).toList());
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
       }
 
       private JavaDStream<WindowedValue<T>> buildDStream(
           final StreamingContext ssc, final BoundedDataset<T> dataset) {
 
-        final SingleEmitInputDStream<WindowedValue<T>> singleEmitDStream =
-            new SingleEmitInputDStream<>(ssc, dataset.getRDD().rdd());
+        final SingleEmitInputDStream<WindowedValue<T>> singleEmitDStream = new SingleEmitInputDStream<>(ssc,
+            dataset.getRDD().rdd());
 
         return JavaDStream.fromDStream(singleEmitDStream, JavaSparkContext$.MODULE$.fakeClassTag());
       }
@@ -335,16 +327,14 @@ public final class StreamingTransformTranslator {
       @Override
       public void evaluate(final Window.Assign<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
-        UnboundedDataset<T> unboundedDataset =
-            (UnboundedDataset<T>) context.borrowDataset(transform);
+        UnboundedDataset<T> unboundedDataset = (UnboundedDataset<T>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<T>> dStream = unboundedDataset.getDStream();
         JavaDStream<WindowedValue<T>> outputStream;
         if (TranslationUtils.skipAssignWindows(transform, context)) {
           // do nothing.
           outputStream = dStream;
         } else {
-          outputStream =
-              dStream.transform(rdd -> rdd.map(new SparkAssignWindowFn<>(transform.getWindowFn())));
+          outputStream = dStream.transform(rdd -> rdd.map(new SparkAssignWindowFn<>(transform.getWindowFn())));
         }
         context.putDataset(
             transform, new UnboundedDataset<>(outputStream, unboundedDataset.getStreamSources()));
@@ -362,23 +352,22 @@ public final class StreamingTransformTranslator {
       @Override
       public void evaluate(GroupByKey<K, V> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
-        UnboundedDataset<KV<K, V>> inputDataset =
-            (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
+        UnboundedDataset<KV<K, V>> inputDataset = (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
         List<Integer> streamSources = inputDataset.getStreamSources();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
-        final WindowingStrategy<?, W> windowingStrategy =
-            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        final WindowingStrategy<?, W> windowingStrategy = (WindowingStrategy<?, W>) context.getInput(transform)
+            .getWindowingStrategy();
         @SuppressWarnings("unchecked")
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
 
         // --- coders.
-        final WindowedValues.WindowedValueCoder<V> wvCoder =
-            WindowedValues.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+        final WindowedValues.WindowedValueCoder<V> wvCoder = WindowedValues.FullWindowedValueCoder
+            .of(coder.getValueCoder(), windowFn.windowCoder());
 
-        JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
-            SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
+        JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream = SparkGroupAlsoByWindowViaWindowSet
+            .groupByKeyAndWindow(
                 dStream,
                 coder.getKeyCoder(),
                 wvCoder,
@@ -397,47 +386,38 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  private static <ElemT, ViewT>
-      TransformEvaluator<CreateStreamingSparkView.CreateSparkPCollectionView<ElemT, ViewT>>
-          streamingSideInput() {
-    return new TransformEvaluator<
-        CreateStreamingSparkView.CreateSparkPCollectionView<ElemT, ViewT>>() {
+  @SuppressWarnings({ "rawtypes", "unchecked" })
+  private static <ElemT, ViewT> TransformEvaluator<CreateStreamingSparkView.CreateSparkPCollectionView<ElemT, ViewT>> streamingSideInput() {
+    return new TransformEvaluator<CreateStreamingSparkView.CreateSparkPCollectionView<ElemT, ViewT>>() {
       @Override
       public void evaluate(
           CreateStreamingSparkView.CreateSparkPCollectionView<ElemT, ViewT> transform,
           EvaluationContext context) {
         final PCollection<List<ElemT>> input = context.getInput(transform);
-        final UnboundedDataset<ElemT> dataset =
-            (UnboundedDataset<ElemT>) context.borrowDataset(input);
+        final UnboundedDataset<ElemT> dataset = (UnboundedDataset<ElemT>) context.borrowDataset(input);
         final PCollectionView<ViewT> output = transform.getView();
 
         final JavaDStream<WindowedValue<ElemT>> dStream = dataset.getDStream();
 
-        Coder<WindowedValue<?>> coderInternal =
-            (Coder)
-                WindowedValues.getFullCoder(
-                    ListCoder.of(output.getCoderInternal()),
-                    output.getWindowingStrategyInternal().getWindowFn().windowCoder());
+        Coder<WindowedValue<?>> coderInternal = (Coder) WindowedValues.getFullCoder(
+            ListCoder.of(output.getCoderInternal()),
+            output.getWindowingStrategyInternal().getWindowFn().windowCoder());
 
         // Convert JavaDStream to byte array
         // The (JavaDStream) cast is used to prevent CheckerFramework type checking
         // errors
         // CheckerFramework treats mismatched generic type parameters as errors,
         // but at runtime this is safe due to type erasure
-        final JavaDStream<byte[]> byteConverted =
-            (JavaDStream)
-                dStream.mapPartitions(
-                    (Iterator<WindowedValue<ElemT>> iter) ->
-                        CoderHelpers.toByteArrays(iter, (Coder) coderInternal).iterator());
+        final JavaDStream<byte[]> byteConverted = (JavaDStream) dStream.mapPartitions(
+            (Iterator<WindowedValue<ElemT>> iter) -> CoderHelpers.toByteArrays(iter, (Coder) coderInternal).iterator());
 
         // Update side input values whenever a new RDD arrives
         final SparkPCollectionView pViews = context.getPViews();
         byteConverted.foreachRDD(
             (JavaRDD<byte[]> rdd) -> {
               final List<byte[]> collect = rdd.collect();
-              final Iterable<WindowedValue<ElemT>> iterable =
-                  CoderHelpers.fromByteArrays(collect, (Coder) coderInternal);
+              final Iterable<WindowedValue<ElemT>> iterable = CoderHelpers.fromByteArrays(collect,
+                  (Coder) coderInternal);
 
               if (!Iterables.isEmpty(iterable)) {
                 pViews.putStreamingPView(
@@ -463,43 +443,38 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <K, InputT, OutputT>
-      TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>> combineGrouped() {
+  private static <K, InputT, OutputT> TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>> combineGrouped() {
     return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
       @Override
       public void evaluate(
           final Combine.GroupedValues<K, InputT, OutputT> transform, EvaluationContext context) {
         // get the applied combine function.
-        PCollection<? extends KV<K, ? extends Iterable<InputT>>> input =
-            context.getInput(transform);
+        PCollection<? extends KV<K, ? extends Iterable<InputT>>> input = context.getInput(transform);
         final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
         @SuppressWarnings("unchecked")
-        final CombineWithContext.CombineFnWithContext<InputT, ?, OutputT> fn =
-            (CombineWithContext.CombineFnWithContext<InputT, ?, OutputT>)
-                CombineFnUtil.toFnWithContext(transform.getFn());
+        final CombineWithContext.CombineFnWithContext<InputT, ?, OutputT> fn = (CombineWithContext.CombineFnWithContext<InputT, ?, OutputT>) CombineFnUtil
+            .toFnWithContext(transform.getFn());
 
         @SuppressWarnings("unchecked")
-        UnboundedDataset<KV<K, Iterable<InputT>>> unboundedDataset =
-            (UnboundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform);
+        UnboundedDataset<KV<K, Iterable<InputT>>> unboundedDataset = (UnboundedDataset<KV<K, Iterable<InputT>>>) context
+            .borrowDataset(transform);
         JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> dStream = unboundedDataset.getDStream();
 
         final SerializablePipelineOptions options = context.getSerializableOptions();
         final SparkPCollectionView pviews = context.getPViews();
 
-        JavaDStream<WindowedValue<KV<K, OutputT>>> outStream =
-            dStream.transform(
-                rdd -> {
-                  SparkCombineFn<KV<K, InputT>, InputT, ?, OutputT> combineFnWithContext =
-                      SparkCombineFn.keyed(
-                          fn,
-                          options,
-                          TranslationUtils.getSideInputs(
-                              transform.getSideInputs(),
-                              new JavaSparkContext(rdd.context()),
-                              pviews),
-                          windowingStrategy);
-                  return rdd.map(new TranslationUtils.CombineGroupedValues<>(combineFnWithContext));
-                });
+        JavaDStream<WindowedValue<KV<K, OutputT>>> outStream = dStream.transform(
+            rdd -> {
+              SparkCombineFn<KV<K, InputT>, InputT, ?, OutputT> combineFnWithContext = SparkCombineFn.keyed(
+                  fn,
+                  options,
+                  TranslationUtils.getSideInputs(
+                      transform.getSideInputs(),
+                      new JavaSparkContext(rdd.context()),
+                      pviews),
+                  windowingStrategy);
+              return rdd.map(new TranslationUtils.CombineGroupedValues<>(combineFnWithContext));
+            });
 
         context.putDataset(
             transform, new UnboundedDataset<>(outStream, unboundedDataset.getStreamSources()));
@@ -528,12 +503,10 @@ public final class StreamingTransformTranslator {
             "onWindowExpiration is not supported: %s",
             doFn);
 
-        boolean stateful =
-            signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
+        boolean stateful = signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
 
         if (stateful) {
-          final StatefulStreamingParDoEvaluator<?, ?, ?> delegate =
-              new StatefulStreamingParDoEvaluator<>();
+          final StatefulStreamingParDoEvaluator<?, ?, ?> delegate = new StatefulStreamingParDoEvaluator<>();
 
           delegate.evaluate((ParDo.MultiOutput) transform, context);
           return;
@@ -541,77 +514,69 @@ public final class StreamingTransformTranslator {
 
         final SerializablePipelineOptions options = context.getSerializableOptions();
         final SparkPCollectionView pviews = context.getPViews();
-        final WindowingStrategy<?, ?> windowingStrategy =
-            context.getInput(transform).getWindowingStrategy();
+        final WindowingStrategy<?, ?> windowingStrategy = context.getInput(transform).getWindowingStrategy();
         Coder<InputT> inputCoder = (Coder<InputT>) context.getInput(transform).getCoder();
         Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
 
         @SuppressWarnings("unchecked")
-        UnboundedDataset<InputT> unboundedDataset =
-            (UnboundedDataset<InputT>) context.borrowDataset(transform);
+        UnboundedDataset<InputT> unboundedDataset = (UnboundedDataset<InputT>) context.borrowDataset(transform);
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
-        final DoFnSchemaInformation doFnSchemaInformation =
-            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+        final DoFnSchemaInformation doFnSchemaInformation = ParDoTranslation
+            .getSchemaInformation(context.getCurrentTransform());
 
-        final Map<String, PCollectionView<?>> sideInputMapping =
-            ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+        final Map<String, PCollectionView<?>> sideInputMapping = ParDoTranslation
+            .getSideInputMapping(context.getCurrentTransform());
 
         final boolean useStreamingSideInput = context.isStreamingSideInput();
 
         final String stepName = context.getCurrentTransform().getFullName();
-        JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
-            dStream.transformToPair(
-                rdd -> {
-                  final MetricsContainerStepMapAccumulator metricsAccum =
-                      MetricsAccumulator.getInstance();
-                  final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
-                      sideInputs =
-                          TranslationUtils.getSideInputs(
-                              transform.getSideInputs().values(),
-                              JavaSparkContext.fromSparkContext(rdd.context()),
-                              pviews);
+        JavaPairDStream<TupleTag<?>, WindowedValue<?>> all = dStream.transformToPair(
+            rdd -> {
+              final MetricsContainerStepMapAccumulator metricsAccum = MetricsAccumulator.getInstance();
+              final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs = TranslationUtils
+                  .getSideInputs(
+                      transform.getSideInputs().values(),
+                      JavaSparkContext.fromSparkContext(rdd.context()),
+                      pviews);
 
-                  return rdd.mapPartitionsToPair(
-                      new MultiDoFnFunction<>(
-                          metricsAccum,
-                          stepName,
-                          doFn,
-                          options,
-                          transform.getMainOutputTag(),
-                          transform.getAdditionalOutputTags().getAll(),
-                          inputCoder,
-                          outputCoders,
-                          sideInputs,
-                          windowingStrategy,
-                          false,
-                          doFnSchemaInformation,
-                          sideInputMapping,
-                          false,
-                          useStreamingSideInput));
-                });
+              return rdd.mapPartitionsToPair(
+                  new MultiDoFnFunction<>(
+                      metricsAccum,
+                      stepName,
+                      doFn,
+                      options,
+                      transform.getMainOutputTag(),
+                      transform.getAdditionalOutputTags().getAll(),
+                      inputCoder,
+                      outputCoders,
+                      sideInputs,
+                      windowingStrategy,
+                      false,
+                      doFnSchemaInformation,
+                      sideInputMapping,
+                      false,
+                      useStreamingSideInput));
+            });
 
         Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
           // Caching can cause Serialization, we need to code to bytes
           // more details in https://issues.apache.org/jira/browse/BEAM-2669
-          Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
-              TranslationUtils.getTupleTagCoders(outputs);
-          all =
-              all.mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
-                  .cache()
-                  .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
+          Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap = TranslationUtils.getTupleTagCoders(outputs);
+          all = all.mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
+              .cache()
+              .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
         }
 
         for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
           @SuppressWarnings("unchecked")
-          JavaPairDStream<TupleTag<?>, WindowedValue<?>> filtered =
-              all.filter(new TranslationUtils.TupleTagFilter(output.getKey()));
+          JavaPairDStream<TupleTag<?>, WindowedValue<?>> filtered = all
+              .filter(new TranslationUtils.TupleTagFilter(output.getKey()));
           @SuppressWarnings("unchecked")
           // Object is the best we can do since different outputs can have different tags
-          JavaDStream<WindowedValue<Object>> values =
-              (JavaDStream<WindowedValue<Object>>)
-                  (JavaDStream<?>) TranslationUtils.dStreamValues(filtered);
+          JavaDStream<WindowedValue<Object>> values = (JavaDStream<WindowedValue<Object>>) (JavaDStream<?>) TranslationUtils
+              .dStreamValues(filtered);
           context.putDataset(
               output.getValue(),
               new UnboundedDataset<>(values, unboundedDataset.getStreamSources()));
@@ -630,22 +595,21 @@ public final class StreamingTransformTranslator {
       @Override
       public void evaluate(Reshuffle<K, V> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
-        UnboundedDataset<KV<K, V>> inputDataset =
-            (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
+        UnboundedDataset<KV<K, V>> inputDataset = (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
         List<Integer> streamSources = inputDataset.getStreamSources();
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
-        final WindowingStrategy<?, W> windowingStrategy =
-            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        final WindowingStrategy<?, W> windowingStrategy = (WindowingStrategy<?, W>) context.getInput(transform)
+            .getWindowingStrategy();
         @SuppressWarnings("unchecked")
         final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
 
-        final WindowedValues.WindowedValueCoder<KV<K, V>> wvCoder =
-            WindowedValues.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+        final WindowedValues.WindowedValueCoder<KV<K, V>> wvCoder = WindowedValues.FullWindowedValueCoder.of(coder,
+            windowFn.windowCoder());
 
-        JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
-            dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));
+        JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream = dStream
+            .transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));
 
         context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
       }
@@ -676,7 +640,8 @@ public final class StreamingTransformTranslator {
   }
 
   private static @Nullable TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {
-    @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
+    @Nullable
+    String urn = PTransformTranslation.urnForTransformOrNull(transform);
     if (transform instanceof CreateStreamingSparkView.CreateSparkPCollectionView) {
       urn = CreateStreamingSparkView.CREATE_STREAMING_SPARK_VIEW_URN;
     }
@@ -701,8 +666,7 @@ public final class StreamingTransformTranslator {
     @Override
     public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translateBounded(
         PTransform<?, ?> transform) {
-      TransformEvaluator<TransformT> transformEvaluator =
-          batchTranslator.translateBounded(transform);
+      TransformEvaluator<TransformT> transformEvaluator = batchTranslator.translateBounded(transform);
       checkState(
           transformEvaluator != null,
           "No TransformEvaluator registered for BOUNDED transform %s",
@@ -714,8 +678,7 @@ public final class StreamingTransformTranslator {
     public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translateUnbounded(
         PTransform<?, ?> transform) {
       @SuppressWarnings("unchecked")
-      TransformEvaluator<TransformT> transformEvaluator =
-          (TransformEvaluator<TransformT>) getTranslator(transform);
+      TransformEvaluator<TransformT> transformEvaluator = (TransformEvaluator<TransformT>) getTranslator(transform);
       checkState(
           transformEvaluator != null,
           "No TransformEvaluator registered for UNBOUNDED transform %s",
@@ -728,10 +691,7 @@ public final class StreamingTransformTranslator {
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class SparkTransformsRegistrar implements TransformPayloadTranslatorRegistrar {
     @Override
-    public Map<
-            ? extends Class<? extends PTransform>,
-            ? extends PTransformTranslation.TransformPayloadTranslator>
-        getTransformPayloadTranslators() {
+    public Map<? extends Class<? extends PTransform>, ? extends PTransformTranslation.TransformPayloadTranslator> getTransformPayloadTranslators() {
       return ImmutableMap.of(
           ConsoleIO.Write.Unbound.class, new SparkConsoleIOWriteUnboundedPayloadTranslator(),
           CreateStream.class, new SparkCreateStreamPayloadTranslator());
@@ -739,8 +699,7 @@ public final class StreamingTransformTranslator {
   }
 
   private static class SparkConsoleIOWriteUnboundedPayloadTranslator
-      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
-          ConsoleIO.Write.Unbound<?>> {
+      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<ConsoleIO.Write.Unbound<?>> {
 
     @Override
     public String getUrn() {
