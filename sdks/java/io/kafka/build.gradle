@@ -36,9 +36,7 @@ ext {
 }
 
 def kafkaVersions = [
-    '282': "2.8.2",
-    '312': "3.1.2",
-    '390': "3.9.0",
+    '391': "3.9.1",
 ]
 
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
