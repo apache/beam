@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.DistributionCell;
@@ -68,9 +67,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.ListOffsetsResult;
-import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -79,7 +75,6 @@ import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
@@ -95,7 +90,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.mockito.Mockito;
 
 public class ReadFromKafkaDoFnTest {
 
@@ -129,29 +123,6 @@ public class ReadFromKafkaDoFnTest {
     return ReadSourceDescriptors.<String, String>read()
         .withKeyDeserializer(StringDeserializer.class)
         .withValueDeserializer(StringDeserializer.class)
-        .withAdminFactoryFn(
-            config -> {
-              Admin mock = Mockito.mock(Admin.class);
-              Mockito.when(mock.listOffsets(Mockito.anyMap()))
-                  .thenAnswer(
-                      invocation -> {
-                        final Map<TopicPartition, OffsetSpec> topicPartitionOffsets =
-                            invocation.getArgument(0);
-
-                        return KafkaFuture.completedFuture(
-                            topicPartitionOffsets.entrySet().stream()
-                                .collect(
-                                    Collectors.collectingAndThen(
-                                        Collectors.toMap(
-                                            Map.Entry::getKey,
-                                            entry ->
-                                                KafkaFuture.completedFuture(
-                                                    new ListOffsetsResult.ListOffsetsResultInfo(
-                                                        Long.MAX_VALUE, 0L, Optional.empty()))),
-                                        ListOffsetsResult::new)));
-                      });
-              return mock;
-            })
         .withConsumerFactoryFn(
             new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
               @Override
@@ -167,29 +138,6 @@ public class ReadFromKafkaDoFnTest {
     return ReadSourceDescriptors.<String, String>read()
         .withKeyDeserializer(FailingDeserializer.class)
         .withValueDeserializer(FailingDeserializer.class)
-        .withAdminFactoryFn(
-            config -> {
-              Admin mock = Mockito.mock(Admin.class);
-              Mockito.when(mock.listOffsets(Mockito.anyMap()))
-                  .thenAnswer(
-                      invocation -> {
-                        final Map<TopicPartition, OffsetSpec> topicPartitionOffsets =
-                            invocation.getArgument(0);
-
-                        return KafkaFuture.completedFuture(
-                            topicPartitionOffsets.entrySet().stream()
-                                .collect(
-                                    Collectors.collectingAndThen(
-                                        Collectors.toMap(
-                                            Map.Entry::getKey,
-                                            entry ->
-                                                KafkaFuture.completedFuture(
-                                                    new ListOffsetsResult.ListOffsetsResultInfo(
-                                                        Long.MAX_VALUE, 0L, Optional.empty()))),
-                                        ListOffsetsResult::new)));
-                      });
-              return mock;
-            })
         .withConsumerFactoryFn(
             new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
               @Override

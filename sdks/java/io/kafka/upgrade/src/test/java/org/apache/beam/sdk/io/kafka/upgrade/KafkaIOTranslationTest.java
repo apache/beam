@@ -58,7 +58,6 @@ public class KafkaIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getTopicPattern", "topic_pattern");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getKeyCoder", "key_coder");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getValueCoder", "value_coder");
-    READ_TRANSFORM_SCHEMA_MAPPING.put("getAdminFactoryFn", "admin_factory_fn");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getConsumerFactoryFn", "consumer_factory_fn");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getWatermarkFn", "watermark_fn");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getMaxNumRecords", "max_num_records");
