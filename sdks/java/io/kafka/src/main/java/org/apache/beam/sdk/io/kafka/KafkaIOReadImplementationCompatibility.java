@@ -83,7 +83,6 @@ class KafkaIOReadImplementationCompatibility {
     TOPIC_PATTERN,
     KEY_CODER,
     VALUE_CODER,
-    ADMIN_FACTORY_FN,
     CONSUMER_FACTORY_FN,
     WATERMARK_FN(LEGACY),
     MAX_NUM_RECORDS(LEGACY) {
