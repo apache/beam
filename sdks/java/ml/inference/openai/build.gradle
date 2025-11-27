@@ -16,26 +16,22 @@
  * limitations under the License.
  */
 plugins {
-  id("org.apache.beam.module")
-  id("java-library")
+  id 'org.apache.beam.module'
+  id 'java'
 }
 
-description = "Apache Beam :: SDKs :: Java :: ML :: Inference :: Remote"
+description = "Apache Beam :: SDKs :: Java :: ML :: Inference :: OpenAI"
 
 dependencies {
-  // Core Beam SDK
-  implementation(project(":sdks:java:core"))
+  implementation project(":sdks:java:ml:inference:remote")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
 
-  compileOnly("com.google.auto.value:auto-value-annotations:1.11.0")
-  compileOnly("org.checkerframework:checker-qual:3.42.0")
-  annotationProcessor("com.google.auto.value:auto-value:1.11.0")
-  implementation("org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1")
-  implementation("org.slf4j:slf4j-api:2.0.9")
-  implementation("org.slf4j:slf4j-simple:2.0.9")
-  implementation("joda-time:joda-time:2.11.1")
+  implementation "com.openai:openai-java:4.3.0"
+  implementation library.java.jackson_databind
 
-  // testing
-  testImplementation(project(":runners:direct-java"))
-  testImplementation("junit:junit:4.13.2")
-  testImplementation(project(":sdks:java:testing:test-utils"))
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation library.java.slf4j_api
+  testRuntimeOnly library.java.slf4j_simple
+  testImplementation library.java.junit
+  testImplementation project(":sdks:java:testing:test-utils")
 }
