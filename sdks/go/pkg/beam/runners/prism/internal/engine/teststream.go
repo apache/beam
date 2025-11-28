@@ -182,54 +182,18 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 	for _, e := range ev.Elements {
 		elmBytes := e.Encoded
 		var keyBytes []byte
-		var ws []typex.Window
-		var et mtime.Time
-		var pn typex.PaneInfo
-		decoded := false
-		
-		if info.WDec != nil && info.EDec != nil {
+		if info.KeyDec != nil {
 			buf := bytes.NewBuffer(elmBytes)
-			var err error
-			ws, et, pn, err = exec.DecodeWindowedValueHeader(info.WDec, buf)
-			if err == nil && len(ws) > 0 {
-				elmBytes = info.EDec(buf)
-				if info.KeyDec != nil {
-					kbuf := bytes.NewBuffer(elmBytes)
-					keyBytes = info.KeyDec(kbuf)
-				}
-				decoded = true
-				for _, w := range ws {
-					pending = append(pending, element{
-						window:    w,
-						timestamp: et,
-						elmBytes:  elmBytes,
-						keyBytes:  keyBytes,
-						pane:      pn,
-					})
-				}
-			}
+			keyBytes = info.KeyDec(buf)
 		}
 		
-		if !decoded {
-			if info.KeyDec != nil {
-				buf := bytes.NewBuffer(elmBytes)
-				keyBytes = info.KeyDec(buf)
-			}
-			
-			ws = []typex.Window{window.GlobalWindow{}}
-			et = e.EventTime
-			pn = typex.NoFiringPane()
-			
-			for _, w := range ws {
-				pending = append(pending, element{
-					window:    w,
-					timestamp: et,
-					elmBytes:  elmBytes,
-					keyBytes:  keyBytes,
-					pane:      pn,
-				})
-			}
-		}
+		pending = append(pending, element{
+			window:    window.GlobalWindow{},
+			timestamp: e.EventTime,
+			elmBytes:  elmBytes,
+			keyBytes:  keyBytes,
+			pane:      typex.NoFiringPane(),
+		})
 	}
 
 	for _, sID := range em.consumers[t.pcollection] {
