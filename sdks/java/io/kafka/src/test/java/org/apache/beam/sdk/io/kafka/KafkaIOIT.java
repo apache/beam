@@ -813,6 +813,38 @@ public class KafkaIOIT {
     runWithStopReadingFn(checkStopReadingFn, "delayed-stop-reading", sourceOptions.numRecords);
   }
 
+  @Test
+  public void testKafkaWithStopReadTime() throws IOException {
+    writePipeline
+        .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
+        .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply(
+            "Write to Kafka",
+            writeToKafka().withTopic(options.getKafkaTopic() + "-stop-read-time"));
+
+    PipelineResult writeResult = writePipeline.run();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
+    cancelIfTimeouted(writeResult, writeState);
+    assertNotEquals(PipelineResult.State.FAILED, writeState);
+
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(false);
+    PCollection<KafkaRecord<byte[], byte[]>> rows =
+        sdfReadPipeline.apply(
+            "Read from bounded Kafka",
+            readFromKafka()
+                .withTopic(options.getKafkaTopic() + "-stop-read-time")
+                .withStopReadTime(
+                    org.joda.time.Instant.ofEpochMilli(
+                        new MetricsReader(writeResult, NAMESPACE)
+                            .getEndTimeMetric(WRITE_TIME_METRIC_NAME))));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    cancelIfTimeouted(readResult, readState);
+    assertNotEquals(PipelineResult.State.FAILED, readState);
+  }
+
   public static final Schema KAFKA_TOPIC_SCHEMA =
       Schema.builder()
           .addStringField("name")
