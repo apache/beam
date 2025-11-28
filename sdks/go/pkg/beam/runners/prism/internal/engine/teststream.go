@@ -16,6 +16,7 @@
 package engine
 
 import (
+	"bytes"
 	"log/slog"
 	"time"
 
@@ -175,11 +176,20 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 	t := em.testStreamHandler.tagState[ev.Tag]
 
 	var pending []element
+	info, hasInfo := em.pcolInfo[t.pcollection]
 	for _, e := range ev.Elements {
+		elmBytes := e.Encoded
+		var keyBytes []byte
+		if hasInfo && info.KeyDec != nil {
+			buf := bytes.NewBuffer(elmBytes)
+			keyBytes = info.KeyDec(buf)
+		}
+		
 		pending = append(pending, element{
 			window:    window.GlobalWindow{},
 			timestamp: e.EventTime,
-			elmBytes:  e.Encoded,
+			elmBytes:  elmBytes,
+			keyBytes:  keyBytes,
 			pane:      typex.NoFiringPane(),
 		})
 	}
