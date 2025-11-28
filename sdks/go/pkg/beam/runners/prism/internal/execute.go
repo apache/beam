@@ -342,12 +342,6 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		}
 	}
 
-	for _, stage := range stages {
-		if stage.inputInfo.GlobalID != "" {
-			em.RegisterPColInfo(stage.inputInfo.GlobalID, stage.inputInfo)
-		}
-	}
-
 	// Prime the initial impulses, since we now know what consumes them.
 	for _, id := range impulses {
 		em.Impulse(id)

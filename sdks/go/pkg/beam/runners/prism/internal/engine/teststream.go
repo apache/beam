@@ -187,7 +187,7 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 		var pn typex.PaneInfo
 		decoded := false
 		
-		if info.WDec != nil {
+		if info.WDec != nil && info.EDec != nil {
 			buf := bytes.NewBuffer(elmBytes)
 			var err error
 			ws, et, pn, err = exec.DecodeWindowedValueHeader(info.WDec, buf)
