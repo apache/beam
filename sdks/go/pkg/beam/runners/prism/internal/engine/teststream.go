@@ -187,15 +187,13 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 
 	var pending []element
 	for _, e := range ev.Elements {
-		encoded := e.Encoded
-		buf := bytes.NewBuffer(encoded)
-		length, err := coder.DecodeVarInt(buf)
-		if err != nil {
-			panic(fmt.Sprintf("TestStream: failed to decode length prefix: %v", err))
+		if len(e.Encoded) == 0 {
+			panic(fmt.Sprintf("TestStream: empty encoded element for tag %q", ev.Tag))
 		}
-		elmBytes := make([]byte, int(length))
-		if _, err := io.ReadFull(buf, elmBytes); err != nil {
-			panic(fmt.Sprintf("TestStream: insufficient data: expected %d bytes: %v", length, err))
+		buf := bytes.NewBuffer(e.Encoded)
+		elmBytes := info.EDec(buf)
+		if len(elmBytes) == 0 {
+			panic(fmt.Sprintf("TestStream: decoded element bytes are empty for tag %q, encoded length: %d", ev.Tag, len(e.Encoded)))
 		}
 		
 		var keyBytes []byte
