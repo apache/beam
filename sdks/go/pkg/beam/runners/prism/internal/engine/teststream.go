@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -185,11 +186,21 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 
 	var pending []element
 	for _, e := range ev.Elements {
-		elmBytes := e.Encoded
+		encoded := e.Encoded
+		buf := bytes.NewBuffer(encoded)
+		length, err := coder.DecodeVarInt(buf)
+		if err != nil {
+			panic(fmt.Sprintf("TestStream: failed to decode length prefix: %v", err))
+		}
+		elmBytes := buf.Next(int(length))
+		if len(elmBytes) != int(length) {
+			panic(fmt.Sprintf("TestStream: insufficient data: expected %d bytes, got %d", length, len(elmBytes)))
+		}
+		
 		var keyBytes []byte
 		if info.KeyDec != nil {
-			buf := bytes.NewBuffer(elmBytes)
-			keyBytes = info.KeyDec(buf)
+			kbuf := bytes.NewBuffer(elmBytes)
+			keyBytes = info.KeyDec(kbuf)
 		}
 		
 		pending = append(pending, element{
