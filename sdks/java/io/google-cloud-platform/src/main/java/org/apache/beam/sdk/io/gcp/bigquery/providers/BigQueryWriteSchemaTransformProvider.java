@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -48,6 +50,11 @@ public class BigQueryWriteSchemaTransformProvider
   }
 
   @Override
+  public List<String> outputCollectionNames() {
+    return Arrays.asList("FailedRows", "FailedRowsWithErrors", "errors");
+  }
+
+  @Override
   protected SchemaTransform from(BigQueryWriteConfiguration configuration) {
     return new BigQueryWriteSchemaTransform(configuration);
   }
@@ -62,9 +69,10 @@ public class BigQueryWriteSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      if (input.getSinglePCollection().isBounded().equals(PCollection.IsBounded.BOUNDED)) {
+      if (input.getSinglePCollection().isBounded().equals(PCollection.IsBounded.BOUNDED)
+          && configuration.getErrorHandling() == null) {
         return input.apply(new BigQueryFileLoadsSchemaTransformProvider().from(configuration));
-      } else { // UNBOUNDED
+      } else { // UNBOUNDED or error handling specified
         return input.apply(
             new BigQueryStorageWriteApiSchemaTransformProvider().from(configuration));
       }
