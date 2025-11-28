@@ -17,13 +17,11 @@ package engine
 
 import (
 	"bytes"
-	"io"
 	"log/slog"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
