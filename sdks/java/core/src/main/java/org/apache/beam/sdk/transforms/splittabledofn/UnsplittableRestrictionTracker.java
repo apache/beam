@@ -46,7 +46,9 @@ public class UnsplittableRestrictionTracker<RestrictionT, PositionT>
 
   @Override
   public @Nullable SplitResult<RestrictionT> trySplit(double fractionOfRemainder) {
-    return fractionOfRemainder > 0.0 && fractionOfRemainder < 1.0 ? null : tracker.trySplit(fractionOfRemainder);
+    return fractionOfRemainder > 0.0 && fractionOfRemainder < 1.0
+        ? null
+        : tracker.trySplit(fractionOfRemainder);
   }
 
   @Override
