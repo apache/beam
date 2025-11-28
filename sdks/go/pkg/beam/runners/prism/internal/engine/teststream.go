@@ -178,51 +178,26 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 	t := em.testStreamHandler.tagState[ev.Tag]
 	info := em.pcolInfo[t.pcollection]
 
-	for _, sID := range em.consumers[t.pcollection] {
-		ss := em.stages[sID]
+	var pending []element
+	for _, e := range ev.Elements {
+		elmBytes := e.Encoded
+		var keyBytes []byte
+		var ws []typex.Window
+		var et mtime.Time
+		var pn typex.PaneInfo
+		decoded := false
 		
-		var pending []element
-		for _, e := range ev.Elements {
-			elmBytes := e.Encoded
-			var keyBytes []byte
-			var ws []typex.Window
-			var et mtime.Time
-			var pn typex.PaneInfo
-			decoded := false
-			
-			if info.WDec != nil {
-				buf := bytes.NewBuffer(elmBytes)
-				var err error
-				ws, et, pn, err = exec.DecodeWindowedValueHeader(info.WDec, buf)
-				if err == nil && len(ws) > 0 {
-					elmBytes = info.EDec(buf)
-					if info.KeyDec != nil {
-						kbuf := bytes.NewBuffer(elmBytes)
-						keyBytes = info.KeyDec(kbuf)
-					}
-					decoded = true
-					for _, w := range ws {
-						pending = append(pending, element{
-							window:    w,
-							timestamp: et,
-							elmBytes:  elmBytes,
-							keyBytes:  keyBytes,
-							pane:      pn,
-						})
-					}
-				}
-			}
-			
-			if !decoded {
+		if info.WDec != nil {
+			buf := bytes.NewBuffer(elmBytes)
+			var err error
+			ws, et, pn, err = exec.DecodeWindowedValueHeader(info.WDec, buf)
+			if err == nil && len(ws) > 0 {
+				elmBytes = info.EDec(buf)
 				if info.KeyDec != nil {
-					buf := bytes.NewBuffer(elmBytes)
-					keyBytes = info.KeyDec(buf)
+					kbuf := bytes.NewBuffer(elmBytes)
+					keyBytes = info.KeyDec(kbuf)
 				}
-				
-				ws = []typex.Window{window.GlobalWindow{}}
-				et = e.EventTime
-				pn = typex.NoFiringPane()
-				
+				decoded = true
 				for _, w := range ws {
 					pending = append(pending, element{
 						window:    w,
@@ -235,6 +210,30 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 			}
 		}
 		
+		if !decoded {
+			if info.KeyDec != nil {
+				buf := bytes.NewBuffer(elmBytes)
+				keyBytes = info.KeyDec(buf)
+			}
+			
+			ws = []typex.Window{window.GlobalWindow{}}
+			et = e.EventTime
+			pn = typex.NoFiringPane()
+			
+			for _, w := range ws {
+				pending = append(pending, element{
+					window:    w,
+					timestamp: et,
+					elmBytes:  elmBytes,
+					keyBytes:  keyBytes,
+					pane:      pn,
+				})
+			}
+		}
+	}
+
+	for _, sID := range em.consumers[t.pcollection] {
+		ss := em.stages[sID]
 		added := ss.AddPending(em, pending)
 		em.addPending(added)
 		em.changedStages.insert(sID)
