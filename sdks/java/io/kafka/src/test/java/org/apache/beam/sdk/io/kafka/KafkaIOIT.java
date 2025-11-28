@@ -824,7 +824,6 @@ public class KafkaIOIT {
 
     PipelineResult writeResult = writePipeline.run();
     PipelineResult.State writeState = writeResult.waitUntilFinish();
-    cancelIfTimeouted(writeResult, writeState);
     assertNotEquals(PipelineResult.State.FAILED, writeState);
 
     sdfReadPipeline.getOptions().as(Options.class).setStreaming(false);
