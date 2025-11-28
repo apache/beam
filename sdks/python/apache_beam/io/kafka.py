@@ -294,11 +294,11 @@ class WriteToKafka(ExternalTransform):
 
     :param producer_config: A dictionary containing the producer configuration.
     :param topic: A Kafka topic name.
-    :param key_deserializer: A fully-qualified Java class name of a Kafka
+    :param key_serializer: A fully-qualified Java class name of a Kafka
         Serializer for the topic's key, e.g.
         'org.apache.kafka.common.serialization.LongSerializer'.
         Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
-    :param value_deserializer: A fully-qualified Java class name of a Kafka
+    :param value_serializer: A fully-qualified Java class name of a Kafka
         Serializer for the topic's value, e.g.
         'org.apache.kafka.common.serialization.LongSerializer'.
         Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
