@@ -17,6 +17,7 @@ package engine
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -174,7 +175,13 @@ type tsElementEvent struct {
 // Execute this ElementEvent by routing pending element to their consuming stages.
 func (ev tsElementEvent) Execute(em *ElementManager) {
 	t := em.testStreamHandler.tagState[ev.Tag]
-	info := em.pcolInfo[t.pcollection]
+	if t.pcollection == "" {
+		panic(fmt.Sprintf("TestStream tag %q not found in tagState", ev.Tag))
+	}
+	info, ok := em.pcolInfo[t.pcollection]
+	if !ok {
+		panic(fmt.Sprintf("PColInfo not registered for TestStream output PCollection %q (tag %q)", t.pcollection, ev.Tag))
+	}
 
 	var pending []element
 	for _, e := range ev.Elements {
