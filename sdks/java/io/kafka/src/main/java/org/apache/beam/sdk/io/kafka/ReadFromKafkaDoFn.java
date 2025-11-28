@@ -113,7 +113,7 @@ import org.slf4j.LoggerFactory;
  * may arbitrarily overwrite a consumer group's committed offset for a {@link TopicPartition}.
  * Restriction trackers for a {@link KafkaSourceDescriptor} are wrapped as {@link
  * UnsplittableRestrictionTracker<OffsetRange, Long>} and will only return a non-null {@link
- * SplitResult} for a checkpoint.
+ * org.apache.beam.sdk.transforms.splittabledofn.SplitResult} for a checkpoint.
  *
  * <p>TODO(https://github.com/apache/beam/issues/20280): Add support for initial splitting.
  *
