@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * A {@link RestrictionTracker} for wrapping a {@link RestrictionTracker} with unsplittable
  * restrictions.
@@ -24,9 +26,6 @@ package org.apache.beam.sdk.transforms.splittabledofn;
  * <p>A restriction is considered unsplittable when restrictions of an element must not be processed
  * simultaneously (e.g., Kafka topic partition).
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class UnsplittableRestrictionTracker<RestrictionT, PositionT>
     extends RestrictionTracker<RestrictionT, PositionT> implements RestrictionTracker.HasProgress {
   private final RestrictionTracker<RestrictionT, PositionT> tracker;
@@ -46,7 +45,7 @@ public class UnsplittableRestrictionTracker<RestrictionT, PositionT>
   }
 
   @Override
-  public SplitResult<RestrictionT> trySplit(double fractionOfRemainder) {
+  public @Nullable SplitResult<RestrictionT> trySplit(double fractionOfRemainder) {
     return fractionOfRemainder < 1.0 ? null : tracker.trySplit(fractionOfRemainder);
   }
 
