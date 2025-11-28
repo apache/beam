@@ -18,6 +18,7 @@ package engine
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
 	"time"
 
@@ -192,9 +193,9 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 		if err != nil {
 			panic(fmt.Sprintf("TestStream: failed to decode length prefix: %v", err))
 		}
-		elmBytes := buf.Next(int(length))
-		if len(elmBytes) != int(length) {
-			panic(fmt.Sprintf("TestStream: insufficient data: expected %d bytes, got %d", length, len(elmBytes)))
+		elmBytes := make([]byte, int(length))
+		if _, err := io.ReadFull(buf, elmBytes); err != nil {
+			panic(fmt.Sprintf("TestStream: insufficient data: expected %d bytes: %v", length, err))
 		}
 		
 		var keyBytes []byte
