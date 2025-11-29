@@ -107,6 +107,9 @@ pipelines:
         
         - type: Sql
           name: PostgreSQLFunctions
+          options:
+            calcite_connection_properties:
+              fun: "postgresql"
           config:
             query: |
               SELECT 
@@ -120,13 +123,7 @@ pipelines:
           config:
             elements:
               - {id: 1, email: "alice@example.com", username: "alice", domain: "example.com"}
-              - {id: 2, email: "bob@test.org", username: "bob", domain: "test.org"}
-              
-    options:
-      calcite_connection_properties:
-        fun: "postgresql"
-
-  # Test calcite_connection_properties with BigQuery syntax
+              - {id: 2, email: "bob@test.org", username: "bob", domain: "test.org"}  # Test calcite_connection_properties with BigQuery syntax
   - pipeline:
       type: chain
       transforms:
@@ -139,6 +136,10 @@ pipelines:
         
         - type: Sql
           name: BigQueryArrayFunctions
+          options:
+            calcite_connection_properties:
+              fun: "bigquery"
+              lex: "big_query"
           config:
             query: |
               SELECT 
@@ -152,11 +153,6 @@ pipelines:
             elements:
               - {id: 1, tags_string: "tag1|tag2|tag3", tag_count: 3}
               - {id: 2, tags_string: "tagA|tagB", tag_count: 2}
-              
-    options:
-      calcite_connection_properties:
-        fun: "bigquery"
-        lex: "big_query"
 
   # Test calcite_connection_properties with case sensitivity settings
   - pipeline:
@@ -171,6 +167,10 @@ pipelines:
         
         - type: Sql
           name: CaseSensitiveSQL
+          options:
+            calcite_connection_properties:
+              caseSensitive: "false"
+              unquotedCasing: "TO_LOWER"
           config:
             query: |
               SELECT 
@@ -184,8 +184,3 @@ pipelines:
             elements:
               - {lower_id: 1, lower_name: "Alice", lower_email: "alice@test.com"}
               - {lower_id: 2, lower_name: "Bob", lower_email: "bob@test.com"}
-              
-    options:
-      calcite_connection_properties:
-        caseSensitive: "false"
-        unquotedCasing: "TO_LOWER"
