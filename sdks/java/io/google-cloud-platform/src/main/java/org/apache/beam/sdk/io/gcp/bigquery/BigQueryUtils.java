@@ -67,6 +67,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.Preconditions;
@@ -157,14 +158,50 @@ public class BigQueryUtils {
      */
     public abstract boolean getInferMaps();
 
+    /**
+     * Controls how BigQuery {@code TIMESTAMP(12)} columns (picosecond precision) are converted to
+     * Beam schema types.
+     *
+     * <ul>
+     *   <li>{@link #MICROS} - Map TIMESTAMP(12) columns to {@code Timestamp.MICROS}
+     *   <li>{@link #NANOS} - Map TIMESTAMP(12) columns to {@code Timestamp.NANOS}
+     *   <li>{@link #PICOS} - Preserve full picosecond precision by mapping Map TIMESTAMP(12)
+     *       columns to {@code FieldType.STRING}
+     * </ul>
+     */
+    public enum PicosecondTimestampConversion {
+      MICROS,
+      NANOS,
+      PICOS
+    }
+
+    /**
+     * Controls how BigQuery {@code TIMESTAMP(12)} (picosecond precision) columns are converted to
+     * Beam schema types.
+     *
+     * <p>Since Beam's datetime types only support up to nanosecond precision, this option specifies
+     * whether to truncate to microseconds, truncate to nanoseconds, or preserve full precision as a
+     * string.
+     *
+     * <p>This option has no effect on {@code TIMESTAMP(6)} (microsecond).
+     *
+     * <p>Defaults to {@link PicosecondTimestampConversion#NANOS}.
+     */
+    public abstract PicosecondTimestampConversion getPicosecondTimestampConversion();
+
     public static Builder builder() {
-      return new AutoValue_BigQueryUtils_SchemaConversionOptions.Builder().setInferMaps(false);
+      return new AutoValue_BigQueryUtils_SchemaConversionOptions.Builder()
+          .setInferMaps(false)
+          .setPicosecondTimestampConversion(PicosecondTimestampConversion.NANOS);
     }
 
     /** Builder for {@link SchemaConversionOptions}. */
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setInferMaps(boolean inferMaps);
+
+      public abstract Builder setPicosecondTimestampConversion(
+          PicosecondTimestampConversion conversion);
 
       public abstract SchemaConversionOptions build();
     }
@@ -350,12 +387,17 @@ public class BigQueryUtils {
    *
    * <p>Supports both standard and legacy SQL types.
    *
-   * @param typeName Name of the type returned by {@link TableFieldSchema#getType()}
+   * @param schema Schema of the type returned
    * @param nestedFields Nested fields for the given type (eg. RECORD type)
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(
-      String typeName, List<TableFieldSchema> nestedFields, SchemaConversionOptions options) {
+      TableFieldSchema schema,
+      List<TableFieldSchema> nestedFields,
+      SchemaConversionOptions options) {
+    // see
+    // https://googleapis.dev/java/google-api-services-bigquery/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#getType--
+    String typeName = schema.getType();
     // see
     // https://googleapis.dev/java/google-api-services-bigquery/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#getType--
     switch (typeName) {
@@ -373,7 +415,24 @@ public class BigQueryUtils {
       case "BOOL":
         return FieldType.BOOLEAN;
       case "TIMESTAMP":
-        return FieldType.DATETIME;
+        System.out.println("CLAUDE BigQueryUtils fromTableFieldSchemaType TIMESTAMP" + schema);
+        if ((schema.getTimestampPrecision() == null) || (schema.getTimestampPrecision() == 6)) {
+          return FieldType.DATETIME;
+        }
+        if (options.getPicosecondTimestampConversion()
+            == SchemaConversionOptions.PicosecondTimestampConversion.MICROS) {
+          return FieldType.logicalType(Timestamp.MICROS);
+        }
+        if (options.getPicosecondTimestampConversion()
+            == SchemaConversionOptions.PicosecondTimestampConversion.NANOS) {
+          return FieldType.logicalType(Timestamp.NANOS);
+        }
+        if (options.getPicosecondTimestampConversion()
+            == SchemaConversionOptions.PicosecondTimestampConversion.PICOS) {
+          return FieldType.STRING;
+        }
+        throw new UnsupportedOperationException(
+            "Converting BigQuery type " + typeName + " to Beam type is unsupported");
       case "DATE":
         return FieldType.logicalType(SqlTypes.DATE);
       case "TIME":
@@ -395,8 +454,8 @@ public class BigQueryUtils {
           if (BIGQUERY_MAP_KEY_FIELD_NAME.equals(key.getName())
               && BIGQUERY_MAP_VALUE_FIELD_NAME.equals(value.getName())) {
             return FieldType.map(
-                fromTableFieldSchemaType(key.getType(), key.getFields(), options),
-                fromTableFieldSchemaType(value.getType(), value.getFields(), options));
+                fromTableFieldSchemaType(key, key.getFields(), options),
+                fromTableFieldSchemaType(value, value.getFields(), options));
           }
         }
         Schema rowSchema = fromTableFieldSchema(nestedFields, options);
@@ -413,8 +472,7 @@ public class BigQueryUtils {
     Schema.Builder schemaBuilder = Schema.builder();
     for (TableFieldSchema tableFieldSchema : tableFieldSchemas) {
       FieldType fieldType =
-          fromTableFieldSchemaType(
-              tableFieldSchema.getType(), tableFieldSchema.getFields(), options);
+          fromTableFieldSchemaType(tableFieldSchema, tableFieldSchema.getFields(), options);
 
       Optional<Mode> fieldMode = Optional.ofNullable(tableFieldSchema.getMode()).map(Mode::valueOf);
       if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()
@@ -802,6 +860,19 @@ public class BigQueryUtils {
           return java.time.Instant.ofEpochSecond(seconds, nanos);
         } catch (NumberFormatException e) {
           return java.time.Instant.parse(jsonBQString);
+        }
+      } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)) {
+        System.out.println("CLAUDE fieldType.isLogicalType(Timestamp.IDENTIFIER) " + jsonBQString);
+        try {
+          if (jsonBQString.endsWith(" UTC")) {
+            // Remove " UTC" suffix and replace with "Z" for ISO format
+            jsonBQString = jsonBQString.replace(" UTC", "Z").replace(" ", "T");
+          }
+
+          return java.time.Instant.parse(jsonBQString);
+        } catch (Exception e) {
+          System.out.println("CLAUDE Exception: " + e);
+          throw e;
         }
       }
     }
