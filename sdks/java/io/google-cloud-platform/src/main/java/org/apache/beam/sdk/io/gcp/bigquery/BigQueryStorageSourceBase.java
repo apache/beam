@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.ArrowSerializationOptions;
+import com.google.cloud.bigquery.storage.v1.AvroSerializationOptions;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -69,6 +71,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
+  private final @Nullable TimestampPrecision timestampPrecision;
 
   BigQueryStorageSourceBase(
       @Nullable DataFormat format,
@@ -76,13 +79,15 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       @Nullable ValueProvider<String> rowRestrictionProvider,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
+      BigQueryServices bqServices,
+      @Nullable TimestampPrecision timestampPrecision) {
     this.format = format;
     this.selectedFieldsProvider = selectedFieldsProvider;
     this.rowRestrictionProvider = rowRestrictionProvider;
     this.parseFn = checkNotNull(parseFn, "parseFn");
     this.outputCoder = checkNotNull(outputCoder, "outputCoder");
     this.bqServices = checkNotNull(bqServices, "bqServices");
+    this.timestampPrecision = timestampPrecision;
   }
 
   /**
@@ -131,11 +136,12 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     if (rowRestrictionProvider != null && rowRestrictionProvider.isAccessible()) {
       tableReadOptionsBuilder.setRowRestriction(rowRestrictionProvider.get());
     }
-    readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
 
     if (format != null) {
       readSessionBuilder.setDataFormat(format);
+      setTimestampPrecision(tableReadOptionsBuilder, format);
     }
+    readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
 
     // Setting the  requested max stream count to 0, implies that the Read API backend will select
     // an appropriate number of streams for the Session to produce reasonable throughput.
@@ -198,5 +204,42 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   @Override
   public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
     throw new UnsupportedOperationException("BigQuery storage source must be split before reading");
+  }
+
+  private void setTimestampPrecision(
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder, DataFormat dataFormat) {
+    if (timestampPrecision == null) {
+      return;
+    }
+    switch (timestampPrecision) {
+      case NANOS:
+        if (dataFormat == DataFormat.ARROW) {
+          tableReadOptionsBuilder.setArrowSerializationOptions(
+              ArrowSerializationOptions.newBuilder()
+                  .setPicosTimestampPrecision(
+                      ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_NANOS));
+        } else {
+          tableReadOptionsBuilder.setAvroSerializationOptions(
+              AvroSerializationOptions.newBuilder()
+                  .setPicosTimestampPrecision(
+                      AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_NANOS));
+        }
+        break;
+      case PICOS:
+        if (dataFormat == DataFormat.ARROW) {
+          tableReadOptionsBuilder.setArrowSerializationOptions(
+              ArrowSerializationOptions.newBuilder()
+                  .setPicosTimestampPrecision(
+                      ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS));
+        } else {
+          tableReadOptionsBuilder.setAvroSerializationOptions(
+              AvroSerializationOptions.newBuilder()
+                  .setPicosTimestampPrecision(
+                      AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS));
+        }
+        break;
+      default:
+        break;
+    }
   }
 }

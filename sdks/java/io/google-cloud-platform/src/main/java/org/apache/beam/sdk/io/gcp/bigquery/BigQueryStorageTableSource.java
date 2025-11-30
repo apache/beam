@@ -65,7 +65,8 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         parseFn,
         outputCoder,
         bqServices,
-        projectionPushdownApplied);
+        projectionPushdownApplied,
+        /*timestampPrecision=*/ null);
   }
 
   public static <T> BigQueryStorageTableSource<T> create(
@@ -83,7 +84,30 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         parseFn,
         outputCoder,
         bqServices,
-        false);
+        /*projectionPushdownApplied=*/ false,
+        /*timestampPrecision=*/ null);
+  }
+
+  public static <T> BigQueryStorageTableSource<T> create(
+      ValueProvider<TableReference> tableRefProvider,
+      DataFormat format,
+      @Nullable ValueProvider<List<String>> selectedFields,
+      @Nullable ValueProvider<String> rowRestriction,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      Coder<T> outputCoder,
+      BigQueryServices bqServices,
+      boolean projectionPushdownApplied,
+      @Nullable TimestampPrecision timestampPrecision) {
+    return new BigQueryStorageTableSource<>(
+        tableRefProvider,
+        format,
+        selectedFields,
+        rowRestriction,
+        parseFn,
+        outputCoder,
+        bqServices,
+        projectionPushdownApplied,
+        timestampPrecision);
   }
 
   private BigQueryStorageTableSource(
@@ -94,8 +118,16 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices,
-      boolean projectionPushdownApplied) {
-    super(format, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+      boolean projectionPushdownApplied,
+      @Nullable TimestampPrecision timestampPrecision) {
+    super(
+        format,
+        selectedFields,
+        rowRestriction,
+        parseFn,
+        outputCoder,
+        bqServices,
+        timestampPrecision);
     this.tableReferenceProvider = checkNotNull(tableRefProvider, "tableRefProvider");
     this.projectionPushdownApplied = projectionPushdownApplied;
     cachedTable = new AtomicReference<>();
