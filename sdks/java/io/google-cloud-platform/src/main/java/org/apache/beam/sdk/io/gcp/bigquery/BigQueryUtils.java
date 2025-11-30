@@ -101,7 +101,7 @@ public class BigQueryUtils {
   private static final Pattern TABLE_RESOURCE_PATTERN =
       Pattern.compile(
           "^projects/(?<PROJECT>[^/]+)/datasets/(?<DATASET>[^/]+)/tables/(?<TABLE>[^/]+)$");
-
+ig
   // For parsing the format used to refer to tables parameters in BigQueryIO.
   // "{project_id}:{dataset_id}.{table_id}" or
   // "{project_id}.{dataset_id}.{table_id}"
@@ -378,6 +378,67 @@ public class BigQueryUtils {
       }
     }
     return ret;
+  }
+
+  /**
+   * Represents a timestamp with picosecond precision, split into seconds and picoseconds
+   * components.
+   */
+  public static class TimestampPicos {
+    final long seconds;
+    final long picoseconds;
+
+    TimestampPicos(long seconds, long picoseconds) {
+      this.seconds = seconds;
+      this.picoseconds = picoseconds;
+    }
+  }
+
+  /**
+   * Parses a timestamp string into seconds and picoseconds components.
+   *
+   * <p>Handles two formats:
+   *
+   * <ul>
+   *   <li>ISO format with exactly 12 fractional digits ending in Z (picosecond precision): e.g.,
+   *       "2024-01-15T10:30:45.123456789012Z"
+   *   <li>UTC format with 0-9 fractional digits ending in "UTC" (up to nanosecond precision): e.g.,
+   *       "2024-01-15 10:30:45.123456789 UTC", "2024-01-15 10:30:45 UTC"
+   * </ul>
+   */
+  public static TimestampPicos parseTimestampPicosFromString(String timestampString) {
+    // Check for ISO picosecond format up to 12 fractional digits before Z
+    // Format: "2024-01-15T10:30:45.123456789012Z"
+    if (timestampString.endsWith("Z")) {
+      int dotIndex = timestampString.lastIndexOf('.');
+
+      if (dotIndex > 0) {
+        String fractionalPart =
+            timestampString.substring(dotIndex + 1, timestampString.length() - 1);
+
+        if (fractionalPart.length() == 12) {
+          // ISO timestamp with 12 decimal digits (picosecond precision)
+          // Parse the datetime part (without fractional seconds)
+          String dateTimePart = timestampString.substring(0, dotIndex) + "Z";
+          java.time.Instant baseInstant = java.time.Instant.parse(dateTimePart);
+
+          // Parse all 12 digits directly as picoseconds (subsecond portion)
+          long picoseconds = Long.parseLong(fractionalPart);
+
+          return new TimestampPicos(baseInstant.getEpochSecond(), picoseconds);
+        }
+      }
+
+      // ISO format with 0-9 fractional digits - Instant.parse handles this
+      java.time.Instant timestamp = java.time.Instant.parse(timestampString);
+      return new TimestampPicos(timestamp.getEpochSecond(), timestamp.getNano() * 1000L);
+    }
+
+    // UTC format: "2024-01-15 10:30:45.123456789 UTC"
+    // Use TIMESTAMP_FORMATTER which handles space separator and "UTC" suffix
+    java.time.Instant timestamp =
+        java.time.Instant.from(TIMESTAMP_FORMATTER.parse(timestampString));
+    return new TimestampPicos(timestamp.getEpochSecond(), timestamp.getNano() * 1000L);
   }
 
   /**
