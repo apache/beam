@@ -71,7 +71,6 @@ import json
 import logging
 import math
 import struct
-from importlib import metadata
 from typing import Union
 
 import apache_beam as beam
@@ -268,7 +267,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.client = MongoClient(
       self.uri,
       **self.spec,
-      driver=DriverInfo("Apache Beam", metadata.version("apache-beam")))
+      driver=DriverInfo("Apache Beam", beam.__version__))
 
   def estimate_size(self):
     with MongoClient(self.uri, **self.spec) as client:
