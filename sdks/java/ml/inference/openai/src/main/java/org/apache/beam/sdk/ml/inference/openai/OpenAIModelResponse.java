@@ -32,7 +32,7 @@ import org.apache.beam.sdk.ml.inference.remote.BaseResponse;
  * @see OpenAIModelHandler
  * @see OpenAIModelInput
  */
-public class OpenAIModelResponse extends BaseResponse {
+public class OpenAIModelResponse implements BaseResponse {
 
   private final String output;
 

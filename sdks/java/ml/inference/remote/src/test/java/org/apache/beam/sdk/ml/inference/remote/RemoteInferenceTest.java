@@ -48,7 +48,7 @@ public class RemoteInferenceTest {
   public final transient TestPipeline pipeline = TestPipeline.create();
 
   // Test input class
-  public static class TestInput extends BaseInput {
+  public static class TestInput implements BaseInput {
     private final String value;
 
     private TestInput(String value) {
@@ -85,7 +85,7 @@ public class RemoteInferenceTest {
   }
 
   // Test output class
-  public static class TestOutput extends BaseResponse {
+  public static class TestOutput implements BaseResponse {
     private final String result;
 
     private TestOutput(String result) {

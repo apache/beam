@@ -384,7 +384,5 @@ findProject(":sdks:java:extensions:sql:iceberg")?.name = "iceberg"
 include("examples:java:iceberg")
 findProject(":examples:java:iceberg")?.name = "iceberg"
 
-include("sdks:java:ml:remoteinference")
-include("sdks:java:ml:inference")
 include("sdks:java:ml:inference:remote")
 include("sdks:java:ml:inference:openai")

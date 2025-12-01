@@ -23,6 +23,6 @@ import java.io.Serializable;
  * Base class for defining input types used with remote inference transforms.
  *Implementations holds the data needed for inference (text, images, etc.)
  */
-public abstract class BaseInput implements Serializable {
+public interface BaseInput extends Serializable {
 
 }

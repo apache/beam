@@ -32,7 +32,7 @@ import org.apache.beam.sdk.ml.inference.remote.BaseInput;
  * @see OpenAIModelHandler
  * @see OpenAIModelResponse
  */
-public class OpenAIModelInput extends BaseInput {
+public class OpenAIModelInput implements BaseInput {
 
   private final String input;
 

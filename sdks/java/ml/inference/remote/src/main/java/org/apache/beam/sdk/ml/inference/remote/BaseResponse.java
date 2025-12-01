@@ -29,6 +29,6 @@ import java.io.Serializable;
  * </ul>
  *
  */
-public abstract class BaseResponse implements Serializable {
+public interface BaseResponse extends Serializable {
 
 }
