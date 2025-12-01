@@ -114,8 +114,9 @@ import org.slf4j.LoggerFactory;
  * committed offset for a {@link TopicPartition}. Restriction trackers for a {@link
  * KafkaSourceDescriptor} are wrapped as {@link UnsplittableRestrictionTracker<OffsetRange, Long>}
  * and will only return a non-null {@link org.apache.beam.sdk.transforms.splittabledofn.SplitResult}
- * for a checkpoint. This ensures consistent behavior when {@code enable.auto.commit} is set and
- * prevents concurrent use of per-{@TopicPartition} cached {@link Consumer} resources.
+ * for a checkpoint. To the extent possible in the SDK, this reduces the risk of overwriting
+ * committed offsets when {@code enable.auto.commit} is set and prevents concurrent use of
+ * per-{@TopicPartition} cached {@link Consumer} resources.
  *
  * <p>TODO(https://github.com/apache/beam/issues/20280): Add support for initial splitting.
  *
