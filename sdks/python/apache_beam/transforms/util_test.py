@@ -320,7 +320,6 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
   def setUpClass(cls):
     if secretmanager is not None:
       cls.project_id = 'apache-beam-testing'
-      py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
       cls.secret_id = 'gbek_util_secret_tests'
       cls.client = secretmanager.SecretManagerServiceClient()
       cls.project_path = f'projects/{cls.project_id}'
