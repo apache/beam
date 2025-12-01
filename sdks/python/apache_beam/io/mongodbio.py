@@ -97,6 +97,7 @@ try:
   from pymongo import DESCENDING
   from pymongo import MongoClient
   from pymongo import ReplaceOne
+  from pymongo.driver_info import DriverInfo
 except ImportError:
   objectid = None
   json_util = None
@@ -105,6 +106,7 @@ except ImportError:
   DESCENDING = -1
   MongoClient = None
   ReplaceOne = None
+  DriverInfo = None
   _LOGGER.warning("Could not find a compatible bson package.")
 
 __all__ = ["ReadFromMongoDB", "WriteToMongoDB"]
@@ -262,6 +264,10 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.projection = projection
     self.spec = extra_client_params
     self.bucket_auto = bucket_auto
+    self.client = MongoClient(
+        self.uri,
+        **self.spec,
+        driver=DriverInfo("Apache Beam", beam.__version__))
 
   def estimate_size(self):
     with MongoClient(self.uri, **self.spec) as client:
