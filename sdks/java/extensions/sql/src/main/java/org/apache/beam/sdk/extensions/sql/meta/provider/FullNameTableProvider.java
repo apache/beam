@@ -32,9 +32,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Base class for table providers that look up table metadata using full table names, instead of
  * querying it by parts of the name separately.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class FullNameTableProvider implements TableProvider, CustomTableResolver {
 
   private List<TableName> knownTables;
@@ -51,7 +48,7 @@ public abstract class FullNameTableProvider implements TableProvider, CustomTabl
   }
 
   @Override
-  public TableProvider getSubProvider(String name) {
+  public @Nullable TableProvider getSubProvider(String name) {
     // TODO: implement with trie
 
     // If 'name' matches a sub-schema/sub-provider we start tracking
@@ -103,7 +100,7 @@ public abstract class FullNameTableProvider implements TableProvider, CustomTabl
     }
 
     @Override
-    public TableProvider getSubProvider(String name) {
+    public @Nullable TableProvider getSubProvider(String name) {
       // Find if any of the parsed table names have 'name' as part
       // of their path at current index.
       //

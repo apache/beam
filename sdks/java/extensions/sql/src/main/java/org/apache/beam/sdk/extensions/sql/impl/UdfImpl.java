@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.lang.reflect.Method;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.TranslatableTable;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.impl.TableMacroImpl;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Beam-customized facade behind {@link Function} to address BEAM-5921. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class UdfImpl {
 
   private UdfImpl() {}
@@ -38,13 +38,18 @@ class UdfImpl {
    *
    * @param clazz class that is used to implement the function
    * @param methodName Method name (typically "eval")
-   * @return created {@link Function} or null
+   * @return created {@link Function}
    */
   public static Function create(Class<?> clazz, String methodName) {
-    final Method method = findMethod(clazz, methodName);
+    final @Nullable Method method = findMethod(clazz, methodName);
+
     if (method == null) {
-      return null;
+      throw new RuntimeException(
+          String.format(
+              "Cannot create UDF from method: method %s.%s not found",
+              clazz.getCanonicalName(), methodName));
     }
+
     return create(method);
   }
 
@@ -57,7 +62,8 @@ class UdfImpl {
    */
   public static Function create(Method method) {
     if (TranslatableTable.class.isAssignableFrom(method.getReturnType())) {
-      return TableMacroImpl.create(method);
+      return checkArgumentNotNull(
+          TableMacroImpl.create(method), "Could not create function from method: %s", method);
     } else {
       return ScalarFunctionImpl.create(method);
     }
@@ -69,7 +75,7 @@ class UdfImpl {
    * @param name name of the method to find
    * @return the first method with matching name or null when no method found
    */
-  static Method findMethod(Class<?> clazz, String name) {
+  static @Nullable Method findMethod(Class<?> clazz, String name) {
     for (Method method : clazz.getMethods()) {
       if (method.getName().equals(name) && !method.isBridge()) {
         return method;
