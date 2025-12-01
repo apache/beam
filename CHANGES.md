@@ -85,8 +85,7 @@
 ## Bugfixes
 
 * Fixed FirestoreV1 Beam connectors allow configuring inconsistent project/database IDs between RPC requests and routing headers #36895 (Java) ([#36895](https://github.com/apache/beam/issues/36895)).
-* (Python) Logical type and coder registry are saved for pipelines in the case of default pickler. This fixes a side
-  effect of switching to cloudpickle as default pickler in Beam 2.65.0.
+ Logical type and coder registry are saved for pipelines in the case of default pickler. This fixes a side effect of switching to cloudpickle as default pickler in Beam 2.65.0 (Python) ([#35738](https://github.com/apache/beam/issues/35738)).
 
 ## Known Issues
 

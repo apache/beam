@@ -684,11 +684,16 @@ class LogicalTypeRegistry(object):
     self.by_urn = {}
     self.by_logical_type = {}
     self.by_language_type = {}
+    self._custom_urns = set()
 
-  def add(self, urn, logical_type):
+  def _add_internal(self, urn, logical_type):
     self.by_urn[urn] = logical_type
     self.by_logical_type[logical_type] = urn
     self.by_language_type[logical_type.language_type()] = logical_type
+
+  def add(self, urn, logical_type):
+    self._add_internal(urn, logical_type)
+    self._custom_urns.add(urn)
 
   def get_logical_type_by_urn(self, urn):
     return self.by_urn.get(urn, None)
@@ -704,12 +709,23 @@ class LogicalTypeRegistry(object):
     copy.by_urn.update(self.by_urn)
     copy.by_logical_type.update(self.by_logical_type)
     copy.by_language_type.update(self.by_language_type)
+    copy._custom_urns.update(self._custom_urns)
     return copy
+
+  def copy_custom(self):
+    copy = LogicalTypeRegistry()
+    for urn in self._custom_urns:
+      logical_type = self.by_urn[urn]
+      copy.by_urn[urn] = logical_type
+      copy.by_logical_type[logical_type] = urn
+      copy.by_language_type[logical_type.language_type()] = logical_type
+      copy._custom_urns.add(urn)
 
   def load(self, another):
     self.by_urn.update(another.by_urn)
     self.by_logical_type.update(another.by_logical_type)
     self.by_language_type.update(another.by_language_type)
+    self._custom_urns.update(another._custom_urns)
 
 
 LanguageT = TypeVar('LanguageT')
@@ -772,6 +788,19 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
     """Convert an instance of RepresentationT to LanguageT."""
     raise NotImplementedError()
+
+  @classmethod
+  def _register_internal(cls, logical_type_cls):
+    """
+    Register an implementation of LogicalType.
+
+    The types registered using this decorator are not pickled on pipeline
+    submission, as it relies module import to be registered on worker
+    initialization. Should be used within schemas module and static context.
+    """
+    cls._known_logical_types._add_internal(
+        logical_type_cls.urn(), logical_type_cls)
+    return logical_type_cls
 
   @classmethod
   def register_logical_type(cls, logical_type_cls):
@@ -889,7 +918,7 @@ MicrosInstantRepresentation = NamedTuple(
                                     ('micros', np.int64)])
 
 
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
   """Millisecond-precision instant logical type handles values consistent with
   that encoded by ``InstantCoder`` in the Java SDK.
@@ -933,7 +962,7 @@ class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
 # Make sure MicrosInstant is registered after MillisInstant so that it
 # overwrites the mapping of Timestamp language type representation choice and
 # thus does not lose microsecond precision inside python sdk.
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
   """Microsecond-precision instant logical type that handles ``Timestamp``."""
@@ -960,7 +989,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
     return Timestamp(seconds=int(value.seconds), micros=int(value.micros))
 
 
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
   """A logical type for PythonCallableSource objects."""
   @classmethod
@@ -1016,7 +1045,7 @@ class DecimalLogicalType(NoArgumentLogicalType[decimal.Decimal, bytes]):
     return decimal.Decimal(value.decode())
 
 
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class FixedPrecisionDecimalLogicalType(
     LogicalType[decimal.Decimal,
                 DecimalLogicalType,
@@ -1068,10 +1097,10 @@ class FixedPrecisionDecimalLogicalType(
 
 # TODO(yathu,BEAM-10722): Investigate and resolve conflicts in logical type
 # registration when more than one logical types sharing the same language type
-LogicalType.register_logical_type(DecimalLogicalType)
+LogicalType._register_internal(DecimalLogicalType)
 
 
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class FixedBytes(PassThroughLogicalType[bytes, np.int32]):
   """A logical type for fixed-length bytes."""
   @classmethod
@@ -1104,7 +1133,7 @@ class FixedBytes(PassThroughLogicalType[bytes, np.int32]):
     return self.length
 
 
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class VariableBytes(PassThroughLogicalType[bytes, np.int32]):
   """A logical type for variable-length bytes with specified maximum length."""
   @classmethod
@@ -1134,7 +1163,7 @@ class VariableBytes(PassThroughLogicalType[bytes, np.int32]):
     return self.max_length
 
 
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class FixedString(PassThroughLogicalType[str, np.int32]):
   """A logical type for fixed-length string."""
   @classmethod
@@ -1167,7 +1196,7 @@ class FixedString(PassThroughLogicalType[str, np.int32]):
     return self.length
 
 
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class VariableString(PassThroughLogicalType[str, np.int32]):
   """A logical type for variable-length string with specified maximum length."""
   @classmethod
@@ -1200,7 +1229,7 @@ class VariableString(PassThroughLogicalType[str, np.int32]):
 # TODO: A temporary fix for missing jdbc logical types.
 # See the discussion in https://github.com/apache/beam/issues/35738 for
 # more detail.
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
   """
   For internal use only; no backwards-compatibility guarantees.
@@ -1243,7 +1272,7 @@ class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
     return cls()
 
 
-@LogicalType.register_logical_type
+@LogicalType._register_internal
 class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
   """
   For internal use only; no backwards-compatibility guarantees.

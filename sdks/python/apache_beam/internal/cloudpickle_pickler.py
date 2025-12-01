@@ -259,7 +259,7 @@ def dump_session(file_path):
 
   with _pickle_lock, open(file_path, 'wb') as file:
     coder_reg = typecoders.registry.get_custom_type_coder_tuples()
-    logical_type_reg = schemas.LogicalType._known_logical_types.copy()
+    logical_type_reg = schemas.LogicalType._known_logical_types.copy_custom()
 
     pickler = cloudpickle.CloudPickler(file)
     # TODO(https://github.com/apache/beam/issues/18500) add file system registry
