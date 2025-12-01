@@ -247,6 +247,30 @@ class TestBigQueryWrapper(unittest.TestCase):
     call = http_mock.request.mock_calls[-2]
     self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
 
+  def test_wrapper_uses_injected_client_for_both_low_and_high_level(self):
+    """If a client is provided, it should be used for both clients."""
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    # Both low-level and high-level clients should be exactly the injected one.
+    self.assertIs(wrapper.client, client)
+    self.assertIs(wrapper.gcp_bq_client, client)
+
+  @unittest.skipIf(
+      beam.io.gcp.bigquery_tools.gcp_bigquery is None,
+      "bigquery library not available in this env")
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery.Client')
+  def test_gcp_bigquery_client_is_constructed_with_project_kwarg(
+      self, mock_bq_client_ctor):
+    """BigQueryWrapper should always pass an explicit project kwarg."""
+    # Constructing the wrapper without an injected client should create a
+    # google.cloud.bigquery.Client with an explicit "project" keyword arg,
+    # even if its value is None.
+    beam.io.gcp.bigquery_tools.BigQueryWrapper()
+
+    _, kwargs = mock_bq_client_ctor.call_args
+    self.assertIn('project', kwargs)
+
   # the function create_temporary_dataset() in the wrapper does not call
   # google.cloud.bigquery, so it is fine to just mock it
   @mock.patch(
