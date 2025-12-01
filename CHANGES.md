@@ -85,6 +85,7 @@
 ## Bugfixes
 
 * Fixed FirestoreV1 Beam connectors allow configuring inconsistent project/database IDs between RPC requests and routing headers #36895 (Java) ([#36895](https://github.com/apache/beam/issues/36895)).
+* Fixed BigQuery client not receiving explicit project ID, causing failures in cross-project and impersonation scenarios (Python) ([#36857](https://github.com/apache/beam/issues/36857)).
 
 ## Known Issues
 
