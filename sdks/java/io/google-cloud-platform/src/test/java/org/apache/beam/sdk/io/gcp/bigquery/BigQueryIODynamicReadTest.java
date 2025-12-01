@@ -734,7 +734,9 @@ public class BigQueryIODynamicReadTest {
                 new FakeBigQueryServices()
                     .withDatasetService(fakeDatasetService)
                     .withJobService(fakeJobService)
-                    .withStorageClient(fakeStorageClient));
+                    .withStorageClient(fakeStorageClient))
+                    .withQueryTempProject("project")
+                    .withQueryTempDataset("dataset");
     if (errorHandler != null) {
       t = t.withBadRecordErrorHandler(errorHandler);
     }
