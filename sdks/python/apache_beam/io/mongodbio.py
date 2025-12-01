@@ -265,7 +265,11 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.projection = projection
     self.spec = extra_client_params
     self.bucket_auto = bucket_auto
-    self.client = MongoClient(self.uri, **self.spec, driver=DriverInfo("Apache Beam", metadata.version("apache-beam")))
+    self.client = MongoClient(
+      self.uri,
+      **self.spec,
+      driver=DriverInfo("Apache Beam", metadata.version("apache-beam"))
+    )
 
   def estimate_size(self):
     with MongoClient(self.uri, **self.spec) as client:
