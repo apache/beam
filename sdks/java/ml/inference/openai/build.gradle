@@ -24,7 +24,7 @@ description = "Apache Beam :: SDKs :: Java :: ML :: Inference :: OpenAI"
 
 dependencies {
   implementation project(":sdks:java:ml:inference:remote")
-  implementation "com.openai:openai-java:4.3.0"
+  implementation "com.openai:openai-java-core:4.3.0"
   implementation "com.openai:openai-java-client-okhttp:4.3.0"
   implementation library.java.jackson_databind
   implementation library.java.jackson_annotations
