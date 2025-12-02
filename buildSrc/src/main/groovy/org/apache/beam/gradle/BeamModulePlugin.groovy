@@ -1424,6 +1424,8 @@ class BeamModulePlugin implements Plugin<Project> {
       // Configures javadoc plugin and ensure check runs javadoc.
       project.tasks.withType(Javadoc) {
         options.encoding = 'UTF-8'
+        options.docEncoding = 'UTF-8'
+        options.charSet = 'UTF-8'
         options.addBooleanOption('Xdoclint:-missing', true)
       }
       project.check.dependsOn project.javadoc

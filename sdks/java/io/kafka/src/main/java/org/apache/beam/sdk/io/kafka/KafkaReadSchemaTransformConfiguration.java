@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -145,7 +145,7 @@ public abstract class KafkaReadSchemaTransformConfiguration {
       "What to do when there is no initial offset in Kafka or if the current offset"
           + " does not exist any more on the server. (1) earliest: automatically reset the offset to the earliest"
           + " offset. (2) latest: automatically reset the offset to the latest offset"
-          + " (3) none: throw exception to the consumer if no previous offset is found for the consumer’s group")
+          + " (3) none: throw exception to the consumer if no previous offset is found for the consumer's group")
   @SchemaFieldNumber("7")
   @Nullable
   public abstract String getAutoOffsetResetConfig();
