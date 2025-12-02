@@ -633,7 +633,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.124.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
-    def opentelemetry_version = "1.51.0"
+    def opentelemetry_version = "1.56.0"
+    def opentelemetry_contrib_version = "1.52.0"
     def postgres_version = "42.6.2"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.2"
