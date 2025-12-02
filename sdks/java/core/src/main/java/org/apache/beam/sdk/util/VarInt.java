@@ -136,16 +136,19 @@ public class VarInt {
 
   /** Returns the length of the encoding of the given value (in bytes). */
   public static int getLength(int v) {
-    return getLength(convertIntToLongNoSignExtend(v));
+    // log2(v) / 7 + 1 rewritten as multiplication by 9/64 instead of a division by 7.
+    // Log2 is performed using a bit counting instruction.
+    // Multiplication by 9 is performed using a 3-bit left shift and add.
+    // Division by 64 is performed using a 6-bit right shift.
+    return ((Integer.SIZE * 9 + (1 << 6)) - (Integer.numberOfLeadingZeros(v) * 9)) >>> 6;
   }
 
   /** Returns the length of the encoding of the given value (in bytes). */
   public static int getLength(long v) {
-    int result = 0;
-    do {
-      result++;
-      v >>>= 7;
-    } while (v != 0);
-    return result;
+    // log2(v) / 7 + 1 rewritten as multiplication by 9/64 instead of a division by 7.
+    // Log2 is performed using a bit counting instruction.
+    // Multiplication by 9 is performed using a 3-bit left shift and add.
+    // Division by 64 is performed using a 6-bit right shift.
+    return ((Long.SIZE * 9 + (1 << 6)) - (Long.numberOfLeadingZeros(v) * 9)) >>> 6;
   }
 }
