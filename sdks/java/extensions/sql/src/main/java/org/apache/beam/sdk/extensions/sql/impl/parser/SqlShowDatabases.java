@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
+import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -114,21 +115,24 @@ public class SqlShowDatabases extends SqlCall implements BeamSqlParser.Executabl
     }
 
     nameWidth += 2;
-    String format = "| %-" + nameWidth + "s |%n";
+    String rowFormat = "| %-" + nameWidth + "s |%n";
 
     int separatorWidth = nameWidth + 2;
     String separator =
-        String.format(
-            "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+%n");
+        "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+";
 
-    System.out.printf(separator);
-    System.out.printf(format, headerName);
-    System.out.printf(separator);
-    for (String dbName : databases.stream().sorted().collect(Collectors.toList())) {
-      if (pattern == null || calciteLike.like(dbName, pattern)) {
-        System.out.printf(format, dbName);
+    try (PrintWriter writer = new PrintWriter(System.out)) {
+      writer.println(separator);
+      writer.printf(rowFormat, headerName);
+      writer.println(separator);
+      for (String dbName : databases.stream().sorted().collect(Collectors.toList())) {
+        if (pattern == null || calciteLike.like(dbName, pattern)) {
+          writer.printf(rowFormat, dbName);
+        }
       }
+      writer.println(separator);
+
+      writer.flush();
     }
-    System.out.printf(separator);
   }
 }

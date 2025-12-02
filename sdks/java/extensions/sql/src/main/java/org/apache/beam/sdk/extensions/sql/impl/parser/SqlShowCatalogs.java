@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
+import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -105,26 +106,29 @@ public class SqlShowCatalogs extends SqlCall implements BeamSqlParser.Executable
     typeWidth += 2;
 
     // format string with calculated widths for left-justification (%-Ns)
-    String format = "| %-" + nameWidth + "s | %-" + typeWidth + "s |%n";
+    String rowFormat = "| %-" + nameWidth + "s | %-" + typeWidth + "s |%n";
 
     // separator width = column widths + padding + separators - corners ('+')
     int separatorWidth = nameWidth + typeWidth + 5;
     String separator =
-        String.format(
-            "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+%n");
+        "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+%n";
 
-    // printing the catalogs
-    System.out.printf(separator);
-    System.out.printf(format, headerName, headerType);
-    System.out.printf(separator);
-    for (Catalog catalog :
-        catalogs.stream()
-            .sorted(Comparator.comparing(Catalog::name))
-            .collect(Collectors.toList())) {
-      if (pattern == null || calciteLike.like(catalog.name(), pattern)) {
-        System.out.printf(format, catalog.name(), catalog.type());
+    // print the catalogs
+    try (PrintWriter writer = new PrintWriter(System.out)) {
+      writer.println(separator);
+      writer.printf(rowFormat, headerName, headerType);
+      writer.println(separator);
+      for (Catalog catalog :
+          catalogs.stream()
+              .sorted(Comparator.comparing(Catalog::name))
+              .collect(Collectors.toList())) {
+        if (pattern == null || calciteLike.like(catalog.name(), pattern)) {
+          writer.printf(rowFormat, catalog.name(), catalog.type());
+        }
       }
+      writer.println(separator);
+
+      writer.flush();
     }
-    System.out.printf(separator);
   }
 }

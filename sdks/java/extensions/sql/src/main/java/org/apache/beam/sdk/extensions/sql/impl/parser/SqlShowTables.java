@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
+import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -126,22 +127,27 @@ public class SqlShowTables extends SqlCall implements BeamSqlParser.ExecutableSt
 
     nameWidth += 2;
     typeWidth += 2;
-    String format = "| %-" + nameWidth + "s | %-" + typeWidth + "s |%n";
+    String rowFormat = "| %-" + nameWidth + "s | %-" + typeWidth + "s |%n";
 
     int separatorWidth = nameWidth + typeWidth + 5;
     String separator =
-        String.format(
-            "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+%n");
+        "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+";
 
-    System.out.printf(separator);
-    System.out.printf(format, headerName, headerType);
-    System.out.printf(separator);
-    for (Table table :
-        tables.stream().sorted(Comparator.comparing(Table::getName)).collect(Collectors.toList())) {
-      if (pattern == null || calciteLike.like(table.getName(), pattern)) {
-        System.out.printf(format, table.getName(), table.getType());
+    try (PrintWriter writer = new PrintWriter(System.out)) {
+      writer.println(separator);
+      writer.printf(rowFormat, headerName, headerType);
+      writer.println(separator);
+      for (Table table :
+          tables.stream()
+              .sorted(Comparator.comparing(Table::getName))
+              .collect(Collectors.toList())) {
+        if (pattern == null || calciteLike.like(table.getName(), pattern)) {
+          writer.printf(rowFormat, table.getName(), table.getType());
+        }
       }
+      writer.println(separator);
+
+      writer.flush();
     }
-    System.out.printf(separator);
   }
 }
