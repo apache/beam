@@ -100,6 +100,18 @@ These examples leverage the built-in mapping transforms including `MapToFields`,
 `Filter` and `Explode`. More information can be found about mapping transforms
 [here](https://beam.apache.org/documentation/sdks/yaml-udf/).
 
+### SQL
+
+Examples that demonstrate SQL transforms with various database dialect configurations:
+
+- [Basic SQL Transform](transforms/sql/sql_basic_example.yaml) - Simple SQL queries without special configuration
+- [PostgreSQL Functions](transforms/sql/sql_postgresql_functions.yaml) - Using PostgreSQL-specific functions like SPLIT_PART
+- [BigQuery Functions](transforms/sql/sql_bigquery_functions.yaml) - BigQuery syntax and functions with proper calcite_connection_properties
+- [MySQL Functions](transforms/sql/sql_mysql_functions.yaml) - MySQL-specific date and string functions
+- [Advanced Configuration](transforms/sql/sql_advanced_configuration.yaml) - Multiple calcite_connection_properties options
+
+These examples show how to use the `calcite_connection_properties` pipeline option to configure SQL transforms for different database dialects and enable dialect-specific functions and syntax.
+
 ### IO
 
 #### Spanner
