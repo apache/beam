@@ -1310,6 +1310,23 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testFromTableSchema_timestampPrecision12_millis() {
+    TableFieldSchema picosTimestamp =
+        new TableFieldSchema().setName("ts").setType("TIMESTAMP").setTimestampPrecision(12L);
+    TableSchema bqSchema = new TableSchema().setFields(Arrays.asList(picosTimestamp));
+
+    BigQueryUtils.SchemaConversionOptions options =
+        BigQueryUtils.SchemaConversionOptions.builder()
+            .setPicosecondTimestampMapping(TimestampPrecision.MILLIS)
+            .build();
+    Schema beamSchema = BigQueryUtils.fromTableSchema(bqSchema, options);
+
+    assertEquals(
+        Schema.builder().addNullableField("ts", FieldType.logicalType(Timestamp.MILLIS)).build(),
+        beamSchema);
+  }
+
+  @Test
   public void testFromTableSchema_timestampPrecision12_micros() {
     TableFieldSchema picosTimestamp =
         new TableFieldSchema().setName("ts").setType("TIMESTAMP").setTimestampPrecision(12L);
@@ -1317,8 +1334,7 @@ public class BigQueryUtilsTest {
 
     BigQueryUtils.SchemaConversionOptions options =
         BigQueryUtils.SchemaConversionOptions.builder()
-            .setPicosecondTimestampConversion(
-                BigQueryUtils.SchemaConversionOptions.PicosecondTimestampConversion.MICROS)
+            .setPicosecondTimestampMapping(TimestampPrecision.MICROS)
             .build();
     Schema beamSchema = BigQueryUtils.fromTableSchema(bqSchema, options);
 
@@ -1335,8 +1351,7 @@ public class BigQueryUtilsTest {
 
     BigQueryUtils.SchemaConversionOptions options =
         BigQueryUtils.SchemaConversionOptions.builder()
-            .setPicosecondTimestampConversion(
-                BigQueryUtils.SchemaConversionOptions.PicosecondTimestampConversion.NANOS)
+            .setPicosecondTimestampMapping(TimestampPrecision.NANOS)
             .build();
     Schema beamSchema = BigQueryUtils.fromTableSchema(bqSchema, options);
 
@@ -1353,8 +1368,7 @@ public class BigQueryUtilsTest {
 
     BigQueryUtils.SchemaConversionOptions options =
         BigQueryUtils.SchemaConversionOptions.builder()
-            .setPicosecondTimestampConversion(
-                BigQueryUtils.SchemaConversionOptions.PicosecondTimestampConversion.PICOS)
+            .setPicosecondTimestampMapping(TimestampPrecision.PICOS)
             .build();
     Schema beamSchema = BigQueryUtils.fromTableSchema(bqSchema, options);
 
@@ -1370,8 +1384,7 @@ public class BigQueryUtilsTest {
 
     BigQueryUtils.SchemaConversionOptions options =
         BigQueryUtils.SchemaConversionOptions.builder()
-            .setPicosecondTimestampConversion(
-                BigQueryUtils.SchemaConversionOptions.PicosecondTimestampConversion.PICOS)
+            .setPicosecondTimestampMapping(TimestampPrecision.PICOS)
             .build();
     Schema beamSchema = BigQueryUtils.fromTableSchema(bqSchema, options);
 
@@ -1387,19 +1400,6 @@ public class BigQueryUtilsTest {
     Schema beamSchema = BigQueryUtils.fromTableSchema(bqSchema);
 
     assertEquals(Schema.builder().addNullableField("ts", FieldType.DATETIME).build(), beamSchema);
-  }
-
-  @Test
-  @SuppressWarnings("JavaInstantGetSecondsGetNano")
-  public void testToBeamRow_timestampNanos_isoFormat() {
-    Schema schema = Schema.builder().addLogicalTypeField("ts", Timestamp.NANOS).build();
-
-    String timestamp = "2024-08-10T16:52:07.123456789Z";
-    java.time.Instant expected = java.time.Instant.parse(timestamp);
-
-    Row beamRow = BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", timestamp));
-
-    assertEquals(expected, beamRow.getValue("ts"));
   }
 
   @Test
@@ -1430,29 +1430,18 @@ public class BigQueryUtilsTest {
 
     // 3 decimal places
     Row row3 =
-        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10T16:52:07.123Z"));
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10 16:52:07.123 UTC"));
     assertEquals(123000000, ((java.time.Instant) row3.getValue("ts")).getNano());
 
     // 6 decimal places
     Row row6 =
-        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10T16:52:07.123456Z"));
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10 16:52:07.123456 UTC"));
     assertEquals(123456000, ((java.time.Instant) row6.getValue("ts")).getNano());
 
     // 9 decimal places
     Row row9 =
-        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10T16:52:07.123456789Z"));
+        BigQueryUtils.toBeamRow(
+            schema, new TableRow().set("ts", "2024-08-10 16:52:07.123456789 UTC"));
     assertEquals(123456789, ((java.time.Instant) row9.getValue("ts")).getNano());
-  }
-
-  @Test
-  public void testToBeamRow_timestampMicros_isoFormat() {
-    Schema schema = Schema.builder().addLogicalTypeField("ts", Timestamp.MICROS).build();
-
-    String timestamp = "2024-08-10T16:52:07.123456Z";
-    java.time.Instant expected = java.time.Instant.parse(timestamp);
-
-    Row beamRow = BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", timestamp));
-
-    assertEquals(expected, beamRow.getValue("ts"));
   }
 }
