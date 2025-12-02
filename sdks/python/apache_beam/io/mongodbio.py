@@ -785,6 +785,12 @@ class _MongoSink:
     self.spec = extra_params
     self.client = None
 
+    if "driver" not in self.spec:
+      self.spec["driver"] = DriverInfo(
+          name="Apache Beam",
+          version=beam.__version__,
+      )
+
   def write(self, documents):
     if self.client is None:
       self.client = MongoClient(host=self.uri, **self.spec)
