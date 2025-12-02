@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "ahmedabu98",
-    "build": "Abacn"
+    "java": "kennknowles",
+    "build": "damccorm"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
