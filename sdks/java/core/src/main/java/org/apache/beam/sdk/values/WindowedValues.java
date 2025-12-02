@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import io.opentelemetry.context.Context;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -77,7 +78,8 @@ public class WindowedValues {
         .setValue(template.getValue())
         .setTimestamp(template.getTimestamp())
         .setWindows(template.getWindows())
-        .setPaneInfo(template.getPaneInfo());
+        .setPaneInfo(template.getPaneInfo())
+        .setOpenTelemetryContext(template.getOpenTelemetryContext());
   }
 
   public static class Builder<T> implements OutputBuilder<T> {
@@ -100,6 +102,7 @@ public class WindowedValues {
     private @Nullable String recordId;
     private @Nullable Long recordOffset;
     private CausedByDrain causedByDrain = CausedByDrain.NORMAL;
+    private @Nullable Context openTelemetryContext;
 
     @Override
     public Builder<T> setValue(T value) {
@@ -149,6 +152,12 @@ public class WindowedValues {
       return this;
     }
 
+    @Override
+    public Builder<T> setOpenTelemetryContext(@Nullable Context openTelemetryContext) {
+      this.openTelemetryContext = openTelemetryContext;
+      return this;
+    }
+
     public Builder<T> setReceiver(WindowedValueReceiver<T> receiver) {
       this.receiver = receiver;
       return this;
@@ -173,6 +182,11 @@ public class WindowedValues {
     public Instant getTimestamp() {
       checkStateNotNull(timestamp, "Timestamp not set");
       return timestamp;
+    }
+
+    @Override
+    public @Nullable Context getOpenTelemetryContext() {
+      return openTelemetryContext;
     }
 
     @Override
@@ -237,7 +251,8 @@ public class WindowedValues {
           getPaneInfo(),
           getRecordId(),
           getRecordOffset(),
-          causedByDrain());
+          causedByDrain(),
+          getOpenTelemetryContext());
     }
 
     @Override
@@ -255,7 +270,7 @@ public class WindowedValues {
 
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
-    return of(value, timestamp, windows, paneInfo, null, null, CausedByDrain.NORMAL);
+    return of(value, timestamp, windows, paneInfo, null, null, CausedByDrain.NORMAL, null);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
@@ -266,15 +281,31 @@ public class WindowedValues {
       PaneInfo paneInfo,
       @Nullable String currentRecordId,
       @Nullable Long currentRecordOffset,
-      CausedByDrain causedByDrain) {
+      CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
+      return of(
+          value,
+          timestamp,
+          windows.iterator().next(),
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
     } else {
       return new TimestampedValueInMultipleWindows<>(
-          value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
+          value,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
     }
   }
 
@@ -285,12 +316,21 @@ public class WindowedValues {
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo paneInfo,
-      CausedByDrain causedByDrain) {
+      CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
+      return of(
+          value,
+          timestamp,
+          windows.iterator().next(),
+          paneInfo,
+          null,
+          null,
+          causedByDrain,
+          openTelemetryContext);
     } else {
       return new TimestampedValueInMultipleWindows<>(
-          value, timestamp, windows, paneInfo, null, null, causedByDrain);
+          value, timestamp, windows, paneInfo, null, null, causedByDrain, openTelemetryContext);
     }
   }
 
@@ -299,7 +339,7 @@ public class WindowedValues {
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
-    return of(value, timestamp, window, paneInfo, CausedByDrain.NORMAL);
+    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL, null);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
@@ -308,7 +348,10 @@ public class WindowedValues {
       Instant timestamp,
       BoundedWindow window,
       PaneInfo paneInfo,
-      CausedByDrain causedByDrain) {
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
+      CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
@@ -316,10 +359,23 @@ public class WindowedValues {
       return valueInGlobalWindow(value, paneInfo);
     } else if (isGlobal) {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, paneInfo, null, null, causedByDrain);
+          value,
+          timestamp,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
     } else {
       return new TimestampedValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, causedByDrain);
+          value,
+          timestamp,
+          window,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
     }
   }
 
@@ -328,7 +384,8 @@ public class WindowedValues {
    * default timestamp and pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value) {
-    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL);
+    return new ValueInGlobalWindow<>(
+        value, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL, null);
   }
 
   /**
@@ -336,7 +393,7 @@ public class WindowedValues {
    * default timestamp and the specified pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo paneInfo) {
-    return new ValueInGlobalWindow<>(value, paneInfo, null, null, CausedByDrain.NORMAL);
+    return new ValueInGlobalWindow<>(value, paneInfo, null, null, CausedByDrain.NORMAL, null);
   }
 
   /**
@@ -348,7 +405,7 @@ public class WindowedValues {
       return valueInGlobalWindow(value);
     } else {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL);
+          value, timestamp, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL, null);
     }
   }
 
@@ -362,7 +419,7 @@ public class WindowedValues {
       return timestampedValueInGlobalWindow(value, timestamp);
     } else {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, paneInfo, null, null, CausedByDrain.NORMAL);
+          value, timestamp, paneInfo, null, null, CausedByDrain.NORMAL, null);
     }
   }
 
@@ -379,7 +436,8 @@ public class WindowedValues {
         windowedValue.getPaneInfo(),
         windowedValue.getRecordId(),
         windowedValue.getRecordOffset(),
-        windowedValue.causedByDrain());
+        windowedValue.causedByDrain(),
+        windowedValue.getOpenTelemetryContext());
   }
 
   public static <T> boolean equals(
@@ -430,6 +488,7 @@ public class WindowedValues {
     private final PaneInfo paneInfo;
     private final @Nullable String currentRecordId;
     private final @Nullable Long currentRecordOffset;
+    private final @Nullable Context openTelemetryContext;
     private final CausedByDrain causedByDrain;
 
     @Override
@@ -452,12 +511,14 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        CausedByDrain causedByDrain) {
+        CausedByDrain causedByDrain,
+        @Nullable Context openTelemetryContext) {
       this.value = value;
       this.paneInfo = checkNotNull(paneInfo);
       this.currentRecordId = currentRecordId;
       this.currentRecordOffset = currentRecordOffset;
       this.causedByDrain = causedByDrain;
+      this.openTelemetryContext = openTelemetryContext;
     }
 
     @Override
@@ -468,6 +529,11 @@ public class WindowedValues {
     @Override
     public T getValue() {
       return value;
+    }
+
+    @Override
+    public @Nullable Context getOpenTelemetryContext() {
+      return openTelemetryContext;
     }
 
     @Override
@@ -506,8 +572,9 @@ public class WindowedValues {
         PaneInfo pane,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        CausedByDrain causedByDrain) {
-      super(value, pane, currentRecordId, currentRecordOffset, causedByDrain);
+        CausedByDrain causedByDrain,
+        @Nullable Context openTelemetryContext) {
+      super(value, pane, currentRecordId, currentRecordOffset, causedByDrain, openTelemetryContext);
     }
 
     @Override
@@ -525,8 +592,15 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        CausedByDrain causedByDrain) {
-      super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
+        CausedByDrain causedByDrain,
+        @Nullable Context openTelemetryContext) {
+      super(
+          value,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
     }
 
     @Override
@@ -542,7 +616,12 @@ public class WindowedValues {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new ValueInGlobalWindow<>(
-          newValue, getPaneInfo(), getRecordId(), getRecordOffset(), causedByDrain());
+          newValue,
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain(),
+          getOpenTelemetryContext());
     }
 
     @Override
@@ -581,8 +660,15 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        CausedByDrain causedByDrain) {
-      super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
+        CausedByDrain causedByDrain,
+        @Nullable Context openTelemetryContext) {
+      super(
+          value,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
       this.timestamp = checkNotNull(timestamp);
     }
 
@@ -605,8 +691,16 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        CausedByDrain causedByDrain) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
+        CausedByDrain causedByDrain,
+        @Nullable Context openTelemetryContext) {
+      super(
+          value,
+          timestamp,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
     }
 
     @Override
@@ -627,7 +721,8 @@ public class WindowedValues {
           getPaneInfo(),
           getRecordId(),
           getRecordOffset(),
-          causedByDrain());
+          causedByDrain(),
+          getOpenTelemetryContext());
     }
 
     @Override
@@ -678,8 +773,16 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        CausedByDrain causedByDrain) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
+        CausedByDrain causedByDrain,
+        @Nullable Context openTelemetryContext) {
+      super(
+          value,
+          timestamp,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
       this.window = checkNotNull(window);
     }
 
@@ -692,7 +795,8 @@ public class WindowedValues {
           getPaneInfo(),
           getRecordId(),
           getRecordOffset(),
-          causedByDrain());
+          causedByDrain(),
+          getOpenTelemetryContext());
     }
 
     @Override
@@ -750,8 +854,16 @@ public class WindowedValues {
         PaneInfo paneInfo,
         @Nullable String currentRecordId,
         @Nullable Long currentRecordOffset,
-        CausedByDrain causedByDrain) {
-      super(value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
+        CausedByDrain causedByDrain,
+        @Nullable Context openTelemetryContext) {
+      super(
+          value,
+          timestamp,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext);
       this.windows = checkNotNull(windows);
     }
 
@@ -769,7 +881,8 @@ public class WindowedValues {
           getPaneInfo(),
           getRecordId(),
           getRecordOffset(),
-          causedByDrain());
+          causedByDrain(),
+          getOpenTelemetryContext());
     }
 
     @Override
@@ -909,11 +1022,11 @@ public class WindowedValues {
     @Override
     public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
         throws CoderException, IOException {
-      encode(windowedElem, outStream, Context.NESTED);
+      encode(windowedElem, outStream, Coder.Context.NESTED);
     }
 
     @Override
-    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Context context)
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
@@ -923,6 +1036,10 @@ public class WindowedValues {
       if (metadataSupported) {
         BeamFnApi.Elements.ElementMetadata.Builder builder =
             BeamFnApi.Elements.ElementMetadata.newBuilder();
+        io.opentelemetry.context.Context context1 = windowedElem.getOpenTelemetryContext();
+        if (context1 != null) {
+          OpenTelemetryContextPropagator.write(context1, builder);
+        }
         BeamFnApi.Elements.ElementMetadata em =
             builder
                 .setDrain(
@@ -938,16 +1055,17 @@ public class WindowedValues {
 
     @Override
     public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
-      return decode(inStream, Context.NESTED);
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override
-    public WindowedValue<T> decode(InputStream inStream, Context context)
+    public WindowedValue<T> decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
       CausedByDrain causedByDrain = CausedByDrain.NORMAL;
+      io.opentelemetry.context.Context openTelemetryContext = null;
       if (isMetadataSupported() && paneInfo.isElementMetadata()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
@@ -955,13 +1073,14 @@ public class WindowedValues {
             elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
+        openTelemetryContext = OpenTelemetryContextPropagator.read(elementMetadata);
       }
       T value = valueCoder.decode(inStream, context);
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
       // we call this deprecated no-validation path when decoding
       return WindowedValues.createWithoutValidation(
-          value, timestamp, windows, paneInfo, causedByDrain);
+          value, timestamp, windows, paneInfo, causedByDrain, openTelemetryContext);
     }
 
     @Override
@@ -1027,22 +1146,22 @@ public class WindowedValues {
     @Override
     public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
         throws CoderException, IOException {
-      encode(windowedElem, outStream, Context.NESTED);
+      encode(windowedElem, outStream, Coder.Context.NESTED);
     }
 
     @Override
-    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Context context)
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
     @Override
     public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
-      return decode(inStream, Context.NESTED);
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override
-    public WindowedValue<T> decode(InputStream inStream, Context context)
+    public WindowedValue<T> decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       T value = valueCoder.decode(inStream, context);
       return WindowedValues.valueInGlobalWindow(value);
@@ -1138,22 +1257,22 @@ public class WindowedValues {
     @Override
     public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
         throws CoderException, IOException {
-      encode(windowedElem, outStream, Context.NESTED);
+      encode(windowedElem, outStream, Coder.Context.NESTED);
     }
 
     @Override
-    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Context context)
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
     @Override
     public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
-      return decode(inStream, Context.NESTED);
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override
-    public WindowedValue<T> decode(InputStream inStream, Context context)
+    public WindowedValue<T> decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       return WindowedValues.withValue(windowedValuePrototype, valueCoder.decode(inStream, context));
     }
