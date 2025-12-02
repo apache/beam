@@ -33,5 +33,4 @@ dependencies {
   testImplementation library.java.slf4j_api
   testRuntimeOnly library.java.slf4j_simple
   testImplementation library.java.junit
-  testImplementation project(":sdks:java:testing:test-utils")
 }

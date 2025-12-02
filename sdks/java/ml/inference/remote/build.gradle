@@ -31,12 +31,11 @@ dependencies {
   implementation library.java.checker_qual;
   implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.slf4j_api
-  testRuntimeOnly library.java.slf4j_simple
   implementation library.java.joda_time
 
   // testing
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation library.java.junit
-  testImplementation library.java.hamcrest
-  testImplementation project(":sdks:java:testing:test-utils")
+  testRuntimeOnly library.java.hamcrest
+  testRuntimeOnly library.java.slf4j_simple
 }
