@@ -21,6 +21,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import com.google.protobuf.CodedOutputStream;
 
 /**
  * Variable-length encoding for integers.
@@ -136,19 +137,11 @@ public class VarInt {
 
   /** Returns the length of the encoding of the given value (in bytes). */
   public static int getLength(int v) {
-    // log2(v) / 7 + 1 rewritten as multiplication by 9/64 instead of a division by 7.
-    // Log2 is performed using a bit counting instruction.
-    // Multiplication by 9 is performed using a 3-bit left shift and add.
-    // Division by 64 is performed using a 6-bit right shift.
-    return ((Integer.SIZE * 9 + (1 << 6)) - (Integer.numberOfLeadingZeros(v) * 9)) >>> 6;
+    return CodedOutputStream.computeUInt32SizeNoTag(v);
   }
 
   /** Returns the length of the encoding of the given value (in bytes). */
   public static int getLength(long v) {
-    // log2(v) / 7 + 1 rewritten as multiplication by 9/64 instead of a division by 7.
-    // Log2 is performed using a bit counting instruction.
-    // Multiplication by 9 is performed using a 3-bit left shift and add.
-    // Division by 64 is performed using a 6-bit right shift.
-    return ((Long.SIZE * 9 + (1 << 6)) - (Long.numberOfLeadingZeros(v) * 9)) >>> 6;
+    return CodedOutputStream.computeUInt64SizeNoTag(v);
   }
 }
