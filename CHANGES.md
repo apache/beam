@@ -68,7 +68,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Elasticsearch 9 Support ([#36491](https://github.com/apache/beam/issues/36491)).
 
 ## New Features / Improvements
 
