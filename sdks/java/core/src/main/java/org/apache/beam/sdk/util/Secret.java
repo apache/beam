@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
  * A secret management interface used for handling sensitive data.
@@ -70,16 +71,48 @@ public interface Secret extends Serializable {
                     paramName, gcpSecretParams));
           }
         }
-        String versionName = paramMap.get("version_name");
-        if (versionName == null) {
-          throw new RuntimeException(
-              "version_name must contain a valid value for versionName parameter");
-        }
+        String versionName =
+            Preconditions.checkNotNull(
+                paramMap.get("version_name"),
+                "version_name must contain a valid value for versionName parameter");
         return new GcpSecret(versionName);
+      case "gcphsmgeneratedsecret":
+        Set<String> gcpHsmGeneratedSecretParams =
+            new HashSet<>(
+                Arrays.asList("project_id", "location_id", "key_ring_id", "key_id", "job_name"));
+        for (String paramName : paramMap.keySet()) {
+          if (!gcpHsmGeneratedSecretParams.contains(paramName)) {
+            throw new RuntimeException(
+                String.format(
+                    "Invalid secret parameter %s, GcpHsmGeneratedSecret only supports the following parameters: %s",
+                    paramName, gcpHsmGeneratedSecretParams));
+          }
+        }
+        String projectId =
+            Preconditions.checkNotNull(
+                paramMap.get("project_id"),
+                "project_id must contain a valid value for projectId parameter");
+        String locationId =
+            Preconditions.checkNotNull(
+                paramMap.get("location_id"),
+                "location_id must contain a valid value for locationId parameter");
+        String keyRingId =
+            Preconditions.checkNotNull(
+                paramMap.get("key_ring_id"),
+                "key_ring_id must contain a valid value for keyRingId parameter");
+        String keyId =
+            Preconditions.checkNotNull(
+                paramMap.get("key_id"), "key_id must contain a valid value for keyId parameter");
+        String jobName =
+            Preconditions.checkNotNull(
+                paramMap.get("job_name"),
+                "job_name must contain a valid value for jobName parameter");
+        return new GcpHsmGeneratedSecret(projectId, locationId, keyRingId, keyId, jobName);
       default:
         throw new RuntimeException(
             String.format(
-                "Invalid secret type %s, currently only GcpSecret is supported", secretType));
+                "Invalid secret type %s, currently only GcpSecret and GcpHsmGeneratedSecret are supported",
+                secretType));
     }
   }
 }
