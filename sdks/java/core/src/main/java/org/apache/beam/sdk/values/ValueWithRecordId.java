@@ -128,6 +128,12 @@ public class ValueWithRecordId<ValueT> {
     }
 
     @Override
+    public boolean isRegisterByteSizeObserverCheap(ValueWithRecordId<ValueT> value) {
+      // idCoder is always cheap
+      return valueCoder.isRegisterByteSizeObserverCheap(value.value);
+    }
+
+    @Override
     public void registerByteSizeObserver(
         ValueWithRecordId<ValueT> value, ElementByteSizeObserver observer) throws Exception {
       valueCoder.registerByteSizeObserver(value.getValue(), observer);

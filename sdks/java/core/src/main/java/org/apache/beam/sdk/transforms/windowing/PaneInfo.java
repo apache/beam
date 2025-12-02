@@ -388,6 +388,21 @@ public final class PaneInfo {
     }
 
     @Override
+    protected long getEncodedElementByteSize(PaneInfo value) throws Exception {
+      Encoding encoding = chooseEncoding(value);
+      switch (encoding) {
+        case FIRST:
+          return 1;
+        case ONE_INDEX:
+          return 1L + VarInt.getLength(value.index);
+        case TWO_INDICES:
+          return 1L + VarInt.getLength(value.index) + VarInt.getLength(value.nonSpeculativeIndex);
+        default:
+          throw new CoderException("Unknown encoding " + encoding);
+      }
+    }
+
+    @Override
     public PaneInfo decode(final InputStream inStream) throws CoderException, IOException {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F)));
@@ -413,20 +428,5 @@ public final class PaneInfo {
 
     @Override
     public void verifyDeterministic() {}
-
-    @Override
-    protected long getEncodedElementByteSize(PaneInfo value) throws Exception {
-      Encoding encoding = chooseEncoding(value);
-      switch (encoding) {
-        case FIRST:
-          return 1;
-        case ONE_INDEX:
-          return 1L + VarInt.getLength(value.index);
-        case TWO_INDICES:
-          return 1L + VarInt.getLength(value.index) + VarInt.getLength(value.nonSpeculativeIndex);
-        default:
-          throw new CoderException("Unknown encoding " + encoding);
-      }
-    }
   }
 }

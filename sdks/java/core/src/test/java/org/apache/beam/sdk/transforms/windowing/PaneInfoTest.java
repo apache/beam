@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.junit.Test;
@@ -50,6 +51,33 @@ public class PaneInfoTest {
       CoderProperties.coderDecodeEncodeEqual(coder, PaneInfo.createPane(true, false, timing, 0, 0));
       CoderProperties.coderDecodeEncodeEqual(coder, PaneInfo.createPane(true, true, timing, 0, 0));
     }
+  }
+
+  @Test
+  public void testByteCount() throws Exception {
+    Coder<PaneInfo> coder = PaneInfo.PaneInfoCoder.INSTANCE;
+    for (Coder.Context context : CoderProperties.ALL_CONTEXTS) {
+      for (Timing timing : Timing.values()) {
+        long onTimeIndex = timing == Timing.EARLY ? -1 : 37;
+        testByteCount(coder, context, PaneInfo.createPane(false, false, timing, 389, onTimeIndex));
+        testByteCount(coder, context, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex));
+        testByteCount(coder, context, PaneInfo.createPane(true, false, timing, 0, 0));
+        testByteCount(coder, context, PaneInfo.createPane(true, true, timing, 0, 0));
+
+        // With metadata
+        testByteCount(
+            coder, context, PaneInfo.createPane(false, false, timing, 389, onTimeIndex, true));
+        testByteCount(
+            coder, context, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex, true));
+        testByteCount(coder, context, PaneInfo.createPane(true, false, timing, 0, 0, true));
+        testByteCount(coder, context, PaneInfo.createPane(true, true, timing, 0, 0, true));
+      }
+    }
+  }
+
+  private static void testByteCount(Coder<PaneInfo> coder, Context context, PaneInfo paneInfo)
+      throws Exception {
+    CoderProperties.testByteCount(coder, context, new PaneInfo[] {paneInfo});
   }
 
   @Test
