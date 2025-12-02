@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
@@ -133,21 +136,19 @@ public class SqlShowTables extends SqlCall implements BeamSqlParser.ExecutableSt
     String separator =
         "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+";
 
-    try (PrintWriter writer = new PrintWriter(System.out)) {
-      writer.println(separator);
-      writer.printf(rowFormat, headerName, headerType);
-      writer.println(separator);
-      for (Table table :
-          tables.stream()
-              .sorted(Comparator.comparing(Table::getName))
-              .collect(Collectors.toList())) {
-        if (pattern == null || calciteLike.like(table.getName(), pattern)) {
-          writer.printf(rowFormat, table.getName(), table.getType());
-        }
+    PrintWriter writer =
+        new PrintWriter(new BufferedWriter(new OutputStreamWriter(System.out, UTF_8)));
+    writer.println(separator);
+    writer.printf(rowFormat, headerName, headerType);
+    writer.println(separator);
+    for (Table table :
+        tables.stream().sorted(Comparator.comparing(Table::getName)).collect(Collectors.toList())) {
+      if (pattern == null || calciteLike.like(table.getName(), pattern)) {
+        writer.printf(rowFormat, table.getName(), table.getType());
       }
-      writer.println(separator);
-
-      writer.flush();
     }
+    writer.println(separator);
+
+    writer.flush();
   }
 }

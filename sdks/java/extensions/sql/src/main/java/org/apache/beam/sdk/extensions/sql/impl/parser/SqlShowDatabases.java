@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
@@ -121,18 +124,18 @@ public class SqlShowDatabases extends SqlCall implements BeamSqlParser.Executabl
     String separator =
         "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+";
 
-    try (PrintWriter writer = new PrintWriter(System.out)) {
-      writer.println(separator);
-      writer.printf(rowFormat, headerName);
-      writer.println(separator);
-      for (String dbName : databases.stream().sorted().collect(Collectors.toList())) {
-        if (pattern == null || calciteLike.like(dbName, pattern)) {
-          writer.printf(rowFormat, dbName);
-        }
+    PrintWriter writer =
+        new PrintWriter(new BufferedWriter(new OutputStreamWriter(System.out, UTF_8)));
+    writer.println(separator);
+    writer.printf(rowFormat, headerName);
+    writer.println(separator);
+    for (String dbName : databases.stream().sorted().collect(Collectors.toList())) {
+      if (pattern == null || calciteLike.like(dbName, pattern)) {
+        writer.printf(rowFormat, dbName);
       }
-      writer.println(separator);
-
-      writer.flush();
     }
+    writer.println(separator);
+
+    writer.flush();
   }
 }

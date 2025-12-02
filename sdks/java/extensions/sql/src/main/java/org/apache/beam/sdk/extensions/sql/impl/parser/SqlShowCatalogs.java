@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
@@ -114,21 +117,21 @@ public class SqlShowCatalogs extends SqlCall implements BeamSqlParser.Executable
         "+" + String.join("", Collections.nCopies(separatorWidth, separatorChar)) + "+%n";
 
     // print the catalogs
-    try (PrintWriter writer = new PrintWriter(System.out)) {
-      writer.println(separator);
-      writer.printf(rowFormat, headerName, headerType);
-      writer.println(separator);
-      for (Catalog catalog :
-          catalogs.stream()
-              .sorted(Comparator.comparing(Catalog::name))
-              .collect(Collectors.toList())) {
-        if (pattern == null || calciteLike.like(catalog.name(), pattern)) {
-          writer.printf(rowFormat, catalog.name(), catalog.type());
-        }
+    PrintWriter writer =
+        new PrintWriter(new BufferedWriter(new OutputStreamWriter(System.out, UTF_8)));
+    writer.println(separator);
+    writer.printf(rowFormat, headerName, headerType);
+    writer.println(separator);
+    for (Catalog catalog :
+        catalogs.stream()
+            .sorted(Comparator.comparing(Catalog::name))
+            .collect(Collectors.toList())) {
+      if (pattern == null || calciteLike.like(catalog.name(), pattern)) {
+        writer.printf(rowFormat, catalog.name(), catalog.type());
       }
-      writer.println(separator);
-
-      writer.flush();
     }
+    writer.println(separator);
+
+    writer.flush();
   }
 }
