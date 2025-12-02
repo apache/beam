@@ -1017,6 +1017,7 @@ public class BigQueryAvroUtilsTest {
   @Test
   public void testFormatTimestampInputMillis() {
     // Min: Earliest timestamp supported by BQ
+    // https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp_type
     long minMillis = -62135596800000L;
     String expectedMin = "0001-01-01 00:00:00";
     assertThat(
