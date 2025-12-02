@@ -169,6 +169,8 @@ public class GroupByEncryptedKeyTest implements Serializable {
               KEY_RING_ID,
               KEY_ID,
               String.format("gbek-test-job-%d", new SecureRandom().nextInt(10000)));
+      // Validate we have crypto permissions or skip these tests.
+      gcpHsmGeneratedSecret.getSecretBytes();
     } catch (Exception e) {
       gcpHsmGeneratedSecret = null;
     }
