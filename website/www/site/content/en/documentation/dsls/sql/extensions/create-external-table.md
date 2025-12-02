@@ -72,6 +72,8 @@ tableElement: columnName fieldType [ NOT NULL ]
     *   `kafka`
     *   `parquet`
     *   `text`
+    *   `iceberg`
+    *   `datagen`
 *   `location`: The I/O specific location of the underlying table, specified as
     a [String
     Literal](/documentation/dsls/sql/calcite/lexical/#string-literals).
@@ -746,6 +748,175 @@ Only simple types are supported.
 CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
 TYPE text
 LOCATION '/home/admin/orders'
+```
+
+## Apache Iceberg
+
+Beam SQL supports reading from and writing to [Apache Iceberg](https://iceberg.apache.org/) tables. Iceberg is a high-performance table format for huge analytic datasets that provides ACID transactions, schema evolution, and time travel capabilities.
+
+**Prerequisites**: Before creating Iceberg tables, you must first create an Iceberg catalog. See the [CREATE CATALOG](/documentation/dsls/sql/extensions/create-catalog/) documentation for details.
+
+### Syntax
+
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE iceberg
+[PARTITIONED BY (partitionField [, partitionField ]*)]
+[TBLPROPERTIES tblProperties]
+```
+
+*   `tableName`: The case sensitive name of the table to create and register.
+*   `tableElement`: `columnName` `fieldType` `[ NOT NULL ]`
+    *   `columnName`: The case sensitive name of the column.
+    *   `fieldType`: The field's type, specified as one of the following types:
+        *   `simpleType`: `TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`, `FLOAT`,
+            `DOUBLE`, `DECIMAL`, `BOOLEAN`, `DATE`, `TIME`, `TIMESTAMP`, `CHAR`,
+            `VARCHAR`, `BINARY`, `VARBINARY`
+        *   `MAP<simpleType, fieldType>`
+        *   `ARRAY<fieldType>`
+        *   `ROW<tableElement [, tableElement ]*>`
+    *   `NOT NULL`: Optional. Indicates that the column is not nullable.
+*   `PARTITIONED BY`: Optional. Specifies partition fields for the table. Supports various partition functions:
+    *   `identity(columnName)`: Identity partitioning
+    *   `bucket(columnName, numBuckets)`: Bucket partitioning
+    *   `truncate(columnName, width)`: Truncate partitioning
+    *   `year(columnName)`, `month(columnName)`, `day(columnName)`, `hour(columnName)`: Time-based partitioning
+*   `TBLPROPERTIES`: Optional. JSON object with table-specific configuration:
+    *   `triggering_frequency_seconds`: For streaming pipelines, specifies how often to commit snapshots (in seconds).
+
+### Read Mode
+
+Beam SQL supports reading from existing Iceberg tables. The connector automatically infers the table schema from the Iceberg table metadata and supports:
+
+*   **Predicate push-down**: Filters are pushed down to the Iceberg scan level for better performance
+*   **Projection push-down**: Only requested columns are read from the table
+*   **Schema evolution**: Automatically handles schema changes in the underlying Iceberg table
+
+### Write Mode
+
+Beam SQL supports writing to Iceberg tables with the following features:
+
+*   **Automatic table creation**: If the table doesn't exist, it will be created with the specified schema
+*   **ACID transactions**: All writes are committed as atomic transactions
+*   **Schema validation**: Ensures data matches the table schema
+*   **Partitioning**: Supports writing to partitioned tables
+*   **Streaming support**: For streaming pipelines, commits are performed at regular intervals
+
+### Schema
+
+Beam SQL types map to Iceberg types as follows:
+
+<table>
+  <tr>
+   <td><b>Beam SQL Type</b>
+   </td>
+   <td><b>Iceberg Type</b>
+   </td>
+  </tr>
+  <tr>
+   <td>TINYINT, SMALLINT, INTEGER, BIGINT &nbsp;
+   </td>
+   <td>INTEGER, LONG
+   </td>
+  </tr>
+  <tr>
+   <td>FLOAT, DOUBLE
+   </td>
+   <td>FLOAT, DOUBLE
+   </td>
+  </tr>
+  <tr>
+   <td>DECIMAL
+   </td>
+   <td>DECIMAL
+   </td>
+  </tr>
+  <tr>
+   <td>BOOLEAN
+   </td>
+   <td>BOOLEAN
+   </td>
+  </tr>
+  <tr>
+   <td>DATE, TIME, TIMESTAMP
+   </td>
+   <td>DATE, TIME, TIMESTAMP
+   </td>
+  </tr>
+  <tr>
+   <td>CHAR, VARCHAR
+   </td>
+   <td>STRING
+   </td>
+  </tr>
+  <tr>
+   <td>BINARY, VARBINARY
+   </td>
+   <td>BINARY
+   </td>
+  </tr>
+  <tr>
+   <td>ARRAY
+   </td>
+   <td>LIST
+   </td>
+  </tr>
+  <tr>
+   <td>MAP
+   </td>
+   <td>MAP
+   </td>
+  </tr>
+  <tr>
+   <td>ROW
+   </td>
+   <td>STRUCT
+   </td>
+  </tr>
+</table>
+
+### Examples
+
+#### Basic Table Creation
+
+```sql
+CREATE EXTERNAL TABLE users (
+    id BIGINT,
+    username VARCHAR,
+    email VARCHAR,
+    created_at TIMESTAMP
+)
+TYPE iceberg
+```
+
+#### Partitioned Table
+
+```sql
+CREATE EXTERNAL TABLE events (
+    event_id BIGINT,
+    user_id BIGINT,
+    event_type VARCHAR,
+    event_timestamp TIMESTAMP,
+    data ROW<key VARCHAR, value VARCHAR>
+)
+TYPE iceberg
+PARTITIONED BY (
+    'bucket(user_id, 10)',
+    'day(event_timestamp)',
+    'event_type'
+)
+```
+
+#### Streaming Table with Commit Frequency
+
+```sql
+CREATE EXTERNAL TABLE streaming_events (
+    id BIGINT,
+    message VARCHAR,
+    timestamp TIMESTAMP
+)
+TYPE iceberg
+TBLPROPERTIES '{"triggering_frequency_seconds": 60}'
 ```
 
 ## DataGen
