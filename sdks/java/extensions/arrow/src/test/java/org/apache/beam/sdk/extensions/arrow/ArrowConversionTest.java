@@ -21,6 +21,7 @@ import static java.util.Arrays.asList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -30,6 +31,7 @@ import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.TimeStampMicroTZVector;
 import org.apache.arrow.vector.TimeStampMilliTZVector;
+import org.apache.arrow.vector.TimeStampNanoTZVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
@@ -40,6 +42,7 @@ import org.apache.arrow.vector.util.Text;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.collection.IsIterableContainingInOrder;
@@ -95,7 +98,8 @@ public class ArrowConversionTest {
                     new ArrowType.List(),
                     field("int32s", new ArrowType.Int(32, true))),
                 field("boolean", new ArrowType.Bool()),
-                field("fixed_size_binary", new ArrowType.FixedSizeBinary(3))));
+                field("fixed_size_binary", new ArrowType.FixedSizeBinary(3)),
+                field("timestampNanoUTC", new ArrowType.Timestamp(TimeUnit.NANOSECOND, "UTC"))));
 
     Schema beamSchema = ArrowConversion.ArrowSchemaTranslator.toBeamSchema(schema);
 
@@ -109,6 +113,9 @@ public class ArrowConversionTest {
         (TimeStampMicroTZVector) expectedSchemaRoot.getFieldVectors().get(3);
     TimeStampMilliTZVector timeStampMilliTZVector =
         (TimeStampMilliTZVector) expectedSchemaRoot.getFieldVectors().get(4);
+    TimeStampNanoTZVector timestampNanoUtcVector =
+        (TimeStampNanoTZVector) expectedSchemaRoot.getFieldVectors().get(8);
+
     ListVector int32ListVector = (ListVector) expectedSchemaRoot.getFieldVectors().get(5);
     IntVector int32ListElementVector =
         int32ListVector
@@ -123,6 +130,8 @@ public class ArrowConversionTest {
     ArrayList<Row> expectedRows = new ArrayList<>();
     for (int i = 0; i < 16; i++) {
       DateTime dt = new DateTime(2019, 1, i + 1, i, i, i, DateTimeZone.UTC);
+      Instant instantNano =
+          Instant.ofEpochSecond(dt.getMillis() / 1000, (dt.getMillis() % 1000) * 1_000_000L + i);
       expectedRows.add(
           Row.withSchema(beamSchema)
               .addValues(
@@ -133,7 +142,8 @@ public class ArrowConversionTest {
                   dt,
                   ImmutableList.of(i),
                   (i % 2) != 0,
-                  new byte[] {(byte) i, (byte) (i + 1), (byte) (i + 2)})
+                  new byte[] {(byte) i, (byte) (i + 1), (byte) (i + 2)},
+                  instantNano)
               .build());
 
       intVector.set(i, i);
@@ -141,6 +151,7 @@ public class ArrowConversionTest {
       strVector.set(i, new Text("" + i));
       timestampMicroUtcVector.set(i, dt.getMillis() * 1000);
       timeStampMilliTZVector.set(i, dt.getMillis());
+      timestampNanoUtcVector.set(i, dt.getMillis() * 1_000_000L + i);
       int32ListVector.startNewValue(i);
       int32ListElementVector.set(i, i);
       int32ListVector.endValue(i, 1);
@@ -156,6 +167,23 @@ public class ArrowConversionTest {
                 .collect(ImmutableList.toImmutableList())));
 
     expectedSchemaRoot.close();
+  }
+
+  @Test
+  public void toBeamSchema_convertsTimestampTypes() {
+    org.apache.arrow.vector.types.pojo.Schema arrowSchema =
+        new org.apache.arrow.vector.types.pojo.Schema(
+            ImmutableList.of(
+                field("ts_milli", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")),
+                field("ts_micro", new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC")),
+                field("ts_nano", new ArrowType.Timestamp(TimeUnit.NANOSECOND, "UTC"))));
+
+    Schema beamSchema = ArrowConversion.ArrowSchemaTranslator.toBeamSchema(arrowSchema);
+
+    assertThat(beamSchema.getField("ts_milli").getType(), equalTo(FieldType.DATETIME));
+    assertThat(beamSchema.getField("ts_micro").getType(), equalTo(FieldType.DATETIME));
+    assertThat(
+        beamSchema.getField("ts_nano").getType(), equalTo(FieldType.logicalType(Timestamp.NANOS)));
   }
 
   private static org.apache.arrow.vector.types.pojo.Field field(

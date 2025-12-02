@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
+import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.DateTime;
@@ -207,6 +209,8 @@ public class ArrowConversion {
                     if (type.getUnit() == TimeUnit.MILLISECOND
                         || type.getUnit() == TimeUnit.MICROSECOND) {
                       return FieldType.DATETIME;
+                    } else if (type.getUnit() == TimeUnit.NANOSECOND) {
+                      return FieldType.logicalType(Timestamp.NANOS);
                     } else {
                       throw new IllegalArgumentException(
                           "Unsupported timestamp unit: " + type.getUnit().name());
@@ -456,6 +460,9 @@ public class ArrowConversion {
 
       @Override
       public Optional<Function<Object, Object>> visit(ArrowType.Timestamp type) {
+        // Arrow timestamp semantics:
+        // - With timezone: epoch is always UTC, timezone is display metadata
+        // - Without timezone: epoch is in an unknown timezone ("naive" wall-clock time)
         DateTimeZone tz;
         try {
           tz = DateTimeZone.forID(type.getTimezone());
@@ -463,14 +470,22 @@ public class ArrowConversion {
           throw new IllegalArgumentException(
               "Encountered unrecognized Timezone: " + type.getTimezone());
         }
-        switch (type.getUnit()) {
-          case MICROSECOND:
-            return Optional.of((epochMicros) -> new DateTime((long) epochMicros / 1000, tz));
-          case MILLISECOND:
-            return Optional.of((epochMills) -> new DateTime((long) epochMills, tz));
-          default:
-            throw new AssertionError("Encountered unrecognized TimeUnit: " + type.getUnit());
+
+        if (type.getUnit() == TimeUnit.NANOSECOND) {
+          return Optional.of(epoch -> Instant.ofEpochSecond(0L, (long) epoch));
         }
+
+        return Optional.of(
+            epoch -> {
+              switch (type.getUnit()) {
+                case MILLISECOND:
+                  return new DateTime((long) epoch, tz);
+                case MICROSECOND:
+                  return new DateTime(Math.floorDiv((long) epoch, 1000L), tz);
+                default:
+                  throw new AssertionError("Encountered unrecognized TimeUnit: " + type.getUnit());
+              }
+            });
       }
 
       @Override
