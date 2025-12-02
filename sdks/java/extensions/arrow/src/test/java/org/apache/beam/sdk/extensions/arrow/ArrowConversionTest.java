@@ -131,7 +131,9 @@ public class ArrowConversionTest {
     for (int i = 0; i < 16; i++) {
       DateTime dt = new DateTime(2019, 1, i + 1, i, i, i, DateTimeZone.UTC);
       Instant instantNano =
-          Instant.ofEpochSecond(dt.getMillis() / 1000, (dt.getMillis() % 1000) * 1_000_000L + i);
+          Instant.ofEpochSecond(
+              dt.getMillis() / 1000,
+              (dt.getMillis() % 1000) * 1_000_000L + (1_000_000000L - 1 - i));
       expectedRows.add(
           Row.withSchema(beamSchema)
               .addValues(
@@ -151,7 +153,7 @@ public class ArrowConversionTest {
       strVector.set(i, new Text("" + i));
       timestampMicroUtcVector.set(i, dt.getMillis() * 1000);
       timeStampMilliTZVector.set(i, dt.getMillis());
-      timestampNanoUtcVector.set(i, dt.getMillis() * 1_000_000L + i);
+      timestampNanoUtcVector.set(i, dt.getMillis() * 1_000_000L + (1_000_000000L - 1 - i));
       int32ListVector.startNewValue(i);
       int32ListElementVector.set(i, i);
       int32ListVector.endValue(i, 1);

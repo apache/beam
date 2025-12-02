@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
-import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -471,10 +470,6 @@ public class ArrowConversion {
               "Encountered unrecognized Timezone: " + type.getTimezone());
         }
 
-        if (type.getUnit() == TimeUnit.NANOSECOND) {
-          return Optional.of(epoch -> Instant.ofEpochSecond(0L, (long) epoch));
-        }
-
         return Optional.of(
             epoch -> {
               switch (type.getUnit()) {
@@ -482,6 +477,10 @@ public class ArrowConversion {
                   return new DateTime((long) epoch, tz);
                 case MICROSECOND:
                   return new DateTime(Math.floorDiv((long) epoch, 1000L), tz);
+                case NANOSECOND:
+                  long seconds = Math.floorDiv((long) epoch, 1_000_000_000L);
+                  long nanoAdjustment = Math.floorMod((long) epoch, 1_000_000_000L);
+                  return java.time.Instant.ofEpochSecond(seconds, nanoAdjustment);
                 default:
                   throw new AssertionError("Encountered unrecognized TimeUnit: " + type.getUnit());
               }
