@@ -31,7 +31,6 @@ import com.google.cloud.secretmanager.v1.SecretPayload;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
 import com.google.crypto.tink.subtle.Hkdf;
 import com.google.protobuf.ByteString;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -51,6 +50,8 @@ public class GcpHsmGeneratedSecret implements Secret {
   private final String keyRingId;
   private final String keyId;
   private final String secretId;
+
+  private final SecureRandom random = new SecureRandom();
 
   public GcpHsmGeneratedSecret(
       String projectId, String locationId, String keyRingId, String keyId, String jobName) {
@@ -98,7 +99,7 @@ public class GcpHsmGeneratedSecret implements Secret {
       byte[] newKey = generateDek();
 
       try {
-        // Try to access again in case another thread created it.
+        // Always retrieve remote secret as source-of-truth in case another thread created it
         AccessSecretVersionResponse response = client.accessSecretVersion(secretVersionName);
         return response.getPayload().getData().toByteArray();
       } catch (NotFoundException e) {
@@ -118,13 +119,11 @@ public class GcpHsmGeneratedSecret implements Secret {
     }
   }
 
-  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE") // intended, used for non-random nonceOne
   private byte[] generateDek() throws IOException, GeneralSecurityException {
     int dekSize = 32;
     try (KeyManagementServiceClient client = KeyManagementServiceClient.create()) {
       // 1. Generate nonce_one. This doesn't need to have baked in randomness since the
       // actual randomness comes from KMS.
-      SecureRandom random = new SecureRandom();
       byte[] nonceOne = new byte[dekSize];
       random.nextBytes(nonceOne);
 

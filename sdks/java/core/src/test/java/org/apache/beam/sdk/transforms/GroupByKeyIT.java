@@ -60,6 +60,7 @@ public class GroupByKeyIT {
   private static String secretId;
   private static final String KEY_RING_ID = "gbek-it-key-ring";
   private static final String KEY_ID = "gbek-it-key";
+  private static final String LOCATION_ID = "global";
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -99,10 +100,9 @@ public class GroupByKeyIT {
 
     try {
       KeyManagementServiceClient kmsClient = KeyManagementServiceClient.create();
-      String locationId = "global";
-      KeyRingName keyRingName = KeyRingName.of(PROJECT_ID, locationId, KEY_RING_ID);
+      KeyRingName keyRingName = KeyRingName.of(PROJECT_ID, LOCATION_ID, KEY_RING_ID);
       com.google.cloud.kms.v1.LocationName locationName =
-          com.google.cloud.kms.v1.LocationName.of(PROJECT_ID, locationId);
+          com.google.cloud.kms.v1.LocationName.of(PROJECT_ID, LOCATION_ID);
       try {
         kmsClient.getKeyRing(keyRingName);
       } catch (Exception e) {
@@ -110,7 +110,7 @@ public class GroupByKeyIT {
             locationName, KEY_RING_ID, com.google.cloud.kms.v1.KeyRing.newBuilder().build());
       }
 
-      CryptoKeyName keyName = CryptoKeyName.of(PROJECT_ID, locationId, KEY_RING_ID, KEY_ID);
+      CryptoKeyName keyName = CryptoKeyName.of(PROJECT_ID, LOCATION_ID, KEY_RING_ID, KEY_ID);
       try {
         kmsClient.getCryptoKey(keyName);
       } catch (Exception e) {
@@ -121,7 +121,7 @@ public class GroupByKeyIT {
       gcpHsmSecretOption =
           String.format(
               "type:gcphsmgeneratedsecret;project_id:%s;location_id:%s;key_ring_id:%s;key_id:%s;job_name:%s",
-              PROJECT_ID, locationId, KEY_RING_ID, KEY_ID, secretId);
+              PROJECT_ID, LOCATION_ID, KEY_RING_ID, KEY_ID, secretId);
     } catch (Exception e) {
       gcpHsmSecretOption = null;
     }
