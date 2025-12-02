@@ -28,7 +28,6 @@ import logging
 import math
 import random
 import re
-import sys
 import time
 import unittest
 import warnings
@@ -320,9 +319,7 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
   def setUpClass(cls):
     if secretmanager is not None:
       cls.project_id = 'apache-beam-testing'
-      py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
-      secret_postfix = datetime.now().strftime('%m%d_%H%M%S') + py_version
-      cls.secret_id = 'gbek_util_secret_tests_' + secret_postfix
+      cls.secret_id = 'gbek_util_secret_tests'
       cls.client = secretmanager.SecretManagerServiceClient()
       cls.project_path = f'projects/{cls.project_id}'
       cls.secret_path = f'{cls.project_path}/secrets/{cls.secret_id}'
@@ -349,11 +346,6 @@ class GroupByEncryptedKeyTest(unittest.TestCase):
       version_name = f'{cls.secret_path}/versions/latest'
       cls.gcp_secret = GcpSecret(version_name)
       cls.secret_option = f'type:GcpSecret;version_name:{version_name}'
-
-  @classmethod
-  def tearDownClass(cls):
-    if secretmanager is not None:
-      cls.client.delete_secret(request={'name': cls.secret_path})
 
   def test_gbek_fake_secret_manager_roundtrips(self):
     fakeSecret = FakeSecret()
