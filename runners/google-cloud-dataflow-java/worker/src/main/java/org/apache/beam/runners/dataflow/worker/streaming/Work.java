@@ -78,12 +78,14 @@ public final class Work implements RefreshableWork {
   private volatile TimedState currentState;
   private volatile boolean isFailed;
   private volatile String processingThreadName = "";
+  private final boolean drainMode;
 
   private Work(
       WorkItem workItem,
       long serializedWorkItemSize,
       Watermarks watermarks,
       ProcessingContext processingContext,
+      boolean drainMode,
       Supplier<Instant> clock) {
     this.shardedKey = ShardedKey.create(workItem.getKey(), workItem.getShardingKey());
     this.workItem = workItem;
@@ -91,6 +93,7 @@ public final class Work implements RefreshableWork {
     this.processingContext = processingContext;
     this.watermarks = watermarks;
     this.clock = clock;
+    this.drainMode = drainMode;
     this.startTime = clock.get();
     Preconditions.checkState(EMPTY_ENUM_MAP.isEmpty());
     // Create by passing EMPTY_ENUM_MAP to avoid recreating
@@ -110,8 +113,10 @@ public final class Work implements RefreshableWork {
       long serializedWorkItemSize,
       Watermarks watermarks,
       ProcessingContext processingContext,
+      boolean drainMode,
       Supplier<Instant> clock) {
-    return new Work(workItem, serializedWorkItemSize, watermarks, processingContext, clock);
+    return new Work(
+        workItem, serializedWorkItemSize, watermarks, processingContext, drainMode, clock);
   }
 
   public static ProcessingContext createProcessingContext(
@@ -205,6 +210,10 @@ public final class Work implements RefreshableWork {
 
   public State getState() {
     return currentState.state();
+  }
+
+  public boolean getDrainMode() {
+    return drainMode;
   }
 
   public void setState(State state) {
