@@ -1197,6 +1197,11 @@ public class AvroUtils {
           baseType =
               LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG));
         } else if (Timestamp.IDENTIFIER.equals(identifier)) {
+          int precision = checkNotNull(logicalType.getArgument());
+          if (precision != 9) {
+            throw new RuntimeException(
+                "Timestamp logical type precision not supported:" + precision);
+          }
           baseType = org.apache.avro.Schema.create(Type.LONG);
           baseType.addProp("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE);
         } else {
@@ -1355,8 +1360,9 @@ public class AvroUtils {
               + TimeUnit.NANOSECONDS.toMicros(instant.getNano());
         } else if (Timestamp.IDENTIFIER.equals(identifier)) {
           java.time.Instant instant = (java.time.Instant) value;
-          // Use BigInteger to work around long overflows so that minimum timestamp can be
-          // supported.
+          // Use BigInteger to work around long overflows so that epochNanos = Long.MIN_VALUE can be
+          // supported. Instant always stores nanos as positive adjustment so the math will silently
+          // overflow with regular int64.
           BigInteger epochSeconds = BigInteger.valueOf(instant.getEpochSecond());
           BigInteger nanosOfSecond = BigInteger.valueOf(instant.getNano());
           BigInteger epochNanos =
