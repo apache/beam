@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import io.opentelemetry.context.Context;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -49,6 +50,8 @@ public interface OutputBuilder<T> extends WindowedValue<T> {
   OutputBuilder<T> setRecordOffset(@Nullable Long recordOffset);
 
   OutputBuilder<T> setCausedByDrain(boolean causedByDrain);
+
+  OutputBuilder<T> setOpenTelemetryContext(@Nullable Context openTelemetryContext);
 
   void output();
 }

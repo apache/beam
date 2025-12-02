@@ -66,11 +66,11 @@ org.eclipse.jgit:
     license: "https://www.eclipse.org/org/documents/edl-v10.html"
     type: "Eclipse Distribution License - v1.0"
 opentelemetry-bom:
-  '1.52.0':
+  '1.56.0':
     license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.52.0/LICENSE"
     type: "Apache License 2.0"
 opentelemetry-bom-alpha:
-  '1.52.0-alpha':
+  '1.56.0-alpha':
     license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.52.0/LICENSE"
     type: "Apache License 2.0"
 zstd-jni:
