@@ -24,6 +24,7 @@ from typing import Optional
 from typing import Union
 
 from google import genai
+from google.api_core.client_options import ClientOptions as HttpOptions
 from google.genai import errors
 from google.genai.types import Part
 from PIL.Image import Image
@@ -108,6 +109,7 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       api_key: Optional[str] = None,
       project: Optional[str] = None,
       location: Optional[str] = None,
+      use_vertex_flex_api: Optional[bool]=False,
       *,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
@@ -169,6 +171,8 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       self.location = location
       self.use_vertex = True
 
+    self.use_vertex_flex_api = use_vertex_flex_api
+
     super().__init__(
         namespace='GeminiModelHandler',
         retry_filter=_retry_on_appropriate_service_error,
@@ -180,7 +184,17 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     provided when the GeminiModelHandler class is instantiated.
     """
     if self.use_vertex:
-      return genai.Client(
+      if self.use_vertex_flex_api:
+        return genai.Client(
+          vertexai=True, project=self.project, location=self.location,
+          http_options=HttpOptions(
+              api_version="v1",
+              headers={"X-Vertex-AI-LLM-Request-Type": "flex"},
+              # Set timeout in the unit of millisecond.
+              timeout = 600000
+          ))
+      else:
+        return genai.Client(
           vertexai=True, project=self.project, location=self.location)
     return genai.Client(api_key=self.api_key)
 
