@@ -1682,6 +1682,7 @@ class SetupOptions(PipelineOptions):
             '(not __main__) and the modules are importable in the worker. '))
     parser.add_argument(
         '--disable_save_main_session',
+        default=None,
         action='store_false',
         dest='save_main_session',
         help=(
