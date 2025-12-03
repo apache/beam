@@ -1672,7 +1672,7 @@ class SetupOptions(PipelineOptions):
         choices=['cloudpickle', 'default', 'dill', 'dill_unsafe'])
     parser.add_argument(
         '--save_main_session',
-        default=False,
+        default=None,
         action='store_true',
         help=(
             'Save the main session state so that pickled functions and classes '
@@ -1680,6 +1680,14 @@ class SetupOptions(PipelineOptions):
             'Some workflows do not need the session state if for instance all '
             'their functions/classes are defined in proper modules '
             '(not __main__) and the modules are importable in the worker. '))
+    parser.add_argument(
+        '--disable_save_main_session',
+        action='store_false',
+        dest='save_main_session',
+        help=(
+            'Disable saving the main session state. It is enabled/disabled by'
+            'default for cloudpickle/dill pickler. See "save_main_session".'))
+
     parser.add_argument(
         '--sdk_location',
         default='default',
@@ -1780,10 +1788,23 @@ class SetupOptions(PipelineOptions):
             'If not specified, the default Maven Central repository will be '
             'used.'))
 
+  def _handle_load_main_session(self, validator):
+    save_main_session = getattr(self, 'save_main_session')
+    if save_main_session is None:
+      # save_main_session default to False for dill, while default to true
+      # for cloudpickle
+      pickle_library = getattr(self, 'pickle_library')
+      if pickle_library in ['default', 'cloudpickle']:
+        setattr(self, 'save_main_session', True)
+      else:
+        setattr(self, 'save_main_session', False)
+    return []
+
   def validate(self, validator):
     errors = []
     errors.extend(validator.validate_container_prebuilding_options(self))
     errors.extend(validator.validate_pickle_library(self))
+    errors.extend(self._handle_load_main_session(validator))
     return errors
 
 

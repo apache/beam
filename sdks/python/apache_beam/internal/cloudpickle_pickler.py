@@ -254,8 +254,8 @@ def _lock_reducer(obj):
 def dump_session(file_path):
   # Since References are saved (https://s.apache.org/beam-picklers), we only
   # dump supported Beam Registries (currently only logical type registry)
-  from apache_beam.typehints import schemas
   from apache_beam.coders import typecoders
+  from apache_beam.typehints import schemas
 
   with _pickle_lock, open(file_path, 'wb') as file:
     coder_reg = typecoders.registry.get_custom_type_coder_tuples()
@@ -268,8 +268,8 @@ def dump_session(file_path):
 
 
 def load_session(file_path):
-  from apache_beam.typehints import schemas
   from apache_beam.coders import typecoders
+  from apache_beam.typehints import schemas
 
   with _pickle_lock, open(file_path, 'rb') as file:
     registries = cloudpickle.load(file)
