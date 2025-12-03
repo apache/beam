@@ -109,7 +109,7 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       api_key: Optional[str] = None,
       project: Optional[str] = None,
       location: Optional[str] = None,
-      use_vertex_flex_api: Optional[bool]=False,
+      use_vertex_flex_api: Optional[bool] = False,
       *,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
@@ -139,6 +139,7 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       location: the GCP project to use for Vertex AI requests. Setting this 
         parameter routes requests to Vertex AI. If this paramter is provided,
         project must also be provided and api_key should not be set.
+      use_vertex_flex_api: if true, use the Vertex Flex API.
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
@@ -186,16 +187,17 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     if self.use_vertex:
       if self.use_vertex_flex_api:
         return genai.Client(
-          vertexai=True, project=self.project, location=self.location,
-          http_options=HttpOptions(
-              api_version="v1",
-              headers={"X-Vertex-AI-LLM-Request-Type": "flex"},
-              # Set timeout in the unit of millisecond.
-              timeout = 600000
-          ))
+            vertexai=True,
+            project=self.project,
+            location=self.location,
+            http_options=HttpOptions(
+                api_version="v1",
+                headers={"X-Vertex-AI-LLM-Request-Type": "flex"},
+                # Set timeout in the unit of millisecond.
+                timeout=600000))
       else:
         return genai.Client(
-          vertexai=True, project=self.project, location=self.location)
+            vertexai=True, project=self.project, location=self.location)
     return genai.Client(api_key=self.api_key)
 
   def request(

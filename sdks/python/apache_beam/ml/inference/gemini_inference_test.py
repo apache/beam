@@ -17,6 +17,7 @@
 # pytype: skip-file
 
 import unittest
+from unittest import mock
 
 try:
   from google.genai import errors
@@ -81,10 +82,8 @@ class ModelHandlerArgConditions(unittest.TestCase):
     )
 
 
-@unittest.mock.patch(
-    'apache_beam.ml.inference.gemini_inference.genai.Client')
-@unittest.mock.patch(
-    'apache_beam.ml.inference.gemini_inference.HttpOptions')
+@unittest.mock.patch('apache_beam.ml.inference.gemini_inference.genai.Client')
+@unittest.mock.patch('apache_beam.ml.inference.gemini_inference.HttpOptions')
 class TestGeminiModelHandler(unittest.TestCase):
   def test_create_client_with_flex_api(
       self, mock_http_options, mock_genai_client):
