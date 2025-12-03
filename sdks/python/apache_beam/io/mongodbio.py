@@ -264,10 +264,6 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.projection = projection
     self.spec = extra_client_params
     self.bucket_auto = bucket_auto
-    self.client = MongoClient(
-        self.uri,
-        **self.spec,
-        driver=DriverInfo("Apache Beam", beam.__version__))
 
     if "driver" not in self.spec:
       self.spec["driver"] = DriverInfo(
