@@ -97,6 +97,7 @@ try:
   from pymongo import DESCENDING
   from pymongo import MongoClient
   from pymongo import ReplaceOne
+  from pymongo.driver_info import DriverInfo
 except ImportError:
   objectid = None
   json_util = None
@@ -105,6 +106,7 @@ except ImportError:
   DESCENDING = -1
   MongoClient = None
   ReplaceOne = None
+  DriverInfo = None
   _LOGGER.warning("Could not find a compatible bson package.")
 
 __all__ = ["ReadFromMongoDB", "WriteToMongoDB"]
