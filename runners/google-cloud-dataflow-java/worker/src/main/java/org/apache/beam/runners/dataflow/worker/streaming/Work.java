@@ -26,6 +26,7 @@ import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -151,7 +152,7 @@ public final class Work implements RefreshableWork {
       stepBuilder.setUserStepName(activeMessage.get().userStepName());
       ActiveElementMetadata.Builder activeElementBuilder = ActiveElementMetadata.newBuilder();
       activeElementBuilder.setProcessingTimeMillis(
-          activeMessage.get().stopwatch().elapsed().toMillis());
+          activeMessage.get().stopwatch().elapsed(TimeUnit.MILLISECONDS));
       stepBuilder.setActiveMessageMetadata(activeElementBuilder);
       latencyAttribution.addActiveLatencyBreakdown(stepBuilder.build());
       return latencyAttribution;

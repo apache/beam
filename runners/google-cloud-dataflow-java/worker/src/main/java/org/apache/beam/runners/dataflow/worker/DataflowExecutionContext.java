@@ -30,6 +30,7 @@ import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.stream.Collectors;
@@ -365,7 +366,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           message.append(
               "Time spent in this step(millis): "
                   + (clock.currentTimeMillis()
-                      - getActiveMessageMetadata().get().stopwatch().elapsed().toMillis())
+                      - getActiveMessageMetadata().get().stopwatch().elapsed(TimeUnit.MILLISECONDS))
                   + "\n");
         }
         message.append("Processing times in each step(millis)\n");
@@ -476,7 +477,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (this.activeMessageMetadata == null) {
         return;
       }
-      int processingTime = (int) (this.activeMessageMetadata.stopwatch().elapsed().toMillis());
+      int processingTime =
+          (int) (this.activeMessageMetadata.stopwatch().elapsed(TimeUnit.MILLISECONDS));
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {
