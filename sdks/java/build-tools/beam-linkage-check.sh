@@ -69,9 +69,12 @@ if [ ! -z "$(git diff)" ]; then
   exit 1
 fi
 
-STARTING_REF=$(git rev-parse --abbrev-ref HEAD)
+# Use the full commit SHA instead of branch name to handle detached HEAD state.
+# This commonly happens when verifying someone else's PR, which involves
+# merging two non-branch references. See https://github.com/apache/beam/issues/20558
+STARTING_REF=$(git rev-parse HEAD)
 function cleanup() {
-  git checkout $STARTING_REF
+  git -c advice.detachedHead=false checkout $STARTING_REF
 }
 trap cleanup EXIT
 

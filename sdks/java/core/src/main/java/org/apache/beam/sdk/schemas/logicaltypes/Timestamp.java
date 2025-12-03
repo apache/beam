@@ -157,7 +157,6 @@ public class Timestamp implements Schema.LogicalType<Instant, Row> {
         maxSubseconds,
         precision,
         subseconds);
-
     return Instant.ofEpochSecond(
         checkArgumentNotNull(
             base.getInt64(0), "While trying to convert to Instant: Row missing seconds field"),
