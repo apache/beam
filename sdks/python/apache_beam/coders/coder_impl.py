@@ -504,11 +504,14 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic_step_label))
       self.encode_type(type(value), stream)
-      values = [
-          getattr(value, field.name) for field in dataclasses.fields(value)
+      init_field_names = [
+          field.name for field in dataclasses.fields(value) if field.init
       ]
+      stream.write_var_int64(len(init_field_names))
       try:
-        self.iterable_coder_impl.encode_to_stream(values, stream, True)
+        for field_name in init_field_names:
+          stream.write(field_name.encode('utf-8'), True)
+          self.encode_to_stream(getattr(value, field_name), stream, True)
       except Exception as e:
         raise TypeError(self._deterministic_encoding_error_msg(value)) from e
     elif isinstance(value, tuple) and hasattr(type(value), '_fields'):
@@ -616,7 +619,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       msg = cls()
       msg.ParseFromString(stream.read_all(True))
       return msg
-    elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
+    elif t == DATACLASS_TYPE:
+      cls = self.decode_type(stream)
+      vlen = stream.read_var_int64()
+      fields = {}
+      for _ in range(vlen):
+        field_name = stream.read_all(True).decode('utf-8')
+        fields[field_name] = self.decode_from_stream(stream, True)
+      return cls(**fields)
+    elif t == NAMED_TUPLE_TYPE:
       cls = self.decode_type(stream)
       return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))
     elif t == ENUM_TYPE:
