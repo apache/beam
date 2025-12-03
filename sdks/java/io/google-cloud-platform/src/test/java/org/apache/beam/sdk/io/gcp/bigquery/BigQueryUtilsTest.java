@@ -1424,6 +1424,26 @@ public class BigQueryUtilsTest {
 
   @Test
   @SuppressWarnings("JavaInstantGetSecondsGetNano")
+  public void testToBeamRow_timestampMicros_utcSuffix() {
+    Schema schema = Schema.builder().addLogicalTypeField("ts", Timestamp.MICROS).build();
+
+    // BigQuery format with " UTC" suffix
+    String timestamp = "2024-08-10 16:52:07.123456 UTC";
+
+    Row beamRow = BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", timestamp));
+
+    java.time.Instant actual = (java.time.Instant) beamRow.getValue("ts");
+    assertEquals(2024, actual.atZone(java.time.ZoneOffset.UTC).getYear());
+    assertEquals(8, actual.atZone(java.time.ZoneOffset.UTC).getMonthValue());
+    assertEquals(10, actual.atZone(java.time.ZoneOffset.UTC).getDayOfMonth());
+    assertEquals(16, actual.atZone(java.time.ZoneOffset.UTC).getHour());
+    assertEquals(52, actual.atZone(java.time.ZoneOffset.UTC).getMinute());
+    assertEquals(7, actual.atZone(java.time.ZoneOffset.UTC).getSecond());
+    assertEquals(123456000, actual.getNano());
+  }
+
+  @Test
+  @SuppressWarnings("JavaInstantGetSecondsGetNano")
   public void testToBeamRow_timestampNanos_variablePrecision() {
     // Test that different decimal place counts are handled
     Schema schema = Schema.builder().addLogicalTypeField("ts", Timestamp.NANOS).build();
