@@ -281,6 +281,9 @@ func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipep
 
 		var lpvcid string
 		lpvcid, err = forceLpCoder(vcid, coders, comps.GetCoders())
+		if err != nil {
+			panic(err)
+		}
 
 		slog.Debug("teststream: add coder", "coderId", lpvcid)
 
