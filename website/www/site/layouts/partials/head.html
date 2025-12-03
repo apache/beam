@@ -17,7 +17,8 @@
 <title>{{ if .Title }}{{ .Title }}{{ else }}{{ .Site.Title }}{{ end }}</title>
 <meta name="description" content="{{ .Description | default $.Site.Params.description }}">
 
-<link href="css/roboto/roboto.css" rel="stylesheet">
+{{ $roboto := resources.Get "css/roboto/roboto.css" | minify | fingerprint }}
+<link href="{{ $roboto.RelPermalink }}" rel="stylesheet">
 
 {{ $scssMain := "scss/main.scss"}}
 {{ if .Site.IsServer }}
@@ -29,7 +30,8 @@
     <link href="{{ $css.RelPermalink }}" rel="stylesheet" integrity="{{ $css.Data.integrity }}">
 {{ end }}
 
-<script src="js/jquery/jquery-2.2.4.min.js"></script>
+{{ $jquery := resources.Get "js/jquery/jquery-2.2.4.min.js" | fingerprint }}
+<script type="text/javascript" src="{{ $jquery.RelPermalink }}" defer></script>
 
 <style>
   .body__contained img { max-width: 100% }
@@ -69,8 +71,10 @@
 <link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="/feed.xml">
 <link rel="canonical" href="{{ .Site.Params.hostName }}{{ .Permalink | absURL }}" data-proofer-ignore>
 <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-<link rel="stylesheet" href="css/fontawesome/release-v5.4.1.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-<link rel="stylesheet" href="css/swiper@8/swiper-bundle.min.css"/>
+{{ $fontawesome := resources.Get "css/fontawesome/release-v5.4.1.css" | fingerprint }}
+<link href="{{ $fontawesome.RelPermalink }}" rel="stylesheet" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+{{ $swiper := resources.Get "css/swiper@8/swiper-bundle.min.css" | fingerprint }}
+<link href="{{ $swiper.RelPermalink }}" rel="stylesheet">
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
 <!-- Hotjar Tracking Code for https://beam.apache.org/ -->
