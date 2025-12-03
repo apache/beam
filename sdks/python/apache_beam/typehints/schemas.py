@@ -720,6 +720,7 @@ class LogicalTypeRegistry(object):
       copy.by_logical_type[logical_type] = urn
       copy.by_language_type[logical_type.language_type()] = logical_type
       copy._custom_urns.add(urn)
+    return copy
 
   def load(self, another):
     self.by_urn.update(another.by_urn)

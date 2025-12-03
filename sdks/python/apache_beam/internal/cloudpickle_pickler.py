@@ -275,7 +275,7 @@ def load_session(file_path):
     registries = cloudpickle.load(file)
     if type(registries) != dict:
       raise ValueError(
-          "Faled loading session: expected dict, get {}", type(registries))
+          "Faled loading session: expected dict, got {}", type(registries))
     if "coder" in registries:
       typecoders.registry.load_custom_type_coder_tuples(registries["coder"])
     else:
