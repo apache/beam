@@ -392,6 +392,10 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 	}()
 	// Watermark evaluation goroutine.
 	go func() {
+		// We should defer closing of the channel first, so that when a panic happens,
+		// we will handle the panic and trigger a job failure BEFORE the job is
+		// prematurely marked as done.
+		defer close(runStageCh)
 		defer func() {
 			// In case of panics in bundle generation, fail and cancel the job.
 			if e := recover(); e != nil {
@@ -399,7 +403,6 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				upstreamCancelFn(fmt.Errorf("panic in ElementManager.Bundles watermark evaluation goroutine: %v\n%v", e, string(debug.Stack())))
 			}
 		}()
-		defer close(runStageCh)
 
 		for {
 			em.refreshCond.L.Lock()
