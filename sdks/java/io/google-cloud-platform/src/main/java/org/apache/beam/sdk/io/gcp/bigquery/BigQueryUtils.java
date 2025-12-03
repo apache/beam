@@ -412,7 +412,8 @@ public class BigQueryUtils {
         return FieldType.BOOLEAN;
       case "TIMESTAMP":
         // Timestamp columns can only have 6 or 12 precision.
-        if ((schema.getTimestampPrecision() == null) || (schema.getTimestampPrecision() == 6)) {
+        if ((schema.getTimestampPrecision() == null)
+            || Long.valueOf(6L).equals(schema.getTimestampPrecision())) {
           return FieldType.DATETIME;
         }
         switch (options.getPicosecondTimestampMapping()) {

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-/** Speciefies Timestamp precision. */
+/** Specifies Timestamp precision. */
 public enum TimestampPrecision {
   MILLIS,
   MICROS,
