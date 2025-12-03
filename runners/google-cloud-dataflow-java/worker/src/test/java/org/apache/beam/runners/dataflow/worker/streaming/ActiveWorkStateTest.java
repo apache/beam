@@ -71,6 +71,7 @@ public class ActiveWorkStateTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
+            false,
             Instant::now),
         ignored -> {});
   }
@@ -82,6 +83,7 @@ public class ActiveWorkStateTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
+            false,
             () -> Instant.EPOCH),
         ignored -> {});
   }
