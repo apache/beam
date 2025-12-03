@@ -227,7 +227,8 @@ func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipep
 	}
 	coders := map[string]*pipepb.Coder{}
 	// Ensure awareness of the coder used for the teststream.
-	cID, err := lpUnknownCoders(pyld.GetCoderId(), coders, comps.GetCoders())
+	ocID := pyld.GetCoderId()
+	cID, err := lpUnknownCoders(ocID, coders, comps.GetCoders())
 	if err != nil {
 		panic(err)
 	}
@@ -235,10 +236,10 @@ func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipep
 	// If the TestStream coder needs to be LP'ed or if it is a coder that has different
 	// behaviors between nested context and outer context (in Java SDK), then we must
 	// LP this coder and the TestStream data elements.
-	forceLP := (cID != pyld.GetCoderId() && coders[pyld.GetCoderId()].GetSpec().GetUrn() != "beam:go:coder:custom:v1") ||
-		coders[cID].GetSpec().GetUrn() == urns.CoderStringUTF8 ||
-		coders[cID].GetSpec().GetUrn() == urns.CoderBytes ||
-		coders[cID].GetSpec().GetUrn() == urns.CoderKV
+	forceLP := (cID != ocID && coders[ocID].GetSpec().GetUrn() != "beam:go:coder:custom:v1") ||
+		coders[ocID].GetSpec().GetUrn() == urns.CoderStringUTF8 ||
+		coders[ocID].GetSpec().GetUrn() == urns.CoderBytes ||
+		coders[ocID].GetSpec().GetUrn() == urns.CoderKV
 
 	if !forceLP {
 		return prepareResult{SubbedComps: &pipepb.Components{
@@ -246,25 +247,78 @@ func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipep
 		}}
 	}
 
-	// The coder needed length prefixing. For simplicity, add a length prefix to each
-	// encoded element, since we will be sending a length prefixed coder to consume
-	// this anyway. This is simpler than trying to find all the re-written coders after the fact.
-	// This also adds a LP-coder for the original coder in comps.
-	cID, err = forceLpCoder(pyld.GetCoderId(), coders, comps.GetCoders())
-	if err != nil {
-		panic(err)
-	}
-	slog.Debug("teststream: add coder", "coderId", cID)
+	var mustLP func(v []byte) []byte
+	if coders[ocID].GetSpec().GetUrn() != urns.CoderKV {
+		// The coder needed length prefixing. For simplicity, add a length prefix to each
+		// encoded element, since we will be sending a length prefixed coder to consume
+		// this anyway. This is simpler than trying to find all the re-written coders after the fact.
+		// This also adds a LP-coder for the original coder in comps.
+		cID, err = forceLpCoder(pyld.GetCoderId(), coders, comps.GetCoders())
+		if err != nil {
+			panic(err)
+		}
+		slog.Debug("teststream: add coder", "coderId", cID)
 
-	mustLP := func(v []byte) []byte {
-		var buf bytes.Buffer
-		if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
-			panic(err)
+		mustLP = func(v []byte) []byte {
+			var buf bytes.Buffer
+			if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
+				panic(err)
+			}
+			if _, err := buf.Write(v); err != nil {
+				panic(err)
+			}
+			return buf.Bytes()
 		}
-		if _, err := buf.Write(v); err != nil {
-			panic(err)
+	} else {
+		// For a KV coder, we only length-prefix the value coder because we need to
+		// preserve the original structure of the key coder. This allows the key
+		// coder to be easily extracted later to retrieve the KeyBytes from the
+		// encoded elements.
+
+		c := coders[ocID]
+		kcid := c.GetComponentCoderIds()[0]
+		vcid := c.GetComponentCoderIds()[1]
+
+		var lpvcid string
+		lpvcid, err = forceLpCoder(vcid, coders, comps.GetCoders())
+
+		slog.Debug("teststream: add coder", "coderId", lpvcid)
+
+		kvc := &pipepb.Coder{
+			Spec: &pipepb.FunctionSpec{
+				Urn: urns.CoderKV,
+			},
+			ComponentCoderIds: []string{kcid, lpvcid},
 		}
-		return buf.Bytes()
+
+		kvcID := ocID + "_vlp"
+		coders[kvcID] = kvc
+
+		slog.Debug("teststream: add coder", "coderId", kvcID)
+
+		cID = kvcID
+
+		kd := collectionPullDecoder(kcid, coders, comps)
+		mustLP = func(v []byte) []byte {
+			elmBuf := bytes.NewBuffer(v)
+			keyBytes := kd(elmBuf)
+
+			var buf bytes.Buffer
+			if _, err := buf.Write(keyBytes); err != nil {
+				panic(err)
+			}
+
+			// put the length of the value
+			if err := coder.EncodeVarInt((int64)(len(v)-len(keyBytes)), &buf); err != nil {
+				panic(err)
+			}
+
+			// write the value aka. the remaining bytes from the buffer
+			if _, err := buf.Write(elmBuf.Bytes()); err != nil {
+				panic(err)
+			}
+			return buf.Bytes()
+		}
 	}
 
 	// We need to loop over the events.

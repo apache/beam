@@ -225,6 +225,7 @@ type ElementManager struct {
 	sideConsumers map[string][]LinkID // Map from pcollectionID to the stage+transform+input that consumes them as side input.
 
 	pcolParents map[string]string // Map from pcollectionID to stageIDs that produce the pcollection.
+	pcolInfo    map[string]PColInfo
 
 	refreshCond       sync.Cond   // refreshCond protects the following fields with it's lock, and unblocks bundle scheduling.
 	inprogressBundles set[string] // Active bundleIDs
@@ -255,6 +256,7 @@ func NewElementManager(config Config) *ElementManager {
 		consumers:         map[string][]string{},
 		sideConsumers:     map[string][]LinkID{},
 		pcolParents:       map[string]string{},
+		pcolInfo:          map[string]PColInfo{},
 		changedStages:     set[string]{},
 		inprogressBundles: set[string]{},
 		refreshCond:       sync.Cond{L: &sync.Mutex{}},
@@ -322,6 +324,10 @@ func (em *ElementManager) StageOnWindowExpiration(stageID string, timer StaticTi
 // StageProcessingTimeTimers indicates which timers are processingTime domain timers.
 func (em *ElementManager) StageProcessingTimeTimers(ID string, ptTimers map[string]bool) {
 	em.stages[ID].processingTimeTimersFamilies = ptTimers
+}
+
+func (em *ElementManager) RegisterPColInfo(pcolID string, info PColInfo) {
+	em.pcolInfo[pcolID] = info
 }
 
 // AddTestStream provides a builder interface for the execution layer to build the test stream from
