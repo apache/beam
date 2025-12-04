@@ -322,6 +322,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":sdks:java:managed:build")
+  dependsOn("sdks:java:ml:inference:remote:build")
+  dependsOn("sdks:java:ml:inference:openai:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
   dependsOn(":sdks:java:testing:junit:build")
