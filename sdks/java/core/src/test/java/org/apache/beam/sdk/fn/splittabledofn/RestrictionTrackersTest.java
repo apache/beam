@@ -102,7 +102,7 @@ public class RestrictionTrackersTest {
       implements HasProgress {
     private boolean blockTryClaim;
     private boolean blockTrySplit;
-    private boolean isBlocked;
+    private volatile boolean isBlocked;
     public static final Progress REPORT_PROGRESS = Progress.from(2.0, 3.0);
 
     public RestrictionTrackerWithProgress() {
