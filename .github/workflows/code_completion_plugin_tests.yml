@@ -68,10 +68,6 @@ jobs:
           repository: JetBrains/intellij-community
           path: intellij
 
-      # Validate wrapper
-      - name: Gradle Wrapper Validation
-        uses: gradle/wrapper-validation-action@v3.5.0
-
       # Setup Java environment for the next steps
       - name: Setup Java
         uses: actions/setup-java@v5
