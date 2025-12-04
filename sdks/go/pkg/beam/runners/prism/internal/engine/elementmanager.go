@@ -225,6 +225,7 @@ type ElementManager struct {
 	sideConsumers map[string][]LinkID // Map from pcollectionID to the stage+transform+input that consumes them as side input.
 
 	pcolParents map[string]string // Map from pcollectionID to stageIDs that produce the pcollection.
+	pcolInfo    map[string]PColInfo
 
 	refreshCond       sync.Cond   // refreshCond protects the following fields with it's lock, and unblocks bundle scheduling.
 	inprogressBundles set[string] // Active bundleIDs
@@ -255,6 +256,7 @@ func NewElementManager(config Config) *ElementManager {
 		consumers:         map[string][]string{},
 		sideConsumers:     map[string][]LinkID{},
 		pcolParents:       map[string]string{},
+		pcolInfo:          map[string]PColInfo{},
 		changedStages:     set[string]{},
 		inprogressBundles: set[string]{},
 		refreshCond:       sync.Cond{L: &sync.Mutex{}},
@@ -324,6 +326,10 @@ func (em *ElementManager) StageProcessingTimeTimers(ID string, ptTimers map[stri
 	em.stages[ID].processingTimeTimersFamilies = ptTimers
 }
 
+func (em *ElementManager) RegisterPColInfo(pcolID string, info PColInfo) {
+	em.pcolInfo[pcolID] = info
+}
+
 // AddTestStream provides a builder interface for the execution layer to build the test stream from
 // the protos.
 func (em *ElementManager) AddTestStream(id string, tagToPCol map[string]string) TestStreamBuilder {
@@ -386,6 +392,10 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 	}()
 	// Watermark evaluation goroutine.
 	go func() {
+		// We should defer closing of the channel first, so that when a panic happens,
+		// we will handle the panic and trigger a job failure BEFORE the job is
+		// prematurely marked as done.
+		defer close(runStageCh)
 		defer func() {
 			// In case of panics in bundle generation, fail and cancel the job.
 			if e := recover(); e != nil {
@@ -393,7 +403,6 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				upstreamCancelFn(fmt.Errorf("panic in ElementManager.Bundles watermark evaluation goroutine: %v\n%v", e, string(debug.Stack())))
 			}
 		}()
-		defer close(runStageCh)
 
 		for {
 			em.refreshCond.L.Lock()

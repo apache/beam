@@ -277,6 +277,10 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				// Add a synthetic stage that should largely be unused.
 				em.AddStage(stage.ID, nil, maps.Values(t.GetOutputs()), nil)
 
+				for pcolID, info := range stage.OutputsToCoders {
+					em.RegisterPColInfo(pcolID, info)
+				}
+
 				// Decode the test stream, and convert it to the various events for the ElementManager.
 				var pyld pipepb.TestStreamPayload
 				if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pyld); err != nil {
