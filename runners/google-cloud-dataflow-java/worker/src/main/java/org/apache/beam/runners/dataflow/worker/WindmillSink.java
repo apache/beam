@@ -264,12 +264,15 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         }
       }
 
-      Windmill.KeyedMessageBundle.Builder keyedOutput = productionMap.computeIfAbsent(
-        key, (k) -> {
-          Windmill.KeyedMessageBundle.Builder builder = Windmill.KeyedMessageBundle.newBuilder();
-          builder.setKey(k);
-          return builder; }
-      );
+      Windmill.KeyedMessageBundle.Builder keyedOutput =
+          productionMap.computeIfAbsent(
+              key,
+              (k) -> {
+                Windmill.KeyedMessageBundle.Builder builder =
+                    Windmill.KeyedMessageBundle.newBuilder();
+                builder.setKey(k);
+                return builder;
+              });
 
       try {
         messageBuilder
