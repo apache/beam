@@ -45,11 +45,10 @@ while [ -n "$REPOSITORIES" ]; do
     if [ -n "$IMAGE_NAME" ]; then
       PENDING_REPOSITORIES+=$IMAGE_NAME
       PENDING_REPOSITORIES+=" "
-    else
-      echo IMAGES FOR REPO ${repository}
-      IMAGE_NAMES+=$repository
-      IMAGE_NAMES+=" "
     fi
+    echo IMAGES FOR REPO ${repository}
+    IMAGE_NAMES+=$repository
+    IMAGE_NAMES+=" "
   done
   REPOSITORIES=("${PENDING_REPOSITORIES[@]}")
 done
