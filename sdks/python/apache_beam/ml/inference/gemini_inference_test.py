@@ -17,7 +17,6 @@
 # pytype: skip-file
 
 import unittest
-from unittest import mock
 
 try:
   from google.genai import errors
