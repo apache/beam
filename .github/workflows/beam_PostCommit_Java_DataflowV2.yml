@@ -65,5 +65,6 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run PostCommit_Java_DataflowV2'
     steps:
+      - run: gcloud auth list
       - run: echo "My secret data" | gcloud kms encrypt --location global --keyring gbek-it-key-ring --key gbek-it-key --plaintext-file - --ciphertext-file tmp.enc
       - run: exit 1
