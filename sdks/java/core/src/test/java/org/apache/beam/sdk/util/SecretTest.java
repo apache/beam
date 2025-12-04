@@ -38,20 +38,6 @@ public class SecretTest {
   }
 
   @Test
-  public void testParseSecretOptionWithValidGcpHsmGeneratedSecret() {
-    String secretOption =
-        "type:gcphsmgeneratedsecret;project_id:my-project;location_id:global;key_ring_id:my-key-ring;key_id:my-key;job_name:my-job";
-    Secret secret = Secret.parseSecretOption(secretOption);
-    assertTrue(secret instanceof GcpHsmGeneratedSecret);
-    GcpHsmGeneratedSecret hsmSecret = (GcpHsmGeneratedSecret) secret;
-    assertEquals("my-project", hsmSecret.getProjectId());
-    assertEquals("global", hsmSecret.getLocationId());
-    assertEquals("my-key-ring", hsmSecret.getKeyRingId());
-    assertEquals("my-key", hsmSecret.getKeyId());
-    assertEquals("HsmGeneratedSecret_my-job", hsmSecret.getSecretId());
-  }
-
-  @Test
   public void testParseSecretOptionWithMissingType() {
     String secretOption = "version_name:my_secret/versions/latest";
     Exception exception =
@@ -64,7 +50,9 @@ public class SecretTest {
     String secretOption = "type:unsupported;version_name:my_secret/versions/latest";
     Exception exception =
         assertThrows(RuntimeException.class, () -> Secret.parseSecretOption(secretOption));
-    assertTrue(exception.getMessage().contains("Invalid secret type unsupported"));
+    assertEquals(
+        "Invalid secret type unsupported, currently only GcpSecret is supported",
+        exception.getMessage());
   }
 
   @Test

@@ -21,11 +21,11 @@
   <suppress checks="JavadocPackage" files=".*[\\\/]maven-archetypes[\\\/].*"/>
   <suppress checks="JavadocPackage" files=".*[\\\/]examples[\\\/].*"/>
   <suppress checks="JavadocPackage" files=".*[\\\/]build[\\\/]source-overrides[\\\/].*"/>
-  
+
   <suppress checks="JavadocMethod" files=".*Test\.java"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]examples[\\\/].*"/>
-  
+
 
   <!-- suppress all checks in the generated directories -->
   <suppress checks=".*" files=".+[\\\/]generated[\\\/].+\.java" />
@@ -57,7 +57,6 @@
   <!-- gRPC/protobuf exceptions -->
   <!-- Non-vendored gRPC/protobuf imports are allowed for files that depend on libraries that expose gRPC/protobuf in its public API -->
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*protobuf.*" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GcpHsmGeneratedSecret.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GroupByEncryptedKeyTest.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GroupByKeyTest.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GroupByKeyIT.*" />
