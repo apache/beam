@@ -64,7 +64,10 @@ _LOGGER = logging.getLogger(__name__)
 # Map defined with option names to flag names for boolean options
 # that have a destination(dest) in parser.add_argument() different
 # from the flag name and whose default value is `None`.
-_FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
+_FLAG_THAT_SETS_FALSE_VALUE = {
+    'use_public_ips': 'no_use_public_ips',
+    'save_main_session': 'no_save_main_session'
+}
 # Set of options which should not be overriden when applying options from a
 # different language. This is relevant when using x-lang transforms where the
 # expansion service is started up with some pipeline options, and will
@@ -1681,7 +1684,7 @@ class SetupOptions(PipelineOptions):
             'their functions/classes are defined in proper modules '
             '(not __main__) and the modules are importable in the worker. '))
     parser.add_argument(
-        '--disable_save_main_session',
+        '--no_save_main_session',
         default=None,
         action='store_false',
         dest='save_main_session',
