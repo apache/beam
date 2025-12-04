@@ -492,6 +492,7 @@ if __name__ == '__main__':
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
               'google-cloud-aiplatform>=1.26.0,<1.129.0',
+              'google-genai<1.53.0',
               'cloud-sql-python-connector>=1.18.2,<2.0.0',
               'python-tds>=1.16.1',
               'pg8000>=1.31.5',
