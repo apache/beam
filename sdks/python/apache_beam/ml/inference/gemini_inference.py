@@ -25,7 +25,8 @@ from typing import Union
 
 from google import genai
 from google.genai import errors
-from google.genai.types import HttpOptions, Part
+from google.genai.types import HttpOptions
+from google.genai.types import Part
 from PIL.Image import Image
 
 from apache_beam.ml.inference import utils
