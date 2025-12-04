@@ -60,6 +60,7 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -360,10 +361,18 @@ class BigQueryWrapper(object):
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
-    self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
-    self.gcp_bq_client = client or gcp_bigquery.Client(
-        client_info=ClientInfo(
-            user_agent="apache-beam-%s" % apache_beam.__version__))
+    if client is not None:
+      self.client = client
+      self.gcp_bq_client = client
+    else:
+      pipeline_options = PipelineOptions()
+      self.client = BigQueryWrapper._bigquery_client(pipeline_options)
+
+      project = pipeline_options.view_as(GoogleCloudOptions).project
+      self.gcp_bq_client = gcp_bigquery.Client(
+          project=project,
+          client_info=ClientInfo(
+              user_agent="apache-beam-%s" % apache_beam.__version__))
 
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
