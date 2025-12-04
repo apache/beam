@@ -24,9 +24,8 @@ from typing import Optional
 from typing import Union
 
 from google import genai
-from google.api_core.client_options import ClientOptions as HttpOptions
 from google.genai import errors
-from google.genai.types import Part
+from google.genai.types import HttpOptions, Part
 from PIL.Image import Image
 
 from apache_beam.ml.inference import utils
