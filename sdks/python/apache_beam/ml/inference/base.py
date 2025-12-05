@@ -1755,7 +1755,7 @@ class _SharedModelWrapper():
       model_tag: str,
       loader_func: Callable[[], Any] = None):
     self.models = models
-    self.use_model_manager = isinstance(models, ModelManager)
+    self.use_model_manager = not isinstance(models, list)
     self.model_tag = model_tag
     self.loader_func = loader_func
     if not self.use_model_manager and len(models) > 1:
