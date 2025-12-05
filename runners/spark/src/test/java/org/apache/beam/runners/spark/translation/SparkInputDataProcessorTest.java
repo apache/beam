@@ -252,7 +252,8 @@ public class SparkInputDataProcessorTest {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {}
+        TimeDomain timeDomain,
+        boolean causedByDrain) {}
 
     @Override
     public void finishBundle() {}

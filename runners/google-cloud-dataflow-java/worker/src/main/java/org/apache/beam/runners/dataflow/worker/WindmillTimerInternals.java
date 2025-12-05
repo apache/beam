@@ -114,7 +114,8 @@ class WindmillTimerInternals implements TimerInternals {
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     TimerData timer =
-        TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain);
+        TimerData.of(
+            timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain, false);
     setTimer(timer);
   }
 
@@ -151,7 +152,8 @@ class WindmillTimerInternals implements TimerInternals {
             namespace,
             BoundedWindow.TIMESTAMP_MIN_VALUE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
-            timeDomain));
+            timeDomain,
+            false));
   }
 
   @Override
@@ -397,9 +399,8 @@ class WindmillTimerInternals implements TimerInternals {
         namespace,
         timestamp,
         outputTimestamp,
-        timerTypeToTimeDomain(timer.getType()));
-    // todo add draining (https://github.com/apache/beam/issues/36884)
-
+        timerTypeToTimeDomain(timer.getType()),
+        draining);
   }
 
   private static boolean useNewTimerTagEncoding(TimerData timerData) {

@@ -266,7 +266,8 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
           BoundedWindow window,
           Instant timestamp,
           Instant outputTimestamp,
-          TimeDomain timeDomain) {
+          TimeDomain timeDomain,
+          boolean causedByDrain) {
         throw new UnsupportedOperationException();
       }
 

@@ -117,7 +117,8 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      boolean causedByDrain) {
     throw new UnsupportedOperationException("Unsupported for ProcessFn");
   }
 

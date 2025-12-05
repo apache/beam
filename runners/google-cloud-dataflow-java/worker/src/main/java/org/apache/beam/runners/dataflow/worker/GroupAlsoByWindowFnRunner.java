@@ -81,7 +81,8 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      boolean causedByDrain) {
     throw new UnsupportedOperationException(
         String.format("Timers are not supported by %s", GroupAlsoByWindowFn.class.getSimpleName()));
   }
