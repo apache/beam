@@ -101,6 +101,7 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.UserStateReference;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -1001,7 +1002,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        CausedByDrain causedByDrain) {
       Object timerKey = keyForTimer.get();
       Preconditions.checkNotNull(timerKey, "Key for timer needs to be set before calling onTimer");
       Preconditions.checkNotNull(remoteBundle, "Call to onTimer outside of a bundle");
@@ -1034,7 +1036,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
                 timestamp,
                 outputTimestamp,
                 // TODO: Support propagating the PaneInfo through.
-                PaneInfo.NO_FIRING);
+                PaneInfo.NO_FIRING,
+                causedByDrain);
         try {
           timerReceiver.accept(timerValue);
         } catch (Exception e) {

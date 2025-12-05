@@ -61,6 +61,7 @@ import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -430,7 +431,8 @@ public class SamzaDoFnRunners {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        CausedByDrain causedByDrain) {
       final KV<String, String> timerReceiverKey =
           TimerReceiverFactory.decodeTimerDataTimerId(timerFamilyId);
       final FnDataReceiver<Timer> timerReceiver =
@@ -443,7 +445,8 @@ public class SamzaDoFnRunners {
               timestamp,
               outputTimestamp,
               // TODO: Support propagating the PaneInfo through.
-              PaneInfo.NO_FIRING);
+              PaneInfo.NO_FIRING,
+              causedByDrain);
       try {
         timerReceiver.accept(timerValue);
       } catch (Exception e) {

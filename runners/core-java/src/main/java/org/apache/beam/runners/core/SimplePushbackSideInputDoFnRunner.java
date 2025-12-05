@@ -24,6 +24,7 @@ import java.util.Set;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -116,7 +117,15 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-    underlying.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+    underlying.onTimer(
+        timerId,
+        timerFamilyId,
+        key,
+        window,
+        timestamp,
+        outputTimestamp,
+        timeDomain,
+        CausedByDrain.NORMAL);
   }
 
   @Override

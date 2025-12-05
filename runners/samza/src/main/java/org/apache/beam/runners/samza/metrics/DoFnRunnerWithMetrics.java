@@ -21,6 +21,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.joda.time.Instant;
 
@@ -61,11 +62,19 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
     withMetrics(
         () ->
             underlying.onTimer(
-                timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain),
+                timerId,
+                timerFamilyId,
+                key,
+                window,
+                timestamp,
+                outputTimestamp,
+                timeDomain,
+                causedByDrain),
         false);
   }
 

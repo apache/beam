@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -48,7 +49,8 @@ import org.joda.time.Instant;
 /**
  * A customized {@link DoFnRunner} that handles late data dropping and garbage collection for
  * stateful {@link DoFn DoFns}. It registers a GC timer in {@link #processElement(WindowedValue)}
- * and does cleanup in {@link #onTimer(String, String, BoundedWindow, Instant, Instant, TimeDomain)}
+ * and does cleanup in {@link #onTimer(String, String, BoundedWindow, Instant, Instant, TimeDomain,
+ * boolean)}
  *
  * @param <InputT> the type of the {@link DoFn} (main) input elements
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
@@ -208,7 +210,8 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
 
     if (timerId.equals(SORT_FLUSH_TIMER)) {
       onSortFlushTimer(window, stepContext.timerInternals().currentInputWatermarkTime());
@@ -232,7 +235,14 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             stepContext.timerInternals().currentInputWatermarkTime());
       } else {
         doFnRunner.onTimer(
-            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+            timerId,
+            timerFamilyId,
+            key,
+            window,
+            timestamp,
+            outputTimestamp,
+            timeDomain,
+            causedByDrain);
       }
     }
   }

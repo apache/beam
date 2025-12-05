@@ -84,6 +84,7 @@ import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext
 import org.apache.beam.sdk.util.construction.CoderTranslator;
 import org.apache.beam.sdk.util.construction.ModelCoderRegistrar;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -326,7 +327,8 @@ public class CommonCoderTest {
           windows,
           new Instant(((Number) kvMap.get("fireTimestamp")).longValue()),
           new Instant(((Number) kvMap.get("holdTimestamp")).longValue()),
-          paneInfo);
+          paneInfo,
+          CausedByDrain.NORMAL);
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());

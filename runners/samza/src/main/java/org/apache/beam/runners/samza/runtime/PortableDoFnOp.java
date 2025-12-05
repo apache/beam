@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -425,7 +426,8 @@ public class PortableDoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
         window,
         timer.getTimestamp(),
         timer.getOutputTimestamp(),
-        timer.getDomain());
+        timer.getDomain(),
+        CausedByDrain.NORMAL);
   }
 
   // todo: should this go through bundle manager to start and finish the bundle?

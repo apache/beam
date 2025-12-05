@@ -353,7 +353,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        CausedByDrain causedByDrain) {
       firedTimers.add(
           TimerData.of(
               timerId,
