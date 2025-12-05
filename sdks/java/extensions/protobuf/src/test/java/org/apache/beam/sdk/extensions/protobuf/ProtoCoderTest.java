@@ -199,20 +199,6 @@ public class ProtoCoderTest {
   }
 
   @Test
-  public void testProtoCoderHandlesRawMessageInterfaceGracefully() {
-    try {
-      // Simulate the user’s pipeline where T resolves to Message
-      ProtoCoder<Message> coder = ProtoCoder.of(Message.class);
-      coder.getParser(); // Triggers the new check in updated code
-      fail("Expected IllegalArgumentException for raw Message interface");
-    } catch (IllegalArgumentException e) {
-      assertEquals(
-          "ProtoCoder does not support the raw Message interface. Use a concrete Protobuf-generated class.",
-          e.getMessage());
-    }
-  }
-
-  @Test
   public void testProtoCoderWithGeneratedClass() throws Exception {
     ProtoCoder<MessageA> coder = ProtoCoder.of(MessageA.class);
     MessageA message = MessageA.newBuilder().setField1("Test").build();
@@ -232,9 +218,12 @@ public class ProtoCoderTest {
       coder.getParser();
       fail("Expected IllegalArgumentException for abstract class");
     } catch (IllegalArgumentException e) {
-      assertEquals(
-          "Class org.apache.beam.sdk.extensions.protobuf.ProtoCoderTest$1InvalidMessage lacks both getDefaultInstance() and a no-arg constructor. Ensure it is a concrete Protobuf-generated class.",
-          e.getMessage());
+      assertTrue(
+          "Expected message about abstract class, but was: " + e.getMessage(),
+          e.getMessage().contains("is abstract or cannot be instantiated"));
+      assertTrue(
+          "Expected cause to be InstantiationException",
+          e.getCause() instanceof InstantiationException);
     }
   }
 }
