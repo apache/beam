@@ -141,7 +141,7 @@ class SpannerVectorWriterTest(unittest.TestCase):
     pipeline = TestPipeline(is_integration_test=True)
     runner_name = type(pipeline.runner).__name__
     if 'DataflowRunner' in runner_name:
-       cls.skipTest("Spanner emulator not compatible with dataflow runner.")
+      pytest.skip("Spanner emulator not compatible with dataflow runner.")
 
     cls.project_id = 'test-project'
     cls.instance_id = 'test-instance'
