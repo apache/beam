@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
+import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -83,6 +84,9 @@ public interface Catalog {
 
   /** User-specified configuration properties. */
   Map<String, String> properties();
+
+  /** Set some catalog properties. If a property already exists, it will be overridden. */
+  void updateProperties(Map<String, String> setProps, Collection<String> resetProps);
 
   /** Registers this {@link TableProvider} and propagates it to underlying {@link MetaStore}s. */
   void registerTableProvider(TableProvider provider);

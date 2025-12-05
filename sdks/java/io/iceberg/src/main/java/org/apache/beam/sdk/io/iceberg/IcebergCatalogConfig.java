@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,18 +28,23 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.UpdatePartitionSpec;
+import org.apache.iceberg.UpdateProperties;
+import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.apache.iceberg.types.Type;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -164,28 +170,92 @@ public abstract class IcebergCatalogConfig implements Serializable {
     TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
     try {
       Table table = catalog().loadTable(icebergIdentifier);
-      return IcebergTableInfo.create(
-          tableIdentifier,
-          IcebergUtils.icebergSchemaToBeamSchema(table.schema()),
-          table.properties());
+      return new IcebergTableInfo(tableIdentifier, table);
     } catch (NoSuchTableException ignored) {
       return null;
     }
   }
 
   // Helper class to pass information to Beam SQL module without relying on Iceberg deps
-  @AutoValue
-  public abstract static class IcebergTableInfo {
-    public abstract String getIdentifier();
+  public static class IcebergTableInfo {
+    private final String identifier;
+    private final Table table;
 
-    public abstract Schema getSchema();
+    IcebergTableInfo(String identifier, Table table) {
+      this.identifier = identifier;
+      this.table = table;
+    }
 
-    public abstract Map<String, String> getProperties();
+    public String getIdentifier() {
+      return identifier;
+    }
 
-    static IcebergTableInfo create(
-        String identifier, Schema schema, Map<String, String> properties) {
-      return new AutoValue_IcebergCatalogConfig_IcebergTableInfo(identifier, schema, properties);
-    };
+    public Schema getSchema() {
+      return IcebergUtils.icebergSchemaToBeamSchema(table.schema());
+    }
+
+    public Map<String, String> getProperties() {
+      return table.properties();
+    }
+
+    public void updateTableProps(Map<String, String> setProps, List<String> resetProps) {
+      if (setProps.isEmpty() && resetProps.isEmpty()) {
+        return;
+      }
+
+      UpdateProperties update = table.updateProperties();
+      resetProps.forEach(update::remove);
+      setProps.forEach(update::set);
+
+      update.commit();
+    }
+
+    public void updateSchema(List<Schema.Field> columnsToAdd, Collection<String> columnsToDrop) {
+      if (columnsToAdd.isEmpty() && columnsToDrop.isEmpty()) {
+        return;
+      }
+      UpdateSchema update = table.updateSchema();
+      ImmutableList.Builder<String> requiredColumns = ImmutableList.builder();
+
+      for (Schema.Field col : columnsToAdd) {
+        String name = col.getName();
+        Type type = IcebergUtils.beamFieldTypeToIcebergFieldType(col.getType(), 0).type;
+        String desc = col.getDescription();
+
+        if (col.getType().getNullable()) {
+          if (desc.isEmpty()) {
+            update.addColumn(name, type);
+          } else {
+            update.addColumn(name, type, desc);
+          }
+        } else {
+          requiredColumns.add(name);
+        }
+      }
+      if (!requiredColumns.build().isEmpty()) {
+        throw new UnsupportedOperationException(
+            "Adding required columns is not yet supported. "
+                + "Encountered required columns: "
+                + requiredColumns.build());
+      }
+
+      columnsToDrop.forEach(update::deleteColumn);
+
+      update.commit();
+    }
+
+    public void updatePartitionSpec(
+        List<String> partitionsToAdd, Collection<String> partitionsToDrop) {
+      if (partitionsToAdd.isEmpty() && partitionsToDrop.isEmpty()) {
+        return;
+      }
+      UpdatePartitionSpec update = table.updateSpec();
+
+      partitionsToDrop.stream().map(PartitionUtils::toIcebergTerm).forEach(update::removeField);
+      partitionsToAdd.stream().map(PartitionUtils::toIcebergTerm).forEach(update::addField);
+
+      update.commit();
+    }
   }
 
   public boolean dropTable(String tableIdentifier) {
