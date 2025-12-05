@@ -397,6 +397,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public boolean causedByDrain() {
+      return false;
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return pipelineOptions;
     }

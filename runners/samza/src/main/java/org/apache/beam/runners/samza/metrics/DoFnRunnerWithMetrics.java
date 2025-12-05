@@ -61,11 +61,19 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      boolean causedByDrain) {
     withMetrics(
         () ->
             underlying.onTimer(
-                timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain),
+                timerId,
+                timerFamilyId,
+                key,
+                window,
+                timestamp,
+                outputTimestamp,
+                timeDomain,
+                causedByDrain),
         false);
   }
 

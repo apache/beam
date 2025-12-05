@@ -1001,7 +1001,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        boolean causedByDrain) {
       Object timerKey = keyForTimer.get();
       Preconditions.checkNotNull(timerKey, "Key for timer needs to be set before calling onTimer");
       Preconditions.checkNotNull(remoteBundle, "Call to onTimer outside of a bundle");
@@ -1034,7 +1035,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
                 timestamp,
                 outputTimestamp,
                 // TODO: Support propagating the PaneInfo through.
-                PaneInfo.NO_FIRING);
+                PaneInfo.NO_FIRING,
+                causedByDrain);
         try {
           timerReceiver.accept(timerValue);
         } catch (Exception e) {
