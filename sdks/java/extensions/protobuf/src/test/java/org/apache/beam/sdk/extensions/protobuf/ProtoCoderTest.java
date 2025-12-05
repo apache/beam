@@ -183,11 +183,12 @@ public class ProtoCoderTest {
     // Simulate the user’s pipeline where T resolves to Message
     ProtoCoder<Message> coder = ProtoCoder.of(Message.class);
     try {
-      coder.getParser(); // Triggers getDefaultInstance(), which throws NoSuchMethodException
-      fail("Expected IllegalArgumentException with NoSuchMethodException cause");
+      coder.getParser(); // Triggers the new check in updated code
+      fail("Expected IllegalArgumentException for raw Message interface");
     } catch (IllegalArgumentException e) {
-      // Check if the cause is NoSuchMethodException, as in the original code
-      assertTrue(e.getCause() instanceof NoSuchMethodException);
+      assertEquals(
+          "ProtoCoder does not support the raw Message interface. Use a concrete Protobuf-generated class.",
+          e.getMessage());
     }
   }
 
