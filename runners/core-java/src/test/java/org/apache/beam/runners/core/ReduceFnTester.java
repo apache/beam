@@ -574,7 +574,11 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     ArrayList<TimerData> timers = new ArrayList<>(1);
     timers.add(
         TimerData.of(
-            StateNamespaces.window(windowFn.windowCoder(), window), timestamp, timestamp, domain));
+            StateNamespaces.window(windowFn.windowCoder(), window),
+            timestamp,
+            timestamp,
+            domain,
+            TimerData.CausedByDrain.NORMAL));
     runner.onTimers(timers);
     runner.persist();
   }
@@ -588,7 +592,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
               StateNamespaces.window(windowFn.windowCoder(), window),
               timer.getTimestamp(),
               timer.getTimestamp(),
-              timer.getValue()));
+              timer.getValue(),
+              TimerData.CausedByDrain.NORMAL));
     }
     runner.onTimers(timerData);
     runner.persist();

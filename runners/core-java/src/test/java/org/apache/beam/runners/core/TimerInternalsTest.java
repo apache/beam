@@ -46,7 +46,8 @@ public class TimerInternalsTest {
             StateNamespaces.global(),
             new Instant(0),
             new Instant(0),
-            TimeDomain.EVENT_TIME));
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL));
 
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
     CoderProperties.coderDecodeEncodeEqual(
@@ -57,7 +58,8 @@ public class TimerInternalsTest {
                 windowCoder, new IntervalWindow(new Instant(0), new Instant(100))),
             new Instant(99),
             new Instant(99),
-            TimeDomain.PROCESSING_TIME));
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL));
   }
 
   @Test
@@ -69,12 +71,25 @@ public class TimerInternalsTest {
   public void testCompareEqual() {
     Instant timestamp = new Instant(100);
     StateNamespace namespace = StateNamespaces.global();
-    TimerData timer = TimerData.of("id", namespace, timestamp, timestamp, TimeDomain.EVENT_TIME);
+    TimerData timer =
+        TimerData.of(
+            "id",
+            namespace,
+            timestamp,
+            timestamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     assertThat(
         timer,
         comparesEqualTo(
-            TimerData.of("id", namespace, timestamp, timestamp, TimeDomain.EVENT_TIME)));
+            TimerData.of(
+                "id",
+                namespace,
+                timestamp,
+                timestamp,
+                TimeDomain.EVENT_TIME,
+                TimerData.CausedByDrain.NORMAL)));
   }
 
   @Test
@@ -84,9 +99,19 @@ public class TimerInternalsTest {
     StateNamespace namespace = StateNamespaces.global();
 
     TimerData firstTimer =
-        TimerData.of(namespace, firstTimestamp, firstTimestamp, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            namespace,
+            firstTimestamp,
+            firstTimestamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData secondTimer =
-        TimerData.of(namespace, secondTimestamp, secondTimestamp, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            namespace,
+            secondTimestamp,
+            secondTimestamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     assertThat(firstTimer, lessThan(secondTimer));
   }
@@ -96,10 +121,23 @@ public class TimerInternalsTest {
     Instant timestamp = new Instant(100);
     StateNamespace namespace = StateNamespaces.global();
 
-    TimerData eventTimer = TimerData.of(namespace, timestamp, timestamp, TimeDomain.EVENT_TIME);
-    TimerData procTimer = TimerData.of(namespace, timestamp, timestamp, TimeDomain.PROCESSING_TIME);
+    TimerData eventTimer =
+        TimerData.of(
+            namespace, timestamp, timestamp, TimeDomain.EVENT_TIME, TimerData.CausedByDrain.NORMAL);
+    TimerData procTimer =
+        TimerData.of(
+            namespace,
+            timestamp,
+            timestamp,
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData synchronizedProcTimer =
-        TimerData.of(namespace, timestamp, timestamp, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+        TimerData.of(
+            namespace,
+            timestamp,
+            timestamp,
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     assertThat(eventTimer, lessThan(procTimer));
     assertThat(eventTimer, lessThan(synchronizedProcTimer));
@@ -117,9 +155,19 @@ public class TimerInternalsTest {
     StateNamespace secondWindowNs = StateNamespaces.window(windowCoder, secondWindow);
 
     TimerData secondEventTime =
-        TimerData.of(firstWindowNs, timestamp, timestamp, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            firstWindowNs,
+            timestamp,
+            timestamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData thirdEventTime =
-        TimerData.of(secondWindowNs, timestamp, timestamp, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            secondWindowNs,
+            timestamp,
+            timestamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     assertThat(secondEventTime, lessThan(thirdEventTime));
   }
@@ -130,9 +178,21 @@ public class TimerInternalsTest {
     StateNamespace namespace = StateNamespaces.global();
 
     TimerData id0Timer =
-        TimerData.of("id0", namespace, timestamp, timestamp, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "id0",
+            namespace,
+            timestamp,
+            timestamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData id1Timer =
-        TimerData.of("id1", namespace, timestamp, timestamp, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "id1",
+            namespace,
+            timestamp,
+            timestamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     assertThat(id0Timer, lessThan(id1Timer));
   }

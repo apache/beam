@@ -202,7 +202,8 @@ public class WindmillKeyedWorkItemTest {
                     ns,
                     new Instant(timestamp),
                     new Instant(timestamp),
-                    timerTypeToTimeDomain(type))))
+                    timerTypeToTimeDomain(type),
+                    TimerData.CausedByDrain.NORMAL)))
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
@@ -210,7 +211,8 @@ public class WindmillKeyedWorkItemTest {
   }
 
   private static TimerData makeTimer(StateNamespace ns, long timestamp, TimeDomain domain) {
-    return TimerData.of(ns, new Instant(timestamp), new Instant(timestamp), domain);
+    return TimerData.of(
+        ns, new Instant(timestamp), new Instant(timestamp), domain, TimerData.CausedByDrain.NORMAL);
   }
 
   @Test

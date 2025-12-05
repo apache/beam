@@ -1002,13 +1002,15 @@ public class WatermarkManagerTest implements Serializable {
             StateNamespaces.global(),
             new Instant(250L),
             new Instant(250L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData futureTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(4096L),
             new Instant(4096L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerUpdate timers = TimerUpdate.builder(key).setTimer(pastTimer).setTimer(futureTimer).build();
     manager.updateWatermarks(
         impulseBundle,
@@ -1144,7 +1146,11 @@ public class WatermarkManagerTest implements Serializable {
     Instant upstreamHold = new Instant(2048L);
     TimerData upstreamProcessingTimer =
         TimerData.of(
-            StateNamespaces.global(), upstreamHold, upstreamHold, TimeDomain.PROCESSING_TIME);
+            StateNamespaces.global(),
+            upstreamHold,
+            upstreamHold,
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     manager.updateWatermarks(
         impulseBundle,
         TimerUpdate.builder(StructuralKey.of("key", StringUtf8Coder.of()))
@@ -1236,19 +1242,25 @@ public class WatermarkManagerTest implements Serializable {
 
     TimerData earliestTimer =
         TimerData.of(
-            StateNamespaces.global(), new Instant(1000), new Instant(1000), TimeDomain.EVENT_TIME);
+            StateNamespaces.global(),
+            new Instant(1000),
+            new Instant(1000),
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData middleTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(5000L),
             new Instant(5000L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData lastTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(10000L),
             new Instant(10000L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     StructuralKey<byte[]> key = StructuralKey.of(new byte[] {1, 4, 9}, ByteArrayCoder.of());
     TimerUpdate update =
         TimerUpdate.builder(key)
@@ -1324,19 +1336,22 @@ public class WatermarkManagerTest implements Serializable {
             StateNamespaces.global(),
             new Instant(999L),
             new Instant(999L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData middleTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(5000L),
             new Instant(5000L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData lastTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(10000L),
             new Instant(10000L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     StructuralKey<?> key = StructuralKey.of(-12L, VarLongCoder.of());
     TimerUpdate update =
         TimerUpdate.builder(key)
@@ -1412,19 +1427,22 @@ public class WatermarkManagerTest implements Serializable {
             StateNamespaces.global(),
             new Instant(999L),
             new Instant(999L),
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData middleTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(5000L),
             new Instant(5000L),
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData lastTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(10000L),
             new Instant(10000L),
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     StructuralKey<byte[]> key = StructuralKey.of(new byte[] {2, -2, 22}, ByteArrayCoder.of());
     TimerUpdate update =
         TimerUpdate.builder(key)
@@ -1491,7 +1509,8 @@ public class WatermarkManagerTest implements Serializable {
             StateNamespaces.global(),
             new Instant(5000L),
             new Instant(5000L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerData overridingTimer =
         TimerData.of(
@@ -1499,7 +1518,8 @@ public class WatermarkManagerTest implements Serializable {
             StateNamespaces.global(),
             new Instant(10000L),
             new Instant(10000L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate initialUpdate = TimerUpdate.builder(key).setTimer(initialTimer).build();
     TimerUpdate overridingUpdate = TimerUpdate.builder(key).setTimer(overridingTimer).build();
@@ -1547,14 +1567,16 @@ public class WatermarkManagerTest implements Serializable {
             StateNamespaces.global(),
             new Instant(1000L),
             new Instant(1000L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData overridingTimer =
         TimerData.of(
             timerId,
             StateNamespaces.global(),
             new Instant(2000L),
             new Instant(2000L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate initialUpdate = TimerUpdate.builder(key).setTimer(initialTimer).build();
     TimerUpdate overridingUpdate = TimerUpdate.builder(key).setTimer(overridingTimer).build();
@@ -1617,14 +1639,16 @@ public class WatermarkManagerTest implements Serializable {
             StateNamespaces.global(),
             new Instant(100),
             new Instant(100),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData timer2 =
         TimerData.of(
             "a",
             StateNamespaces.global(),
             new Instant(200),
             new Instant(200),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     underTest.updateTimers(TimerUpdate.builder(key).setTimer(timer1).setTimer(timer2).build());
 
     // Only the last timer update should be observable
@@ -1656,25 +1680,32 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateBuilderBuildAddsAllAddedTimers() {
     TimerData set =
         TimerData.of(
-            StateNamespaces.global(), new Instant(10L), new Instant(10L), TimeDomain.EVENT_TIME);
+            StateNamespaces.global(),
+            new Instant(10L),
+            new Instant(10L),
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData deleted =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(24L),
             new Instant(24L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData completedOne =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(1024L),
             new Instant(1024L),
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData completedTwo =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(2048L),
             new Instant(2048L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate update =
         TimerUpdate.builder(StructuralKey.of("foo", StringUtf8Coder.of()))
@@ -1692,7 +1723,12 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateBuilderWithSetAtEndOfTime() {
     Instant timerStamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
     TimerData tooFar =
-        TimerData.of(StateNamespaces.global(), timerStamp, timerStamp, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            StateNamespaces.global(),
+            timerStamp,
+            timerStamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdateBuilder builder = TimerUpdate.builder(StructuralKey.empty());
     thrown.expect(IllegalArgumentException.class);
@@ -1704,7 +1740,12 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateBuilderWithSetPastEndOfTime() {
     Instant timerStamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.standardMinutes(2));
     TimerData tooFar =
-        TimerData.of(StateNamespaces.global(), timerStamp, timerStamp, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            StateNamespaces.global(),
+            timerStamp,
+            timerStamp,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdateBuilder builder = TimerUpdate.builder(StructuralKey.empty());
     thrown.expect(IllegalArgumentException.class);
@@ -1716,7 +1757,13 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateBuilderWithSetThenDeleteHasOnlyDeleted() {
     TimerUpdateBuilder builder = TimerUpdate.builder(null);
     Instant now = Instant.now();
-    TimerData timer = TimerData.of(StateNamespaces.global(), now, now, TimeDomain.EVENT_TIME);
+    TimerData timer =
+        TimerData.of(
+            StateNamespaces.global(),
+            now,
+            now,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate built = builder.setTimer(timer).deletedTimer(timer).build();
 
@@ -1728,7 +1775,13 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateBuilderWithDeleteThenSetHasOnlySet() {
     TimerUpdateBuilder builder = TimerUpdate.builder(null);
     Instant now = Instant.now();
-    TimerData timer = TimerData.of(StateNamespaces.global(), now, now, TimeDomain.EVENT_TIME);
+    TimerData timer =
+        TimerData.of(
+            StateNamespaces.global(),
+            now,
+            now,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate built = builder.deletedTimer(timer).setTimer(timer).build();
 
@@ -1740,7 +1793,13 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateBuilderWithSetAfterBuildNotAddedToBuilt() {
     TimerUpdateBuilder builder = TimerUpdate.builder(null);
     Instant now = Instant.now();
-    TimerData timer = TimerData.of(StateNamespaces.global(), now, now, TimeDomain.EVENT_TIME);
+    TimerData timer =
+        TimerData.of(
+            StateNamespaces.global(),
+            now,
+            now,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate built = builder.build();
     builder.setTimer(timer);
@@ -1753,7 +1812,13 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateBuilderWithDeleteAfterBuildNotAddedToBuilt() {
     TimerUpdateBuilder builder = TimerUpdate.builder(null);
     Instant now = Instant.now();
-    TimerData timer = TimerData.of(StateNamespaces.global(), now, now, TimeDomain.EVENT_TIME);
+    TimerData timer =
+        TimerData.of(
+            StateNamespaces.global(),
+            now,
+            now,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate built = builder.build();
     builder.deletedTimer(timer);
@@ -1766,7 +1831,13 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateBuilderWithCompletedAfterBuildNotAddedToBuilt() {
     TimerUpdateBuilder builder = TimerUpdate.builder(null);
     Instant now = Instant.now();
-    TimerData timer = TimerData.of(StateNamespaces.global(), now, now, TimeDomain.EVENT_TIME);
+    TimerData timer =
+        TimerData.of(
+            StateNamespaces.global(),
+            now,
+            now,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate built = builder.build();
     builder.withCompletedTimers(ImmutableList.of(timer));
@@ -1779,7 +1850,13 @@ public class WatermarkManagerTest implements Serializable {
   public void timerUpdateWithCompletedTimersNotAddedToExisting() {
     TimerUpdateBuilder builder = TimerUpdate.builder(null);
     Instant now = Instant.now();
-    TimerData timer = TimerData.of(StateNamespaces.global(), now, now, TimeDomain.EVENT_TIME);
+    TimerData timer =
+        TimerData.of(
+            StateNamespaces.global(),
+            now,
+            now,
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
 
     TimerUpdate built = builder.build();
     assertThat(built.getCompletedTimers(), emptyIterable());

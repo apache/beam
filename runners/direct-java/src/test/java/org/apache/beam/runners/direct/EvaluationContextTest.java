@@ -334,7 +334,11 @@ public class EvaluationContextTest implements Serializable {
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
         TimerData.of(
-            StateNamespaces.global(), new Instant(100L), new Instant(100L), TimeDomain.EVENT_TIME);
+            StateNamespaces.global(),
+            new Instant(100L),
+            new Instant(100L),
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TransformResult<?> timerResult =
         StepTransformResult.withoutHold(downstreamProducer)
             .withState(CopyOnAccessInMemoryStateInternals.withUnderlying(key, null))

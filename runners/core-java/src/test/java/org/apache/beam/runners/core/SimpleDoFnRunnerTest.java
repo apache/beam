@@ -701,7 +701,8 @@ public class SimpleDoFnRunnerTest {
               StateNamespaces.window(windowCoder, (W) context.window()),
               context.fireTimestamp(),
               context.timestamp(),
-              context.timeDomain()));
+              context.timeDomain(),
+              TimerData.CausedByDrain.NORMAL));
     }
   }
 

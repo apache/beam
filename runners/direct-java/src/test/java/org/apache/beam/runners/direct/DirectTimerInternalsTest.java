@@ -69,19 +69,22 @@ public class DirectTimerInternalsTest {
             StateNamespaces.global(),
             new Instant(20145L),
             new Instant(20145L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData processingTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(125555555L),
             new Instant(125555555L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(98745632189L),
             new Instant(98745632189L),
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     internals.setTimer(eventTimer);
     internals.setTimer(processingTimer);
     internals.setTimer(synchronizedProcessingTimer);
@@ -98,19 +101,22 @@ public class DirectTimerInternalsTest {
             StateNamespaces.global(),
             new Instant(20145L),
             new Instant(20145L),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData processingTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(125555555L),
             new Instant(125555555L),
-            TimeDomain.PROCESSING_TIME);
+            TimeDomain.PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTimer =
         TimerData.of(
             StateNamespaces.global(),
             new Instant(98745632189L),
             new Instant(98745632189L),
-            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            TimerData.CausedByDrain.NORMAL);
     internals.deleteTimer(eventTimer);
     internals.deleteTimer(processingTimer);
     internals.deleteTimer(synchronizedProcessingTimer);
