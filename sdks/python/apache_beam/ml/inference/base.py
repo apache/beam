@@ -1764,15 +1764,14 @@ class _SharedModelWrapper():
           tag=f'{model_tag}_counter',
           always_proxy=True).acquire()
 
+  def _load_model(self):
+    unique_tag = self.model_tag + '_' + uuid.uuid4().hex
+    return multi_process_shared.MultiProcessShared(
+        self.loader_func, tag=unique_tag, always_proxy=True).acquire()
+
   def next_model(self):
     if self.use_model_manager:
-
-      def load():
-        unique_tag = self.model_tag + '_' + uuid.uuid4().hex
-        return multi_process_shared.MultiProcessShared(
-            self.loader_func, tag=unique_tag, always_proxy=True).acquire()
-
-      return self.models.acquire_model(self.model_tag, load)
+      return self.models.acquire_model(self.model_tag, self._load_model)
     if len(self.models) == 1:
       # Short circuit if there's no routing strategy needed in order to
       # avoid the cross-process call
@@ -1820,32 +1819,32 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._cur_tag = model_tag
     self.use_model_manager = use_model_manager
 
+  def _load(self):
+    """Function for constructing shared LoadedModel."""
+    memory_before = _get_current_process_memory_in_bytes()
+    start_time = _to_milliseconds(self._clock.time_ns())
+    if isinstance(side_input_model_path, str):
+      self._model_handler.update_model_path(side_input_model_path)
+    else:
+      if self._model is not None:
+        models = self._model.all_models()
+        for m in models:
+          self._model_handler.update_model_paths(m, side_input_model_path)
+    model = self._model_handler.load_model()
+    end_time = _to_milliseconds(self._clock.time_ns())
+    memory_after = _get_current_process_memory_in_bytes()
+    load_model_latency_ms = end_time - start_time
+    model_byte_size = memory_after - memory_before
+    if self._metrics_collector:
+      self._metrics_collector.cache_load_model_metrics(
+          load_model_latency_ms, model_byte_size)
+    return model
+
   def _load_model(
       self,
       side_input_model_path: Optional[Union[str,
                                             list[KeyModelPathMapping]]] = None
   ) -> _SharedModelWrapper:
-    def load():
-      """Function for constructing shared LoadedModel."""
-      memory_before = _get_current_process_memory_in_bytes()
-      start_time = _to_milliseconds(self._clock.time_ns())
-      if isinstance(side_input_model_path, str):
-        self._model_handler.update_model_path(side_input_model_path)
-      else:
-        if self._model is not None:
-          models = self._model.all_models()
-          for m in models:
-            self._model_handler.update_model_paths(m, side_input_model_path)
-      model = self._model_handler.load_model()
-      end_time = _to_milliseconds(self._clock.time_ns())
-      memory_after = _get_current_process_memory_in_bytes()
-      load_model_latency_ms = end_time - start_time
-      model_byte_size = memory_after - memory_before
-      if self._metrics_collector:
-        self._metrics_collector.cache_load_model_metrics(
-            load_model_latency_ms, model_byte_size)
-      return model
-
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
     model_tag = self._model_tag
@@ -1857,7 +1856,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_manager = multi_process_shared.MultiProcessShared(
           lambda: ModelManager(), tag='model_manager',
           always_proxy=True).acquire()
-      model_wrapper = _SharedModelWrapper(model_manager, self._cur_tag, load)
+      model_wrapper = _SharedModelWrapper(
+          model_manager, self._cur_tag, self._load)
     elif self._model_handler.share_model_across_processes():
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
