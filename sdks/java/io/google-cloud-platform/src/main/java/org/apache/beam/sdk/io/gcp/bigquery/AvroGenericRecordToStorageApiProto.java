@@ -311,6 +311,7 @@ public class AvroGenericRecordToStorageApiProto {
     return builder.build();
   }
 
+  @SuppressWarnings("nullness")
   private static TableFieldSchema fieldDescriptorFromAvroField(org.apache.avro.Schema.Field field) {
     @Nullable Schema schema = field.schema();
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
@@ -350,10 +351,11 @@ public class AvroGenericRecordToStorageApiProto {
           throw new RuntimeException("Unexpected null element type!");
         }
         TableFieldSchema keyFieldSchema =
-            fieldDescriptorFromAvroField(new Schema.Field("key", keyType, "key of the map entry"));
+            fieldDescriptorFromAvroField(
+                new Schema.Field("key", keyType, "key of the map entry", null));
         TableFieldSchema valueFieldSchema =
             fieldDescriptorFromAvroField(
-                new Schema.Field("value", valueType, "value of the map entry"));
+                new Schema.Field("value", valueType, "value of the map entry", null));
         builder =
             builder
                 .setType(TableFieldSchema.Type.STRUCT)
@@ -371,7 +373,8 @@ public class AvroGenericRecordToStorageApiProto {
             elementType.getType() != Schema.Type.UNION,
             "Multiple non-null union types are not supported.");
         TableFieldSchema unionFieldSchema =
-            fieldDescriptorFromAvroField(new Schema.Field(field.name(), elementType, field.doc()));
+            fieldDescriptorFromAvroField(
+                new Schema.Field(field.name(), elementType, field.doc(), null));
         builder =
             builder
                 .setType(unionFieldSchema.getType())

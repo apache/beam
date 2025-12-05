@@ -23,6 +23,7 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link MetaStore} which stores the meta info in memory.
@@ -53,7 +54,7 @@ public class InMemoryMetaStore implements MetaStore {
     }
 
     // invoke the provider's create
-    providers.get(table.getType()).createTable(table);
+    getProvider(table.getType()).createTable(table);
 
     // store to the global metastore
     tables.put(table.getName(), table);
@@ -66,7 +67,7 @@ public class InMemoryMetaStore implements MetaStore {
     }
 
     Table table = tables.get(tableName);
-    providers.get(table.getType()).dropTable(tableName);
+    getProvider(table.getType()).dropTable(tableName);
     tables.remove(tableName);
   }
 
@@ -77,26 +78,34 @@ public class InMemoryMetaStore implements MetaStore {
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    TableProvider provider = providers.get(table.getType());
+    TableProvider provider = getProvider(table.getType());
 
     return provider.buildBeamSqlTable(table);
   }
 
-  private void validateTableType(Table table) {
-    if (!providers.containsKey(table.getType())) {
+  protected void validateTableType(Table table) {
+    if (providers.containsKey(table.getType().toLowerCase())) {
+      return;
+    }
+    // check if there is a nested metastore that supports this table
+    @Nullable
+    InMemoryMetaStore nestedMemoryMetastore = (InMemoryMetaStore) providers.get(getTableType());
+    if (nestedMemoryMetastore != null) {
+      nestedMemoryMetastore.validateTableType(table);
+    } else {
       throw new IllegalArgumentException("Table type: " + table.getType() + " not supported!");
     }
   }
 
   @Override
   public void registerProvider(TableProvider provider) {
-    if (providers.containsKey(provider.getTableType())) {
-      throw new IllegalArgumentException(
-          "Provider is already registered for table type: " + provider.getTableType());
+    String type = provider.getTableType().toLowerCase();
+    if (providers.containsKey(type)) {
+      throw new IllegalArgumentException("Provider is already registered for table type: " + type);
     }
 
     initTablesFromProvider(provider);
-    this.providers.put(provider.getTableType(), provider);
+    this.providers.put(type, provider);
   }
 
   private void initTablesFromProvider(TableProvider provider) {
@@ -110,7 +119,35 @@ public class InMemoryMetaStore implements MetaStore {
     this.tables.putAll(tables);
   }
 
-  Map<String, TableProvider> getProviders() {
+  @Override
+  public Map<String, TableProvider> tableProviders() {
     return providers;
+  }
+
+  @Override
+  public boolean supportsPartitioning(Table table) {
+    return getProvider(table.getType()).supportsPartitioning(table);
+  }
+
+  /**
+   * Fetches a {@link TableProvider} for this type. This provider can exist in the current {@link
+   * InMemoryMetaStore} or a nested {@link InMemoryMetaStore}.
+   *
+   * @param type
+   * @return
+   */
+  public TableProvider getProvider(String type) {
+    @Nullable TableProvider provider = providers.get(type.toLowerCase());
+    if (provider != null) {
+      return provider;
+    }
+
+    // check nested InMemoryMetaStore
+    provider = providers.get(getTableType());
+    if (provider != null && (provider instanceof InMemoryMetaStore)) {
+      return ((InMemoryMetaStore) provider).getProvider(type);
+    }
+
+    throw new IllegalStateException("No TableProvider registered for table type: " + type);
   }
 }

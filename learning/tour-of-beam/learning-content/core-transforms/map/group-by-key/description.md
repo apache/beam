@@ -102,10 +102,7 @@ input := beam.ParDo(s, func(_ []byte, emit func(string, int)){
 		emit("Banana", 5)
 		emit("Lemon", 2)
 }, beam.Impulse(s))
-```
 
-If the keys are duplicated, groupByKey collects data and the values will be stored in an array:
-```
 func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 	kv := beam.ParDo(s, func(word string,count int) (string, int) {
 		return strings.ToLower(word),count
@@ -126,18 +123,6 @@ PCollection<KV<String, Integer>> input = pipeline
                         KV.of("Banana", 5),
                         KV.of("Lemon", 2)
                 ));
-```
-{{end}}
-{{if (eq .Sdk "python")}}
-```
-input = p | 'Fruits' >> Create([
-    ("banana", 2),
-	("apple", 4),
-	("lemon", 3),
-	("Apple", 1),
-	("Banana", 5),
-	("Lemon", 2)
-])
 
 input
       .apply("Lowercase", ParDo.of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
@@ -149,9 +134,19 @@ input
                 }))
       .apply("GroupByKey", GroupByKey.create());
 ```
+{{end}}
 
-If the keys are duplicated, groupByKey collects data and the values will be stored in an array:
+{{if (eq .Sdk "python")}}
 ```
+input = p | 'Fruits' >> Create([
+    ("banana", 2),
+	("apple", 4),
+	("lemon", 3),
+	("Apple", 1),
+	("Banana", 5),
+	("Lemon", 2)
+])
+
 class ApplyTransform(PTransform):
     def expand(self, input):
         return (input | 'Lowercase' >> util.Map(lambda word, count: (word.lower(), count))

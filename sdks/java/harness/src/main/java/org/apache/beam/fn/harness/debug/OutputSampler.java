@@ -29,7 +29,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /**
  * This class holds samples for a single PCollection until queried by the parent DataSampler. This
@@ -79,7 +80,7 @@ public class OutputSampler<T> {
     // element itself is sampled. Or, it's non a WindowedValueCoder and the value inside the
     // windowed value must be sampled. This is because WindowedValue is the element type used in
     // all receivers, which doesn't necessarily match the PBD encoding.
-    if (coder instanceof WindowedValue.WindowedValueCoder) {
+    if (coder instanceof WindowedValues.WindowedValueCoder) {
       this.valueCoder = null;
       this.windowedValueCoder = (Coder<WindowedValue<T>>) coder;
     } else {

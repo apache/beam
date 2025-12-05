@@ -97,14 +97,6 @@ public class SqlQuery2Test {
     }
   }
 
-  @RunWith(JUnit4.class)
-  public static class SqlQuery2TestZetaSql extends SqlQuery2TestCases {
-    @Override
-    protected SqlQuery2 getQuery(long skipFactor) {
-      return SqlQuery2.zetaSqlQuery2(skipFactor);
-    }
-  }
-
   private static Bid newBid(long id) {
     return new Bid(id, 3L, 100L, new Instant(432342L + id), "extra_" + id);
   }

@@ -42,6 +42,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
+import com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
 import com.google.gson.JsonArray;
@@ -76,6 +77,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
@@ -118,11 +120,14 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
@@ -551,7 +556,8 @@ import org.slf4j.LoggerFactory;
  * using {@link Write#withPrimaryKey}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20506)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20506),
+  "SameNameButDifferent"
 })
 public class BigQueryIO {
 
@@ -596,8 +602,8 @@ public class BigQueryIO {
   private static final String TABLE_REGEXP = "[-_\\p{L}\\p{N}\\p{M}$@ ]{1,1024}";
 
   /**
-   * Matches table specifications in the form {@code "[project_id]:[dataset_id].[table_id]"} or
-   * {@code "[dataset_id].[table_id]"}.
+   * Matches table specifications in the form {@code "[project_id]:[dataset_id].[table_id]"}, {@code
+   * "[project_id].[dataset_id].[table_id]"}, or {@code "[dataset_id].[table_id]"}.
    */
   private static final String DATASET_TABLE_REGEXP =
       String.format(
@@ -668,6 +674,33 @@ public class BigQueryIO {
             TypeDescriptor.of(TableRow.class),
             BigQueryUtils.tableRowToBeamRow(),
             BigQueryUtils.tableRowFromBeamRow());
+  }
+  /** @deprecated this method may have breaking changes introduced, use with caution */
+  @Deprecated
+  public static DynamicRead<TableRow> readDynamicallyTableRows() {
+    return new AutoValue_BigQueryIO_DynamicRead.Builder<TableRow>()
+        .setBigQueryServices(new BigQueryServicesImpl())
+        .setParseFn(new TableRowParser())
+        .setFormat(DataFormat.AVRO)
+        .setOutputCoder(TableRowJsonCoder.of())
+        .setProjectionPushdownApplied(false)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
+        .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+        .build();
+  }
+  /** @deprecated this method may have breaking changes introduced, use with caution */
+  @Deprecated
+  public static <T> DynamicRead<T> readDynamically(
+      SerializableFunction<SchemaAndRecord, T> parseFn, Coder<T> outputCoder) {
+    return new AutoValue_BigQueryIO_DynamicRead.Builder<T>()
+        .setBigQueryServices(new BigQueryServicesImpl())
+        .setParseFn(parseFn)
+        .setFormat(DataFormat.AVRO)
+        .setOutputCoder(outputCoder)
+        .setProjectionPushdownApplied(false)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
+        .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+        .build();
   }
 
   private static class TableSchemaFunction
@@ -804,6 +837,210 @@ public class BigQueryIO {
       return BigQueryAvroUtils.convertGenericRecordToTableRow(schemaAndRecord.getRecord());
     }
   }
+  /** @deprecated this class may have breaking changes introduced, use with caution */
+  @Deprecated
+  @AutoValue
+  public abstract static class DynamicRead<T>
+      extends PTransform<PCollection<BigQueryDynamicReadDescriptor>, PCollection<T>> {
+
+    abstract BigQueryServices getBigQueryServices();
+
+    abstract DataFormat getFormat();
+
+    abstract @Nullable SerializableFunction<SchemaAndRecord, T> getParseFn();
+
+    abstract @Nullable Coder<T> getOutputCoder();
+
+    abstract boolean getProjectionPushdownApplied();
+
+    abstract BadRecordRouter getBadRecordRouter();
+
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
+    abstract @Nullable String getQueryLocation();
+
+    abstract @Nullable String getQueryTempDataset();
+
+    abstract @Nullable String getQueryTempProject();
+
+    abstract @Nullable String getKmsKey();
+
+    abstract DynamicRead.Builder<T> toBuilder();
+
+    public DynamicRead<T> withQueryLocation(String location) {
+      return toBuilder().setQueryLocation(location).build();
+    }
+
+    public DynamicRead<T> withQueryTempProject(String tempProject) {
+      return toBuilder().setQueryTempProject(tempProject).build();
+    }
+
+    public DynamicRead<T> withQueryTempDataset(String tempDataset) {
+      return toBuilder().setQueryTempDataset(tempDataset).build();
+    }
+
+    public DynamicRead<T> withKmsKey(String kmsKey) {
+      return toBuilder().setKmsKey(kmsKey).build();
+    }
+
+    public DynamicRead<T> withFormat(DataFormat format) {
+      return toBuilder().setFormat(format).build();
+    }
+
+    public DynamicRead<T> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      return toBuilder()
+          .setBadRecordRouter(RECORDING_ROUTER)
+          .setBadRecordErrorHandler(badRecordErrorHandler)
+          .build();
+    }
+
+    @VisibleForTesting
+    public DynamicRead<T> withTestServices(BigQueryServices testServices) {
+      return toBuilder().setBigQueryServices(testServices).build();
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+
+      abstract Builder<T> setFormat(DataFormat format);
+
+      abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
+
+      abstract Builder<T> setParseFn(SerializableFunction<SchemaAndRecord, T> parseFn);
+
+      abstract Builder<T> setOutputCoder(Coder<T> coder);
+
+      abstract Builder<T> setProjectionPushdownApplied(boolean projectionPushdownApplied);
+
+      abstract Builder<T> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
+
+      abstract DynamicRead<T> build();
+
+      abstract Builder<T> setKmsKey(String kmsKey);
+
+      abstract Builder<T> setQueryLocation(String queryLocation);
+
+      abstract Builder<T> setQueryTempDataset(String queryTempDataset);
+
+      abstract Builder<T> setQueryTempProject(String queryTempProject);
+    }
+
+    DynamicRead() {}
+
+    class CreateBoundedSourceForTable
+        extends DoFn<KV<String, BigQueryDynamicReadDescriptor>, BigQueryStorageStreamSource<T>> {
+
+      @ProcessElement
+      public void processElement(
+          OutputReceiver<BigQueryStorageStreamSource<T>> receiver,
+          @Element KV<String, BigQueryDynamicReadDescriptor> kv,
+          PipelineOptions options)
+          throws Exception {
+
+        BigQueryDynamicReadDescriptor descriptor = kv.getValue();
+        if (descriptor.getTable() != null) {
+          BigQueryStorageTableSource<T> output =
+              BigQueryStorageTableSource.create(
+                  StaticValueProvider.of(BigQueryHelpers.parseTableSpec(descriptor.getTable())),
+                  getFormat(),
+                  descriptor.getSelectedFields() != null
+                      ? StaticValueProvider.of(descriptor.getSelectedFields())
+                      : null,
+                  descriptor.getRowRestriction() != null
+                      ? StaticValueProvider.of(descriptor.getRowRestriction())
+                      : null,
+                  getParseFn(),
+                  getOutputCoder(),
+                  getBigQueryServices(),
+                  getProjectionPushdownApplied());
+          // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k
+          // shards
+          long desiredChunkSize = getDesiredChunkSize(options, output);
+          List<BigQueryStorageStreamSource<T>> split = output.split(desiredChunkSize, options);
+          split.stream().forEach(source -> receiver.output(source));
+        } else {
+          // run query
+          BigQueryStorageQuerySource<T> querySource =
+              BigQueryStorageQuerySource.create(
+                  kv.getKey(),
+                  StaticValueProvider.of(descriptor.getQuery()),
+                  descriptor.getFlattenResults(),
+                  descriptor.getUseLegacySql(),
+                  TypedRead.QueryPriority.INTERACTIVE,
+                  getQueryLocation(),
+                  getQueryTempDataset(),
+                  getQueryTempProject(),
+                  getKmsKey(),
+                  getFormat(),
+                  getParseFn(),
+                  getOutputCoder(),
+                  getBigQueryServices());
+          // due to retry, table may already exist, remove it to ensure correctness
+          querySource.removeDestinationIfExists(options.as(BigQueryOptions.class));
+          Table queryResultTable = querySource.getTargetTable(options.as(BigQueryOptions.class));
+
+          BigQueryStorageTableSource<T> output =
+              BigQueryStorageTableSource.create(
+                  StaticValueProvider.of(queryResultTable.getTableReference()),
+                  getFormat(),
+                  null,
+                  null,
+                  getParseFn(),
+                  getOutputCoder(),
+                  getBigQueryServices(),
+                  false);
+          // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k
+          // shards
+          long desiredChunkSize = getDesiredChunkSize(options, output);
+          List<BigQueryStorageStreamSource<T>> split = output.split(desiredChunkSize, options);
+          split.stream().forEach(source -> receiver.output(source));
+        }
+      }
+
+      private long getDesiredChunkSize(
+          PipelineOptions options, BigQueryStorageTableSource<T> output) throws Exception {
+        return Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+      }
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<BigQueryDynamicReadDescriptor> input) {
+      TupleTag<T> rowTag = new TupleTag<>();
+      PCollection<KV<String, BigQueryDynamicReadDescriptor>> addJobId =
+          input
+              .apply(
+                  "Add job id",
+                  WithKeys.of(
+                      new SimpleFunction<BigQueryDynamicReadDescriptor, String>() {
+                        @Override
+                        public String apply(BigQueryDynamicReadDescriptor input) {
+                          return BigQueryHelpers.randomUUIDString();
+                        }
+                      }))
+              .apply("Checkpoint", Redistribute.byKey());
+
+      PCollectionTuple resultTuple =
+          addJobId
+              .apply("Create streams", ParDo.of(new CreateBoundedSourceForTable()))
+              .setCoder(
+                  SerializableCoder.of(new TypeDescriptor<BigQueryStorageStreamSource<T>>() {}))
+              .apply("Redistribute", Redistribute.arbitrarily())
+              .apply(
+                  "Read Streams with storage read api",
+                  ParDo.of(
+                          new TypedRead.ReadTableSource<T>(
+                              rowTag, getParseFn(), getBadRecordRouter()))
+                      .withOutputTags(rowTag, TupleTagList.of(BAD_RECORD_TAG)));
+      getBadRecordErrorHandler()
+          .addErrorCollection(
+              resultTuple.get(BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
+      return resultTuple.get(rowTag).setCoder(getOutputCoder());
+    }
+  }
 
   /** Implementation of {@link BigQueryIO#read()}. */
   public static class Read extends PTransform<PBegin, PCollection<TableRow>> {
@@ -852,8 +1089,9 @@ public class BigQueryIO {
     }
 
     /**
-     * Reads a BigQuery table specified as {@code "[project_id]:[dataset_id].[table_id]"} or {@code
-     * "[dataset_id].[table_id]"} for tables within the current project.
+     * Reads a BigQuery table specified as {@code "[project_id]:[dataset_id].[table_id]"}, {@code
+     * "[project_id].[dataset_id].[table_id]"}, or {@code "[dataset_id].[table_id]"} for tables
+     * within the current project.
      */
     public Read from(String tableSpec) {
       return new Read(this.inner.from(tableSpec));
@@ -2295,10 +2533,79 @@ public class BigQueryIO {
     if (DynamicMessage.class.equals(protoMessageClass)) {
       throw new IllegalArgumentException("DynamicMessage is not supported.");
     }
-    return BigQueryIO.<T>write()
-        .withFormatFunction(
-            m -> TableRowToStorageApiProto.tableRowFromMessage(m, false, Predicates.alwaysTrue()))
-        .withWriteProtosClass(protoMessageClass);
+    try {
+      return BigQueryIO.<T>write()
+          .toBuilder()
+          .setFormatFunction(FormatProto.fromClass(protoMessageClass))
+          .build()
+          .withWriteProtosClass(protoMessageClass);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  abstract static class TableRowFormatFunction<T>
+      implements SerializableBiFunction<
+          TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow> {
+    static <T> TableRowFormatFunction<T> fromSerializableFunction(
+        SerializableFunction<T, TableRow> serializableFunction) {
+      return new TableRowFormatFunction<T>() {
+        @Override
+        public TableRow apply(
+            TableRowToStorageApiProto.@Nullable SchemaInformation schemaInformation, T t) {
+          return serializableFunction.apply(t);
+        }
+      };
+    }
+
+    SerializableFunction<T, TableRow> toSerializableFunction() {
+      return input -> apply(null, input);
+    }
+  }
+
+  private static class FormatProto<T extends Message> extends TableRowFormatFunction<T> {
+    transient TableRowToStorageApiProto.SchemaInformation inferredSchemaInformation;
+    final Class<T> protoMessageClass;
+
+    FormatProto(Class<T> protoMessageClass) {
+      this.protoMessageClass = protoMessageClass;
+    }
+
+    TableRowToStorageApiProto.SchemaInformation inferSchemaInformation() {
+      try {
+        if (inferredSchemaInformation == null) {
+          Descriptors.Descriptor descriptor =
+              (Descriptors.Descriptor)
+                  org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+                          protoMessageClass.getMethod("getDescriptor"))
+                      .invoke(null);
+          Descriptors.Descriptor convertedDescriptor =
+              TableRowToStorageApiProto.wrapDescriptorProto(
+                  ProtoSchemaConverter.convert(descriptor).getProtoDescriptor());
+          TableSchema tableSchema =
+              TableRowToStorageApiProto.protoSchemaToTableSchema(
+                  TableRowToStorageApiProto.tableSchemaFromDescriptor(convertedDescriptor));
+          this.inferredSchemaInformation =
+              TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
+        }
+        return inferredSchemaInformation;
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    static <T extends Message> FormatProto<T> fromClass(Class<T> protoMessageClass)
+        throws Exception {
+      return new FormatProto<>(protoMessageClass);
+    }
+
+    @Override
+    public TableRow apply(TableRowToStorageApiProto.SchemaInformation schemaInformation, T input) {
+      TableRowToStorageApiProto.SchemaInformation localSchemaInformation =
+          schemaInformation != null ? schemaInformation : inferSchemaInformation();
+      return TableRowToStorageApiProto.tableRowFromMessage(
+          localSchemaInformation, input, false, Predicates.alwaysTrue());
+    }
   }
 
   /** Implementation of {@link #write}. */
@@ -2352,9 +2659,9 @@ public class BigQueryIO {
     abstract @Nullable SerializableFunction<ValueInSingleWindow<T>, TableDestination>
         getTableFunction();
 
-    abstract @Nullable SerializableFunction<T, TableRow> getFormatFunction();
+    abstract @Nullable TableRowFormatFunction<T> getFormatFunction();
 
-    abstract @Nullable SerializableFunction<T, TableRow> getFormatRecordOnFailureFunction();
+    abstract @Nullable TableRowFormatFunction<T> getFormatRecordOnFailureFunction();
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
@@ -2465,10 +2772,10 @@ public class BigQueryIO {
       abstract Builder<T> setTableFunction(
           SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
 
-      abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
+      abstract Builder<T> setFormatFunction(TableRowFormatFunction<T> formatFunction);
 
       abstract Builder<T> setFormatRecordOnFailureFunction(
-          SerializableFunction<T, TableRow> formatFunction);
+          TableRowFormatFunction<T> formatFunction);
 
       abstract Builder<T> setAvroRowWriterFactory(
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
@@ -2716,7 +3023,9 @@ public class BigQueryIO {
 
     /** Formats the user's type into a {@link TableRow} to be written to BigQuery. */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
-      return toBuilder().setFormatFunction(formatFunction).build();
+      return toBuilder()
+          .setFormatFunction(TableRowFormatFunction.fromSerializableFunction(formatFunction))
+          .build();
     }
 
     /**
@@ -2731,7 +3040,10 @@ public class BigQueryIO {
      */
     public Write<T> withFormatRecordOnFailureFunction(
         SerializableFunction<T, TableRow> formatFunction) {
-      return toBuilder().setFormatRecordOnFailureFunction(formatFunction).build();
+      return toBuilder()
+          .setFormatRecordOnFailureFunction(
+              TableRowFormatFunction.fromSerializableFunction(formatFunction))
+          .build();
     }
 
     /**
@@ -3472,19 +3784,22 @@ public class BigQueryIO {
           }
         }
       } else { // PCollection is bounded
-        String error =
-            String.format(
-                " is only applicable to an unbounded PCollection, but the input PCollection is %s.",
-                input.isBounded());
-        checkArgument(getTriggeringFrequency() == null, "Triggering frequency" + error);
-        checkArgument(!getAutoSharding(), "Auto-sharding" + error);
-        checkArgument(getNumFileShards() == 0, "Number of file shards" + error);
+        checkArgument(
+            getTriggeringFrequency() == null,
+            "Triggering frequency is only applicable to an unbounded PCollection.");
+        checkArgument(
+            !getAutoSharding(), "Auto-sharding is only applicable to an unbounded PCollection.");
+        checkArgument(
+            getNumFileShards() == 0,
+            "Number of file shards is only applicable to an unbounded PCollection.");
 
         if (getStorageApiTriggeringFrequency(bqOptions) != null) {
-          LOG.warn("Setting a triggering frequency" + error);
+          LOG.warn(
+              "Setting the triggering frequency is only applicable to an unbounded PCollection.");
         }
         if (getStorageApiNumStreams(bqOptions) != 0) {
-          LOG.warn("Setting the number of Storage API streams" + error);
+          LOG.warn(
+              "Setting the number of Storage API streams is only applicable to an unbounded PCollection.");
         }
       }
 
@@ -3594,9 +3909,8 @@ public class BigQueryIO {
     private <DestinationT> WriteResult expandTyped(
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
       boolean optimizeWrites = getOptimizeWrites();
-      SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
-      SerializableFunction<T, TableRow> formatRecordOnFailureFunction =
-          getFormatRecordOnFailureFunction();
+      TableRowFormatFunction<T> formatFunction = getFormatFunction();
+      TableRowFormatFunction<T> formatRecordOnFailureFunction = getFormatRecordOnFailureFunction();
       RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT> avroRowWriterFactory =
           (RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT>) getAvroRowWriterFactory();
 
@@ -3618,7 +3932,9 @@ public class BigQueryIO {
           // If no format function set, then we will automatically convert the input type to a
           // TableRow.
           // TODO: it would be trivial to convert to avro records here instead.
-          formatFunction = BigQueryUtils.toTableRow(input.getToRowFunction());
+          formatFunction =
+              TableRowFormatFunction.fromSerializableFunction(
+                  BigQueryUtils.toTableRow(input.getToRowFunction()));
         }
         // Infer the TableSchema from the input Beam schema.
         // TODO: If the user provided a schema, we should use that. There are things that can be
@@ -3764,8 +4080,8 @@ public class BigQueryIO {
                     getCreateDisposition(),
                     dynamicDestinations,
                     elementCoder,
-                    tableRowWriterFactory.getToRowFn(),
-                    tableRowWriterFactory.getToFailsafeRowFn())
+                    tableRowWriterFactory.getToRowFn().toSerializableFunction(),
+                    tableRowWriterFactory.getToFailsafeRowFn().toSerializableFunction())
                 .withInsertRetryPolicy(retryPolicy)
                 .withTestServices(getBigQueryServices())
                 .withExtendedErrorInfo(getExtendedErrorInfo())

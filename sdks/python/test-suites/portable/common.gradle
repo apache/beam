@@ -96,7 +96,7 @@ tasks.register("portableLocalRunnerJuliaSetWithSetupPy") {
           && python juliaset_main.py \\
               --runner=PortableRunner \\
               --job_endpoint=embed \\
-              --setup_file=./setup.py \\
+              --requirements_file=./requirements.txt \\
               --coordinate_output=/tmp/juliaset \\
               --grid_size=1
           """
@@ -112,7 +112,10 @@ def createProcessWorker = tasks.register("createProcessWorker") {
   if (Os.isFamily(Os.FAMILY_MAC))
     osType = 'darwin'
   def workerScript = "${project(":sdks:python:container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
-  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${envdir}/bin/activate && ${workerScript} \$* \""
+  def sdkWorkerFileCode = """#!/bin/sh
+. ${envdir}/bin/activate
+exec ${workerScript} "\"\$@\""
+"""
   outputs.file sdkWorkerFile
   doLast {
     sdkWorkerFile.write sdkWorkerFileCode
@@ -369,11 +372,24 @@ project.tasks.register("prismExamples") {
 }
 
 project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
+  String fork_java_home = null
+  String fork_java_version = currentJavaVersion
+  // DebeziumIO needs Java17+
+  if (JavaVersion.current() < JavaVersion.VERSION_17) {
+    if (project.hasProperty("java17Home")) {
+      fork_java_version = 'java17'
+      fork_java_home = project.getProperty("java17Home")
+    } else if (project.hasProperty("java21Home")) {
+      fork_java_version = 'java21'
+      fork_java_home = project.getProperty("java21Home")
+    }
+  }
+
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
           ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
-          ":sdks:java:container:${currentJavaVersion}:docker",
+          ":sdks:java:container:${fork_java_version}:docker",
           ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
           ':sdks:java:io:expansion-service:shadowJar',
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
@@ -412,7 +428,11 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
             "pipeline_opts": pipelineOpts.join(" "),
     ])
     def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
+
     exec {
+      if (fork_java_home != null) {
+        environment "JAVA_HOME", fork_java_home
+      }
       environment "LOCAL_KAFKA_JAR", kafkaJar
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"

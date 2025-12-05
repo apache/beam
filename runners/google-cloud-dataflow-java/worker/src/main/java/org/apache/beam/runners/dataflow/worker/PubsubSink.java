@@ -35,8 +35,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -161,17 +161,21 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
           "Expected output stream to be empty but had %s",
           stream.toByteString());
       ByteString byteString = null;
-      if (formatFn != null) {
-        PubsubMessage formatted = formatFn.apply(data.getValue());
-        Pubsub.PubsubMessage.Builder pubsubMessageBuilder =
-            Pubsub.PubsubMessage.newBuilder().setData(ByteString.copyFrom(formatted.getPayload()));
-        if (formatted.getAttributeMap() != null) {
-          pubsubMessageBuilder.putAllAttributes(formatted.getAttributeMap());
+      try {
+        if (formatFn != null) {
+          PubsubMessage formatted = formatFn.apply(data.getValue());
+          Pubsub.PubsubMessage.Builder pubsubMessageBuilder =
+              Pubsub.PubsubMessage.newBuilder()
+                  .setData(ByteString.copyFrom(formatted.getPayload()));
+          if (formatted.getAttributeMap() != null) {
+            pubsubMessageBuilder.putAllAttributes(formatted.getAttributeMap());
+          }
+          pubsubMessageBuilder.build().writeTo(stream);
+        } else {
+          coder.encode(data.getValue(), stream, Coder.Context.OUTER);
         }
-        pubsubMessageBuilder.build().writeTo(stream);
-        byteString = stream.toByteStringAndReset();
-      } else {
-        coder.encode(data.getValue(), stream, Coder.Context.OUTER);
+      } finally {
+        // Use a final block to ensure the stream is reset even in the case of an exception.
         byteString = stream.toByteStringAndReset();
       }
 

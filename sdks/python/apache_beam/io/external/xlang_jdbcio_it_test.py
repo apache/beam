@@ -36,8 +36,6 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.typehints.schemas import LogicalType
-from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.utils.timestamp import Timestamp
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -49,8 +47,8 @@ except ImportError:
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from testcontainers.postgres import PostgresContainer
   from testcontainers.mysql import MySqlContainer
+  from testcontainers.postgres import PostgresContainer
 except ImportError:
   PostgresContainer = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -61,10 +59,10 @@ MYSQL_BINARY_TYPE = ('BINARY(10)', 'VARBINARY(10)')
 
 JdbcTestRow = typing.NamedTuple(
     "JdbcTestRow",
-    [("f_id", int), ("f_float", float), ("f_char", str), ("f_varchar", str),
-     ("f_bytes", bytes), ("f_varbytes", bytes), ("f_timestamp", Timestamp),
-     ("f_decimal", Decimal), ("f_date", datetime.date),
-     ("f_time", datetime.time)],
+    [("f_id", int), ("f_id_long", int), ("f_float", float), ("f_char", str),
+     ("f_varchar", str), ("f_bytes", bytes), ("f_varbytes", bytes),
+     ("f_timestamp", Timestamp), ("f_decimal", Decimal),
+     ("f_date", datetime.date), ("f_time", datetime.time)],
 )
 coders.registry.register_coder(JdbcTestRow, coders.RowCoder)
 
@@ -72,6 +70,7 @@ CustomSchemaRow = typing.NamedTuple(
     "CustomSchemaRow",
     [
         ("renamed_id", int),
+        ("renamed_id_long", int),
         ("renamed_float", float),
         ("renamed_char", str),
         ("renamed_varchar", str),
@@ -99,12 +98,12 @@ coders.registry.register_coder(SimpleRow, coders.RowCoder)
 @unittest.skipIf(
     PostgresContainer is None, 'testcontainers package is not installed')
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     'Do not run this test on precommit suites.')
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    not None and
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is not None and
     "dataflowrunner" in TestPipeline().get_pipeline_options().view_as(
         StandardOptions).runner.lower(),
     'Do not run this test on dataflow runner.')
@@ -120,7 +119,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
           'postgresql',
           'org.postgresql.Driver'),
       'mysql': DbData(
-          lambda: MySqlContainer(), ['mysql:mysql-connector-java:8.0.28'],
+          lambda: MySqlContainer(dialect='pymysql'),
+          ['mysql:mysql-connector-java:8.0.28'],
           'mysql',
           'com.mysql.cj.jdbc.Driver')
   }
@@ -142,13 +142,13 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
           'username': 'test',
           'password': 'test',
           'host': container.get_container_host_ip(),
-          'port': container.get_exposed_port(container.port_to_expose),
+          'port': container.get_exposed_port(container.port),
           'database_name': 'test',
           'driver_class_name': db_data.connector,
           'classpath': db_data.classpath,
           'jdbc_url': (
               f'jdbc:{db_data.db_string}://{container.get_container_host_ip()}:'
-              f'{container.get_exposed_port(container.port_to_expose)}/test'),
+              f'{container.get_exposed_port(container.port)}/test'),
           'binary_type': POSTGRES_BINARY_TYPE
           if db_type == 'postgres' else MYSQL_BINARY_TYPE
       }
@@ -184,7 +184,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     connection.execute(
         sqlalchemy.text(
             f"CREATE TABLE IF NOT EXISTS {table_name}" +
-            "(f_id INTEGER, f_float DOUBLE PRECISION, " +
+            "(f_id INTEGER, f_id_long BIGINT, f_float DOUBLE PRECISION, " +
             "f_char CHAR(10), f_varchar VARCHAR(10), " +
             f"f_bytes {binary_type[0]}, f_varbytes {binary_type[1]}, " +
             "f_timestamp TIMESTAMP(3), f_decimal DECIMAL(10, 2), " +
@@ -193,7 +193,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
   def generate_test_data(self, count):
     return [
         JdbcTestRow(
-            i,
+            i - 3,
+            i - 3,
             i + 0.1,
             f'Test{i}',
             f'Test{i}',
@@ -226,6 +227,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       expected_rows.append(
           JdbcTestRow(
               row.f_id,
+              row.f_id,
               row.f_float,
               f_char,
               row.f_varchar,
@@ -251,10 +253,6 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               password=config['password'],
               classpath=config['classpath'],
           ))
-
-    # Register MillisInstant logical type to override the mapping from Timestamp
-    # originally handled by MicrosInstant.
-    LogicalType.register_logical_type(MillisInstant)
 
     with TestPipeline() as p:
       p.not_use_test_runner_api = True
@@ -311,6 +309,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       expected_rows.append(
           CustomSchemaRow(
               row.f_id,
+              row.f_id,
               row.f_float,
               f_char,
               row.f_varchar,
@@ -324,6 +323,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     def custom_row_equals(expected, actual):
       return (
           expected.renamed_id == actual.renamed_id and
+          expected.renamed_id_long == actual.renamed_id_long and
           expected.renamed_float == actual.renamed_float and
           expected.renamed_char.rstrip() == actual.renamed_char.rstrip() and
           expected.renamed_varchar == actual.renamed_varchar and
@@ -349,10 +349,6 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               password=config['password'],
               classpath=config['classpath'],
           ))
-
-    # Register MillisInstant logical type to override the mapping from Timestamp
-    # originally handled by MicrosInstant.
-    LogicalType.register_logical_type(MillisInstant)
 
     # Run read pipeline with custom schema
     with TestPipeline() as p:
@@ -390,7 +386,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
         SimpleRow(2, "Item2", 20.75),
         SimpleRow(3, "Item3", 30.25),
         SimpleRow(4, "Item4", 40.0),
-        SimpleRow(5, "Item5", 50.5)
+        SimpleRow(-5, "Item5", 50.5)
     ]
 
     config = self.jdbc_configs[database]

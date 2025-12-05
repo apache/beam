@@ -25,7 +25,7 @@ DebeziumIO is an Apache Beam connector that lets users connect their Events-Driv
 
 ### Getting Started
 
-DebeziumIO uses [Debezium Connectors v1.3](https://debezium.io/documentation/reference/1.3/connectors/) to connect to Apache Beam. All you need to do is choose the Debezium Connector that suits your Debezium setup and pick a [Serializable Function](https://beam.apache.org/releases/javadoc/2.23.0/org/apache/beam/sdk/transforms/SerializableFunction.html), then you will be able to connect to Apache Beam and start building your own Pipelines.
+DebeziumIO uses [Debezium Connectors v3.1](https://debezium.io/documentation/reference/3.1/connectors/) to connect to Apache Beam. All you need to do is choose the Debezium Connector that suits your Debezium setup and pick a [Serializable Function](https://beam.apache.org/releases/javadoc/2.65.0/org/apache/beam/sdk/transforms/SerializableFunction.html), then you will be able to connect to Apache Beam and start building your own Pipelines.
 
 These connectors have been successfully tested and are known to work fine:
 *  MySQL Connector
@@ -65,7 +65,7 @@ You can also add more configuration, such as Connector-specific Properties with 
 |Method|Params|Description|
 |-|-|-|
 |`.withConnectionProperty(propName, propValue)`|_String_, _String_|Adds a custom property to the connector.|
-> **Note:** For more information on custom properties, see your [Debezium Connector](https://debezium.io/documentation/reference/1.3/connectors/) specific documentation.
+> **Note:** For more information on custom properties, see your [Debezium Connector](https://debezium.io/documentation/reference/3.1/connectors/) specific documentation.
 
 Example of a MySQL Debezium Connector setup:
 ```
@@ -149,7 +149,7 @@ p.run().waitUntilFinish();
 
 ### KafkaSourceConsumerFn and Restrictions
 
-KafkaSourceConsumerFn (KSC onwards) is a [DoFn](https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/sdk/transforms/DoFn.html) in charge of the Database replication and CDC.
+KafkaSourceConsumerFn (KSC onwards) is a [DoFn](https://beam.apache.org/releases/javadoc/2.65.0/org/apache/beam/sdk/transforms/DoFn.html) in charge of the Database replication and CDC.
 
 There are two ways of initializing KSC:
 *  Restricted by number of records
@@ -164,9 +164,9 @@ By default, DebeziumIO initializes it with the former, though user may choose th
 
 ### Requirements and Supported versions
 
--  JDK v8
--  Debezium Connectors v1.3
--  Apache Beam 2.25
+-  JDK v17
+-  Debezium Connectors v3.1
+-  Apache Beam 2.66
 
 ## Running Unit Tests
 

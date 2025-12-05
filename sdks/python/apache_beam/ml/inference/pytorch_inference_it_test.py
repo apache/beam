@@ -30,10 +30,11 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   import torch
+
   from apache_beam.examples.inference import pytorch_image_classification
   from apache_beam.examples.inference import pytorch_image_segmentation
-  from apache_beam.examples.inference import pytorch_model_per_key_image_segmentation
   from apache_beam.examples.inference import pytorch_language_modeling
+  from apache_beam.examples.inference import pytorch_model_per_key_image_segmentation
 except ImportError as e:
   torch = None
 
@@ -139,8 +140,8 @@ class PyTorchInference(unittest.TestCase):
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
     model_state_dict_paths = [
-      'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth',  # pylint: disable=line-too-long
-      'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn_v2.pth'  # pylint: disable=line-too-long
+        'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth',  # pylint: disable=line-too-long
+        'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn_v2.pth'  # pylint: disable=line-too-long
     ]
     images_dir = 'gs://apache-beam-ml/datasets/coco/raw-data/val2017'
     extra_opts = {

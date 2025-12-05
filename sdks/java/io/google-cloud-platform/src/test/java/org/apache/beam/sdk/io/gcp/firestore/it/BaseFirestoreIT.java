@@ -42,6 +42,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.CleanupMode;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.DataLayout;
@@ -92,10 +93,12 @@ abstract class BaseFirestoreIT {
           .build();
 
   protected static String project;
+  protected static String databaseId;
 
   @Before
   public void setup() {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    databaseId = TestPipeline.testingPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
   }
 
   private static Instant toWriteTime(WriteResult result) {
@@ -441,7 +444,14 @@ abstract class BaseFirestoreIT {
     testPipeline
         .apply(Create.of(Collections.singletonList(documentIds)))
         .apply(createWrite)
-        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(RPC_QOS_OPTIONS).build());
+        .apply(
+            FirestoreIO.v1()
+                .write()
+                .withProjectId(project)
+                .withDatabaseId(databaseId)
+                .batchWrite()
+                .withRpcQosOptions(RPC_QOS_OPTIONS)
+                .build());
 
     testPipeline.run(TestPipeline.testingPipelineOptions());
 

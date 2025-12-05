@@ -35,14 +35,15 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=unused-import
 try:
   from google.cloud import spanner
-  from apache_beam.io.gcp.experimental.spannerio import create_transaction
-  from apache_beam.io.gcp.experimental.spannerio import ReadOperation
-  from apache_beam.io.gcp.experimental.spannerio import ReadFromSpanner
-  from apache_beam.io.gcp.experimental.spannerio import WriteMutation
+
+  from apache_beam.io.gcp import resource_identifiers
   from apache_beam.io.gcp.experimental.spannerio import MutationGroup
+  from apache_beam.io.gcp.experimental.spannerio import ReadFromSpanner
+  from apache_beam.io.gcp.experimental.spannerio import ReadOperation
+  from apache_beam.io.gcp.experimental.spannerio import WriteMutation
   from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
   from apache_beam.io.gcp.experimental.spannerio import _BatchFn
-  from apache_beam.io.gcp import resource_identifiers
+  from apache_beam.io.gcp.experimental.spannerio import create_transaction
   from apache_beam.metrics import monitoring_infos
   from apache_beam.metrics.execution import MetricsEnvironment
   from apache_beam.metrics.metricbase import MetricName
@@ -387,7 +388,8 @@ class SpannerReadTest(unittest.TestCase):
   def test_invalid_transaction(
       self, mock_batch_snapshot_class, mock_client_class):
     # test exception raises at pipeline execution time
-    with self.assertRaises(ValueError), TestPipeline() as p:
+    error_string = "Invalid transaction object"
+    with self.assertRaisesRegex(Exception, error_string), TestPipeline() as p:
       transaction = (
           p | beam.Create([{
               "invalid": "transaction"
@@ -448,7 +450,11 @@ class SpannerWriteTest(unittest.TestCase):
             [('1234', "mutations-inset-1233-updated")]),
     ]
 
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutations)
@@ -475,7 +481,11 @@ class SpannerWriteTest(unittest.TestCase):
         WriteMutation.insert(
             "roles", ("key", "rolename"), [('1234', "mutations-inset-1234")])
     ] * 50
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutations)
@@ -514,7 +524,11 @@ class SpannerWriteTest(unittest.TestCase):
         MutationGroup([WriteMutation.delete("roles", ks)])
     ]
 
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutation_groups)
@@ -640,7 +654,40 @@ class SpannerWriteTest(unittest.TestCase):
                   max_number_rows=500,
                   max_number_cells=50))
           | beam.Map(lambda x: len(x)))
-      assert_that(res, equal_to([12, 12, 12, 12, 2]))
+
+      # Accept both optimal and suboptimal batching patterns due to Beam's
+      # non-deterministic execution
+      # Optimal: [12, 12, 12, 12, 2] - ideal batching without bundle
+      # fragmentation
+      # Suboptimal: [12, 12, 1, 12, 1, 12] - caused by bundle boundaries
+      # interrupting batching
+      optimal_batch_sizes = [12, 12, 12, 12, 2]
+      suboptimal_batch_sizes = [12, 12, 1, 12, 1, 12]
+
+      def validate_batching(actual_batch_sizes):
+        actual_sorted = sorted(actual_batch_sizes)
+        optimal_sorted = sorted(optimal_batch_sizes)
+        suboptimal_sorted = sorted(suboptimal_batch_sizes)
+
+        # Verify total element count first
+        total_elements = sum(actual_batch_sizes)
+        if total_elements != 50:
+          raise AssertionError(
+              f"Expected total of 50 elements, got {total_elements}")
+
+        # Accept either optimal or known suboptimal pattern
+        if actual_sorted == optimal_sorted:
+          # Optimal batching achieved
+          return True
+        elif actual_sorted == suboptimal_sorted:
+          # Known suboptimal pattern due to bundle fragmentation - acceptable
+          return True
+        else:
+          raise AssertionError(
+              f"Expected batch sizes {optimal_sorted} (optimal) or "
+              f"{suboptimal_sorted} (suboptimal), got {actual_sorted}")
+
+      assert_that(res, validate_batching)
 
   def test_write_mutation_error(self, *args):
     with self.assertRaises(ValueError):

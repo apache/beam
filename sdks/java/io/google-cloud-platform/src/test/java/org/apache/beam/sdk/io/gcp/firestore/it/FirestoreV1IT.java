@@ -116,6 +116,8 @@ public final class FirestoreV1IT extends BaseFirestoreIT {
             .apply(
                 FirestoreIO.v1()
                     .write()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
                     .batchWrite()
                     .withDeadLetterQueue()
                     .withRpcQosOptions(options)

@@ -33,20 +33,26 @@ public class SpannerSchemaTest {
   public void testSingleTable() throws Exception {
     SpannerSchema schema =
         SpannerSchema.builder()
-            .addColumn("test", "pk", "STRING(48)")
-            .addKeyPart("test", "pk", false)
-            .addColumn("test", "maxKey", "STRING(MAX)")
-            .addColumn("test", "numericVal", "NUMERIC")
-            .addColumn("test", "jsonVal", "JSON")
-            .addColumn("test", "protoVal", "PROTO<customer.app.TestMessage>")
-            .addColumn("test", "enumVal", "ENUM<customer.app.TestEnum>")
-            .addColumn("test", "tokens", "TOKENLIST")
-            .addColumn("test", "uuidCol", "UUID")
+            .addColumn("test", "pk_0", "STRING(48)")
+            .addKeyPart("test", "pk_0", false)
+            .addColumn("test", "maxKey_1", "STRING(MAX)")
+            .addColumn("test", "numericVal_2", "NUMERIC")
+            .addColumn("test", "jsonVal_3", "JSON")
+            .addColumn("test", "protoVal_4", "PROTO<customer.app.TestMessage>")
+            .addColumn("test", "enumVal_5", "ENUM<customer.app.TestEnum>")
+            .addColumn("test", "tokens_6", "TOKENLIST")
+            .addColumn("test", "uuidCol_7", "UUID")
+            .addColumn("test", "arrayVal_8", "ARRAY<FLOAT32>(vector_length=>256)")
+            .addColumn("test", "sizedArrayVal_9", "ARRAY<STRING(MAX)>")
+            .addColumn("test", "sizedByteVal_10", "ARRAY<BYTES(1024)>")
+            .addColumn("test", "hexSizedByteVal_11", "ARRAY<BYTES(0x400)>")
+            .addColumn("test", "arrayValue_12", "ARRAY<FLOAT32>")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(8, schema.getColumns("test").size());
+    assertEquals(13, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
+    assertEquals(Type.numeric(), schema.getColumns("test").get(2).getType());
     assertEquals(Type.json(), schema.getColumns("test").get(3).getType());
     assertEquals(
         Type.proto("customer.app.TestMessage"), schema.getColumns("test").get(4).getType());
@@ -54,6 +60,11 @@ public class SpannerSchemaTest {
         Type.protoEnum("customer.app.TestEnum"), schema.getColumns("test").get(5).getType());
     assertEquals(Type.bytes(), schema.getColumns("test").get(6).getType());
     assertEquals(Type.string(), schema.getColumns("test").get(7).getType());
+    assertEquals(Type.array(Type.float32()), schema.getColumns("test").get(8).getType());
+    assertEquals(Type.array(Type.string()), schema.getColumns("test").get(9).getType());
+    assertEquals(Type.array(Type.bytes()), schema.getColumns("test").get(10).getType());
+    assertEquals(Type.array(Type.bytes()), schema.getColumns("test").get(11).getType());
+    assertEquals(Type.array(Type.float32()), schema.getColumns("test").get(12).getType());
   }
 
   @Test
@@ -88,14 +99,18 @@ public class SpannerSchemaTest {
             .addColumn("test", "jsonbCol", "jsonb")
             .addColumn("test", "tokens", "spanner.tokenlist")
             .addColumn("test", "uuidCol", "uuid")
+            .addColumn("test", "arrayCol", "DOUBLE PRECISION[]")
+            .addColumn("test", "embeddingVectorCol", "DOUBLE PRECISION[] VECTOR LENGTH 16")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(7, schema.getColumns("test").size());
+    assertEquals(9, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
     assertEquals(Type.timestamp(), schema.getColumns("test").get(3).getType());
     assertEquals(Type.bytes(), schema.getColumns("test").get(5).getType());
     assertEquals(Type.string(), schema.getColumns("test").get(6).getType());
+    assertEquals(Type.array(Type.float64()), schema.getColumns("test").get(7).getType());
+    assertEquals(Type.array(Type.float64()), schema.getColumns("test").get(8).getType());
   }
 
   @Test

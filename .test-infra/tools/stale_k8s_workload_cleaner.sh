@@ -25,6 +25,7 @@ set -euo pipefail
 PROJECT=apache-beam-testing
 LOCATION=us-central1-a
 CLUSTER=io-datastores
+MEMSQL_CLUSTER_RESOURCE="memsqlclusters.memsql.com/sdb-cluster"
 
 function should_teardown() {
   if [[ $1 =~ ^([0-9]+)([a-z]) ]]; then
@@ -43,10 +44,12 @@ function should_teardown() {
 gcloud container clusters get-credentials io-datastores --zone us-central1-a --project apache-beam-testing
 
 while read NAME STATUS AGE; do
-  # Regex has temporary workaround to avoid trying to delete beam-performancetests-singlestoreio-* to avoid getting stuck in a terminal state
-  # See https://github.com/apache/beam/pull/33545 for context.
-  # This may be safe to remove if https://cloud.google.com/knowledge/kb/deleted-namespace-remains-in-terminating-status-000004867 has been resolved, just try it before checking in :)
-  if [[ $NAME =~ ^beam-.+(test|-it)(?!s-singlestoreio) ]] && should_teardown $AGE; then
+  if [[ $NAME =~ ^beam-.+(test|-it) ]] && should_teardown $AGE; then
+    # For namespaces containing "-singlestoreio-", remove the finalizers from the sdb-cluster resource
+    # to ensure it can be fully deleted and not block namespace removal.
+    if [[ $NAME == *-singlestoreio-* ]]; then
+      kubectl patch $MEMSQL_CLUSTER_RESOURCE -n $NAME -p '[{"op": "remove", "path": "/metadata/finalizers"}]' --type=json
+    fi
     kubectl delete namespace $NAME
   fi
 done < <( kubectl get namespaces --context=gke_${PROJECT}_${LOCATION}_${CLUSTER} )

@@ -17,6 +17,7 @@
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -97,8 +98,7 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda _,
-      x: x)
+      lambda _, x: x)
   def test_include_file(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
@@ -107,8 +107,7 @@ class ProviderParsingTest(unittest.TestCase):
                 self.INLINE_PROVIDER,
                 {
                     'include': self.to_include
-                },
-            ])
+                }, ])
     ]
 
     self.assertEqual([
@@ -119,8 +118,7 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda _,
-      x: x)
+      lambda _, x: x)
   def test_include_url(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
@@ -129,8 +127,7 @@ class ProviderParsingTest(unittest.TestCase):
                 self.INLINE_PROVIDER,
                 {
                     'include': 'file:///' + self.to_include
-                },
-            ])
+                }, ])
     ]
 
     self.assertEqual([
@@ -141,8 +138,7 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda _,
-      x: x)
+      lambda _, x: x)
   def test_nested_include(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
@@ -151,8 +147,7 @@ class ProviderParsingTest(unittest.TestCase):
                 self.INLINE_PROVIDER,
                 {
                     'include': self.to_include_nested
-                },
-            ])
+                }, ])
     ]
 
     self.assertEqual([
@@ -185,14 +180,12 @@ class YamlDefinedProider(unittest.TestCase):
             properties:
               n: {type: integer}
           body:
-            type: chain
-            transforms:
-              - type: MapToFields
-                config:
-                  language: python
-                  append: true
-                  fields:
-                    power: "element**{{n}}"
+            type: MapToFields
+            config:
+              language: python
+              append: true
+              fields:
+                power: "element**{{n}}"
     '''
 
     pipeline = '''
@@ -301,6 +294,71 @@ class PythonProviderDepsTest(unittest.TestCase):
         fout.write('new content')
       after = yaml_provider.PypiExpansionService._key('base', [pkg])
       self.assertNotEqual(before, after)
+
+
+class JoinUrlOrFilepathTest(unittest.TestCase):
+  def test_join_url_relative_path(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('http://example.com/a', 'b/c.yaml'),
+        'http://example.com/b/c.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath(
+            'http://example.com/a/', 'b/c.yaml'),
+        'http://example.com/a/b/c.yaml')
+
+    # use os.path.join to mock gcs filesystem split and join.
+    with mock.patch('apache_beam.io.filesystems.FileSystems.split',
+                    new=lambda x:
+                    ("gs://bucket", x.removeprefix("gs://bucket/"))):
+      with mock.patch('apache_beam.io.filesystems.FileSystems.join',
+                      new=lambda *args: '/'.join(args)):
+        self.assertEqual(
+            yaml_provider._join_url_or_filepath('gs://bucket', 'b/c.yaml'),
+            'gs://bucket/b/c.yaml')
+        self.assertEqual(
+            yaml_provider._join_url_or_filepath('gs://bucket/', 'b/c.yaml'),
+            'gs://bucket/b/c.yaml')
+        self.assertEqual(
+            yaml_provider._join_url_or_filepath('gs://bucket/a', 'b/c.yaml'),
+            'gs://bucket/b/c.yaml')
+
+  def test_join_filepath_relative_path(self):
+    if sys.platform != 'win32':
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('/a/b/', 'c/d.yaml'),
+          '/a/b/c/d.yaml')
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('/a/b', 'c/d.yaml'),
+          '/a/c/d.yaml')
+    else:
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('C:\\a\\b\\', 'c\\d.yaml'),
+          'C:\\a\\b\\c\\d.yaml')
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('C:\\a\\b', 'c\\d.yaml'),
+          'C:\\a\\c\\d.yaml')
+
+  def test_absolute_path(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath(
+            'gs://bucket/a', 'gs://bucket/b/c.yaml'),
+        'gs://bucket/b/c.yaml')
+
+    if sys.platform != 'win32':
+      self.assertEqual(
+          yaml_provider._join_url_or_filepath('/a/b', '/c/d.yaml'), '/c/d.yaml')
+
+  def test_different_scheme(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath(
+            'http://example.com/a', 'gs://bucket/b/c.yaml'),
+        'gs://bucket/b/c.yaml')
+
+  def test_empty_base(self):
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath('', 'a/b.yaml'), 'a/b.yaml')
+    self.assertEqual(
+        yaml_provider._join_url_or_filepath(None, 'a/b.yaml'), 'a/b.yaml')
 
 
 if __name__ == '__main__':

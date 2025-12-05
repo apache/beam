@@ -48,8 +48,9 @@ public class ResourceHints {
   private static final Logger LOG = LoggerFactory.getLogger(ResourceHints.class);
   private static final String MIN_RAM_URN = "beam:resources:min_ram_bytes:v1";
   private static final String ACCELERATOR_URN = "beam:resources:accelerator:v1";
-
   private static final String CPU_COUNT_URN = "beam:resources:cpu_count:v1";
+  private static final String MAX_ACTIVE_BUNDLES_PER_WORKER =
+      "beam:resources:max_active_bundles_per_worker:v1";
 
   // TODO: reference this from a common location in all packages that use this.
   private static String getUrn(ProtocolMessageEnum value) {
@@ -60,6 +61,9 @@ public class ResourceHints {
     checkState(MIN_RAM_URN.equals(getUrn(StandardResourceHints.Enum.MIN_RAM_BYTES)));
     checkState(ACCELERATOR_URN.equals(getUrn(StandardResourceHints.Enum.ACCELERATOR)));
     checkState(CPU_COUNT_URN.equals(getUrn(StandardResourceHints.Enum.CPU_COUNT)));
+    checkState(
+        MAX_ACTIVE_BUNDLES_PER_WORKER.equals(
+            (getUrn(StandardResourceHints.Enum.MAX_ACTIVE_BUNDLES_PER_WORKER))));
   }
 
   private static ImmutableMap<String, String> hintNameToUrn =
@@ -69,6 +73,9 @@ public class ResourceHints {
           .put("accelerator", ACCELERATOR_URN)
           .put("cpuCount", CPU_COUNT_URN)
           .put("cpu_count", CPU_COUNT_URN) // Courtesy alias.
+          .put("max_active_bundles_per_worker", MAX_ACTIVE_BUNDLES_PER_WORKER)
+          .put("maxActiveBundlesPerWorker", MAX_ACTIVE_BUNDLES_PER_WORKER) // Courtesy alias.
+          .put("max_active_bundle_per_worker", MAX_ACTIVE_BUNDLES_PER_WORKER) // Courtesy alias.
           .build();
 
   private static ImmutableMap<String, Function<String, ResourceHint>> parsers =
@@ -76,6 +83,7 @@ public class ResourceHints {
           .put(MIN_RAM_URN, s -> new BytesHint(BytesHint.parse(s)))
           .put(ACCELERATOR_URN, s -> new StringHint(s))
           .put(CPU_COUNT_URN, s -> new IntHint(IntHint.parse(s)))
+          .put(MAX_ACTIVE_BUNDLES_PER_WORKER, s -> new IntHint(IntHint.parse(s)))
           .build();
 
   private static final ResourceHints EMPTY = new ResourceHints(ImmutableMap.of());
@@ -166,15 +174,17 @@ public class ResourceHints {
         String number = m.group(1);
         String suffix = m.group(2);
         if (number != null && suffix != null && suffixes.containsKey(suffix)) {
-          return (long) (Double.valueOf(number) * suffixes.get(suffix));
+          return (long) (Double.parseDouble(number) * suffixes.get(suffix));
         }
       }
       throw new IllegalArgumentException("Unable to parse '" + s + "' as a byte value.");
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer) {
-      return new BytesHint(Math.max(value, ((BytesHint) outer).value));
+    public ResourceHint mergeWithOuter(ResourceHint outer, boolean isSum) {
+      return isSum
+          ? new BytesHint(value + ((BytesHint) outer).value)
+          : new BytesHint(Math.max(value, ((BytesHint) outer).value));
     }
 
     @Override
@@ -248,8 +258,10 @@ public class ResourceHints {
     }
 
     @Override
-    public ResourceHint mergeWithOuter(ResourceHint outer) {
-      return new IntHint(Math.max(value, ((IntHint) outer).value));
+    public ResourceHint mergeWithOuter(ResourceHint outer, boolean isSum) {
+      return isSum
+          ? new IntHint(value + ((IntHint) outer).value)
+          : new IntHint(Math.max(value, ((IntHint) outer).value));
     }
 
     @Override
@@ -327,6 +339,17 @@ public class ResourceHints {
     return withHint(CPU_COUNT_URN, new IntHint(cpuCount));
   }
 
+  public ResourceHints withMaxActiveBundlesPerWorker(int maxActiveBundlesPerWorker) {
+    if (maxActiveBundlesPerWorker <= 0) {
+      LOG.error(
+          "Encountered invalid non-positive max active bundles per worker hint value {}.\n"
+              + "The value is ignored.",
+          maxActiveBundlesPerWorker);
+      return this;
+    }
+    return withHint(MAX_ACTIVE_BUNDLES_PER_WORKER, new IntHint(maxActiveBundlesPerWorker));
+  }
+
   public Map<String, ResourceHint> hints() {
     return hints;
   }
@@ -339,10 +362,14 @@ public class ResourceHints {
     } else {
       ImmutableMap.Builder<String, ResourceHint> newHints = ImmutableMap.builder();
       for (Map.Entry<String, ResourceHint> outerHint : outer.hints().entrySet()) {
-        if (hints.containsKey(outerHint.getKey())) {
+        String key = outerHint.getKey();
+        if (hints.containsKey(key)) {
           newHints.put(
-              outerHint.getKey(),
-              hints.get(outerHint.getKey()).mergeWithOuter(outerHint.getValue()));
+              key,
+              hints
+                  .get(key)
+                  .mergeWithOuter(
+                      outerHint.getValue(), /*isSum*/ key.equals(MAX_ACTIVE_BUNDLES_PER_WORKER)));
         } else {
           newHints.put(outerHint);
         }

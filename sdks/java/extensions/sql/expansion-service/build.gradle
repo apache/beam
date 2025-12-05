@@ -27,6 +27,12 @@ applyJavaNature(
   }
 )
 
+configurations.runtimeClasspath {
+  // Pin avro to 1.11.4 due to https://github.com/apache/beam/issues/34968
+  // cannot upgrade this to the latest version due to https://github.com/apache/beam/issues/34993
+  resolutionStrategy.force 'org.apache.avro:avro:1.11.4'
+}
+
 description = "Apache Beam :: SDKs :: Java :: SQL :: Expansion Service"
 ext.summary = """Contains code to run a SQL Expansion Service."""
 
@@ -36,7 +42,6 @@ dependencies {
   implementation project(path: ":sdks:java:expansion-service")
   permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
   implementation project(path: ":sdks:java:extensions:sql")
-  implementation project(path: ":sdks:java:extensions:sql:zetasql")
   implementation library.java.vendored_guava_32_1_2_jre
 
 }

@@ -30,37 +30,132 @@ dump_session and load_session are no-ops.
 import base64
 import bz2
 import io
+import logging
+import sys
 import threading
 import zlib
 
-import cloudpickle
+from apache_beam.internal import code_object_pickler
+from apache_beam.internal.cloudpickle import cloudpickle
+from apache_beam.internal.code_object_pickler import get_normalized_path
+
+DEFAULT_CONFIG = cloudpickle.CloudPickleConfig(
+    skip_reset_dynamic_type_state=True,
+    filepath_interceptor=get_normalized_path)
+STABLE_CODE_IDENTIFIER_CONFIG = cloudpickle.CloudPickleConfig(
+    skip_reset_dynamic_type_state=True,
+    filepath_interceptor=get_normalized_path,
+    get_code_object_params=cloudpickle.GetCodeObjectParams(
+        get_code_object_identifier=code_object_pickler.
+        get_code_object_identifier,
+        get_code_from_identifier=code_object_pickler.get_code_from_identifier))
 
 try:
   from absl import flags
 except (ImportError, ModuleNotFoundError):
   pass
 
+
+def _get_proto_enum_descriptor_class():
+  try:
+    from google.protobuf.internal import api_implementation
+  except ImportError:
+    return None
+
+  implementation_type = api_implementation.Type()
+
+  if implementation_type == 'upb':
+    try:
+      from google._upb._message import EnumDescriptor
+      return EnumDescriptor
+    except ImportError:
+      pass
+  elif implementation_type == 'cpp':
+    try:
+      from google.protobuf.pyext._message import EnumDescriptor
+      return EnumDescriptor
+    except ImportError:
+      pass
+  elif implementation_type == 'python':
+    try:
+      from google.protobuf.internal.python_message import EnumDescriptor
+      return EnumDescriptor
+    except ImportError:
+      pass
+
+  return None
+
+
+EnumDescriptor = _get_proto_enum_descriptor_class()
+
 # Pickling, especially unpickling, causes broken module imports on Python 3
 # if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
 _pickle_lock = threading.RLock()
 RLOCK_TYPE = type(_pickle_lock)
+LOCK_TYPE = type(threading.Lock())
+_LOGGER = logging.getLogger(__name__)
 
 
-def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
+# Helper to return an object directly during unpickling.
+def _return_obj(obj):
+  return obj
+
+
+# Optional import for Python 3.12 TypeAliasType
+try:  # pragma: no cover - dependent on Python version
+  from typing import TypeAliasType as _TypeAliasType  # type: ignore[attr-defined]
+except Exception:
+  _TypeAliasType = None
+
+
+def _typealias_reduce(obj):
+  # Unwrap typing.TypeAliasType to its underlying value for robust pickling.
+  underlying = getattr(obj, '__value__', None)
+  if underlying is None:
+    # Fallback: return the object itself; lets default behavior handle it.
+    return _return_obj, (obj, )
+  return _return_obj, (underlying, )
+
+
+def _reconstruct_enum_descriptor(full_name):
+  for _, module in list(sys.modules.items()):
+    if not hasattr(module, 'DESCRIPTOR'):
+      continue
+
+    if hasattr(module.DESCRIPTOR, 'enum_types_by_name'):
+      for (_, enum_desc) in module.DESCRIPTOR.enum_types_by_name.items():
+        if enum_desc.full_name == full_name:
+          return enum_desc
+
+    for _, attr_value in vars(module).items():
+      if not hasattr(attr_value, 'DESCRIPTOR'):
+        continue
+
+      if hasattr(attr_value.DESCRIPTOR, 'enum_types_by_name'):
+        for (_, enum_desc) in attr_value.DESCRIPTOR.enum_types_by_name.items():
+          if enum_desc.full_name == full_name:
+            return enum_desc
+  raise ImportError(f'Could not find enum descriptor: {full_name}')
+
+
+def _pickle_enum_descriptor(obj):
+  full_name = obj.full_name
+  return _reconstruct_enum_descriptor, (full_name, )
+
+
+def dumps(
+    o,
+    enable_trace=True,
+    use_zlib=False,
+    enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
+    config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
-  with _pickle_lock:
-    with io.BytesIO() as file:
-      pickler = cloudpickle.CloudPickler(file)
-      try:
-        pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
-      except NameError:
-        pass
-      try:
-        pickler.dispatch_table[RLOCK_TYPE] = _pickle_rlock
-      except NameError:
-        pass
-      pickler.dump(o)
-      s = file.getvalue()
+  s = _dumps(
+      o,
+      enable_best_effort_determinism,
+      enable_stable_code_identifier_pickling,
+      config)
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
@@ -77,6 +172,44 @@ def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
   return base64.b64encode(c)
 
 
+def _dumps(
+    o,
+    enable_best_effort_determinism=False,
+    enable_stable_code_identifier_pickling=False,
+    config: cloudpickle.CloudPickleConfig = DEFAULT_CONFIG) -> bytes:
+
+  if enable_best_effort_determinism:
+    # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
+    # is merged in.
+    _LOGGER.warning(
+        'Ignoring unsupported option: enable_best_effort_determinism. '
+        'This has only been implemented for dill.')
+  with _pickle_lock:
+    with io.BytesIO() as file:
+      if enable_stable_code_identifier_pickling:
+        config = STABLE_CODE_IDENTIFIER_CONFIG
+      pickler = cloudpickle.CloudPickler(file, config=config)
+      try:
+        pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
+      except NameError:
+        pass
+      # Register Python 3.12 `type` alias reducer to unwrap to underlying value.
+      if _TypeAliasType is not None:
+        pickler.dispatch_table[_TypeAliasType] = _typealias_reduce
+      try:
+        pickler.dispatch_table[RLOCK_TYPE] = _pickle_rlock
+      except NameError:
+        pass
+      try:
+        pickler.dispatch_table[LOCK_TYPE] = _lock_reducer
+      except NameError:
+        pass
+      if EnumDescriptor is not None:
+        pickler.dispatch_table[EnumDescriptor] = _pickle_enum_descriptor
+      pickler.dump(o)
+      return file.getvalue()
+
+
 def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
@@ -88,10 +221,18 @@ def loads(encoded, enable_trace=True, use_zlib=False):
     s = bz2.decompress(c)
 
   del c  # Free up some possibly large and no-longer-needed memory.
+  return _loads(s)
 
+
+def _loads(s):
   with _pickle_lock:
     unpickled = cloudpickle.loads(s)
     return unpickled
+
+
+def roundtrip(o):
+  """Internal utility for testing round-trip pickle serialization."""
+  return _loads(_dumps(o))
 
 
 def _pickle_absl_flags(obj):
@@ -104,6 +245,10 @@ def _create_absl_flags():
 
 def _pickle_rlock(obj):
   return RLOCK_TYPE, tuple([])
+
+
+def _lock_reducer(obj):
+  return threading.Lock, tuple([])
 
 
 def dump_session(file_path):

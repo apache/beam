@@ -22,6 +22,7 @@
 # should be kept in sync.
 # TODO(yaml): See if this can be enforced programmatically.
 
+# BigQuery
 - type: renaming
   transforms:
     'ReadFromBigQuery': 'ReadFromBigQuery'
@@ -44,10 +45,17 @@
       type: beamJar
       transforms:
         'ReadFromBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
-        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_write:v1'
       config:
-        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+        managed_replacement:
+          # Following transforms may be replaced with equivalent managed transforms,
+          # if the pipelines 'updateCompatibilityBeamVersion' match the provided
+          # version.
+          'ReadFromBigQuery': '2.69.0'
+          'WriteToBigQuery': '2.69.0'
 
+# Kafka
 - type: renaming
   transforms:
     'ReadFromKafka': 'ReadFromKafka'
@@ -82,7 +90,14 @@
         'WriteToKafka': 'beam:schematransform:org.apache.beam:kafka_write:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+        managed_replacement:
+          # Following transforms may be replaced with equivalent managed transforms,
+          # if the pipelines 'updateCompatibilityBeamVersion' match the provided
+          # version.
+          'ReadFromKafka': '2.65.0'
+          'WriteToKafka': '2.65.0'
 
+# PubSub
 - type: renaming
   transforms:
     'ReadFromPubSubLite': 'ReadFromPubSubLite'
@@ -120,6 +135,10 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+# TODO(yaml): Tests are assuming python providers are before java ones, hence
+# the order below.  This should be fixed in the future.
+
+# Python Providers
 - type: python
   transforms:
     'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
@@ -131,7 +150,10 @@
     'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
     'ReadFromIceberg': 'apache_beam.yaml.yaml_io.read_from_iceberg'
     'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
+    'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
+    'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
 
+# General File Formats
 # Declared as a renaming transform to avoid exposing all
 # (implementation-specific) pandas arguments and aligning with possible Java
 # implementation.
@@ -153,6 +175,7 @@
         path: 'path'
         delimiter: 'sep'
         comment: 'comment'
+        filename_column: 'filename_column'
       'WriteToCsv':
         path: 'path'
         delimiter: 'sep'
@@ -185,6 +208,7 @@
         'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
         'WriteToAvro': 'apache_beam.io.WriteToAvro'
 
+# BeamJar Providers
 - type: beamJar
   transforms:
     'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
@@ -192,6 +216,7 @@
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# Databases
 - type: renaming
   transforms:
     'ReadFromJdbc': 'ReadFromJdbc'
@@ -218,6 +243,8 @@
         password: 'password'
         query: 'read_query'
         table: 'location'
+        partition_column : 'partition_column'
+        num_partitions: 'num_partitions'
         type: 'jdbc_type'
         username: 'username'
       'WriteToJdbc':
@@ -296,6 +323,7 @@
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# Spanner
 - type: renaming
   transforms:
     'ReadFromSpanner': 'ReadFromSpanner'
@@ -311,6 +339,7 @@
         columns: 'columns'
         index: 'index'
         batching: 'batching'
+        error_handling: 'error_handling'
       'WriteToSpanner':
         project: 'project_id'
         instance: 'instance_id'
@@ -324,3 +353,81 @@
         'WriteToSpanner': 'beam:schematransform:org.apache.beam:spanner_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
+# TFRecord
+- type: renaming
+  transforms:
+    'ReadFromTFRecord': 'ReadFromTFRecord'
+    'WriteToTFRecord': 'WriteToTFRecord'
+  config:
+    mappings:
+      'ReadFromTFRecord':
+        file_pattern: 'file_pattern'
+        compression_type: 'compression'
+        validate: 'validate'
+      'WriteToTFRecord':
+        file_path_prefix: 'output_prefix'
+        shard_name_template: 'shard_template'
+        file_name_suffix: 'filename_suffix'
+        num_shards: 'num_shards'
+        compression_type: 'compression'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_read:v1'
+        'WriteToTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
+#BigTable
+- type: renaming
+  transforms:
+    'ReadFromBigTable': 'ReadFromBigTable'
+    'WriteToBigTable': 'WriteToBigTable'
+  config:
+    mappings:
+      #Temp removing read from bigTable IO
+      'ReadFromBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+        flatten: "flatten"
+      'WriteToBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
+        'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
+#IcebergCDC
+- type: renaming
+  transforms:
+    'ReadFromIcebergCDC': 'ReadFromIcebergCDC'
+  config:
+    mappings:
+      'ReadFromIcebergCDC':
+        table: 'table'
+        catalog_name: 'catalog_name'
+        catalog_properties: 'catalog_properties'
+        config_properties: 'config_properties'
+        drop: 'drop'
+        filter: 'filter'
+        from_snapshot: 'from_snapshot'
+        from_timestamp: 'from_timestamp'
+        keep: 'keep'
+        poll_interval_seconds: 'poll_interval_seconds'
+        starting_strategy: 'starting_strategy'
+        streaming: 'streaming'
+        to_snapshot: 'to_snapshot'
+        to_timestamp: 'to_timestamp'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromIcebergCDC': 'beam:schematransform:org.apache.beam:iceberg_cdc_read:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'

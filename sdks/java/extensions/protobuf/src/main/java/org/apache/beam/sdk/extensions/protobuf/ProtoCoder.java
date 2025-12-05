@@ -237,6 +237,11 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     return protoMessageClass;
   }
 
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return TypeDescriptor.of(protoMessageClass);
+  }
+
   public Set<Class<?>> getExtensionHosts() {
     return extensionHostClasses;
   }

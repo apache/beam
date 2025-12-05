@@ -15,9 +15,11 @@
 # limitations under the License.
 #
 
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -29,6 +31,8 @@ from google.cloud import bigquery
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -124,8 +128,8 @@ class BigQueryVectorSearchParameters:
         embedding_column: Column name containing the embedding vectors.
         columns: List of columns to retrieve from matched vectors.
         neighbor_count: Number of similar vectors to return (top-k).
-        metadata_restriction_template: Template string for filtering vectors. 
-            Two formats supported:
+        metadata_restriction_template: Template string or callable for filtering
+            vectors. Template string supports two formats:
             
             1. For flattened metadata columns: 
                ``column_name = '{metadata_key}'`` where column_name is the 
@@ -154,15 +158,28 @@ class BigQueryVectorSearchParameters:
         distance_type: Optional distance metric to use. Supported values:
             COSINE (default), EUCLIDEAN, or DOT_PRODUCT.
         options: Optional dictionary of additional VECTOR_SEARCH options.
+        include_distance: Reurns the vector search similarity score if True.
     """
   project: str
   table_name: str
   embedding_column: str
   columns: List[str]
   neighbor_count: int
-  metadata_restriction_template: Optional[str] = None
+  metadata_restriction_template: Optional[Union[str, Callable[[Chunk],
+                                                              str]]] = None
   distance_type: Optional[str] = None
   options: Optional[Dict[str, Any]] = None
+  include_distance: bool = False
+
+  def _format_restrict(self, chunk: Chunk) -> str:
+    assert self.metadata_restriction_template is not None, (
+        "metadata_restriction_template cannot be None when formatting. "
+        "This indicates a logical error in the code."
+    )
+
+    if callable(self.metadata_restriction_template):
+      return self.metadata_restriction_template(chunk)
+    return self.metadata_restriction_template.format(**chunk.metadata)
 
   def format_query(self, chunks: List[Chunk]) -> str:
     """Format the vector search query template."""
@@ -191,7 +208,7 @@ class BigQueryVectorSearchParameters:
     condition_groups = defaultdict(list)
     if self.metadata_restriction_template:
       for chunk in chunks:
-        condition = self.metadata_restriction_template.format(**chunk.metadata)
+        condition = self._format_restrict(chunk)
         condition_groups[condition].append(chunk)
     else:
       # No metadata filtering - all chunks in one group
@@ -203,23 +220,22 @@ class BigQueryVectorSearchParameters:
       # Create embeddings subquery for this group
       embedding_unions = []
       for chunk in group_chunks:
-        if chunk.embedding is None or chunk.embedding.dense_embedding is None:
+        if not chunk.dense_embedding:
           raise ValueError(f"Chunk {chunk.id} missing embedding")
         embedding_str = (
             f"SELECT '{chunk.id}' as id, "
-            f"{[float(x) for x in chunk.embedding.dense_embedding]} "
+            f"{[float(x) for x in chunk.dense_embedding]} "
             f"as embedding")
         embedding_unions.append(embedding_str)
       group_embeddings = " UNION ALL ".join(embedding_unions)
 
-      # Create VECTOR_SEARCH for this condition group
       where_clause = f"WHERE {condition}" if condition else ""
       # Create VECTOR_SEARCH for this condition group
       vector_search = f"""
             SELECT 
                 query.id,
                 ARRAY_AGG(
-                    STRUCT({base_columns_str})
+                    STRUCT({"distance, " if self.include_distance else ""} {base_columns_str})
                 ) as chunks
             FROM VECTOR_SEARCH(
                 (SELECT {columns_str}, {self.embedding_column} 
@@ -293,6 +309,7 @@ class BigQueryVectorSearchEnrichmentHandler(
       vector_search_parameters: Configuration for the vector search query
       min_batch_size: Minimum number of chunks to batch before processing
       max_batch_size: Maximum number of chunks to process in one batch
+      log_query: Debug option to log the BigQuery query
       **kwargs: Additional arguments passed to bigquery.Client
 
   The handler will:
@@ -307,6 +324,7 @@ class BigQueryVectorSearchEnrichmentHandler(
       *,
       min_batch_size: int = 1,
       max_batch_size: int = 1000,
+      log_query=False,
       **kwargs):
     self.project = vector_search_parameters.project
     self.vector_search_parameters = vector_search_parameters
@@ -316,6 +334,7 @@ class BigQueryVectorSearchEnrichmentHandler(
     }
     self.join_fn = join_fn
     self.use_custom_types = True
+    self.log_query = log_query
 
   def __enter__(self):
     self.client = bigquery.Client(project=self.project, **self.kwargs)
@@ -337,6 +356,8 @@ class BigQueryVectorSearchEnrichmentHandler(
 
     # Generate and execute query
     query = self.vector_search_parameters.format_query(requests)
+    if self.log_query:
+      _LOGGER.info("Executing query %s", query)
     query_job = self.client.query(query)
     results = query_job.result()
 

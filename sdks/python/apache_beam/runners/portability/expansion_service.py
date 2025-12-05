@@ -56,16 +56,8 @@ class ExpansionServiceServicer(
   def Expand(self, request, context=None):
     try:
       options = copy.deepcopy(self._options)
-      request_options = pipeline_options.PipelineOptions.from_runner_api(
-          request.pipeline_options)
-      # TODO(https://github.com/apache/beam/issues/20090): Figure out the
-      # correct subset of options to apply to expansion.
-      if request_options.view_as(
-          pipeline_options.StreamingOptions).update_compatibility_version:
-        options.view_as(
-            pipeline_options.StreamingOptions
-        ).update_compatibility_version = request_options.view_as(
-            pipeline_options.StreamingOptions).update_compatibility_version
+      options = pipeline_options.PipelineOptions.from_runner_api(
+          request.pipeline_options, options)
       pipeline = beam_pipeline.Pipeline(options=options)
 
       def with_pipeline(component, pcoll_id=None):
@@ -83,17 +75,15 @@ class ExpansionServiceServicer(
           requirements=request.requirements)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)
-          for t_id,
-          t_proto in request.components.transforms.items() for pcoll_tag,
-          pcoll_id in t_proto.outputs.items()
+          for t_id, t_proto in request.components.transforms.items()
+          for pcoll_tag, pcoll_id in t_proto.outputs.items()
       }
       transform = with_pipeline(
           ptransform.PTransform.from_runner_api(request.transform, context))
       if len(request.output_coder_requests) == 1:
         output_coder = {
             k: context.element_type_from_coder_id(v)
-            for k,
-            v in request.output_coder_requests.items()
+            for k, v in request.output_coder_requests.items()
         }
         transform = transform.with_output_types(list(output_coder.values())[0])
       elif len(request.output_coder_requests) > 1:
@@ -101,10 +91,9 @@ class ExpansionServiceServicer(
             'type annotation for multiple outputs is not allowed yet: %s' %
             request.output_coder_requests)
       inputs = transform._pvaluish_from_dict({
-          tag:
-          with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)
-          for tag,
-          pcoll_id in request.transform.inputs.items()
+          tag: with_pipeline(
+              context.pcollections.get_by_id(pcoll_id), pcoll_id)
+          for tag, pcoll_id in request.transform.inputs.items()
       })
       if not inputs:
         inputs = pipeline

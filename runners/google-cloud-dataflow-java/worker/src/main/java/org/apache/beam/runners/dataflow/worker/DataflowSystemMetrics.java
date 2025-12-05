@@ -45,7 +45,6 @@ public class DataflowSystemMetrics {
     MAX_OUTSTANDING_BYTES("dataflow_max_outstanding_bytes"),
     OUTSTANDING_BUNDLES("dataflow_outstanding_bundles"),
     MAX_OUTSTANDING_BUNDLES("dataflow_max_outstanding_bundles"),
-    WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs"),
     MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing");
 
     private final String name;

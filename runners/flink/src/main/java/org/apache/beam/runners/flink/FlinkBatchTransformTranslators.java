@@ -63,7 +63,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
@@ -76,6 +75,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -294,7 +295,7 @@ class FlinkBatchTransformTranslators {
                       inputCoder.getKeyCoder(), windowingStrategy.getWindowFn().windowCoder()));
       final TypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(
+              WindowedValues.getFullCoder(
                   KvCoder.of(
                       inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getValueCoder())),
                   windowingStrategy.getWindowFn().windowCoder()),
@@ -345,7 +346,7 @@ class FlinkBatchTransformTranslators {
 
       TypeInformation<WindowedValue<KV<K, List<InputT>>>> partialReduceTypeInfo =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(
+              WindowedValues.getFullCoder(
                   KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder),
                   windowingStrategy.getWindowFn().windowCoder()),
               context.getPipelineOptions());
@@ -411,8 +412,8 @@ class FlinkBatchTransformTranslators {
               outputType,
               FlinkIdentityFunction.of(),
               getCurrentTransformName(context));
-      WindowedValue.WindowedValueCoder<KV<K, InputT>> kvWvCoder =
-          (WindowedValue.WindowedValueCoder<KV<K, InputT>>) outputType.getCoder();
+      WindowedValues.WindowedValueCoder<KV<K, InputT>> kvWvCoder =
+          (WindowedValues.WindowedValueCoder<KV<K, InputT>>) outputType.getCoder();
       KvCoder<K, InputT> kvCoder = (KvCoder<K, InputT>) kvWvCoder.getValueCoder();
       DataSet<WindowedValue<KV<K, InputT>>> reshuffle =
           retypedDataSet
@@ -648,7 +649,8 @@ class FlinkBatchTransformTranslators {
 
       TypeInformation<WindowedValue<RawUnionValue>> typeInformation =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(unionCoder, windowingStrategy.getWindowFn().windowCoder()),
+              WindowedValues.getFullCoder(
+                  unionCoder, windowingStrategy.getWindowFn().windowCoder()),
               context.getPipelineOptions());
 
       List<PCollectionView<?>> sideInputs;
@@ -789,7 +791,7 @@ class FlinkBatchTransformTranslators {
                     })
                 .returns(
                     new CoderTypeInformation<>(
-                        WindowedValue.getFullCoder(
+                        WindowedValues.getFullCoder(
                             (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
                         context.getPipelineOptions()));
       } else {

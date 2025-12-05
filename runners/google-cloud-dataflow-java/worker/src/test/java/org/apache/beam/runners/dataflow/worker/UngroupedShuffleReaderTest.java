@@ -30,7 +30,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -48,7 +49,7 @@ public class UngroupedShuffleReaderTest {
 
   void runTestReadFromShuffle(List<Integer> expected) throws Exception {
     Coder<WindowedValue<Integer>> elemCoder =
-        WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), IntervalWindow.getCoder());
+        WindowedValues.getFullCoder(BigEndianIntegerCoder.of(), IntervalWindow.getCoder());
 
     BatchModeExecutionContext executionContext =
         BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "STAGE");
@@ -70,7 +71,7 @@ public class UngroupedShuffleReaderTest {
       for (Integer value : expected) {
         actualSizes.add(
             shuffleSinkWriter.add(
-                WindowedValue.of(
+                WindowedValues.of(
                     value, timestamp, Lists.newArrayList(window), PaneInfo.NO_FIRING)));
       }
     }

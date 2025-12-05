@@ -58,7 +58,10 @@ public class IcebergWriteSchemaTransformProvider
   static final String SNAPSHOTS_TAG = "snapshots";
 
   static final Schema OUTPUT_SCHEMA =
-      Schema.builder().addStringField("table").addFields(SnapshotInfo.SCHEMA.getFields()).build();
+      Schema.builder()
+          .addStringField("table")
+          .addFields(SnapshotInfo.getSchema().getFields())
+          .build();
 
   @Override
   public String description() {
@@ -74,7 +77,9 @@ public class IcebergWriteSchemaTransformProvider
       return new AutoValue_IcebergWriteSchemaTransformProvider_Configuration.Builder();
     }
 
-    @SchemaFieldDescription("Identifier of the Iceberg table.")
+    @SchemaFieldDescription(
+        "A fully-qualified table identifier. You may also provide a template to write to multiple dynamic destinations,"
+            + " for example: `dataset.my_{col1}_{col2.nested}_table`.")
     public abstract String getTable();
 
     @SchemaFieldDescription("Name of the catalog containing the table.")
@@ -91,6 +96,10 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
     @SchemaFieldDescription(
+        "For a streaming pipeline, sets the limit for lifting bundles into the direct write path.")
+    public abstract @Nullable Integer getDirectWriteByteLimit();
+
+    @SchemaFieldDescription(
         "A list of field names to keep in the input record. All other fields are dropped before writing. "
             + "Is mutually exclusive with 'drop' and 'only'.")
     public abstract @Nullable List<String> getKeep();
@@ -105,6 +114,26 @@ public class IcebergWriteSchemaTransformProvider
             + "Is mutually exclusive with 'keep' and 'drop'.")
     public abstract @Nullable String getOnly();
 
+    @SchemaFieldDescription(
+        "Fields used to create a partition spec that is applied when tables are created. For a field 'foo', "
+            + "the available partition transforms are:\n\n"
+            + "- `foo`\n"
+            + "- `truncate(foo, N)`\n"
+            + "- `bucket(foo, N)`\n"
+            + "- `hour(foo)`\n"
+            + "- `day(foo)`\n"
+            + "- `month(foo)`\n"
+            + "- `year(foo)`\n"
+            + "- `void(foo)`\n\n"
+            + "For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.")
+    public abstract @Nullable List<String> getPartitionFields();
+
+    @SchemaFieldDescription(
+        "Iceberg table properties to be set on the table when it is created.\n"
+            + "For more information on table properties,"
+            + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
+    public abstract @Nullable Map<String, String> getTableProperties();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -117,11 +146,17 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setTriggeringFrequencySeconds(Integer triggeringFrequencySeconds);
 
+      public abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
+
       public abstract Builder setKeep(List<String> keep);
 
       public abstract Builder setDrop(List<String> drop);
 
       public abstract Builder setOnly(String only);
+
+      public abstract Builder setPartitionFields(List<String> partitionFields);
+
+      public abstract Builder setTableProperties(Map<String, String> tableProperties);
 
       public abstract Configuration build();
     }
@@ -187,6 +222,8 @@ public class IcebergWriteSchemaTransformProvider
                       configuration.getTable(),
                       FileFormat.PARQUET.toString(),
                       rows.getSchema(),
+                      configuration.getPartitionFields(),
+                      configuration.getTableProperties(),
                       configuration.getDrop(),
                       configuration.getKeep(),
                       configuration.getOnly()));
@@ -194,6 +231,11 @@ public class IcebergWriteSchemaTransformProvider
       Integer trigFreq = configuration.getTriggeringFrequencySeconds();
       if (trigFreq != null) {
         writeTransform = writeTransform.withTriggeringFrequency(Duration.standardSeconds(trigFreq));
+      }
+
+      Integer directWriteByteLimit = configuration.getDirectWriteByteLimit();
+      if (directWriteByteLimit != null) {
+        writeTransform = writeTransform.withDirectWriteByteLimit(directWriteByteLimit);
       }
 
       // TODO: support dynamic destinations

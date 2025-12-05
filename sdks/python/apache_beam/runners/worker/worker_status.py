@@ -66,13 +66,23 @@ def _current_frames():
     return sys._current_frames()  # pylint: disable=protected-access
 
 
-def thread_dump():
-  """Get a thread dump for the current SDK worker harness. """
+def thread_dump(thread_prefix=None):
+  """Get a thread dump for the current SDK harness.
+
+  Args:
+    thread_prefix: (str) An optional prefix to filter threads by.
+  """
   # deduplicate threads with same stack trace
   stack_traces = defaultdict(list)
   frames = _current_frames()
 
-  for t in threading.enumerate():
+  threads_to_dump = threading.enumerate()
+  if thread_prefix:
+    threads_to_dump = [
+        t for t in threads_to_dump if t.name.startswith(thread_prefix)
+    ]
+
+  for t in threads_to_dump:
     try:
       stack_trace = ''.join(traceback.format_stack(frames[t.ident]))
     except KeyError:
@@ -119,20 +129,21 @@ def _state_cache_stats(state_cache: StateCache) -> str:
   return '\n'.join(cache_stats)
 
 
-def _active_processing_bundles_state(bundle_process_cache):
+def _active_processing_bundles_state(bundle_processor_cache):
   """Gather information about the currently in-processing active bundles.
 
   The result only keeps the longest lasting 10 bundles to avoid excessive
   spamming.
   """
   active_bundles = ['=' * 10 + ' ACTIVE PROCESSING BUNDLES ' + '=' * 10]
-  if not bundle_process_cache.active_bundle_processors:
+  if (not bundle_processor_cache.active_bundle_processors and
+      not bundle_processor_cache.processors_being_created):
     active_bundles.append("No active processing bundles.")
   else:
     cache = []
     for instruction in list(
-        bundle_process_cache.active_bundle_processors.keys()):
-      processor = bundle_process_cache.lookup(instruction)
+        bundle_processor_cache.active_bundle_processors.keys()):
+      processor = bundle_processor_cache.lookup(instruction)
       if processor:
         info = processor.state_sampler.get_info()
         cache.append((
@@ -149,6 +160,18 @@ def _active_processing_bundles_state(bundle_process_cache):
       state += "time since transition: %.2f seconds\n" % (s[3] / 1e9)
       active_bundles.append(state)
 
+    if bundle_processor_cache.processors_being_created:
+      active_bundles.append("Processors being created:\n")
+      current_time = time.time()
+      for instruction, (bundle_id, thread, creation_time) in (
+          bundle_processor_cache.processors_being_created.items()):
+        state = '--- instruction %s ---\n' % instruction
+        state += 'ProcessBundleDescriptorId: %s\n' % bundle_id
+        state += "tracked thread: %s\n" % thread
+        state += "time since creation started: %.2f seconds\n" % (
+            current_time - creation_time)
+        active_bundles.append(state)
+
   active_bundles.append('=' * 30)
   return '\n'.join(active_bundles)
 
@@ -161,20 +184,21 @@ class FnApiWorkerStatusHandler(object):
   def __init__(
       self,
       status_address,
-      bundle_process_cache=None,
+      bundle_processor_cache=None,
       state_cache=None,
       enable_heap_dump=False,
       worker_id=None,
-      log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS):
+      log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS,
+      element_processing_timeout_minutes=None):
     """Initialize FnApiWorkerStatusHandler.
 
     Args:
       status_address: The URL Runner uses to host the WorkerStatus server.
-      bundle_process_cache: The BundleProcessor cache dict from sdk worker.
+      bundle_processor_cache: The BundleProcessor cache dict from sdk worker.
       state_cache: The StateCache form sdk worker.
     """
     self._alive = True
-    self._bundle_process_cache = bundle_process_cache
+    self._bundle_processor_cache = bundle_processor_cache
     self._state_cache = state_cache
     ch = GRPCChannelFactory.insecure_channel(status_address)
     grpc.channel_ready_future(ch).result(timeout=60)
@@ -184,6 +208,12 @@ class FnApiWorkerStatusHandler(object):
         self._status_channel)
     self._responses = queue.Queue()
     self.log_lull_timeout_ns = log_lull_timeout_ns
+    if (element_processing_timeout_minutes and
+        element_processing_timeout_minutes > 0):
+      self._element_processing_timeout_ns = (
+          element_processing_timeout_minutes * 60 * 1e9)
+    else:
+      self._element_processing_timeout_ns = None
     self._last_full_thread_dump_secs = 0.0
     self._last_lull_logged_secs = 0.0
     self._server = threading.Thread(
@@ -193,7 +223,7 @@ class FnApiWorkerStatusHandler(object):
     self._server.start()
     self._lull_logger = threading.Thread(
         target=lambda: self._log_lull_in_bundle_processor(
-            self._bundle_process_cache),
+            self._bundle_processor_cache),
         name='lull_operation_logger')
     self._lull_logger.daemon = True
     self._lull_logger.start()
@@ -227,9 +257,9 @@ class FnApiWorkerStatusHandler(object):
     if self._state_cache:
       all_status_sections.append(_state_cache_stats(self._state_cache))
 
-    if self._bundle_process_cache:
+    if self._bundle_processor_cache:
       all_status_sections.append(
-          _active_processing_bundles_state(self._bundle_process_cache))
+          _active_processing_bundles_state(self._bundle_processor_cache))
 
     all_status_sections.append(thread_dump())
     if self._enable_heap_dump:
@@ -240,34 +270,98 @@ class FnApiWorkerStatusHandler(object):
   def close(self):
     self._responses.put(DONE, timeout=5)
 
-  def _log_lull_in_bundle_processor(self, bundle_process_cache):
+  def _log_lull_in_bundle_processor(self, bundle_processor_cache):
     while True:
       time.sleep(2 * 60)
-      if bundle_process_cache and bundle_process_cache.active_bundle_processors:
-        for instruction in list(
-            bundle_process_cache.active_bundle_processors.keys()):
-          processor = bundle_process_cache.lookup(instruction)
-          if processor:
-            info = processor.state_sampler.get_info()
-            self._log_lull_sampler_info(info, instruction)
+      if not bundle_processor_cache:
+        continue
+
+      for instruction in list(
+          bundle_processor_cache.active_bundle_processors.keys()):
+        processor = bundle_processor_cache.lookup(instruction)
+        if processor:
+          info = processor.state_sampler.get_info()
+          self._log_lull_sampler_info(info, instruction)
+
+      for instruction, (bundle_id, thread, creation_time) in list(
+          bundle_processor_cache.processors_being_created.items()):
+        self._log_lull_in_creating_bundle_descriptor(
+            instruction, bundle_id, thread, creation_time)
+
+  def _log_lull_in_creating_bundle_descriptor(
+      self, instruction, bundle_id, thread, creation_time):
+    time_since_creation_ns = (time.time() - creation_time) * 1e9
+
+    if (self._element_processing_timeout_ns and
+        time_since_creation_ns > self._element_processing_timeout_ns):
+      stack_trace = self._get_stack_trace(thread)
+      _LOGGER.error((
+          'Creation of bundle processor for instruction %s (bundle %s) '
+          'has exceeded the specified timeout of %.2f minutes. '
+          'This might indicate stuckness in DoFn.setup() or in DoFn creation. '
+          'SDK harness will be terminated.\n'
+          'Current Traceback:\n%s'),
+                    instruction,
+                    bundle_id,
+                    self._element_processing_timeout_ns / 1e9 / 60,
+                    stack_trace)
+      from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
+      terminate_sdk_harness()
+
+    if (time_since_creation_ns > self.log_lull_timeout_ns and
+        self._passed_lull_timeout_since_last_log()):
+      stack_trace = self._get_stack_trace(thread)
+      _LOGGER.warning((
+          'Bundle processor for instruction %s (bundle %s) '
+          'has been creating for at least %.2f seconds.\n'
+          'This might indicate slowness in DoFn.setup() or in DoFn creation. '
+          'Current Traceback:\n%s'),
+                      instruction,
+                      bundle_id,
+                      time_since_creation_ns / 1e9,
+                      stack_trace)
 
   def _log_lull_sampler_info(self, sampler_info, instruction):
-    if not self._passed_lull_timeout_since_last_log():
+    if (not sampler_info or not sampler_info.time_since_transition):
       return
-    if (sampler_info and sampler_info.time_since_transition and
-        sampler_info.time_since_transition > self.log_lull_timeout_ns):
-      lull_seconds = sampler_info.time_since_transition / 1e9
 
-      step_name = sampler_info.state_name.step_name
-      state_name = sampler_info.state_name.name
-      if step_name and state_name:
-        step_name_log = (
-            ' for PTransform{name=%s, state=%s}' % (step_name, state_name))
-      else:
-        step_name_log = ''
+    log_lull = (
+        sampler_info.time_since_transition > self.log_lull_timeout_ns and
+        self._passed_lull_timeout_since_last_log())
+    timeout_exceeded = (
+        self._element_processing_timeout_ns and
+        sampler_info.time_since_transition
+        > self._element_processing_timeout_ns)
 
-      stack_trace = self._get_stack_trace(sampler_info)
+    if not (log_lull or timeout_exceeded):
+      return
 
+    lull_seconds = sampler_info.time_since_transition / 1e9
+    step_name = sampler_info.state_name.step_name
+    state_name = sampler_info.state_name.name
+    if step_name and state_name:
+      step_name_log = (
+          ' for PTransform{name=%s, state=%s}' % (step_name, state_name))
+    else:
+      step_name_log = ''
+    stack_trace = self._get_stack_trace(sampler_info.tracked_thread)
+
+    if timeout_exceeded:
+      _LOGGER.error(
+          (
+              'Processing of an element in bundle %s%s has exceeded the '
+              'specified timeout of %.2f minutes. SDK harness will be '
+              'terminated.\n'
+              'Current Traceback:\n%s'),
+          instruction,
+          step_name_log,
+          self._element_processing_timeout_ns / 1e9 / 60,
+          stack_trace,
+      )
+      from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
+      terminate_sdk_harness()
+
+    if log_lull:
       _LOGGER.warning(
           (
               'Operation ongoing in bundle %s%s for at least %.2f seconds'
@@ -279,18 +373,17 @@ class FnApiWorkerStatusHandler(object):
           stack_trace,
       )
 
-  def _get_stack_trace(self, sampler_info):
-    exec_thread = getattr(sampler_info, 'tracked_thread', None)
-    if exec_thread is not None:
-      thread_frame = _current_frames().get(exec_thread.ident)
+  def _get_stack_trace(self, thread):
+    if thread:
+      thread_frame = _current_frames().get(thread.ident)
       return '\n'.join(
           traceback.format_stack(thread_frame)) if thread_frame else ''
     else:
       return '-NOT AVAILABLE-'
 
   def _passed_lull_timeout_since_last_log(self) -> bool:
-    if (time.time() - self._last_lull_logged_secs >
-        self.log_lull_timeout_ns / 1e9):
+    if (time.time() - self._last_lull_logged_secs
+        > self.log_lull_timeout_ns / 1e9):
       self._last_lull_logged_secs = time.time()
       return True
     else:

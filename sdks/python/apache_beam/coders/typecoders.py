@@ -73,6 +73,7 @@ from typing import Type
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
+from apache_beam.utils import windowed_value
 
 __all__ = ['registry']
 
@@ -83,6 +84,7 @@ class CoderRegistry(object):
     self._coders: Dict[Any, Type[coders.Coder]] = {}
     self.custom_types: List[Any] = []
     self.register_standard_coders(fallback_coder)
+    self.update_compatibility_version = None
 
   def register_standard_coders(self, fallback_coder):
     """Register coders for all basic and composite types."""
@@ -92,6 +94,7 @@ class CoderRegistry(object):
     self._register_coder_internal(bytes, coders.BytesCoder)
     self._register_coder_internal(bool, coders.BooleanCoder)
     self._register_coder_internal(str, coders.StrUtf8Coder)
+    self._register_coder_internal(windowed_value.PaneInfo, coders.PaneInfoCoder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
     self._register_coder_internal(typehints.DictConstraint, coders.MapCoder)
     self._register_coder_internal(

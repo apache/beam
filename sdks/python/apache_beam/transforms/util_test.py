@@ -18,8 +18,11 @@
 """Unit tests for the transform.util classes."""
 
 # pytype: skip-file
+# pylint: disable=too-many-function-args
 
 import collections
+import hashlib
+import hmac
 import importlib
 import logging
 import math
@@ -31,8 +34,13 @@ import warnings
 from collections.abc import Mapping
 from datetime import datetime
 
+import mock
 import pytest
 import pytz
+from cryptography.fernet import Fernet
+from cryptography.fernet import InvalidToken
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam import GroupByKey
@@ -41,6 +49,7 @@ from apache_beam import WindowInto
 from apache_beam.coders import coders
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
@@ -62,6 +71,9 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import FlatMapTuple
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.util import GcpHsmGeneratedSecret
+from apache_beam.transforms.util import GcpSecret
+from apache_beam.transforms.util import Secret
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
@@ -75,10 +87,43 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
+from apache_beam.utils.windowed_value import PaneInfo
+from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
+
+try:
+  from google.cloud import secretmanager
+except ImportError:
+  secretmanager = None  # type: ignore[assignment]
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
+
+
+class _Unpicklable(object):
+  def __init__(self, value):
+    self.value = value
+
+  def __getstate__(self):
+    raise NotImplementedError()
+
+  def __setstate__(self, state):
+    raise NotImplementedError()
+
+
+class _UnpicklableCoder(beam.coders.Coder):
+  def encode(self, value):
+    return str(value.value).encode()
+
+  def decode(self, encoded):
+    return _Unpicklable(int(encoded.decode()))
+
+  def to_type_hint(self):
+    return _Unpicklable
+
+  def is_deterministic(self):
+    return True
 
 
 class CoGroupByKeyTest(unittest.TestCase):
@@ -180,6 +225,330 @@ class CoGroupByKeyTest(unittest.TestCase):
                   equal_to(expected),
                   label='AssertOneDict')
 
+  def test_co_group_by_key_on_unpickled(self):
+    beam.coders.registry.register_coder(_Unpicklable, _UnpicklableCoder)
+    values = [_Unpicklable(i) for i in range(5)]
+    with TestPipeline() as pipeline:
+      xs = pipeline | beam.Create(values) | beam.WithKeys(lambda x: x)
+      pcoll = ({
+          'x': xs
+      }
+               | beam.CoGroupByKey()
+               | beam.FlatMapTuple(
+                   lambda k, tagged: (k.value, tagged['x'][0].value * 2)))
+      expected = [0, 0, 1, 2, 2, 4, 3, 6, 4, 8]
+      assert_that(pcoll, equal_to(expected))
+
+
+class FakeSecret(beam.Secret):
+  def __init__(self, version_name=None, should_throw=False):
+    self._secret = b'aKwI2PmqYFt2p5tNKCyBS5qYmHhHsGZcyZrnZQiQ-uE='
+    self._should_throw = should_throw
+
+  def get_secret_bytes(self) -> bytes:
+    if self._should_throw:
+      raise RuntimeError('Exception retrieving secret')
+    return self._secret
+
+
+class MockNoOpDecrypt(beam.transforms.util._DecryptMessage):
+  def __init__(self, hmac_key_secret, key_coder, value_coder):
+    hmac_key = hmac_key_secret.get_secret_bytes()
+    self.fernet_tester = Fernet(hmac_key)
+    self.known_hmacs = []
+    for key in ['a', 'b', 'c']:
+      self.known_hmacs.append(
+          hmac.new(hmac_key, key_coder.encode(key), hashlib.sha256).digest())
+    super().__init__(hmac_key_secret, key_coder, value_coder)
+
+  def process(self, element):
+    final_elements = list(super().process(element))
+    # Check if we're looking at the actual elements being encoded/decoded
+    # There is also a gbk on assertEqual, which uses None as the key type.
+    final_element_keys = [e for e in final_elements if e[0] in ['a', 'b', 'c']]
+    if len(final_element_keys) == 0:
+      return final_elements
+    hmac_key, actual_elements = element
+    if hmac_key not in self.known_hmacs:
+      raise ValueError(f'GBK produced unencrypted value {hmac_key}')
+    for e in actual_elements:
+      try:
+        self.fernet_tester.decrypt(e[0], None)
+      except InvalidToken:
+        raise ValueError(f'GBK produced unencrypted value {e[0]}')
+      try:
+        self.fernet_tester.decrypt(e[1], None)
+      except InvalidToken:
+        raise ValueError(f'GBK produced unencrypted value {e[1]}')
+
+    return final_elements
+
+
+class SecretTest(unittest.TestCase):
+  @parameterized.expand([
+      param(
+          secret_string='type:GcpSecret;version_name:my_secret/versions/latest',
+          secret=GcpSecret('my_secret/versions/latest')),
+      param(
+          secret_string='type:GcpSecret;version_name:foo',
+          secret=GcpSecret('foo')),
+      param(
+          secret_string='type:gcpsecreT;version_name:my_secret/versions/latest',
+          secret=GcpSecret('my_secret/versions/latest')),
+  ])
+  def test_secret_manager_parses_correctly(self, secret_string, secret):
+    self.assertEqual(secret, Secret.parse_secret_option(secret_string))
+
+  @parameterized.expand([
+      param(
+          secret_string='version_name:foo',
+          exception_str='must contain a valid type parameter'),
+      param(
+          secret_string='type:gcpsecreT',
+          exception_str='missing 1 required positional argument'),
+      param(
+          secret_string='type:gcpsecreT;version_name:foo;extra:val',
+          exception_str='Invalid secret parameter extra'),
+  ])
+  def test_secret_manager_throws_on_invalid(self, secret_string, exception_str):
+    with self.assertRaisesRegex(Exception, exception_str):
+      Secret.parse_secret_option(secret_string)
+
+
+class GroupByEncryptedKeyTest(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls):
+    if secretmanager is not None:
+      cls.project_id = 'apache-beam-testing'
+      cls.secret_id = 'gbek_util_secret_tests'
+      cls.client = secretmanager.SecretManagerServiceClient()
+      cls.project_path = f'projects/{cls.project_id}'
+      cls.secret_path = f'{cls.project_path}/secrets/{cls.secret_id}'
+      try:
+        cls.client.get_secret(request={'name': cls.secret_path})
+      except Exception:
+        cls.client.create_secret(
+            request={
+                'parent': cls.project_path,
+                'secret_id': cls.secret_id,
+                'secret': {
+                    'replication': {
+                        'automatic': {}
+                    }
+                }
+            })
+        cls.client.add_secret_version(
+            request={
+                'parent': cls.secret_path,
+                'payload': {
+                    'data': Secret.generate_secret_bytes()
+                }
+            })
+      version_name = f'{cls.secret_path}/versions/latest'
+      cls.gcp_secret = GcpSecret(version_name)
+      cls.secret_option = f'type:GcpSecret;version_name:{version_name}'
+
+  def test_gbek_fake_secret_manager_roundtrips(self):
+    fakeSecret = FakeSecret()
+
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbk_with_gbek_option_fake_secret_manager_roundtrips(self):
+    options = PipelineOptions()
+    options.view_as(SetupOptions).gbek = self.secret_option
+
+    with beam.Pipeline(options=options) as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByKey()
+      sorted_result = result | beam.Map(lambda x: (x[0], sorted(x[1])))
+      assert_that(
+          sorted_result,
+          equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
+  def test_gbek_fake_secret_manager_actually_does_encryption(self):
+    fakeSecret = FakeSecret()
+
+    with TestPipeline('FnApiRunner') as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @mock.patch('apache_beam.transforms.util._DecryptMessage', MockNoOpDecrypt)
+  @mock.patch('apache_beam.transforms.util.GcpSecret', FakeSecret)
+  def test_gbk_actually_does_encryption(self):
+    options = PipelineOptions()
+    # Version of GcpSecret doesn't matter since it is replaced by FakeSecret
+    options.view_as(SetupOptions).gbek = 'type:GcpSecret;version_name:Foo'
+
+    with TestPipeline('FnApiRunner', options=options) as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)],
+                                                    reshuffle=False)
+      result = pcoll_1 | beam.GroupByKey()
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  def test_gbek_fake_secret_manager_throws(self):
+    fakeSecret = FakeSecret(None, True)
+
+    with self.assertRaisesRegex(RuntimeError, r'Exception retrieving secret'):
+      with TestPipeline() as pipeline:
+        pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                       ('b', 3), ('c', 4)])
+        result = (pcoll_1) | beam.GroupByEncryptedKey(fakeSecret)
+        assert_that(
+            result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbek_gcp_secret_manager_roundtrips(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      result = (pcoll_1) | beam.GroupByEncryptedKey(self.gcp_secret)
+      assert_that(
+          result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+  def test_gbek_gcp_secret_manager_throws(self):
+    gcp_secret = GcpSecret('bad_path/versions/latest')
+
+    with self.assertRaisesRegex(RuntimeError,
+                                r'Failed to retrieve secret bytes'):
+      with TestPipeline() as pipeline:
+        pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                       ('b', 3), ('c', 4)])
+        result = (pcoll_1) | beam.GroupByEncryptedKey(gcp_secret)
+        assert_that(
+            result, equal_to([('a', ([1, 2])), ('b', ([3])), ('c', ([4]))]))
+
+
+@unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
+class GcpHsmGeneratedSecretTest(unittest.TestCase):
+  def setUp(self):
+    self.mock_secret_manager_client = mock.MagicMock()
+    self.mock_kms_client = mock.MagicMock()
+
+    # Patch the clients
+    self.secretmanager_patcher = mock.patch(
+        'google.cloud.secretmanager.SecretManagerServiceClient',
+        return_value=self.mock_secret_manager_client)
+    self.kms_patcher = mock.patch(
+        'google.cloud.kms.KeyManagementServiceClient',
+        return_value=self.mock_kms_client)
+    self.os_urandom_patcher = mock.patch('os.urandom', return_value=b'0' * 32)
+    self.hkdf_patcher = mock.patch(
+        'cryptography.hazmat.primitives.kdf.hkdf.HKDF.derive',
+        return_value=b'derived_key')
+
+    self.secretmanager_patcher.start()
+    self.kms_patcher.start()
+    self.os_urandom_patcher.start()
+    self.hkdf_patcher.start()
+
+  def tearDown(self):
+    self.secretmanager_patcher.stop()
+    self.kms_patcher.stop()
+    self.os_urandom_patcher.stop()
+    self.hkdf_patcher.stop()
+
+  def test_happy_path_secret_creation(self):
+    from google.api_core import exceptions as api_exceptions
+
+    project_id = 'test-project'
+    location_id = 'global'
+    key_ring_id = 'test-key-ring'
+    key_id = 'test-key'
+    job_name = 'test-job'
+
+    secret = GcpHsmGeneratedSecret(
+        project_id, location_id, key_ring_id, key_id, job_name)
+
+    # Mock responses for secret creation path
+    self.mock_secret_manager_client.access_secret_version.side_effect = [
+        api_exceptions.NotFound('not found'),  # first check
+        api_exceptions.NotFound('not found'),  # second check
+        mock.MagicMock(payload=mock.MagicMock(data=b'derived_key'))
+    ]
+    self.mock_kms_client.encrypt.return_value = mock.MagicMock(
+        ciphertext=b'encrypted_nonce')
+
+    secret_bytes = secret.get_secret_bytes()
+    self.assertEqual(secret_bytes, b'derived_key')
+
+    # Assertions on mocks
+    secret_version_path = (
+        f'projects/{project_id}/secrets/{secret._secret_version_name}'
+        '/versions/1')
+    self.mock_secret_manager_client.access_secret_version.assert_any_call(
+        request={'name': secret_version_path})
+    self.assertEqual(
+        self.mock_secret_manager_client.access_secret_version.call_count, 3)
+    self.mock_secret_manager_client.create_secret.assert_called_once()
+    self.mock_kms_client.encrypt.assert_called_once()
+    self.mock_secret_manager_client.add_secret_version.assert_called_once()
+
+  def test_secret_already_exists(self):
+    from google.api_core import exceptions as api_exceptions
+
+    project_id = 'test-project'
+    location_id = 'global'
+    key_ring_id = 'test-key-ring'
+    key_id = 'test-key'
+    job_name = 'test-job'
+
+    secret = GcpHsmGeneratedSecret(
+        project_id, location_id, key_ring_id, key_id, job_name)
+
+    # Mock responses for secret creation path
+    self.mock_secret_manager_client.access_secret_version.side_effect = [
+        api_exceptions.NotFound('not found'),
+        api_exceptions.NotFound('not found'),
+        mock.MagicMock(payload=mock.MagicMock(data=b'derived_key'))
+    ]
+    self.mock_secret_manager_client.create_secret.side_effect = (
+        api_exceptions.AlreadyExists('exists'))
+    self.mock_kms_client.encrypt.return_value = mock.MagicMock(
+        ciphertext=b'encrypted_nonce')
+
+    secret_bytes = secret.get_secret_bytes()
+    self.assertEqual(secret_bytes, b'derived_key')
+
+    # Assertions on mocks
+    self.mock_secret_manager_client.create_secret.assert_called_once()
+    self.mock_secret_manager_client.add_secret_version.assert_called_once()
+
+  def test_secret_version_already_exists(self):
+    project_id = 'test-project'
+    location_id = 'global'
+    key_ring_id = 'test-key-ring'
+    key_id = 'test-key'
+    job_name = 'test-job'
+
+    secret = GcpHsmGeneratedSecret(
+        project_id, location_id, key_ring_id, key_id, job_name)
+
+    self.mock_secret_manager_client.access_secret_version.return_value = (
+        mock.MagicMock(payload=mock.MagicMock(data=b'existing_dek')))
+
+    secret_bytes = secret.get_secret_bytes()
+    self.assertEqual(secret_bytes, b'existing_dek')
+
+    # Assertions
+    self.mock_secret_manager_client.access_secret_version.assert_called_once()
+    self.mock_secret_manager_client.create_secret.assert_not_called()
+    self.mock_secret_manager_client.add_secret_version.assert_not_called()
+    self.mock_kms_client.encrypt.assert_not_called()
+
 
 class FakeClock(object):
   def __init__(self, now=time.time()):
@@ -248,8 +617,8 @@ class BatchElementsTest(unittest.TestCase):
     self.assertEqual(len(results["distributions"]), 0)
 
   def test_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -259,8 +628,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
   def test_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle in order, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(47), reshuffle=False)
@@ -281,15 +650,15 @@ class BatchElementsTest(unittest.TestCase):
           ]))
 
   def test_global_batch_timestamps(self):
-    # Assumes a single bundle
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(3), reshuffle=False)
           | util.BatchElements(min_batch_size=2, max_batch_size=2)
           | beam.Map(
-              lambda batch,
-              timestamp=beam.DoFn.TimestampParam: (len(batch), timestamp)))
+              lambda batch, timestamp=beam.DoFn.TimestampParam:
+              (len(batch), timestamp)))
       assert_that(
           res,
           equal_to([
@@ -301,12 +670,19 @@ class BatchElementsTest(unittest.TestCase):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create([
-              'a', 'a',                # First batch.
-              'aaaaaaaaaa',            # Second batch.
-              'aaaaa', 'aaaaa',        # Third batch.
-              'a', 'aaaaaaa', 'a', 'a' # Fourth batch.
-              ], reshuffle=False)
+          | beam.Create(
+              [
+                  'a',
+                  'a',  # First batch.
+                  'aaaaaaaaaa',  # Second batch.
+                  'aaaaa',
+                  'aaaaa',  # Third batch.
+                  'a',
+                  'aaaaaaa',
+                  'a',
+                  'a'  # Fourth batch.
+              ],
+              reshuffle=False)
           | util.BatchElements(
               min_batch_size=10, max_batch_size=10, element_size_fn=len)
           | beam.Map(lambda batch: ''.join(batch))
@@ -314,8 +690,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([2, 10, 10, 10]))
 
   def test_sized_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle, in order so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(1, 8), reshuffle=False)
@@ -330,10 +706,10 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(
           res,
           equal_to([
-              'a' * (1+2), # Elements in [1, 3)
-              'a' * (3+4), # Elements in [3, 6)
+              'a' * (1 + 2),  # Elements in [1, 3)
+              'a' * (3 + 4),  # Elements in [3, 6)
               'a' * 5,
-              'a' * 6, # Elements in [6, 9)
+              'a' * 6,  # Elements in [6, 9)
               'a' * 7,
           ]))
 
@@ -514,8 +890,8 @@ class BatchElementsTest(unittest.TestCase):
         util._BatchSizeEstimator.linear_regression_numpy, True)
 
   def test_stateful_constant_batch(self):
-    # Assumes a single bundle...
-    p = TestPipeline()
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    p = TestPipeline('FnApiRunner')
     output = (
         p
         | beam.Create(range(35))
@@ -552,8 +928,8 @@ class BatchElementsTest(unittest.TestCase):
     start_time = timestamp.Timestamp(0)
     test_stream = (
         TestStream().add_elements([
-            TimestampedValue(value, start_time + i) for i,
-            value in enumerate(BatchElementsTest._create_test_data())
+            TimestampedValue(value, start_time + i)
+            for i, value in enumerate(BatchElementsTest._create_test_data())
         ]).advance_processing_time(150).advance_watermark_to(
             start_time + window_duration).advance_watermark_to(
                 start_time + window_duration +
@@ -636,8 +1012,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(num_elements_per_batch, equal_to([9, 1]))
 
   def test_stateful_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -694,7 +1070,7 @@ class IdentityWindowTest(unittest.TestCase):
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
-    with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(Exception, r'.*window.*None.*add_timestamps2'):
       with TestPipeline() as pipeline:
         data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
         expected_windows = [
@@ -710,7 +1086,7 @@ class IdentityWindowTest(unittest.TestCase):
             equal_to(expected_windows),
             label='before_identity',
             reify_windows=True)
-        after_identity = (
+        _ = (
             before_identity
             | 'window' >> beam.WindowInto(
                 beam.transforms.util._IdentityWindowFn(
@@ -720,11 +1096,6 @@ class IdentityWindowTest(unittest.TestCase):
             # contain a window of None. IdentityWindowFn should
             # raise an exception.
             | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
-        assert_that(
-            after_identity,
-            equal_to(expected_windows),
-            label='after_identity',
-            reify_windows=True)
 
 
 class ReshuffleTest(unittest.TestCase):
@@ -793,15 +1164,17 @@ class ReshuffleTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
       expected_data = [
-          TestWindowedValue(v, t - .001, [w])
-          for (v, t, w) in [((1, contains_in_any_order([2, 1])),
-                             4.0,
-                             IntervalWindow(1.0, 4.0)),
-                            ((2, contains_in_any_order([2, 1])),
-                             4.0,
+          TestWindowedValue(
+              v,
+              t - .001, [w],
+              pane_info=PaneInfo(True, False, PaneInfoTiming.ON_TIME, 0, 0))
+          for (v, t, w) in [((1, contains_in_any_order([2, 1])), 4.0,
                              IntervalWindow(1.0, 4.0)), (
-                                 (3, [1]), 3.0, IntervalWindow(1.0, 3.0)), (
-                                     (1, [4]), 6.0, IntervalWindow(4.0, 6.0))]
+                                 (2, contains_in_any_order([2, 1])), 4.0,
+                                 IntervalWindow(1.0, 4.0)), ((
+                                     3, [1]), 3.0, IntervalWindow(1.0, 3.0)), ((
+                                         1,
+                                         [4]), 6.0, IntervalWindow(4.0, 6.0))]
       ]
       before_reshuffle = (
           pipeline
@@ -826,25 +1199,27 @@ class ReshuffleTest(unittest.TestCase):
     any_order = contains_in_any_order
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+
       expected_windows = [
           TestWindowedValue(v, t, [w])
-          for (v, t, w) in [((1, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-              (2, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-                  (3, 1), 1.0, IntervalWindow(1.0, 3.0)), (
-                      (1, 2), 2.0, IntervalWindow(2.0, 4.0)), (
+          for (v, t, w) in [((1, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+              2, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+                  3, 1), 1.0, IntervalWindow(1.0, 3.0)), ((
+                      1, 2), 2.0, IntervalWindow(2.0, 4.0)), (
                           (2, 2), 2.0,
-                          IntervalWindow(2.0, 4.0)), ((1, 4),
-                                                      4.0,
+                          IntervalWindow(2.0, 4.0)), ((1, 4), 4.0,
                                                       IntervalWindow(4.0, 6.0))]
       ]
       expected_merged_windows = [
-          TestWindowedValue(v, t - .001, [w])
+          TestWindowedValue(
+              v,
+              t - .001, [w],
+              pane_info=PaneInfo(True, False, PaneInfoTiming.ON_TIME, 0, 0))
           for (v, t,
                w) in [((1, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)), (
                    (2, any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)), (
                        (3, [1]), 3.0,
-                       IntervalWindow(1.0, 3.0)), ((1, [4]),
-                                                   6.0,
+                       IntervalWindow(1.0, 3.0)), ((1, [4]), 6.0,
                                                    IntervalWindow(4.0, 6.0))]
       ]
       before_reshuffle = (
@@ -942,6 +1317,193 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_custom_window_preserves_metadata(self, compat_version):
+    """Tests that Reshuffle preserves pane info."""
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
+    element_count = 12
+    timestamp_value = timestamp.Timestamp(0)
+    l = [
+        TimestampedValue(("key", i), timestamp_value)
+        for i in range(element_count)
+    ]
+
+    expected_timestamp = GlobalWindow().max_timestamp()
+    expected = [
+        TestWindowedValue(
+            ('key', [0, 1, 2]),
+            expected_timestamp,
+            [GlobalWindow()],
+            pane_info=PaneInfo(
+                is_first=True,
+                is_last=False,
+                timing=PaneInfoTiming.EARLY,  # 0
+                index=0,
+                nonspeculative_index=-1)),
+        TestWindowedValue(
+            ('key', [3, 4, 5]),
+            expected_timestamp,
+            [GlobalWindow()],
+            pane_info=PaneInfo(
+                is_first=False,
+                is_last=False,
+                timing=PaneInfoTiming.EARLY,  # 0
+                index=1,
+                nonspeculative_index=-1)),
+        TestWindowedValue(
+            ('key', [6, 7, 8]),
+            expected_timestamp,
+            [GlobalWindow()],
+            pane_info=PaneInfo(
+                is_first=False,
+                is_last=False,
+                timing=PaneInfoTiming.EARLY,  # 0
+                index=2,
+                nonspeculative_index=-1)),
+        TestWindowedValue(
+            ('key', [9, 10, 11]),
+            expected_timestamp,
+            [GlobalWindow()],
+            pane_info=PaneInfo(
+                is_first=False,
+                is_last=False,
+                timing=PaneInfoTiming.EARLY,  # 0
+                index=3,
+                nonspeculative_index=-1))
+    ] if compat_version is None else ([
+        TestWindowedValue(('key', [0, 1, 2]),
+                          expected_timestamp, [GlobalWindow()],
+                          PANE_INFO_UNKNOWN),
+        TestWindowedValue(('key', [3, 4, 5]),
+                          expected_timestamp, [GlobalWindow()],
+                          PANE_INFO_UNKNOWN),
+        TestWindowedValue(('key', [6, 7, 8]),
+                          expected_timestamp, [GlobalWindow()],
+                          PANE_INFO_UNKNOWN),
+        TestWindowedValue(('key', [9, 10, 11]),
+                          expected_timestamp, [GlobalWindow()],
+                          PANE_INFO_UNKNOWN)
+    ])
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    options.view_as(StandardOptions).streaming = True
+
+    with beam.Pipeline(options=options) as p:
+      stream_source = (
+          TestStream().advance_watermark_to(0).advance_processing_time(
+              100).add_elements(l[:element_count // 4]).advance_processing_time(
+                  100).advance_watermark_to(100).add_elements(
+                      l[element_count // 4:2 * element_count // 4]).
+          advance_processing_time(100).advance_watermark_to(200).add_elements(
+              l[2 * element_count // 4:3 * element_count //
+                4]).advance_processing_time(
+                    100).advance_watermark_to(300).add_elements(
+                        l[3 * element_count // 4:]).advance_processing_time(
+                            100).advance_watermark_to_infinity())
+      grouped = (
+          p | stream_source
+          | "Rewindow" >> beam.WindowInto(
+              beam.window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.GroupByKey())
+
+      after_reshuffle = (grouped | 'Reshuffle' >> beam.Reshuffle())
+
+      assert_that(
+          after_reshuffle,
+          equal_to(expected),
+          label='CheckMetadataPreserved',
+          reify_windows=True)
+    typecoders.registry.force_dill_deterministic_coders = False
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_default_window_preserves_metadata(self, compat_version):
+    """Tests that Reshuffle preserves timestamp, window, and pane info
+    metadata."""
+    from apache_beam.coders import typecoders
+    typecoders.registry.force_dill_deterministic_coders = True
+    no_firing = PaneInfo(
+        is_first=True,
+        is_last=True,
+        timing=PaneInfoTiming.UNKNOWN,
+        index=0,
+        nonspeculative_index=0)
+
+    on_time_only = PaneInfo(
+        is_first=True,
+        is_last=True,
+        timing=PaneInfoTiming.ON_TIME,
+        index=0,
+        nonspeculative_index=0)
+
+    late_firing = PaneInfo(
+        is_first=False,
+        is_last=False,
+        timing=PaneInfoTiming.LATE,
+        index=1,
+        nonspeculative_index=1)
+
+    # Portable runners may not have the same level of precision on timestamps -
+    # this gets the largest supported timestamp with the extra non-supported
+    # bits truncated
+    gt = GlobalWindow().max_timestamp()
+    truncated_gt = gt - (gt % 0.001)
+
+    expected_preserved = [
+        TestWindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
+        TestWindowedValue(
+            'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
+        TestWindowedValue(
+            'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
+        TestWindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
+    ]
+
+    expected_not_preserved = [
+        TestWindowedValue(
+            'a', MIN_TIMESTAMP, [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'b', timestamp.Timestamp(0), [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'c', timestamp.Timestamp(33), [GlobalWindow()], PANE_INFO_UNKNOWN),
+        TestWindowedValue(
+            'd', truncated_gt, [GlobalWindow()], PANE_INFO_UNKNOWN)
+    ]
+
+    expected = (
+        expected_preserved
+        if compat_version is None else expected_not_preserved)
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    with TestPipeline(options=options) as pipeline:
+      # Create windowed values with specific metadata
+      elements = [
+          WindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
+          WindowedValue(
+              'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
+          WindowedValue(
+              'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
+          WindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
+      ]
+
+      after_reshuffle = (
+          pipeline
+          | 'Create' >> beam.Create(elements)
+          | 'Reshuffle' >> beam.Reshuffle())
+
+      assert_that(
+          after_reshuffle,
+          equal_to(expected),
+          label='CheckMetadataPreserved',
+          reify_windows=True)
+    typecoders.registry.force_dill_deterministic_coders = False
+
   @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
@@ -1010,32 +1572,6 @@ class ReshuffleTest(unittest.TestCase):
           equal_to(expected_data),
           label="formatted_after_reshuffle")
 
-  global _Unpicklable
-  global _UnpicklableCoder
-
-  class _Unpicklable(object):
-    def __init__(self, value):
-      self.value = value
-
-    def __getstate__(self):
-      raise NotImplementedError()
-
-    def __setstate__(self, state):
-      raise NotImplementedError()
-
-  class _UnpicklableCoder(beam.coders.Coder):
-    def encode(self, value):
-      return str(value.value).encode()
-
-    def decode(self, encoded):
-      return _Unpicklable(int(encoded.decode()))
-
-    def to_type_hint(self):
-      return _Unpicklable
-
-    def is_deterministic(self):
-      return True
-
   def reshuffle_unpicklable_in_global_window_helper(
       self, update_compatibility_version=None):
     with TestPipeline(options=PipelineOptions(
@@ -1095,7 +1631,8 @@ class WithKeysTest(unittest.TestCase):
     with TestPipeline() as p:
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys('k')
-      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)], ))
+      assert_that(with_keys, equal_to([('k', 1), ('k', 2), ('k', 3)],
+                                      ))
 
   def test_callable_k(self):
     with TestPipeline() as p:
@@ -1120,9 +1657,7 @@ class WithKeysTest(unittest.TestCase):
       si1 = AsList(p | "side input 1" >> beam.Create([1, 2, 3]))
       si2 = AsSingleton(p | "side input 2" >> beam.Create([10]))
       with_keys = pc | util.WithKeys(
-          lambda x,
-          the_list,
-          the_singleton: x + sum(the_list) + the_singleton,
+          lambda x, the_list, the_singleton: x + sum(the_list) + the_singleton,
           si1,
           the_singleton=si2)
       assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
@@ -1205,8 +1740,8 @@ class GroupIntoBatchesTest(unittest.TestCase):
     start_time = timestamp.Timestamp(0)
     test_stream = (
         TestStream().add_elements([
-            TimestampedValue(value, start_time + i) for i,
-            value in enumerate(GroupIntoBatchesTest._create_test_data())
+            TimestampedValue(value, start_time + i)
+            for i, value in enumerate(GroupIntoBatchesTest._create_test_data())
         ]).advance_processing_time(150).advance_watermark_to(
             start_time + window_duration).advance_watermark_to(
                 start_time + window_duration +
@@ -1416,7 +1951,10 @@ class LogElementsTest(unittest.TestCase):
           ])
           | beam.WindowInto(FixedWindows(60))
           | util.LogElements(
-              prefix='prefix_', with_window=True, with_timestamp=True))
+              prefix='prefix_',
+              with_window=True,
+              with_timestamp=True,
+              with_pane_info=True))
 
     request.captured_stdout = capsys.readouterr().out
     return result
@@ -1425,9 +1963,46 @@ class LogElementsTest(unittest.TestCase):
   def test_stdout_logs(self):
     assert self.captured_stdout == \
       ("prefix_event, timestamp='2022-10-01T00:00:00Z', "
-       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z)\n"
+       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z), "
+       "pane_info=PaneInfo(first: True, last: True, timing: UNKNOWN, "
+       "index: 0, nonspeculative_index: 0)\n"
        "prefix_event, timestamp='2022-10-02T00:00:00Z', "
-       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z)\n"), \
+       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z), "
+       "pane_info=PaneInfo(first: True, last: True, timing: UNKNOWN, "
+       "index: 0, nonspeculative_index: 0)\n"), \
+      f'Received from stdout: {self.captured_stdout}'
+
+  @pytest.fixture(scope="function")
+  def _capture_stdout_log_without_rfc3339(request, capsys):
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create([
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 1, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 2, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+          ])
+          | beam.WindowInto(FixedWindows(60))
+          | util.LogElements(
+              prefix='prefix_',
+              with_window=True,
+              with_timestamp=True,
+              use_epoch_time=True))
+
+    request.captured_stdout = capsys.readouterr().out
+    return result
+
+  @pytest.mark.usefixtures("_capture_stdout_log_without_rfc3339")
+  def test_stdout_logs_without_rfc3339(self):
+    assert self.captured_stdout == \
+      ("prefix_event, timestamp=1664582400, "
+       "window(start=1664582400, end=1664582460)\n"
+       "prefix_event, timestamp=1664668800, "
+       "window(start=1664668800, end=1664668860)\n"), \
       f'Received from stdout: {self.captured_stdout}'
 
   def test_ptransform_output(self):
@@ -1944,6 +2519,68 @@ class WaitOnTest(unittest.TestCase):
           result,
           equal_to([(None, 'result', 6), (None, 'result', 7)]),
           label='result')
+
+
+class CompatCheckTest(unittest.TestCase):
+  def test_is_v1_prior_to_v2(self):
+    test_cases = [
+        # Basic comparison cases
+        ("1.0.0", "2.0.0", True),  # v1 < v2 in major
+        ("2.0.0", "1.0.0", False),  # v1 > v2 in major
+        ("1.1.0", "1.2.0", True),  # v1 < v2 in minor
+        ("1.2.0", "1.1.0", False),  # v1 > v2 in minor
+        ("1.0.1", "1.0.2", True),  # v1 < v2 in patch
+        ("1.0.2", "1.0.1", False),  # v1 > v2 in patch
+
+        # Equal versions
+        ("1.0.0", "1.0.0", False),  # Identical
+        ("0.0.0", "0.0.0", False),  # Both zero
+
+        # Different lengths - shorter vs longer
+        ("1.0", "1.0.0", False),  # Should be equal (1.0 = 1.0.0)
+        ("1.0", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.2", "1.2.0", False),  # Should be equal (1.2 = 1.2.0)
+        ("1.2", "1.2.3", True),  # 1.2.0 < 1.2.3
+        ("2", "2.0.0", False),  # Should be equal (2 = 2.0.0)
+        ("2", "2.0.1", True),  # 2.0.0 < 2.0.1
+        ("1", "2.0", True),  # 1.0.0 < 2.0.0
+
+        # Different lengths - longer vs shorter
+        ("1.0.0", "1.0", False),  # Should be equal
+        ("1.0.1", "1.0", False),  # 1.0.1 > 1.0.0
+        ("1.2.0", "1.2", False),  # Should be equal
+        ("1.2.3", "1.2", False),  # 1.2.3 > 1.2.0
+        ("2.0.0", "2", False),  # Should be equal
+        ("2.0.1", "2", False),  # 2.0.1 > 2.0.0
+        ("2.0", "1", False),  # 2.0.0 > 1.0.0
+
+        # Mixed length comparisons
+        ("1.0", "2.0.0", True),  # 1.0.0 < 2.0.0
+        ("2.0", "1.0.0", False),  # 2.0.0 > 1.0.0
+        ("1", "1.0.1", True),  # 1.0.0 < 1.0.1
+        ("1.1", "1.0.9", False),  # 1.1.0 > 1.0.9
+
+        # Large numbers
+        ("1.9.9", "2.0.0", True),  # 1.9.9 < 2.0.0
+        ("10.0.0", "9.9.9", False),  # 10.0.0 > 9.9.9
+        ("1.10.0", "1.9.0", False),  # 1.10.0 > 1.9.0
+        ("1.2.10", "1.2.9", False),  # 1.2.10 > 1.2.9
+
+        # Sequential versions
+        ("1.0.0", "1.0.1", True),
+        ("1.0.1", "1.0.2", True),
+        ("1.0.9", "1.1.0", True),
+        ("1.9.9", "2.0.0", True),
+
+        # Null/None cases
+        (None, "1.0.0", False),  # v1 is None
+    ]
+
+    for v1, v2, expected in test_cases:
+      self.assertEqual(
+          util.is_v1_prior_to_v2(v1=v1, v2=v2),
+          expected,
+          msg=f"Failed {v1} < {v2} == {expected}")
 
 
 if __name__ == '__main__':

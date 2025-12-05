@@ -69,10 +69,13 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import has_at_least_one
 from apache_beam.tools import utils
 from apache_beam.transforms import environments
+from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 
@@ -318,12 +321,27 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.WindowInto(window.SlidingWindows(size=5, period=3))
           | beam.ParDo(PerWindowDoFn()))
 
-      assert_that(res, equal_to([               0*-3, 1*-3, # [-3, 2)
-                                 0*0, 1*0, 2*0, 3* 0, 4* 0, # [ 0, 5)
-                                 3*3, 4*3, 5*3, 6* 3, 7* 3, # [ 3, 8)
-                                 6*6, 7*6, 8*6, 9* 6,       # [ 6, 11)
-                                 9*9                        # [ 9, 14)
-                                 ]))
+      assert_that(
+          res,
+          equal_to([
+              0 * -3,
+              1 * -3,  # [-3, 2)
+              0 * 0,
+              1 * 0,
+              2 * 0,
+              3 * 0,
+              4 * 0,  # [ 0, 5)
+              3 * 3,
+              4 * 3,
+              5 * 3,
+              6 * 3,
+              7 * 3,  # [ 3, 8)
+              6 * 6,
+              7 * 6,
+              8 * 6,
+              9 * 6,  # [ 6, 11)
+              9 * 9  # [ 9, 14)
+          ]))
 
   def test_batch_to_element_pardo(self):
     class ArraySumDoFn(beam.DoFn):
@@ -538,6 +556,22 @@ class FnApiRunnerTest(unittest.TestCase):
                   equal_to([('a', 1), ('b', 2)] + third_element),
                   label='CheckFlattenOfSideInput')
 
+  def test_flatten_and_gbk(self, with_transcoding=True):
+    with self.create_pipeline() as p:
+      side1 = p | 'side1' >> beam.Create([('a', 1)])
+      if with_transcoding:
+        # Also test non-matching coder types (transcoding required)
+        second_element = [('another_type')]
+      else:
+        second_element = [('b', 2)]
+      side2 = p | 'side2' >> beam.Create(second_element)
+
+      flatten_out = (side1, side2) | beam.Flatten()
+      gbk_out = side1 | beam.GroupByKey()
+
+      assert_that(flatten_out, equal_to([('a', 1)] + second_element))
+      assert_that(gbk_out, equal_to([('a', [1])]))
+
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -565,15 +599,12 @@ class FnApiRunnerTest(unittest.TestCase):
       side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
       assert_that(
           main | 'first map' >> beam.Map(
-              lambda k,
-              d,
-              l: (k, sorted(d[k]), sorted([e[1] for e in l])),
+              lambda k, d, l: (k, sorted(d[k]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side))
           | 'second map' >> beam.Map(
-              lambda k,
-              d,
-              l: (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
+              lambda k, d, l:
+              (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side)),
           equal_to([('a', [1, 3], [1, 2, 3]), ('b', [2], [1, 2, 3])]))
@@ -739,6 +770,111 @@ class FnApiRunnerTest(unittest.TestCase):
 
       expected = [('fired', ts) for ts in (20, 200)]
       assert_that(actual, equal_to(expected))
+
+  def _run_pardo_et_timer_test(
+      self, n, timer_delay, reset_count=True, clear_timer=True, expected=None):
+    class EventTimeTimerDoFn(beam.DoFn):
+      COUNT = userstate.ReadModifyWriteStateSpec(
+          'count', coders.VarInt32Coder())
+      # event-time timer
+      TIMER = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+
+      def __init__(self):
+        self._n = n
+        self._timer_delay = timer_delay
+        self._reset_count = reset_count
+        self._clear_timer = clear_timer
+
+      def process(
+          self,
+          element_pair,
+          t=beam.DoFn.TimestampParam,
+          count=beam.DoFn.StateParam(COUNT),
+          timer=beam.DoFn.TimerParam(TIMER)):
+        local_count = count.read() or 0
+        local_count += 1
+
+        _LOGGER.info(
+            "get element %s, count=%d", str(element_pair[1]), local_count)
+        if local_count == 1:
+          _LOGGER.info("set timer to %s", str(t + self._timer_delay))
+          timer.set(t + self._timer_delay)
+
+        if local_count == self._n:
+          if self._reset_count:
+            _LOGGER.info("reset count")
+            local_count = 0
+
+          # don't need the timer now
+          if self._clear_timer:
+            _LOGGER.info("clear timer")
+            timer.clear()
+
+        count.write(local_count)
+
+      @userstate.on_timer(TIMER)
+      def timer_callback(self, t=beam.DoFn.TimestampParam):
+        _LOGGER.error("Timer should not fire here")
+        _LOGGER.info("timer callback start (timestamp=%s)", str(t))
+        yield "fired"
+
+    with self.create_pipeline() as p:
+      actual = (
+          p | PeriodicImpulse(
+              start_timestamp=timestamp.Timestamp.now(),
+              stop_timestamp=timestamp.Timestamp.now() + 14,
+              fire_interval=1)
+          | beam.WithKeys(0)
+          | beam.ParDo(EventTimeTimerDoFn()))
+      assert_that(actual, equal_to(expected))
+
+  def test_pardo_et_timer_with_no_firing(self):
+    if type(self).__name__ in {'FnApiRunnerTest',
+                               'FnApiRunnerTestWithGrpc',
+                               'FnApiRunnerTestWithGrpcAndMultiWorkers',
+                               'FnApiRunnerTestWithDisabledCaching',
+                               'FnApiRunnerTestWithMultiWorkers',
+                               'FnApiRunnerTestWithBundleRepeat',
+                               'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
+                               'SamzaRunnerTest',
+                               'SparkRunnerTest'}:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+
+    # The timer will not fire. It is initially set to T + 10, but then it is
+    # cleared at T + 4 (count == 5), and reset to T + 5 + 10
+    # (count is reset every 5 seconds).
+    self._run_pardo_et_timer_test(5, 10, True, True, [])
+
+  def test_pardo_et_timer_with_no_reset(self):
+    if type(self).__name__ in {'FnApiRunnerTest',
+                               'FnApiRunnerTestWithGrpc',
+                               'FnApiRunnerTestWithGrpcAndMultiWorkers',
+                               'FnApiRunnerTestWithDisabledCaching',
+                               'FnApiRunnerTestWithMultiWorkers',
+                               'FnApiRunnerTestWithBundleRepeat',
+                               'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
+                               'SamzaRunnerTest',
+                               'SparkRunnerTest'}:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+
+    # The timer will not fire. It is initially set to T + 10, and then it is
+    # cleared at T + 4 and never set again (count is not reset).
+    self._run_pardo_et_timer_test(5, 10, False, True, [])
+
+  def test_pardo_et_timer_with_no_reset_and_no_clear(self):
+    if type(self).__name__ in {'FnApiRunnerTest',
+                               'FnApiRunnerTestWithGrpc',
+                               'FnApiRunnerTestWithGrpcAndMultiWorkers',
+                               'FnApiRunnerTestWithDisabledCaching',
+                               'FnApiRunnerTestWithMultiWorkers',
+                               'FnApiRunnerTestWithBundleRepeat',
+                               'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
+                               'SamzaRunnerTest',
+                               'SparkRunnerTest'}:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+    # The timer will fire at T + 10. After the timer is set, it is never
+    # cleared or set again.
+    self._run_pardo_et_timer_test(5, 10, False, False, ["fired"])
 
   def test_pardo_state_timers(self):
     self._run_pardo_state_timers(windowed=False)
@@ -1055,6 +1191,15 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(
           p | beam.Create([1, 2, 3]) | beam.Reshuffle(), equal_to([1, 2, 3]))
 
+  def test_reshuffle_after_custom_window(self):
+    with self.create_pipeline() as p:
+      assert_that(
+          p | beam.Create([12, 2, 1])
+          | beam.Map(lambda t: window.TimestampedValue(t, t))
+          | beam.WindowInto(beam.transforms.window.FixedWindows(2))
+          | beam.Reshuffle(),
+          equal_to([12, 2, 1]))
+
   def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:
       if with_transcoding:
@@ -1081,6 +1226,27 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
 
+  def test_windowed_combine_per_key(self):
+    with self.create_pipeline() as p:
+      input = (
+          p | beam.Create([12, 2, 1])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t)))
+
+      fixed = input | 'Fixed' >> (
+          beam.WindowInto(beam.transforms.window.FixedWindows(10))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(fixed, equal_to([('k', 1.5), ('k', 12)]))
+
+      sliding = input | 'Sliding' >> (
+          beam.WindowInto(beam.transforms.window.SlidingWindows(20, 10))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(sliding, equal_to([('k', 1.5), ('k', 5.0), ('k', 12)]))
+
+      sessions = input | 'Sessions' >> (
+          beam.WindowInto(beam.transforms.window.Sessions(5))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(sessions, equal_to([('k', 1.5), ('k', 12)]))
+
   def test_read(self):
     # Can't use NamedTemporaryFile as a context
     # due to https://bugs.python.org/issue14243
@@ -1093,6 +1259,21 @@ class FnApiRunnerTest(unittest.TestCase):
             p | beam.io.ReadFromText(temp_file.name), equal_to(['a', 'b', 'c']))
     finally:
       os.unlink(temp_file.name)
+
+  def test_sliding_windows(self):
+    data = [(timestamp.Timestamp(i), i) for i in range(1, 10)]
+    with self.create_pipeline() as p:
+      ret = (
+          p
+          | PeriodicImpulse(data=data, fire_interval=1)
+          | beam.WithKeys(0)
+          | beam.WindowInto(beam.transforms.window.SlidingWindows(6, 3))
+          | beam.GroupByKey())
+      assert_that(
+          ret,
+          equal_to([(0, [1, 2]), (0, [1, 2, 3, 4, 5]), (0, [3, 4, 5, 6, 7, 8]),
+                    (0, [6, 7, 8, 9]), (0, [9])],
+                   lambda x, y: x[0] == y[0] and sorted(x[1]) == sorted(y[1])))
 
   def test_windowing(self):
     with self.create_pipeline() as p:
@@ -1145,8 +1326,7 @@ class FnApiRunnerTest(unittest.TestCase):
       side_input_res = (
           big
           | beam.Map(
-              lambda x,
-              side: (x[0], side.count(x[0])),
+              lambda x, side: (x[0], side.count(x[0])),
               beam.pvalue.AsList(big | beam.Map(lambda x: x[0]))))
       assert_that(
           side_input_res,
@@ -1415,6 +1595,22 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Filter(lambda x: False)
           | beam.GroupByKey())
       assert_that(res, equal_to([]))
+
+  def test_first_pane(self):
+    with self.create_pipeline() as p:
+      res = (
+          p | beam.Create([1, 2])
+          | beam.WithKeys(0)
+          | beam.WindowInto(
+              window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterCount(1)),
+              accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+              allowed_lateness=0,
+          )
+          | beam.GroupByKey()
+          | beam.Values())
+      has_at_least_one(res, lambda e, t, w, p: p.is_first)
+      has_at_least_one(res, lambda e, t, w, p: p.index == 0)
 
 
 # These tests are kept in a separate group so that they are
@@ -1737,14 +1933,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         | beam.GroupByKey()
         | 'm_out' >> beam.FlatMap(
             lambda x: [
-                1,
-                2,
-                3,
-                4,
-                5,
-                beam.pvalue.TaggedOutput('once', x),
-                beam.pvalue.TaggedOutput('twice', x),
-                beam.pvalue.TaggedOutput('twice', x)
+                1, 2, 3, 4, 5, beam.pvalue.TaggedOutput('once', x), beam.pvalue.
+                TaggedOutput('twice', x), beam.pvalue.TaggedOutput('twice', x)
             ]))
 
     res = p.run()
@@ -1860,6 +2050,9 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
   def test_register_finalizations(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_sliding_windows(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
@@ -1888,6 +2081,9 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_register_finalizations(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sliding_windows(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -1926,6 +2122,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sliding_windows(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 

@@ -65,8 +65,7 @@ def filter_side_inputs_iter(test=None):
             },
         ])
         | 'Filter valid plants' >> beam.Filter(
-            lambda plant,
-            valid_durations: plant['duration'] in valid_durations,
+            lambda plant, valid_durations: plant['duration'] in valid_durations,
             valid_durations=beam.pvalue.AsIter(valid_durations),
         )
         | beam.Map(print))

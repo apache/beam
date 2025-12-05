@@ -72,6 +72,13 @@ func (e *joinError) Error() string {
 	return string(b)
 }
 
+func getOnlyValue[K comparable, V any](in map[K]V) V {
+	for _, v := range in {
+		return v
+	}
+	panic("unreachable")
+}
+
 func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *jobpb.PrepareJobResponse, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -248,6 +255,16 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			if len(t.GetSpec().GetPayload()) == 0 {
 				continue
 			}
+			// Another type of "empty" composite transforms without subtransforms but with
+			// a non-empty payload and identical input/output pcollections
+			if len(t.GetInputs()) == 1 && len(t.GetOutputs()) == 1 {
+				inputID := getOnlyValue(t.GetInputs())
+				outputID := getOnlyValue(t.GetOutputs())
+				if inputID == outputID {
+					slog.Warn("empty transform, with payload and identical input and output pcollection", "urn", urn, "name", t.GetUniqueName(), "pcoll", inputID)
+					continue
+				}
+			}
 			// Otherwise fail.
 			slog.Warn("unknown transform, with payload", "urn", urn, "name", t.GetUniqueName(), "payload", t.GetSpec().GetPayload())
 			check("PTransform.Spec.Urn", urn+" "+t.GetUniqueName(), "<doesn't exist>")
@@ -297,10 +314,19 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 }
 
 func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
+	if tpb == nil {
+		return false
+	}
+
 	unsupported := false
 	switch at := tpb.GetTrigger().(type) {
-	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
-		return true
+	// stateless leaf trigger
+	case *pipepb.Trigger_Never_, *pipepb.Trigger_Always_, *pipepb.Trigger_Default_:
+		return false
+	// stateful leaf trigger
+	case *pipepb.Trigger_ElementCount_, *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+		return false
+	// composite trigger below
 	case *pipepb.Trigger_AfterAll_:
 		for _, st := range at.AfterAll.GetSubtriggers() {
 			unsupported = unsupported || hasUnsupportedTriggers(st)
@@ -325,7 +351,7 @@ func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
 	case *pipepb.Trigger_Repeat_:
 		return hasUnsupportedTriggers(at.Repeat.GetSubtrigger())
 	default:
-		return false
+		return true
 	}
 }
 

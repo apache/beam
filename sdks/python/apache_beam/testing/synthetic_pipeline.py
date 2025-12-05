@@ -620,8 +620,7 @@ class SideInputBarrier(beam.PTransform):
         pc
         | beam.Map(rotate_key)
         | beam.Map(
-            lambda elem,
-            ignored: elem,
+            lambda elem, ignored: elem,
             beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
 
 

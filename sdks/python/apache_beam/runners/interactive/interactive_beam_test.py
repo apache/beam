@@ -23,11 +23,16 @@ import importlib
 import sys
 import time
 import unittest
+from concurrent.futures import TimeoutError
 from typing import NamedTuple
+from unittest.mock import ANY
+from unittest.mock import MagicMock
+from unittest.mock import call
 from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam import dataframe as frames
+from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -36,6 +41,7 @@ from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
 from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 from apache_beam.runners.interactive.options.capture_limiters import Limiter
+from apache_beam.runners.interactive.recording_manager import AsyncComputationResult
 from apache_beam.runners.interactive.testing.mock_env import isolated_env
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_stream import TestStream
@@ -65,6 +71,9 @@ def _get_watched_pcollections_with_variable_names():
   return watched_pcollections
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 @isolated_env
 class InteractiveBeamTest(unittest.TestCase):
   def setUp(self):
@@ -293,6 +302,91 @@ class InteractiveBeamTest(unittest.TestCase):
     self.assertTrue(ib.recordings.record(p))
     ib.recordings.stop(p)
 
+  def test_collect_raw_records_true(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data = list(range(5))
+    pcoll = p | 'Create' >> beam.Create(data)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll, raw_records=True)
+    self.assertIsInstance(result, list)
+    self.assertEqual(result, data)
+
+    result_n = ib.collect(pcoll, n=3, raw_records=True)
+    self.assertIsInstance(result_n, list)
+    self.assertEqual(result_n, data[:3])
+
+  def test_collect_raw_records_false(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data = list(range(5))
+    pcoll = p | 'Create' >> beam.Create(data)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll)
+    self.assertNotIsInstance(result, list)
+    self.assertTrue(
+        hasattr(result, 'columns'), "Result should have 'columns' attribute")
+    self.assertTrue(
+        hasattr(result, 'values'), "Result should have 'values' attribute")
+
+    result_n = ib.collect(pcoll, n=3)
+    self.assertNotIsInstance(result_n, list)
+    self.assertTrue(
+        hasattr(result_n, 'columns'),
+        "Result (n=3) should have 'columns' attribute")
+    self.assertTrue(
+        hasattr(result_n, 'values'),
+        "Result (n=3) should have 'values' attribute")
+
+  def test_collect_raw_records_true_multiple_pcolls(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data1 = list(range(3))
+    data2 = [x * x for x in range(3)]
+    pcoll1 = p | 'Create1' >> beam.Create(data1)
+    pcoll2 = p | 'Create2' >> beam.Create(data2)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll1, pcoll2, raw_records=True)
+    self.assertIsInstance(result, tuple)
+    self.assertEqual(len(result), 2)
+    self.assertIsInstance(result[0], list)
+    self.assertEqual(result[0], data1)
+    self.assertIsInstance(result[1], list)
+    self.assertEqual(result[1], data2)
+
+  def test_collect_raw_records_false_multiple_pcolls(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data1 = list(range(3))
+    data2 = [x * x for x in range(3)]
+    pcoll1 = p | 'Create1' >> beam.Create(data1)
+    pcoll2 = p | 'Create2' >> beam.Create(data2)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll1, pcoll2)
+    self.assertIsInstance(result, tuple)
+    self.assertEqual(len(result), 2)
+    self.assertNotIsInstance(result[0], list)
+    self.assertTrue(hasattr(result[0], 'columns'))
+    self.assertNotIsInstance(result[1], list)
+    self.assertTrue(hasattr(result[1], 'columns'))
+
+  def test_collect_raw_records_true_force_tuple(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data = list(range(5))
+    pcoll = p | 'Create' >> beam.Create(data)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    result = ib.collect(pcoll, raw_records=True, force_tuple=True)
+    self.assertIsInstance(result, tuple)
+    self.assertEqual(len(result), 1)
+    self.assertIsInstance(result[0], list)
+    self.assertEqual(result[0], data)
+
 
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
@@ -395,7 +489,12 @@ class InteractiveBeamClustersTest(unittest.TestCase):
     # Pipeline association is cleaned up.
     self.assertNotIn(p, self.clusters.pipelines)
     self.assertNotIn(p, dcm.pipelines)
-    self.assertEqual(options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The internal option in the pipeline is overwritten.
+    self.assertEqual(
+        p.options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The original option is unchanged.
+    self.assertEqual(
+        options.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
     # The cluster is unknown now.
     self.assertNotIn(meta, self.clusters.dataproc_cluster_managers)
     self.assertNotIn(meta.master_url, self.clusters.master_urls)
@@ -423,10 +522,17 @@ class InteractiveBeamClustersTest(unittest.TestCase):
     # Pipeline association of p is cleaned up.
     self.assertNotIn(p, self.clusters.pipelines)
     self.assertNotIn(p, dcm.pipelines)
-    self.assertEqual(options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The internal option in the pipeline is overwritten.
+    self.assertEqual(
+        p.options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The original option is unchanged.
+    self.assertEqual(
+        options.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
     # Pipeline association of p2 still presents.
     self.assertIn(p2, self.clusters.pipelines)
     self.assertIn(p2, dcm.pipelines)
+    self.assertEqual(
+        p2.options.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
     self.assertEqual(
         options2.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
     # The cluster is still known.
@@ -572,6 +678,388 @@ class InteractiveBeamClustersTest(unittest.TestCase):
     self.clusters.create(meta)
 
     self.assertEqual(meta.num_workers, 2)
+
+
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@isolated_env
+class InteractiveBeamComputeTest(unittest.TestCase):
+  def setUp(self):
+    self.env = ie.current_env()
+    self.env._is_in_ipython = False  # Default to non-IPython
+
+  def test_compute_blocking(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data = list(range(10))
+    pcoll = p | 'Create' >> beam.Create(data)
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    result = ib.compute(pcoll, blocking=True)
+    self.assertIsNone(result)  # Blocking returns None
+    self.assertTrue(pcoll in self.env.computed_pcollections)
+    collected = ib.collect(pcoll, raw_records=True)
+    self.assertEqual(collected, data)
+
+  def test_compute_non_blocking(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    data = list(range(5))
+    pcoll = p | 'Create' >> beam.Create(data)
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    async_result = ib.compute(pcoll, blocking=False)
+    self.assertIsInstance(async_result, AsyncComputationResult)
+
+    pipeline_result = async_result.result(timeout=60)
+    self.assertTrue(async_result.done())
+    self.assertIsNone(async_result.exception())
+    self.assertEqual(pipeline_result.state, PipelineState.DONE)
+    self.assertTrue(pcoll in self.env.computed_pcollections)
+    collected = ib.collect(pcoll, raw_records=True)
+    self.assertEqual(collected, data)
+
+  def test_compute_with_list_input(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
+    pcoll2 = p | 'Create2' >> beam.Create([4, 5, 6])
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    ib.compute([pcoll1, pcoll2], blocking=True)
+    self.assertTrue(pcoll1 in self.env.computed_pcollections)
+    self.assertTrue(pcoll2 in self.env.computed_pcollections)
+
+  def test_compute_with_dict_input(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
+    pcoll2 = p | 'Create2' >> beam.Create([4, 5, 6])
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    ib.compute({'a': pcoll1, 'b': pcoll2}, blocking=True)
+    self.assertTrue(pcoll1 in self.env.computed_pcollections)
+    self.assertTrue(pcoll2 in self.env.computed_pcollections)
+
+  def test_compute_empty_input(self):
+    result = ib.compute([], blocking=True)
+    self.assertIsNone(result)
+    result_async = ib.compute([], blocking=False)
+    self.assertIsNone(result_async)
+
+  def test_compute_force_recompute(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll = p | 'Create' >> beam.Create([1, 2, 3])
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    ib.compute(pcoll, blocking=True)
+    self.assertTrue(pcoll in self.env.computed_pcollections)
+
+    # Mock evict_computed_pcollections to check if it's called
+    with patch.object(self.env, 'evict_computed_pcollections') as mock_evict:
+      ib.compute(pcoll, blocking=True, force_compute=True)
+      mock_evict.assert_called_once_with(p)
+    self.assertTrue(pcoll in self.env.computed_pcollections)
+
+  def test_compute_non_blocking_exception(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+
+    def raise_error(elem):
+      raise ValueError('Test Error')
+
+    pcoll = p | 'Create' >> beam.Create([1]) | 'Error' >> beam.Map(raise_error)
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    async_result = ib.compute(pcoll, blocking=False)
+    self.assertIsInstance(async_result, AsyncComputationResult)
+
+    with self.assertRaises(ValueError):
+      async_result.result(timeout=60)
+
+    self.assertTrue(async_result.done())
+    self.assertIsInstance(async_result.exception(), ValueError)
+    self.assertFalse(pcoll in self.env.computed_pcollections)
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
+  @patch('apache_beam.runners.interactive.recording_manager.display')
+  @patch('apache_beam.runners.interactive.recording_manager.clear_output')
+  @patch('apache_beam.runners.interactive.recording_manager.HTML')
+  @patch('ipywidgets.Button')
+  @patch('ipywidgets.FloatProgress')
+  @patch('ipywidgets.Output')
+  @patch('ipywidgets.HBox')
+  @patch('ipywidgets.VBox')
+  def test_compute_non_blocking_ipython_widgets(
+      self,
+      mock_vbox,
+      mock_hbox,
+      mock_output,
+      mock_progress,
+      mock_button,
+      mock_html,
+      mock_clear_output,
+      mock_display,
+  ):
+    self.env._is_in_ipython = True
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll = p | 'Create' >> beam.Create(range(3))
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    mock_controls = mock_vbox.return_value
+    mock_html_instance = mock_html.return_value
+
+    async_result = ib.compute(pcoll, blocking=False)
+    self.assertIsNotNone(async_result)
+    mock_button.assert_called_once_with(description='Cancel')
+    mock_progress.assert_called_once()
+    mock_output.assert_called_once()
+    mock_hbox.assert_called_once()
+    mock_vbox.assert_called_once()
+    mock_html.assert_called_once_with('<p>Initializing...</p>')
+
+    self.assertEqual(mock_display.call_count, 2)
+    mock_display.assert_has_calls([
+        call(mock_controls, display_id=async_result._display_id),
+        call(mock_html_instance)
+    ])
+
+    mock_clear_output.assert_called_once()
+    async_result.result(timeout=60)  # Let it finish
+
+  def test_compute_dependency_wait_true(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'Map' >> beam.Map(lambda x: x * 2)
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    rm = self.env.get_recording_manager(p)
+
+    # Start pcoll1 computation
+    async_res1 = ib.compute(pcoll1, blocking=False)
+    self.assertTrue(self.env.is_pcollection_computing(pcoll1))
+
+    # Spy on _wait_for_dependencies
+    with patch.object(rm,
+                      '_wait_for_dependencies',
+                      wraps=rm._wait_for_dependencies) as spy_wait:
+      async_res2 = ib.compute(pcoll2, blocking=False, wait_for_inputs=True)
+
+      # Check that wait_for_dependencies was called for pcoll2
+      spy_wait.assert_called_with({pcoll2}, async_res2)
+
+      # Let pcoll1 finish
+      async_res1.result(timeout=60)
+      self.assertTrue(pcoll1 in self.env.computed_pcollections)
+      self.assertFalse(self.env.is_pcollection_computing(pcoll1))
+
+      # pcoll2 should now run and complete
+      async_res2.result(timeout=60)
+      self.assertTrue(pcoll2 in self.env.computed_pcollections)
+
+  @patch.object(ie.InteractiveEnvironment, 'is_pcollection_computing')
+  def test_compute_dependency_wait_false(self, mock_is_computing):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'Map' >> beam.Map(lambda x: x * 2)
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    rm = self.env.get_recording_manager(p)
+
+    # Pretend pcoll1 is computing
+    mock_is_computing.side_effect = lambda pcoll: pcoll is pcoll1
+
+    with patch.object(rm,
+                      '_execute_pipeline_fragment',
+                      wraps=rm._execute_pipeline_fragment) as spy_execute:
+      async_res2 = ib.compute(pcoll2, blocking=False, wait_for_inputs=False)
+      async_res2.result(timeout=60)
+
+      # Assert that execute was called for pcoll2 without waiting
+      spy_execute.assert_called_with({pcoll2}, async_res2, ANY, ANY)
+      self.assertTrue(pcoll2 in self.env.computed_pcollections)
+
+  def test_async_computation_result_cancel(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    # A stream that never finishes to test cancellation
+    pcoll = p | beam.Create([1]) | beam.Map(lambda x: time.sleep(100))
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    async_result = ib.compute(pcoll, blocking=False)
+    self.assertIsInstance(async_result, AsyncComputationResult)
+
+    # Give it a moment to start
+    time.sleep(0.1)
+
+    # Mock the pipeline result's cancel method
+    mock_pipeline_result = MagicMock()
+    mock_pipeline_result.state = PipelineState.RUNNING
+    async_result.set_pipeline_result(mock_pipeline_result)
+
+    self.assertTrue(async_result.cancel())
+    mock_pipeline_result.cancel.assert_called_once()
+
+    # The future should be cancelled eventually by the runner
+    # This part is hard to test without deeper runner integration
+    with self.assertRaises(TimeoutError):
+      async_result.result(timeout=1)  # It should not complete successfully
+
+  @patch(
+      'apache_beam.runners.interactive.recording_manager.RecordingManager.'
+      '_execute_pipeline_fragment')
+  def test_compute_multiple_async(self, mock_execute_fragment):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1, 2, 3])
+    pcoll2 = p | 'Create2' >> beam.Create([4, 5, 6])
+    pcoll3 = pcoll1 | 'Map1' >> beam.Map(lambda x: x * 2)
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    mock_pipeline_result = MagicMock()
+    mock_pipeline_result.state = PipelineState.DONE
+    mock_execute_fragment.return_value = mock_pipeline_result
+
+    res1 = ib.compute(pcoll1, blocking=False)
+    res2 = ib.compute(pcoll2, blocking=False)
+    res3 = ib.compute(pcoll3, blocking=False)  # Depends on pcoll1
+
+    self.assertIsNotNone(res1)
+    self.assertIsNotNone(res2)
+    self.assertIsNotNone(res3)
+
+    res1.result(timeout=60)
+    res2.result(timeout=60)
+    res3.result(timeout=60)
+
+    time.sleep(0.1)
+
+    self.assertTrue(
+        pcoll1 in self.env.computed_pcollections, "pcoll1 not marked computed")
+    self.assertTrue(
+        pcoll2 in self.env.computed_pcollections, "pcoll2 not marked computed")
+    self.assertTrue(
+        pcoll3 in self.env.computed_pcollections, "pcoll3 not marked computed")
+
+    self.assertEqual(mock_execute_fragment.call_count, 3)
+
+  @patch(
+      'apache_beam.runners.interactive.interactive_beam.'
+      'deferred_df_to_pcollection')
+  def test_compute_input_flattening(self, mock_deferred_to_pcoll):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p | 'C1' >> beam.Create([1])
+    pcoll2 = p | 'C2' >> beam.Create([2])
+    pcoll3 = p | 'C3' >> beam.Create([3])
+    pcoll4 = p | 'C4' >> beam.Create([4])
+
+    class MockDeferred(DeferredBase):
+      def __init__(self, pcoll):
+        mock_expr = MagicMock()
+        super().__init__(mock_expr)
+        self._pcoll = pcoll
+
+      def _get_underlying_pcollection(self):
+        return self._pcoll
+
+    deferred_pcoll = MockDeferred(pcoll4)
+
+    mock_deferred_to_pcoll.return_value = (pcoll4, p)
+
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    with patch.object(self.env, 'get_recording_manager') as mock_get_rm:
+      mock_rm = MagicMock()
+      mock_get_rm.return_value = mock_rm
+      ib.compute(pcoll1, [pcoll2], {'a': pcoll3}, deferred_pcoll)
+
+      expected_pcolls = {pcoll1, pcoll2, pcoll3, pcoll4}
+      mock_rm.compute_async.assert_called_once_with(
+          expected_pcolls,
+          wait_for_inputs=True,
+          blocking=False,
+          runner=None,
+          options=None,
+          force_compute=False)
+
+  def test_compute_invalid_input_type(self):
+    with self.assertRaisesRegex(ValueError,
+                                "not a dict, an iterable or a PCollection"):
+      ib.compute(123)
+
+  def test_compute_mixed_pipelines(self):
+    p1 = beam.Pipeline(ir.InteractiveRunner())
+    pcoll1 = p1 | 'C1' >> beam.Create([1])
+    p2 = beam.Pipeline(ir.InteractiveRunner())
+    pcoll2 = p2 | 'C2' >> beam.Create([2])
+    ib.watch(locals())
+    self.env.track_user_pipelines()
+
+    with self.assertRaisesRegex(
+        ValueError, "All PCollections must belong to the same pipeline"):
+      ib.compute(pcoll1, pcoll2)
+
+  @patch(
+      'apache_beam.runners.interactive.interactive_beam.'
+      'deferred_df_to_pcollection')
+  @patch.object(ib, 'watch')
+  def test_compute_with_deferred_base(self, mock_watch, mock_deferred_to_pcoll):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll = p | 'C1' >> beam.Create([1])
+
+    class MockDeferred(DeferredBase):
+      def __init__(self, pcoll):
+        # Provide a dummy expression to satisfy DeferredBase.__init__
+        mock_expr = MagicMock()
+        super().__init__(mock_expr)
+        self._pcoll = pcoll
+
+      def _get_underlying_pcollection(self):
+        return self._pcoll
+
+    deferred = MockDeferred(pcoll)
+
+    mock_deferred_to_pcoll.return_value = (pcoll, p)
+
+    with patch.object(self.env, 'get_recording_manager') as mock_get_rm:
+      mock_rm = MagicMock()
+      mock_get_rm.return_value = mock_rm
+      ib.compute(deferred)
+
+      mock_deferred_to_pcoll.assert_called_once_with(deferred)
+      self.assertEqual(mock_watch.call_count, 2)
+      mock_watch.assert_has_calls([
+          call({f'anonymous_pcollection_{id(pcoll)}': pcoll}),
+          call({f'anonymous_pipeline_{id(p)}': p})
+      ],
+                                  any_order=False)
+      mock_rm.compute_async.assert_called_once_with({pcoll},
+                                                    wait_for_inputs=True,
+                                                    blocking=False,
+                                                    runner=None,
+                                                    options=None,
+                                                    force_compute=False)
+
+  def test_compute_new_pipeline(self):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    pcoll = p | 'Create' >> beam.Create([1])
+    # NOT calling ib.watch() or track_user_pipelines()
+
+    with patch.object(self.env, 'get_recording_manager') as mock_get_rm, \
+        patch.object(ib, 'watch') as mock_watch:
+      mock_rm = MagicMock()
+      mock_get_rm.return_value = mock_rm
+      ib.compute(pcoll)
+
+      mock_watch.assert_called_with({f'anonymous_pipeline_{id(p)}': p})
+      mock_get_rm.assert_called_once_with(p, create_if_absent=True)
+      mock_rm.compute_async.assert_called_once()
 
 
 if __name__ == '__main__':

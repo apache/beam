@@ -47,13 +47,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -63,7 +64,6 @@ import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.dstream.ConstantInputDStream;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
@@ -143,25 +143,22 @@ public class SparkStreamingPortablePipelineTranslator
 
     Iterable<WindowedValue<byte[]>> windowedValues =
         Collections.singletonList(
-            WindowedValue.of(
+            WindowedValues.of(
                 new byte[0],
                 BoundedWindow.TIMESTAMP_MIN_VALUE,
                 GlobalWindow.INSTANCE,
                 PaneInfo.NO_FIRING));
 
-    WindowedValue.FullWindowedValueCoder<byte[]> windowCoder =
-        WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE);
+    WindowedValues.FullWindowedValueCoder<byte[]> windowCoder =
+        WindowedValues.FullWindowedValueCoder.of(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE);
     JavaRDD<WindowedValue<byte[]>> emptyByteArrayRDD =
         context
             .getSparkContext()
             .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
-    final ConstantInputDStream<WindowedValue<byte[]>> inputDStream =
-        new ConstantInputDStream<>(
-            context.getStreamingContext().ssc(),
-            emptyByteArrayRDD.rdd(),
-            JavaSparkContext$.MODULE$.fakeClassTag());
+    final SingleEmitInputDStream<WindowedValue<byte[]>> inputDStream =
+        new SingleEmitInputDStream<>(context.getStreamingContext().ssc(), emptyByteArrayRDD.rdd());
 
     final JavaDStream<WindowedValue<byte[]>> stream =
         JavaDStream.fromDStream(inputDStream, JavaSparkContext$.MODULE$.fakeClassTag());
@@ -188,13 +185,13 @@ public class SparkStreamingPortablePipelineTranslator
     UnboundedDataset<KV<K, V>> inputDataset =
         (UnboundedDataset<KV<K, V>>) context.popDataset(inputId);
     List<Integer> streamSources = inputDataset.getStreamSources();
-    WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder =
+    WindowedValues.WindowedValueCoder<KV<K, V>> inputCoder =
         getWindowedValueCoder(inputId, components);
     KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
     WindowingStrategy windowingStrategy = getWindowingStrategy(inputId, components);
     WindowFn<Object, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
-    WindowedValue.WindowedValueCoder<V> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(
+    WindowedValues.WindowedValueCoder<V> wvCoder =
+        WindowedValues.FullWindowedValueCoder.of(
             inputKvCoder.getValueCoder(), windowFn.windowCoder());
 
     JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
@@ -242,7 +239,7 @@ public class SparkStreamingPortablePipelineTranslator
           "Side inputs to executable stage are currently unsupported.");
     }
     ImmutableMap<
-            String, Tuple2<Broadcast<List<byte[]>>, WindowedValue.WindowedValueCoder<SideInputT>>>
+            String, Tuple2<Broadcast<List<byte[]>>, WindowedValues.WindowedValueCoder<SideInputT>>>
         broadcastVariables = ImmutableMap.copyOf(new HashMap<>());
 
     SparkExecutableStageFunction<InputT, SideInputT> function =
@@ -348,7 +345,7 @@ public class SparkStreamingPortablePipelineTranslator
     UnboundedDataset<T> inputDataset = (UnboundedDataset<T>) context.popDataset(inputId);
     List<Integer> streamSources = inputDataset.getStreamSources();
     JavaDStream<WindowedValue<T>> dStream = inputDataset.getDStream();
-    WindowedValue.WindowedValueCoder<T> coder =
+    WindowedValues.WindowedValueCoder<T> coder =
         getWindowedValueCoder(inputId, pipeline.getComponents());
 
     JavaDStream<WindowedValue<T>> reshuffledStream =

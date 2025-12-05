@@ -36,7 +36,7 @@ env:
 
 jobs:
   set-properties:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
@@ -56,14 +56,13 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.9
             3.10
             3.11
             3.12
+            3.13
           java-version: default
           go-version: default
           disable-cache: true
-          
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -77,12 +76,13 @@ jobs:
       - name: Commit Changes and create new PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_EVENT: ${{ github.event_name }}
         run: |
           # Take the current date, subtract from a release cut date in the past (Mar 6, 2024),
           # then get the num days % 42 (our release cadence is 42 days).
           # This will ensure it only runs the week after a release branch has been cut.
           days_diff=$(( ($(date +%s) - $(date --date="240306" +%s) )/(60*60*24)%42 ))
-          if [[ $days_diff -gt 6 ]]; then
+          if [[ $GH_EVENT != 'workflow_dispatch' && $days_diff -gt 6 ]]; then
             echo "Exiting early. We only update dependencies the week after we cut the release"
             exit 0
           fi

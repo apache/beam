@@ -32,7 +32,7 @@ configurations.implementation {
     }
 }
 
-def parquet_version = "1.13.1"
+def parquet_version = "1.15.2"
 
 dependencies {
     implementation library.java.avro

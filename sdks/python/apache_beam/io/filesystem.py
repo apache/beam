@@ -291,7 +291,7 @@ class CompressedFile(object):
     self._read_buffer.seek(0, os.SEEK_END)  # Allow future writes.
     return result
 
-  def read(self, num_bytes: Optional[int] = None) -> bytes:
+  def read(self, num_bytes: Optional[int] = DEFAULT_READ_BUFFER_SIZE) -> bytes:
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 

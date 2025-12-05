@@ -428,6 +428,17 @@ public interface PipelineLauncher {
   Job drainJob(String project, String region, String jobId) throws IOException;
 
   /**
+   * Force-cancels the given job.
+   *
+   * @param project the project that the job is running under
+   * @param region the region that the job was launched in
+   * @param jobId the id of the job to force-cancel
+   * @throws IOException if there is an issue sending the request
+   * @return Updated job instance
+   */
+  Job forceCancelJob(String project, String region, String jobId) throws IOException;
+
+  /**
    * Get the specified metric of the given job.
    *
    * @param project the project that the job is running under

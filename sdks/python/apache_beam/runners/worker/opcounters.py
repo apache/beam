@@ -122,13 +122,12 @@ class SideInputReadCounter(TransformIOCounter):
   Note that the declaring step originally receives the side input, but it may
   not be the only step that spends time reading from this side input.
   """
-
-  def __init__(self,
-               counter_factory,
-               state_sampler,  # type: StateSampler
-               declaring_step,
-               input_index
-              ):
+  def __init__(
+      self,
+      counter_factory,
+      state_sampler,  # type: StateSampler
+      declaring_step,
+      input_index):
     """Create a side input read counter.
 
     Args:
@@ -186,7 +185,7 @@ class OperationCounters(object):
       index,
       suffix='out',
       producer_type_hints=None,
-      producer_batch_converter=None, # type: Optional[BatchConverter]
+      producer_batch_converter=None,  # type: Optional[BatchConverter]
   ):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(

@@ -33,9 +33,10 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -72,14 +73,14 @@ public class ViewEvaluatorFactoryTest {
     TransformEvaluator<Iterable<String>> evaluator =
         new ViewEvaluatorFactory(context).forApplication(producer, inputBundle);
 
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(ImmutableList.of("foo", "bar")));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(ImmutableList.of("foo", "bar")));
     assertThat(viewWriter.latest, nullValue());
 
     evaluator.finishBundle();
     assertThat(
         viewWriter.latest,
         containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow("foo"), WindowedValue.valueInGlobalWindow("bar")));
+            WindowedValues.valueInGlobalWindow("foo"), WindowedValues.valueInGlobalWindow("bar")));
   }
 
   private static class TestViewWriter<ElemT, ViewT> implements PCollectionViewWriter<ElemT, ViewT> {

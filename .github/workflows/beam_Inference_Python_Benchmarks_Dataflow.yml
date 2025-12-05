@@ -55,7 +55,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Inference Benchmarks'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 900
+    timeout-minutes: 1000
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
@@ -72,7 +72,12 @@ jobs:
       - name: Setup Python environment
         uses: ./.github/actions/setup-environment-action
         with:
+          java-version: default
           python-version: '3.10'
+      - name: Package Python SDK using Gradle
+        run: ./gradlew :sdks:python:sdist -PpythonVersion=3.10
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-docker.pkg.dev
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -84,9 +89,52 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Language_Modeling_Bert_Base_Uncased.txt
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Language_Modeling_Bert_Large_Uncased.txt
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Imagenet_Classification_Resnet_152_Tesla_T4_GPU.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Sentiment_Streaming_DistilBert_Base_Uncased.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Sentiment_Batch_DistilBert_Base_Uncased.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_VLLM_Gemma_Batch.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
+      - name: Build VLLM Development Image
+        id: build_vllm_image
+        uses: ./.github/actions/build-push-docker-action
+        with:
+          dockerfile_path: 'sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile'
+          image_name: 'us-docker.pkg.dev/apache-beam-testing/beam-temp/beam-vllm-gpu-base'
+          image_tag: ${{ github.sha }}
+      - name: Run VLLM Gemma Batch Test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.vllm_gemma_benchmarks \
+            -Prunner=DataflowRunner \
+            -PsdkLocationOverride=false \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/vllm_tests_requirements.txt '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_8 }} --mode=batch --job_name=benchmark-tests-vllm-with-gemma-2b-it-batch-${{env.NOW_UTC}} --sdk_container_image=${{ steps.build_vllm_image.outputs.image_url }}'
+      - name: run Pytorch Sentiment Streaming using Hugging Face distilbert-base-uncased model
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_sentiment_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_6 }} --mode=streaming --job_name=benchmark-tests-pytorch-sentiment-distilbert-base-uncased-streaming-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_sentiment_distilbert_base_uncased' \
+      - name: run Pytorch Sentiment Batch using Hugging Face distilbert-base-uncased model
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_sentiment_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_7 }} --mode=batch --job_name=benchmark-tests-pytorch-sentiment-distilbert-base-uncased-batch-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_sentiment_distilbert_base_uncased' \
       - name: run Pytorch Vision Classification with Resnet 101
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -109,7 +157,7 @@ jobs:
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_2 }} --job_name=benchmark-tests-pytorch-imagenet-python-152-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet152-${{env.NOW_UTC}}.txt' \
-      - name: run Pytorch Language Modeling using Hugging face bert-base-uncased model
+      - name: run Pytorch Language Modeling using Hugging Face bert-base-uncased model
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:

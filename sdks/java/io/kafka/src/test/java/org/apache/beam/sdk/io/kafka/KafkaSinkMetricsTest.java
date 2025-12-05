@@ -19,9 +19,13 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -32,12 +36,36 @@ import org.junit.runners.JUnit4;
 public class KafkaSinkMetricsTest {
   @Test
   public void testCreatingHistogram() throws Exception {
-
     Histogram histogram =
         KafkaSinkMetrics.createRPCLatencyHistogram(KafkaSinkMetrics.RpcMethod.POLL, "topic1");
 
     MetricName histogramName =
-        MetricName.named("KafkaSink", "RpcLatency*rpc_method:POLL;topic_name:topic1;");
+        MetricName.named(
+            "KafkaSink",
+            "RpcLatency*rpc_method:POLL;topic_name:topic1;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
     assertThat(histogram.getName(), equalTo(histogramName));
+    assertTrue(
+        histogram
+            .getName()
+            .getLabels()
+            .containsKey(MonitoringInfoConstants.Labels.PER_WORKER_METRIC));
+  }
+
+  @Test
+  public void testCreatingBacklogGauge() throws Exception {
+    Gauge gauge =
+        KafkaSinkMetrics.createBacklogGauge(
+            KafkaSinkMetrics.getMetricGaugeName("topic", /*partitionId*/ 0));
+
+    MetricName gaugeName =
+        MetricName.named(
+            "KafkaSink",
+            "EstimatedBacklogSize*partition_id:0;topic_name:topic;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
+
+    assertThat(gauge.getName(), equalTo(gaugeName));
+    assertTrue(
+        gauge.getName().getLabels().containsKey(MonitoringInfoConstants.Labels.PER_WORKER_METRIC));
   }
 }

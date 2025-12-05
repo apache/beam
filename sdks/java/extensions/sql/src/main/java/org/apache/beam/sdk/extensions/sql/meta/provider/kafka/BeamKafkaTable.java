@@ -33,6 +33,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.io.kafka.ProducerRecordCoder;
+import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -59,6 +60,9 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
+
+  private TimestampPolicyFactory timestampPolicyFactory =
+      TimestampPolicyFactory.withProcessingTime();
   private String bootstrapServers;
   private List<String> topics;
   private List<TopicPartition> topicPartitions;
@@ -73,17 +77,35 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   }
 
   public BeamKafkaTable(Schema beamSchema, String bootstrapServers, List<String> topics) {
+    this(beamSchema, bootstrapServers, topics, TimestampPolicyFactory.withLogAppendTime());
+  }
+
+  public BeamKafkaTable(
+      Schema beamSchema,
+      String bootstrapServers,
+      List<String> topics,
+      TimestampPolicyFactory timestampPolicyFactory) {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
     this.configUpdates = new HashMap<>();
+    this.timestampPolicyFactory = timestampPolicyFactory;
   }
 
   public BeamKafkaTable(
       Schema beamSchema, List<TopicPartition> topicPartitions, String bootstrapServers) {
+    this(beamSchema, topicPartitions, bootstrapServers, TimestampPolicyFactory.withLogAppendTime());
+  }
+
+  public BeamKafkaTable(
+      Schema beamSchema,
+      List<TopicPartition> topicPartitions,
+      String bootstrapServers,
+      TimestampPolicyFactory timestampPolicyFactory) {
     super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topicPartitions = topicPartitions;
+    this.timestampPolicyFactory = timestampPolicyFactory;
   }
 
   public BeamKafkaTable updateConsumerProperties(Map<String, Object> configUpdates) {
@@ -119,7 +141,8 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
               .withTopics(topics)
               .withConsumerConfigUpdates(configUpdates)
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
+              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+              .withTimestampPolicyFactory(timestampPolicyFactory);
     } else if (topicPartitions != null) {
       kafkaRead =
           KafkaIO.<byte[], byte[]>read()
@@ -127,7 +150,8 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
               .withTopicPartitions(topicPartitions)
               .withConsumerConfigUpdates(configUpdates)
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
+              .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+              .withTimestampPolicyFactory(timestampPolicyFactory);
     } else {
       throw new InvalidTableException("One of topics and topicPartitions must be configurated.");
     }
@@ -159,6 +183,14 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
 
   public List<String> getTopics() {
     return topics;
+  }
+
+  public Map<String, Object> getConfigUpdates() {
+    return configUpdates;
+  }
+
+  public TimestampPolicyFactory getTimestampPolicyFactory() {
+    return this.timestampPolicyFactory;
   }
 
   @Override

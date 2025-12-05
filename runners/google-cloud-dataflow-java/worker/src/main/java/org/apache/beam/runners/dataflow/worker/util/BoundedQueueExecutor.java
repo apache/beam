@@ -37,7 +37,7 @@ public class BoundedQueueExecutor {
   private final long maximumBytesOutstanding;
 
   // Used to guard elementsOutstanding and bytesOutstanding.
-  private final Monitor monitor = new Monitor();
+  private final Monitor monitor;
   private final ConcurrentLinkedQueue<Long> decrementQueue = new ConcurrentLinkedQueue<>();
   private final Object decrementQueueDrainLock = new Object();
   private final AtomicBoolean isDecrementBatchPending = new AtomicBoolean(false);
@@ -65,8 +65,10 @@ public class BoundedQueueExecutor {
       TimeUnit unit,
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
-      ThreadFactory threadFactory) {
+      ThreadFactory threadFactory,
+      boolean useFairMonitor) {
     this.maximumPoolSize = initialMaximumPoolSize;
+    monitor = new Monitor(useFairMonitor);
     executor =
         new ThreadPoolExecutor(
             initialMaximumPoolSize,

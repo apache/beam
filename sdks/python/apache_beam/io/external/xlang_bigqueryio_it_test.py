@@ -44,6 +44,11 @@ from apache_beam.utils.timestamp import Timestamp
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
+  from apache_beam.io.gcp.gcsio import GcsIO
+except ImportError:
+  GcsIO = None
+
+try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
   HttpError = None
@@ -109,7 +114,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
     self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
-    self.bigquery_client = BigQueryWrapper()
+    self.bigquery_client = BigQueryWrapper.from_pipeline_options(
+        self.test_pipeline.options)
     self.dataset_id = '%s_%s_%s' % (
         self.BIGQUERY_DATASET, str(int(time.time())), secrets.token_hex(3))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
@@ -144,6 +150,62 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       data.append(tuple(values))
 
     return data
+
+  def assert_iceberg_tables_created(
+      self, table_prefix, storage_uri, expected_count=1):
+    """Verify that Iceberg table directories are created in
+    the warehouse location.
+
+    Args:
+      table_prefix: The table name prefix to look for
+      storage_uri: The GCS storage URI (e.g., 'gs://bucket/path')
+      expected_count: Expected number of table directories
+    """
+    if GcsIO is None:
+      _LOGGER.warning(
+          "GcsIO not available, skipping warehouse location verification")
+      return
+
+    gcs_io = GcsIO()
+
+    # Parse the storage URI to get bucket and prefix
+    if not storage_uri.startswith('gs://'):
+      raise ValueError(f'Storage URI must start with gs://, got: {storage_uri}')
+
+    # Remove 'gs://' prefix and split bucket from path
+    path_parts = storage_uri[5:].split('/', 1)
+    bucket_name = path_parts[0]
+    base_prefix = path_parts[1] if len(path_parts) > 1 else ''
+
+    # Construct the full prefix to search for table directories
+    # Following the pattern:
+    # {base_prefix}/{project}/{dataset}/{table_prefix}
+    search_prefix = (
+        f"{base_prefix}/"
+        f"{self.project}/{self.dataset_id}/{table_prefix}")
+
+    # List objects in the bucket with the constructed prefix
+    try:
+      objects = gcs_io.list_prefix(f"gs://{bucket_name}/{search_prefix}")
+      object_count = len(list(objects))
+
+      if object_count < expected_count:
+        raise AssertionError(
+            f"Expected at least {expected_count} objects in warehouse "
+            f"location gs://{bucket_name}/{search_prefix}, but found "
+            f"{object_count}")
+
+      _LOGGER.info(
+          "Successfully verified %s objects created in "
+          "warehouse location gs://%s/%s",
+          object_count,
+          bucket_name,
+          search_prefix)
+
+    except Exception as e:
+      raise AssertionError(
+          f"Failed to verify table creation in warehouse location "
+          f"gs://{bucket_name}/{search_prefix}: {str(e)}")
 
   def run_storage_write_test(
       self, table_name, items, schema, use_at_least_once=False):
@@ -243,6 +305,36 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           p
           | beam.Create(row_elements)
           | StorageWriteToBigQuery(table=table_id))
+    hamcrest_assert(p, bq_matcher)
+
+  def test_write_with_clustering(self):
+    table = 'write_with_clustering'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(self.ELEMENTS))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | "Create test data" >> beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              create_disposition='CREATE_IF_NEEDED',
+              write_disposition='WRITE_TRUNCATE',
+              additional_bq_parameters={'clustering': {
+                  'fields': ['int']
+              }}))
+
+    # After pipeline finishes, verify clustering is applied
+    table = self.bigquery_client.get_table(self.project, self.dataset_id, table)
+    clustering_fields = table.clustering.fields if table.clustering else []
+
+    self.assertEqual(clustering_fields, ['int'])
     hamcrest_assert(p, bq_matcher)
 
   def test_write_with_beam_rows_cdc(self):
@@ -480,6 +572,71 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   def test_streaming_with_at_least_once(self):
     table = 'streaming_with_at_least_once'
     self.run_streaming(table_name=table, use_at_least_once=True)
+
+  def test_write_with_big_lake_configuration(self):
+    """Test BigQuery Storage Write API with BigLake configuration."""
+    table = 'write_with_big_lake_config'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    # BigLake configuration with required parameters (matching Java test)
+    big_lake_config = {
+        'connectionId': 'projects/apache-beam-testing/locations/us/connections/apache-beam-testing-storageapi-biglake-nodelete',  # pylint: disable=line-too-long
+        'storageUri': 'gs://apache-beam-testing-bq-biglake/BigQueryXlangStorageWriteIT',  # pylint: disable=line-too-long
+        'fileFormat': 'parquet',
+        'tableFormat': 'iceberg'
+    }
+
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(self.ELEMENTS))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | "Create test data" >> beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              create_disposition='CREATE_IF_NEEDED',
+              write_disposition='WRITE_TRUNCATE',
+              big_lake_configuration=big_lake_config))
+
+    hamcrest_assert(p, bq_matcher)
+
+    # Verify that the table directory was created in the warehouse location
+    self.assert_iceberg_tables_created(table, big_lake_config['storageUri'])
+
+  def test_write_with_managed_transform(self):
+    table = 'write_with_managed_transform'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    row_elements = [
+        beam.Row(
+            my_int=e['int'],
+            my_float=e['float'],
+            my_string=e['str'],
+            my_bool=e['bool'],
+            my_bytes=e['bytes'],
+            my_timestamp=e['timestamp']) for e in self.ELEMENTS
+    ]
+
+    expected = []
+    for e in self.ELEMENTS:
+      del e["numeric"]
+      expected.append(e)
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(expected))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(row_elements)
+          | beam.managed.Write("bigquery", config={"table": table_id}))
+    hamcrest_assert(p, bq_matcher)
 
 
 if __name__ == '__main__':

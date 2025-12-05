@@ -27,13 +27,17 @@ The major components of Beam each have their own roadmap which you can find
 via the menu.
 Below are some highlights for the project as a whole.
 
+## Beam 3
+
+Beam 3 is the planned first major version upgrade. See https://s.apache.org/beam3-milestones for details.
+
 ## Portability Framework
 
 Portability is the primary Beam vision: running pipelines authored with _any SDK_
 on _any runner_. This is a cross-cutting effort across Java, Python, and Go,
 and every Beam runner. Portability is currently supported on the
-[Flink](/documentation/runners/flink/), [Spark](/documentation/runners/spark/)
-and [Prism](/documentation/runners/prism/) runners.
+[DataFlow](/documentation/runners/dataflow), [Flink](/documentation/runners/flink/), [Jet](/documentation/runners/jet), [Nemo](/documentation/runners/nemo), [Prism](/documentation/runners/prism/), [Samza](/documentation/runners/samza), [Spark](/documentation/runners/spark/), and [Twister2](/documentation/runners/Twister2)
+runners.
 
 See the details on the [Portability Roadmap](/roadmap/portability/)
 
@@ -46,22 +50,19 @@ For details see [Roadmap for multi-SDK efforts](/roadmap/connectors-multi-sdk/).
 
 ## Go SDK
 
-The Go SDK is the newest SDK, and is the first SDK built entirely on the
-portability framework. See the [Go SDK's Roadmap](/roadmap/go-sdk) if this piques your
-interest.
+The Go SDK is not actively being developed beyond bugfixes due to lack of contributors. If you'd like to help move this forward again, see the [Go SDK's Roadmap](/roadmap/go-sdk)
 
 ## Python 3 support
 
-Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We continue to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and plan to phase out Python 2 support ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)):
+As of Apache Beam 2.69.0, we support python version from 3.9 uptil Python 3.13. Supporting Python 3.14 is in our roadmap.
 
 See details on
 the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
 
-## Java 17 support
+## Java support
 
-The Java SDK is eager to add support for Java's next LTS (Long Term Support)
-version. See details on
-the [Java SDK's Roadmap](/roadmap/java-sdk).
+As of Beam 2.69.0, we support Java 8, 11, 17, 21, 25. Java 8 support is deprecated and scheduled for removal in Beam 3.0.0.
+See details on the [Java SDK's Roadmap](/roadmap/java-sdk).
 
 ## SQL
 
@@ -78,9 +79,3 @@ Portable schemas enable compatibility between rows in Python and Java.
 A particularly interesting use case is the combination of SQL (implemented in Java)
 with the Python SDK via Beam's cross-language support.
 Learn more about portable schemas from this [presentation](https://s.apache.org/portable-schemas-seattle).
-
-## Euphoria
-
-Euphoria is Beam's newest API, offering a high-level, fluent style for
-Beam Java developers. See the [Euphoria API Roadmap](/roadmap/euphoria).
-

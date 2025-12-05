@@ -89,9 +89,9 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Flink_Batch_100b_Single_Key.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Flink_Batch_100b_Multiple_Keys.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Flink_Batch_10kB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Flink_Batch_100b_Single_Key.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Flink_Batch_100b_Multiple_Keys.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Flink_Batch_10kB.txt
       - name: Start Flink with parallelism 5
         env:
           FLINK_NUM_WORKERS: 5
@@ -108,8 +108,9 @@ jobs:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             --info \
+            -PpythonVersion=3.10 \
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
-            -Prunner=FlinkRunner \
+            -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Flink_Batch_test_arguments_1 }} --job_name=load-tests-python-flink-batch-cogbk-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK 2GB of 100B records with multiple keys
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -117,8 +118,9 @@ jobs:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             --info \
+            -PpythonVersion=3.10 \
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
-            -Prunner=FlinkRunner \
+            -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Flink_Batch_test_arguments_2 }} --job_name=load-tests-python-flink-batch-cogbk-2-${{ steps.datetime.outputs.datetime }}' \
       - name: run CoGBK reiterate 4 times 10kB values
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -126,8 +128,9 @@ jobs:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             --info \
+            -PpythonVersion=3.10 \
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
-            -Prunner=FlinkRunner \
+            -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Flink_Batch_test_arguments_2 }} --job_name=load-tests-python-flink-batch-cogbk-3-${{ steps.datetime.outputs.datetime }}' \
       - name: Teardown Flink
         if: always()

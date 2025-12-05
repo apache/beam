@@ -63,6 +63,19 @@ func Upload(ctx context.Context, client *storage.Client, project, bucket, object
 
 }
 
+var getBucketAttrs = func(ctx context.Context, client *storage.Client, bucketName string) (*storage.BucketAttrs, error) {
+	return client.Bucket(bucketName).Attrs(ctx)
+}
+
+// SoftDeletePolicyEnabled returns true if SoftDeletePolicy is enabled on bucket
+func SoftDeletePolicyEnabled(ctx context.Context, client *storage.Client, bucketName string) (bool, error) {
+	attrs, err := getBucketAttrs(ctx, client, bucketName)
+	if err != nil {
+		return false, err
+	}
+	return attrs.SoftDeletePolicy != nil && attrs.SoftDeletePolicy.RetentionDuration > 0, nil
+}
+
 // Get BucketAttrs with RetentionDuration of SoftDeletePolicy set to zero for disabling SoftDeletePolicy.
 func getDisableSoftDeletePolicyBucketAttrs() *storage.BucketAttrs {
 	attrs := &storage.BucketAttrs{

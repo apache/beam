@@ -31,10 +31,11 @@ from collections import OrderedDict
 from collections import namedtuple
 
 import grpc
+import yaml
 
 from apache_beam import pvalue
 from apache_beam.coders import RowCoder
-from apache_beam.options.pipeline_options import CrossLanguageOptions
+from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
@@ -42,10 +43,12 @@ from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.portability.api import schema_pb2
+from apache_beam.portability.common_urns import ManagedTransforms
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import environments
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.util import is_compat_version_prior_to
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import row_type
@@ -60,6 +63,31 @@ from apache_beam.utils import subprocess_server
 from apache_beam.utils import transform_service_launcher
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
+
+MANAGED_SCHEMA_TRANSFORM_IDENTIFIER = "beam:transform:managed:v1"
+
+_IO_EXPANSION_SERVICE_JAR_TARGET = "sdks:java:io:expansion-service:shadowJar"
+
+_GCP_EXPANSION_SERVICE_JAR_TARGET = (
+    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar")
+
+# A mapping from supported managed transforms URNs to expansion service jars
+# that include the corresponding transforms.
+MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING = {
+    ManagedTransforms.Urns.ICEBERG_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.ICEBERG_WRITE.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.ICEBERG_CDC_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.KAFKA_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.KAFKA_WRITE.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.BIGQUERY_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.BIGQUERY_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.POSTGRES_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.POSTGRES_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.MYSQL_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.MYSQL_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.SQL_SERVER_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.SQL_SERVER_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+}
 
 
 def convert_to_typing_type(type_):
@@ -162,8 +190,8 @@ class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
     }
 
     schema = named_fields_to_schema([
-        (key, convert_to_typing_type(instance_to_type(value))) for key,
-        value in values.items()
+        (key, convert_to_typing_type(instance_to_type(value)))
+        for key, value in values.items()
     ])
     return named_tuple_from_schema(schema)(**values)
 
@@ -226,8 +254,7 @@ class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
       elif type_info == 'map_type':
         return {
             key: dict_to_row_recursive(field_type.map_type.value_type, value)
-            for key,
-            value in py_value.items()
+            for key, value in py_value.items()
         }
       else:
         return py_value
@@ -378,6 +405,10 @@ SchemaTransformsConfig = namedtuple(
     'SchemaTransformsConfig',
     ['identifier', 'configuration_schema', 'inputs', 'outputs', 'description'])
 
+ManagedReplacement = namedtuple(
+    'ManagedReplacement',
+    ['underlying_transform_identifier', 'update_compatibility_version'])
+
 
 class SchemaAwareExternalTransform(ptransform.PTransform):
   """A proxy transform for SchemaTransforms implemented in external SDKs.
@@ -396,6 +427,12 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       the configuration.
   :param classpath: (Optional) A list paths to additional jars to place on the
       expansion service classpath.
+  :param managed_replacement: (Optional) a 'ManagedReplacement' namedtuple that
+      defines information needed to replace the transform with an equivalent
+      managed transform during the expansion. If an
+      'updateCompatibilityBeamVersion' pipeline option is provided, we will
+      only replace if the managed transform is update compatible with the
+      provided version.
   :kwargs: field name to value mapping for configuring the schema transform.
       keys map to the field names of the schema of the SchemaTransform
       (in-order).
@@ -406,10 +443,14 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       expansion_service,
       rearrange_based_on_discovery=False,
       classpath=None,
+      managed_replacement=None,
       **kwargs):
     self._expansion_service = expansion_service
     self._kwargs = kwargs
     self._classpath = classpath
+    if managed_replacement:
+      assert isinstance(managed_replacement, ManagedReplacement)
+    self._managed_replacement = managed_replacement
 
     _kwargs = kwargs
     if rearrange_based_on_discovery:
@@ -420,16 +461,55 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
           named_tuple_to_schema(config.configuration_schema),
           **_kwargs)
 
+      if self._managed_replacement:
+        # We have to do the replacement at the expansion instead of at
+        # construction
+        # since we don't have access to the PipelineOptions object at the
+        # construction.
+        underlying_transform_id = (
+            self._managed_replacement.underlying_transform_identifier)
+        if not (underlying_transform_id
+                in MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING):
+          raise ValueError(
+              'Could not find an expansion service jar for the managed ' +
+              'transform ' + underlying_transform_id)
+        managed_expansion_service_jar = (
+            MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING
+        )[underlying_transform_id]
+        self._managed_expansion_service = BeamJarExpansionService(
+            managed_expansion_service_jar)
+        managed_config = SchemaAwareExternalTransform.discover_config(
+            self._managed_expansion_service,
+            MANAGED_SCHEMA_TRANSFORM_IDENTIFIER)
+
+        yaml_config = yaml.dump(kwargs)
+        self._managed_payload_builder = (
+            ExplicitSchemaTransformPayloadBuilder(
+                MANAGED_SCHEMA_TRANSFORM_IDENTIFIER,
+                named_tuple_to_schema(managed_config.configuration_schema),
+                transform_identifier=underlying_transform_id,
+                config=yaml_config))
     else:
       self._payload_builder = SchemaTransformPayloadBuilder(
           identifier, **_kwargs)
 
   def expand(self, pcolls):
     # Expand the transform using the expansion service.
+    payload_builder = self._payload_builder
+    expansion_service = self._expansion_service
+
+    if self._managed_replacement:
+      compat_version_prior_to_current = is_compat_version_prior_to(
+          pcolls.pipeline._options,
+          self._managed_replacement.update_compatibility_version)
+      if not compat_version_prior_to_current:
+        payload_builder = self._managed_payload_builder
+        expansion_service = self._managed_expansion_service
+
     return pcolls | self._payload_builder.identifier() >> ExternalTransform(
         common_urns.schematransform_based_expand.urn,
-        self._payload_builder,
-        self._expansion_service)
+        payload_builder,
+        expansion_service)
 
   @classmethod
   @functools.lru_cache
@@ -595,8 +675,8 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 
   def _get_named_tuple_instance(self):
     schema = named_fields_to_schema([
-        (k, convert_to_typing_type(v)) for k,
-        v in self._transform.__init__.__annotations__.items()
+        (k, convert_to_typing_type(v))
+        for k, v in self._transform.__init__.__annotations__.items()
         if k in self._values
     ])
     return named_tuple_from_schema(schema)(**self._values)
@@ -770,8 +850,7 @@ class ExternalTransform(ptransform.PTransform):
 
     self._outputs = {
         tag: fix_output(result_context.pcollections.get_by_id(pcoll_id), tag)
-        for tag,
-        pcoll_id in self._expanded_transform.outputs.items()
+        for tag, pcoll_id in self._expanded_transform.outputs.items()
     }
 
     return self._output_to_pvalueish(self._outputs)
@@ -892,13 +971,11 @@ class ExternalTransform(ptransform.PTransform):
           subtransforms=proto.subtransforms,
           inputs={
               tag: pcoll_renames.get(pcoll, pcoll)
-              for tag,
-              pcoll in proto.inputs.items()
+              for tag, pcoll in proto.inputs.items()
           },
           outputs={
               tag: pcoll_renames.get(pcoll, pcoll)
-              for tag,
-              pcoll in proto.outputs.items()
+              for tag, pcoll in proto.outputs.items()
           },
           display_data=proto.display_data,
           environment_id=proto.environment_id)
@@ -913,13 +990,11 @@ class ExternalTransform(ptransform.PTransform):
         subtransforms=self._expanded_transform.subtransforms,
         inputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag,
-            pcoll in self._expanded_transform.inputs.items()
+            for tag, pcoll in self._expanded_transform.inputs.items()
         },
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag,
-            pcoll in self._expanded_transform.outputs.items()
+            for tag, pcoll in self._expanded_transform.outputs.items()
         },
         annotations=self._expanded_transform.annotations,
         environment_id=self._expanded_transform.environment_id)
@@ -957,9 +1032,21 @@ class JavaJarExpansionService(object):
     append_args: arguments to be provided when starting up the
       expansion service using the jar file. These arguments will be appended to
       the default arguments.
+    user_agent: HTTP user agent string used when downloading jars via
+      `JavaJarServer.local_jar`, including the main jar and any classpath
+      dependencies.
+    maven_repository_url: Maven repository base URL to resolve artifacts when
+      classpath entries or jars are specified as Maven coordinates
+      (`group:artifact:version`). Defaults to Maven Central if not provided.
   """
   def __init__(
-      self, path_to_jar, extra_args=None, classpath=None, append_args=None):
+      self,
+      path_to_jar,
+      extra_args=None,
+      classpath=None,
+      append_args=None,
+      user_agent=None,
+      maven_repository_url=None):
     if extra_args and append_args:
       raise ValueError('Only one of extra_args or append_args may be provided')
     self.path_to_jar = path_to_jar
@@ -967,12 +1054,14 @@ class JavaJarExpansionService(object):
     self._classpath = classpath or []
     self._service_count = 0
     self._append_args = append_args or []
+    self._user_agent = user_agent
+    self._maven_repository_url = maven_repository_url
 
   def is_existing_service(self):
     return subprocess_server.is_service_endpoint(self.path_to_jar)
 
   @staticmethod
-  def _expand_jars(jar):
+  def _expand_jars(jar, user_agent=None, maven_repository_url=None):
     if glob.glob(jar):
       return glob.glob(jar)
     elif isinstance(jar, str) and (jar.startswith('http://') or
@@ -991,14 +1080,21 @@ class JavaJarExpansionService(object):
         return [jar]
       path = subprocess_server.JavaJarServer.local_jar(
           subprocess_server.JavaJarServer.path_to_maven_jar(
-              artifact_id, group_id, version))
+              artifact_id,
+              group_id,
+              version,
+              repository=(
+                  maven_repository_url or
+                  subprocess_server.JavaJarServer.MAVEN_CENTRAL_REPOSITORY)),
+          user_agent=user_agent)
       return [path]
 
   def _default_args(self):
     """Default arguments to be used by `JavaJarExpansionService`."""
 
     to_stage = ','.join([self.path_to_jar] + sum((
-        JavaJarExpansionService._expand_jars(jar)
+        JavaJarExpansionService._expand_jars(
+            jar, self._user_agent, self._maven_repository_url)
         for jar in self._classpath or []), []))
     args = ['{{PORT}}', f'--filesToStage={to_stage}']
     # TODO(robertwb): See if it's possible to scope this per pipeline.
@@ -1007,10 +1103,14 @@ class JavaJarExpansionService(object):
       args.append('--alsoStartLoopbackWorker')
     return args
 
+  def with_user_agent(self, user_agent: str):
+    self._user_agent = user_agent
+    return self
+
   def __enter__(self):
     if self._service_count == 0:
       self.path_to_jar = subprocess_server.JavaJarServer.local_jar(
-          self.path_to_jar)
+          self.path_to_jar, user_agent=self._user_agent)
       if self._extra_args is None:
         self._extra_args = self._default_args() + self._append_args
       # Consider memoizing these servers (with some timeout).
@@ -1022,13 +1122,16 @@ class JavaJarExpansionService(object):
       classpath_urls = [
           subprocess_server.JavaJarServer.local_jar(path)
           for jar in self._classpath
-          for path in JavaJarExpansionService._expand_jars(jar)
+          for path in JavaJarExpansionService._expand_jars(
+              jar, user_agent=self._user_agent,
+              maven_repository_url=self._maven_repository_url)
       ]
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
           self.path_to_jar,
           self._extra_args,
-          classpath=classpath_urls)
+          classpath=classpath_urls,
+          logger="ExpansionService")
       self._service = self._service_provider.__enter__()
     self._service_count += 1
     return self._service
@@ -1057,6 +1160,11 @@ class BeamJarExpansionService(JavaJarExpansionService):
     append_args: arguments to be provided when starting up the
       expansion service using the jar file. These arguments will be appended to
       the default arguments.
+    user_agent: HTTP user agent string used when downloading the Beam jar and
+      any classpath dependencies.
+    maven_repository_url: Maven repository base URL to resolve the Beam jar
+      for the provided Gradle target. Defaults to Maven Central if not
+      provided.
   """
   def __init__(
       self,
@@ -1064,12 +1172,21 @@ class BeamJarExpansionService(JavaJarExpansionService):
       extra_args=None,
       gradle_appendix=None,
       classpath=None,
-      append_args=None):
+      append_args=None,
+      user_agent=None,
+      maven_repository_url=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
-        gradle_target, gradle_appendix)
+        gradle_target,
+        gradle_appendix,
+        maven_repository_url=maven_repository_url)
     self.gradle_target = gradle_target
     super().__init__(
-        path_to_jar, extra_args, classpath=classpath, append_args=append_args)
+        path_to_jar,
+        extra_args,
+        classpath=classpath,
+        append_args=append_args,
+        user_agent=user_agent,
+        maven_repository_url=maven_repository_url)
 
 
 def _maybe_use_transform_service(provided_service=None, options=None):
@@ -1085,7 +1202,8 @@ def _maybe_use_transform_service(provided_service=None, options=None):
     return provided_service
 
   def is_java_available():
-    cmd = ['java', '--version']
+    java = subprocess_server.JavaHelper.get_java()
+    cmd = [java, '--version']
 
     try:
       subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -1110,10 +1228,11 @@ def _maybe_use_transform_service(provided_service=None, options=None):
   docker_available = is_docker_available()
 
   use_transform_service = options.view_as(
-      CrossLanguageOptions).use_transform_service
+      pipeline_options.CrossLanguageOptions).use_transform_service
+  user_agent = options.view_as(pipeline_options.SetupOptions).user_agent
 
   if (java_available and provided_service and not use_transform_service):
-    return provided_service
+    return provided_service.with_user_agent(user_agent)
   elif docker_available:
     if use_transform_service:
       error_append = 'it was explicitly requested'
@@ -1135,7 +1254,7 @@ def _maybe_use_transform_service(provided_service=None, options=None):
     beam_version = beam_version.__version__
 
     return transform_service_launcher.TransformServiceLauncher(
-        project_name, port, beam_version)
+        project_name, port, beam_version, user_agent)
   else:
     raise ValueError(
         'Cannot start an expansion service since neither Java nor '

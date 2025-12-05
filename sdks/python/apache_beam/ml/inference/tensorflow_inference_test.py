@@ -22,11 +22,10 @@ import shutil
 import tempfile
 import unittest
 import uuid
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import numpy
@@ -44,9 +43,11 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow as tf
-  from apache_beam.ml.inference.sklearn_inference_test import _compare_prediction_result
-  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy, TFModelHandlerTensor
+
   from apache_beam.ml.inference import tensorflow_inference
+  from apache_beam.ml.inference.sklearn_inference_test import _compare_prediction_result
+  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerNumpy
+  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
 except ImportError:
   raise unittest.SkipTest(
       'Tensorflow dependencies are not installed. ' +
@@ -78,7 +79,7 @@ def _compare_tensor_prediction_result(x, y):
 def fake_inference_fn(
     model: tf.Module,
     batch: Union[Sequence[numpy.ndarray], Sequence[tf.Tensor]],
-    inference_args: Dict[str, Any],
+    inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   predictions = model.predict(batch, **inference_args)
   return utils._convert_to_result(batch, predictions, model_id)
@@ -116,8 +117,7 @@ class TFRunInferenceTest(unittest.TestCase):
         tf.convert_to_tensor(numpy.array([100])),
     ]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             batched_examples,
             [tf.math.multiply(n, 10) for n in batched_examples])
     ]
@@ -130,12 +130,13 @@ class TFRunInferenceTest(unittest.TestCase):
     model = _create_mult2_model()
     model_path = os.path.join(self.tmpdir, f'mult2_{uuid.uuid4()}.keras')
     tf.keras.models.save_model(model, model_path)
-    with TestPipeline() as pipeline:
+    # FnApiRunner guarantees large batches, which this pipeline assumes
+    with TestPipeline('FnApiRunner') as pipeline:
 
       def fake_batching_inference_fn(
           model: tf.Module,
           batch: Union[Sequence[numpy.ndarray], Sequence[tf.Tensor]],
-          inference_args: Dict[str, Any],
+          inference_args: dict[str, Any],
           model_id: Optional[str] = None) -> Iterable[PredictionResult]:
         if len(batch) != 2:
           raise Exception(
@@ -160,8 +161,8 @@ class TFRunInferenceTest(unittest.TestCase):
               numpy.array([200.1, 300.2, 400.3], dtype='float32')),
       ]
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(examples, [tf.math.multiply(n, 2) for n in examples])
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, [tf.math.multiply(n, 2) for n in examples])
       ]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -181,7 +182,7 @@ class TFRunInferenceTest(unittest.TestCase):
       def fake_batching_inference_fn(
           model: tf.Module,
           batch: Union[Sequence[numpy.ndarray], Sequence[tf.Tensor]],
-          inference_args: Dict[str, Any],
+          inference_args: dict[str, Any],
           model_id: Optional[str] = None) -> Iterable[PredictionResult]:
         multi_process_shared_loaded = "multi_process_shared" in str(type(model))
         if not multi_process_shared_loaded:
@@ -207,8 +208,8 @@ class TFRunInferenceTest(unittest.TestCase):
               numpy.array([200.1, 300.2, 400.3], dtype='float32')),
       ]
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(examples, [tf.math.multiply(n, 2) for n in examples])
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, [tf.math.multiply(n, 2) for n in examples])
       ]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -223,12 +224,15 @@ class TFRunInferenceTest(unittest.TestCase):
     model = _create_mult2_model()
     model_path = os.path.join(self.tmpdir, f'mult2_{uuid.uuid4()}.keras')
     tf.keras.models.save_model(model, model_path)
-    with TestPipeline() as pipeline:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on a
+    # runner producing a single bundle or bundles of even size, neither of
+    # which prism seems to do here
+    with TestPipeline('FnApiRunner') as pipeline:
 
       def fake_batching_inference_fn(
           model: tf.Module,
           batch: Sequence[numpy.ndarray],
-          inference_args: Dict[str, Any],
+          inference_args: dict[str, Any],
           model_id: Optional[str] = None) -> Iterable[PredictionResult]:
         if len(batch) != 2:
           raise Exception(
@@ -250,8 +254,8 @@ class TFRunInferenceTest(unittest.TestCase):
           numpy.array([200.1, 300.2, 400.3], dtype='float32'),
       ]
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(examples, [numpy.multiply(n, 2) for n in examples])
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, [numpy.multiply(n, 2) for n in examples])
       ]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -271,7 +275,7 @@ class TFRunInferenceTest(unittest.TestCase):
       def fake_inference_fn(
           model: tf.Module,
           batch: Sequence[numpy.ndarray],
-          inference_args: Dict[str, Any],
+          inference_args: dict[str, Any],
           model_id: Optional[str] = None) -> Iterable[PredictionResult]:
         multi_process_shared_loaded = "multi_process_shared" in str(type(model))
         if not multi_process_shared_loaded:
@@ -294,8 +298,8 @@ class TFRunInferenceTest(unittest.TestCase):
           numpy.array([200.1, 300.2, 400.3], dtype='float32'),
       ]
       expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(examples, [numpy.multiply(n, 2) for n in examples])
+          PredictionResult(ex, pred) for ex, pred in zip(
+              examples, [numpy.multiply(n, 2) for n in examples])
       ]
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
@@ -316,8 +320,7 @@ class TFRunInferenceTest(unittest.TestCase):
         tf.convert_to_tensor(numpy.array([100])),
     ]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             batched_examples, [
                 tf.math.add(tf.math.multiply(n, 10), 10)
                 for n in batched_examples
@@ -339,8 +342,7 @@ class TFRunInferenceTest(unittest.TestCase):
         ('k3', numpy.array([100], dtype=numpy.int64)),
     ]
     expected_predictions = [
-        (ex[0], PredictionResult(ex[1], pred)) for ex,
-        pred in zip(
+        (ex[0], PredictionResult(ex[1], pred)) for ex, pred in zip(
             batched_examples,
             [numpy.multiply(n[1], 10) for n in batched_examples])
     ]
@@ -359,8 +361,7 @@ class TFRunInferenceTest(unittest.TestCase):
         ('k3', tf.convert_to_tensor(numpy.array([100]))),
     ]
     expected_predictions = [
-        (ex[0], PredictionResult(ex[1], pred)) for ex,
-        pred in zip(
+        (ex[0], PredictionResult(ex[1], pred)) for ex, pred in zip(
             batched_examples,
             [tf.math.multiply(n[1], 10) for n in batched_examples])
     ]
@@ -371,8 +372,9 @@ class TFRunInferenceTest(unittest.TestCase):
   def test_load_model_exception(self):
     with self.assertRaises(ValueError):
       tensorflow_inference._load_model(
-          "https://tfhub.dev/google/imagenet/mobilenet_v1_075_192/quantops/classification/3", # pylint: disable=line-too-long
-          None, {})
+          "https://tfhub.dev/google/imagenet/mobilenet_v1_075_192/quantops/classification/3",  # pylint: disable=line-too-long
+          None,
+          {})
 
 
 @pytest.mark.uses_tf

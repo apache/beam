@@ -34,7 +34,6 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -61,12 +60,14 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -170,7 +171,8 @@ public class SplittableParDoProcessFnTest {
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               fn,
               tester.getPipelineOptions(),
-              new OutputWindowedValueToDoFnTester<>(tester),
+              new DoFnTesterWindowedValueReceiver(tester),
+              tester.getMainOutputTag(),
               new SideInputReader() {
                 @Override
                 public <T> T get(PCollectionView<T> view, BoundedWindow window) {
@@ -208,7 +210,7 @@ public class SplittableParDoProcessFnTest {
     /** Performs a seed {@link DoFn.ProcessElement} call feeding the element and restriction. */
     void startElement(InputT element, RestrictionT restriction) throws Exception {
       startElement(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(element, restriction),
               currentProcessingTime,
               GlobalWindow.INSTANCE,
@@ -255,32 +257,21 @@ public class SplittableParDoProcessFnTest {
     }
   }
 
-  private static class OutputWindowedValueToDoFnTester<OutputT>
-      implements OutputWindowedValue<OutputT> {
-    private final DoFnTester<?, OutputT> tester;
+  private static class DoFnTesterWindowedValueReceiver implements WindowedValueMultiReceiver {
+    private final DoFnTester<?, ?> tester;
 
-    private OutputWindowedValueToDoFnTester(DoFnTester<?, OutputT> tester) {
+    private DoFnTesterWindowedValueReceiver(DoFnTester<?, ?> tester) {
       this.tester = tester;
     }
 
     @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      outputWindowedValue(tester.getMainOutputTag(), output, timestamp, windows, pane);
-    }
-
-    @Override
-    public <AdditionalOutputT> void outputWindowedValue(
-        TupleTag<AdditionalOutputT> tag,
-        AdditionalOutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      for (BoundedWindow window : windows) {
-        tester.getMutableOutput(tag).add(ValueInSingleWindow.of(output, timestamp, window, pane));
+    public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
+      for (BoundedWindow window : output.getWindows()) {
+        tester
+            .getMutableOutput(tag)
+            .add(
+                ValueInSingleWindow.of(
+                    output.getValue(), output.getTimestamp(), window, output.getPaneInfo()));
       }
     }
   }
@@ -324,7 +315,7 @@ public class SplittableParDoProcessFnTest {
             MAX_OUTPUTS_PER_BUNDLE,
             MAX_BUNDLE_DURATION);
     tester.startElement(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of(42, new SomeRestriction()),
             base,
             Collections.singletonList(w),

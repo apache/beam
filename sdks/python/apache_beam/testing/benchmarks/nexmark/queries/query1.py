@@ -38,8 +38,5 @@ def load(events, metadata=None, pipeline_options=None):
       | nexmark_query_util.JustBids()
       | 'ConvertToEuro' >> beam.Map(
           lambda bid: nexmark_model.Bid(
-              bid.auction,
-              bid.bidder,
-              bid.price * USD_TO_EURO,
-              bid.date_time,
+              bid.auction, bid.bidder, bid.price * USD_TO_EURO, bid.date_time,
               bid.extra)))

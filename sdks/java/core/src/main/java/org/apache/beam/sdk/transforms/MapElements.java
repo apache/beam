@@ -158,6 +158,7 @@ public class MapElements<InputT, OutputT>
   }
 
   /** A DoFn implementation that handles a trivial map call. */
+  @SuppressWarnings("unused") // for outer
   private abstract class MapDoFn extends DoFn<InputT, OutputT> {
 
     /** Holds {@link MapDoFn#outer instance} of enclosing class, used by runner implementations. */

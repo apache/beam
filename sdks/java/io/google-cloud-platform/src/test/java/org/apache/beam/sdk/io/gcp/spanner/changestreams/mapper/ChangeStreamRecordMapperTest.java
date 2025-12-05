@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestJsonMapper.recordToJson;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestProtoMapper.recordToProto;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithJson;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithStrings;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsWithUnknownModTypeAndValueCaptureType;
@@ -41,8 +42,11 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ModType;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEndRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ValueCaptureType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -929,5 +933,110 @@ public class ChangeStreamRecordMapperTest {
     assertEquals(
         Collections.singletonList(childPartitionsRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToPartitionStartRecord() {
+    final PartitionStartRecord partitionStartRecord =
+        new PartitionStartRecord(
+            Timestamp.MIN_VALUE,
+            "fakeRecordSequence",
+            Arrays.asList("partitionToken1", "partitionToken2"),
+            null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(partitionStartRecord);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+
+    when(resultSet.isProtoChangeRecord()).thenReturn(true);
+    when(resultSet.getProtoChangeStreamRecord()).thenReturn(changeStreamRecordProto);
+    assertEquals(
+        Collections.singletonList(partitionStartRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToPartitionEndRecord() {
+    final PartitionEndRecord partitionEndChange =
+        new PartitionEndRecord(Timestamp.MIN_VALUE, "fakeRecordSequence", null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(partitionEndChange);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+
+    when(resultSet.isProtoChangeRecord()).thenReturn(true);
+    when(resultSet.getProtoChangeStreamRecord()).thenReturn(changeStreamRecordProto);
+    assertEquals(
+        Collections.singletonList(partitionEndChange),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToPartitionEventRecord() {
+    final PartitionEventRecord partitionEventRecord =
+        new PartitionEventRecord(Timestamp.MIN_VALUE, "fakeRecordSequence", null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(partitionEventRecord);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+
+    when(resultSet.isProtoChangeRecord()).thenReturn(true);
+    when(resultSet.getProtoChangeStreamRecord()).thenReturn(changeStreamRecordProto);
+    assertEquals(
+        Collections.singletonList(partitionEventRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToHeartbeatRecord() {
+    final HeartbeatRecord heartbeatRecord =
+        new HeartbeatRecord(Timestamp.ofTimeSecondsAndNanos(10L, 20), null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(heartbeatRecord);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+
+    when(resultSet.isProtoChangeRecord()).thenReturn(true);
+    when(resultSet.getProtoChangeStreamRecord()).thenReturn(changeStreamRecordProto);
+    assertEquals(
+        Collections.singletonList(heartbeatRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "serverTransactionId",
+            true,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
+            Collections.singletonList(
+                new Mod(
+                    "{\"column1\":\"value1\"}",
+                    "{\"column2\":\"oldValue2\"}",
+                    "{\"column2\":\"newValue2\"}")),
+            ModType.UPDATE,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(dataChangeRecord);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+
+    when(resultSet.isProtoChangeRecord()).thenReturn(true);
+    when(resultSet.getProtoChangeStreamRecord()).thenReturn(changeStreamRecordProto);
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 }

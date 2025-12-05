@@ -174,8 +174,9 @@ class SdkHarness(object):
       data_sampler=None,  # type: Optional[data_sampler.DataSampler]
       # Unrecoverable SDK harness initialization error (if any)
       # that should be reported to the runner when proocessing the first bundle.
-      deferred_exception=None, # type: Optional[Exception]
-      runner_capabilities=frozenset(), # type: FrozenSet[str]
+      deferred_exception=None,  # type: Optional[Exception]
+      runner_capabilities=frozenset(),  # type: FrozenSet[str]
+      element_processing_timeout_minutes=None,  # type: Optional[int]
   ):
     # type: (...) -> None
     self._alive = True
@@ -207,6 +208,8 @@ class SdkHarness(object):
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
+    self._element_processing_timeout_minutes = (
+        element_processing_timeout_minutes)
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -223,21 +226,21 @@ class SdkHarness(object):
         fns=self._fns,
         data_sampler=self.data_sampler,
     )
-
+    self._status_handler = None  # type: Optional[FnApiWorkerStatusHandler]
     if status_address:
       try:
         self._status_handler = FnApiWorkerStatusHandler(
             status_address,
             self._bundle_processor_cache,
             self._state_cache,
-            enable_heap_dump)  # type: Optional[FnApiWorkerStatusHandler]
+            enable_heap_dump,
+            element_processing_timeout_minutes=self.
+            _element_processing_timeout_minutes)
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(
             'Error creating worker status request handler, '
             'skipping status report. Trace back: %s' % traceback_string)
-    else:
-      self._status_handler = None
 
     # TODO(BEAM-8998) use common
     # thread_pool_executor.shared_unbounded_instance() to process bundle
@@ -361,8 +364,7 @@ class SdkHarness(object):
     ).to_runner_api_monitoring_infos(None).values()
     self._execute(
         lambda: beam_fn_api_pb2.InstructionResponse(
-            instruction_id=request.instruction_id,
-            harness_monitoring_infos=(
+            instruction_id=request.instruction_id, harness_monitoring_infos=(
                 beam_fn_api_pb2.HarnessMonitoringInfosResponse(
                     monitoring_data={
                         SHORT_ID_CACHE.get_short_id(info): info.payload
@@ -374,8 +376,8 @@ class SdkHarness(object):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
     self._execute(
         lambda: beam_fn_api_pb2.InstructionResponse(
-            instruction_id=request.instruction_id,
-            monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataResponse(
+            instruction_id=request.instruction_id, monitoring_infos=
+            beam_fn_api_pb2.MonitoringInfosMetadataResponse(
                 monitoring_info=SHORT_ID_CACHE.get_infos(
                     request.monitoring_infos.monitoring_info_id))),
         request)
@@ -449,9 +451,11 @@ class BundleProcessorCache(object):
     self.known_not_running_instruction_ids = collections.OrderedDict(
     )  # type: collections.OrderedDict[str, bool]
     self.failed_instruction_ids = collections.OrderedDict(
-    )  # type: collections.OrderedDict[str, bool]
+    )  # type: collections.OrderedDict[str, Exception]
     self.active_bundle_processors = {
     }  # type: Dict[str, Tuple[str, bundle_processor.BundleProcessor]]
+    self.processors_being_created = {
+    }  # type: Dict[str, Tuple[str, threading.Thread, float]]
     self.cached_bundle_processors = collections.defaultdict(
         list)  # type: DefaultDict[str, List[bundle_processor.BundleProcessor]]
     self.last_access_times = collections.defaultdict(
@@ -499,7 +503,8 @@ class BundleProcessorCache(object):
           pass
         return processor
       except IndexError:
-        pass
+        self.processors_being_created[instruction_id] = (
+            bundle_descriptor_id, threading.current_thread(), time.time())
 
     # Make sure we instantiate the processor while not holding the lock.
 
@@ -519,6 +524,7 @@ class BundleProcessorCache(object):
     with self._lock:
       self.active_bundle_processors[
         instruction_id] = bundle_descriptor_id, processor
+      del self.processors_being_created[instruction_id]
       try:
         del self.known_not_running_instruction_ids[instruction_id]
       except KeyError:
@@ -538,9 +544,11 @@ class BundleProcessorCache(object):
     """
     with self._lock:
       if instruction_id in self.failed_instruction_ids:
+        e = self.failed_instruction_ids[instruction_id]
         raise RuntimeError(
             'Bundle processing associated with %s has failed. '
-            'Check prior failing response for details.' % instruction_id)
+            'Check prior failing response and attached exception for details.' %
+            instruction_id) from e
       processor = self.active_bundle_processors.get(
           instruction_id, (None, None))[-1]
       if processor:
@@ -549,21 +557,24 @@ class BundleProcessorCache(object):
         return None
       raise RuntimeError('Unknown process bundle id %s.' % instruction_id)
 
-  def discard(self, instruction_id):
-    # type: (str) -> None
+  def discard(self, instruction_id, exception):
+    # type: (str, Exception) -> None
 
     """
     Marks the instruction id as failed shutting down the ``BundleProcessor``.
     """
+    processor = None
     with self._lock:
-      self.failed_instruction_ids[instruction_id] = True
+      self.failed_instruction_ids[instruction_id] = exception
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
         self.failed_instruction_ids.popitem(last=False)
-      processor = self.active_bundle_processors[instruction_id][1]
-      del self.active_bundle_processors[instruction_id]
+      if instruction_id in self.active_bundle_processors:
+        processor = self.active_bundle_processors.pop(instruction_id)[1]
 
     # Perform the shutdown while not holding the lock.
-    processor.shutdown()
+    if processor:
+      processor.shutdown()
+    self.data_channel_factory.cleanup(instruction_id)
 
   def release(self, instruction_id):
     # type: (str) -> None
@@ -600,7 +611,7 @@ class BundleProcessorCache(object):
       self.periodic_shutdown = None
 
     for instruction_id in list(self.active_bundle_processors.keys()):
-      self.discard(instruction_id)
+      self.discard(instruction_id, RuntimeError('Shutdown invoked'))
     for cached_bundle_processors in self.cached_bundle_processors.values():
       BundleProcessorCache._shutdown_cached_bundle_processors(
           cached_bundle_processors)
@@ -686,9 +697,9 @@ class SdkWorker(object):
       instruction_id  # type: str
   ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
-    bundle_processor = self.bundle_processor_cache.get(
-        instruction_id, request.process_bundle_descriptor_id)
     try:
+      bundle_processor = self.bundle_processor_cache.get(
+          instruction_id, request.process_bundle_descriptor_id)
       with bundle_processor.state_handler.process_instruction_id(
           instruction_id, request.cache_tokens):
         with self.maybe_profile(instruction_id):
@@ -709,9 +720,9 @@ class SdkWorker(object):
       if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
       return response
-    except:  # pylint: disable=bare-except
+    except Exception as e:  # pylint: disable=bare-except
       # Don't re-use bundle processors on failure.
-      self.bundle_processor_cache.discard(instruction_id)
+      self.bundle_processor_cache.discard(instruction_id, e)
       raise
 
   def process_bundle_split(
@@ -780,8 +791,8 @@ class SdkWorker(object):
         self.bundle_processor_cache.release(request.instruction_id)
         return beam_fn_api_pb2.InstructionResponse(
             instruction_id=instruction_id, finalize_bundle=finalize_response)
-      except:
-        self.bundle_processor_cache.discard(request.instruction_id)
+      except Exception as e:
+        self.bundle_processor_cache.discard(request.instruction_id, e)
         raise
     # We can reach this state if there was an erroneous request to finalize
     # the bundle while it is being initialized or has already been finalized
@@ -1297,10 +1308,11 @@ class GlobalCachingStateHandler(CachingStateHandler):
       if not continuation_token:
         break
 
-  def _get_raw(self,
+  def _get_raw(
+      self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token  # type: Optional[bytes]
-               ):
+  ):
     # type: (...) -> Tuple[coder_impl.create_InputStream, Optional[bytes]]
 
     """Call underlying get_raw with performance statistics and detection."""

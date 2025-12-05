@@ -18,9 +18,10 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import java.io.PrintWriter;
-import java.util.Map;
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
@@ -32,10 +33,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,8 +54,6 @@ final class GrpcGetWorkStream
 
   private final GetWorkRequest request;
   private final WorkItemReceiver receiver;
-  private final ThrottleTimer getWorkThrottleTimer;
-  private final Map<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
   private final AtomicLong inflightMessages;
   private final AtomicLong inflightBytes;
   private final boolean requestBatchedGetWorkResponse;
@@ -71,21 +70,21 @@ final class GrpcGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
-      ThrottleTimer getWorkThrottleTimer,
-      WorkItemReceiver receiver) {
+      WorkItemReceiver receiver,
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     super(
         LOG,
-        "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        halfClosePhysicalStreamAfter,
+        executor);
     this.request = request;
-    this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.receiver = receiver;
-    this.workItemAssemblers = new ConcurrentHashMap<>();
     this.inflightMessages = new AtomicLong();
     this.inflightBytes = new AtomicLong();
     this.requestBatchedGetWorkResponse = requestBatchedGetWorkResponse;
@@ -103,8 +102,9 @@ final class GrpcGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
-      ThrottleTimer getWorkThrottleTimer,
-      WorkItemReceiver receiver) {
+      WorkItemReceiver receiver,
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     return new GrpcGetWorkStream(
         backendWorkerToken,
         startGetWorkRpcFn,
@@ -114,8 +114,9 @@ final class GrpcGetWorkStream
         streamRegistry,
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
-        getWorkThrottleTimer,
-        receiver);
+        receiver,
+        halfClosePhysicalStreamAfter,
+        executor);
   }
 
   private void sendRequestExtension(long moreItems, long moreBytes) {
@@ -137,9 +138,45 @@ final class GrpcGetWorkStream
         });
   }
 
+  private class GetWorkPhysicalStreamHandler extends PhysicalStreamHandler {
+
+    private final ConcurrentHashMap<Long, GetWorkResponseChunkAssembler> workItemAssemblers =
+        new ConcurrentHashMap<>();
+
+    @Override
+    public void onResponse(StreamingGetWorkResponseChunk response) {
+      workItemAssemblers
+          .computeIfAbsent(response.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
+          .append(response)
+          .forEach(GrpcGetWorkStream.this::consumeAssembledWorkItem);
+    }
+
+    @Override
+    public boolean hasPendingRequests() {
+      return false;
+    }
+
+    @Override
+    public void onDone(Status status) {}
+
+    @Override
+    public void appendHtml(PrintWriter writer) {
+      // Number of buffers is same as distinct workers that sent work on this stream.
+      writer.format("%d buffers", workItemAssemblers.size());
+    }
+  }
+
   @Override
-  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
-    workItemAssemblers.clear();
+  protected PhysicalStreamHandler newResponseHandler() {
+    return new GetWorkPhysicalStreamHandler();
+  }
+
+  @Override
+  protected synchronized void onFlushPending(boolean isNewStream)
+      throws WindmillStreamShutdownException {
+    if (!isNewStream) {
+      return;
+    }
     inflightMessages.set(request.getMaxItems());
     inflightBytes.set(request.getMaxBytes());
     trySend(
@@ -150,33 +187,15 @@ final class GrpcGetWorkStream
   }
 
   @Override
-  protected void shutdownInternal() {}
-
-  @Override
-  protected boolean hasPendingRequests() {
-    return false;
-  }
-
-  @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    // Number of buffers is same as distinct workers that sent work on this stream.
     writer.format(
-        "GetWorkStream: %d buffers, %d inflight messages allowed, %d inflight bytes allowed",
-        workItemAssemblers.size(), inflightMessages.intValue(), inflightBytes.intValue());
+        "GetWorkStream: %d inflight messages allowed, %d inflight bytes allowed",
+        inflightMessages.intValue(), inflightBytes.intValue());
   }
 
   @Override
-  public void sendHealthCheck() throws WindmillStreamShutdownException {
+  protected void sendHealthCheck() throws WindmillStreamShutdownException {
     trySend(HEALTH_CHECK);
-  }
-
-  @Override
-  protected void onResponse(StreamingGetWorkResponseChunk chunk) {
-    getWorkThrottleTimer.stop();
-    workItemAssemblers
-        .computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
-        .append(chunk)
-        .forEach(this::consumeAssembledWorkItem);
   }
 
   private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {
@@ -184,6 +203,7 @@ final class GrpcGetWorkStream
         assembledWorkItem.computationMetadata().computationId(),
         assembledWorkItem.computationMetadata().inputDataWatermark(),
         assembledWorkItem.computationMetadata().synchronizedProcessingTime(),
+        assembledWorkItem.computationMetadata().drainMode(),
         assembledWorkItem.workItem(),
         assembledWorkItem.bufferedSize(),
         assembledWorkItem.latencyAttributions());
@@ -202,11 +222,6 @@ final class GrpcGetWorkStream
       inflightBytes.getAndAdd(moreBytes);
       sendRequestExtension(moreItems, moreBytes);
     }
-  }
-
-  @Override
-  protected void startThrottleTimer() {
-    getWorkThrottleTimer.start();
   }
 
   @Override

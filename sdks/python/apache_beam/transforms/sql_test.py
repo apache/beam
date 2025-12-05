@@ -20,7 +20,6 @@
 # pytype: skip-file
 
 import logging
-import subprocess
 import typing
 import unittest
 
@@ -48,8 +47,8 @@ coders.registry.register_coder(Shopper, coders.RowCoder)
 
 @pytest.mark.xlang_sql_expansion_service
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     "Must be run with a runner that supports staging java artifacts.")
 class SqlTransformTest(unittest.TestCase):
   """Tests that exercise the cross-language SqlTransform (implemented in java).
@@ -69,22 +68,6 @@ class SqlTransformTest(unittest.TestCase):
         --test-pipeline-options="--runner=FlinkRunner"
   """
   _multiprocess_can_split_ = True
-
-  @staticmethod
-  def _disable_zetasql_test():
-    # disable if run on Java8 which is no longer supported by ZetaSQL
-    try:
-      result = subprocess.run(['java', '-version'],
-                              check=True,
-                              capture_output=True,
-                              text=True)
-      version_line = result.stderr.splitlines()[0]
-      version = version_line.split()[2].strip('\"')
-      if version.startswith("1."):
-        return True
-      return False
-    except:  # pylint: disable=bare-except
-      return False
 
   def test_generate_data(self):
     with TestPipeline() as p:
@@ -166,19 +149,6 @@ class SqlTransformTest(unittest.TestCase):
           | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 
-  def test_zetasql_generate_data(self):
-    if self._disable_zetasql_test():
-      raise unittest.SkipTest("ZetaSQL tests need Java11+")
-
-    with TestPipeline() as p:
-      out = p | SqlTransform(
-          """SELECT
-            CAST(1 AS INT64) AS `int`,
-            CAST('foo' AS STRING) AS `str`,
-            CAST(3.14  AS FLOAT64) AS `flt`""",
-          dialect="zetasql")
-      assert_that(out, equal_to([(1, "foo", 3.14)]))
-
   def test_windowing_before_sql(self):
     with TestPipeline() as p:
       out = (
@@ -208,6 +178,30 @@ class SqlTransformTest(unittest.TestCase):
           ]).with_output_types(Shopper)
           | SqlTransform("SELECT * FROM PCOLLECTION WHERE shopper = 'alice'"))
       assert_that(out, equal_to([('alice', {'apples': 2, 'bananas': 3})]))
+
+  def test_sql_ddl_set_option(self):
+    with TestPipeline() as p:
+      input_data = [
+          beam.Row(id=1, value=10),
+          beam.Row(id=2, value=20),
+          beam.Row(id=3, value=30)
+      ]
+      # DDL uses SET to modify a session option (tests DDL parsing)
+      # Using a known Calcite option like sqlConformance
+      ddl_statement = """
+          SET sqlConformance = 'LENIENT'
+      """
+      # Query still operates on the implicit PCOLLECTION
+      query_statement = "SELECT * FROM PCOLLECTION WHERE id > 2"
+
+      # Input PCollection is piped directly
+      out = (
+          p | beam.Create(input_data)
+          # Pass both the query and the DDL
+          | SqlTransform(query=query_statement, ddl=ddl_statement))
+
+      # Verify the output matches the query (unaffected by the SET DDL)
+      assert_that(out, equal_to([(3, 30)]))
 
 
 if __name__ == "__main__":

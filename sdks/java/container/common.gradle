@@ -52,9 +52,7 @@ task copyDockerfileDependencies(type: Copy) {
     rename 'jcl-over-slf4j.*', 'jcl-over-slf4j.jar'
     rename 'log4j-over-slf4j.*', 'log4j-over-slf4j.jar'
     rename 'log4j-to-slf4j.*', 'log4j-to-slf4j.jar'
-    if (imageJavaVersion == "11" || imageJavaVersion == "17") {
-        rename 'beam-sdks-java-container-agent.*.jar', 'open-module-agent.jar'
-    }
+    rename 'beam-sdks-java-container-agent.*.jar', 'open-module-agent.jar'
     rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
     rename 'jamm.*.jar', 'jamm.jar'
 
@@ -84,9 +82,7 @@ task copyGolangLicenses(type: Copy) {
 }
 
 task copyJdkOptions(type: Copy) {
-    if (["11", "17", "21"].contains(imageJavaVersion)) {
-        from "option-jamm.json"
-    }
+    from "option-jamm.json"
     from "java${imageJavaVersion}-security.properties"
     from "option-java${imageJavaVersion}-security.json"
     into "build/target/options"
@@ -95,33 +91,6 @@ task copyJdkOptions(type: Copy) {
 task skipPullLicenses(type: Exec) {
     executable "sh"
     args "-c", "mkdir -p build/target/go-licenses build/target/options build/target/third_party_licenses && touch build/target/go-licenses/skip && touch build/target/third_party_licenses/skip"
-}
-
-// Java11+ container depends on the java agent project. To compile it, need a compatible JDK version:
-// lower bound 11 and upper bound imageJavaVersion
-task validateJavaHome {
-    def requiredForVer = ["11", "17", "21"]
-    if (requiredForVer.contains(imageJavaVersion)) {
-        doFirst {
-            if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-                return
-            }
-            boolean propertyFound = false
-            // enable to build agent with compatible java versions (11-requiredForVer)
-            for (def checkVer : requiredForVer) {
-                if (project.hasProperty("java${checkVer}Home")) {
-                    propertyFound = true
-                }
-                if (checkVer == imageJavaVersion) {
-                    // cannot build agent with a higher version than the docker java ver
-                    break
-                }
-            }
-            if (!propertyFound) {
-                throw new GradleException("System Java needs to have version 11+ or java${imageJavaVersion}Home required for imageJavaVersion=${imageJavaVersion}. Re-run with -Pjava${imageJavaVersion}Home")
-            }
-        }
-    }
 }
 
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
@@ -162,4 +131,3 @@ if (project.rootProject.hasProperty("docker-pull-licenses") ||
 dockerPrepare.dependsOn copySdkHarnessLauncher
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn copyJdkOptions
-dockerPrepare.dependsOn validateJavaHome

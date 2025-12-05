@@ -22,6 +22,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -39,10 +41,12 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -92,14 +96,14 @@ public class WindmillKeyedWorkItemTest {
 
     KeyedWorkItem<String, String> keyedWorkItem =
         new WindmillKeyedWorkItem<>(
-            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, false);
 
     assertThat(
         keyedWorkItem.elementsIterable(),
         Matchers.contains(
-            WindowedValue.of("hello", new Instant(5), WINDOW_1, paneInfo(0)),
-            WindowedValue.of("world", new Instant(7), WINDOW_2, paneInfo(2)),
-            WindowedValue.of("earth", new Instant(6), WINDOW_1, paneInfo(1))));
+            WindowedValues.of("hello", new Instant(5), WINDOW_1, paneInfo(0)),
+            WindowedValues.of("world", new Instant(7), WINDOW_2, paneInfo(2)),
+            WindowedValues.of("earth", new Instant(6), WINDOW_1, paneInfo(1))));
   }
 
   private void addElement(
@@ -110,7 +114,29 @@ public class WindmillKeyedWorkItemTest {
       PaneInfo pane)
       throws IOException {
     ByteString encodedMetadata =
-        WindmillSink.encodeMetadata(WINDOWS_CODER, Collections.singletonList(window), pane);
+        WindmillSink.encodeMetadata(
+            WINDOWS_CODER,
+            Collections.singletonList(window),
+            pane,
+            BeamFnApi.Elements.ElementMetadata.newBuilder().build());
+    chunk
+        .addMessagesBuilder()
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
+        .setData(ByteString.copyFromUtf8(value))
+        .setMetadata(encodedMetadata);
+  }
+
+  private void addElementWithMetadata(
+      Windmill.InputMessageBundle.Builder chunk,
+      long timestamp,
+      String value,
+      IntervalWindow window,
+      PaneInfo pane,
+      BeamFnApi.Elements.ElementMetadata metadata)
+      throws IOException {
+    ByteString encodedMetadata =
+        WindmillSink.encodeMetadata(
+            WINDOWS_CODER, Collections.singletonList(window), pane, metadata);
     chunk
         .addMessagesBuilder()
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
@@ -143,7 +169,7 @@ public class WindmillKeyedWorkItemTest {
             .build();
 
     KeyedWorkItem<String, String> keyedWorkItem =
-        new WindmillKeyedWorkItem<>(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+        new WindmillKeyedWorkItem<>(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, false);
 
     assertThat(
         keyedWorkItem.timersIterable(),
@@ -180,5 +206,52 @@ public class WindmillKeyedWorkItemTest {
     CoderProperties.coderSerializable(
         FakeKeyedWorkItemCoder.of(
             KvCoder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE)));
+  }
+
+  @Test
+  public void testDrainPropagated() throws Exception {
+    WindowedValues.FullWindowedValueCoder.setMetadataSupported();
+    Windmill.WorkItem.Builder workItem =
+        Windmill.WorkItem.newBuilder()
+            .setKey(SERIALIZED_KEY)
+            .setTimers(
+                Windmill.TimerBundle.newBuilder()
+                    .addTimers(
+                        makeSerializedTimer(STATE_NAMESPACE_2, 3, Windmill.Timer.Type.WATERMARK))
+                    .build())
+            .setWorkToken(17);
+    Windmill.InputMessageBundle.Builder chunk1 = workItem.addMessageBundlesBuilder();
+    chunk1.setSourceComputationId("computation");
+    addElementWithMetadata(
+        chunk1,
+        5,
+        "hello",
+        WINDOW_1,
+        paneInfo(0),
+        BeamFnApi.Elements.ElementMetadata.newBuilder()
+            .setDrain(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
+            .build());
+    addElementWithMetadata(
+        chunk1,
+        7,
+        "world",
+        WINDOW_2,
+        paneInfo(2),
+        BeamFnApi.Elements.ElementMetadata.newBuilder()
+            .setDrain(BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+            .build());
+    KeyedWorkItem<String, String> keyedWorkItem =
+        new WindmillKeyedWorkItem<>(
+            KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER, true);
+
+    Iterator<WindowedValue<String>> iterator = keyedWorkItem.elementsIterable().iterator();
+    Assert.assertTrue(iterator.next().causedByDrain());
+    Assert.assertFalse(iterator.next().causedByDrain());
+
+    // todo add assert for draining once timerdata is filled
+    // (https://github.com/apache/beam/issues/36884)
+    assertThat(
+        keyedWorkItem.timersIterable(),
+        Matchers.contains(makeTimer(STATE_NAMESPACE_2, 3, TimeDomain.EVENT_TIME)));
   }
 }

@@ -116,8 +116,8 @@ class TriggerManagerTest(unittest.TestCase):
           equal_to([
               ('k1', IntervalWindow(0, 1), [1, 2, 3]),  # On the watermark
               ('k2', IntervalWindow(0, 1), [1, 2, 3]),  # On the watermark
-              ('k1', IntervalWindow(1, 2), [4, 5]),     # On the watermark
-              ('k2', IntervalWindow(1, 2), [4, 5]),     # On the watermark
+              ('k1', IntervalWindow(1, 2), [4, 5]),  # On the watermark
+              ('k2', IntervalWindow(1, 2), [4, 5]),  # On the watermark
               ('k1', IntervalWindow(0, 1), [6]),  # After the watermark
           ]))
 
@@ -238,11 +238,11 @@ class TriggerManagerTest(unittest.TestCase):
       assert_that(
           result,
           equal_to([
-              ('k1', IntervalWindow(1, 25), {1, 2, 3}), # early
-              ('k1', IntervalWindow(1, 25), {1, 2, 3}), # on time
+              ('k1', IntervalWindow(1, 25), {1, 2, 3}),  # early
+              ('k1', IntervalWindow(1, 25), {1, 2, 3}),  # on time
               ('k1', IntervalWindow(30, 40), {4}),  # on time
-              ('k1', IntervalWindow(1, 25), {1, 2, 3, -3, -2}), # late
-              ('k1', IntervalWindow(1, 40), {1, 2, 3, 4, -3, -2, -1}), # late
+              ('k1', IntervalWindow(1, 25), {1, 2, 3, -3, -2}),  # late
+              ('k1', IntervalWindow(1, 40), {1, 2, 3, 4, -3, -2, -1}),  # late
           ]))
 
 

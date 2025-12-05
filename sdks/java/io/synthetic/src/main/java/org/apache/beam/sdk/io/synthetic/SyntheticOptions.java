@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -49,6 +50,7 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE") // TODO(#35312)
 public class SyntheticOptions implements Serializable {
   private static final long serialVersionUID = 0;
 
@@ -330,6 +332,7 @@ public class SyntheticOptions implements Serializable {
     return (long) delayDistribution.sample(seed);
   }
 
+  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE") // intended
   public KV<byte[], byte[]> genKvPair(long seed) {
     Random random = new Random(seed);
 

@@ -34,10 +34,10 @@ from string import ascii_letters
 from string import digits
 
 import numpy as np
-from hypothesis import strategies as st
 from hypothesis import assume
 from hypothesis import given
 from hypothesis import settings
+from hypothesis import strategies as st
 from pytz import utc
 
 from apache_beam.coders import FloatCoder
@@ -144,9 +144,7 @@ class ProperyTestingCoders(unittest.TestCase):
     row = RowType(
         **{
             name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
-            for name,
-            type_,
-            nullable in schema
+            for name, type_, nullable in schema
         })
 
     coder = RowCoder(typing_to_runner_api(RowType).row_type.schema)

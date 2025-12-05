@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 public class BeamRelMetadataQuery extends RelMetadataQuery {
   private NodeStatsMetadata.Handler nodeStatsMetadataHandler;

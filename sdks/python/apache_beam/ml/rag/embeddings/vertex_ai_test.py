@@ -32,6 +32,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=ungrouped-imports
 try:
   import vertexai  # pylint: disable=unused-import
+
   from apache_beam.ml.rag.embeddings.vertex_ai import VertexAITextEmbeddings
   VERTEX_AI_AVAILABLE = True
 except ImportError:
@@ -93,7 +94,7 @@ class VertexAITextEmbeddingsTest(unittest.TestCase):
             content=Content(text="Another example."))
     ]
 
-    embedder = VertexAITextEmbeddings(model_name="textembedding-gecko@002")
+    embedder = VertexAITextEmbeddings(model_name="text-embedding-005")
 
     with TestPipeline() as p:
       embeddings = (

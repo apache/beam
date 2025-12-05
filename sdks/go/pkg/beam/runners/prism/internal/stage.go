@@ -88,7 +88,8 @@ type stage struct {
 	OutputsToCoders   map[string]engine.PColInfo
 
 	// Stage specific progress and splitting interval.
-	baseProgTick atomic.Value // time.Duration
+	baseProgTick  atomic.Value // time.Duration
+	sdfSplittable bool
 }
 
 // The minimum and maximum durations between each ProgressBundleRequest and split evaluation.
@@ -106,6 +107,19 @@ func clampTick(dur time.Duration) time.Duration {
 	default:
 		return dur
 	}
+}
+
+func (s *stage) LogValue() slog.Value {
+	var outAttrs []any
+	for k, v := range s.OutputsToCoders {
+		outAttrs = append(outAttrs, slog.Any(k, v))
+	}
+	return slog.GroupValue(
+		slog.String("ID", s.ID),
+		slog.Any("transforms", s.transforms),
+		slog.Any("inputInfo", s.inputInfo),
+		slog.Group("outputInfo", outAttrs...),
+	)
 }
 
 func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) (err error) {
@@ -161,7 +175,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 		s.prepareSides(b, rb.Watermark)
 
-		slog.Debug("Execute: processing", "bundle", rb)
+		slog.Debug("Execute: sdk worker transform(s)", "bundle", rb)
 		defer b.Cleanup(wk)
 		dataReady = b.ProcessOn(ctx, wk)
 	default:
@@ -180,9 +194,9 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 	progTick := time.NewTicker(baseTick)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
-	// If we have no data outputs, we still need to have progress & splits
+	// If we have no data outputs and timers, we still need to have progress & splits
 	// while waiting for bundle completion.
-	if b.OutputCount == 0 {
+	if b.OutputCount+len(b.HasTimers) == 0 {
 		dataFinished = true
 	}
 	var resp *fnpb.ProcessBundleResponse
@@ -208,8 +222,9 @@ progress:
 			ticked = true
 			resp, err := b.Progress(ctx, wk)
 			if err != nil {
-				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
-				break progress
+				slog.Debug("SDK Error from progress request, aborting progress update and turning off future progress updates", "bundle", rb, "error", err.Error())
+				progTick.Stop()
+				continue progress
 			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
@@ -220,12 +235,15 @@ progress:
 
 			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
 			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
-			if slow && unsplit {
+			if slow && unsplit && b.EstimatedInputElements > 0 && s.sdfSplittable {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
-					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
-					break progress
+					slog.Warn("SDK Error from split, aborting splits and failing bundle", "bundle", rb, "error", err.Error())
+					if b.BundleErr != nil {
+						b.BundleErr = err
+					}
+					return b.BundleErr
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)
@@ -337,7 +355,7 @@ progress:
 			slog.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
 			panic(err)
 		}
-		slog.Info("finalized bundle", "bundle", rb)
+		slog.Debug("finalized bundle", "bundle", rb)
 	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil
@@ -617,10 +635,9 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	// Update coders for internal collections, and add those collections to the bundle descriptor.
 	for _, pid := range stg.internalCols {
 		col := clonePColToBundle(pid)
-		if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
-			col.CoderId = newCID
-		} else if err != nil {
-			return fmt.Errorf("buildDescriptor: coder  couldn't rewrite coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
+		// Keep the original coder of an internal pcollection without rewriting(LP'ing).
+		if err := retrieveCoders(col.GetCoderId(), coders, comps.GetCoders()); err != nil {
+			return fmt.Errorf("buildDescriptor: couldn't retrieve coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
 		}
 	}
 	// Add coders for all windowing strategies.

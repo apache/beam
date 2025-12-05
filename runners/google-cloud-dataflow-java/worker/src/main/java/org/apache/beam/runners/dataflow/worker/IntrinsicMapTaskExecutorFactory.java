@@ -63,9 +63,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
@@ -105,11 +105,32 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
     Networks.replaceDirectedNetworkNodes(
         network, createOutputReceiversTransform(stageName, counterSet));
 
-    // Swap out all the ParallelInstruction nodes with Operation nodes
-    Networks.replaceDirectedNetworkNodes(
-        network,
-        createOperationTransformForParallelInstructionNodes(
-            stageName, network, options, readerFactory, sinkFactory, executionContext));
+    // Swap out all the ParallelInstruction nodes with Operation nodes. While updating the network,
+    // we keep track of
+    // the created Operations so that if an exception is encountered we can properly abort started
+    // operations.
+    ArrayList<Operation> createdOperations = new ArrayList<>();
+    try {
+      Networks.replaceDirectedNetworkNodes(
+          network,
+          createOperationTransformForParallelInstructionNodes(
+              stageName,
+              network,
+              options,
+              readerFactory,
+              sinkFactory,
+              executionContext,
+              createdOperations));
+    } catch (RuntimeException exn) {
+      for (Operation o : createdOperations) {
+        try {
+          o.abort();
+        } catch (Exception exn2) {
+          exn.addSuppressed(exn2);
+        }
+      }
+      throw exn;
+    }
 
     // Collect all the operations within the network and attach all the operations as receivers
     // to preceding output receivers.
@@ -144,7 +165,8 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       final PipelineOptions options,
       final ReaderFactory readerFactory,
       final SinkFactory sinkFactory,
-      final DataflowExecutionContext<?> executionContext) {
+      final DataflowExecutionContext<?> executionContext,
+      final List<Operation> createdOperations) {
 
     return new TypeSafeNodeFunction<ParallelInstructionNode>(ParallelInstructionNode.class) {
       @Override
@@ -156,20 +178,22 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
                 instruction.getOriginalName(),
                 instruction.getSystemName(),
                 instruction.getName());
+        OperationNode result;
         try {
           DataflowOperationContext context = executionContext.createOperationContext(nameContext);
           if (instruction.getRead() != null) {
-            return createReadOperation(
-                network, node, options, readerFactory, executionContext, context);
+            result =
+                createReadOperation(
+                    network, node, options, readerFactory, executionContext, context);
           } else if (instruction.getWrite() != null) {
-            return createWriteOperation(node, options, sinkFactory, executionContext, context);
+            result = createWriteOperation(node, options, sinkFactory, executionContext, context);
           } else if (instruction.getParDo() != null) {
-            return createParDoOperation(network, node, options, executionContext, context);
+            result = createParDoOperation(network, node, options, executionContext, context);
           } else if (instruction.getPartialGroupByKey() != null) {
-            return createPartialGroupByKeyOperation(
-                network, node, options, executionContext, context);
+            result =
+                createPartialGroupByKeyOperation(network, node, options, executionContext, context);
           } else if (instruction.getFlatten() != null) {
-            return createFlattenOperation(network, node, context);
+            result = createFlattenOperation(network, node, context);
           } else {
             throw new IllegalArgumentException(
                 String.format("Unexpected instruction: %s", instruction));
@@ -177,6 +201,8 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
+        createdOperations.add(result.getOperation());
+        return result;
       }
     };
   }
@@ -328,7 +354,6 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
         Coder<?> coder =
             CloudObjects.coderFromCloudObject(CloudObject.fromSpec(cloudOutput.getCodec()));
 
-        @SuppressWarnings("unchecked")
         ElementCounter outputCounter =
             new DataflowOutputCounter(
                 cloudOutput.getName(),

@@ -27,6 +27,7 @@ to build the new image.
 import json
 import logging
 import os
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -81,7 +82,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
 
   def _build(self):
     container_image_tag = str(uuid.uuid4())
-    container_image_name = os.path.join(
+    container_image_name = posixpath.join(
         self._docker_registry_push_url or '',
         'beam_python_prebuilt_sdk:%s' % container_image_tag)
     with tempfile.TemporaryDirectory() as temp_folder:
@@ -93,7 +94,8 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
 
   def _prepare_dependencies(self):
     with tempfile.TemporaryDirectory() as tmp:
-      artifacts = Stager.create_job_resources(self._options, tmp)
+      artifacts = Stager.create_job_resources(
+          self._options, tmp, log_submission_env_dependencies=False)
       resources = Stager.extract_staging_tuple_iter(artifacts)
       # make a copy of the staged artifacts into the temp source folder.
       file_names = []
@@ -247,16 +249,18 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
       build.options.machineType = self._cloud_build_machine_type
     build.steps = []
     step = cloudbuild.BuildStep()
-    step.name = 'gcr.io/kaniko-project/executor:latest'
-    # Disable compression caching to allow for large images to be cached.
-    # See: https://github.com/GoogleContainerTools/kaniko/issues/1669
+    step.name = 'quay.io/buildah/stable:latest'
+    step.entrypoint = 'sh'
     step.args = [
-        '--destination=' + container_image_name,
-        '--cache=true',
-        '--compressed-caching=false',
+        '-c',
+        # The --storage-driver=vfs option is used to run buildah in a
+        # rootless environment.
+        (
+            'buildah bud --storage-driver=vfs -t {0} . && '
+            'buildah push --storage-driver=vfs {0} docker://{0}'
+        ).format(container_image_name),
     ]
     step.dir = SOURCE_FOLDER
-
     build.steps.append(step)
 
     source = cloudbuild.Source()

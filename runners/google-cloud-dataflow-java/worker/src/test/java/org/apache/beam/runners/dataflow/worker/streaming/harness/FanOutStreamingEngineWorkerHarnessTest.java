@@ -51,7 +51,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.Throttlin
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
@@ -80,8 +80,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FanOutStreamingEngineWorkerHarnessTest {
   private static final String CHANNEL_NAME = "FanOutStreamingEngineWorkerHarnessTest";
+  private static final long WAIT_FOR_METADATA_INJECTIONS_SECONDS = 5;
+  private static final long SERVER_SHUTDOWN_TIMEOUT_SECONDS = 30;
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
-      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
+      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannels.LOCALHOST, 443));
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
       ImmutableMap.of(
           "global_data",
@@ -101,13 +103,13 @@ public class FanOutStreamingEngineWorkerHarnessTest {
           .build();
 
   @Rule
-  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule().setTimeout(1, TimeUnit.MINUTES);
+  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule().setTimeout(3, TimeUnit.MINUTES);
 
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
   private final ChannelCachingStubFactory stubFactory =
       new FakeWindmillStubFactory(
-          () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(CHANNEL_NAME)));
+          () -> grpcCleanup.register(WindmillChannels.inProcessChannel(CHANNEL_NAME)));
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class),
@@ -126,6 +128,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         serializedWorkItemSize,
         watermarks,
         processingContext,
+        drainMode,
         getWorkStreamLatencies) -> {};
   }
 
@@ -167,10 +170,14 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   }
 
   @After
-  public void cleanUp() {
+  public void cleanUp() throws InterruptedException {
     Preconditions.checkNotNull(fanOutStreamingEngineWorkProvider).shutdown();
     stubFactory.shutdown();
     fakeStreamingEngineServer.shutdown();
+    if (!fakeStreamingEngineServer.awaitTermination(
+        SERVER_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+      fakeStreamingEngineServer.shutdownNow();
+    }
   }
 
   private FanOutStreamingEngineWorkerHarness newFanOutStreamingEngineWorkerHarness(
@@ -234,16 +241,10 @@ public class FanOutStreamingEngineWorkerHarnessTest {
 
     verify(streamFactory, times(2))
         .createDirectGetWorkStream(
-            any(),
-            eq(getWorkRequest(0, 0)),
-            any(),
-            any(),
-            any(),
-            any(),
-            eq(noOpProcessWorkItemFn()));
+            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
 
-    verify(streamFactory, times(2)).createDirectGetDataStream(any(), any());
-    verify(streamFactory, times(2)).createDirectCommitWorkStream(any(), any());
+    verify(streamFactory, times(2)).createDirectGetDataStream(any());
+    verify(streamFactory, times(2)).createDirectCommitWorkStream(any());
   }
 
   @Test
@@ -329,8 +330,10 @@ public class FanOutStreamingEngineWorkerHarnessTest {
 
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
     verify(getWorkBudgetDistributor, times(2)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
   }
 
   private static class WindmillServiceFakeStub

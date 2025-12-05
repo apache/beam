@@ -135,7 +135,7 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
       close_callback=None,  # type: Optional[Callable[[bytes], None]]
       flush_callback=None,  # type: Optional[Callable[[bytes], None]]
       size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,  # type: int
-      large_buffer_warn_threshold_bytes = 512 << 20  # type: int
+      large_buffer_warn_threshold_bytes=512 << 20  # type: int
   ):
     super().__init__(close_callback)
     self._flush_callback = flush_callback
@@ -233,7 +233,6 @@ class TimeBasedBufferingClosableOutputStream(
 
 class PeriodicThread(threading.Thread):
   """Call a function periodically with the specified number of seconds"""
-
   def __init__(
       self,
       interval,  # type: float
@@ -503,7 +502,11 @@ class _GrpcDataChannel(DataChannel):
     instruction_id cannot be reused for new queue.
     """
     with self._receive_lock:
-      self._received.pop(instruction_id)
+      # Per-instruction read queue may or may not be created yet when
+      # we mark an instruction as 'cleaned up' when creating
+      # a bundle processor failed, e.g. due to a flake in DoFn.setup().
+      # We want to mark an instruction as cleaned up regardless.
+      self._received.pop(instruction_id, None)
       self._cleaned_instruction_ids[instruction_id] = True
       while len(self._cleaned_instruction_ids) > _MAX_CLEANED_INSTRUCTIONS:
         self._cleaned_instruction_ids.popitem(last=False)
@@ -726,7 +729,6 @@ class _GrpcDataChannel(DataChannel):
 
 class GrpcClientDataChannel(_GrpcDataChannel):
   """A DataChannel wrapping the client side of a BeamFnData connection."""
-
   def __init__(
       self,
       data_stub,  # type: beam_fn_api_pb2_grpc.BeamFnDataStub
@@ -789,13 +791,18 @@ class DataChannelFactory(metaclass=abc.ABCMeta):
     """Close all channels that this factory owns."""
     raise NotImplementedError(type(self))
 
+  def cleanup(self, instruction_id):
+    # type: (str) -> None
+
+    """Clean up resources for a given instruction."""
+    pass
+
 
 class GrpcClientDataChannelFactory(DataChannelFactory):
   """A factory for ``GrpcClientDataChannel``.
 
   Caches the created channels by ``data descriptor url``.
   """
-
   def __init__(
       self,
       credentials=None,  # type: Any
@@ -833,6 +840,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
           else:
             grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=channel_options)
+          _LOGGER.info('Data channel established.')
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(
               grpc_channel, WorkerIdInterceptor(self._worker_id))
@@ -853,9 +861,14 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def close(self):
     # type: () -> None
     _LOGGER.info('Closing all cached grpc data channels.')
-    for _, channel in self._data_channel_cache.items():
+    for channel in list(self._data_channel_cache.values()):
       channel.close()
     self._data_channel_cache.clear()
+
+  def cleanup(self, instruction_id):
+    # type: (str) -> None
+    for channel in list(self._data_channel_cache.values()):
+      channel._clean_receiving_queue(instruction_id)
 
 
 class InMemoryDataChannelFactory(DataChannelFactory):

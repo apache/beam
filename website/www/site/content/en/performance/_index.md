@@ -30,7 +30,7 @@ from a pipeline Job running on [Dataflow](/documentation/runners/dataflow/).
 See the [glossary](/performance/glossary) for a list of the metrics and their
 definition.
 
-# Measured Beam IOs
+# Measured Beam Java IOs
 
 See the following pages for performance measures recorded when reading from and
 writing to various Beam IOs.
@@ -38,3 +38,22 @@ writing to various Beam IOs.
 - [BigQuery](/performance/bigquery)
 - [BigTable](/performance/bigtable)
 - [TextIO](/performance/textio)
+
+# Measured Beam Python ML Pipelines
+
+See the following pages for performance measures recorded when running various Beam ML pipelines.
+
+## Streaming
+
+- [PyTorch Sentiment Analysis Streaming DistilBERT base](/performance/pytorchbertsentimentstreaming)
+
+## Batch
+
+- [PyTorch Sentiment Analysis Batch DistilBERT base](/performance/pytorchbertsentimentbatch)
+- [PyTorch Language Modeling BERT base](/performance/pytorchbertbase)
+- [PyTorch Language Modeling BERT large](/performance/pytorchbertlarge)
+- [PyTorch Vision Classification Resnet 101](/performance/pytorchresnet101)
+- [PyTorch Vision Classification Resnet 152](/performance/pytorchresnet152)
+- [PyTorch Vision Classification Resnet 152 Tesla T4 GPU](/performance/pytorchresnet152tesla)
+- [TensorFlow MNIST Image Classification](/performance/tensorflowmnist)
+- [VLLM Gemma Batch Completion Tesla T4 GPU](/performance/vllmgemmabatchtesla)

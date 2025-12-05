@@ -34,15 +34,17 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 try:
+  from google.cloud.exceptions import BadRequest
+  from google.cloud.exceptions import NotFound
+
   from apache_beam.io.gcp import gcsio
   from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTER
-  from google.cloud.exceptions import BadRequest, NotFound
 except ImportError:
   NotFound = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 DEFAULT_GCP_PROJECT = 'apache-beam-testing'
 
@@ -75,8 +77,38 @@ class FakeGcsClient(object):
     else:
       return self.create_bucket(name)
 
-  def batch(self):
-    pass
+  def batch(self, raise_exception=True):
+    # Return a mock object configured to act as a context manager
+    # and provide the necessary _responses attribute after __exit__.
+    # test_delete performs 3 deletions.
+    num_expected_responses = 3
+    mock_batch = mock.Mock()
+
+    # Configure the mock responses (assuming success for test_delete)
+    # These need to be available *after* the 'with' block finishes.
+    # We'll store them temporarily and assign in __exit__.
+    successful_responses = [
+        mock.Mock(status_code=204) for _ in range(num_expected_responses)
+    ]
+
+    # Define the exit logic
+    def mock_exit_logic(exc_type, exc_val, exc_tb):
+      # Assign responses to the mock instance itself
+      # so they are available after the 'with' block.
+      mock_batch._responses = successful_responses
+
+    # Configure the mock to behave like a context manager
+    mock_batch.configure_mock(
+        __enter__=mock.Mock(return_value=mock_batch),
+        __exit__=mock.Mock(side_effect=mock_exit_logic))
+
+    # The loop inside _batch_with_retry calls fn(request) for each item.
+    # The real batch object might have methods like add() or similar,
+    # but the core logic in gcsio.py calls the passed function `fn` directly
+    # within the `with` block. So, no specific action methods seem needed
+    # on the mock_batch itself for this test case.
+
+    return mock_batch
 
   def add_file(self, bucket, blob, contents):
     folder = self.lookup_bucket(bucket)
@@ -144,7 +176,8 @@ class FakeBucket(object):
     if name in bucket.blobs:
       return bucket.blobs[name]
     else:
-      return bucket.create_blob(name)
+      new_blob = bucket._create_blob(name)
+      return bucket.add_blob(new_blob)
 
   def set_default_kms_key_name(self, name):
     self.default_kms_key_name = name
@@ -200,6 +233,9 @@ class FakeBlob(object):
 
   def __eq__(self, other):
     return self.bucket.get_blob(self.name) is other.bucket.get_blob(other.name)
+
+  def exists(self, **kwargs):
+    return self.bucket.get_blob(self.name) is not None
 
 
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
@@ -366,7 +402,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(self.gcs.exists(file_name + 'xyz'))
     self.assertTrue(self.gcs.exists(file_name))
 
-  @mock.patch.object(FakeBucket, 'get_blob')
+  @mock.patch.object(FakeBlob, 'exists')
   def test_exists_failure(self, mock_get):
     # Raising an error other than 404. Raising 404 is a valid failure for
     # exists() call.

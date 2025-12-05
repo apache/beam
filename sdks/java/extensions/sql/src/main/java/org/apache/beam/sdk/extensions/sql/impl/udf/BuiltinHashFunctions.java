@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.udf;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.function.Strict;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.function.Strict;
 
 /** Hash Functions. */
 @AutoService(BeamBuiltinFunctionProvider.class)

@@ -19,6 +19,7 @@
 for where to find and how to invoke services that vend implementations of
 various PTransforms."""
 
+import abc
 import collections
 import functools
 import hashlib
@@ -30,6 +31,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.parse
 import warnings
 from collections.abc import Callable
@@ -37,6 +39,7 @@ from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
 from typing import Optional
+from typing import Union
 
 import docstring_parser
 import yaml
@@ -45,6 +48,7 @@ import apache_beam as beam
 import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
+from apache_beam import ManagedReplacement
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
@@ -61,18 +65,36 @@ from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
+from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
+_LOGGER = logging.getLogger(__name__)
 
-class Provider:
+
+class NotAvailableWithReason:
+  """A False value that provides additional content.
+
+  Primarily used to return a value from Provider.available().
+  """
+  def __init__(self, reason):
+    self.reason = reason
+
+  def __bool__(self):
+    return False
+
+
+class Provider(abc.ABC):
   """Maps transform types names and args to concrete PTransform instances."""
-  def available(self) -> bool:
+  @abc.abstractmethod
+  def available(self) -> Union[bool, NotAvailableWithReason]:
     """Returns whether this provider is available to use in this environment."""
     raise NotImplementedError(type(self))
 
+  @abc.abstractmethod
   def cache_artifacts(self) -> Optional[Iterable[str]]:
     raise NotImplementedError(type(self))
 
+  @abc.abstractmethod
   def provided_transforms(self) -> Iterable[str]:
     """Returns a list of transform type names this provider can handle."""
     raise NotImplementedError(type(self))
@@ -93,6 +115,7 @@ class Provider:
     """
     return not typ.startswith('Read')
 
+  @abc.abstractmethod
   def create_transform(
       self,
       typ: str,
@@ -131,6 +154,18 @@ class Provider:
     else:
       return 0
 
+  @functools.cache  # pylint: disable=method-cache-max-size-none
+  def with_extra_dependencies(self, dependencies: Iterable[str]):
+    result = self._with_extra_dependencies(dependencies)
+    if not hasattr(result, 'to_json'):
+      result.to_json = lambda: {'type': type(result).__name__}
+    return result
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    raise ValueError(
+        'This provider of type %s does not support additional dependencies.' %
+        type(self).__name__)
+
 
 def as_provider(name, provider_or_constructor):
   if isinstance(provider_or_constructor, Provider):
@@ -149,10 +184,20 @@ class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
   _provider_types: dict[str, Callable[..., Provider]] = {}
 
-  def __init__(self, urns, service):
+  def __init__(self, urns, service, managed_replacement=None):
+    """Initializes the ExternalProvider.
+
+    Args:
+      urns: a set of URNs that uniquely identify the transforms supported.
+      service: the gradle target that identified the expansion service jar.
+      managed_replacement (Optional): a map that defines the transform for
+        which the SDK may replace the transform with an available managed
+        transform.
+    """
     self._urns = urns
     self._service = service
     self._schema_transforms = None
+    self._managed_replacement = managed_replacement
 
   def provided_transforms(self):
     return self._urns.keys()
@@ -192,8 +237,18 @@ class ExternalProvider(Provider):
       self._service = self._service()
     urn = self._urns[type]
     if urn in self.schema_transforms():
+      managed_replacement = None
+      if self._managed_replacement and type in self._managed_replacement:
+        managed_replacement = ManagedReplacement(
+            underlying_transform_identifier=urn,
+            update_compatibility_version=self._managed_replacement[type])
+
       return external.SchemaAwareExternalTransform(
-          urn, self._service, rearrange_based_on_discovery=True, **args)
+          urn,
+          self._service,
+          rearrange_based_on_discovery=True,
+          managed_replacement=managed_replacement,
+          **args)
     else:
       return type >> self.create_external_transform(urn, args)
 
@@ -271,14 +326,9 @@ def maven_jar(
     classifier=None,
     appendix=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
-          artifact_id=artifact_id,
-          group_id=group_id,
-          version=version,
-          repository=repository,
-          classifier=classifier,
-          appendix=appendix))
+      urns, lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
+          artifact_id=artifact_id, group_id=group_id, version=version,
+          repository=repository, classifier=classifier, appendix=appendix))
 
 
 @ExternalProvider.register_provider_type('beamJar')
@@ -286,14 +336,15 @@ def beam_jar(
     urns,
     *,
     gradle_target,
+    managed_replacement=None,
     appendix=None,
     version=beam_version,
     artifact_id=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
-          gradle_target=gradle_target, version=version, artifact_id=artifact_id)
-  )
+      urns, lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
+          gradle_target=gradle_target, version=version, artifact_id=artifact_id
+      ),
+      managed_replacement=managed_replacement)
 
 
 @ExternalProvider.register_provider_type('docker')
@@ -307,6 +358,7 @@ class RemoteProvider(ExternalProvider):
 
   def __init__(self, urns, address: str):
     super().__init__(urns, service=address)
+    self._address = address
 
   def available(self):
     if self._is_available is None:
@@ -315,7 +367,8 @@ class RemoteProvider(ExternalProvider):
           service.ready(1)
           self._is_available = True
       except Exception:
-        self._is_available = False
+        self._is_available = NotAvailableWithReason(
+            f'Remote provider not reachable at {self._address}.')
     return self._is_available
 
   def cache_artifacts(self):
@@ -323,18 +376,35 @@ class RemoteProvider(ExternalProvider):
 
 
 class ExternalJavaProvider(ExternalProvider):
-  def __init__(self, urns, jar_provider):
+  def __init__(
+      self, urns, jar_provider, managed_replacement=None, classpath=None):
     super().__init__(
-        urns, lambda: external.JavaJarExpansionService(jar_provider()))
+        urns, lambda: external.JavaJarExpansionService(
+            jar_provider(), classpath=classpath),
+        managed_replacement)
     self._jar_provider = jar_provider
+    self._classpath = classpath
 
   def available(self):
-    # pylint: disable=subprocess-run-check
-    return subprocess.run(['which', 'java'],
-                          capture_output=True).returncode == 0
+    # Directly use shutil.which to find the Java executable cross-platform
+    java_path = shutil.which(subprocess_server.JavaHelper.get_java())
+    if java_path:
+      return True
+    # Return error message when not found
+    return NotAvailableWithReason(
+        'Unable to locate java executable: java not found in PATH or JAVA_HOME')
 
   def cache_artifacts(self):
     return [self._jar_provider()]
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    jars = sum((
+        external.JavaJarExpansionService._expand_jars(dep)
+        for dep in dependencies), [])
+    return ExternalJavaProvider(
+        self._urns,
+        jar_provider=self._jar_provider,
+        classpath=(list(self._classpath or []) + list(jars)))
 
 
 @ExternalProvider.register_provider_type('python')
@@ -343,8 +413,8 @@ def python(urns, provider_base_path, packages=()):
     return ExternalPythonProvider(urns, provider_base_path, packages)
   else:
     return InlineProvider({
-        name:
-        python_callable.PythonCallableWithSource.load_from_source(constructor)
+        name: python_callable.PythonCallableWithSource.load_from_source(
+            constructor)
         for (name, constructor) in urns.items()
     })
 
@@ -363,6 +433,8 @@ class ExternalPythonProvider(ExternalProvider):
             _join_url_or_filepath(provider_base_path, package)
             if is_path_or_urn(package) else package for package in packages
         ]))
+
+    self._packages = packages
 
   def available(self):
     return True  # If we're running this script, we have Python installed.
@@ -389,6 +461,10 @@ class ExternalPythonProvider(ExternalProvider):
       return 50
     else:
       return super()._affinity(other)
+
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return ExternalPythonProvider(
+        self._urns, None, set(self._packages).union(set(dependencies)))
 
 
 @ExternalProvider.register_provider_type('yaml')
@@ -430,8 +506,9 @@ class YamlProvider(Provider):
       yaml_create_transform: Callable[
           [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
   ) -> beam.PTransform:
-    from apache_beam.yaml.yaml_transform import expand_jinja, preprocess
     from apache_beam.yaml.yaml_transform import SafeLineLoader
+    from apache_beam.yaml.yaml_transform import expand_jinja
+    from apache_beam.yaml.yaml_transform import preprocess
     spec = self._transforms[type]
     try:
       import jsonschema
@@ -451,7 +528,7 @@ class YamlProvider(Provider):
     if (body.get('type') == 'chain' and 'input' not in body and
         spec.get('requires_inputs', True)):
       body['input'] = 'input'
-    return yaml_create_transform(preprocess(body), [])
+    return yaml_create_transform(preprocess(body))  # type: ignore
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
@@ -531,9 +608,8 @@ class InlineProvider(Provider):
         for param in cls.get_docs(factory).params
     }
 
-    names_and_types = [
-        (name, typing_to_runner_api(type_of(p))) for name, p in params.items()
-    ]
+    names_and_types = [(name, typing_to_runner_api(type_of(p)))
+                       for name, p in params.items()]
     return schema_pb2.Schema(
         fields=[
             schema_pb2.Field(name=name, type=type, description=docs.get(name))
@@ -578,10 +654,31 @@ class InlineProvider(Provider):
     else:
       return super().requires_inputs(typ, args)
 
+  def _with_extra_dependencies(self, dependencies):
+    external_provider = ExternalPythonProvider(  # disable yapf
+        {
+            typ: 'apache_beam.yaml.yaml_provider.standard_inline_providers.' +
+            typ.replace('-', '_')
+            for typ in self._transform_factories.keys()
+        },
+        '__inline__',
+        dependencies)
+    external_provider.to_json = self.to_json
+    return external_provider
+
 
 class MetaInlineProvider(InlineProvider):
   def create_transform(self, type, args, yaml_create_transform):
     return self._transform_factories[type](yaml_create_transform, **args)
+
+
+# Note: This function is used to override the default provider by some
+# users, so a change here will be breaking to those users. Change with
+# caution.
+def get_default_sql_provider():
+  return beam_jar(
+      urns={'Sql': 'beam:external:java:sql:v1'},
+      gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
 
 
 class SqlBackedProvider(Provider):
@@ -591,9 +688,7 @@ class SqlBackedProvider(Provider):
       sql_provider: Optional[Provider] = None):
     self._transforms = transforms
     if sql_provider is None:
-      sql_provider = beam_jar(
-          urns={'Sql': 'beam:external:java:sql:v1'},
-          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+      sql_provider = get_default_sql_provider()
     self._sql_provider = sql_provider
 
   def sql_provider(self):
@@ -655,6 +750,46 @@ def dicts_to_rows(o):
     return o
 
 
+def _unify_element_with_schema(element, target_schema):
+  """Convert an element to match the target schema, preserving existing
+    fields only."""
+  if target_schema is None:
+    return element
+
+  # If element is already a named tuple, convert to dict first
+  if hasattr(element, '_asdict'):
+    element_dict = element._asdict()
+  elif isinstance(element, dict):
+    element_dict = element
+  else:
+    # This element is not a row-like object. If the target schema has a single
+    # field, assume this element is the value for that field.
+    if len(target_schema._fields) == 1:
+      return target_schema(**{target_schema._fields[0]: element})
+    else:
+      return element
+
+  # Create new element with only the fields that exist in the original
+  # element plus None for fields that are expected but missing
+  unified_dict = {}
+  for field_name in target_schema._fields:
+    if field_name in element_dict:
+      value = element_dict[field_name]
+      # Ensure the value matches the expected type
+      # This is particularly important for list fields
+      if value is not None and not isinstance(value, list) and hasattr(
+          value, '__iter__') and not isinstance(
+              value, (str, bytes)) and not hasattr(value, '_asdict'):
+        # Convert iterables to lists if needed
+        unified_dict[field_name] = list(value)
+      else:
+        unified_dict[field_name] = value
+    else:
+      unified_dict[field_name] = None
+
+  return target_schema(**unified_dict)
+
+
 class YamlProviders:
   class AssertEqual(beam.PTransform):
     """Asserts that the input contains exactly the elements provided.
@@ -684,9 +819,14 @@ class YamlProviders:
       self._elements = elements
 
     def expand(self, pcoll):
+      def to_dict(row):
+        # filter None when comparing
+        temp_dict = {k: v for k, v in row._asdict().items() if v is not None}
+        return dict(temp_dict.items())
+
       return assert_that(
-          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
-          equal_to(dicts_to_rows(self._elements)))
+          pcoll | beam.Map(to_dict),
+          equal_to([to_dict(e) for e in dicts_to_rows(self._elements)]))
 
   @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
@@ -737,7 +877,32 @@ class YamlProviders:
     # not the intent.
     if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
-    return beam.Create([element_to_rows(e) for e in elements],
+
+    # Check if elements have different keys
+    updated_elements = elements
+    if elements and all(isinstance(e, dict) for e in elements):
+      keys = [set(e.keys()) for e in elements]
+      if len(set.union(*keys)) > min(len(k) for k in keys):
+        # Merge all dictionaries to get all possible keys
+        all_keys = set()
+        for element in elements:
+          if isinstance(element, dict):
+            all_keys.update(element.keys())
+
+        # Create a merged dictionary with all keys
+        merged_dict = {}
+        for key in all_keys:
+          merged_dict[key] = None  # Use None as a default value
+
+        # Update each element with the merged dictionary
+        updated_elements = []
+        for e in elements:
+          if isinstance(e, dict):
+            updated_elements.append({**merged_dict, **e})
+          else:
+            updated_elements.append(e)
+
+    return beam.Create([element_to_rows(e) for e in updated_elements],
                        reshuffle=reshuffle is not False)
 
   # Or should this be posargs, args?
@@ -801,6 +966,48 @@ class YamlProviders:
       # pylint: disable=useless-parent-delegation
       super().__init__()
 
+    def _merge_schemas(self, pcolls):
+      """Merge schemas from multiple PCollections to create a unified schema.
+
+      This function creates a unified schema that contains all fields from all
+      input PCollections. Fields are made optional to handle missing values.
+      If fields have different types, they are unified to Optional[Any].
+      """
+      from apache_beam.typehints.schemas import named_fields_from_element_type
+
+      # Collect all schemas
+      schemas = []
+      for pcoll in pcolls:
+        if hasattr(pcoll, 'element_type') and pcoll.element_type:
+          try:
+            fields = named_fields_from_element_type(pcoll.element_type)
+            schemas.append(dict(fields))
+          except (ValueError, TypeError):
+            # If we can't extract schema, skip this PCollection
+            continue
+
+      if not schemas:
+        return None
+
+      # Merge all field names and types.
+      all_field_names = set().union(*(s.keys() for s in schemas))
+      unified_fields = {}
+      for name in all_field_names:
+        present_types = {s[name] for s in schemas if name in s}
+        if len(present_types) > 1:
+          unified_fields[name] = Optional[Any]
+        else:
+          unified_fields[name] = Optional[present_types.pop()]
+
+      # Create unified schema
+      if unified_fields:
+        from apache_beam.typehints.schemas import named_fields_to_schema
+        from apache_beam.typehints.schemas import named_tuple_from_schema
+        unified_schema = named_fields_to_schema(list(unified_fields.items()))
+        return named_tuple_from_schema(unified_schema)
+
+      return None
+
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
         pipeline_arg = {}
@@ -811,7 +1018,27 @@ class YamlProviders:
       else:
         pipeline_arg = {'pipeline': pcolls.pipeline}
         pcolls = ()
-      return pcolls | beam.Flatten(**pipeline_arg)
+
+      if not pcolls:
+        return pcolls | beam.Flatten(**pipeline_arg)
+
+      # Try to unify schemas
+      unified_schema = self._merge_schemas(pcolls)
+
+      if unified_schema is None:
+        # No schema unification needed, use standard flatten
+        return pcolls | beam.Flatten(**pipeline_arg)
+
+      # Apply schema unification to each PCollection before flattening.
+      unified_pcolls = []
+      for i, pcoll in enumerate(pcolls):
+        unified_pcoll = pcoll | f'UnifySchema{i}' >> beam.Map(
+            _unify_element_with_schema,
+            target_schema=unified_schema).with_output_types(unified_schema)
+        unified_pcolls.append(unified_pcoll)
+
+      # Flatten the unified PCollections
+      return unified_pcolls | beam.Flatten(**pipeline_arg)
 
   class WindowInto(beam.PTransform):
     # pylint: disable=line-too-long
@@ -989,6 +1216,11 @@ class TranslatingProvider(Provider):
       yaml_create_transform: Any) -> beam.PTransform:
     return self._transforms[typ](self._underlying_provider, **config)
 
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return TranslatingProvider(
+        self._transforms,
+        self._underlying_provider._with_extra_dependencies(dependencies))
+
 
 def create_java_builtin_provider():
   """Exposes built-in transforms from Java as well as Python to maximize
@@ -1040,7 +1272,14 @@ class PypiExpansionService:
   """Expands transforms by fully qualified name in a virtual environment
   with the given dependencies.
   """
-  VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
+  if 'TOX_WORK_DIR' in os.environ:
+    VENV_CACHE = tempfile.mkdtemp(
+        prefix='test-venv-cache-', dir=os.environ['TOX_WORK_DIR'])
+  elif 'RUNNER_WORKDIR' in os.environ:
+    VENV_CACHE = tempfile.mkdtemp(
+        prefix='test-venv-cache-', dir=os.environ['RUNNER_WORKDIR'])
+  else:
+    VENV_CACHE = os.path.expanduser("~/.apache_beam/cache/venvs")
 
   def __init__(
       self, packages: Iterable[str], base_python: str = sys.executable):
@@ -1086,6 +1325,18 @@ class PypiExpansionService:
         venv_python = os.path.join(venv, 'bin', 'python')
         venv_pip = os.path.join(venv, 'bin', 'pip')
         subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
+        # Issue warning when installing packages from PyPI
+        _LOGGER.warning(
+            " WARNING: Apache Beam is installing Python packages "
+            "from PyPI at runtime.\n"
+            "   This may pose security risks or cause instability due to "
+            "repository availability.\n"
+            "   Packages: %s\n"
+            "   Consider pre-staging dependencies or using a private "
+            "repository mirror.\n"
+            "   For more information, see: "
+            "https://beam.apache.org/documentation/sdks/python-dependencies/",
+            ', '.join(packages))
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
@@ -1101,12 +1352,23 @@ class PypiExpansionService:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
+        # Avoid hard dependency for environments where this is never used.
+        import clonevirtualenv
         clonable_venv = cls._create_venv_to_clone(base_python)
-        clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-        subprocess.run(
-            [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-            check=True)
+        clonevirtualenv.clone_virtualenv(clonable_venv, venv)
         venv_pip = os.path.join(venv, 'bin', 'pip')
+        # Issue warning when installing packages from PyPI
+        _LOGGER.warning(
+            "   WARNING: Apache Beam is installing Python packages "
+            "from PyPI at runtime.\n"
+            "   This may pose security risks or cause instability due to "
+            "repository availability.\n"
+            "   Packages: %s\n"
+            "   Consider pre-staging dependencies or using a private "
+            "repository mirror.\n"
+            "   For more information, see: "
+            "https://beam.apache.org/documentation/sdks/python-dependencies/",
+            ', '.join(packages))
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
@@ -1268,6 +1530,14 @@ class RenamingProvider(Provider):
   def cache_artifacts(self):
     self._underlying_provider.cache_artifacts()
 
+  def _with_extra_dependencies(self, dependencies: Iterable[str]):
+    return RenamingProvider(
+        self._transforms,
+        None,
+        self._mappings,
+        self._underlying_provider._with_extra_dependencies(dependencies),
+        self._defaults)
+
 
 def _as_list(func):
   @functools.wraps(func)
@@ -1278,13 +1548,22 @@ def _as_list(func):
 
 
 def _join_url_or_filepath(base, path):
-  base_scheme = urllib.parse.urlparse(base, '').scheme
-  path_scheme = urllib.parse.urlparse(path, base_scheme).scheme
-  if path_scheme != base_scheme:
+  if not base:
     return path
-  elif base_scheme and base_scheme in urllib.parse.uses_relative:
+
+  if urllib.parse.urlparse(path).scheme:
+    # path is an absolute path with scheme (whether it is the same as base or
+    # not).
+    return path
+
+  # path is a relative path or an absolute path without scheme (e.g. /a/b/c)
+  base_scheme = urllib.parse.urlparse(base, '').scheme
+  if base_scheme and base_scheme in urllib.parse.uses_relative:
     return urllib.parse.urljoin(base, path)
   else:
+    if FileSystems.join(base, "") == base:
+      # base ends with a filesystem separator
+      return FileSystems.join(base, path)
     return FileSystems.join(FileSystems.split(base)[0], path)
 
 
@@ -1348,11 +1627,13 @@ def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
   return result
 
 
+@functools.cache
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
-  from apache_beam.yaml.yaml_mapping import create_mapping_providers
-  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
+  from apache_beam.yaml.yaml_mapping import create_mapping_providers
+  from apache_beam.yaml.yaml_specifiable import create_spec_providers
 
   return merge_providers(
       YamlProviders.create_builtin_provider(),
@@ -1361,8 +1642,8 @@ def standard_providers():
       create_combine_providers(),
       create_join_providers(),
       io_providers(),
-      load_providers(
-          os.path.join(os.path.dirname(__file__), 'standard_providers.yaml')))
+      create_spec_providers(),
+      load_providers(yaml_utils.locate_data_file('standard_providers.yaml')))
 
 
 def _file_digest(fileobj, digest):
@@ -1375,3 +1656,19 @@ def _file_digest(fileobj, digest):
       hasher.update(data)
       data = fileobj.read(1 << 20)
     return hasher
+
+
+class _InlineProviderNamespace:
+  """Gives fully qualified names to inline providers from standard_providers().
+
+  This is needed to upgrade InlineProvider to ExternalPythonProvider.
+  """
+  def __getattr__(self, name):
+    typ = name.replace('_', '-')
+    for provider in standard_providers()[typ]:
+      if isinstance(provider, InlineProvider):
+        return provider._transform_factories[typ]
+    raise ValueError(f"No inline provider found for {name}")
+
+
+standard_inline_providers = _InlineProviderNamespace()

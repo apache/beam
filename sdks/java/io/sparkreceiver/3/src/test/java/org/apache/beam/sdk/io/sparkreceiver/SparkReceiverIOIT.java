@@ -315,7 +315,7 @@ public class SparkReceiverIOIT {
     try {
       writeToRabbitMq(messages);
     } catch (Exception e) {
-      LOG.error("Can not write to rabbit {}", e.getMessage());
+      LOG.error("Can not write to rabbit.", e);
       fail();
     }
     LOG.info(sourceOptions.numRecords + " records were successfully written to RabbitMQ");

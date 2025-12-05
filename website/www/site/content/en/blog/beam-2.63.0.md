@@ -77,9 +77,13 @@ For more information on changes in 2.63.0, check out the [detailed release notes
 * Fixed the user mailing list address ([#26013](https://github.com/apache/beam/issues/26013)).
 * [Dataflow Streaming] Fixed an issue where Dataflow Streaming workers were reporting lineage metrics as cumulative rather than delta. ([#33691](https://github.com/apache/beam/pull/33691))
 
+## Known Issues
+
+* (Java) Current version of protobuf has a [bug](https://github.com/protocolbuffers/protobuf/issues/20599) leading to incompatibilities with clients using older versions of Protobuf ([example issue](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/2191)). This issue has been seen in SpannerIO in particular. Tracked in [#34452](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34452)
+
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the 2.62.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.63.0 release. Thank you to all contributors!
 
 Ahmed Abualsaud,
 Alex Merose,

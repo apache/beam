@@ -38,10 +38,13 @@ fi
 
 PY_VERSION=$1
 SDK_TARBALL=$2
+REQUIREMENTS_FILE_NAME=$3
+BASE_PATH=$4
+EXTRAS=$5
 # Use the PIP_EXTRA_OPTIONS environment variable to pass additional flags to the pip install command.
 # For example, you can include the --pre flag in $PIP_EXTRA_OPTIONS to download pre-release versions of packages.
 # Note that you can modify the behavior of the pip install command in this script by passing in your own $PIP_EXTRA_OPTIONS.
-PIP_EXTRA_OPTIONS=$3
+PIP_EXTRA_OPTIONS=$6
 
 if ! python"$PY_VERSION" --version > /dev/null 2>&1 ; then
   echo "Please install a python${PY_VERSION} interpreter. See s.apache.org/beam-python-dev-wiki for Python installation tips."
@@ -53,6 +56,18 @@ if ! python"$PY_VERSION" -m venv --help > /dev/null 2>&1 ; then
   exit 1
 fi
 
+if [ -z "$REQUIREMENTS_FILE_NAME" ]; then
+  REQUIREMENTS_FILE_NAME="base_image_requirements.txt"
+fi
+
+if [ -z "$BASE_PATH" ]; then
+  BASE_PATH="container"
+fi
+
+if [ -z "$EXTRAS" ]; then
+  EXTRAS="[gcp,dataframe,test,yaml]"
+fi
+
 set -ex
 
 ENV_PATH="$PWD/build/python${PY_VERSION/./}_requirements_gen"
@@ -61,21 +76,34 @@ python"${PY_VERSION}" -m venv "$ENV_PATH"
 source "$ENV_PATH"/bin/activate
 pip install --upgrade pip setuptools wheel
 
+# For non-vllm (non-gpu) requirement files, force downloading torch from CPU wheels
+INDEX_URL_OPTION="--extra-index-url https://download.pytorch.org/whl/cpu"
+if [[ $EXTRAS == *"vllm"* ]]; then
+  # Explicitly install torch to avoid https://github.com/facebookresearch/xformers/issues/740
+  # A different version of torch may be installed later since torch is a requirement for vllm
+  pip install --no-cache-dir torch
+
+  INDEX_URL_OPTION=""
+fi
+
 # Install gcp extra deps since these deps are commonly used with Apache Beam.
 # Install dataframe deps to add have Dataframe support in released images.
 # Install test deps since some integration tests need dependencies,
 # such as pytest, installed in the runner environment.
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL"[gcp,dataframe,test]
+# Force torch dependencies to be pulled from the PyTorch CPU wheel
+# repository so that they don't include GPU dependencies with
+# non-compliant licenses
+pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS" $INDEX_URL_OPTION
 pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
 
 pip uninstall -y apache-beam
 echo "Checking for broken dependencies:"
 pip check
 echo "Installed dependencies:"
-pip freeze
+pip freeze --all
 
 PY_IMAGE="py${PY_VERSION//.}"
-REQUIREMENTS_FILE=$PWD/sdks/python/container/$PY_IMAGE/base_image_requirements.txt
+REQUIREMENTS_FILE=$PWD/sdks/python/$BASE_PATH/$PY_IMAGE/$REQUIREMENTS_FILE_NAME
 cat <<EOT > "$REQUIREMENTS_FILE"
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
@@ -103,7 +131,7 @@ cat <<EOT > "$REQUIREMENTS_FILE"
 EOT
 # Remove pkg_resources to guard against
 # https://stackoverflow.com/questions/39577984/what-is-pkg-resources-0-0-0-in-output-of-pip-freeze-command
-pip freeze | grep -v pkg_resources >> "$REQUIREMENTS_FILE"
+pip freeze --all | grep -v pkg_resources >> "$REQUIREMENTS_FILE"
 
 if grep -q "tensorflow==" "$REQUIREMENTS_FILE"; then
   # Get the version of tensorflow from the .txt file.

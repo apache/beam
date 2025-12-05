@@ -43,9 +43,10 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.common import group_by_key_input_visitor
-from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
+from apache_beam.runners.pipeline_utils import merge_common_environments
+from apache_beam.runners.pipeline_utils import merge_superset_dep_environments
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -96,6 +97,9 @@ class DataflowRunner(PipelineRunner):
 
   def __init__(self, cache=None):
     self._default_environment = None
+
+  def default_pickle_library_override(self):
+    return 'cloudpickle'
 
   def is_fnapi_compatible(self):
     return False
@@ -165,8 +169,8 @@ class DataflowRunner(PipelineRunner):
 
           # Check that job is in a post-preparation state before starting the
           # final countdown.
-          if (str(response.currentState) not in ('JOB_STATE_PENDING',
-                                                 'JOB_STATE_QUEUED')):
+          if (str(response.currentState)
+              not in ('JOB_STATE_PENDING', 'JOB_STATE_QUEUED')):
             # The job has failed; ensure we see any final error messages.
             sleep_secs = 1.0  # poll faster during the final countdown
             final_countdown_timer_secs -= sleep_secs
@@ -299,8 +303,8 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def combinefn_visitor():
     # Imported here to avoid circular dependencies.
-    from apache_beam.pipeline import PipelineVisitor
     from apache_beam import core
+    from apache_beam.pipeline import PipelineVisitor
 
     class CombineFnVisitor(PipelineVisitor):
       """Checks if `CombineFn` has non-default setup or teardown methods.
@@ -374,6 +378,13 @@ class DataflowRunner(PipelineRunner):
       # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
+      # Apply DataflowRunner-specific overrides (e.g., streaming PubSub
+      # optimizations)
+      from apache_beam.runners.dataflow.ptransform_overrides import get_dataflow_transform_overrides
+      dataflow_overrides = get_dataflow_transform_overrides(options)
+      if dataflow_overrides:
+        pipeline.replace_all(dataflow_overrides)
+
       if options.view_as(DebugOptions).lookup_experiment('use_legacy_bq_sink'):
         warnings.warn(
             "Native sinks no longer implemented; "
@@ -434,7 +445,8 @@ class DataflowRunner(PipelineRunner):
       self.proto_pipeline.components.environments[env_id].CopyFrom(
           environments.resolve_anyof_environment(
               env, common_urns.environments.DOCKER.urn))
-    self.proto_pipeline = merge_common_environments(self.proto_pipeline)
+    self.proto_pipeline = merge_common_environments(
+        merge_superset_dep_environments(self.proto_pipeline))
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.
@@ -499,7 +511,7 @@ class DataflowRunner(PipelineRunner):
     # template creation). If a request was sent and failed then the call will
     # raise an exception.
     result = DataflowPipelineResult(
-        self.dataflow_client.create_job(self.job), self)
+        self.dataflow_client.create_job(self.job), self, options)
 
     # TODO(BEAM-4274): Circular import runners-metrics. Requires refactoring.
     from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
@@ -589,8 +601,15 @@ def _check_and_add_missing_options(options):
   debug_options = options.view_as(DebugOptions)
   dataflow_service_options = options.view_as(
       GoogleCloudOptions).dataflow_service_options or []
-  options.view_as(
-      GoogleCloudOptions).dataflow_service_options = dataflow_service_options
+
+  # Add use_gbek to dataflow_service_options if gbek is set.
+  if options.view_as(SetupOptions).gbek:
+    if 'use_gbek' not in dataflow_service_options:
+      dataflow_service_options.append('use_gbek')
+  elif 'use_gbek' in dataflow_service_options:
+    raise ValueError(
+        'Do not set use_gbek directly, pass in the --gbek pipeline option '
+        'with a valid secret instead.')
 
   _add_runner_v2_missing_options(options)
 
@@ -600,6 +619,9 @@ def _check_and_add_missing_options(options):
     debug_options.add_experiment('enable_prime')
   elif debug_options.lookup_experiment('enable_prime'):
     dataflow_service_options.append('enable_prime')
+
+  options.view_as(
+      GoogleCloudOptions).dataflow_service_options = dataflow_service_options
 
   sdk_location = options.view_as(SetupOptions).sdk_location
   if 'dev' in beam.version.__version__ and sdk_location == 'default':
@@ -628,23 +650,8 @@ def _check_and_add_missing_streaming_options(options):
   # Runner v2 only supports using streaming engine (aka windmill service)
   if options.view_as(StandardOptions).streaming:
     debug_options = options.view_as(DebugOptions)
-    google_cloud_options = options.view_as(GoogleCloudOptions)
-    if (not google_cloud_options.enable_streaming_engine and
-        (debug_options.lookup_experiment("enable_windmill_service") or
-         debug_options.lookup_experiment("enable_streaming_engine"))):
-      raise ValueError(
-          """Streaming engine both disabled and enabled:
-          --enable_streaming_engine flag is not set, but
-          enable_windmill_service and/or enable_streaming_engine experiments
-          are present. It is recommended you only set the
-          --enable_streaming_engine flag.""")
-
-    # Ensure that if we detected a streaming pipeline that streaming specific
-    # options and experiments.
-    options.view_as(StandardOptions).streaming = True
-    google_cloud_options.enable_streaming_engine = True
-    debug_options.add_experiment("enable_streaming_engine")
-    debug_options.add_experiment("enable_windmill_service")
+    debug_options.add_experiment('enable_streaming_engine')
+    debug_options.add_experiment('enable_windmill_service')
 
 
 def _is_runner_v2_disabled(options):
@@ -689,7 +696,7 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
 
 class DataflowPipelineResult(PipelineResult):
   """Represents the state of a pipeline run on the Dataflow service."""
-  def __init__(self, job, runner):
+  def __init__(self, job, runner, options=None):
     """Initialize a new DataflowPipelineResult instance.
 
     Args:
@@ -699,6 +706,7 @@ class DataflowPipelineResult(PipelineResult):
     """
     self._job = job
     self._runner = runner
+    self._options = options
     self.metric_results = None
 
   def _update_job(self):
@@ -777,10 +785,11 @@ class DataflowPipelineResult(PipelineResult):
     if not self.is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
+      gcp_options = self._options.view_as(GoogleCloudOptions)
       consoleUrl = (
           "Console URL: https://console.cloud.google.com/"
-          f"dataflow/jobs/<RegionId>/{self.job_id()}"
-          "?project=<ProjectId>")
+          f"dataflow/jobs/{gcp_options.region}/{self.job_id()}"
+          f"?project={gcp_options.project}")
       thread = threading.Thread(
           target=DataflowRunner.poll_for_job_completion,
           args=(self._runner, self, duration))

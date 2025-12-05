@@ -38,7 +38,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
@@ -98,7 +99,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
     this.sortBufferTag =
         StateTags.makeSystemTagInternal(
-            StateTags.bag(SORT_BUFFER_STATE, WindowedValue.getFullCoder(inputCoder, windowCoder)));
+            StateTags.bag(SORT_BUFFER_STATE, WindowedValues.getFullCoder(inputCoder, windowCoder)));
 
     rejectMergingWindowFn(windowFn);
   }

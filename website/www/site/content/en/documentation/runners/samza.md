@@ -19,6 +19,8 @@ limitations under the License.
 
 # Using the Apache Samza Runner
 
+**Note** Samza runner is deprecated and the support is planned to be removed in Beam 3.0 ([Issue](https://github.com/apache/beam/issues/35448)).
+
 The Apache Samza Runner can be used to execute Beam pipelines using [Apache Samza](https://samza.apache.org/). The Samza Runner executes Beam pipeline in a Samza application and can run locally. The application can further be built into a .tgz file, and deployed to a YARN cluster or Samza standalone cluster with Zookeeper.
 
 The Samza Runner and Samza are suitable for large scale, stateful streaming jobs, and provide:

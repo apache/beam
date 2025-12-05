@@ -26,12 +26,15 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache.ForKeyAndFamily;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
@@ -54,19 +57,18 @@ class WindmillCombiningState<InputT, AccumT, OutputT> extends WindmillState
       StateTag<CombiningState<InputT, AccumT, OutputT>> address,
       String stateFamily,
       Coder<AccumT> accumCoder,
-      Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
-      WindmillStateCache.ForKeyAndFamily cache,
-      boolean isNewKey) {
+      CombineFn<InputT, AccumT, OutputT> combineFn,
+      ForKeyAndFamily cache,
+      boolean isNewKey,
+      WindmillStateTagUtil windmillStateTagUtil) {
     StateTag<BagState<AccumT>> internalBagAddress = StateTags.convertToBagTagInternal(address);
-    this.bag =
-        cache
-            .get(namespace, internalBagAddress)
-            .map(state -> (WindmillBag<AccumT>) state)
-            .orElseGet(
-                () ->
-                    new WindmillBag<>(
-                        namespace, internalBagAddress, stateFamily, accumCoder, isNewKey));
+    InternedByteString encodeKey = windmillStateTagUtil.encodeKey(namespace, internalBagAddress);
 
+    WindmillBag<AccumT> bag = (WindmillBag<AccumT>) cache.get(namespace, encodeKey);
+    if (bag == null) {
+      bag = new WindmillBag<>(namespace, encodeKey, stateFamily, accumCoder, isNewKey);
+    }
+    this.bag = bag;
     this.combineFn = combineFn;
     this.localAdditionsAccumulator = combineFn.createAccumulator();
     this.hasLocalAdditions = false;

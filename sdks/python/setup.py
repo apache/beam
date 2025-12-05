@@ -31,9 +31,7 @@ from pathlib import Path
 
 # pylint: disable=ungrouped-imports
 import setuptools
-from pkg_resources import normalize_path
-from pkg_resources import parse_version
-from pkg_resources import to_filename
+from packaging.version import parse
 from setuptools import Command
 
 # pylint: disable=wrong-import-order
@@ -41,6 +39,14 @@ from setuptools import Command
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
 from distutils.errors import DistutilsError  # isort:skip
+
+
+def to_filename(name: str) -> str:
+  return name.replace('-', '_')
+
+
+def normalize_path(filename):
+  return os.path.normcase(os.path.realpath(os.path.normpath(filename)))
 
 
 class mypy(Command):
@@ -91,17 +97,11 @@ PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
-PACKAGE_LONG_DESCRIPTION = '''
-Apache Beam is a unified programming model for both batch and streaming
-data processing, enabling efficient execution across diverse distributed
-execution engines and providing extensibility points for connecting to
-different technologies and user communities.
-'''
 
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
   _PIP_VERSION = distribution('pip').version
-  if parse_version(_PIP_VERSION) < parse_version(RECOMMENDED_MIN_PIP_VERSION):
+  if parse(_PIP_VERSION) < parse(RECOMMENDED_MIN_PIP_VERSION):
     warnings.warn(
         "You are using version {0} of pip. " \
         "However, the recommended min version is {1}.".format(
@@ -116,7 +116,7 @@ except PackageNotFoundError:
 REQUIRED_CYTHON_VERSION = '3.0.0'
 try:
   _CYTHON_VERSION = distribution('cython').version
-  if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
+  if parse(_CYTHON_VERSION) < parse(REQUIRED_CYTHON_VERSION):
     warnings.warn(
         "You are using version {0} of cython. " \
         "However, version {1} is recommended.".format(
@@ -145,9 +145,10 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<17.0.0',
+      'pyarrow>=3.0.0,<19.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
+      # (lower bound >= 14.0.1)
       'pyarrow-hotfix<1'
   ]
 
@@ -157,6 +158,23 @@ else:
 # must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
+]
+
+milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
+
+ml_base = [
+    'embeddings',
+    'onnxruntime',
+    'langchain',
+    'sentence-transformers>=2.2.2',
+    'skl2onnx',
+    'pillow',
+    'pyod',
+    'tensorflow',
+    'tensorflow-hub',
+    'tf2onnx',
+    'torch',
+    'transformers',
 ]
 
 
@@ -211,9 +229,9 @@ def copy_tests_from_docs():
     for path in glob.glob(os.path.join(docs_src, 'yaml*.md')):
       shutil.copy(path, docs_dest)
   else:
-    if not os.path.exists(docs_dest):
-      raise RuntimeError(
-          f'Could not locate yaml docs in {docs_src} or {docs_dest}.')
+    warnings.warn(
+        f'Could not locate yaml docs source directory {docs_src}. '
+        f'Skipping copying tests from docs.')
 
 
 def generate_external_transform_wrappers():
@@ -222,18 +240,18 @@ def generate_external_transform_wrappers():
     script_exists = os.path.exists(
         os.path.join(sdk_dir, 'gen_xlang_wrappers.py'))
     config_exists = os.path.exists(
-        os.path.join(os.path.dirname(sdk_dir),
-                     'standard_external_transforms.yaml'))
+        os.path.join(
+            os.path.dirname(sdk_dir), 'standard_external_transforms.yaml'))
     # we need both the script and the standard transforms config file.
     # at build time, we don't have access to apache_beam to discover and
     # retrieve external transforms, so the config file has to already exist
     if not script_exists or not config_exists:
       generated_transforms_dir = os.path.join(
-        sdk_dir, 'apache_beam', 'transforms', 'xlang')
+          sdk_dir, 'apache_beam', 'transforms', 'xlang')
 
       # if exists, this directory will have at least its __init__.py file
       if (not os.path.exists(generated_transforms_dir) or
-              len(os.listdir(generated_transforms_dir)) <= 1):
+          len(os.listdir(generated_transforms_dir)) <= 1):
         message = 'External transform wrappers have not been generated '
         if not script_exists:
           message += 'and the generation script `gen_xlang_wrappers.py`'
@@ -251,13 +269,16 @@ def generate_external_transform_wrappers():
         os.path.join(sdk_dir, 'gen_xlang_wrappers.py'),
         '--cleanup',
         '--transforms-config-source',
-        os.path.join(os.path.dirname(sdk_dir),
-                     'standard_external_transforms.yaml')
-    ], capture_output=True, check=True)
+        os.path.join(
+            os.path.dirname(sdk_dir), 'standard_external_transforms.yaml')
+    ],
+                   capture_output=True,
+                   check=True)
   except subprocess.CalledProcessError as err:
     raise RuntimeError(
         'Could not generate external transform wrappers due to '
-        'error: %s', err.stderr)
+        'error: %s',
+        err.stderr)
 
 
 def get_portability_package_data():
@@ -272,9 +293,9 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.9'
+python_requires = '>=3.10'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 13:
+if sys.version_info.major == 3 and sys.version_info.minor >= 14:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -311,13 +332,26 @@ if __name__ == '__main__':
     ])
   else:
     extensions = []
+
+  try:
+    long_description = ((Path(__file__).parent /
+                         "README.md").read_text(encoding='utf-8'))
+  except FileNotFoundError:
+    long_description = (
+        'Apache Beam is a unified programming model for both batch and '
+        'streaming data processing, enabling efficient execution across '
+        'diverse distributed execution engines and providing extensibility '
+        'points for connecting to different technologies and user '
+        'communities.')
+
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
       description=PACKAGE_DESCRIPTION,
-      long_description=PACKAGE_LONG_DESCRIPTION,
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       url=PACKAGE_URL,
       download_url=PACKAGE_DOWNLOAD_URL,
       author=PACKAGE_AUTHOR,
@@ -339,26 +373,13 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'crcmod>=1.7,<2.0',
-          'orjson>=3.9.7,<4',
-          # Dill doesn't have forwards-compatibility guarantees within minor
-          # version. Pickles created with a new version of dill may not unpickle
-          # using older version of dill. It is best to use the same version of
-          # dill on client and server, therefore list of allowed versions is
-          # very narrow. See: https://github.com/uqfoundation/dill/issues/341.
-          'dill>=0.3.1.1,<0.3.2',
-          # It is prudent to use the same version of pickler at job submission
-          # and at runtime, therefore bounds need to be tight.
-          # To avoid depending on an old dependency, update the minor version on
-          # every Beam release, see: https://github.com/apache/beam/issues/23119
-          'cloudpickle~=2.2.1',
+          'cryptography>=39.0.0,<48.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0',  # pylint: disable=line-too-long
-          'hdfs>=2.1.0,<3.0.0',
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
+          'grpcio>=1.67.0; python_version >= "3.13"',
           'httplib2>=0.8,<0.23.0',
-          'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
@@ -377,17 +398,15 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<6.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
-          'pydot>=1.2.0,<2',
+          'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
-          'redis>=5.0.0,<6',
-          'regex>=2020.6.8',
-          'requests>=2.24.0,<3.0.0',
+          'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
+          'beartype>=0.21.0,<0.22.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -395,15 +414,27 @@ if __name__ == '__main__':
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
+          'dill': [
+              # Dill doesn't have forwards-compatibility guarantees within minor
+              # version. Pickles created with a new version of dill may not
+              # unpickle using older version of dill. It is best to use the same
+              # version of dill on client and server, therefore list of allowed
+              # versions is very narrow.
+              # See: https://github.com/uqfoundation/dill/issues/341.
+              'dill>=0.3.1.1,<0.3.2',
+          ],
           'docs': [
               'jinja2>=3.0,<3.2',
               'Sphinx>=7.0.0,<8.0',
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
+              'markdown',
               'pandas<2.3.0',
-              'openai'
+              'openai',
+              'virtualenv-clone>=0.5,<1.0',
           ],
           'test': [
+              'cloud-sql-python-connector[pg8000]>=1.0.0,<2.0.0',
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'jinja2>=3.0,<3.2',
@@ -414,21 +445,29 @@ if __name__ == '__main__':
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'requests_mock>=1.7,<2.0',
               'tenacity>=8.0.0,<9',
-              'pytest>=7.1.2,<8.0',
+              'pytest>=7.1.2,<9.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
-              'scikit-learn>=0.20.0',
-              'setuptools',
+              'scikit-learn>=0.20.0,<1.8.0',
               'sqlalchemy>=1.3,<3.0',
-              'psycopg2-binary>=2.8.5,<3.0.0,!=2.9.10',
-              'testcontainers[mysql]>=3.0.3,<4.0.0',
+              'psycopg2-binary>=2.8.5,<3.0',
+              'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
-              'hypothesis>5.0.0,<7.0.0',
-          ],
+              # TODO(https://github.com/apache/beam/issues/36951): need to
+              # further investigate the cause
+              'hypothesis>5.0.0,<6.148.4',
+              'virtualenv-clone>=0.5,<1.0',
+              'python-tds>=1.16.1',
+              'sqlalchemy-pytds>=1.0.2',
+              'pg8000>=1.31.5',
+              "PyMySQL>=1.1.0",
+              'oracledb>=3.1.1'
+          ] + milvus_dependency,
           'gcp': [
-              'cachetools>=3.1.0,<6',
+              'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
-              'google-apitools>=0.5.31,<0.5.32',
+              'google-apitools>=0.5.31,<0.5.32; python_version < "3.13"',
+              'google-apitools>=0.5.35; python_version >= "3.13"',
               # NOTE: Maintainers, please do not require google-auth>=2.x.x
               # Until this issue is closed
               # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -446,26 +485,35 @@ if __name__ == '__main__':
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
+              'google-cloud-kms>=3.0.0,<4',
               'google-cloud-language>=2.0,<3',
+              'google-cloud-secret-manager>=2.0,<3',
               'google-cloud-videointelligence>=2.0,<3',
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
               'google-cloud-aiplatform>=1.26.0, < 2.0',
+              'cloud-sql-python-connector>=1.18.2,<2.0.0',
+              'python-tds>=1.16.1',
+              'pg8000>=1.31.5',
+              "PyMySQL>=1.1.0",
               # Authentication for Google Artifact Registry when using
               # --extra-index-url or --index-url in requirements.txt in
               # Dataflow, which allows installing python packages from private
               # Python repositories in GAR.
-              'keyrings.google-artifactregistry-auth'
+              'keyrings.google-artifactregistry-auth',
+              'orjson>=3.9.7,<4',
+              'regex>=2020.6.8',
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
               'google-cloud-dataproc>=5.0.0,<6',
-              'ipython>=8,<9',
+              'ipython>=7,<9',
               'ipykernel>=6,<7',
               'ipywidgets>=8,<9',
               # Skip version 6.1.13 due to
               # https://github.com/jupyter/jupyter_client/issues/637
               'jupyter-client>=6.1.11,!=6.1.13,<8.2.1',
+              'pydot>=1.2.0,<2',
               'timeloop>=1.0.2,<2',
               'nbformat>=5.0.5,<6',
               'nbconvert>=6.2.0,<8',
@@ -486,37 +534,19 @@ if __name__ == '__main__':
           # can find out early when Beam doesn't work with new versions.
           'ml_test': [
               'datatable',
-              'embeddings',
-              'langchain',
-              'onnxruntime',
-              'sentence-transformers',
-              'skl2onnx',
-              'pillow',
-              'tensorflow',
-              'tensorflow-hub',
+              # tensorflow-transform requires dill, but doesn't set dill as a
+              # hard requirement in setup.py.
+              'dill',
               'tensorflow-transform',
-              'tf2onnx',
-              'torch',
-              'transformers',
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
-          ],
+          ] + ml_base,
           'p312_ml_test': [
               'datatable',
-              'embeddings',
-              'onnxruntime',
-              'langchain',
-              'sentence-transformers',
-              'skl2onnx',
-              'pillow',
-              'tensorflow',
-              'tensorflow-hub',
-              'tf2onnx',
-              'torch',
-              'transformers',
-          ],
+          ] + ml_base,
+          'p313_ml_test': ml_base,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -535,31 +565,40 @@ if __name__ == '__main__':
               # `--update` / `-U` flag to replace the dask release brought in
               # by distributed.
           ],
+          'hadoop': ['hdfs>=2.1.0,<3.0.0'],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
               'virtualenv-clone>=0.5,<1.0',
               # https://github.com/PiotrDabkowski/Js2Py/issues/317
               'js2py>=0.74,<1; python_version<"3.12"',
+              'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': [
-              'torch<=1.13.0,<=2.0.0'
-          ],
-          'tensorflow': [
-              'tensorflow>=2.12rc1,<2.13'
-          ],
+          'torch': ['torch>=1.9.0,<2.8.0'],
+          'tensorflow': ['tensorflow>=2.12rc1,<2.21'],
           'transformers': [
-              'transformers>=4.28.0,<4.49.0',
-              'tensorflow==2.12.0',
-              'torch>=1.9.0,<2.1.0'
+              'transformers>=4.28.0,<4.56.0',
+              'tensorflow>=2.12.0',
+              'torch>=1.9.0'
           ],
+          'ml_cpu': [
+              'tensorflow>=2.12.0',
+              'torch==2.8.0+cpu',
+              'transformers>=4.28.0,<4.56.0'
+          ],
+          'redis': ['redis>=5.0.0,<6'],
           'tft': [
               'tensorflow_transform>=1.14.0,<1.15.0'
+              # tensorflow-transform requires dill, but doesn't set dill as a
+              # hard requirement in setup.py.
+              ,
+              'dill'
           ],
+          'tfrecord': ['crcmod>=1.7,<2.0'],
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',
@@ -568,13 +607,10 @@ if __name__ == '__main__':
               'skl2onnx==1.13',
               'transformers==4.25.1'
           ],
-          'xgboost': [
-              'xgboost>=1.6.0,<2.1.3',
-              'datatable==1.0.0'
-          ],
-          'tensorflow-hub': [
-              'tensorflow-hub>=0.14.0,<0.16.0'
-          ]
+          'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
+          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
+          'milvus': milvus_dependency,
+          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
       },
       zip_safe=False,
       # PyPI package information.
@@ -582,10 +618,10 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
+          'Programming Language :: Python :: 3.13',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

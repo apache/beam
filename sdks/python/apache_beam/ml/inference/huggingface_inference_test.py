@@ -20,11 +20,10 @@
 import shutil
 import tempfile
 import unittest
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import pytest
@@ -40,6 +39,7 @@ try:
   import torch
   from transformers import AutoModel
   from transformers import TFAutoModel
+
   from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerTensor
 except ImportError:
   raise unittest.SkipTest('Transformers dependencies are not installed.')
@@ -49,7 +49,7 @@ def fake_inference_fn_tensor(
     batch: Sequence[Union[tf.Tensor, torch.Tensor]],
     model: Union[AutoModel, TFAutoModel],
     device,
-    inference_args: Dict[str, Any],
+    inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   predictions = model.predict(batch, **inference_args)
   return utils._convert_to_result(batch, predictions, model_id)
@@ -76,8 +76,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
         inference_fn=fake_inference_fn_tensor)
     batched_examples = [tf.constant([1]), tf.constant([10]), tf.constant([100])]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             batched_examples,
             [tf.math.multiply(n, 10) for n in batched_examples])
     ]
@@ -95,8 +94,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
         inference_args={"add": True})
     batched_examples = [tf.constant([1]), tf.constant([10]), tf.constant([100])]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             batched_examples, [
                 tf.math.add(tf.math.multiply(n, 10), 10)
                 for n in batched_examples
@@ -124,12 +122,34 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     inference_runner = HuggingFaceModelHandlerTensor(
         model_uri='unused',
         model_class=TFAutoModel,
-        inference_fn=fake_inference_fn_tensor,
-        inference_args={"add": True})
-    batched_examples = [tf.constant([1]), tf.constant([10]), tf.constant([100])]
-    inference_runner.run_inference(
-        batched_examples, fake_model, inference_args={"add": True})
-    self.assertEqual(inference_runner._framework, "tf")
+        inference_fn=fake_inference_fn_tensor)
+    batched_examples = [tf.constant(1), tf.constant(10), tf.constant(100)]
+    inference_runner.run_inference(batched_examples, fake_model)
+    self.assertEqual(inference_runner._framework, 'tf')
+
+  def test_convert_to_result_batch_processing(self):
+    """Test that utils._convert_to_result correctly handles 
+    batches with multiple elements."""
+
+    # Test case that reproduces the bug: batch size > 1
+    batch = ["input1", "input2"]
+    predictions = [{
+        "translation_text": "output1"
+    }, {
+        "translation_text": "output2"
+    }]
+
+    results = list(utils._convert_to_result(batch, predictions))
+
+    # Should return 2 results, not 1
+    self.assertEqual(
+        len(results), 2, "Should return one result per batch element")
+
+    # Check that each result has the correct input and output
+    self.assertEqual(results[0].example, "input1")
+    self.assertEqual(results[0].inference, {"translation_text": "output1"})
+    self.assertEqual(results[1].example, "input2")
+    self.assertEqual(results[1].inference, {"translation_text": "output2"})
 
 
 if __name__ == '__main__':

@@ -25,12 +25,35 @@ applyJavaNature(
   exportJavadoc: false,
   validateShadowJar: false,
   shadowClosure: {},
+  // iceberg requires Java11+
+  requireJavaVersion: JavaVersion.VERSION_11
 )
 
-// TODO(https://github.com/apache/beam/pull/32486/) Use library.java.kafka_clients once >=3.1.0 is set as default
+// We don't want to use the latest version for the entire beam sdk since beam Java users can override it themselves.
+// We set this for python and cross-lang since it cannot be overwritten and version 3.4.0>= is required in order to
+// take advantage of OAuth authentication with all providers.
 configurations.runtimeClasspath {
-  // Pin kafka-clients version due to <3.1.0 missing auth callback classes
-  resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.1.2'
+  // Pin kafka-clients version due to <3.4.0 missing auth callback classes.
+  resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.9.0'
+  // iceberg needs avro:1.12.0
+  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
+  // force parquet-avro:1.15.2 to fix CVE-2025-46762
+  resolutionStrategy.force 'org.apache.parquet:parquet-avro:1.15.2'
+
+  // Pin Jetty version due to hadoop 3.4.1 using 9.4.53.v20231009, which had
+  // two direct vulnerabilities.  There is one dependency vulnerability left
+  // in 9.4.57.v20241919.  Higher major versions are not allowed due to
+  // incompability with hadoop 3.4.1.
+  resolutionStrategy.eachDependency { details ->
+    if (details.requested.group.startsWith('org.eclipse.jetty')) {
+      details.useVersion('9.4.57.v20241219')
+    }
+  }
+
+  // Pin logback to 1.5.20
+  // Cannot upgrade to io modules due to logback 1.4.x dropped Java 8 support
+  resolutionStrategy.force "ch.qos.logback:logback-classic:1.5.20"
+  resolutionStrategy.force "ch.qos.logback:logback-core:1.5.20"
 }
 
 shadowJar {
@@ -49,23 +72,19 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:managed")
   permitUnusedDeclared project(":sdks:java:managed") // BEAM-11761
-  implementation project(":sdks:java:io:iceberg")
-  permitUnusedDeclared project(":sdks:java:io:iceberg") // BEAM-11761
   implementation project(":sdks:java:io:kafka")
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
   implementation project(":sdks:java:io:kafka:upgrade")
   permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
+  implementation project(":sdks:java:extensions:kafka-factories")
+  permitUnusedDeclared project(":sdks:java:extensions:kafka-factories")
 
-  // **** IcebergIO runtime dependencies ****
-  runtimeOnly library.java.hadoop_auth
-  runtimeOnly library.java.hadoop_client
-  // For writing to GCS
-  runtimeOnly library.java.bigdataoss_gcs_connector
-  // HiveCatalog
-  runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:1.4.2")
-  runtimeOnly project(path: ":sdks:java:io:iceberg:hive")
-  // BigQueryMetastoreCatalog (Java 11+)
-  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+  if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0 && project.findProperty('testJavaVersion') != '8') {
+    // iceberg ended support for Java 8 in 1.7.0
+    runtimeOnly project(":sdks:java:io:iceberg")
+    runtimeOnly project(":sdks:java:io:iceberg:hive")
+    runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+  }
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14

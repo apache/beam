@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.status;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -41,8 +42,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +59,7 @@ public class BeamFnStatusClient implements AutoCloseable {
   private final MemoryMonitor memoryMonitor;
   private final Cache<?, ?> cache;
 
+  @SuppressFBWarnings("SC_START_IN_CTOR") // for memory monitor thread
   public BeamFnStatusClient(
       ApiServiceDescriptor apiServiceDescriptor,
       Function<ApiServiceDescriptor, ManagedChannel> channelFactory,
@@ -63,8 +67,6 @@ public class BeamFnStatusClient implements AutoCloseable {
       PipelineOptions options,
       Cache<?, ?> cache) {
     this.channel = channelFactory.apply(apiServiceDescriptor);
-    this.outboundObserver =
-        BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
     this.processBundleCache = processBundleCache;
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.cache = cache;
@@ -74,6 +76,11 @@ public class BeamFnStatusClient implements AutoCloseable {
     thread.setPriority(Thread.MIN_PRIORITY);
     thread.setName("MemoryMonitor");
     thread.start();
+
+    // Start the rpc after all the initialization is complete as the InboundObserver
+    // may be called any time after this.
+    this.outboundObserver =
+        BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
   }
 
   @Override
@@ -175,7 +182,10 @@ public class BeamFnStatusClient implements AutoCloseable {
   static class BundleState {
     final String instruction;
     final String trackedThreadName;
-    final long timeSinceTransition;
+
+    final Duration timeSinceStart;
+
+    final Duration timeSinceTransition;
 
     public String getInstruction() {
       return instruction;
@@ -185,13 +195,22 @@ public class BeamFnStatusClient implements AutoCloseable {
       return trackedThreadName;
     }
 
-    public long getTimeSinceTransition() {
+    public Duration getTimeSinceStart() {
+      return timeSinceStart;
+    }
+
+    public Duration getTimeSinceTransition() {
       return timeSinceTransition;
     }
 
-    public BundleState(String instruction, String trackedThreadName, long timeSinceTransition) {
+    public BundleState(
+        String instruction,
+        String trackedThreadName,
+        Duration timeSinceStart,
+        Duration timeSinceTransition) {
       this.instruction = instruction;
       this.trackedThreadName = trackedThreadName;
+      this.timeSinceStart = timeSinceStart;
       this.timeSinceTransition = timeSinceTransition;
     }
   }
@@ -200,10 +219,12 @@ public class BeamFnStatusClient implements AutoCloseable {
   String getActiveProcessBundleState() {
     StringJoiner activeBundlesState = new StringJoiner("\n");
     activeBundlesState.add("========== ACTIVE PROCESSING BUNDLES ==========");
+
     if (processBundleCache.getActiveBundleProcessors().isEmpty()) {
       activeBundlesState.add("No active processing bundles.");
     } else {
       List<BundleState> bundleStates = new ArrayList<>();
+      long nowMillis = DateTimeUtils.currentTimeMillis();
       processBundleCache.getActiveBundleProcessors().entrySet().stream()
           .forEach(
               instructionAndBundleProcessor -> {
@@ -215,14 +236,32 @@ public class BeamFnStatusClient implements AutoCloseable {
                       new BundleState(
                           instructionAndBundleProcessor.getKey(),
                           executionStateTrackerStatus.getTrackedThread().getName(),
-                          DateTimeUtils.currentTimeMillis()
-                              - executionStateTrackerStatus.getLastTransitionTimeMillis()));
+                          Duration.millis(
+                              nowMillis - executionStateTrackerStatus.getStartTime().getMillis()),
+                          Duration.millis(
+                              nowMillis
+                                  - executionStateTrackerStatus
+                                      .getLastTransitionTime()
+                                      .getMillis())));
                 }
               });
-      bundleStates.stream()
-          // reverse sort active bundle by time since last transition.
-          .sorted(Comparator.comparing(BundleState::getTimeSinceTransition).reversed())
-          .limit(10) // only keep top 10
+      activeBundlesState.add(
+          String.format("%d total bundles, showing selected slowest", bundleStates.size()));
+      // Keep the 10 oldest bundles and the 10 bundles that have been in their current step the
+      // longest. This will help debugging bundles that are taking a long time but changing steps
+      // frequently as well as steps that are stuck processing.
+      Streams.concat(
+              bundleStates.stream()
+                  // reverse sort active bundle by time since bundle start.
+                  .sorted(Comparator.comparing(BundleState::getTimeSinceStart).reversed())
+                  .limit(10), // only keep top 10,
+              bundleStates.stream()
+                  // reverse sort active bundle by time since last transition.
+                  .sorted(Comparator.comparing(BundleState::getTimeSinceTransition).reversed())
+                  .limit(10) // only keep top 10
+              )
+          .sorted(Comparator.comparing(BundleState::getTimeSinceStart).reversed())
+          .distinct()
           .forEachOrdered(
               bundleState -> {
                 activeBundlesState.add(
@@ -231,8 +270,12 @@ public class BeamFnStatusClient implements AutoCloseable {
                     String.format("Tracked thread: %s", bundleState.getTrackedThreadName()));
                 activeBundlesState.add(
                     String.format(
+                        "Time since start: %.2f seconds",
+                        bundleState.getTimeSinceStart().getMillis() / 1000.0));
+                activeBundlesState.add(
+                    String.format(
                         "Time since transition: %.2f seconds%n",
-                        bundleState.getTimeSinceTransition() / 1000.0));
+                        bundleState.getTimeSinceTransition().getMillis() / 1000.0));
               });
     }
     return activeBundlesState.toString();

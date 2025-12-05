@@ -16,6 +16,8 @@
 package engine
 
 import (
+	"bytes"
+	"log/slog"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -173,12 +175,20 @@ type tsElementEvent struct {
 func (ev tsElementEvent) Execute(em *ElementManager) {
 	t := em.testStreamHandler.tagState[ev.Tag]
 
+	info := em.pcolInfo[t.pcollection]
 	var pending []element
 	for _, e := range ev.Elements {
+		var keyBytes []byte
+		if info.KeyDec != nil {
+			kbuf := bytes.NewBuffer(e.Encoded)
+			keyBytes = info.KeyDec(kbuf)
+		}
+
 		pending = append(pending, element{
 			window:    window.GlobalWindow{},
 			timestamp: e.EventTime,
 			elmBytes:  e.Encoded,
+			keyBytes:  keyBytes,
 			pane:      typex.NoFiringPane(),
 		})
 	}
@@ -237,7 +247,7 @@ func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	}
 
 	// Add the refreshes now so our block prevention logic works.
-	emNow := em.ProcessingTimeNow()
+	emNow := em.processingTimeNow()
 	toRefresh := em.processTimeEvents.AdvanceTo(emNow)
 	em.changedStages.merge(toRefresh)
 }
@@ -253,6 +263,9 @@ func (ev tsFinalEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.UpdateHold(em, mtime.MaxTimestamp)
 	ss := em.stages[ev.stageID]
 	kickSet := ss.updateWatermarks(em)
+	if kickSet == nil {
+		kickSet = make(set[string])
+	}
 	kickSet.insert(ev.stageID)
 	em.changedStages.merge(kickSet)
 }
@@ -307,4 +320,10 @@ func (tsi *testStreamImpl) AddWatermarkEvent(tag string, newWatermark mtime.Time
 func (tsi *testStreamImpl) AddProcessingTimeEvent(d time.Duration) {
 	tsi.em.testStreamHandler.AddProcessingTimeEvent(d)
 	tsi.em.addPending(1)
+
+	// Disable real-time clock for this em if TestStream has processing time events.
+	if tsi.em.config.EnableRTC {
+		slog.Debug("Processing time event found in TestStream: real-time clock will be disabled for this job")
+		tsi.em.config.EnableRTC = false
+	}
 }

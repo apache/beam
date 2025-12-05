@@ -36,7 +36,7 @@
 set -e
 
 BEAM_REPO_URL=https://github.com/apache/beam.git
-RELEASE_BRANCH="release-$(cut -d '.' -f 1,2 <<< $RELEASE)"
+RELEASE_BRANCH="release-$(cut -d '.' -f 1,2 <<< $RELEASE_VER)"
 WORKING_BRANCH=postcommit_validation_pr
 SCRIPT=$(readlink -f $0)
 SCRIPT_DIR=$(dirname $SCRIPT)

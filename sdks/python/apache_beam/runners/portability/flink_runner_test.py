@@ -162,6 +162,10 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     try:
       return [
           'java',
+          '-XX:-UseContainerSupport',
+          '--add-opens=java.base/java.lang=ALL-UNNAMED',
+          '--add-opens=java.base/java.nio=ALL-UNNAMED',
+          '--add-opens=java.base/java.util=ALL-UNNAMED',
           '-Dorg.slf4j.simpleLogger.defaultLogLevel=warn',
           '-jar',
           cls.flink_job_server_jar,
@@ -209,6 +213,14 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
     return options
 
+  def test_batch_rebatch_pardos(self):
+    if self.environment_type == 'DOCKER':
+      pytest.skip(
+          "Skipping test_batch_rebatch_pardos for DOCKER environment in "
+          "FlinkRunnerTest as warnings are not propagated back when Python SDK "
+          "is run in Docker.")
+    super().test_batch_rebatch_pardos()
+
   # Can't read host files from within docker, read a "local" file there.
   def test_read(self):
     print('name:', __name__)
@@ -220,6 +232,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     raise unittest.SkipTest("BEAM-4781")
 
   def test_external_transform(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping external transform test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion "
+          "service incompatibility).")
     with self.create_pipeline() as p:
       res = (
           p
@@ -229,6 +246,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
       assert_that(res, equal_to([i for i in range(1, 10)]))
 
   def test_expand_kafka_read(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping Kafka read test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion "
+          "service incompatibility).")
     # We expect to fail here because we do not have a Kafka cluster handy.
     # Nevertheless, we check that the transform is expanded by the
     # ExpansionService and that the pipeline fails during execution.
@@ -257,12 +279,17 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
                 allow_duplicates=False,
                 expansion_service=self.get_expansion_service()))
     self.assertTrue(
-        'No resolvable bootstrap urls given in bootstrap.servers' in str(
-            ctx.exception),
+        'No resolvable bootstrap urls given in bootstrap.servers'
+        in str(ctx.exception),
         'Expected to fail due to invalid bootstrap.servers, but '
         'failed due to:\n%s' % str(ctx.exception))
 
   def test_expand_kafka_write(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping Kafka write test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion "
+          "service incompatibility).")
     # We just test the expansion but do not execute.
     # pylint: disable=expression-not-assigned
     (
@@ -283,6 +310,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
             expansion_service=self.get_expansion_service()))
 
   def test_sql(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping SQL test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion "
+          "service incompatibility).")
     with self.create_pipeline() as p:
       output = (
           p
@@ -299,8 +331,15 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
-    # https://jira.apache.org/jira/browse/BEAM-6523
+    # https://github.com/apache/beam/issues/19365
     super().test_flattened_side_input(with_transcoding=False)
+
+  def test_flatten_and_gbk(self):
+    # Blocked on support for transcoding
+    # https://github.com/apache/beam/issues/19365
+    # Also blocked on support of flatten and groupby sharing the same input
+    # https://github.com/apache/beam/issues/34647
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/34647")
 
   def test_metrics(self):
     super().test_metrics(check_gauge=False, check_bounded_trie=False)

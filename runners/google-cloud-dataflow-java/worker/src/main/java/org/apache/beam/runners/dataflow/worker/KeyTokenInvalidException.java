@@ -17,17 +17,16 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import javax.annotation.Nullable;
+
 /** Indicates that the key token was invalid when data was attempted to be fetched. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class KeyTokenInvalidException extends RuntimeException {
   public KeyTokenInvalidException(String key) {
     super("Unable to fetch data due to token mismatch for key " + key);
   }
 
   /** Returns whether an exception was caused by a {@link KeyTokenInvalidException}. */
-  public static boolean isKeyTokenInvalidException(Throwable t) {
+  public static boolean isKeyTokenInvalidException(@Nullable Throwable t) {
     while (t != null) {
       if (t instanceof KeyTokenInvalidException) {
         return true;

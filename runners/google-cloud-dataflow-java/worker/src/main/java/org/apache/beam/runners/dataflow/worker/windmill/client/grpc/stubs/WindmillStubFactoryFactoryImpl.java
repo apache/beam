@@ -17,16 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.remoteChannel;
 
 import com.google.auth.Credentials;
-import java.util.function.Function;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 
 public class WindmillStubFactoryFactoryImpl implements WindmillStubFactoryFactory {
-
   private final int windmillServiceRpcChannelAliveTimeoutSec;
   private final Credentials gcpCredential;
 
@@ -38,17 +34,23 @@ public class WindmillStubFactoryFactoryImpl implements WindmillStubFactoryFactor
 
   @Override
   public WindmillStubFactory makeWindmillStubFactory(boolean useIsolatedChannels) {
-    Function<WindmillServiceAddress, ManagedChannel> channelFactory =
-        serviceAddress -> remoteChannel(serviceAddress, windmillServiceRpcChannelAliveTimeoutSec);
     ChannelCache channelCache =
         ChannelCache.create(
-            serviceAddress ->
+            (flowControlSettings, serviceAddress) ->
                 // IsolationChannel will create and manage separate RPC channels to the same
                 // serviceAddress via calling the channelFactory, else just directly return the
                 // RPC channel.
                 useIsolatedChannels
-                    ? IsolationChannel.create(() -> channelFactory.apply(serviceAddress))
-                    : channelFactory.apply(serviceAddress));
+                    ? IsolationChannel.create(
+                        () ->
+                            remoteChannel(
+                                serviceAddress.getServiceAddress(),
+                                windmillServiceRpcChannelAliveTimeoutSec,
+                                flowControlSettings))
+                    : remoteChannel(
+                        serviceAddress.getServiceAddress(),
+                        windmillServiceRpcChannelAliveTimeoutSec,
+                        flowControlSettings));
     return ChannelCachingRemoteStubFactory.create(gcpCredential, channelCache);
   }
 }

@@ -18,6 +18,7 @@
 # pytype: skip-file
 
 import atexit
+import logging
 import shutil
 import signal
 import tempfile
@@ -72,6 +73,14 @@ class StopOnExitJobServer(JobServer):
     self._lock = threading.Lock()
     self._job_server = job_server
     self._started = False
+    # save original signal handler
+    self._original_sigint_handler = signal.getsignal(signal.SIGINT)
+
+  def _sigint_handler(self, sig, frame):
+    self.stop()
+    if callable(self._original_sigint_handler):
+      # call original signal handler to handle sigint gracefully
+      self._original_sigint_handler(sig, frame)
 
   def start(self):
     with self._lock:
@@ -79,7 +88,7 @@ class StopOnExitJobServer(JobServer):
         self._endpoint = self._job_server.start()
         self._started = True
         atexit.register(self.stop)
-        signal.signal(signal.SIGINT, self.stop)
+        signal.signal(signal.SIGINT, self._sigint_handler)
     return self._endpoint
 
   def stop(self):
@@ -94,6 +103,7 @@ class SubprocessJobServer(JobServer):
   def __init__(self):
     self._local_temp_root = None
     self._server = None
+    self._log_filter = None
 
   def subprocess_cmd_and_endpoint(self):
     raise NotImplementedError(type(self))
@@ -103,8 +113,11 @@ class SubprocessJobServer(JobServer):
       self._local_temp_root = tempfile.mkdtemp(prefix='beam-temp')
       cmd, endpoint = self.subprocess_cmd_and_endpoint()
       port = int(endpoint.split(':')[-1])
+      logger = logging.getLogger(f"{self.__class__.__name__}")
+      if self._log_filter is not None:
+        logger.addFilter(self._log_filter)
       self._server = subprocess_server.SubprocessServer(
-          beam_job_api_pb2_grpc.JobServiceStub, cmd, port=port)
+          beam_job_api_pb2_grpc.JobServiceStub, cmd, port=port, logger=logger)
     return self._server.start()
 
   def stop(self):
@@ -142,8 +155,9 @@ class JavaJarJobServer(SubprocessJobServer):
         gradle_target, artifact_id=artifact_id)
 
   @staticmethod
-  def local_jar(url, jar_cache_dir=None):
-    return subprocess_server.JavaJarServer.local_jar(url, jar_cache_dir)
+  def local_jar(url, jar_cache_dir=None, user_agent=None):
+    return subprocess_server.JavaJarServer.local_jar(
+        url, jar_cache_dir, user_agent)
 
   def subprocess_cmd_and_endpoint(self):
     jar_path = self.local_jar(self.path_to_jar(), self._jar_cache_dir)

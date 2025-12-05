@@ -29,6 +29,7 @@ import com.google.cloud.firestore.v1.stub.GrpcFirestoreStub;
 import java.io.Serializable;
 import java.security.SecureRandom;
 import java.util.Map;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -65,6 +66,13 @@ class FirestoreStatefulComponentFactory implements Serializable {
    * @return a new {@link FirestoreStub} pre-configured with values from the provided options
    */
   FirestoreStub getFirestoreStub(PipelineOptions options) {
+    return getFirestoreStub(options, null, null);
+  }
+
+  FirestoreStub getFirestoreStub(
+      PipelineOptions options,
+      @Nullable String configuredProjectId,
+      @Nullable String configuredDatabaseId) {
     try {
       FirestoreSettings.Builder builder = FirestoreSettings.newBuilder();
 
@@ -94,12 +102,17 @@ class FirestoreStatefulComponentFactory implements Serializable {
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
             .setEndpoint(firestoreOptions.getFirestoreHost());
+        String projectId =
+            configuredProjectId != null
+                ? configuredProjectId
+                : firestoreOptions.getFirestoreProject();
+        if (projectId == null) {
+          projectId = gcpOptions.getProject();
+        }
+        String databaseId =
+            configuredDatabaseId != null ? configuredDatabaseId : firestoreOptions.getFirestoreDb();
         headers.put(
-            "x-goog-request-params",
-            "project_id="
-                + gcpOptions.getProject()
-                + "&database_id="
-                + firestoreOptions.getFirestoreDb());
+            "x-goog-request-params", "project_id=" + projectId + "&database_id=" + databaseId);
       }
 
       builder.setHeaderProvider(

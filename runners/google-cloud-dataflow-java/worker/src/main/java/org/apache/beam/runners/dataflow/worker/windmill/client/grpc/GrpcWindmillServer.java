@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.LOCALHOST;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.inProcessChannel;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.localhostChannel;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.LOCALHOST;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.inProcessChannel;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels.localhostChannel;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -54,7 +53,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -93,7 +91,6 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
   private final GrpcDispatcherClient dispatcherClient;
   private final DataflowWorkerHarnessOptions options;
-  private final StreamingEngineThrottleTimers throttleTimers;
   private final GrpcWindmillStreamFactory windmillStreamFactory;
   private Duration maxBackoff;
   private @Nullable WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub;
@@ -103,7 +100,6 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       GrpcWindmillStreamFactory grpcWindmillStreamFactory,
       GrpcDispatcherClient grpcDispatcherClient) {
     this.options = options;
-    this.throttleTimers = StreamingEngineThrottleTimers.create();
     this.maxBackoff = Duration.millis(options.getWindmillServiceStreamMaxBackoffMillis());
     this.dispatcherClient = grpcDispatcherClient;
     this.syncApplianceStub = null;
@@ -294,10 +290,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             throw new WindmillRpcException(e);
           }
-        } catch (IOException | InterruptedException i) {
-          if (i instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
+        } catch (InterruptedException i) {
+          Thread.currentThread().interrupt();
           WindmillRpcException rpcException = new WindmillRpcException(e);
           rpcException.addSuppressed(i);
           throw rpcException;
@@ -346,7 +340,6 @@ public final class GrpcWindmillServer extends WindmillServerStub {
                 .setProjectId(options.getProject())
                 .setWorkerId(options.getWorkerId())
                 .build(),
-            throttleTimers.getWorkThrottleTimer(),
             receiver);
     getWorkStream.start();
     return getWorkStream;
@@ -359,8 +352,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetDataStream getDataStream() {
     GetDataStream getDataStream =
-        windmillStreamFactory.createGetDataStream(
-            dispatcherClient.getWindmillServiceStub(), throttleTimers.getDataThrottleTimer());
+        windmillStreamFactory.createGetDataStream(dispatcherClient.getWindmillServiceStub());
     getDataStream.start();
     return getDataStream;
   }
@@ -372,8 +364,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public CommitWorkStream commitWorkStream() {
     CommitWorkStream commitWorkStream =
-        windmillStreamFactory.createCommitWorkStream(
-            dispatcherClient.getWindmillServiceStub(), throttleTimers.commitWorkThrottleTimer());
+        windmillStreamFactory.createCommitWorkStream(dispatcherClient.getWindmillServiceStub());
     commitWorkStream.start();
     return commitWorkStream;
   }
@@ -396,10 +387,5 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
     throw new WindmillRpcException(
         new UnsupportedOperationException("ReportStats not supported in Streaming Engine."));
-  }
-
-  @Override
-  public long getAndResetThrottleTime() {
-    return throttleTimers.getAndResetThrottleTime();
   }
 }

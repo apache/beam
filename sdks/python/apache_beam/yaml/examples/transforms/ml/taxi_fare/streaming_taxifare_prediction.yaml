@@ -1,0 +1,320 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The pipeline first reads the data stream of taxi rides events from the
+# public PubSub topic and performs some transformations before writing it
+# to a Kafka topic. The pipeline then reads from that Kafka topic and applies
+# the necessary transformation logic, before `RunInference` transform performs
+# remote inference with the Vertex AI model handler and the custom-trained
+# model deployed to a Vertex AI endpoint. The inference result is then
+# parsed and written to a BigQuery table.
+
+pipeline:
+  transforms:
+    # Read the data stream of taxi rides event from the public PubSub topic.
+    - type: ReadFromPubSub
+      name: ReadPubSub
+      config:
+        topic: "projects/pubsub-public-data/topics/taxirides-realtime"
+        format: "JSON"
+        schema:
+          type: object
+          properties:
+            ride_id: { type: string }
+            longitude: { type: number }
+            latitude: { type: number }
+            passenger_count: { type: integer }
+            meter_reading: { type: number }
+            timestamp: { type: string }
+            ride_status: { type: string }
+
+    # Use the `timestamp` value of the data and assign it as
+    # timestamp for each element of the PCollection.
+    - type: AssignTimestamps
+      name: AssignTimestamps
+      input: ReadPubSub
+      config:
+        language: python
+        timestamp:
+          callable: |
+            from datetime import datetime, timezone
+            import sys
+            import re
+
+            def fn(row):
+                ts_str = row.timestamp
+                # For Python < 3.11, datetime.fromisoformat requires
+                # microseconds to be padded to 6 digits.
+                if sys.version_info < (3, 11):
+                    _PAD_MICROS = re.compile(r'\.(\d{1,5})([+-]\d{2}:\d{2}|Z)$')
+                    ts_str = _PAD_MICROS.sub(lambda m: '.' + m.group(1).ljust(6, '0') + m.group(2), ts_str)
+                return datetime.fromisoformat(ts_str).astimezone(timezone.utc)
+
+    # Assign windows to each element of the unbounded PCollection.
+    - type: WindowInto
+      name: Windowing
+      input: AssignTimestamps
+      config:
+        windowing:
+          type: sessions
+          gap: 10m
+
+    # Filter for pick-up taxi ride events
+    - type: Filter
+      name: FilterPickupEvents
+      input: Windowing
+      config:
+        language: python
+        keep: "ride_status == 'pickup'"
+
+    # Map the columns accordingly for pick-up taxi ride events
+    - type: MapToFields
+      name: FormatPickupEvents
+      input: FilterPickupEvents
+      config:
+        fields:
+          ride_id: ride_id
+          pickup_latitude: latitude
+          pickup_longitude: longitude
+          pickup_datetime: timestamp
+          passenger_count: passenger_count
+
+    # Filter for drop-off taxi ride events
+    - type: Filter
+      name: FilterDropoffEvents
+      input: Windowing
+      config:
+        language: python
+        keep: "ride_status == 'dropoff'"
+
+    # Map the columns accordingly for drop-off taxi ride events
+    - type: MapToFields
+      name: FormatDropoffEvents
+      input: FilterDropoffEvents
+      config:
+        fields:
+          ride_id: ride_id
+          dropoff_latitude: latitude
+          dropoff_longitude: longitude
+          dropoff_datetime: timestamp
+
+    # Join the pick-up and drop-off taxi ride events together to get
+    # complete taxi trips.
+    - type: Join
+      name: Join
+      input:
+        pickup: FormatPickupEvents
+        dropoff: FormatDropoffEvents
+      config:
+        equalities: ride_id
+        type: inner
+        fields:
+          pickup: [ride_id, passenger_count, pickup_longitude, pickup_latitude, pickup_datetime]
+          dropoff: [dropoff_longitude, dropoff_latitude]
+
+    # Send the rows as Kafka records to an existing Kafka topic.
+    - type: WriteToKafka
+      name: WriteKafka
+      input: Join
+      config:
+        format: "JSON"
+        topic: "{{ TOPIC }}"
+        bootstrap_servers: "{{ BOOTSTRAP_SERVERS }}"
+        producer_config_updates:
+          sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
+            username={{ USERNAME }} \
+            password={{ PASSWORD }};"
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+
+    # Read Kafka records from an existing Kafka topic.
+    - type: ReadFromKafka
+      name: ReadKafka
+      config:
+        topic: "{{ TOPIC }}"
+        format: "JSON"
+        schema: |
+          {
+            "type": "object",
+            "properties": {
+              "ride_id": { "type": "string" },
+              "pickup_longitude": { "type": "number" },
+              "pickup_latitude": { "type": "number" },
+              "pickup_datetime": { "type": "string" },
+              "dropoff_longitude": { "type": "number" },
+              "dropoff_latitude": { "type": "number" },
+              "passenger_count": { "type": "integer" },
+            }
+          }
+        bootstrap_servers: "{{ BOOTSTRAP_SERVERS }}"
+        auto_offset_reset_config: earliest
+        consumer_config:
+          sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
+            username={{ USERNAME }} \
+            password={{ PASSWORD }};"
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+
+    # Create features accordingly for input data to prepare for inference.
+    - type: MapToFields
+      name: GenerateFeatures
+      input: ReadKafka
+      config:
+        language: python
+        fields:
+          ride_id: ride_id
+          pickup_longitude: pickup_longitude
+          pickup_latitude: pickup_latitude
+          dropoff_longitude: dropoff_longitude
+          dropoff_latitude: dropoff_latitude
+          passenger_count: passenger_count
+          pickup_datetime: pickup_datetime
+          pickup_datetime_year:
+            callable: |
+              from datetime import datetime
+              import sys
+              import re
+
+              def fn(row):
+                  ts_str = row.pickup_datetime
+                  if sys.version_info < (3, 11):
+                      _PAD = re.compile(r'\.(\d{1,5})([+-]\d{2}:\d{2}|Z)$')
+                      ts_str = _PAD.sub(lambda m: '.' + m.group(1).ljust(6, '0') + m.group(2), ts_str)
+                  return datetime.fromisoformat(ts_str).year
+          pickup_datetime_month:
+            callable: |
+              from datetime import datetime
+              import sys
+              import re
+
+              def fn(row):
+                  ts_str = row.pickup_datetime
+                  if sys.version_info < (3, 11):
+                      _PAD = re.compile(r'\.(\d{1,5})([+-]\d{2}:\d{2}|Z)$')
+                      ts_str = _PAD.sub(lambda m: '.' + m.group(1).ljust(6, '0') + m.group(2), ts_str)
+                  return datetime.fromisoformat(ts_str).month
+          pickup_datetime_day:
+            callable: |
+              from datetime import datetime
+              import sys
+              import re
+
+              def fn(row):
+                  ts_str = row.pickup_datetime
+                  if sys.version_info < (3, 11):
+                      _PAD = re.compile(r'\.(\d{1,5})([+-]\d{2}:\d{2}|Z)$')
+                      ts_str = _PAD.sub(lambda m: '.' + m.group(1).ljust(6, '0') + m.group(2), ts_str)
+                  return datetime.fromisoformat(ts_str).day
+          pickup_datetime_weekday:
+            callable: |
+              from datetime import datetime
+              import sys
+              import re
+
+              def fn(row):
+                  ts_str = row.pickup_datetime
+                  if sys.version_info < (3, 11):
+                      _PAD = re.compile(r'\.(\d{1,5})([+-]\d{2}:\d{2}|Z)$')
+                      ts_str = _PAD.sub(lambda m: '.' + m.group(1).ljust(6, '0') + m.group(2), ts_str)
+                  return datetime.fromisoformat(ts_str).weekday()
+          pickup_datetime_hour:
+            callable: |
+              from datetime import datetime
+              import sys
+              import re
+
+              def fn(row):
+                  ts_str = row.pickup_datetime
+                  if sys.version_info < (3, 11):
+                      _PAD = re.compile(r'\.(\d{1,5})([+-]\d{2}:\d{2}|Z)$')
+                      ts_str = _PAD.sub(lambda m: '.' + m.group(1).ljust(6, '0') + m.group(2), ts_str)
+                  return datetime.fromisoformat(ts_str).hour
+
+    # With VertexAIModelHandlerJSON model handler,
+    # RunInference transform performs remote inferences by
+    # sending POST requests to the Vertex AI endpoint that
+    # our custom-trained model is being deployed to.
+    - type: RunInference
+      name: PredictFare
+      input: GenerateFeatures
+      config:
+        inference_tag: "inference"
+        model_handler:
+          type: VertexAIModelHandlerJSON
+          config:
+            endpoint_id: "{{ ENDPOINT }}"
+            project: "{{ PROJECT }}"
+            location: "{{ LOCATION }}"
+            preprocess:
+              callable: |
+                def preprocess(row):
+                  input_cols = [
+                    'pickup_longitude', 'pickup_latitude',
+                    'dropoff_longitude', 'dropoff_latitude',
+                    'passenger_count',
+                    'pickup_datetime_year', 'pickup_datetime_month', 'pickup_datetime_day',
+                    'pickup_datetime_weekday', 'pickup_datetime_hour']
+                  return [row.as_dict().get(key) for key in input_cols]
+
+    # Parse inference results output
+    - type: MapToFields
+      name: FormatInferenceOutput
+      input: PredictFare
+      config:
+        language: python
+        fields:
+          ride_id:
+            expression: ride_id
+            output_type: string
+          pickup_longitude:
+            expression: pickup_longitude
+            output_type: number
+          pickup_latitude:
+            expression: pickup_latitude
+            output_type: number
+          pickup_datetime:
+            expression: pickup_datetime
+            output_type: string
+          dropoff_longitude:
+            expression: dropoff_longitude
+            output_type: number
+          dropoff_latitude:
+            expression: dropoff_latitude
+            output_type: number
+          passenger_count:
+            expression: passenger_count
+            output_type: integer
+          predicted_fare_amount:
+            callable: 'lambda row: row.inference.inference'
+            output_type: number
+
+    # Write all inference results to a BigQuery table.
+    - type: WriteToBigQuery
+      name: WritePredictionsBQ
+      input: FormatInferenceOutput
+      config:
+        table: "{{ BQ_TABLE }}"
+        create_disposition: "CREATE_IF_NEEDED"
+        write_disposition: "WRITE_APPEND"
+
+options:
+  yaml_experimental_features: ML
+
+# Expected:
+#  Row(ride_id='1', pickup_longitude=11.0, pickup_latitude=-11.0, pickup_datetime='2025-01-01T00:29:00.00000-04:00', dropoff_longitude=15.0, dropoff_latitude=-15.0, passenger_count=1, predicted_fare_amount=10.0)
+#  Row(ride_id='2', pickup_longitude=22.0, pickup_latitude=-22.0, pickup_datetime='2025-01-01T00:30:00.00000-04:00', dropoff_longitude=26.0, dropoff_latitude=-26.0, passenger_count=2, predicted_fare_amount=10.0)

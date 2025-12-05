@@ -203,6 +203,29 @@ class RowCoderTest(unittest.TestCase):
     for test_case in self.PEOPLE:
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
 
+  def test_row_coder_negative_varint(self):
+    schema = schema_pb2.Schema(
+        id="negative",
+        fields=[
+            schema_pb2.Field(
+                name="i64",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT64)),
+            schema_pb2.Field(
+                name="i32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32))
+        ])
+    coder = RowCoder(schema)
+    Negative = typing.NamedTuple(
+        "Negative", [
+            ("i64", np.int64),
+            ("i32", np.int32),
+        ])
+    test_cases = [
+        Negative(-1, -1023), Negative(-1023, -1), Negative(-2**63, -2**31)
+    ]
+    for test_case in test_cases:
+      self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
+
   @unittest.skip(
       "https://github.com/apache/beam/issues/19696 - Overflow behavior in "
       "VarIntCoder is currently inconsistent")
@@ -423,8 +446,7 @@ class RowCoderTest(unittest.TestCase):
     for size in [len(self.PEOPLE) - 1, len(self.PEOPLE), len(self.PEOPLE) + 1]:
       dest = {
           field: np.ndarray((size, ), dtype=a.dtype)
-          for field,
-          a in columnar.items()
+          for field, a in columnar.items()
       }
       n = min(size, len(self.PEOPLE))
       self.assertEqual(

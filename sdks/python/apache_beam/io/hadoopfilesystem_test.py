@@ -32,6 +32,11 @@ from apache_beam.io.filesystem import BeamIOError
 from apache_beam.options.pipeline_options import HadoopFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
+try:
+  import hdfs as actual_hdfs
+except ImportError:
+  actual_hdfs = None
+
 
 class FakeFile(io.BytesIO):
   """File object for FakeHdfs"""
@@ -201,6 +206,7 @@ class FakeHdfs(object):
 
 
 @parameterized_class(('full_urls', ), [(False, ), (True, )])
+@unittest.skipIf(actual_hdfs is None, "hdfs extra not installed")
 class HadoopFileSystemTest(unittest.TestCase):
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
@@ -607,6 +613,7 @@ class HadoopFileSystemTest(unittest.TestCase):
     self.assertFalse(self.fs.exists(url2))
 
 
+@unittest.skipIf(actual_hdfs is None, "hdfs extra not installed")
 class HadoopFileSystemRuntimeValueProviderTest(unittest.TestCase):
   """Tests pipeline_options, in the form of a
   RuntimeValueProvider.runtime_options object."""

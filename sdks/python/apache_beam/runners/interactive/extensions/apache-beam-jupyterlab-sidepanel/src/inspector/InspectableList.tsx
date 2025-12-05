@@ -123,5 +123,5 @@ export class InspectableList extends React.Component<
     });
   }
 
-  private _updateRenderTimerId: number;
+  private _updateRenderTimerId: ReturnType<typeof setInterval>;
 }

@@ -32,7 +32,8 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Instant;
 import org.junit.Test;
 
@@ -48,8 +49,8 @@ public class ValueAndCoderLazySerializableTest {
     Iterable<WindowedValue<Integer>> accumulatedValue =
         Arrays.asList(winVal(0), winVal(1), winVal(3), winVal(4));
 
-    final WindowedValue.FullWindowedValueCoder<Integer> wvaCoder =
-        WindowedValue.FullWindowedValueCoder.of(
+    final WindowedValues.FullWindowedValueCoder<Integer> wvaCoder =
+        WindowedValues.FullWindowedValueCoder.of(
             BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
 
     final IterableCoder<WindowedValue<Integer>> iterAccumCoder = IterableCoder.of(wvaCoder);
@@ -74,8 +75,8 @@ public class ValueAndCoderLazySerializableTest {
     Iterable<WindowedValue<Integer>> accumulatedValue =
         Arrays.asList(winVal(0), winVal(1), winVal(3), winVal(4));
 
-    final WindowedValue.FullWindowedValueCoder<Integer> wvaCoder =
-        WindowedValue.FullWindowedValueCoder.of(
+    final WindowedValues.FullWindowedValueCoder<Integer> wvaCoder =
+        WindowedValues.FullWindowedValueCoder.of(
             BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
 
     final IterableCoder<WindowedValue<Integer>> iterAccumCoder = IterableCoder.of(wvaCoder);
@@ -104,6 +105,6 @@ public class ValueAndCoderLazySerializableTest {
   }
 
   private <T> WindowedValue<T> winVal(T val) {
-    return WindowedValue.of(val, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+    return WindowedValues.of(val, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
   }
 }

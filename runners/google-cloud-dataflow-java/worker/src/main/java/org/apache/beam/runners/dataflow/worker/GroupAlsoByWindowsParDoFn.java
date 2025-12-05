@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.LateDataDroppingDoFnRunner;
@@ -35,10 +34,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -50,7 +49,6 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
   private final PipelineOptions options;
 
   private final SideInputReader sideInputReader;
-  private final TupleTag<KV<K, Iterable<V>>> mainOutputTag;
   private final DataflowExecutionContext.DataflowStepContext stepContext;
   private final GroupAlsoByWindowFn<InputT, KV<K, Iterable<V>>> doFn;
   private final WindowingStrategy<?, W> windowingStrategy;
@@ -77,12 +75,10 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
       SideInputReader sideInputReader,
-      TupleTag<KV<K, Iterable<V>>> mainOutputTag,
       DataflowExecutionContext.DataflowStepContext stepContext) {
     this.options = options;
 
     this.sideInputReader = sideInputReader;
-    this.mainOutputTag = mainOutputTag;
     this.stepContext = stepContext;
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
@@ -172,20 +168,12 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
    * {@link StreamingGroupAlsoByWindowViaWindowSetFn}.
    */
   private DoFnRunner<InputT, KV<K, Iterable<V>>> createRunner() {
-    OutputManager outputManager =
-        new OutputManager() {
-          @Override
-          public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-            checkState(
-                tag.equals(mainOutputTag),
-                "Must only output to main output tag (%s), but was %s",
-                tag,
-                mainOutputTag);
-            try {
-              receiver.process(output);
-            } catch (Throwable t) {
-              throw new RuntimeException(t);
-            }
+    WindowedValueReceiver<KV<K, Iterable<V>>> outputReceiver =
+        output -> {
+          try {
+            receiver.process(output);
+          } catch (Throwable t) {
+            throw new RuntimeException(t);
           }
         };
 
@@ -194,7 +182,7 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
 
     DoFnRunner<InputT, KV<K, Iterable<V>>> basicRunner =
         new GroupAlsoByWindowFnRunner<>(
-            options, doFn, sideInputReader, outputManager, mainOutputTag, stepContext);
+            options, doFn, sideInputReader, outputReceiver, stepContext);
 
     if (doFn instanceof StreamingGroupAlsoByWindowViaWindowSetFn) {
       DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> streamingGABWRunner =

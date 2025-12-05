@@ -117,6 +117,7 @@ cdef class DoOperation(Operation):
   cdef dict timer_specs
   cdef public object input_info
   cdef object fn
+  cdef object scoped_timer_processing_state
 
 
 cdef class SdfProcessSizedElements(DoOperation):
@@ -140,6 +141,7 @@ cdef class PGBKCVOperation(Operation):
   cdef long max_keys
   cdef long key_count
 
+  cpdef add_key_value(self, wkey, value, timestamp)
   cpdef output_key(self, wkey, value, timestamp)
 
 

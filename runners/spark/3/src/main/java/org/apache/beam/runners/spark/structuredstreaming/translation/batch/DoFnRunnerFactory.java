@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.CachedSideInputReader;
@@ -37,11 +36,13 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -66,7 +67,7 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
    * {@link DoFnRunner#startBundle()} are already invoked by the factory.
    */
   abstract DoFnRunnerWithTeardown<InT, T> create(
-      PipelineOptions options, MetricsAccumulator metrics, OutputManager output);
+      PipelineOptions options, MetricsAccumulator metrics, WindowedValueMultiReceiver output);
 
   /**
    * Fuses the factory for the following {@link DoFnRunner} into a single factory that processes
@@ -124,13 +125,13 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
 
     @Override
     DoFnRunnerWithTeardown<InT, T> create(
-        PipelineOptions options, MetricsAccumulator metrics, OutputManager output) {
+        PipelineOptions options, MetricsAccumulator metrics, WindowedValueMultiReceiver output) {
       DoFnRunner<InT, T> simpleRunner =
           DoFnRunners.simpleRunner(
               options,
               doFn,
               CachedSideInputReader.of(sideInputReader, sideInputs.values()),
-              filterMainOutput ? new FilteredOutput(output, mainOutput) : output,
+              filterMainOutput ? new FilteredOutput<>(output, mainOutput) : output,
               mainOutput,
               additionalOutputs,
               new NoOpStepContext(),
@@ -153,22 +154,23 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
     }
 
     /**
-     * Delegate {@link OutputManager} that only forwards outputs matching the provided tag. This is
-     * used in cases where unused, obsolete outputs get dropped to avoid unnecessary caching.
+     * Delegate {@link WindowedValueMultiReceiver} that only forwards outputs matching the provided
+     * tag. This is used in cases where unused, obsolete outputs get dropped to avoid unnecessary
+     * caching.
      */
-    private static class FilteredOutput implements OutputManager {
-      final OutputManager outputManager;
-      final TupleTag<?> tupleTag;
+    private static class FilteredOutput<T> implements WindowedValueMultiReceiver {
+      final WindowedValueMultiReceiver outputManager;
+      final TupleTag<T> tupleTag;
 
-      FilteredOutput(OutputManager outputManager, TupleTag<?> tupleTag) {
+      FilteredOutput(WindowedValueMultiReceiver outputManager, TupleTag<T> tupleTag) {
         this.outputManager = outputManager;
         this.tupleTag = tupleTag;
       }
 
       @Override
-      public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-        if (tupleTag.equals(tag)) {
-          outputManager.output(tag, output);
+      public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> value) {
+        if (this.tupleTag.equals(tag)) {
+          outputManager.output(tag, value);
         }
       }
     }
@@ -204,7 +206,7 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
 
     @Override
     DoFnRunnerWithTeardown<InT, T> create(
-        PipelineOptions options, MetricsAccumulator metrics, OutputManager output) {
+        PipelineOptions options, MetricsAccumulator metrics, WindowedValueMultiReceiver output) {
       return new FusedRunner<>(options, metrics, output, factories);
     }
 
@@ -220,7 +222,7 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
       FusedRunner(
           PipelineOptions options,
           MetricsAccumulator metrics,
-          OutputManager output,
+          WindowedValueMultiReceiver output,
           List<DoFnRunnerFactory<?, ?>> factories) {
         runners = new DoFnRunnerWithTeardown<?, ?>[factories.size()];
         runners[runners.length - 1] =
@@ -230,8 +232,8 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
         }
       }
 
-      /** {@link OutputManager} that forwards output directly to the next runner. */
-      private static class FusedOutput implements OutputManager {
+      /** {@link WindowedValueReceiver} that forwards output directly to the next runner. */
+      private static class FusedOutput implements WindowedValueMultiReceiver {
         final DoFnRunnerWithTeardown<?, ?> runner;
 
         FusedOutput(DoFnRunnerWithTeardown<?, ?> runner) {

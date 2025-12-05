@@ -44,7 +44,6 @@ import com.google.firestore.v1.StructuredQuery.FieldReference;
 import com.google.firestore.v1.StructuredQuery.Order;
 import com.google.firestore.v1.StructuredQuery.Projection;
 import com.google.firestore.v1.Write;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -71,6 +70,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;

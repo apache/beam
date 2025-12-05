@@ -41,15 +41,25 @@ from apache_beam.runners.direct.transform_evaluator import _TransformEvaluator
 from apache_beam.testing import test_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import shared
+
+
+class DictWrapper(dict):
+  pass
+
+
+def acquire_dict():
+  return DictWrapper()
 
 
 class DirectPipelineResultTest(unittest.TestCase):
   def test_waiting_on_result_stops_executor_threads(self):
     pre_test_threads = set(t.ident for t in threading.enumerate())
 
-    for runner in ['DirectRunner',
-                   'BundleBasedDirectRunner',
-                   'SwitchingDirectRunner']:
+    for runner in [
+        'BundleBasedDirectRunner',
+        'apache_beam.runners.portability.fn_api_runner.fn_runner.FnApiRunner'
+    ]:
       pipeline = test_pipeline.TestPipeline(runner=runner)
       _ = (pipeline | beam.Create([{'foo': 'bar'}]))
       result = pipeline.run()
@@ -82,7 +92,11 @@ class DirectPipelineResultTest(unittest.TestCase):
             ("a", "b", str(element % 4)))
         return [element]
 
-    p = Pipeline(DirectRunner())
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = Pipeline('FnApiRunner')
     pcoll = (
         p | beam.Create([1, 2, 3, 4, 5], reshuffle=False)
         | 'Do' >> beam.ParDo(MyDoFn()))
@@ -159,18 +173,17 @@ class DirectRunnerRetryTests(unittest.TestCase):
     # currently does not currently support retries.
     p = beam.Pipeline(runner='BundleBasedDirectRunner')
 
-    # TODO(mariagh): Remove the use of globals from the test.
-    global count_b, count_c  # pylint: disable=global-variable-undefined
-    count_b, count_c = 0, 0
+    shared_handler = shared.Shared()
+    counts = shared_handler.acquire(acquire_dict)
+    counts['count_b'] = 0
+    counts['count_c'] = 0
 
     def f_b(x):
-      global count_b  # pylint: disable=global-variable-undefined
-      count_b += 1
+      shared_handler.acquire(acquire_dict)['count_b'] += 1
       raise Exception('exception in f_b')
 
     def f_c(x):
-      global count_c  # pylint: disable=global-variable-undefined
-      count_c += 1
+      shared_handler.acquire(acquire_dict)['count_c'] += 1
       raise Exception('exception in f_c')
 
     names = p | 'CreateNodeA' >> beam.Create(['Ann', 'Joe'])
@@ -180,7 +193,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
     with self.assertRaises(Exception):
       p.run().wait_until_finish()
-    assert count_b == count_c == 4
+    assert counts['count_b'] == counts['count_c'] == 4
 
   def test_no_partial_writeouts(self):
     class TestTransformEvaluator(_TransformEvaluator):

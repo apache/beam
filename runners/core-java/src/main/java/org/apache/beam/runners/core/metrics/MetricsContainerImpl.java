@@ -51,7 +51,6 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Histogram;
-import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -317,6 +316,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, metricKey.metricName().getNamespace())
           .setLabel(MonitoringInfoConstants.Labels.NAME, metricKey.metricName().getName())
           .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricKey.stepName());
+    }
+
+    // Add any metricKey labels to the monitoringInfoLabels.
+    if (!metricName.getLabels().isEmpty()) {
+      builder.setLabels(metricName.getLabels());
     }
     return builder;
   }
@@ -603,7 +607,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         });
   }
 
-  private <UserT extends Metric, UpdateT, CellT extends MetricCell<UpdateT>>
+  private <UpdateT, CellT extends MetricCell<UpdateT>>
       ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     cells.forEach(
@@ -614,7 +618,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return updates.build();
   }
 
-  private <UserT extends Metric, UpdateT, CellT extends MetricCell<UpdateT>>
+  private <UpdateT, CellT extends MetricCell<UpdateT>>
       ImmutableList<MetricUpdate<UpdateT>> extractHistogramCumulatives(
           MetricsMap<KV<MetricName, HistogramData.BucketType>, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();

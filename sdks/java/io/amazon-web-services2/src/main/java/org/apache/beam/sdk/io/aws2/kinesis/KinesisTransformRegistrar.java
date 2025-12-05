@@ -64,6 +64,10 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String region;
     @Nullable String serviceEndpoint;
     boolean verifyCertificate;
+    boolean aggregationEnabled;
+    Integer aggregationMaxBytes;
+    Duration aggregationMaxBufferedTime;
+    Duration aggregationShardRefreshInterval;
 
     public void setStreamName(String streamName) {
       this.streamName = streamName;
@@ -87,6 +91,23 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
     public void setVerifyCertificate(@Nullable Boolean verifyCertificate) {
       this.verifyCertificate = verifyCertificate == null || verifyCertificate;
+    }
+
+    public void setAggregationEnabled(@Nullable Boolean aggregationEnabled) {
+      this.aggregationEnabled = aggregationEnabled != null && aggregationEnabled;
+    }
+
+    public void setAggregationMaxBytes(Long aggregationMaxBytes) {
+      this.aggregationMaxBytes = aggregationMaxBytes.intValue();
+    }
+
+    public void setAggregationMaxBufferedTime(Long aggregationMaxBufferedTime) {
+      this.aggregationMaxBufferedTime = Duration.millis(aggregationMaxBufferedTime);
+    }
+
+    public void setAggregationShardRefreshInterval(Long aggregationShardRefreshInterval) {
+      this.aggregationShardRefreshInterval =
+          Duration.standardMinutes(aggregationShardRefreshInterval);
     }
   }
 
@@ -131,8 +152,21 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                       .skipCertificateVerification(!configuration.verifyCertificate)
                       .build())
               .withPartitioner(p -> pk)
-              .withRecordAggregationDisabled()
               .withSerializer(serializer);
+
+      if (configuration.aggregationEnabled) {
+        writeTransform =
+            writeTransform.withRecordAggregation(
+                KinesisIO.RecordAggregation.builder()
+                    .maxBytes(configuration.aggregationMaxBytes)
+                    .maxBufferedTimeJitter(0.7) // 70% jitter
+                    .maxBufferedTime(configuration.aggregationMaxBufferedTime)
+                    .shardRefreshIntervalJitter(0.5) // 50% jitter
+                    .shardRefreshInterval(configuration.aggregationShardRefreshInterval)
+                    .build());
+      } else {
+        writeTransform = writeTransform.withRecordAggregationDisabled();
+      }
 
       return writeTransform;
     }

@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
-import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -69,33 +68,13 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
     return new SqlBoundedSideInputJoin(
         configuration,
         CalciteQueryPlanner.class,
-        "WITH bid_with_side (auction, bidder, price, dateTime, extra, side_id) AS (%n"
+        "WITH bid_with_side (auction, bidder, price, `dateTime`, extra, side_id) AS (%n"
             + "  SELECT *, CAST(MOD(bidder, %d) AS BIGINT) side_id FROM bid%n"
             + ")%n"
             + " SELECT bid_with_side.auction%n"
             + ", bid_with_side.bidder%n"
             + ", bid_with_side.price%n"
-            + ", bid_with_side.dateTime%n"
-            + ", side.extra%n"
-            + " FROM bid_with_side, side%n"
-            + " WHERE bid_with_side.side_id = side.id");
-  }
-
-  public static SqlBoundedSideInputJoin zetaSqlBoundedSideInputJoin(
-      NexmarkConfiguration configuration) {
-    // Differences from Calcite SQL:
-    //   - INT64 instead of BIGINT
-    //   - no column list for WITH table alias
-    return new SqlBoundedSideInputJoin(
-        configuration,
-        ZetaSQLQueryPlanner.class,
-        "WITH bid_with_side AS (%n"
-            + "  SELECT *, CAST(MOD(bidder, %d) AS INT64) side_id FROM bid%n"
-            + ")%n"
-            + " SELECT bid_with_side.auction%n"
-            + ", bid_with_side.bidder%n"
-            + ", bid_with_side.price%n"
-            + ", bid_with_side.dateTime%n"
+            + ", bid_with_side.`dateTime`%n"
             + ", side.extra%n"
             + " FROM bid_with_side, side%n"
             + " WHERE bid_with_side.side_id = side.id");

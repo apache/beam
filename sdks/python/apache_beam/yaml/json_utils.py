@@ -25,25 +25,31 @@ from collections.abc import Callable
 from typing import Any
 from typing import Optional
 
-import jsonschema
-
 import apache_beam as beam
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+
+try:
+  import jsonschema
+except ImportError:
+  pass
 
 JSON_ATOMIC_TYPES_TO_BEAM = {
     'boolean': schema_pb2.BOOLEAN,
     'integer': schema_pb2.INT64,
     'number': schema_pb2.DOUBLE,
     'string': schema_pb2.STRING,
+    'bytes': schema_pb2.BYTES
 }
 
 BEAM_ATOMIC_TYPES_TO_JSON = {
     schema_pb2.INT16: 'integer',
     schema_pb2.INT32: 'integer',
     schema_pb2.FLOAT: 'number',
-    **{v: k
-       for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()}
+    **{
+        v: k
+        for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()
+    }
 }
 
 
@@ -164,6 +170,13 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
   The input to the returned callable is expected to conform to the Json schema
   corresponding to this Beam type.
   """
+  if beam_type.nullable:
+    non_null_type = schema_pb2.FieldType()
+    non_null_type.CopyFrom(beam_type)
+    non_null_type.nullable = False
+    non_null_converter = json_to_row(non_null_type)
+    return lambda value: None if value is None else non_null_converter(value)
+
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     return lambda value: value
@@ -181,14 +194,28 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
     value_converter = json_to_row(beam_type.map_type.value_type)
     return lambda value: {k: value_converter(v) for (k, v) in value.items()}
   elif type_info == "row_type":
+    field_nullable_status = {
+        field.name: field.type.nullable
+        for field in beam_type.row_type.schema.fields
+    }
+
     converters = {
         field.name: json_to_row(field.type)
         for field in beam_type.row_type.schema.fields
     }
-    return lambda value: beam.Row(
-        **
-        {name: convert(value[name])
-         for (name, convert) in converters.items()})
+
+    def convert_row(value):
+      kwargs = {}
+      for name, convert in converters.items():
+        if name in value:
+          kwargs[name] = convert(value[name])
+        elif field_nullable_status[name]:
+          kwargs[name] = convert(None)
+        else:
+          raise KeyError(f"Missing required field: {name}")
+      return beam.Row(**kwargs)
+
+    return convert_row
   elif type_info == "logical_type":
     return lambda value: value
   else:
@@ -263,8 +290,10 @@ def row_to_json(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
         for field in beam_type.row_type.schema.fields
     }
     return lambda row: {
-        name: convert(getattr(row, name))
+        name: converted
         for (name, convert) in converters.items()
+        # To filter out nullable fields in rows
+        if (converted := convert(getattr(row, name, None))) is not None
     }
   elif type_info == "logical_type":
     return lambda value: value
@@ -324,6 +353,9 @@ def row_validator(beam_schema: schema_pb2.Schema,
     nonlocal validator
     if validator is None:
       validator = jsonschema.validators.validator_for(json_schema)(json_schema)
+    # NOTE: A row like BeamSchema_...(name='Bob', score=None, age=25) needs to
+    # have any fields that are None to be filtered out or the validator will
+    # fail (e.g. {'age': 25, 'name': 'Bob'}).
     validator.validate(convert(row))
 
   return validate

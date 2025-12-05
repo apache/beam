@@ -26,11 +26,12 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_not_empty
 
+# pylint: disable=ungrouped-imports
 try:
-  from apache_beam.ml.rag.chunking.langchain import LangChainChunker
+  from langchain.text_splitter import CharacterTextSplitter
+  from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-  from langchain.text_splitter import (
-      CharacterTextSplitter, RecursiveCharacterTextSplitter)
+  from apache_beam.ml.rag.chunking.langchain import LangChainChunker
   LANGCHAIN_AVAILABLE = True
 except ImportError:
   LANGCHAIN_AVAILABLE = False
@@ -167,7 +168,7 @@ class LangChainChunkingTest(unittest.TestCase):
       def check_token_lengths(chunks):
         for chunk in chunks:
           # Verify each chunk's token length is within limits
-          num_tokens = len(tokenizer.encode(chunk.content.text))
+          num_tokens = len(tokenizer.tokenize(chunk.content.text))
           if not num_tokens <= 10:
             raise BeamAssertException(
                 f"Chunk has {num_tokens} tokens, expected <= 10")
@@ -186,7 +187,7 @@ class LangChainChunkingTest(unittest.TestCase):
         metadata_fields={},
         text_splitter=splitter)
 
-    with self.assertRaises(KeyError):
+    with self.assertRaisesRegex(Exception, "nonexistent"):
       with TestPipeline() as p:
         _ = (
             p

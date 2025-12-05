@@ -41,6 +41,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
@@ -83,7 +84,7 @@ public class BigQuerySinkMetricsTest {
     }
 
     @Override
-    public TestHistogramCell getPerWorkerHistogram(
+    public TestHistogramCell getHistogram(
         MetricName metricName, HistogramData.BucketType bucketType) {
       perWorkerHistograms.computeIfAbsent(
           KV.of(metricName, bucketType), kv -> new TestHistogramCell(kv));
@@ -203,7 +204,10 @@ public class BigQuerySinkMetricsTest {
     MetricName counterNameDisabledDeletes =
         MetricName.named("BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:OK;");
     MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
+        MetricName.named(
+            "BigQuerySink",
+            "RpcLatency*rpc_method:APPEND_ROWS;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
     testContainer.assertPerWorkerCounterValue(counterNameDisabledDeletes, 1L);
     testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 3.0);
@@ -243,7 +247,10 @@ public class BigQuerySinkMetricsTest {
         MetricName.named(
             "BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;");
     MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
+        MetricName.named(
+            "BigQuerySink",
+            "RpcLatency*rpc_method:APPEND_ROWS;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
     testContainer.assertPerWorkerCounterValue(counterNameDisabledDeletes, 1L);
     testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 5.0);
@@ -282,7 +289,10 @@ public class BigQuerySinkMetricsTest {
         MetricName.named(
             "BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;");
     MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
+        MetricName.named(
+            "BigQuerySink",
+            "RpcLatency*rpc_method:APPEND_ROWS;",
+            ImmutableMap.of("PER_WORKER_METRIC", "true"));
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
     testContainer.assertPerWorkerCounterValue(counterNameDisabledDeletes, 1L);
     testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 15.0);

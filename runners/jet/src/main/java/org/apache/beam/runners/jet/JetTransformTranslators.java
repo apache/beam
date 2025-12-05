@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
@@ -59,6 +58,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 @SuppressWarnings({
@@ -269,7 +270,7 @@ class JetTransformTranslators {
 
       PCollection<KV<K, InputT>> input =
           (PCollection<KV<K, InputT>>) Utils.getInput(appliedTransform);
-      WindowedValue.WindowedValueCoder<KV<K, InputT>> inputCoder =
+      WindowedValues.WindowedValueCoder<KV<K, InputT>> inputCoder =
           Utils.getWindowedValueCoder(input);
       Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder = Utils.getCoder((PCollection) output.getValue());

@@ -181,8 +181,7 @@ class JobServiceHandle(object):
     # TODO: Define URNs for options.
     p_options = {
         'beam:option:' + k + ':v1': convert_pipeline_option_value(v)
-        for k,
-        v in all_options.items() if v is not None
+        for k, v in all_options.items() if v is not None
     }
     return job_utils.dict_to_struct(p_options)
 
@@ -529,14 +528,17 @@ class PipelineResult(runner.PipelineResult):
     the execution. If None or zero, will wait until the pipeline finishes.
     :return: The result of the pipeline, i.e. PipelineResult.
     """
+    last_error_text = None
+
     def read_messages() -> None:
+      nonlocal last_error_text
       previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
-          logging.log(
-              MESSAGE_LOG_LEVELS[message.message_response.importance],
-              "%s",
-              message.message_response.message_text)
+          mr = message.message_response
+          logging.log(MESSAGE_LOG_LEVELS[mr.importance], "%s", mr.message_text)
+          if mr.importance == beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR:
+            last_error_text = mr.message_text
         else:
           current_state = message.state_response.state
           if current_state != previous_state:
@@ -567,6 +569,9 @@ class PipelineResult(runner.PipelineResult):
 
     if self._runtime_exception:
       raise self._runtime_exception
+    from apache_beam.runners.runner import PipelineState
+    if self._state == PipelineState.FAILED:
+      raise RuntimeError(last_error_text or "Pipeline failed.")
 
     return self._state
 

@@ -32,16 +32,91 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import BadRequest
+  from apache_beam.ml.rag.enrichment.bigquery_vector_search import BigQueryVectorSearchEnrichmentHandler
+  from apache_beam.ml.rag.enrichment.bigquery_vector_search import BigQueryVectorSearchParameters
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.ml.rag.enrichment.bigquery_vector_search import \
-    BigQueryVectorSearchEnrichmentHandler
-  from apache_beam.ml.rag.enrichment.bigquery_vector_search import \
-    BigQueryVectorSearchParameters
 except ImportError:
   raise unittest.SkipTest('BigQuery dependencies not installed')
 
 _LOGGER = logging.getLogger(__name__)
+
+DEFAULT_TABLE_NAME = "default_table"
+DEFAULT_TABLE_SCHEMA = [('id', 'STRING'), ('content', 'STRING'),
+                        ('domain', 'STRING'),
+                        ('embedding', 'FLOAT64', 'REPEATED'),
+                        (
+                            'metadata',
+                            'RECORD',
+                            'REPEATED', [('key', 'STRING'),
+                                         ('value', 'STRING')])]
+
+PRICE_TABLE_SCHEMA = [
+    ('id', 'STRING'),
+    ('content', 'STRING'),
+    ('price', 'FLOAT64'),  # Unnested price column
+    ('embedding', 'FLOAT64', 'REPEATED')
+]
+
+# Define test data as class attributes
+DEFAULT_TABLE_DATA = [{
+    "id": "doc1",
+    "content": "This is a test document",
+    "domain": "medical",
+    "embedding": [0.1, 0.2, 0.3],
+    "metadata": [{
+        "key": "language", "value": "en"
+    }]
+},
+                      {
+                          "id": "doc2",
+                          "content": "Another test document",
+                          "domain": "legal",
+                          "embedding": [0.2, 0.3, 0.4],
+                          "metadata": [{
+                              "key": "language", "value": "en"
+                          }]
+                      },
+                      {
+                          "id": "doc3",
+                          "content": "Un document de test",
+                          "domain": "financial",
+                          "embedding": [0.3, 0.4, 0.5],
+                          "metadata": [{
+                              "key": "language", "value": "fr"
+                          }]
+                      }]
+
+PRICE_TABLE_NAME = "price_table"
+PRICE_TABLE_DATA = [{
+    "id": "item1",
+    "content": "Budget item",
+    "price": 25.99,
+    "embedding": [0.1, 0.2, 0.3]
+},
+                    {
+                        "id": "item2",
+                        "content": "Affordable product",
+                        "price": 49.99,
+                        "embedding": [0.2, 0.3, 0.4]
+                    },
+                    {
+                        "id": "item3",
+                        "content": "Mid-range option",
+                        "price": 75.50,
+                        "embedding": [0.3, 0.4, 0.5]
+                    },
+                    {
+                        "id": "item4",
+                        "content": "Premium product",
+                        "price": 149.99,
+                        "embedding": [0.4, 0.5, 0.6]
+                    },
+                    {
+                        "id": "item5",
+                        "content": "Luxury item",
+                        "price": 199.99,
+                        "embedding": [0.5, 0.6, 0.7]
+                    }]
 
 
 class BigQueryVectorSearchIT(unittest.TestCase):
@@ -72,44 +147,21 @@ class BigQueryVectorSearchIT(unittest.TestCase):
 
 class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
   # Test data with embeddings
-  table_data = [{
-      "id": "doc1",
-      "content": "This is a test document",
-      "domain": "medical",
-      "embedding": [0.1, 0.2, 0.3],
-      "metadata": [{
-          "key": "language", "value": "en"
-      }]
-  },
-                {
-                    "id": "doc2",
-                    "content": "Another test document",
-                    "domain": "legal",
-                    "embedding": [0.2, 0.3, 0.4],
-                    "metadata": [{
-                        "key": "language", "value": "en"
-                    }]
-                },
-                {
-                    "id": "doc3",
-                    "content": "Un document de test",
-                    "domain": "financial",
-                    "embedding": [0.3, 0.4, 0.5],
-                    "metadata": [{
-                        "key": "language", "value": "fr"
-                    }]
-                }]
-
   @classmethod
-  def create_table(cls, table_name):
-    fields = [('id', 'STRING'), ('content', 'STRING'), ('domain', 'STRING'),
-              ('embedding', 'FLOAT64', 'REPEATED'),
-              (
-                  'metadata',
-                  'RECORD',
-                  'REPEATED', [('key', 'STRING'), ('value', 'STRING')])]
+  def create_table(cls, table_name, schema_fields, table_data):
+    """Create a BigQuery table with the specified schema and data.
+    
+    Args:
+        table_name: Name of the table to create
+        schema_fields: List of field definitions in the format:
+            (name, type, [mode, [subfields]])
+        table_data: List of dictionaries containing the data to insert
+    
+    Returns:
+        Fully qualified table name (project.dataset.table)
+    """
     table_schema = bigquery.TableSchema()
-    for field_def in fields:
+    for field_def in schema_fields:
       field = bigquery.TableFieldSchema()
       field.name = field_def[0]
       field.type = field_def[1]
@@ -133,13 +185,23 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
     cls.bigquery_client.insert_rows(
-        cls.project, cls.dataset_id, table_name, cls.table_data)
-    cls.table_name = f"{cls.project}.{cls.dataset_id}.{table_name}"
+        cls.project, cls.dataset_id, table_name, table_data)
+
+    # Return the fully qualified table name
+    return f"{cls.project}.{cls.dataset_id}.{table_name}"
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass()
-    cls.create_table('vector_test')
+    cls.default_table_fqn = cls.create_table(
+        table_name=DEFAULT_TABLE_NAME,
+        schema_fields=DEFAULT_TABLE_SCHEMA,
+        table_data=DEFAULT_TABLE_DATA)
+
+    cls.price_table_fqn = cls.create_table(
+        table_name=PRICE_TABLE_NAME,
+        schema_fields=PRICE_TABLE_SCHEMA,
+        table_data=PRICE_TABLE_DATA)
 
   def test_basic_vector_search(self):
     """Test basic vector similarity search."""
@@ -180,10 +242,60 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='embedding',
         columns=['content', 'metadata'],
         neighbor_count=2,
+        metadata_restriction_template=(
+            "check_metadata(metadata, 'language', '{language}')"))
+
+    handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=params)
+
+    with TestPipeline(is_integration_test=True) as p:
+      result = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+      assert_that(result, equal_to(expected_chunks))
+
+  def test_include_distance(self):
+    """Test basic vector similarity search."""
+    test_chunks = [
+        Chunk(
+            id="query1",
+            index=0,
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content(text="test query"),
+            metadata={"language": "en"})
+    ]
+    # Expected chunk will have enrichment_data in metadata
+    expected_chunks = [
+        Chunk(
+            id="query1",
+            index=0,
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content(text="test query"),
+            metadata={
+                "language": "en",
+                "enrichment_data": {
+                    "id": "query1",
+                    "chunks": [{
+                        "distance": 0.0,
+                        "content": "This is a test document",
+                        "metadata": [{
+                            "key": "language", "value": "en"
+                        }]
+                    }]
+                }
+            })
+    ]
+
+    params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.default_table_fqn,
+        embedding_column='embedding',
+        columns=['content', 'metadata'],
+        neighbor_count=1,
+        include_distance=True,
         metadata_restriction_template=(
             "check_metadata(metadata, 'language', '{language}')"))
 
@@ -220,7 +332,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='embedding',
         columns=['content', 'metadata'],
         neighbor_count=2,
@@ -230,7 +342,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params,
         min_batch_size=2,  # Force batching
-        max_batch_size=2   # Process 2 chunks at a time
+        max_batch_size=2  # Process 2 chunks at a time
     )
 
     expected_chunks = [
@@ -326,7 +438,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='embedding',
         columns=['content', 'metadata'],
         neighbor_count=2,
@@ -407,7 +519,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='embedding',
         columns=['content', 'metadata'],
         neighbor_count=2,  # Get top 2 matches
@@ -473,7 +585,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='embedding',
         columns=['content', 'metadata', 'domain'],
         neighbor_count=1,
@@ -484,8 +596,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params,
         min_batch_size=2,  # Force batching
-        max_batch_size=2
-    )
+        max_batch_size=2)
 
     with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
@@ -524,6 +635,87 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
                   index=1)
           ]))
 
+  def test_price_range_filter_with_callable(self):
+    """Test vector search with a callable that filters by price range."""
+    test_chunks = [
+        Chunk(
+            id="low_price_query",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content(text="cheap product"),
+            metadata={
+                "min_price": 10, "max_price": 50
+            },
+            index=0),
+        Chunk(
+            id="high_price_query",
+            embedding=Embedding(dense_embedding=[0.4, 0.5, 0.6]),
+            content=Content(text="expensive product"),
+            metadata={
+                "min_price": 100, "max_price": 200
+            },
+            index=1)
+    ]
+
+    def price_range_filter(chunk):
+      min_price = chunk.metadata.get("min_price", 0)
+      max_price = chunk.metadata.get("max_price", float('inf'))
+      return f"price >= {min_price} AND price <= {max_price}"
+
+    params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.price_table_fqn,
+        embedding_column='embedding',
+        columns=['content', 'price'],
+        neighbor_count=5,
+        metadata_restriction_template=price_range_filter)
+
+    handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=params)
+
+    with TestPipeline(is_integration_test=True) as p:
+      result = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+      assert_that(
+          result,
+          equal_to([
+              Chunk(
+                  id="low_price_query",
+                  embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+                  content=Content(text="cheap product"),
+                  metadata={
+                      "min_price": 10,
+                      "max_price": 50,
+                      "enrichment_data": {
+                          "id": "low_price_query",
+                          "chunks": [{
+                              "content": "Budget item", "price": 25.99
+                          },
+                                     {
+                                         "content": "Affordable product",
+                                         "price": 49.99
+                                     }]
+                      }
+                  },
+                  index=0),
+              Chunk(
+                  id="high_price_query",
+                  embedding=Embedding(dense_embedding=[0.4, 0.5, 0.6]),
+                  content=Content(text="expensive product"),
+                  metadata={
+                      "min_price": 100,
+                      "max_price": 200,
+                      "enrichment_data": {
+                          "id": "high_price_query",
+                          "chunks": [{
+                              "content": "Premium product", "price": 149.99
+                          }, {
+                              "content": "Luxury item", "price": 199.99
+                          }]
+                      }
+                  },
+                  index=1)
+          ]))
+
   def test_condition_batching(self):
     """Test that queries with same metadata conditions are batched together."""
 
@@ -551,7 +743,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='embedding',
         columns=['content', 'domain', 'metadata'],
         neighbor_count=3,
@@ -561,8 +753,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params,
         min_batch_size=10,  # Force batching
-        max_batch_size=100
-    )
+        max_batch_size=100)
 
     with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
@@ -654,19 +845,18 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
 
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='nonexistent_column',  # Invalid column
         columns=['content'],
         neighbor_count=1,
         metadata_restriction_template=(
-          "language = '{language}'"  # Invalid template
-        )
-    )
+            "language = '{language}'"  # Invalid template
+        ))
 
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params)
 
-    with self.assertRaises(BadRequest):
+    with self.assertRaisesRegex(Exception, "Unrecognized name"):
       with TestPipeline() as p:
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
 
@@ -674,7 +864,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     """Test handling of empty input."""
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='embedding',
         columns=['content'],
         neighbor_count=1)
@@ -693,23 +883,21 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
             embedding=None,  # Missing embedding
             content=Content(text="test query"),
             metadata={"language": "en"},
-            index=0
-        )
+            index=0)
     ]
 
     params = BigQueryVectorSearchParameters(
         project=self.project,
-        table_name=self.table_name,
+        table_name=self.default_table_fqn,
         embedding_column='embedding',
         columns=['content'],
         neighbor_count=1)
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params)
 
-    with self.assertRaises(ValueError) as context:
+    with self.assertRaisesRegex(Exception, "missing embedding"):
       with TestPipeline() as p:
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
-    self.assertIn("missing embedding", str(context.exception))
 
 
 if __name__ == '__main__':

@@ -257,14 +257,14 @@ def to_pcollection(
         {ix: df._expr
          for (ix, df) in enumerate(new_dataframes)})
 
-    TO_PCOLLECTION_CACHE.update(
-        {new_dataframes[ix]._expr._id: pc
-         for ix, pc in new_results.items()})
+    TO_PCOLLECTION_CACHE.update({
+        new_dataframes[ix]._expr._id: pc
+        for ix, pc in new_results.items()
+    })
 
   raw_results = {
       ix: TO_PCOLLECTION_CACHE[df._expr._id]
-      for ix,
-      df in enumerate(dataframes)
+      for ix, df in enumerate(dataframes)
   }
 
   if yield_elements == "schemas":

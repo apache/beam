@@ -44,7 +44,8 @@
   pipeline.
 
   * Install Java runtime in the computer from where the pipeline is constructed
-    and make sure that 'java' command is available.
+    and make sure that 'java' command is available or set JAVA_HOME environment
+    variable.
 
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) a expansion service jar and use
@@ -112,6 +113,10 @@ WriteToKinesisSchema = NamedTuple(
         ('partition_key', str),
         ('service_endpoint', Optional[str]),
         ('verify_certificate', Optional[bool]),
+        ('aggregation_enabled', Optional[bool]),
+        ('aggregation_max_bytes', Optional[int]),
+        ('aggregation_max_buffered_time', Optional[int]),
+        ('aggregation_shard_refresh_interval', Optional[int]),
     ],
 )
 
@@ -135,6 +140,10 @@ class WriteToKinesis(ExternalTransform):
       verify_certificate=None,
       producer_properties=None,
       expansion_service=None,
+      aggregation_enabled=None,
+      aggregation_max_bytes=51200,
+      aggregation_max_buffered_time=100,
+      aggregation_shard_refresh_interval=2,
   ):
     """
     Initializes a write operation to Kinesis.
@@ -151,6 +160,13 @@ class WriteToKinesis(ExternalTransform):
         since the AWS IOs upgraded to v2. Trying to set it will lead to an
         error. For more info, see https://github.com/apache/beam/issues/33430.
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param aggregation_enabled: Enable or disable aggregation.
+    :param aggregation_max_bytes: Maximum number of bytes to buffer before
+        sending a batch of records. Defaults to 51200.
+    :param aggregation_max_buffered_time: Maximum time(millisecond) to buffer
+        records before sending a batch of records. Defaults to 100.
+    :param aggregation_shard_refresh_interval: Interval in minutes to refresh
+        the shard map. Defaults to 2.
     """
     if producer_properties is not None:
       raise ValueError(
@@ -167,6 +183,11 @@ class WriteToKinesis(ExternalTransform):
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
                 verify_certificate=verify_certificate,
+                aggregation_enabled=aggregation_enabled,
+                aggregation_max_bytes=aggregation_max_bytes,
+                aggregation_max_buffered_time=aggregation_max_buffered_time,
+                aggregation_shard_refresh_interval=
+                aggregation_shard_refresh_interval,
             )),
         expansion_service or default_io_expansion_service(),
     )

@@ -101,8 +101,8 @@ def load_sklearn_iris_test_data(
       dataset['data'], dataset['target'], test_size=.2, random_state=seed)
 
   if split:
-    return [(index, data_type(sample.reshape(1, -1))) for index,
-            sample in enumerate(x_test)]
+    return [(index, data_type(sample.reshape(1, -1)))
+            for index, sample in enumerate(x_test)]
   return [(0, data_type(x_test))]
 
 

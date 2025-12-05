@@ -17,7 +17,7 @@ name: PostCommit Python Xlang IO Direct
 
 on:
   schedule:
-    - cron: '30 5/6 * * *'
+    - cron: '30 4/6 * * *'
   pull_request_target:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Python_Xlang_IO_Direct.json']
   workflow_dispatch:
@@ -74,8 +74,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.9
-            3.12
+            3.10
+            3.13
       - name: run PostCommit Python Xlang IO Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

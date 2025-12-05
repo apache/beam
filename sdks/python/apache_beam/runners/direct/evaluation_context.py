@@ -42,7 +42,8 @@ from apache_beam.utils import counters
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from apache_beam.runners.direct.bundle_factory import BundleFactory, _Bundle
+  from apache_beam.runners.direct.bundle_factory import BundleFactory
+  from apache_beam.runners.direct.bundle_factory import _Bundle
   from apache_beam.runners.direct.util import TimerFiring
   from apache_beam.runners.direct.util import TransformResult
   from apache_beam.runners.direct.watermark_manager import _TransformWatermarks
@@ -346,8 +347,8 @@ class EvaluationContext(object):
     registered as a PCollectionView, we add the result to the PCollectionView.
     """
     if (result.uncommitted_output_bundles and
-        result.uncommitted_output_bundles[0].pcollection in
-        self._pcollection_to_views):
+        result.uncommitted_output_bundles[0].pcollection
+        in self._pcollection_to_views):
       for view in self._pcollection_to_views[
           result.uncommitted_output_bundles[0].pcollection]:
         for committed_bundle in committed_bundles:

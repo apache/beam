@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /**
  * A {@link PCollectionViewWriter} is responsible for writing contents of a {@link PCollection} to a

@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.StateInternals;
@@ -44,9 +44,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -114,7 +115,12 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     valueCoder.encode(value, dataOutput, Context.OUTER);
     messageBundle
         .addMessagesBuilder()
-        .setMetadata(WindmillSink.encodeMetadata(windowsCoder, windows, PaneInfo.NO_FIRING))
+        .setMetadata(
+            WindmillSink.encodeMetadata(
+                windowsCoder,
+                windows,
+                PaneInfo.NO_FIRING,
+                BeamFnApi.Elements.ElementMetadata.newBuilder().build()))
         .setData(dataOutput.toByteString())
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp));
   }
@@ -126,7 +132,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     return new ValueInEmptyWindows<>(
         (KeyedWorkItem<String, T>)
             new WindmillKeyedWorkItem<>(
-                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
+                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder, false));
   }
 
   @Test
@@ -184,7 +190,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
   }
 
   private DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> makeRunner(
-      TupleTag<KV<String, Iterable<String>>> outputTag, DoFnRunners.OutputManager outputManager) {
+      TupleTag<KV<String, Iterable<String>>> outputTag, WindowedValueMultiReceiver outputManager) {
 
     GroupAlsoByWindowFn<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> fn =
         new StreamingGroupAlsoByWindowReshuffleFn<>();
@@ -195,14 +201,13 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
   private <InputT, OutputT>
       DoFnRunner<KeyedWorkItem<String, InputT>, KV<String, OutputT>> makeRunner(
           TupleTag<KV<String, OutputT>> outputTag,
-          DoFnRunners.OutputManager outputManager,
+          WindowedValueMultiReceiver outputManager,
           GroupAlsoByWindowFn<KeyedWorkItem<String, InputT>, KV<String, OutputT>> fn) {
     return new GroupAlsoByWindowFnRunner<>(
         PipelineOptionsFactory.create(),
         fn,
         NullSideInputReader.empty(),
-        outputManager,
-        outputTag,
+        output -> outputManager.output(outputTag, output),
         stepContext);
   }
 

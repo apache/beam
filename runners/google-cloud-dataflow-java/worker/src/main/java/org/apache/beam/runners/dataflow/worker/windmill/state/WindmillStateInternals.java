@@ -26,7 +26,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
@@ -52,8 +51,8 @@ public class WindmillStateInternals<K> implements StateInternals {
   private final @Nullable K key;
 
   private final WindmillStateCache.ForKeyAndFamily cache;
-  private final StateTable workItemState;
-  private final StateTable workItemDerivedState;
+  private final CachingStateTable workItemState;
+  private final CachingStateTable workItemDerivedState;
   private final Supplier<Closeable> scopedReadStateSupplier;
 
   public WindmillStateInternals(
@@ -62,12 +61,14 @@ public class WindmillStateInternals<K> implements StateInternals {
       WindmillStateReader reader,
       boolean isNewKey,
       WindmillStateCache.ForKeyAndFamily cache,
+      WindmillStateTagUtil windmillStateTagUtil,
       Supplier<Closeable> scopedReadStateSupplier) {
     this.key = key;
     this.cache = cache;
     this.scopedReadStateSupplier = scopedReadStateSupplier;
     CachingStateTable.Builder builder =
-        CachingStateTable.builder(stateFamily, reader, cache, isNewKey, scopedReadStateSupplier);
+        CachingStateTable.builder(
+            stateFamily, reader, cache, isNewKey, scopedReadStateSupplier, windmillStateTagUtil);
     if (cache.supportMapStateViaMultimapState()) {
       builder = builder.withMapStateViaMultimapState();
     }
@@ -80,17 +81,11 @@ public class WindmillStateInternals<K> implements StateInternals {
     return key;
   }
 
-  private void persist(List<Future<WorkItemCommitRequest>> commitsToMerge, StateTable stateTable) {
-    for (State location : stateTable.values()) {
-      if (!(location instanceof WindmillState)) {
-        throw new IllegalStateException(
-            String.format(
-                "%s wasn't created by %s -- unable to persist it",
-                location.getClass().getSimpleName(), getClass().getSimpleName()));
-      }
-
+  private void persist(
+      List<Future<WorkItemCommitRequest>> commitsToMerge, CachingStateTable stateTable) {
+    for (WindmillState location : stateTable.values()) {
       try {
-        commitsToMerge.add(((WindmillState) location).persist(cache));
+        commitsToMerge.add(location.persist(cache));
       } catch (IOException e) {
         throw new RuntimeException("Unable to persist state", e);
       }
@@ -100,8 +95,8 @@ public class WindmillStateInternals<K> implements StateInternals {
     // Clear any references to the underlying reader to prevent space leaks.
     // The next work unit to use these cached State objects will reset the
     // reader to a current reader in case those values are modified.
-    for (State location : stateTable.values()) {
-      ((WindmillState) location).cleanupAfterWorkItem();
+    for (WindmillState location : stateTable.values()) {
+      location.cleanupAfterWorkItem();
     }
 
     // Clear out the map of already retrieved state instances.

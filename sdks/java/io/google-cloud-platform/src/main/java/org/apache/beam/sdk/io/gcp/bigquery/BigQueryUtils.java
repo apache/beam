@@ -34,6 +34,8 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -169,10 +171,45 @@ public class BigQueryUtils {
   }
 
   private static final String BIGQUERY_TIME_PATTERN = "HH:mm:ss[.SSSSSS]";
-  private static final java.time.format.DateTimeFormatter BIGQUERY_TIME_FORMATTER =
+  static final java.time.format.DateTimeFormatter BIGQUERY_TIME_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern(BIGQUERY_TIME_PATTERN);
-  private static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
+  static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd'T'" + BIGQUERY_TIME_PATTERN);
+
+  // Custom formatter that accepts "2022-05-09 18:04:59.123456"
+  // The old dremel parser accepts this format, and so does insertall. We need to accept it
+  // for backwards compatibility, and it is based on UTC time.
+  static final java.time.format.DateTimeFormatter DATETIME_SPACE_FORMATTER =
+      new java.time.format.DateTimeFormatterBuilder()
+          .append(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+          .optionalStart()
+          .appendLiteral(' ')
+          .optionalEnd()
+          .optionalStart()
+          .appendLiteral('T')
+          .optionalEnd()
+          .append(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME)
+          .toFormatter()
+          .withZone(ZoneOffset.UTC);
+
+  static final java.time.format.DateTimeFormatter TIMESTAMP_FORMATTER =
+      new java.time.format.DateTimeFormatterBuilder()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS'
+          .append(DATETIME_SPACE_FORMATTER)
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:mm:ss|Z)'
+          .optionalStart()
+          .appendOffsetId()
+          .optionalEnd()
+          .optionalStart()
+          .appendOffset("+HH:mm", "+00:00")
+          .optionalEnd()
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS [time_zone]', time_zone -> UTC, Asia/Kolkata, etc
+          // if both an offset and a time zone are provided, the offset takes precedence
+          .optionalStart()
+          .appendLiteral(' ')
+          .parseCaseSensitive()
+          .appendZoneRegionId()
+          .toFormatter();
 
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
@@ -747,12 +784,25 @@ public class BigQueryUtils {
           return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(value);
         } catch (NumberFormatException e) {
           // Handle as a String, ie. "2023-02-16 12:00:00"
-          return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
+          try {
+            return LocalDateTime.parse(jsonBQString);
+          } catch (DateTimeParseException e2) {
+            return LocalDateTime.parse(jsonBQString, DATETIME_SPACE_FORMATTER);
+          }
         }
       } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
         return LocalDate.parse(jsonBQString);
       } else if (fieldType.isLogicalType(SqlTypes.TIME.getIdentifier())) {
         return LocalTime.parse(jsonBQString);
+      } else if (fieldType.isLogicalType(SqlTypes.TIMESTAMP.getIdentifier())) {
+        try {
+          long micros = Long.parseLong(jsonBQString);
+          long seconds = micros / 1_000_000;
+          long nanos = (micros % 1_000_000) * 1_000;
+          return java.time.Instant.ofEpochSecond(seconds, nanos);
+        } catch (NumberFormatException e) {
+          return java.time.Instant.parse(jsonBQString);
+        }
       }
     }
 

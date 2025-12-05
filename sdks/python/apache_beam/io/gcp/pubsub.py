@@ -17,8 +17,9 @@
 
 """Google Cloud PubSub sources and sinks.
 
-Cloud Pub/Sub sources and sinks are currently supported only in streaming
-pipelines, during remote execution.
+Cloud Pub/Sub sources are currently supported only in streaming pipelines,
+during remote execution. Cloud Pub/Sub sinks (WriteToPubSub) support both
+streaming and batch pipelines.
 
 This API is currently under development and is subject to change.
 
@@ -42,7 +43,6 @@ from typing import Union
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
-from apache_beam.io.iobase import Write
 from apache_beam.metrics.metric import Lineage
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import Flatten
@@ -376,7 +376,12 @@ class _AddMetricsAndMap(DoFn):
 
 
 class WriteToPubSub(PTransform):
-  """A ``PTransform`` for writing messages to Cloud Pub/Sub."""
+  """A ``PTransform`` for writing messages to Cloud Pub/Sub.
+  
+  This transform supports both streaming and batch pipelines. In streaming mode,
+  messages are written continuously as they arrive. In batch mode, all messages
+  are written when the pipeline completes.
+  """
 
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
@@ -409,6 +414,7 @@ class WriteToPubSub(PTransform):
     self.project, self.topic_name = parse_topic(topic)
     self.full_topic = topic
     self._sink = _PubSubSink(topic, id_label, timestamp_attribute)
+    self.pipeline_options = None  # Will be set during expand()
 
   @staticmethod
   def message_to_proto_str(element: PubsubMessage) -> bytes:
@@ -424,6 +430,9 @@ class WriteToPubSub(PTransform):
     return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
+    # Store pipeline options for use in DoFn
+    self.pipeline_options = pcoll.pipeline.options if pcoll.pipeline else None
+
     if self.with_attributes:
       pcoll = pcoll | 'ToProtobufX' >> ParDo(
           _AddMetricsAndMap(
@@ -435,7 +444,7 @@ class WriteToPubSub(PTransform):
               self.bytes_to_proto_str, self.project,
               self.topic_name)).with_input_types(Union[bytes, str])
     pcoll.element_type = bytes
-    return pcoll | Write(self._sink)
+    return pcoll | ParDo(_PubSubWriteDoFn(self))
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
@@ -541,11 +550,139 @@ class _PubSubSource(iobase.SourceBase):
     return False
 
 
-# TODO(BEAM-27443): Remove in favor of a proper WriteToPubSub transform.
+class _PubSubWriteDoFn(DoFn):
+  """DoFn for writing messages to Cloud Pub/Sub.
+  
+  This DoFn handles both streaming and batch modes by buffering messages
+  and publishing them in batches to optimize performance.
+  """
+  BUFFER_SIZE_ELEMENTS = 100
+  FLUSH_TIMEOUT_SECS = 5 * 60  # 5 minutes
+
+  def __init__(self, transform):
+    self.project = transform.project
+    self.short_topic_name = transform.topic_name
+    self.id_label = transform.id_label
+    self.timestamp_attribute = transform.timestamp_attribute
+    self.with_attributes = transform.with_attributes
+
+    # TODO(https://github.com/apache/beam/issues/18939): Add support for
+    # id_label and timestamp_attribute.
+    # Only raise errors for DirectRunner or batch pipelines
+    pipeline_options = transform.pipeline_options
+    output_labels_supported = True
+
+    if pipeline_options:
+      from apache_beam.options.pipeline_options import StandardOptions
+
+      # Check if using DirectRunner
+      try:
+        # Get runner from pipeline options
+        all_options = pipeline_options.get_all_options()
+        runner_name = all_options.get('runner', StandardOptions.DEFAULT_RUNNER)
+
+        # Check if it's a DirectRunner variant
+        if (runner_name is None or
+            (runner_name in StandardOptions.LOCAL_RUNNERS or 'DirectRunner'
+             in str(runner_name) or 'TestDirectRunner' in str(runner_name))):
+          output_labels_supported = False
+      except Exception:
+        # If we can't determine runner, assume DirectRunner for safety
+        output_labels_supported = False
+
+      # Check if in batch mode (not streaming)
+      standard_options = pipeline_options.view_as(StandardOptions)
+      if not standard_options.streaming:
+        output_labels_supported = False
+    else:
+      # If no pipeline options available, fall back to original behavior
+      output_labels_supported = False
+
+    # Log debug information for troubleshooting
+    import logging
+    runner_info = getattr(
+        pipeline_options, 'runner',
+        'None') if pipeline_options else 'No options'
+    streaming_info = 'Unknown'
+    if pipeline_options:
+      try:
+        standard_options = pipeline_options.view_as(StandardOptions)
+        streaming_info = 'streaming=%s' % standard_options.streaming
+      except Exception:
+        streaming_info = 'streaming=unknown'
+
+    logging.debug(
+        'PubSub unsupported feature check: runner=%s, %s',
+        runner_info,
+        streaming_info)
+
+    if not output_labels_supported:
+
+      if transform.id_label:
+        raise NotImplementedError(
+            f'id_label is not supported for PubSub writes with DirectRunner '
+            f'or in batch mode (runner={runner_info}, {streaming_info})')
+      if transform.timestamp_attribute:
+        raise NotImplementedError(
+            f'timestamp_attribute is not supported for PubSub writes with '
+            f'DirectRunner or in batch mode '
+            f'(runner={runner_info}, {streaming_info})')
+
+  def setup(self):
+    from google.cloud import pubsub
+    self._pub_client = pubsub.PublisherClient()
+    self._topic = self._pub_client.topic_path(
+        self.project, self.short_topic_name)
+
+  def start_bundle(self):
+    self._buffer = []
+
+  def process(self, elem):
+    self._buffer.append(elem)
+    if len(self._buffer) >= self.BUFFER_SIZE_ELEMENTS:
+      self._flush()
+
+  def finish_bundle(self):
+    self._flush()
+
+  def _flush(self):
+    if not self._buffer:
+      return
+
+    import time
+
+    # The elements in buffer are serialized protobuf bytes from the previous
+    # transforms. We need to deserialize them to extract data and attributes.
+    futures = []
+    for elem in self._buffer:
+      # Deserialize the protobuf to get the original PubsubMessage
+      pubsub_msg = PubsubMessage._from_proto_str(elem)
+
+      # Publish with the correct data and attributes
+      if self.with_attributes and pubsub_msg.attributes:
+        future = self._pub_client.publish(
+            self._topic, pubsub_msg.data, **pubsub_msg.attributes)
+      else:
+        future = self._pub_client.publish(self._topic, pubsub_msg.data)
+
+      futures.append(future)
+
+    timer_start = time.time()
+    for future in futures:
+      remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
+      if remaining <= 0:
+        raise TimeoutError(
+            f"PubSub publish timeout exceeded {self.FLUSH_TIMEOUT_SECS} seconds"
+        )
+      future.result(remaining)
+    self._buffer = []
+
+
 class _PubSubSink(object):
   """Sink for a Cloud Pub/Sub topic.
 
-  This ``NativeSource`` is overridden by a native Pubsub implementation.
+  This sink works for both streaming and batch pipelines by using a DoFn
+  that buffers and batches messages for efficient publishing.
   """
   def __init__(
       self,

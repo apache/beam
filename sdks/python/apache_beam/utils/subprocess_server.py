@@ -34,11 +34,13 @@ import zipfile
 from typing import Any
 from typing import Set
 from urllib.error import URLError
+from urllib.request import Request
 from urllib.request import urlopen
 
 import grpc
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.runners.internal.names import BEAM_SDK_NAME
 from apache_beam.version import __version__ as beam_version
 
 _LOGGER = logging.getLogger(__name__)
@@ -113,6 +115,16 @@ class _SharedCache:
       return self._cache[key].obj
 
 
+class JavaHelper:
+  @classmethod
+  def get_java(cls):
+    java_path = 'java'
+    java_home = os.environ.get('JAVA_HOME')
+    if java_home:
+      java_path = os.path.join(java_home, 'bin', 'java')
+    return java_path
+
+
 class SubprocessServer(object):
   """An abstract base class for running GRPC Servers as an external process.
 
@@ -122,7 +134,7 @@ class SubprocessServer(object):
       with SubprocessServer(GrpcStubClass, [executable, arg, ...]) as stub:
           stub.CallService(...)
   """
-  def __init__(self, stub_class, cmd, port=None):
+  def __init__(self, stub_class, cmd, port=None, logger=None):
     """Creates the server object.
 
     :param stub_class: the auto-generated GRPC client stub class used for
@@ -133,12 +145,21 @@ class SubprocessServer(object):
         service.  If not given, one will be randomly chosen and the special
         string "{{PORT}}" will be substituted in the command line arguments
         with the chosen port.
+    :param logger: (optional) The logger or logger name to use for the
+        subprocess's stderr and stdout. If not given, the current module logger
+        would be used.
     """
     self._owner_id = None
     self._stub_class = stub_class
     self._cmd = [str(arg) for arg in cmd]
     self._port = port
     self._grpc_channel = None
+    if isinstance(logger, str):
+      self._logger = logging.getLogger(logger)
+    elif isinstance(logger, logging.Logger):
+      self._logger = logger
+    else:
+      self._logger = _LOGGER
 
   @classmethod
   @contextlib.contextmanager
@@ -164,8 +185,20 @@ class SubprocessServer(object):
     try:
       process, endpoint = self.start_process()
       wait_secs = .1
-      channel_options = [("grpc.max_receive_message_length", -1),
-                         ("grpc.max_send_message_length", -1)]
+      channel_options = [
+          ("grpc.max_receive_message_length", -1),
+          ("grpc.max_send_message_length", -1),
+          # Default: 20000ms (20s), increased to 10 minutes for stability
+          ("grpc.keepalive_timeout_ms", 600_000),
+          # Default: 2, set to 0 to allow unlimited pings without data
+          ("grpc.http2.max_pings_without_data", 0),
+          # Default: False, set to True to allow keepalive pings when no calls
+          ("grpc.keepalive_permit_without_calls", True),
+          # Default: 2, set to 0 to allow unlimited ping strikes
+          ("grpc.http2.max_ping_strikes", 0),
+          # Default: 0 (disabled), enable socket reuse for better handling
+          ("grpc.so_reuseport", 1),
+      ]
       self._grpc_channel = grpc.insecure_channel(
           endpoint, options=channel_options)
       channel_ready = grpc.channel_ready_future(self._grpc_channel)
@@ -193,9 +226,9 @@ class SubprocessServer(object):
     if self._owner_id is not None:
       self._cache.purge(self._owner_id)
     self._owner_id = self._cache.register()
-    return self._cache.get(tuple(self._cmd), self._port)
+    return self._cache.get(tuple(self._cmd), self._port, self._logger)
 
-  def _really_start_process(cmd, port):
+  def _really_start_process(cmd, port, logger):
     if not port:
       port, = pick_port(None)
       cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
@@ -210,7 +243,7 @@ class SubprocessServer(object):
       while line:
         # The log obtained from stdout is bytes, decode it into string.
         # Remove newline via rstrip() to not print an empty line.
-        _LOGGER.info(line.decode(errors='backslashreplace').rstrip())
+        logger.info(line.decode(errors='backslashreplace').rstrip())
         line = process.stdout.readline()
 
     t = threading.Thread(target=log_stdout)
@@ -259,7 +292,10 @@ class SubprocessServer(object):
 class JavaJarServer(SubprocessServer):
 
   MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
-  MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'  # pylint: disable=line-too-long
+  MAVEN_STAGING_REPOSITORY = (
+      'https://repository.apache.org/content/groups/staging')
+  GOOGLE_MAVEN_MIRROR = (
+      'https://maven-central.storage-download.googleapis.com/maven2')
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
@@ -267,19 +303,25 @@ class JavaJarServer(SubprocessServer):
       'local', (threading.local, ),
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
+  _DEFAULT_USER_AGENT = f'{BEAM_SDK_NAME}/{beam_version}'
+
   def __init__(
       self,
       stub_class,
       path_to_jar,
       java_arguments,
       classpath=None,
-      cache_dir=None):
+      cache_dir=None,
+      logger=None):
+    self._java_path = JavaHelper.get_java()
     if classpath:
       # java -jar ignores the classpath, so we make a new jar that embeds
       # the requested classpath.
       path_to_jar = self.make_classpath_jar(path_to_jar, classpath, cache_dir)
     super().__init__(
-        stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
+        stub_class,
+        [self._java_path, '-jar', path_to_jar] + list(java_arguments),
+        logger=logger)
     self._existing_service = path_to_jar if is_service_endpoint(
         path_to_jar) else None
 
@@ -287,10 +329,17 @@ class JavaJarServer(SubprocessServer):
     if self._existing_service:
       return None, self._existing_service
     else:
-      if not shutil.which('java'):
-        raise RuntimeError(
-            'Java must be installed on this system to use this '
-            'transform/runner.')
+      if not shutil.which(self._java_path):
+        java_home = os.environ.get('JAVA_HOME')
+        if java_home:
+          raise RuntimeError(
+              'Java is not correctly installed in JAVA_HOME=%s to use this '
+              'transform/runner. Please check if JAVA_HOME is correctly set and'
+              ' points to your Java installation directory.' % java_home)
+        else:
+          raise RuntimeError(
+              'Java must be installed on this system to use this '
+              'transform/runner.')
       return super().start_process()
 
   def stop_process(self):
@@ -322,21 +371,24 @@ class JavaJarServer(SubprocessServer):
     ])
 
   @classmethod
-  def path_to_beam_jar(
+  def parse_gradle_target(cls, gradle_target, artifact_id=None):
+    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
+    if not artifact_id:
+      artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    return gradle_package, artifact_id
+
+  @classmethod
+  def path_to_dev_beam_jar(
       cls,
       gradle_target,
       appendix=None,
       version=beam_version,
       artifact_id=None):
-    if gradle_target in cls._BEAM_SERVICES.replacements:
-      return cls._BEAM_SERVICES.replacements[gradle_target]
-
-    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
-    if not artifact_id:
-      artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    gradle_package, artifact_id = cls.parse_gradle_target(
+        gradle_target, artifact_id)
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
-    local_path = os.path.join(
+    return os.path.join(
         project_root,
         gradle_package.replace(':', os.path.sep),
         'build',
@@ -346,11 +398,28 @@ class JavaJarServer(SubprocessServer):
             version.replace('.dev', ''),
             classifier='SNAPSHOT',
             appendix=appendix))
+
+  @classmethod
+  def path_to_beam_jar(
+      cls,
+      gradle_target,
+      appendix=None,
+      version=beam_version,
+      artifact_id=None,
+      maven_repository_url=None):
+    if gradle_target in cls._BEAM_SERVICES.replacements:
+      return cls._BEAM_SERVICES.replacements[gradle_target]
+
+    _, artifact_id = cls.parse_gradle_target(gradle_target, artifact_id)
+    project_root = os.path.sep.join(
+        os.path.abspath(__file__).split(os.path.sep)[:-5])
+    local_path = cls.path_to_dev_beam_jar(
+        gradle_target, appendix, version, artifact_id)
     if os.path.exists(local_path):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
 
-    maven_repo = cls.MAVEN_CENTRAL_REPOSITORY
+    maven_repo = maven_repository_url or cls.MAVEN_CENTRAL_REPOSITORY
     if 'rc' in version:
       # Release candidate
       version = version.split('rc')[0]
@@ -367,7 +436,64 @@ class JavaJarServer(SubprocessServer):
         artifact_id, cls.BEAM_GROUP_ID, version, maven_repo, appendix=appendix)
 
   @classmethod
-  def local_jar(cls, url, cache_dir=None):
+  def _download_jar_to_cache(
+      cls, download_url, cached_jar_path, user_agent=None):
+    """Downloads a jar from the given URL to the specified cache path.
+    
+    Args:
+      download_url (str): The URL to download from.
+      cached_jar_path (str): The local path where the jar should be cached.
+      user_agent (str): The user agent to use when downloading.
+    """
+    # Issue warning when downloading from public repositories
+    public_repos = [
+        cls.MAVEN_CENTRAL_REPOSITORY,
+        cls.GOOGLE_MAVEN_MIRROR,
+    ]
+
+    if any(download_url.startswith(repo) for repo in public_repos):
+      _LOGGER.warning(
+          "   WARNING: Apache Beam is downloading dependencies from a "
+          "public repository at runtime.\n"
+          "   This may pose security risks or cause instability due to "
+          "repository availability.\n"
+          "   URL: %s\n"
+          "   Destination: %s\n"
+          "   Consider pre-staging dependencies or using a private repository "
+          "mirror.\n"
+          "   For more information, see: "
+          "https://beam.apache.org/documentation/sdks/python-dependencies/",
+          download_url,
+          cached_jar_path)
+    try:
+      url_read = FileSystems.open(download_url)
+    except ValueError:
+      if user_agent is None:
+        user_agent = cls._DEFAULT_USER_AGENT
+      url_request = Request(download_url, headers={'User-Agent': user_agent})
+      url_read = urlopen(url_request)
+    with open(cached_jar_path + '.tmp', 'wb') as jar_write:
+      shutil.copyfileobj(url_read, jar_write, length=1 << 20)
+    try:
+      os.rename(cached_jar_path + '.tmp', cached_jar_path)
+    except FileNotFoundError:
+      # A race when multiple programs run in parallel and the cached_jar
+      # is already moved. Safe to ignore.
+      pass
+
+  @classmethod
+  def local_jar(cls, url, cache_dir=None, user_agent=None):
+    """Returns a local path to the given jar, downloading it if necessary.
+
+    Args:
+      url (str): A URL or local path to a jar file.
+      cache_dir (str): The directory to use for caching downloaded jars. If not
+        specified, a default temporary directory will be used.
+      user_agent (str): The user agent to use when downloading the jar.
+
+    Returns:
+      str: The local path to the jar file.
+    """
     if cache_dir is None:
       cache_dir = cls.JAR_CACHE
     # TODO: Verify checksum?
@@ -385,17 +511,31 @@ class JavaJarServer(SubprocessServer):
           os.makedirs(cache_dir)
           # TODO: Clean up this cache according to some policy.
         try:
-          try:
-            url_read = FileSystems.open(url)
-          except ValueError:
-            url_read = urlopen(url)
-          with open(cached_jar + '.tmp', 'wb') as jar_write:
-            shutil.copyfileobj(url_read, jar_write, length=1 << 20)
-          os.rename(cached_jar + '.tmp', cached_jar)
+          cls._download_jar_to_cache(url, cached_jar, user_agent)
         except URLError as e:
-          raise RuntimeError(
-              f'Unable to fetch remote job server jar at {url}: {e}. If no '
-              f'Internet access at runtime, stage the jar at {cached_jar}')
+          # Try Google Maven mirror as fallback if the original URL is from
+          # Maven Central
+          if url.startswith(cls.MAVEN_CENTRAL_REPOSITORY):
+            fallback_url = url.replace(
+                cls.MAVEN_CENTRAL_REPOSITORY, cls.GOOGLE_MAVEN_MIRROR)
+            _LOGGER.info(
+                'Trying Google Maven mirror fallback: %s' % fallback_url)
+            try:
+              cls._download_jar_to_cache(fallback_url, cached_jar, user_agent)
+              _LOGGER.info(
+                  'Successfully downloaded from Google Maven mirror: %s' %
+                  fallback_url)
+            except URLError as fallback_e:
+              raise RuntimeError(
+                  f'Unable to fetch remote job server jar at {url}: {e}. '
+                  f'Also failed to fetch from Google Maven mirror at '
+                  f'{fallback_url}: {fallback_e}. '
+                  f'If no Internet access at runtime, stage the jar at '
+                  f'{cached_jar}')
+          else:
+            raise RuntimeError(
+                f'Unable to fetch remote job server jar at {url}: {e}. If no '
+                f'Internet access at runtime, stage the jar at {cached_jar}')
       return cached_jar
 
   @classmethod

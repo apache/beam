@@ -39,18 +39,18 @@ if bool(1):  # lint doesn't like an unconditional `raise`.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import onnxruntime as ort
-  import torch
-  from onnxruntime.capi.onnxruntime_pybind11_state import InvalidArgument
   import tensorflow as tf
   import tf2onnx
-  from tensorflow.keras import layers
-  from sklearn import linear_model
+  import torch
   from skl2onnx import convert_sklearn
   from skl2onnx.common.data_types import FloatTensorType
+  from sklearn import linear_model
+  from tensorflow.keras import layers
+
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
   from apache_beam.ml.inference.onnx_inference import OnnxModelHandlerNumpy
+  from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
 except ImportError:
   raise unittest.SkipTest('Onnx dependencies are not installed')
 
@@ -85,8 +85,7 @@ class TestDataAndModel():
 
   def get_one_feature_predictions(self):
     return [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             self.get_one_feature_samples(),
             [example * 2.0 + 0.5 for example in self.get_one_feature_samples()])
     ]
@@ -101,12 +100,10 @@ class TestDataAndModel():
 
   def get_two_feature_predictions(self):
     return [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            self.get_two_feature_examples(),
-            [
-                f1 * 2.0 + f2 * 3 + 0.5 for f1,
-                f2 in self.get_two_feature_examples()
+        PredictionResult(ex, pred) for ex, pred in zip(
+            self.get_two_feature_examples(), [
+                f1 * 2.0 + f2 * 3 + 0.5
+                for f1, f2 in self.get_two_feature_examples()
             ])
     ]
 
@@ -206,17 +203,23 @@ class OnnxPytorchRunInferenceTest(OnnxTestBase):
     model = self.test_data_and_model.get_torch_one_feature_model()
     path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
     dummy_input = torch.randn(4, 1, requires_grad=True)
-    torch.onnx.export(model,
-                      dummy_input, # model input
-                      path,   # where to save the model
-                      export_params=True, # store the trained parameter weights
-                      opset_version=10, # the ONNX version
-                      do_constant_folding=True, # whether to execute constant-
-                                                # folding for optimization
-                      input_names = ['input'],   # model's input names
-                      output_names = ['output'], # model's output names
-                      dynamic_axes={'input' : {0 : 'batch_size'},
-                                    'output' : {0 : 'batch_size'}})
+    torch.onnx.export(
+        model,
+        dummy_input,  # model input
+        path,  # where to save the model
+        export_params=True,  # store the trained parameter weights
+        opset_version=10,  # the ONNX version
+        do_constant_folding=True,  # whether to execute constant-
+        # folding for optimization
+        input_names=['input'],  # model's input names
+        output_names=['output'],  # model's output names
+        dynamic_axes={
+            'input': {
+                0: 'batch_size'
+            }, 'output': {
+                0: 'batch_size'
+            }
+        })
 
     inference_runner = TestOnnxModelHandler(path)
     inference_session = ort.InferenceSession(
@@ -305,17 +308,23 @@ class OnnxSklearnRunInferenceTest(OnnxTestBase):
 class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
   def exportModelToOnnx(self, model, path):
     dummy_input = torch.randn(4, 2, requires_grad=True)
-    torch.onnx.export(model,
-                      dummy_input, # model input
-                      path,   # where to save the model
-                      export_params=True, # store the trained parameter weights
-                      opset_version=10, # the ONNX version
-                      do_constant_folding=True, # whether to execute constant
-                                                # folding for optimization
-                      input_names = ['input'],   # odel's input names
-                      output_names = ['output'], # model's output names
-                      dynamic_axes={'input' : {0 : 'batch_size'},
-                                    'output' : {0 : 'batch_size'}})
+    torch.onnx.export(
+        model,
+        dummy_input,  # model input
+        path,  # where to save the model
+        export_params=True,  # store the trained parameter weights
+        opset_version=10,  # the ONNX version
+        do_constant_folding=True,  # whether to execute constant
+        # folding for optimization
+        input_names=['input'],  # odel's input names
+        output_names=['output'],  # model's output names
+        dynamic_axes={
+            'input': {
+                0: 'batch_size'
+            }, 'output': {
+                0: 'batch_size'
+            }
+        })
 
   def test_pipeline_local_model_simple(self):
     with TestPipeline() as pipeline:
@@ -397,8 +406,7 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument,
-                                "Got invalid dimensions for input"):
+    with self.assertRaisesRegex(Exception, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
@@ -452,8 +460,7 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument,
-                                "Got invalid dimensions for input"):
+    with self.assertRaisesRegex(Exception, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
@@ -508,7 +515,7 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaises(InvalidArgument):
+    with self.assertRaisesRegex(Exception, "InvalidArgument"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')

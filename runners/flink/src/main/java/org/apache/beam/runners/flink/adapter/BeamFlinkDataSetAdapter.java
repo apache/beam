@@ -32,7 +32,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.values.PBegin;
@@ -41,6 +40,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.DataSet;
@@ -223,11 +224,11 @@ public class BeamFlinkDataSetAdapter {
           new MapOperator<InputT, WindowedValue<InputT>>(
               flinkInput,
               BeamAdapterCoderUtils.coderToTypeInformation(
-                  WindowedValue.getValueOnlyCoder(
+                  WindowedValues.getValueOnlyCoder(
                       BeamAdapterCoderUtils.typeInformationToCoder(
                           flinkInput.getType(), coderRegistry)),
                   pipelineOptions),
-              x -> WindowedValue.valueInGlobalWindow(x),
+              x -> WindowedValues.valueInGlobalWindow(x),
               "AddGlobalWindows"));
     };
   }

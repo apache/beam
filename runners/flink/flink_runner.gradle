@@ -48,6 +48,8 @@ applyJavaNature(
     enableStrictDependencies:true,
     automaticModuleName: 'org.apache.beam.runners.flink',
     archivesBaseName: archivesBaseName,
+    // flink runner jars are in same package name. Publish javadoc once.
+    exportJavadoc: project.ext.flink_version.startsWith(all_versions.first())
 )
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
@@ -172,6 +174,11 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
+
+  // flink-core-api is introduced in Flink 1.20+
+  if (flink_major == '1.20' || flink_major.startsWith('2')) {
+    implementation "org.apache.flink:flink-core-api:$flink_version"
+  }
 
   implementation "org.apache.flink:flink-clients:$flink_version"
   // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation

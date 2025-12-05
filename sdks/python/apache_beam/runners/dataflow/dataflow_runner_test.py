@@ -25,6 +25,7 @@ import mock
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
@@ -34,8 +35,8 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
-from apache_beam.runners import common
 from apache_beam.runners import create_runner
+from apache_beam.runners import pipeline_utils
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_options
@@ -89,7 +90,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties = [
         '--job_name=test-job',
         '--project=test-project',
-        '--region=us-central1'
+        '--region=us-central1',
         '--staging_location=gs://beam/test',
         '--temp_location=gs://beam/tmp',
         '--no_auth',
@@ -98,8 +99,45 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     ]
 
   @mock.patch('time.sleep', return_value=None)
+  def test_wait_until_finish_unrecognized(self, patched_time_sleep):
+    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    options = PipelineOptions(self.default_properties)
+
+    class MockDataflowRunner(object):
+      def __init__(self, states):
+        self.dataflow_client = mock.MagicMock()
+        self.job = mock.MagicMock()
+        self.job.id = "test-job-id"
+        self.job.currentState = values_enum.JOB_STATE_UNKNOWN
+        self._states = states
+        self._next_state_index = 0
+
+        def get_job_side_effect(*args, **kwargs):
+          self.job.currentState = self._states[self._next_state_index]
+          if self._next_state_index < (len(self._states) - 1):
+            self._next_state_index += 1
+          return mock.DEFAULT
+
+        self.dataflow_client.get_job = mock.MagicMock(
+            return_value=self.job, side_effect=get_job_side_effect)
+        self.dataflow_client.list_messages = mock.MagicMock(
+            return_value=([], None))
+
+    with self.assertRaisesRegex(
+        AssertionError,
+        r'Job did not reach to a terminal state after waiting indefinitely. '
+        r'Console URL: '
+        r'https://console.cloud.google.com/dataflow/jobs/'
+        r'us-central1/test-job-id\?project=test-project'):
+      failed_runner = MockDataflowRunner("some_unrecognized_state")
+      failed_result = DataflowPipelineResult(
+          failed_runner.job, failed_runner, options)
+      failed_result.wait_until_finish()
+
+  @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    options = PipelineOptions(self.default_properties)
 
     class MockDataflowRunner(object):
       def __init__(self, states):
@@ -123,7 +161,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with self.assertRaisesRegex(DataflowRuntimeException,
                                 'Dataflow pipeline failed. State: FAILED'):
       failed_runner = MockDataflowRunner([values_enum.JOB_STATE_FAILED])
-      failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
+      failed_result = DataflowPipelineResult(
+          failed_runner.job, failed_runner, options)
       failed_result.wait_until_finish()
 
     # check the second call can still triggers the exception
@@ -133,7 +172,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     succeeded_runner = MockDataflowRunner([values_enum.JOB_STATE_DONE])
     succeeded_result = DataflowPipelineResult(
-        succeeded_runner.job, succeeded_runner)
+        succeeded_runner.job, succeeded_runner, options)
     result = succeeded_result.wait_until_finish()
     self.assertEqual(result, PipelineState.DONE)
 
@@ -143,7 +182,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       duration_succeeded_runner = MockDataflowRunner(
           [values_enum.JOB_STATE_RUNNING, values_enum.JOB_STATE_DONE])
       duration_succeeded_result = DataflowPipelineResult(
-          duration_succeeded_runner.job, duration_succeeded_runner)
+          duration_succeeded_runner.job, duration_succeeded_runner, options)
       result = duration_succeeded_result.wait_until_finish(5000)
       self.assertEqual(result, PipelineState.DONE)
 
@@ -151,7 +190,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       duration_timedout_runner = MockDataflowRunner(
           [values_enum.JOB_STATE_RUNNING])
       duration_timedout_result = DataflowPipelineResult(
-          duration_timedout_runner.job, duration_timedout_runner)
+          duration_timedout_runner.job, duration_timedout_runner, options)
       result = duration_timedout_result.wait_until_finish(5000)
       self.assertEqual(result, PipelineState.RUNNING)
 
@@ -161,12 +200,14 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         duration_failed_runner = MockDataflowRunner(
             [values_enum.JOB_STATE_CANCELLED])
         duration_failed_result = DataflowPipelineResult(
-            duration_failed_runner.job, duration_failed_runner)
+            duration_failed_runner.job, duration_failed_runner, options)
         duration_failed_result.wait_until_finish(5000)
 
   @mock.patch('time.sleep', return_value=None)
   def test_cancel(self, patched_time_sleep):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    options = PipelineOptions(
+        self.default_properties).view_as(GoogleCloudOptions)
 
     class MockDataflowRunner(object):
       def __init__(self, state, cancel_result):
@@ -183,17 +224,18 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with self.assertRaisesRegex(DataflowRuntimeException,
                                 'Failed to cancel job'):
       failed_runner = MockDataflowRunner(values_enum.JOB_STATE_RUNNING, False)
-      failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
+      failed_result = DataflowPipelineResult(
+          failed_runner.job, failed_runner, options)
       failed_result.cancel()
 
     succeeded_runner = MockDataflowRunner(values_enum.JOB_STATE_RUNNING, True)
     succeeded_result = DataflowPipelineResult(
-        succeeded_runner.job, succeeded_runner)
+        succeeded_runner.job, succeeded_runner, options)
     succeeded_result.cancel()
 
     terminal_runner = MockDataflowRunner(values_enum.JOB_STATE_DONE, False)
     terminal_result = DataflowPipelineResult(
-        terminal_runner.job, terminal_runner)
+        terminal_runner.job, terminal_runner, options)
     terminal_result.cancel()
 
   def test_create_runner(self):
@@ -274,7 +316,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       applied = AppliedPTransform(
           None, beam.GroupByKey(), "label", {'pcoll': pcoll}, None, None)
       applied.outputs[None] = PCollection(None)
-      common.group_by_key_input_visitor().visit_transform(applied)
+      pipeline_utils.group_by_key_input_visitor().visit_transform(applied)
       self.assertEqual(
           pcoll.element_type, typehints.KV[typehints.Any, typehints.Any])
 
@@ -290,7 +332,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "Found .*")
     for pcoll in [pcoll1, pcoll2]:
       with self.assertRaisesRegex(ValueError, err_msg):
-        common.group_by_key_input_visitor().visit_transform(
+        pipeline_utils.group_by_key_input_visitor().visit_transform(
             AppliedPTransform(
                 None, beam.GroupByKey(), "label", {'in': pcoll}, None, None))
 
@@ -299,7 +341,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pcoll = PCollection(p)
     for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
       pcoll.element_type = typehints.Any
-      common.group_by_key_input_visitor().visit_transform(
+      pipeline_utils.group_by_key_input_visitor().visit_transform(
           AppliedPTransform(
               None, transform, "label", {'in': pcoll}, None, None))
       self.assertEqual(pcoll.element_type, typehints.Any)
@@ -341,7 +383,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     # to make sure the check below is not vacuous.
     self.assertNotIsInstance(flat.element_type, typehints.TupleConstraint)
 
-    p.visit(common.group_by_key_input_visitor())
+    p.visit(pipeline_utils.group_by_key_input_visitor())
     p.visit(DataflowRunner.flatten_input_visitor())
 
     # The dataflow runner requires gbk input to be tuples *and* flatten
@@ -355,9 +397,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pc = p | beam.Create([])
 
     transform = beam.Map(
-        lambda x,
-        y,
-        z: (x, y, z),
+        lambda x, y, z: (x, y, z),
         beam.pvalue.AsSingleton(pc),
         beam.pvalue.AsMultiMap(pc))
     applied_transform = AppliedPTransform(
@@ -381,10 +421,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'min_cpu_platform=Intel Haswell',
         remote_runner.job.options.view_as(DebugOptions).experiments)
 
-  def test_streaming_engine_flag_adds_windmill_experiments(self):
+  def test_streaming_adds_windmill_experiments(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--streaming')
-    self.default_properties.append('--enable_streaming_engine')
     self.default_properties.append('--experiment=some_other_experiment')
 
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:

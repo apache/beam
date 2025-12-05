@@ -58,8 +58,6 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.construction.NativeTransforms;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
@@ -70,6 +68,9 @@ import org.apache.beam.sdk.util.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
@@ -361,7 +362,7 @@ public class FlinkBatchPortablePipelineTranslator
     if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
 
       Coder valueCoder =
-          ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
+          ((WindowedValues.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
       // Stateful stages are only allowed of KV input to be able to group on the key
       if (!(valueCoder instanceof KvCoder)) {
         throw new IllegalStateException(
@@ -437,7 +438,7 @@ public class FlinkBatchPortablePipelineTranslator
                   })
               .returns(
                   new CoderTypeInformation<>(
-                      WindowedValue.getFullCoder(
+                      WindowedValues.getFullCoder(
                           (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
                       context.getPipelineOptions()));
     } else {
@@ -508,7 +509,7 @@ public class FlinkBatchPortablePipelineTranslator
             CoderRegistry.createDefault(), inputElementCoder.getValueCoder());
 
     Coder<WindowedValue<KV<K, List<V>>>> outputCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(inputElementCoder.getKeyCoder(), accumulatorCoder),
             windowingStrategy.getWindowFn().windowCoder());
 
@@ -554,7 +555,7 @@ public class FlinkBatchPortablePipelineTranslator
       PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
     TypeInformation<WindowedValue<byte[]>> typeInformation =
         new CoderTypeInformation<>(
-            WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
+            WindowedValues.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
             context.getPipelineOptions());
     DataSource<WindowedValue<byte[]>> dataSource =
         new DataSource<>(

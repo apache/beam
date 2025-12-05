@@ -35,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
  */
 @DefaultCoder(AvroCoder.class)
 public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
+  private static final long OFFSET_DEDUP_PARTITIONS_PER_SPLIT = 1;
 
   private List<PartitionMark> partitions;
 
@@ -43,8 +44,6 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private KafkaCheckpointMark() {} // for Avro
-
-  private static final long OFFSET_DEDUP_PARTITIONS_PER_SPLIT = 1;
 
   public KafkaCheckpointMark(
       List<PartitionMark> partitions, Optional<KafkaUnboundedReader<?, ?>> reader) {

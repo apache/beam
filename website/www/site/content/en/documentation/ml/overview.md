@@ -52,7 +52,7 @@ Beam provides different ways to implement inference as part of your pipeline. Yo
 
 ### RunInference
 
-The RunInfernce API is available with the Beam Python SDK versions 2.40.0 and later. You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through `tfx-bsl`. For more deatils about using RunInference, see [About Beam ML](/documentation/ml/about-ml).
+The RunInference API is available with the Beam Python SDK versions 2.40.0 and later. You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through `tfx-bsl`. For more deatils about using RunInference, see [About Beam ML](/documentation/ml/about-ml).
 
 The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language).
 

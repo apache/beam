@@ -62,9 +62,10 @@ from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import runner
-from apache_beam.runners.common import group_by_key_input_visitor
-from apache_beam.runners.common import merge_common_environments
-from apache_beam.runners.common import validate_pipeline_graph
+from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
+from apache_beam.runners.pipeline_utils import merge_common_environments
+from apache_beam.runners.pipeline_utils import merge_superset_dep_environments
+from apache_beam.runners.pipeline_utils import validate_pipeline_graph
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
@@ -216,7 +217,8 @@ class FnApiRunner(runner.PipelineRunner):
     if direct_options.direct_embed_docker_python:
       pipeline_proto = self.embed_default_docker_image(pipeline_proto)
     pipeline_proto = merge_common_environments(
-        self.resolve_any_environments(pipeline_proto))
+        self.resolve_any_environments(
+            merge_superset_dep_environments(pipeline_proto)))
     stage_context, stages = self.create_stages(pipeline_proto)
     return self.run_stages(stage_context, stages)
 
@@ -1293,15 +1295,15 @@ class BundleManager(object):
             self._worker_handler.control_conn.push(split_request).get())
         for t in (0.05, 0.1, 0.2):
           if ('Unknown process bundle' in split_response.error or
-              split_response.process_bundle_split ==
-              beam_fn_api_pb2.ProcessBundleSplitResponse()):
+              split_response.process_bundle_split
+              == beam_fn_api_pb2.ProcessBundleSplitResponse()):
             time.sleep(t)
             split_response = self._worker_handler.control_conn.push(
                 split_request).get()
         logging.info('Got split response %s', split_response)
         if ('Unknown process bundle' in split_response.error or
-            split_response.process_bundle_split ==
-            beam_fn_api_pb2.ProcessBundleSplitResponse()):
+            split_response.process_bundle_split
+            == beam_fn_api_pb2.ProcessBundleSplitResponse()):
           # It may have finished too fast.
           split_result = None
         elif split_response.error:
@@ -1551,24 +1553,24 @@ class FnApiMetrics(metric.MetricResults):
 
   def query(self, filter=None):
     counters = [
-        MetricResult(k, v, v) for k,
-        v in self._counters.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._counters.items()
+        if self.matches(filter, k)
     ]
     distributions = [
-        MetricResult(k, v, v) for k,
-        v in self._distributions.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._distributions.items()
+        if self.matches(filter, k)
     ]
     gauges = [
-        MetricResult(k, v, v) for k,
-        v in self._gauges.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._gauges.items()
+        if self.matches(filter, k)
     ]
     string_sets = [
-        MetricResult(k, v, v) for k,
-        v in self._string_sets.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._string_sets.items()
+        if self.matches(filter, k)
     ]
     bounded_tries = [
-        MetricResult(k, v, v) for k,
-        v in self._bounded_tries.items() if self.matches(filter, k)
+        MetricResult(k, v, v) for k, v in self._bounded_tries.items()
+        if self.matches(filter, k)
     ]
 
     return {

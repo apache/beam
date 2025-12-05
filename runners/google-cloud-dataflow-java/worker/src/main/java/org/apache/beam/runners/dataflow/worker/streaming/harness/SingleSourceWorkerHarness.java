@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
@@ -36,7 +37,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.Windm
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -67,7 +67,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final ExecutorService workProviderExecutor;
   private final GetWorkSender getWorkSender;
-  private final ThrottledTimeTracker throttledTimeTracker;
+  @Nullable private WindmillStream.GetWorkStream getWorkStream;
 
   SingleSourceWorkerHarness(
       WorkCommitter workCommitter,
@@ -76,8 +76,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
       StreamingWorkScheduler streamingWorkScheduler,
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher,
-      GetWorkSender getWorkSender,
-      ThrottledTimeTracker throttledTimeTracker) {
+      GetWorkSender getWorkSender) {
     this.workCommitter = workCommitter;
     this.getDataClient = getDataClient;
     this.heartbeatSender = heartbeatSender;
@@ -93,7 +92,6 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                 .build());
     this.isRunning = new AtomicBoolean(false);
     this.getWorkSender = getWorkSender;
-    this.throttledTimeTracker = throttledTimeTracker;
   }
 
   public static SingleSourceWorkerHarness.Builder builder() {
@@ -134,33 +132,30 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         isRunning.compareAndSet(true, false),
         "Multiple calls to {}.shutdown() are not allowed.",
         getClass());
-    workProviderExecutor.shutdown();
-    boolean isTerminated = false;
+    // Interrupt the dispatch loop to start shutting it down.
+    workProviderExecutor.shutdownNow();
     try {
-      isTerminated = workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS);
+      while (!workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+        LOG.warn("Still waiting for the dispatch loop to terminate.");
+      }
     } catch (InterruptedException e) {
       LOG.warn("Unable to shutdown {}", getClass());
     }
-
-    if (!isTerminated) {
-      workProviderExecutor.shutdownNow();
-    }
     workCommitter.stop();
-  }
-
-  @Override
-  public long getAndResetThrottleTime() {
-    return throttledTimeTracker.getAndResetThrottleTime();
+    if (getWorkStream != null) {
+      getWorkStream.shutdown();
+    }
   }
 
   private void streamingEngineDispatchLoop(
       Function<WorkItemReceiver, WindmillStream.GetWorkStream> getWorkStreamFactory) {
     while (isRunning.get()) {
-      WindmillStream.GetWorkStream stream =
+      getWorkStream =
           getWorkStreamFactory.apply(
               (computationId,
                   inputDataWatermark,
                   synchronizedProcessingTime,
+                  drainMode,
                   workItem,
                   serializedWorkItemSize,
                   getWorkStreamLatencies) ->
@@ -184,14 +179,17 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                                     getDataClient,
                                     workCommitter::commit,
                                     heartbeatSender),
+                                drainMode,
                                 getWorkStreamLatencies);
                           }));
       try {
         // Reconnect every now and again to enable better load balancing.
         // If at any point the server closes the stream, we will reconnect immediately; otherwise
         // we half-close the stream after some time and create a new one.
-        if (!stream.awaitTermination(GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-          stream.halfClose();
+        if (getWorkStream != null) {
+          if (!getWorkStream.awaitTermination(GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+            Preconditions.checkNotNull(getWorkStream).halfClose();
+          }
         }
       } catch (InterruptedException e) {
         // Continue processing until !running.get()
@@ -243,6 +241,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
                   computationId, getDataClient, workCommitter::commit, heartbeatSender),
+              computationWork.getDrainMode(),
               /* getWorkStreamLatencies= */ ImmutableList.of());
         }
       }
@@ -265,8 +264,6 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         Function<String, Optional<ComputationState>> computationStateFetcher);
 
     Builder setGetWorkSender(GetWorkSender getWorkSender);
-
-    Builder setThrottledTimeTracker(ThrottledTimeTracker throttledTimeTracker);
 
     SingleSourceWorkerHarness build();
   }

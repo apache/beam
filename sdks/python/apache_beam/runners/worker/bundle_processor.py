@@ -24,6 +24,7 @@ from __future__ import annotations
 import base64
 import bisect
 import collections
+import concurrent.futures
 import copy
 import heapq
 import itertools
@@ -76,6 +77,7 @@ from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
@@ -89,6 +91,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
+
   from apache_beam import pvalue
   from apache_beam.portability.api import metrics_pb2
   from apache_beam.runners.sdf_utils import SplitResultPrimary
@@ -231,9 +234,11 @@ class DataInputOperation(RunnerIOOperation):
         decoded_value = self.windowed_coder_impl.decode_from_stream(
             input_stream, True)
       except Exception as exn:
+        coder = str(self.windowed_coder)
+        step = self.name_context.step_name
         raise ValueError(
-            "Error decoding input stream with coder " +
-            str(self.windowed_coder)) from exn
+            f"Error decoding input stream with coder {coder} in step {step}"
+        ) from exn
       self.output(decoded_value)
 
   def monitoring_infos(
@@ -725,8 +730,8 @@ class RangeSet:
 
   def __contains__(self, key: int) -> bool:
     idx = self._sorted_starts.bisect_left(key)
-    return (idx < len(self._sorted_starts) and self._sorted_starts[idx] == key
-            ) or (idx > 0 and self._sorted_ends[idx - 1] > key)
+    return (idx < len(self._sorted_starts) and self._sorted_starts[idx]
+            == key) or (idx > 0 and self._sorted_ends[idx - 1] > key)
 
   def __len__(self) -> int:
     assert len(self._sorted_starts) == len(self._sorted_ends)
@@ -1130,7 +1135,30 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
 
-    self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix='ExecutionTreeCreator') as executor:
+      future = executor.submit(
+          self.create_execution_tree, self.process_bundle_descriptor)
+      try:
+        self.ops = future.result(timeout=3600)
+      except concurrent.futures.TimeoutError:
+        # In rare cases, unpickling a DoFn might get permanently stuck,
+        # for example when unpickling involves importing a module and
+        # a subprocess is launched during the import operation.
+        _LOGGER.error(
+            'Timed out while reconstructing a pipeline fragment for: %s.\n'
+            'This is likely a transient error. The SDK harness '
+            'will self-terminate, and the runner can retry the operation. '
+            'If the error is frequent, check whether the stuckness happens '
+            'while deserializing (unpickling) a dependency of your pipeline '
+            'in the stacktrace below: \n%s\n',
+            self.process_bundle_descriptor.id,
+            thread_dump('ExecutionTreeCreator'))
+        # Raising an exception here doesn't interrupt the left-over thread.
+        # Out of caution, terminate the SDK harness process.
+        from apache_beam.runners.worker.sdk_worker_main import terminate_sdk_harness
+        terminate_sdk_harness()
+
     for op in reversed(self.ops.values()):
       op.setup(self.data_sampler)
     self.splitting_lock = threading.Lock()
@@ -1166,8 +1194,8 @@ class BundleProcessor(object):
     def get_operation(transform_id: str) -> operations.Operation:
       transform_consumers = {
           tag: [get_operation(op) for op in pcoll_consumers[pcoll_id]]
-          for tag,
-          pcoll_id in descriptor.transforms[transform_id].outputs.items()
+          for tag, pcoll_id in
+          descriptor.transforms[transform_id].outputs.items()
       }
 
       # Initialize transform-specific state in the Data Sampler.
@@ -1287,8 +1315,8 @@ class BundleProcessor(object):
         timer_info.output_stream.close()
 
       return ([
-          self.delayed_bundle_application(op, residual) for op,
-          residual in execution_context.delayed_applications
+          self.delayed_bundle_application(op, residual)
+          for op, residual in execution_context.delayed_applications
       ],
               self.requires_finalization())
 
@@ -1445,10 +1473,9 @@ class BeamTransformFactory(object):
     self.state_handler = state_handler
     self.context = pipeline_context.PipelineContext(
         descriptor,
-        iterable_state_read=lambda token,
-        element_coder_impl: _StateBackedIterable(
-            state_handler,
-            beam_fn_api_pb2.StateKey(
+        iterable_state_read=lambda token, element_coder_impl:
+        _StateBackedIterable(
+            state_handler, beam_fn_api_pb2.StateKey(
                 runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
             element_coder_impl))
     self.data_sampler = data_sampler
@@ -1539,8 +1566,7 @@ class BeamTransformFactory(object):
   ) -> Dict[str, coders.Coder]:
     return {
         tag: self.get_windowed_coder(pcoll_id)
-        for tag,
-        pcoll_id in transform_proto.outputs.items()
+        for tag, pcoll_id in transform_proto.outputs.items()
     }
 
   def get_only_output_coder(
@@ -1552,8 +1578,7 @@ class BeamTransformFactory(object):
   ) -> Dict[str, coders.WindowedValueCoder]:
     return {
         tag: self.get_windowed_coder(pcoll_id)
-        for tag,
-        pcoll_id in transform_proto.inputs.items()
+        for tag, pcoll_id in transform_proto.inputs.items()
     }
 
   def get_only_input_coder(
@@ -1851,8 +1876,7 @@ def _create_pardo_operation(
     input_tags_to_coders = factory.get_input_coders(transform_proto)
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
-        for tag,
-        si in pardo_proto.side_inputs.items()
+        for tag, si in pardo_proto.side_inputs.items()
     ]
     tagged_side_inputs.sort(
         key=lambda tag_si: sideinputs.get_sideinput_index(tag_si[0]))

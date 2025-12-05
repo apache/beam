@@ -188,8 +188,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
     session = expressions.PartitioningSession(self._env._inputs)
     return {
         name: session.evaluate(frame._expr)
-        for name,
-        frame in to_compute.items()
+        for name, frame in to_compute.items()
     }
 
   def compute_using_beam(self, to_compute):
@@ -198,13 +197,13 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         input_pcolls = {
             placeholder: p
             | 'Create%s' % placeholder >> beam.Create([input[::2], input[1::2]])
-            for placeholder,
-            input in self._env._inputs.items()
+            for placeholder, input in self._env._inputs.items()
         }
         output_pcolls = (
-            input_pcolls | transforms._DataframeExpressionsTransform(
-                {name: frame._expr
-                 for name, frame in to_compute.items()}))
+            input_pcolls | transforms._DataframeExpressionsTransform({
+                name: frame._expr
+                for name, frame in to_compute.items()
+            }))
         for name, output_pcoll in output_pcolls.items():
           _ = output_pcoll | 'Record%s' % name >> beam.FlatMap(
               recorder.record_fn(name))
@@ -288,6 +287,12 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         want = sort_and_normalize(want)
       except Exception:
         got = traceback.format_exc()
+
+    if 'NumpyExtensionArray' in got:
+      # Work around formatting differences (np.int32(1) vs 1).
+      got = re.sub('np.(int32|str_)[(]([^()]+)[)]', r'\2', got)
+      got = re.sub('np.complex128[(]([^()]+)[)]', r'(\1)', got)
+
     return want, got
 
   @property
@@ -359,18 +364,15 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
     self._wont_implement_ok = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (wont_implement_ok or {}).items()
+        for test, examples in (wont_implement_ok or {}).items()
     }
     self._not_implemented_ok = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (not_implemented_ok or {}).items()
+        for test, examples in (not_implemented_ok or {}).items()
     }
     self._skip = {
         test: [to_callable(cond) for cond in examples]
-        for test,
-        examples in (skip or {}).items()
+        for test, examples in (skip or {}).items()
     }
     super().__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
@@ -535,9 +537,9 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
   IMPORT_PANDAS = 'import pandas as pd'
 
   example_srcs = []
-  lines = iter([(lineno, line.rstrip()) for lineno,
-                line in enumerate(rst.split('\n')) if is_example_line(line)] +
-               [(None, 'END')])
+  lines = iter([(lineno, line.rstrip())
+                for lineno, line in enumerate(rst.split('\n'))
+                if is_example_line(line)] + [(None, 'END')])
 
   # https://ipython.readthedocs.io/en/stable/sphinxext.html
   lineno, line = next(lines)
@@ -690,12 +692,8 @@ def _run_patched(func, *args, **kwargs):
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
-        env,
-        use_beam=use_beam,
-        wont_implement_ok=wont_implement_ok,
-        not_implemented_ok=not_implemented_ok,
-        skip=skip,
-        **kwargs)
+        env, use_beam=use_beam, wont_implement_ok=wont_implement_ok,
+        not_implemented_ok=not_implemented_ok, skip=skip, **kwargs)
     with expressions.allow_non_parallel_operations():
       return func(
           *args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)

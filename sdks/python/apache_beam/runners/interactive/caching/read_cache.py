@@ -84,8 +84,8 @@ class ReadCache:
       self._pipeline.components.coders[coder_id].CopyFrom(
           template.components.coders[coder_id])
     for windowing_strategy_id in template.components.windowing_strategies:
-      if (windowing_strategy_id in
-          self._pipeline.components.windowing_strategies):
+      if (windowing_strategy_id
+          in self._pipeline.components.windowing_strategies):
         continue
       self._pipeline.components.windowing_strategies[
           windowing_strategy_id].CopyFrom(

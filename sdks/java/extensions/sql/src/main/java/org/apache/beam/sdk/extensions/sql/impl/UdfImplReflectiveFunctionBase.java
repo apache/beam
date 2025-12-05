@@ -24,12 +24,12 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.impl.ReflectiveFunctionBase;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ReflectUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.impl.ReflectiveFunctionBase;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.ReflectUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Beam-customized version from {@link ReflectiveFunctionBase}, to address BEAM-5921. */
@@ -101,7 +101,7 @@ public abstract class UdfImplReflectiveFunctionBase implements Function {
 
   /**
    * Helps build lists of {@link
-   * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter}.
+   * org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.FunctionParameter}.
    */
   public static class ParameterListBuilder {
     final List<FunctionParameter> builder = new ArrayList<>();

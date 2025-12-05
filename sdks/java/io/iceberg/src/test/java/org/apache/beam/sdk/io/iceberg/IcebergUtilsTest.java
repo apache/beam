@@ -35,9 +35,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
@@ -242,6 +248,27 @@ public class IcebergUtilsTest {
           Types.ListType.ofRequired(1, Types.StringType.get()),
           list);
     }
+
+    @Test
+    public void testListOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_LIST_ICEBERG_SCHEMA, ROW_LIST_OF_ROWS);
+      assertEquals(RECORD_LIST_OF_RECORDS, actual);
+    }
+
+    @Test
+    public void testIterableOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_LIST_ICEBERG_SCHEMA, ROW_ITERABLE_OF_ROWS);
+      assertEquals(RECORD_LIST_OF_RECORDS, actual);
+    }
+
+    @Test
+    public void testMapOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_MAP_ICEBERG_SCHEMA, ROW_MAP_OF_ROWS);
+      assertEquals(RECORD_MAP_OF_RECORDS, actual);
+    }
   }
 
   @RunWith(JUnit4.class)
@@ -418,7 +445,121 @@ public class IcebergUtilsTest {
           Schema.FieldType.iterable(Schema.FieldType.STRING),
           list);
     }
+
+    @Test
+    public void testListOfRecords() {
+      Row actual =
+          IcebergUtils.icebergRecordToBeamRow(ROW_LIST_BEAM_SCHEMA, RECORD_LIST_OF_RECORDS);
+      assertEquals(ROW_LIST_OF_ROWS, actual);
+    }
+
+    @Test
+    public void testIterableOfRecords() {
+      Row actual =
+          IcebergUtils.icebergRecordToBeamRow(ROW_ITERABLE_BEAM_SCHEMA, RECORD_ITERABLE_OF_RECORDS);
+      assertEquals(ROW_ITERABLE_OF_ROWS, actual);
+    }
+
+    @Test
+    public void testMapOfRecords() {
+      Row actual = IcebergUtils.icebergRecordToBeamRow(ROW_MAP_BEAM_SCHEMA, RECORD_MAP_OF_RECORDS);
+      assertEquals(ROW_MAP_OF_ROWS, actual);
+    }
   }
+
+  static final Schema NESTED_BEAM_SCHEMA =
+      Schema.builder()
+          .addArrayField("str_list", Schema.FieldType.STRING)
+          .addInt32Field("int")
+          .build();
+  static final Schema ROW_LIST_BEAM_SCHEMA =
+      Schema.builder()
+          .addArrayField("list", Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .addBooleanField("bool")
+          .build();
+  static final Schema ROW_ITERABLE_BEAM_SCHEMA =
+      Schema.builder()
+          .addIterableField("list", Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .addBooleanField("bool")
+          .build();
+  static final Schema ROW_MAP_BEAM_SCHEMA =
+      Schema.builder()
+          .addMapField("map", Schema.FieldType.STRING, Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .build();
+  static final org.apache.iceberg.Schema NESTED_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(4, "str_list", Types.ListType.ofRequired(6, Types.StringType.get())),
+          required(5, "int", Types.IntegerType.get()));
+  static final org.apache.iceberg.Schema RECORD_LIST_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(
+              1,
+              "list",
+              Types.ListType.ofRequired(3, Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))),
+          required(2, "bool", Types.BooleanType.get()));
+  static final org.apache.iceberg.Schema RECORD_MAP_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(
+              1,
+              "map",
+              Types.MapType.ofRequired(
+                  2,
+                  3,
+                  Types.StringType.get(),
+                  Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))));
+  static final List<Record> LIST_OF_RECORDS =
+      Arrays.asList(
+          GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+              .copy(ImmutableMap.of("str_list", Arrays.asList("a", "b", "c"), "int", 123)),
+          GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+              .copy(ImmutableMap.of("str_list", Arrays.asList("x", "y", "z"), "int", 789)));
+  static final Record RECORD_LIST_OF_RECORDS =
+      GenericRecord.create(RECORD_LIST_ICEBERG_SCHEMA)
+          .copy(ImmutableMap.of("list", LIST_OF_RECORDS, "bool", true));
+  static final Record RECORD_ITERABLE_OF_RECORDS =
+      GenericRecord.create(RECORD_LIST_ICEBERG_SCHEMA)
+          .copy(
+              ImmutableMap.of(
+                  "list", Iterables.unmodifiableIterable(LIST_OF_RECORDS), "bool", true));
+  static final List<Row> LIST_OF_ROWS =
+      Arrays.asList(
+          Row.withSchema(NESTED_BEAM_SCHEMA).addValues(Arrays.asList("a", "b", "c"), 123).build(),
+          Row.withSchema(NESTED_BEAM_SCHEMA).addValues(Arrays.asList("x", "y", "z"), 789).build());
+  static final Row ROW_LIST_OF_ROWS =
+      Row.withSchema(ROW_LIST_BEAM_SCHEMA).addValues(LIST_OF_ROWS, true).build();
+  static final Row ROW_ITERABLE_OF_ROWS =
+      Row.withSchema(ROW_ITERABLE_BEAM_SCHEMA)
+          .addValues(Iterables.unmodifiableIterable(LIST_OF_ROWS), true)
+          .build();
+  static final Record RECORD_MAP_OF_RECORDS =
+      GenericRecord.create(RECORD_MAP_ICEBERG_SCHEMA)
+          .copy(
+              ImmutableMap.of(
+                  "map",
+                  ImmutableMap.of(
+                      "key_1",
+                      GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+                          .copy(
+                              ImmutableMap.of(
+                                  "str_list", Arrays.asList("a", "b", "c"), "int", 123)),
+                      "key_2",
+                      GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+                          .copy(
+                              ImmutableMap.of(
+                                  "str_list", Arrays.asList("x", "y", "z"), "int", 789)))));
+  static final Row ROW_MAP_OF_ROWS =
+      Row.withSchema(ROW_MAP_BEAM_SCHEMA)
+          .addValues(
+              ImmutableMap.of(
+                  "key_1",
+                  Row.withSchema(NESTED_BEAM_SCHEMA)
+                      .addValues(Arrays.asList("a", "b", "c"), 123)
+                      .build(),
+                  "key_2",
+                  Row.withSchema(NESTED_BEAM_SCHEMA)
+                      .addValues(Arrays.asList("x", "y", "z"), 789)
+                      .build()))
+          .build();
 
   @RunWith(JUnit4.class)
   public static class SchemaTests {
@@ -700,9 +841,9 @@ public class IcebergUtilsTest {
 
     static final Schema BEAM_SCHEMA_LIST =
         Schema.builder()
-            .addIterableField("arr_str", Schema.FieldType.STRING)
-            .addIterableField("arr_int", Schema.FieldType.INT32)
-            .addIterableField("arr_bool", Schema.FieldType.BOOLEAN)
+            .addArrayField("arr_str", Schema.FieldType.STRING)
+            .addArrayField("arr_int", Schema.FieldType.INT32)
+            .addArrayField("arr_bool", Schema.FieldType.BOOLEAN)
             .build();
     static final org.apache.iceberg.Schema ICEBERG_SCHEMA_LIST =
         new org.apache.iceberg.Schema(
@@ -800,6 +941,104 @@ public class IcebergUtilsTest {
       Schema convertedBeamSchema = IcebergUtils.icebergSchemaToBeamSchema(ICEBERG_SCHEMA_STRUCT);
 
       assertEquals(BEAM_SCHEMA_STRUCT, convertedBeamSchema);
+    }
+
+    static final Schema BEAM_SCHEMA_JDBC_ALL_TYPES =
+        Schema.builder()
+            .addField("array_field", Schema.FieldType.array(Schema.FieldType.STRING)) // from ARRAY
+            .addField("bigint_field", Schema.FieldType.INT64) // from BIGINT
+            .addField(
+                "binary_field",
+                Schema.FieldType.logicalType(VariableBytes.of("BINARY", 10))) // from BINARY
+            .addField("bit_field", Schema.FieldType.BOOLEAN) // from BIT
+            .addField("boolean_field", Schema.FieldType.BOOLEAN) // from BOOLEAN
+            .addField(
+                "char_field", Schema.FieldType.logicalType(FixedString.of("CHAR", 10))) // from CHAR
+            .addField("date_field", Schema.FieldType.logicalType(SqlTypes.DATE)) // from DATE
+            .addField("decimal_field", Schema.FieldType.DECIMAL) // from DECIMAL
+            .addField("double_field", Schema.FieldType.DOUBLE) // from DOUBLE
+            .addField("float_field", Schema.FieldType.DOUBLE) // from FLOAT
+            .addField("integer_field", Schema.FieldType.INT32) // from INTEGER
+            .addField(
+                "longnvarchar_field",
+                Schema.FieldType.logicalType(
+                    VariableString.of("LONGNVARCHAR", 100))) // from LONGNVARCHAR
+            .addField(
+                "longvarbinary_field",
+                Schema.FieldType.logicalType(
+                    VariableBytes.of("LONGVARBINARY", 100))) // from LONGVARBINARY
+            .addField(
+                "longvarchar_field",
+                Schema.FieldType.logicalType(
+                    VariableString.of("LONGVARCHAR", 100))) // from LONGVARCHAR
+            .addField(
+                "nchar_field",
+                Schema.FieldType.logicalType(FixedString.of("NCHAR", 10))) // from NCHAR
+            .addField(
+                "numeric_field",
+                Schema.FieldType.logicalType(FixedPrecisionNumeric.of(10, 5))) // from NUMERIC
+            .addField(
+                "nvarchar_field",
+                Schema.FieldType.logicalType(VariableString.of("NVARCHAR", 100))) // from NVARCHAR
+            .addField("real_field", Schema.FieldType.FLOAT) // from REAL
+            .addField("smallint_field", Schema.FieldType.INT16) // from SMALLINT
+            .addField("time_field", Schema.FieldType.logicalType(SqlTypes.TIME)) // from TIME
+            .addField(
+                "timestamp_field",
+                Schema.FieldType.logicalType(SqlTypes.DATETIME)) // from TIMESTAMP
+            .addField(
+                "timestamp_with_timezone_field",
+                Schema.FieldType.DATETIME) // from TIMESTAMP_WITH_TIMEZONE
+            .addField("tinyint_field", Schema.FieldType.BYTE) // from TINYINT
+            .addField(
+                "varbinary_field",
+                Schema.FieldType.logicalType(VariableBytes.of("VARBINARY", 100))) // from VARBINARY
+            .addField(
+                "varchar_field",
+                Schema.FieldType.logicalType(VariableString.of("VARCHAR", 100))) // from VARCHAR
+            .addField("blob_field", Schema.FieldType.BYTES) // from BLOB
+            .addField("clob_field", Schema.FieldType.STRING) // from CLOB
+            .addField(
+                "uuid_field", Schema.FieldType.logicalType(new UuidLogicalType())) // from UUID
+            .build();
+
+    static final org.apache.iceberg.Schema ICEBERG_SCHEMA_JDBC_ALL_TYPES =
+        new org.apache.iceberg.Schema(
+            required(1, "array_field", Types.ListType.ofRequired(29, Types.StringType.get())),
+            required(2, "bigint_field", Types.LongType.get()),
+            required(3, "binary_field", Types.BinaryType.get()),
+            required(4, "bit_field", Types.BooleanType.get()),
+            required(5, "boolean_field", Types.BooleanType.get()),
+            required(6, "char_field", Types.StringType.get()),
+            required(7, "date_field", Types.DateType.get()),
+            required(8, "decimal_field", Types.StringType.get()),
+            required(9, "double_field", Types.DoubleType.get()),
+            required(10, "float_field", Types.DoubleType.get()),
+            required(11, "integer_field", Types.IntegerType.get()),
+            required(12, "longnvarchar_field", Types.StringType.get()),
+            required(13, "longvarbinary_field", Types.BinaryType.get()),
+            required(14, "longvarchar_field", Types.StringType.get()),
+            required(15, "nchar_field", Types.StringType.get()),
+            required(16, "numeric_field", Types.DecimalType.of(10, 5)),
+            required(17, "nvarchar_field", Types.StringType.get()),
+            required(18, "real_field", Types.FloatType.get()),
+            required(19, "smallint_field", Types.StringType.get()),
+            required(20, "time_field", Types.TimeType.get()),
+            required(21, "timestamp_field", Types.TimestampType.withoutZone()),
+            required(22, "timestamp_with_timezone_field", Types.TimestampType.withZone()),
+            required(23, "tinyint_field", Types.StringType.get()),
+            required(24, "varbinary_field", Types.BinaryType.get()),
+            required(25, "varchar_field", Types.StringType.get()),
+            required(26, "blob_field", Types.BinaryType.get()),
+            required(27, "clob_field", Types.StringType.get()),
+            required(28, "uuid_field", Types.UUIDType.get()));
+
+    @Test
+    public void testJdbcBeamSchemaToIcebergSchema() {
+      org.apache.iceberg.Schema convertedIcebergSchema =
+          IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA_JDBC_ALL_TYPES);
+
+      assertTrue(convertedIcebergSchema.sameSchema(ICEBERG_SCHEMA_JDBC_ALL_TYPES));
     }
   }
 }

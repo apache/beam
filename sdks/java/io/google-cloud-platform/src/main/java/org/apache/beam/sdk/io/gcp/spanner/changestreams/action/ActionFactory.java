@@ -41,6 +41,9 @@ public class ActionFactory implements Serializable {
   private transient DataChangeRecordAction dataChangeRecordActionInstance;
   private transient HeartbeatRecordAction heartbeatRecordActionInstance;
   private transient ChildPartitionsRecordAction childPartitionsRecordActionInstance;
+  private transient PartitionStartRecordAction partitionStartRecordActionInstance;
+  private transient PartitionEndRecordAction partitionEndRecordActionInstance;
+  private transient PartitionEventRecordAction partitionEventRecordActionInstance;
   private transient QueryChangeStreamAction queryChangeStreamActionInstance;
   private transient DetectNewPartitionsAction detectNewPartitionsActionInstance;
 
@@ -94,10 +97,63 @@ public class ActionFactory implements Serializable {
   }
 
   /**
+   * Creates and returns a singleton instance of an action class capable of process {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord}s. This method is
+   * thread safe.
+   *
+   * @param partitionMetadataDao DAO class to access the Connector's metadata tables
+   * @param metrics metrics gathering class
+   * @return singleton instance of the {@link PartitionStartRecordAction}
+   */
+  public synchronized PartitionStartRecordAction partitionStartRecordAction(
+      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
+    if (partitionStartRecordActionInstance == null) {
+      partitionStartRecordActionInstance =
+          new PartitionStartRecordAction(partitionMetadataDao, metrics);
+    }
+    return partitionStartRecordActionInstance;
+  }
+
+  /**
+   * Creates and returns a singleton instance of an action class capable of process {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEndRecord}s. This method is
+   * thread safe.
+   *
+   * @param partitionMetadataDao DAO class to access the Connector's metadata tables
+   * @param metrics metrics gathering class
+   * @return singleton instance of the {@link PartitionEndRecordAction}
+   */
+  public synchronized PartitionEndRecordAction partitionEndRecordAction(
+      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
+    if (partitionEndRecordActionInstance == null) {
+      partitionEndRecordActionInstance = new PartitionEndRecordAction(metrics);
+    }
+    return partitionEndRecordActionInstance;
+  }
+
+  /**
+   * Creates and returns a singleton instance of an action class capable of process {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord}s. This method is
+   * thread safe.
+   *
+   * @param partitionMetadataDao DAO class to access the Connector's metadata tables
+   * @param metrics metrics gathering class
+   * @return singleton instance of the {@link PartitionEventRecordAction}
+   */
+  public synchronized PartitionEventRecordAction partitionEventRecordAction(
+      PartitionMetadataDao partitionMetadataDao, ChangeStreamMetrics metrics) {
+    if (partitionEventRecordActionInstance == null) {
+      partitionEventRecordActionInstance = new PartitionEventRecordAction(metrics);
+    }
+    return partitionEventRecordActionInstance;
+  }
+
+  /**
    * Creates and returns a single instance of an action class capable of performing a change stream
    * query for a given partition. It uses the {@link DataChangeRecordAction}, {@link
-   * HeartbeatRecordAction} and {@link ChildPartitionsRecordAction} to dispatch the necessary
-   * processing depending on the type of record received.
+   * HeartbeatRecordAction}, {@link ChildPartitionsRecordAction}, {@link PartitionStartRecordAction}
+   * ,{@link PartitionEndRecordAction} and {@link PartitionEventRecordAction} to dispatch the
+   * necessary processing depending on the type of record received.
    *
    * @param changeStreamDao DAO class to perform a change stream query
    * @param partitionMetadataDao DAO class to access the Connector's metadata tables
@@ -111,6 +167,12 @@ public class ActionFactory implements Serializable {
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord}s
+   * @param partitionStartRecordAction action class to process {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord}s
+   * @param partitionEndRecordAction action class to process {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEndRecord}s
+   * @param partitionEventRecordAction action class to process {@link
+   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord}s
    * @param metrics metrics gathering class
    * @return single instance of the {@link QueryChangeStreamAction}
    */
@@ -122,6 +184,9 @@ public class ActionFactory implements Serializable {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
+      PartitionStartRecordAction partitionStartRecordAction,
+      PartitionEndRecordAction partitionEndRecordAction,
+      PartitionEventRecordAction partitionEventRecordAction,
       ChangeStreamMetrics metrics) {
     if (queryChangeStreamActionInstance == null) {
       queryChangeStreamActionInstance =
@@ -133,6 +198,9 @@ public class ActionFactory implements Serializable {
               dataChangeRecordAction,
               heartbeatRecordAction,
               childPartitionsRecordAction,
+              partitionStartRecordAction,
+              partitionEndRecordAction,
+              partitionEventRecordAction,
               metrics);
     }
     return queryChangeStreamActionInstance;

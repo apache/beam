@@ -291,8 +291,11 @@ class BatchLoads<DestinationT, ElementT>
       if (!customGcsTempLocation.isAccessible()) {
         // Can't perform verification in this case.
         return;
+      } else if (Strings.isNullOrEmpty(customGcsTempLocation.get())) {
+        tempLocation = options.getTempLocation();
+      } else {
+        tempLocation = customGcsTempLocation.get();
       }
-      tempLocation = customGcsTempLocation.get();
     }
     checkArgument(
         !Strings.isNullOrEmpty(tempLocation),
@@ -589,7 +592,7 @@ class BatchLoads<DestinationT, ElementT>
                       @ProcessElement
                       public void getTempFilePrefix(ProcessContext c) {
                         String tempLocationRoot;
-                        if (customGcsTempLocation != null) {
+                        if (customGcsTempLocation != null && customGcsTempLocation.get() != null) {
                           tempLocationRoot = customGcsTempLocation.get();
                         } else {
                           tempLocationRoot = c.getPipelineOptions().getTempLocation();

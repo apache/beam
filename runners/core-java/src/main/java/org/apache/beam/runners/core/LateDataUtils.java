@@ -21,10 +21,11 @@ import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -41,6 +42,7 @@ public class LateDataUtils {
    * Return when {@code window} should be garbage collected. If the window's expiration time is on
    * or after the end of the global window, it will be truncated to the end of the global window.
    */
+  @Pure
   public static Instant garbageCollectionTime(
       BoundedWindow window, WindowingStrategy windowingStrategy) {
     return garbageCollectionTime(window, windowingStrategy.getAllowedLateness());
@@ -50,6 +52,7 @@ public class LateDataUtils {
    * Return when {@code window} should be garbage collected. If the window's expiration time is on
    * or after the end of the global window, it will be truncated to the end of the global window.
    */
+  @Pure
   public static Instant garbageCollectionTime(BoundedWindow window, Duration allowedLateness) {
 
     // If the end of the window + allowed lateness is beyond the "end of time" aka the end of the
@@ -81,7 +84,9 @@ public class LateDataUtils {
               if (input == null) {
                 return null;
               }
-              return input.explodeWindows();
+              // The generics in this chain of calls line up best if we drop the covariance
+              // in the return value of explodeWindows()
+              return (Iterable<WindowedValue<V>>) input.explodeWindows();
             })
         .filter(
             input -> {

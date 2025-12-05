@@ -1,3 +1,5 @@
+import java.util.TreeMap
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -44,6 +46,7 @@ tasks.rat {
 
     "**/package-list",
     "**/test.avsc",
+    "**/logical-types.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",
@@ -72,6 +75,7 @@ tasks.rat {
     "**/Gemfile.lock",
     "**/Rakefile",
     "**/.htaccess",
+    "website/www/site/assets/css/**/*",
     "website/www/site/assets/scss/_bootstrap.scss",
     "website/www/site/assets/scss/bootstrap/**/*",
     "website/www/site/assets/js/**/*",
@@ -94,6 +98,10 @@ tasks.rat {
 
     // Ignore CPython LICENSE file
     "LICENSE.python",
+
+    // Ignore vendored cloudpickle files
+    "sdks/python/apache_beam/internal/cloudpickle/**",
+    "LICENCE.cloudpickle",
 
     // Json doesn't support comments.
     "**/*.json",
@@ -244,8 +252,11 @@ tasks.register("javaPreCommit") {
   dependsOn(":beam-validate-runner:build")
   dependsOn(":examples:java:build")
   dependsOn(":examples:java:preCommit")
+  dependsOn(":examples:java:sql:build")
+  dependsOn(":examples:java:sql:preCommit")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:java:twitter:preCommit")
+  dependsOn(":examples:java:iceberg:build")
   dependsOn(":examples:multi-language:build")
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
@@ -275,7 +286,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
   dependsOn(":sdks:java:build-tools:build")
-  dependsOn(":sdks:java:container:java8:docker")
+  dependsOn(":sdks:java:container:java11:docker")
   dependsOn(":sdks:java:core:build")
   dependsOn(":sdks:java:core:jmh:build")
   dependsOn(":sdks:java:expansion-service:build")
@@ -296,6 +307,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:sketching:build")
   dependsOn(":sdks:java:extensions:sorter:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
+  dependsOn(":sdks:java:extensions:yaml:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
   dependsOn(":sdks:java:harness:build")
   dependsOn(":sdks:java:harness:jmh:build")
@@ -304,13 +316,17 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:contextualtextio:build")
   dependsOn(":sdks:java:io:expansion-service:build")
   dependsOn(":sdks:java:io:file-based-io-tests:build")
+  dependsOn(":sdks:java:io:kafka:jmh:build")
   dependsOn(":sdks:java:io:sparkreceiver:3:build")
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":sdks:java:managed:build")
+  dependsOn("sdks:java:ml:inference:remote:build")
+  dependsOn("sdks:java:ml:inference:openai:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
+  dependsOn(":sdks:java:testing:junit:build")
   dependsOn(":sdks:java:testing:load-tests:build")
   dependsOn(":sdks:java:testing:nexmark:build")
   dependsOn(":sdks:java:testing:test-utils:build")
@@ -340,11 +356,13 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:jms:build")
   dependsOn(":sdks:java:io:kafka:build")
   dependsOn(":sdks:java:io:kafka:upgrade:build")
+  dependsOn(":sdks:java:extensions:kafka-factories:build")
   dependsOn(":sdks:java:io:kudu:build")
   dependsOn(":sdks:java:io:mongodb:build")
   dependsOn(":sdks:java:io:mqtt:build")
   dependsOn(":sdks:java:io:neo4j:build")
   dependsOn(":sdks:java:io:parquet:build")
+  dependsOn(":sdks:java:io:pulsar:build")
   dependsOn(":sdks:java:io:rabbitmq:build")
   dependsOn(":sdks:java:io:redis:build")
   dependsOn(":sdks:java:io:rrio:build")
@@ -371,13 +389,12 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:datacatalog:build")
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
+  dependsOn(":sdks:java:extensions:sql:iceberg:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
-  dependsOn(":sdks:java:extensions:sql:shell:build")
   dependsOn(":sdks:java:extensions:sql:udf-test-provider:build")
   dependsOn(":sdks:java:extensions:sql:udf:build")
-  dependsOn(":sdks:java:extensions:sql:zetasql:build")
 }
 
 tasks.register("javaPreCommitPortabilityApi") {
@@ -419,6 +436,7 @@ tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
   dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
+  dependsOn(":sdks:java:extensions:sql:iceberg:integrationTest")
   dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
 }
 
@@ -471,10 +489,10 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
+  dependsOn(":sdks:python:test-suites:tox:py313:preCommitPy313")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -487,10 +505,10 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
   dependsOn(":sdks:python:container:py312:docker")
+  dependsOn(":sdks:python:container:py313:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
@@ -501,21 +519,277 @@ tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:pycommon:formatter")
 }
 
-tasks.register("python39PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py39:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
-  // TODO (https://github.com/apache/beam/issues/23966)
-  // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
-  dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
+tasks.register("formatChanges") {
+  group = "formatting"
+  description = "Formats CHANGES.md according to the template structure"
+
+  doLast {
+    val changesFile = file("CHANGES.md")
+    if (!changesFile.exists()) {
+      throw GradleException("CHANGES.md file not found")
+    }
+
+    val content = changesFile.readText()
+    val lines = content.lines().toMutableList()
+
+    // Find template end (after --> that follows <!-- Template -->)
+    var templateStartIndex = -1
+    var templateEndIndex = -1
+
+    for (i in lines.indices) {
+      if (lines[i].trim() == "<!-- Template -->") {
+        templateStartIndex = i
+      } else if (templateStartIndex != -1 && lines[i].trim() == "-->") {
+        templateEndIndex = i
+        break
+      }
+    }
+
+    if (templateEndIndex == -1) {
+      throw GradleException("Template end marker not found in CHANGES.md")
+    }
+
+    // Process each release section
+    var i = templateEndIndex + 1
+    val formattedLines = mutableListOf<String>()
+
+    // Keep header and template exactly as-is (lines 0 to templateEndIndex inclusive)
+    formattedLines.addAll(lines.subList(0, templateEndIndex + 1))
+
+    // Always add blank line after template
+    formattedLines.add("")
+
+    while (i < lines.size) {
+      val line = lines[i]
+
+      // Check if this is a release header
+      if (line.startsWith("# [")) {
+        formattedLines.add(line)
+        i++
+
+        // Expected sections in order (following template)
+        val expectedSections = listOf(
+          "## Beam 3.0.0 Development Highlights",
+          "## Highlights",
+          "## I/Os",
+          "## New Features / Improvements",
+          "## Breaking Changes",
+          "## Deprecations",
+          "## Bugfixes",
+          "## Security Fixes",
+          "## Known Issues"
+        )
+
+        val sectionContent = mutableMapOf<String, MutableList<String>>()
+        var currentSection = ""
+
+        // Parse existing sections
+        while (i < lines.size && !lines[i].startsWith("# [")) {
+          val currentLine = lines[i]
+
+          if (currentLine.startsWith("## ")) {
+            currentSection = currentLine
+            if (!sectionContent.containsKey(currentSection)) {
+              sectionContent[currentSection] = mutableListOf()
+            }
+          } else if (currentSection.isNotEmpty()) {
+            sectionContent[currentSection]!!.add(currentLine)
+          }
+          i++
+        }
+
+        // Only add sections that actually exist with content
+        for (section in expectedSections) {
+          if (sectionContent.containsKey(section)) {
+            formattedLines.add("")
+            formattedLines.add(section)
+            formattedLines.add("")
+
+            // Remove empty lines at start and end
+            val content = sectionContent[section]!!
+            while (content.isNotEmpty() && content.first().trim().isEmpty()) {
+              content.removeAt(0)
+            }
+            while (content.isNotEmpty() && content.last().trim().isEmpty()) {
+              content.removeAt(content.size - 1)
+            }
+
+            // Format content according to template rules
+            val formattedContent = content.map { line ->
+              // Convert SDK language references from [Language] to (Language)
+              line.replace(Regex("\\[([^\\]]*(?:Java|Python|Go|Kotlin|TypeScript|YAML)[^\\]]*)\\]")) { matchResult ->
+                val languages = matchResult.groupValues[1]
+                // Only convert if it's clearly a language reference (not a link or other content)
+                if (languages.matches(Regex(".*(?:Java|Python|Go|Kotlin|TypeScript|YAML).*"))) {
+                  "($languages)"
+                } else {
+                  matchResult.value
+                }
+              }
+            }
+
+            formattedLines.addAll(formattedContent)
+          }
+        }
+
+        if (i < lines.size) {
+          formattedLines.add("")
+        }
+      } else {
+        i++
+      }
+    }
+
+    // Write formatted content back
+    changesFile.writeText(formattedLines.joinToString("\n"))
+    println("CHANGES.md has been formatted according to template structure")
+  }
+}
+
+tasks.register("validateChanges") {
+  group = "verification"
+  description = "Validates CHANGES.md follows required formatting rules"
+
+  doLast {
+    val changesFile = file("CHANGES.md")
+    if (!changesFile.exists()) {
+      throw GradleException("CHANGES.md file not found")
+    }
+
+    val content = changesFile.readText()
+    val lines = content.lines()
+    val errors = mutableListOf<String>()
+
+    // Find template section boundaries
+    var templateStartIndex = -1
+    var templateEndIndex = -1
+
+    for (i in lines.indices) {
+      if (lines[i].trim() == "<!-- Template -->") {
+        templateStartIndex = i
+        println("Found template start at line ${i+1}")
+      } else if (templateStartIndex != -1 && lines[i].trim() == "-->") {
+        templateEndIndex = i
+        println("Found template end at line ${i+1}")
+        break
+      }
+    }
+
+    if (templateStartIndex == -1 || templateEndIndex == -1) {
+      throw GradleException("Template section not found in CHANGES.md")
+    }
+
+    println("Template section: lines ${templateStartIndex+1} to ${templateEndIndex+1}")
+
+    // Find unreleased section after the template section
+    var unreleasedSectionStart = -1
+    for (i in (templateEndIndex + 1) until lines.size) {
+      if (lines[i].startsWith("# [") && lines[i].contains("Unreleased")) {
+        unreleasedSectionStart = i
+        println("Found unreleased section at line ${i+1}: ${lines[i]}")
+        break
+      }
+    }
+
+    if (unreleasedSectionStart == -1) {
+      throw GradleException("Unreleased section not found in CHANGES.md")
+    }
+
+    // Check entries in the unreleased section
+    var i = unreleasedSectionStart + 1
+    val items = TreeMap<Int, String>()
+    var lastline = 0
+    var item = ""
+    while (i < lines.size && !lines[i].startsWith("# [")) {
+      val line = lines[i].trim()
+      if (line.isEmpty()) {
+        // skip
+      } else if (line.startsWith("* ")) {
+        items.put(lastline, item)
+        lastline = i
+        item = line
+      } else if (line.startsWith("##")) {
+        items.put(lastline, item)
+        lastline = i
+        item = ""
+      } else {
+        item += line
+      }
+      i++
+    }
+    items.put(lastline, item)
+    println("Starting validation from line ${i+1}")
+
+    items.forEach { (i, line) ->
+      if (line.startsWith("* ")) {
+        println("Checking line ${i+1}: $line")
+
+        // Skip comment lines
+        if (line.startsWith("* [comment]:")) {
+          println("  Skipping comment line")
+        } else {
+          // Rule 1: Check if language references use parentheses instead of brackets
+          val languagePattern = "\\[(Java|Python|Go|Kotlin|TypeScript|YAML)(?:/(?:Java|Python|Go|Kotlin|TypeScript|YAML))*\\]"
+          val languageRegex = Regex(languagePattern)
+
+          // Check if there's a language reference in brackets
+          val matches = languageRegex.findAll(line).toList()
+          if (matches.isNotEmpty()) {
+            for (match in matches) {
+              val matchText = match.value
+              val matchPosition = match.range.first
+              println("  Found language reference: $matchText at position $matchPosition")
+
+              // Check if this is part of an issue link or URL
+              val beforeMatch = if (matchPosition > 0) line.substring(0, matchPosition) else ""
+              val isPartOfLink = beforeMatch.contains("[#") ||
+                                beforeMatch.contains("http") ||
+                                line.contains("CVE-")
+
+              println("  Is part of link: $isPartOfLink")
+
+              if (!isPartOfLink) {
+                val error = "Line ${i+1}: Language references should use parentheses () instead of brackets []: $line"
+                println("  Adding error: $error")
+                errors.add(error)
+              }
+            }
+          } else {
+            println("  No bracketed language reference found")
+          }
+
+          // Rule 2: Check if each entry has an issue link
+          val issueLinkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/issues/[0-9a-zA-Z]+\\)\\)"
+          val issueLinkRegex = Regex(issueLinkPattern)
+
+          val hasIssueLink = issueLinkRegex.containsMatchIn(line)
+          println("  Has issue link: $hasIssueLink")
+
+          if (!hasIssueLink) {
+            val error = "Line ${i+1}: Missing or malformed issue link. Each entry should end with ([#X](https://github.com/apache/beam/issues/X)): $line"
+            println("  Adding error: $error")
+            errors.add(error)
+          }
+        }
+      }
+    }
+
+    println("Found ${errors.size} errors")
+
+    if (errors.isNotEmpty()) {
+      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run ./gradlew formatChanges to correct some issues.")
+    }
+
+    println("CHANGES.md validation successful")
+  }
 }
 
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
+  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py310:azureIntegrationTest")
   // TODO: https://github.com/apache/beam/issues/22651
   // The default container uses Python 3.10. The goal here is to
   // duild Docker images for TensorRT tests during run time for python versions
@@ -538,14 +812,21 @@ tasks.register("python312PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py312:inferencePostCommitITPy312")
 }
 
+tasks.register("python313PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py313:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py313:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py313:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py313:postCommitPy313")
+}
+
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
-  dependsOn(":sdks:python:test-suites:portable:py312:preCommitPy312")
+  dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:portable:py313:preCommitPy313")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py312:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py313:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
@@ -568,15 +849,15 @@ tasks.register("javaExamplesDataflowPrecommit") {
 
 tasks.register("whitespacePreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py39:archiveFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py39:unpackFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py39:whitespacelint")
+  dependsOn(":sdks:python:test-suites:tox:py310:archiveFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py310:unpackFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py310:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py39:eslint")
-  dependsOn(":sdks:python:test-suites:tox:py39:jest")
+  dependsOn(":sdks:python:test-suites:tox:py310:eslint")
+  dependsOn(":sdks:python:test-suites:tox:py310:jest")
 }
 
 tasks.register("pushAllRunnersDockerImages") {
@@ -680,6 +961,11 @@ project.tasks.register("generateExternalTransformsConfig") {
   dependsOn(":sdks:python:generateExternalTransformsConfig")
 }
 
+// Generates the Managed IO Beam web page
+project.tasks.register("generateManagedIOPage") {
+  dependsOn(":sdks:python:generateManagedIOPage")
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
@@ -710,7 +996,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
 
   val linkageCheckerJava by configurations.creating
   dependencies {
-    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.6")
+    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.15")
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -32,9 +32,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -101,7 +102,7 @@ public class FlattenRunnerTest {
         "mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-    new FlattenRunner.Factory<>().createRunnerForPTransform(context);
+    new FlattenRunner.Factory().addRunnerForPTransform(context);
 
     mainOutputValues.clear();
     assertThat(
@@ -164,7 +165,7 @@ public class FlattenRunnerTest {
         "mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-    new FlattenRunner.Factory<>().createRunnerForPTransform(context);
+    new FlattenRunner.Factory().addRunnerForPTransform(context);
 
     mainOutputValues.clear();
     assertThat(
@@ -175,8 +176,8 @@ public class FlattenRunnerTest {
 
     FnDataReceiver<WindowedValue<?>> input = context.getPCollectionConsumer("inputATarget");
 
-    input.accept(WindowedValue.valueInGlobalWindow("A1"));
-    input.accept(WindowedValue.valueInGlobalWindow("A2"));
+    input.accept(WindowedValues.valueInGlobalWindow("A1"));
+    input.accept(WindowedValues.valueInGlobalWindow("A2"));
 
     assertThat(
         mainOutputValues,

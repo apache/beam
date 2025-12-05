@@ -104,7 +104,7 @@ public class BigQuerySchemaTransformTranslationTest {
         (BigQueryWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG_ROW);
     PCollectionRowTuple.of("input", input).apply(writeTransform);
 
-    // Then translate the pipeline to a proto and extract KafkaWriteSchemaTransform proto
+    // Then translate the pipeline to a proto and extract BigQueryWriteSchemaTransform proto
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     List<RunnerApi.PTransform> writeTransformProto =
         pipelineProto.getComponents().getTransformsMap().values().stream()
@@ -132,7 +132,7 @@ public class BigQuerySchemaTransformTranslationTest {
 
     assertEquals(WRITE_CONFIG_ROW, rowFromSpec);
 
-    // Use the information in the proto to recreate the KafkaWriteSchemaTransform
+    // Use the information in the proto to recreate the BigQueryWriteSchemaTransform
     BigQueryWriteSchemaTransformTranslator translator =
         new BigQueryWriteSchemaTransformTranslator();
     BigQueryWriteSchemaTransform writeTransformFromSpec =

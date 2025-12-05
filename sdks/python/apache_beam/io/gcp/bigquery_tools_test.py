@@ -57,8 +57,10 @@ from apache_beam.utils.timestamp import Timestamp
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
-  from google.api_core.exceptions import ClientError, DeadlineExceeded
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpForbiddenError
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
 except ImportError:
   ClientError = None
@@ -300,6 +302,34 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_dataset = wrapper.get_or_create_dataset('project-id', 'dataset_id')
     self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
+
+  def test_create_temporary_dataset_with_kms_key(self):
+    kms_key = (
+        'projects/my-project/locations/global/keyRings/my-kr/'
+        'cryptoKeys/my-key')
+    client = mock.Mock()
+    client.datasets.Get.side_effect = HttpError(
+        response={'status': '404'}, url='', content='')
+
+    client.datasets.Insert.return_value = bigquery.Dataset(
+        datasetReference=bigquery.DatasetReference(
+            projectId='project-id', datasetId='temp_dataset'))
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    try:
+      wrapper.create_temporary_dataset(
+          'project-id', 'location', kms_key=kms_key)
+    except Exception:
+      pass
+
+    args, _ = client.datasets.Insert.call_args
+    insert_request = args[0]  # BigqueryDatasetsInsertRequest
+    inserted_dataset = insert_request.dataset  # Actual Dataset object
+
+    # Assertions
+    self.assertIsNotNone(inserted_dataset.defaultEncryptionConfiguration)
+    self.assertEqual(
+        inserted_dataset.defaultEncryptionConfiguration.kmsKeyName, kms_key)
 
   def test_get_or_create_dataset_fetched(self):
     client = mock.Mock()
@@ -577,6 +607,27 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertEqual(
         client.jobs.Insert.call_args[0][0].job.configuration.query.priority,
         'INTERACTIVE')
+
+  def test_get_temp_table_project_with_temp_table_ref(self):
+    """Test _get_temp_table_project returns project from temp_table_ref."""
+    client = mock.Mock()
+    temp_table_ref = bigquery.TableReference(
+        projectId='temp-project',
+        datasetId='temp_dataset',
+        tableId='temp_table')
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(
+        client, temp_table_ref=temp_table_ref)
+
+    result = wrapper._get_temp_table_project('fallback-project')
+    self.assertEqual(result, 'temp-project')
+
+  def test_get_temp_table_project_without_temp_table_ref(self):
+    """Test _get_temp_table_project returns fallback when no temp_table_ref."""
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    result = wrapper._get_temp_table_project('fallback-project')
+    self.assertEqual(result, 'fallback-project')
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -994,9 +1045,8 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
     schema = {"fields": self.get_schema_fields_with_mode("repeated")}
     typehints = get_beam_typehints_from_tableschema(schema)
 
-    expected_repeated_typehints = [
-        (name, Sequence[type]) for name, type in self.EXPECTED_TYPEHINTS
-    ]
+    expected_repeated_typehints = [(name, Sequence[type])
+                                   for name, type in self.EXPECTED_TYPEHINTS]
 
     self.assertEqual(typehints, expected_repeated_typehints)
 
@@ -1004,9 +1054,8 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
     schema = {"fields": self.get_schema_fields_with_mode("nullable")}
     typehints = get_beam_typehints_from_tableschema(schema)
 
-    expected_nullable_typehints = [
-        (name, Optional[type]) for name, type in self.EXPECTED_TYPEHINTS
-    ]
+    expected_nullable_typehints = [(name, Optional[type])
+                                   for name, type in self.EXPECTED_TYPEHINTS]
 
     self.assertEqual(typehints, expected_nullable_typehints)
 
@@ -1043,6 +1092,160 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
         Sequence[RowTypeConstraint.from_fields(self.EXPECTED_TYPEHINTS)])]
 
     self.assertEqual(typehints, expected_typehints)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestGeographyTypeSupport(unittest.TestCase):
+  """Tests for GEOGRAPHY data type support in BigQuery."""
+  def test_geography_in_bigquery_type_mapping(self):
+    """Test that GEOGRAPHY is properly mapped in type mapping."""
+    from apache_beam.io.gcp.bigquery_tools import BIGQUERY_TYPE_TO_PYTHON_TYPE
+
+    self.assertIn("GEOGRAPHY", BIGQUERY_TYPE_TO_PYTHON_TYPE)
+    self.assertEqual(BIGQUERY_TYPE_TO_PYTHON_TYPE["GEOGRAPHY"], str)
+
+  def test_geography_field_conversion(self):
+    """Test that GEOGRAPHY fields are converted correctly."""
+    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+
+    # Create a mock field with GEOGRAPHY type
+    field = bigquery.TableFieldSchema()
+    field.type = 'GEOGRAPHY'
+    field.name = 'location'
+    field.mode = 'NULLABLE'
+
+    wrapper = BigQueryWrapper(client=mock.Mock())
+
+    # Test various WKT formats
+    test_cases = [
+        "POINT(30 10)",
+        "LINESTRING(30 10, 10 30, 40 40)",
+        "POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))",
+        "MULTIPOINT((10 40), (40 30), (20 20), (30 10))",
+        "GEOMETRYCOLLECTION(POINT(4 6),LINESTRING(4 6,7 10))"
+    ]
+
+    for wkt_value in test_cases:
+      result = wrapper._convert_cell_value_to_dict(wkt_value, field)
+      self.assertEqual(result, wkt_value)
+      self.assertIsInstance(result, str)
+
+  def test_geography_typehints_from_schema(self):
+    """Test that GEOGRAPHY fields generate correct type hints."""
+    schema = {
+        "fields": [{
+            "name": "location", "type": "GEOGRAPHY", "mode": "REQUIRED"
+        },
+                   {
+                       "name": "optional_location",
+                       "type": "GEOGRAPHY",
+                       "mode": "NULLABLE"
+                   }, {
+                       "name": "locations",
+                       "type": "GEOGRAPHY",
+                       "mode": "REPEATED"
+                   }]
+    }
+
+    typehints = get_beam_typehints_from_tableschema(schema)
+
+    expected_typehints = [("location", str),
+                          ("optional_location", Optional[str]),
+                          ("locations", Sequence[str])]
+
+    self.assertEqual(typehints, expected_typehints)
+
+  def test_geography_beam_row_conversion(self):
+    """Test converting dictionary with GEOGRAPHY to Beam Row."""
+    schema = {
+        "fields": [{
+            "name": "id", "type": "INTEGER", "mode": "REQUIRED"
+        }, {
+            "name": "location", "type": "GEOGRAPHY", "mode": "NULLABLE"
+        }, {
+            "name": "name", "type": "STRING", "mode": "REQUIRED"
+        }]
+    }
+
+    row_dict = {"id": 1, "location": "POINT(30 10)", "name": "Test Location"}
+
+    beam_row = beam_row_from_dict(row_dict, schema)
+
+    self.assertEqual(beam_row.id, 1)
+    self.assertEqual(beam_row.location, "POINT(30 10)")
+    self.assertEqual(beam_row.name, "Test Location")
+
+  def test_geography_beam_row_conversion_with_null(self):
+    """Test converting dictionary with null GEOGRAPHY to Beam Row."""
+    schema = {
+        "fields": [{
+            "name": "id", "type": "INTEGER", "mode": "REQUIRED"
+        }, {
+            "name": "location", "type": "GEOGRAPHY", "mode": "NULLABLE"
+        }]
+    }
+
+    row_dict = {"id": 1, "location": None}
+
+    beam_row = beam_row_from_dict(row_dict, schema)
+
+    self.assertEqual(beam_row.id, 1)
+    self.assertIsNone(beam_row.location)
+
+  def test_geography_beam_row_conversion_repeated(self):
+    """Test converting dictionary with repeated GEOGRAPHY to Beam Row."""
+    schema = {
+        "fields": [{
+            "name": "id", "type": "INTEGER", "mode": "REQUIRED"
+        }, {
+            "name": "locations", "type": "GEOGRAPHY", "mode": "REPEATED"
+        }]
+    }
+
+    row_dict = {
+        "id": 1,
+        "locations": ["POINT(30 10)", "POINT(40 20)", "LINESTRING(0 0, 1 1)"]
+    }
+
+    beam_row = beam_row_from_dict(row_dict, schema)
+
+    self.assertEqual(beam_row.id, 1)
+    self.assertEqual(len(beam_row.locations), 3)
+    self.assertEqual(beam_row.locations[0], "POINT(30 10)")
+    self.assertEqual(beam_row.locations[1], "POINT(40 20)")
+    self.assertEqual(beam_row.locations[2], "LINESTRING(0 0, 1 1)")
+
+  def test_geography_json_encoding(self):
+    """Test that GEOGRAPHY values are properly JSON encoded."""
+    coder = RowAsDictJsonCoder()
+
+    row_with_geography = {"id": 1, "location": "POINT(30 10)", "name": "Test"}
+
+    encoded = coder.encode(row_with_geography)
+    decoded = coder.decode(encoded)
+
+    self.assertEqual(decoded["location"], "POINT(30 10)")
+    self.assertIsInstance(decoded["location"], str)
+
+  def test_geography_with_special_characters(self):
+    """Test GEOGRAPHY values with special characters and geometries."""
+    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+
+    field = bigquery.TableFieldSchema()
+    field.type = 'GEOGRAPHY'
+    field.name = 'complex_geo'
+    field.mode = 'NULLABLE'
+
+    wrapper = BigQueryWrapper(client=mock.Mock())
+
+    # Test complex WKT with various coordinate systems and precision
+    complex_wkt = (
+        "POLYGON((-122.4194 37.7749, -122.4094 37.7849, "
+        "-122.3994 37.7749, -122.4194 37.7749))")
+
+    result = wrapper._convert_cell_value_to_dict(complex_wkt, field)
+    self.assertEqual(result, complex_wkt)
+    self.assertIsInstance(result, str)
 
 
 if __name__ == '__main__':

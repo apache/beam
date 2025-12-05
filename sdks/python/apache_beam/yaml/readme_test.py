@@ -34,7 +34,9 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.typehints import trivial_inference
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_testing
 from apache_beam.yaml import yaml_transform
+from apache_beam.yaml import yaml_utils
 
 
 class FakeSql(beam.PTransform):
@@ -257,9 +259,10 @@ def create_test_method(test_type, test_name, test_yaml):
         #  in precommits
         with mock.patch(
             'apache_beam.yaml.yaml_provider.ExternalProvider.create_transform',
-            lambda *args,
-            **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
-          p = beam.Pipeline(options=PipelineOptions(**options))
+            lambda *args, **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
+          # Uses the FnApiRunner to ensure errors are mocked/passed through
+          # correctly
+          p = beam.Pipeline('FnApiRunner', options=PipelineOptions(**options))
           yaml_transform.expand_pipeline(
               p, modified_yaml, yaml_provider.merge_providers([test_provider]))
       if test_type == 'BUILD':
@@ -288,6 +291,7 @@ def parse_test_methods(markdown_lines):
     return input_spec.get('name', input_spec.get('type'))
 
   code_lines = None
+  last_pipeline = None
   for ix, line in enumerate(markdown_lines):
     line = line.rstrip()
     if line == '```':
@@ -299,6 +303,8 @@ def parse_test_methods(markdown_lines):
         if code_lines:
           if code_lines[0].startswith('- type:'):
             specs = yaml.load('\n'.join(code_lines), Loader=SafeLoader)
+            if 'dependencies:' in specs:
+              test_type = 'PARSE'
             is_chain = not any('input' in spec for spec in specs)
             if is_chain:
               undefined_inputs = set(['input'])
@@ -318,12 +324,29 @@ def parse_test_methods(markdown_lines):
             ] + ['    ' + line for line in code_lines]
           if code_lines[0] == 'pipeline:':
             yaml_pipeline = '\n'.join(code_lines)
-            if 'providers:' in yaml_pipeline:
+            last_pipeline = yaml_pipeline
+            if 'providers:' in yaml_pipeline or 'tests:' in yaml_pipeline:
               test_type = 'PARSE'
             yield test_name, create_test_method(
                 test_type,
                 test_name,
                 yaml_pipeline)
+          if 'tests:' in code_lines:
+            test_spec = '\n'.join(code_lines)
+            if code_lines[0] == 'pipeline:':
+              yaml_pipeline = '\n'.join(code_lines)
+            else:
+              yaml_pipeline = last_pipeline
+            for sub_ix, test_spec in enumerate(yaml.load(
+                '\n'.join(code_lines),
+                Loader=yaml_utils.SafeLineLoader)['tests']):
+              suffix = test_spec.get('name', str(sub_ix))
+              yield (
+                  test_name + '_' + suffix,
+                  # The yp=... ts=... is to capture the looped closure values.
+                  lambda _, yp=yaml_pipeline, ts=test_spec: yaml_testing.
+                  run_test(yp, ts))
+
         code_lines = None
     elif code_lines is not None:
       code_lines.append(line)
@@ -355,6 +378,9 @@ InlinePythonTest = createTestSuite(
 
 JoinTest = createTestSuite(
     'JoinTest', os.path.join(YAML_DOCS_DIR, 'yaml-join.md'))
+
+TestingTest = createTestSuite(
+    'TestingTest', os.path.join(YAML_DOCS_DIR, 'yaml-testing.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

@@ -350,7 +350,6 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     filter {
       // UNBOUNDED View.CreatePCollectionView not supported
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
       // TODO(https://github.com/apache/beam/issues/29973)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
       // TODO(https://github.com/apache/beam/issues/31231
@@ -399,7 +398,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   systemProperties sparkTestProperties(["--runner":"SparkStructuredStreamingRunner", "--testMode":"true"])
   // Register various other classes used in tests
   systemProperty 'spark.kryo.classesToRegister',
-    'org.apache.beam.sdk.transforms.ViewTest$NonDeterministicStringCoder,' +
+    'org.apache.beam.sdk.transforms.MapViewTest$NonDeterministicStringCoder,' +
     'org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.RegularImmutableList'
   jvmArgs += sparkTestJvmArgs()
   jvmArgs '-Xmx7g' // Increase memory heap in order to avoid OOM errors

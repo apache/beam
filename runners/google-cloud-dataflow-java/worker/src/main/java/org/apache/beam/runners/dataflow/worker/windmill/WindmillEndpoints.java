@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 @AutoValue
 public abstract class WindmillEndpoints {
+  public static final int DEFAULT_WINDMILL_SERVICE_PORT = 443;
   private static final Logger LOG = LoggerFactory.getLogger(WindmillEndpoints.class);
   private static final WindmillEndpoints NO_ENDPOINTS =
       WindmillEndpoints.builder()
@@ -103,7 +104,8 @@ public abstract class WindmillEndpoints {
 
   private static Optional<HostAndPort> tryParseEndpointIntoHostAndPort(String directEndpoint) {
     try {
-      return Optional.of(HostAndPort.fromString(directEndpoint));
+      return Optional.of(
+          HostAndPort.fromString(directEndpoint).withDefaultPort(DEFAULT_WINDMILL_SERVICE_PORT));
     } catch (IllegalArgumentException e) {
       return Optional.empty();
     }

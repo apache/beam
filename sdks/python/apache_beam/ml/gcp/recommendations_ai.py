@@ -24,6 +24,7 @@ from __future__ import absolute_import
 from typing import Sequence
 from typing import Tuple
 
+from cachetools.func import ttl_cache
 from google.api_core.retry import Retry
 
 from apache_beam import pvalue
@@ -33,7 +34,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.util import GroupIntoBatches
-from cachetools.func import ttl_cache
+from apache_beam.utils import retry
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -53,6 +54,7 @@ __all__ = [
 ]
 
 FAILED_CATALOG_ITEMS = "failed_catalog_items"
+MAX_RETRIES = 5
 
 
 @ttl_cache(maxsize=128, ttl=3600)
@@ -154,13 +156,19 @@ class _CreateCatalogItemFn(DoFn):
     request = recommendationengine.CreateCatalogItemRequest(
         parent=self.parent, catalog_item=catalog_item)
 
-    try:
-      created_catalog_item = self._client.create_catalog_item(
+    @retry.with_exponential_backoff(
+        num_retries=MAX_RETRIES,
+        retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter
+    )
+    def create_item():
+      return self._client.create_catalog_item(
           request=request,
           retry=self.retry,
           timeout=self.timeout,
           metadata=self.metadata)
 
+    try:
+      created_catalog_item = create_item()
       self.counter.inc()
       yield recommendationengine.CatalogItem.to_dict(created_catalog_item)
     except Exception:

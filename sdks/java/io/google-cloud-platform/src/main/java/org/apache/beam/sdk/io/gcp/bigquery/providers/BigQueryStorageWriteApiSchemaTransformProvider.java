@@ -307,7 +307,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase());
         write = write.withCreateDisposition(createDisposition);
       }
-
       if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
         WriteDisposition writeDisposition =
             WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase());
@@ -315,6 +314,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
       if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
         write = write.withKmsKey(configuration.getKmsKey());
+      }
+      if (configuration.getBigLakeConfiguration() != null) {
+        write = write.withBigLakeConfiguration(configuration.getBigLakeConfiguration());
       }
       if (this.testBigQueryServices != null) {
         write = write.withTestServices(testBigQueryServices);

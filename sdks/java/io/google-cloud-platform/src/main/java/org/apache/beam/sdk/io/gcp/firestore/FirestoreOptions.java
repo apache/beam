@@ -48,10 +48,7 @@ public interface FirestoreOptions extends PipelineOptions {
    */
   void setEmulatorHost(String host);
 
-  /**
-   * The Firestore database ID to connect to. Note: named database is currently an internal feature
-   * in Firestore. Do not set this to anything other than "(default)".
-   */
+  /** The Firestore database ID to connect to. */
   @Description("Firestore database ID")
   @Default.String("(default)")
   String getFirestoreDb();

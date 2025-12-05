@@ -48,7 +48,7 @@ public class PaneInfoTracker {
 
   @VisibleForTesting
   static final StateTag<ValueState<PaneInfo>> PANE_INFO_TAG =
-      StateTags.makeSystemTagInternal(StateTags.value("pane", PaneInfoCoder.INSTANCE));
+      StateTags.makeSystemTagInternal(StateTags.value("paneInfo", PaneInfoCoder.INSTANCE));
 
   public void clear(StateAccessor<?> state) {
     state.access(PANE_INFO_TAG).clear();
@@ -93,7 +93,7 @@ public class PaneInfoTracker {
     context.state().access(PANE_INFO_TAG).write(currentPane);
   }
 
-  private <W> PaneInfo describePane(
+  private PaneInfo describePane(
       Object key, Instant windowMaxTimestamp, PaneInfo previousPane, boolean isFinal) {
     boolean isFirst = previousPane == null;
     Timing previousTiming = isFirst ? null : previousPane.getTiming();

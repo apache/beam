@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -34,12 +35,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.FixedStreamHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
@@ -58,13 +59,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 @ThreadSafe
 final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
   private static final String STREAM_STARTER_THREAD_NAME = "StartWindmillStreamThread-%d";
+  private static final int TERMINATION_TIMEOUT_SECONDS = 5;
   private final AtomicBoolean started;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final GetWorkStream getWorkStream;
   private final GetDataStream getDataStream;
   private final CommitWorkStream commitWorkStream;
   private final WorkCommitter workCommitter;
-  private final StreamingEngineThrottleTimers streamingEngineThrottleTimers;
   private final ExecutorService streamStarter;
 
   private WindmillStreamSender(
@@ -77,22 +78,16 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     this.started = new AtomicBoolean(false);
     this.getWorkBudget = getWorkBudget;
-    this.streamingEngineThrottleTimers = StreamingEngineThrottleTimers.create();
 
     // Stream instances connect/reconnect internally, so we can reuse the same instance through the
     // entire lifecycle of WindmillStreamSender.
-    this.getDataStream =
-        streamingEngineStreamFactory.createDirectGetDataStream(
-            connection, streamingEngineThrottleTimers.getDataThrottleTimer());
-    this.commitWorkStream =
-        streamingEngineStreamFactory.createDirectCommitWorkStream(
-            connection, streamingEngineThrottleTimers.commitWorkThrottleTimer());
+    this.getDataStream = streamingEngineStreamFactory.createDirectGetDataStream(connection);
+    this.commitWorkStream = streamingEngineStreamFactory.createDirectCommitWorkStream(connection);
     this.workCommitter = workCommitterFactory.apply(commitWorkStream);
     this.getWorkStream =
         streamingEngineStreamFactory.createDirectGetWorkStream(
             connection,
             withRequestBudget(getWorkRequest, getWorkBudget.get()),
-            streamingEngineThrottleTimers.getWorkThrottleTimer(),
             FixedStreamHeartbeatSender.create(getDataStream),
             getDataClientFactory.apply(getDataStream),
             workCommitter,
@@ -142,11 +137,26 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
 
   @Override
   public synchronized void close() {
-    streamStarter.shutdownNow();
+    streamStarter.shutdown();
     getWorkStream.shutdown();
     getDataStream.shutdown();
     workCommitter.stop();
     commitWorkStream.shutdown();
+    try {
+      if (!Preconditions.checkNotNull(streamStarter)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        streamStarter.shutdownNow();
+      }
+      Preconditions.checkNotNull(getWorkStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      Preconditions.checkNotNull(getDataStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      Preconditions.checkNotNull(commitWorkStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Interrupted while waiting for streams to terminate", e);
+    }
   }
 
   @Override
@@ -156,10 +166,6 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
     if (started.get()) {
       getWorkStream.setBudget(budget);
     }
-  }
-
-  long getAndResetThrottleTime() {
-    return streamingEngineThrottleTimers.getAndResetThrottleTime();
   }
 
   long getCurrentActiveCommitBytes() {

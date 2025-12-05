@@ -48,7 +48,6 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -103,7 +102,6 @@ public class BeamSqlLineIT implements Serializable {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testSelectFromPubsub() throws Exception {
     String[] args =
         buildArgs(
@@ -131,14 +129,13 @@ public class BeamSqlLineIT implements Serializable {
 
     assertThat(
         Arrays.asList(
-            Arrays.asList("2018-07-01 21:25:20", "enroute", "40.702", "-74.001"),
-            Arrays.asList("2018-07-01 21:26:06", "enroute", "40.703", "-74.002"),
-            Arrays.asList("2018-07-02 13:26:06", "enroute", "30.0", "-72.32324")),
+            Arrays.asList("2018-07-01 21:25:20.000000", "enroute", "40.702", "-74.001"),
+            Arrays.asList("2018-07-01 21:26:06.000000", "enroute", "40.703", "-74.002"),
+            Arrays.asList("2018-07-02 13:26:06.000000", "enroute", "30.0", "-72.32324")),
         everyItem(IsIn.isOneOf(expectedResult.get(30, TimeUnit.SECONDS).toArray())));
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testFilterForSouthManhattan() throws Exception {
     String[] args =
         buildArgs(
@@ -173,8 +170,8 @@ public class BeamSqlLineIT implements Serializable {
 
     assertThat(
         Arrays.asList(
-            Arrays.asList("2018-07-01 21:25:20", "enroute", "40.701", "-74.001"),
-            Arrays.asList("2018-07-01 21:26:06", "enroute", "40.702", "-74.002")),
+            Arrays.asList("2018-07-01 21:25:20.000000", "enroute", "40.701", "-74.001"),
+            Arrays.asList("2018-07-01 21:26:06.000000", "enroute", "40.702", "-74.002")),
         everyItem(IsIn.isOneOf(expectedResult.get(30, TimeUnit.SECONDS).toArray())));
   }
 

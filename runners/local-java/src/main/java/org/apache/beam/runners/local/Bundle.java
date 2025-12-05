@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.local;
 
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 

@@ -165,8 +165,7 @@ class SchemaLoadedSqlTransform(beam.PTransform):
               self.output_name, tag, self.execution_count) >> beam.ParDo(
                   self._SqlTransformDoFn(self.schemas, self.schema_annotations))
           if pcoll.element_type in self.schemas else pcoll
-          for tag,
-          pcoll in source.items()
+          for tag, pcoll in source.items()
       }
     elif isinstance(source, beam.pvalue.PCollection):
       schema_loaded = source | 'load_schemas_{}_{}'.format(

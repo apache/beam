@@ -20,16 +20,20 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getElementCounterName;
 import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getMeanByteCounterName;
-import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getObjectCounterName;
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
@@ -95,9 +100,9 @@ import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -130,7 +135,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
   private static final CloudObject windowedStringCoder =
       CloudObjects.asCloudObject(
-          WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()), /*sdkComponents=*/ null);
+          WindowedValues.getValueOnlyCoder(StringUtf8Coder.of()), /*sdkComponents=*/ null);
 
   private IntrinsicMapTaskExecutorFactory mapTaskExecutorFactory;
   private PipelineOptions options;
@@ -243,8 +248,6 @@ public class IntrinsicMapTaskExecutorFactoryTest {
       verify(updateExtractor)
           .longSum(eq(named(getElementCounterName(outputName))), anyBoolean(), anyLong());
       verify(updateExtractor)
-          .longSum(eq(named(getObjectCounterName(outputName))), anyBoolean(), anyLong());
-      verify(updateExtractor)
           .longMean(
               eq(named(getMeanByteCounterName(outputName))),
               anyBoolean(),
@@ -257,8 +260,9 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     List<ParallelInstruction> instructions =
         Arrays.asList(
             createReadInstruction("Read", ReaderFactoryTest.SingletonTestReaderFactory.class),
-            createParDoInstruction(0, 0, "DoFn1", "DoFnUserName"),
-            createParDoInstruction(1, 0, "DoFnWithContext", "DoFnWithContextUserName"));
+            createParDoInstruction(0, 0, "DoFn1", "DoFnUserName", new TestDoFn()),
+            createParDoInstruction(
+                1, 0, "DoFnWithContext", "DoFnWithContextUserName", new TestDoFn()));
 
     MapTask mapTask = new MapTask();
     mapTask.setStageName(STAGE);
@@ -333,6 +337,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                             PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
+    ArrayList<Operation> createdOperations = new ArrayList<>();
     Node operationNode =
         mapTaskExecutorFactory
             .createOperationTransformForParallelInstructionNodes(
@@ -341,11 +346,13 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 PipelineOptionsFactory.create(),
                 readerRegistry,
                 sinkRegistry,
-                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"))
+                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
+                createdOperations)
             .apply(instructionNode);
     assertThat(operationNode, instanceOf(OperationNode.class));
     assertThat(((OperationNode) operationNode).getOperation(), instanceOf(ReadOperation.class));
     ReadOperation readOperation = (ReadOperation) ((OperationNode) operationNode).getOperation();
+    assertThat(createdOperations, contains(readOperation));
 
     assertEquals(1, readOperation.receivers.length);
     assertEquals(0, readOperation.receivers[0].getReceiverCount());
@@ -394,6 +401,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         ParallelInstructionNode.create(
             createWriteInstruction(producerIndex, producerOutputNum, "WriteOperation"),
             ExecutionLocation.UNKNOWN);
+    ArrayList<Operation> createdOperations = new ArrayList<>();
     Node operationNode =
         mapTaskExecutorFactory
             .createOperationTransformForParallelInstructionNodes(
@@ -402,11 +410,13 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 options,
                 readerRegistry,
                 sinkRegistry,
-                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"))
+                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
+                createdOperations)
             .apply(instructionNode);
     assertThat(operationNode, instanceOf(OperationNode.class));
     assertThat(((OperationNode) operationNode).getOperation(), instanceOf(WriteOperation.class));
     WriteOperation writeOperation = (WriteOperation) ((OperationNode) operationNode).getOperation();
+    assertThat(createdOperations, contains(writeOperation));
 
     assertEquals(0, writeOperation.receivers.length);
     assertEquals(Operation.InitializationState.UNSTARTED, writeOperation.initializationState);
@@ -464,16 +474,14 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
   static ParallelInstruction createParDoInstruction(
       int producerIndex, int producerOutputNum, String systemName) {
-    return createParDoInstruction(producerIndex, producerOutputNum, systemName, "");
+    return createParDoInstruction(producerIndex, producerOutputNum, systemName, "", new TestDoFn());
   }
 
   static ParallelInstruction createParDoInstruction(
-      int producerIndex, int producerOutputNum, String systemName, String userName) {
+      int producerIndex, int producerOutputNum, String systemName, String userName, DoFn<?, ?> fn) {
     InstructionInput cloudInput = new InstructionInput();
     cloudInput.setProducerInstructionIndex(producerIndex);
     cloudInput.setOutputNum(producerOutputNum);
-
-    TestDoFn fn = new TestDoFn();
 
     String serializedFn =
         StringUtils.byteArrayToJsonString(
@@ -544,14 +552,16 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                         .getMultiOutputInfos()
                         .get(0))));
 
+    ArrayList<Operation> createdOperations = new ArrayList<>();
     Node operationNode =
         mapTaskExecutorFactory
             .createOperationTransformForParallelInstructionNodes(
-                STAGE, network, options, readerRegistry, sinkRegistry, context)
+                STAGE, network, options, readerRegistry, sinkRegistry, context, createdOperations)
             .apply(instructionNode);
     assertThat(operationNode, instanceOf(OperationNode.class));
     assertThat(((OperationNode) operationNode).getOperation(), instanceOf(ParDoOperation.class));
     ParDoOperation parDoOperation = (ParDoOperation) ((OperationNode) operationNode).getOperation();
+    assertThat(createdOperations, contains(parDoOperation));
 
     assertEquals(1, parDoOperation.receivers.length);
     assertEquals(0, parDoOperation.receivers[0].getReceiverCount());
@@ -611,6 +621,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                             PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
+    ArrayList<Operation> createdOperations = new ArrayList<>();
     Node operationNode =
         mapTaskExecutorFactory
             .createOperationTransformForParallelInstructionNodes(
@@ -619,11 +630,13 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 PipelineOptionsFactory.create(),
                 readerRegistry,
                 sinkRegistry,
-                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"))
+                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
+                createdOperations)
             .apply(instructionNode);
     assertThat(operationNode, instanceOf(OperationNode.class));
     assertThat(((OperationNode) operationNode).getOperation(), instanceOf(ParDoOperation.class));
     ParDoOperation pgbkOperation = (ParDoOperation) ((OperationNode) operationNode).getOperation();
+    assertThat(createdOperations, contains(pgbkOperation));
 
     assertEquals(1, pgbkOperation.receivers.length);
     assertEquals(0, pgbkOperation.receivers[0].getReceiverCount());
@@ -663,6 +676,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                             PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
+    ArrayList<Operation> createdOperations = new ArrayList<>();
     Node operationNode =
         mapTaskExecutorFactory
             .createOperationTransformForParallelInstructionNodes(
@@ -671,11 +685,13 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 options,
                 readerRegistry,
                 sinkRegistry,
-                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"))
+                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
+                createdOperations)
             .apply(instructionNode);
     assertThat(operationNode, instanceOf(OperationNode.class));
     assertThat(((OperationNode) operationNode).getOperation(), instanceOf(ParDoOperation.class));
     ParDoOperation pgbkOperation = (ParDoOperation) ((OperationNode) operationNode).getOperation();
+    assertThat(createdOperations, contains(pgbkOperation));
 
     assertEquals(1, pgbkOperation.receivers.length);
     assertEquals(0, pgbkOperation.receivers[0].getReceiverCount());
@@ -741,6 +757,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                             PCOLLECTION_ID))));
     when(network.outDegree(instructionNode)).thenReturn(1);
 
+    ArrayList<Operation> createdOperations = new ArrayList<>();
     Node operationNode =
         mapTaskExecutorFactory
             .createOperationTransformForParallelInstructionNodes(
@@ -749,15 +766,108 @@ public class IntrinsicMapTaskExecutorFactoryTest {
                 options,
                 readerRegistry,
                 sinkRegistry,
-                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"))
+                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
+                createdOperations)
             .apply(instructionNode);
     assertThat(operationNode, instanceOf(OperationNode.class));
     assertThat(((OperationNode) operationNode).getOperation(), instanceOf(FlattenOperation.class));
     FlattenOperation flattenOperation =
         (FlattenOperation) ((OperationNode) operationNode).getOperation();
+    assertThat(createdOperations, contains(flattenOperation));
 
     assertEquals(1, flattenOperation.receivers.length);
     assertEquals(0, flattenOperation.receivers[0].getReceiverCount());
     assertEquals(Operation.InitializationState.UNSTARTED, flattenOperation.initializationState);
+  }
+
+  static class TestTeardownDoFn extends DoFn<String, String> {
+    static AtomicInteger setupCalls = new AtomicInteger();
+    static AtomicInteger teardownCalls = new AtomicInteger();
+
+    private final boolean throwExceptionOnSetup;
+    private boolean setupCalled = false;
+
+    TestTeardownDoFn(boolean throwExceptionOnSetup) {
+      this.throwExceptionOnSetup = throwExceptionOnSetup;
+    }
+
+    @Setup
+    public void setup() {
+      assertFalse(setupCalled);
+      setupCalled = true;
+      setupCalls.addAndGet(1);
+      if (throwExceptionOnSetup) {
+        throw new RuntimeException("Test setup exception");
+      }
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+      fail("no elements should be processed");
+    }
+
+    @Teardown
+    public void teardown() {
+      assertTrue(setupCalled);
+      setupCalled = false;
+      teardownCalls.addAndGet(1);
+    }
+  }
+
+  @Test
+  public void testCreateMapTaskExecutorException() throws Exception {
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            createReadInstruction("Read"),
+            createParDoInstruction(0, 0, "DoFn1", "DoFn1", new TestTeardownDoFn(false)),
+            createParDoInstruction(0, 0, "DoFn2", "DoFn2", new TestTeardownDoFn(false)),
+            createParDoInstruction(0, 0, "ErrorFn", "", new TestTeardownDoFn(true)),
+            createParDoInstruction(0, 0, "DoFn3", "DoFn3", new TestTeardownDoFn(false)),
+            createFlattenInstruction(1, 0, 2, 0, "Flatten"),
+            createWriteInstruction(3, 0, "Write"));
+
+    MapTask mapTask = new MapTask();
+    mapTask.setStageName(STAGE);
+    mapTask.setSystemName("systemName");
+    mapTask.setInstructions(instructions);
+    mapTask.setFactory(Transport.getJsonFactory());
+
+    assertThrows(
+        "Test setup exception",
+        RuntimeException.class,
+        () ->
+            mapTaskExecutorFactory.create(
+                mapTaskToNetwork.apply(mapTask),
+                options,
+                STAGE,
+                readerRegistry,
+                sinkRegistry,
+                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
+                counterSet,
+                idGenerator));
+    assertEquals(3, TestTeardownDoFn.setupCalls.getAndSet(0));
+    // We only tear-down the instruction we were unable to create.  The other
+    // infos are cached within UserParDoFnFactory and not torn-down.
+    assertEquals(1, TestTeardownDoFn.teardownCalls.getAndSet(0));
+
+    assertThrows(
+        "Test setup exception",
+        RuntimeException.class,
+        () ->
+            mapTaskExecutorFactory.create(
+                mapTaskToNetwork.apply(mapTask),
+                options,
+                STAGE,
+                readerRegistry,
+                sinkRegistry,
+                BatchModeExecutionContext.forTesting(options, counterSet, "testStage"),
+                counterSet,
+                idGenerator));
+    // The non-erroring functions are cached, and a new setup call is called on
+    // erroring dofn.
+    assertEquals(1, TestTeardownDoFn.setupCalls.get());
+    // We only tear-down the instruction we were unable to create.  The other
+    // infos are cached within UserParDoFnFactory and not torn-down.
+    assertEquals(1, TestTeardownDoFn.teardownCalls.get());
   }
 }

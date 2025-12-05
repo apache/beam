@@ -32,6 +32,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.ResultSet;
@@ -178,47 +179,56 @@ public class PartitionMetadataDao {
    *
    * @return the earliest partition watermark which is not in a {@link State#FINISHED} state.
    */
-  public @Nullable Timestamp getUnfinishedMinWatermark() {
+  public @Nullable Timestamp getUnfinishedMinWatermarkFrom(Timestamp sinceTimestamp) {
     Statement statement;
+    final String minWatermark = "min_watermark";
     if (this.isPostgres()) {
       statement =
           Statement.newBuilder(
-                  "SELECT \""
+                  "SELECT MIN(\""
                       + COLUMN_WATERMARK
-                      + "\" FROM \""
+                      + "\") as "
+                      + minWatermark
+                      + " FROM \""
                       + metadataTableName
                       + "\" WHERE \""
                       + COLUMN_STATE
                       + "\" != $1"
-                      + " ORDER BY \""
+                      + " AND \""
                       + COLUMN_WATERMARK
-                      + "\" ASC LIMIT 1")
+                      + "\" >= $2")
               .bind("p1")
               .to(State.FINISHED.name())
+              .bind("p2")
+              .to(sinceTimestamp)
               .build();
     } else {
       statement =
           Statement.newBuilder(
-                  "SELECT "
+                  "SELECT MIN("
                       + COLUMN_WATERMARK
+                      + ") as "
+                      + minWatermark
                       + " FROM "
                       + metadataTableName
                       + " WHERE "
                       + COLUMN_STATE
                       + " != @state"
-                      + " ORDER BY "
+                      + " AND "
                       + COLUMN_WATERMARK
-                      + " ASC LIMIT 1")
+                      + " >= @since;")
               .bind("state")
               .to(State.FINISHED.name())
+              .bind("since")
+              .to(sinceTimestamp)
               .build();
     }
     try (ResultSet resultSet =
         databaseClient
             .singleUse()
-            .executeQuery(statement, Options.tag("query=getUnfinishedMinWatermark"))) {
-      if (resultSet.next()) {
-        return resultSet.getTimestamp(COLUMN_WATERMARK);
+            .executeQuery(statement, Options.tag("query=getUnfinishedMinWatermarkFrom"))) {
+      if (resultSet.next() && !resultSet.isNull(minWatermark)) {
+        return resultSet.getTimestamp(minWatermark);
       }
       return null;
     }
@@ -519,14 +529,25 @@ public class PartitionMetadataDao {
     }
 
     /**
-     * Update the partition watermark to the given timestamp.
+     * Update the partition watermark to the given timestamp iff the partition watermark in metadata
+     * table is smaller than the given watermark.
      *
      * @param partitionToken the partition unique identifier
      * @param watermark the new partition watermark
      * @return the commit timestamp of the read / write transaction
      */
     public Void updateWatermark(String partitionToken, Timestamp watermark) {
-      transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      Struct row =
+          transaction.readRow(
+              metadataTableName, Key.of(partitionToken), Collections.singleton(COLUMN_WATERMARK));
+      if (row == null) {
+        LOG.error("[{}] Failed to read Watermark column", partitionToken);
+        return null;
+      }
+      Timestamp partitionWatermark = row.getTimestamp(COLUMN_WATERMARK);
+      if (partitionWatermark.compareTo(watermark) < 0) {
+        transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+      }
       return null;
     }
 

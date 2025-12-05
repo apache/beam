@@ -39,9 +39,11 @@ task("runJavaExamplesValidationTask") {
   dependsOn(":runners:direct-java:runQuickstartJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow")
   dependsOn(":runners:spark:3:runQuickstartJavaSpark")
-  dependsOn(":runners:flink:1.19:runQuickstartJavaFlinkLocal")
+  dependsOn(":runners:flink:1.20:runQuickstartJavaFlinkLocal")
   dependsOn(":runners:direct-java:runMobileGamingJavaDirect")
-  dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")
-  dependsOn(":runners:twister2:runQuickstartJavaTwister2")
+  if (project.hasProperty("ver") || !project.version.toString().endsWith("SNAPSHOT")) {
+    // only run one variant of MobileGaming on Dataflow for nightly
+    dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")
+  }
   dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom")
 }

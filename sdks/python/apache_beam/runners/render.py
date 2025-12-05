@@ -29,7 +29,7 @@ For other languages, start this service a by running::
 
   python -m apache_beam.runners.render --job_port=PORT ...
 
-and then run your pipline with the PortableRunner setting the job endpoint
+and then run your pipeline with the PortableRunner setting the job endpoint
 to `localhost:PORT`.
 
 If any `--render_output=path.ext` flags are passed, each submitted job will
@@ -151,9 +151,8 @@ class PipelineRenderer:
     if options.render_leaf_composite_nodes:
       is_leaf = lambda transform_id: any(
           re.match(
-              pattern,
-              self.pipeline.components.transforms[transform_id].unique_name)
-          for patterns in options.render_leaf_composite_nodes
+              pattern, self.pipeline.components.transforms[transform_id].
+              unique_name) for patterns in options.render_leaf_composite_nodes
           for pattern in patterns.split(','))
       self.leaf_composites = set()
 

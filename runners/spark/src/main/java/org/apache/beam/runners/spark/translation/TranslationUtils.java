@@ -33,6 +33,8 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -40,11 +42,12 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
@@ -102,14 +105,14 @@ public final class TranslationUtils {
     @Override
     public WindowedValue<KV<K, OutputT>> call(WindowedValue<KV<K, Iterable<InputT>>> windowedKv)
         throws Exception {
-      return WindowedValue.of(
+      return WindowedValues.of(
           KV.of(
               windowedKv.getValue().getKey(),
               fn.getCombineFn()
                   .apply(windowedKv.getValue().getValue(), fn.ctxtForValue(windowedKv))),
           windowedKv.getTimestamp(),
           windowedKv.getWindows(),
-          windowedKv.getPane());
+          windowedKv.getPaneInfo());
     }
   }
 
@@ -273,22 +276,30 @@ public final class TranslationUtils {
   }
 
   /**
-   * Reject timers {@link DoFn}.
+   * Checks if the given DoFn uses any timers.
    *
-   * @param doFn the {@link DoFn} to possibly reject.
+   * @param doFn the DoFn to check for timer usage
+   * @return true if the DoFn uses timers, false otherwise
    */
-  public static void rejectTimers(DoFn<?, ?> doFn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    if (signature.timerDeclarations().size() > 0
-        || signature.timerFamilyDeclarations().size() > 0) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
-              DoFn.TimerId.class.getSimpleName(),
-              doFn.getClass().getName(),
-              DoFn.class.getSimpleName(),
-              SparkRunner.class.getSimpleName()));
+  public static boolean hasTimers(DoFn<?, ?> doFn) {
+    final DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
+    return signature.usesTimers();
+  }
+
+  /**
+   * Checks if the given DoFn uses event time timers.
+   *
+   * @param doFn the DoFn to check for event time timer usage
+   * @return true if the DoFn uses event time timers, false otherwise. Note: Returns false if the
+   *     DoFn has no timers at all.
+   */
+  public static boolean hasEventTimers(DoFn<?, ?> doFn) {
+    for (DoFnSignature.TimerDeclaration timerDeclaration :
+        DoFnSignatures.signatureForDoFn(doFn).timerDeclarations().values()) {
+      final TimerSpec timerSpec = DoFnSignatures.getTimerSpecOrThrow(timerDeclaration, doFn);
+      return timerSpec.getTimeDomain().equals(TimeDomain.EVENT_TIME);
     }
+    return false;
   }
 
   /**
@@ -414,7 +425,7 @@ public final class TranslationUtils {
           pCollection.getWindowingStrategy().getWindowFn().windowCoder();
       @SuppressWarnings("unchecked")
       Coder<WindowedValue<?>> windowedValueCoder =
-          (Coder<WindowedValue<?>>) (Coder<?>) WindowedValue.getFullCoder(coder, wCoder);
+          (Coder<WindowedValue<?>>) (Coder<?>) WindowedValues.getFullCoder(coder, wCoder);
       coderMap.put(output.getKey(), windowedValueCoder);
     }
     return coderMap;

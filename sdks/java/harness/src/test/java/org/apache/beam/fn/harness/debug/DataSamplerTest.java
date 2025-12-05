@@ -40,7 +40,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -71,7 +72,7 @@ public class DataSamplerTest {
   }
 
   <T> WindowedValue<T> globalWindowedValue(T el) {
-    return WindowedValue.valueInGlobalWindow(el);
+    return WindowedValues.valueInGlobalWindow(el);
   }
 
   BeamFnApi.InstructionResponse getAllSamples(DataSampler dataSampler) {

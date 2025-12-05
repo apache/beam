@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -38,12 +38,12 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.ModelCoders;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
@@ -135,7 +135,7 @@ public class CombineRunnersTest {
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     // Create runner.
-    new CombineRunners.PrecombineFactory<>().createRunnerForPTransform(context);
+    new CombineRunners.PrecombineFactory().addRunnerForPTransform(context);
 
     Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
 
@@ -219,7 +219,7 @@ public class CombineRunnersTest {
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -283,7 +283,7 @@ public class CombineRunnersTest {
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -330,7 +330,7 @@ public class CombineRunnersTest {
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createConvertToAccumulatorsMapFunction)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -400,7 +400,7 @@ public class CombineRunnersTest {
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());

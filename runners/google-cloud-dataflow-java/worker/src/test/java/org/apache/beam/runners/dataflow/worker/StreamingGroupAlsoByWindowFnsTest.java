@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -72,9 +73,10 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
@@ -124,7 +126,8 @@ public class StreamingGroupAlsoByWindowFnsTest {
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
-            outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
+            output -> outputManager.output(outputTag, output),
+            WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     runner.startBundle();
 
@@ -174,7 +177,12 @@ public class StreamingGroupAlsoByWindowFnsTest {
     valueCoder.encode(value, dataOutput, Context.OUTER);
     messageBundle
         .addMessagesBuilder()
-        .setMetadata(WindmillSink.encodeMetadata(windowsCoder, windows, PaneInfo.NO_FIRING))
+        .setMetadata(
+            WindmillSink.encodeMetadata(
+                windowsCoder,
+                windows,
+                PaneInfo.NO_FIRING,
+                BeamFnApi.Elements.ElementMetadata.newBuilder().build()))
         .setData(dataOutput.toByteString())
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp));
   }
@@ -186,7 +194,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
     return new ValueInEmptyWindows<>(
         (KeyedWorkItem<String, T>)
             new WindmillKeyedWorkItem<>(
-                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
+                KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder, false));
   }
 
   @Test
@@ -195,7 +203,8 @@ public class StreamingGroupAlsoByWindowFnsTest {
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
-            outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
+            output -> outputManager.output(outputTag, output),
+            WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(0));
 
@@ -252,8 +261,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
-            outputTag,
-            outputManager,
+            output -> outputManager.output(outputTag, output),
             WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)))
                 .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
@@ -340,7 +348,8 @@ public class StreamingGroupAlsoByWindowFnsTest {
             new StepContextStateInternalsFactory<String>(stepContext),
             StringUtf8Coder.of());
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
-        makeRunner(outputTag, outputManager, windowingStrategy, fn);
+        makeRunnerForGabwFn(
+            output -> outputManager.output(outputTag, output), windowingStrategy, fn);
 
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15));
 
@@ -426,8 +435,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
-            outputTag,
-            outputManager,
+            output -> outputManager.output(outputTag, output),
             WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
                 .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
@@ -543,9 +551,8 @@ public class StreamingGroupAlsoByWindowFnsTest {
 
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, Long>, KV<String, Long>> runner =
-        makeRunner(
-            outputTag,
-            outputManager,
+        makeRunnerForAppliedCombineFn(
+            output -> outputManager.output(outputTag, output),
             WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
             appliedCombineFn);
 
@@ -601,8 +608,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
   }
 
   private DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> makeRunner(
-      TupleTag<KV<String, Iterable<String>>> outputTag,
-      DoFnRunners.OutputManager outputManager,
+      WindowedValueReceiver<KV<String, Iterable<String>>> outputReceiver,
       WindowingStrategy<? super String, IntervalWindow> windowingStrategy)
       throws Exception {
 
@@ -612,12 +618,11 @@ public class StreamingGroupAlsoByWindowFnsTest {
             new StepContextStateInternalsFactory<String>(stepContext),
             StringUtf8Coder.of());
 
-    return makeRunner(outputTag, outputManager, windowingStrategy, fn);
+    return makeRunnerForGabwFn(outputReceiver, windowingStrategy, fn);
   }
 
-  private DoFnRunner<KeyedWorkItem<String, Long>, KV<String, Long>> makeRunner(
-      TupleTag<KV<String, Long>> outputTag,
-      DoFnRunners.OutputManager outputManager,
+  private DoFnRunner<KeyedWorkItem<String, Long>, KV<String, Long>> makeRunnerForAppliedCombineFn(
+      WindowedValueReceiver<KV<String, Long>> outputManager,
       WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
       AppliedCombineFn<String, Long, ?, Long> combineFn)
       throws Exception {
@@ -629,13 +634,12 @@ public class StreamingGroupAlsoByWindowFnsTest {
             combineFn,
             StringUtf8Coder.of());
 
-    return makeRunner(outputTag, outputManager, windowingStrategy, fn);
+    return makeRunnerForGabwFn(outputManager, windowingStrategy, fn);
   }
 
   private <InputT, OutputT>
-      DoFnRunner<KeyedWorkItem<String, InputT>, KV<String, OutputT>> makeRunner(
-          TupleTag<KV<String, OutputT>> outputTag,
-          DoFnRunners.OutputManager outputManager,
+      DoFnRunner<KeyedWorkItem<String, InputT>, KV<String, OutputT>> makeRunnerForGabwFn(
+          WindowedValueReceiver<KV<String, OutputT>> outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
           GroupAlsoByWindowFn<KeyedWorkItem<String, InputT>, KV<String, OutputT>> fn)
           throws Exception {
@@ -645,7 +649,6 @@ public class StreamingGroupAlsoByWindowFnsTest {
             fn,
             NullSideInputReader.empty(),
             outputManager,
-            outputTag,
             stepContext);
     return DoFnRunners.lateDataDroppingRunner(
         doFnRunner, stepContext.timerInternals(), windowingStrategy);

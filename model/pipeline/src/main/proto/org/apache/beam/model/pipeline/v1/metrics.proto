@@ -457,6 +457,9 @@ message MonitoringInfo {
     SPANNER_TABLE_ID = 25 [(label_props) = { name: "SPANNER_TABLE_ID" }];
     SPANNER_INSTANCE_ID = 26 [(label_props) = { name: "SPANNER_INSTANCE_ID" }];
     SPANNER_QUERY_NAME = 27 [(label_props) = { name: "SPANNER_QUERY_NAME" }];
+    // Label which if has a "true" value indicates that the metric is intended
+    // to be aggregated per-worker.
+    PER_WORKER_METRIC = 28 [(label_props) = { name: "PER_WORKER_METRIC" }];
   }
 
   // A set of key and value labels which define the scope of the metric. For
@@ -514,6 +517,10 @@ message MonitoringInfoTypeUrns {
     //   - sum:   beam:coder:varint:v1
     //   - min:   beam:coder:varint:v1
     //   - max:   beam:coder:varint:v1
+    //
+    // Note that when count is zero, the SDK may not send sum, min, and max in
+    // the response. If those fields are included in the payload, runners should
+    // omit them.
     DISTRIBUTION_INT64_TYPE = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
                                      "beam:metrics:distribution_int64:v1"];
 
@@ -528,6 +535,10 @@ message MonitoringInfoTypeUrns {
     //   - sum:   beam:coder:double:v1
     //   - min:   beam:coder:double:v1
     //   - max:   beam:coder:double:v1
+    //
+    // Note that when count is zero, the SDK may not send sum, min, and max in
+    // the response. If those fields are included in the payload, runners should
+    // omit them.
     DISTRIBUTION_DOUBLE_TYPE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
                                  "beam:metrics:distribution_double:v1"];
 

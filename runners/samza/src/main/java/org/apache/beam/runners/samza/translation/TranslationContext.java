@@ -38,13 +38,14 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.TransformInputs;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
@@ -223,7 +224,7 @@ public class TranslationContext {
   private <InT extends PValue, OutT extends PValue> List<PValue> getPValueForTransform(
       SamzaMetricOpFactory.OpType opType,
       @NonNull PTransform<InT, OutT> transform,
-      @NonNull TransformHierarchy.Node node) {
+      TransformHierarchy.@NonNull Node node) {
     switch (opType) {
       case INPUT:
         {
@@ -249,7 +250,7 @@ public class TranslationContext {
 
   // Transforms that read or write to/from external sources are not supported
   private static boolean isIOTransform(
-      @NonNull TransformHierarchy.Node node, SamzaMetricOpFactory.OpType opType) {
+      TransformHierarchy.@NonNull Node node, SamzaMetricOpFactory.OpType opType) {
     switch (opType) {
       case INPUT:
         return node.getInputs().size() == 0;
@@ -368,7 +369,7 @@ public class TranslationContext {
           producer.send(id, new OutgoingMessageEnvelope(sysStream, 0, null, msg));
         };
     final WindowedValue<String> windowedValue =
-        WindowedValue.timestampedValueInGlobalWindow("dummy", new Instant());
+        WindowedValues.timestampedValueInGlobalWindow("dummy", new Instant());
 
     sendFn.accept(OpMessage.ofElement(windowedValue));
     sendFn.accept(new WatermarkMessage(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));

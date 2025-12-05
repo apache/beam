@@ -30,7 +30,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.core.IsInstanceOf;
@@ -115,7 +116,7 @@ public class ReaderFactoryTest {
 
       @Override
       public WindowedValue<String> getCurrent() {
-        return WindowedValue.valueInGlobalWindow("something");
+        return WindowedValues.valueInGlobalWindow("something");
       }
     }
   }

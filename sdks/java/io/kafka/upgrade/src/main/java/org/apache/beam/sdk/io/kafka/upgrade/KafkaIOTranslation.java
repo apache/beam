@@ -102,6 +102,7 @@ public class KafkaIOTranslation {
             .addBooleanField("allows_duplicates")
             .addNullableInt32Field("redistribute_num_keys")
             .addNullableBooleanField("offset_deduplication")
+            .addNullableBooleanField("redistribute_by_record_key")
             .addNullableLogicalTypeField("watch_topic_partition_duration", new NanosDuration())
             .addByteArrayField("timestamp_policy_factory")
             .addNullableMapField("offset_consumer_config", FieldType.STRING, FieldType.BYTES)
@@ -109,6 +110,7 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
             .addNullableInt64Field("consumer_polling_timeout")
+            .addNullableBooleanField("log_topic_verification")
             .build();
 
     @Override
@@ -218,12 +220,18 @@ public class KafkaIOTranslation {
             "Upgrading KafkaIO read transforms that have `withBadRecordErrorHandler` property set"
                 + " is not supported yet.");
       }
+      if (transform.getLogTopicVerification() != null) {
+        fieldValues.put("log_topic_verification", transform.getLogTopicVerification());
+      }
 
       fieldValues.put("redistribute", transform.isRedistributed());
       fieldValues.put("redistribute_num_keys", transform.getRedistributeNumKeys());
       fieldValues.put("allows_duplicates", transform.isAllowDuplicates());
       if (transform.getOffsetDeduplication() != null) {
         fieldValues.put("offset_deduplication", transform.getOffsetDeduplication());
+      }
+      if (transform.getRedistributeByRecordKey() != null) {
+        fieldValues.put("redistribute_by_record_key", transform.getRedistributeByRecordKey());
       }
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
@@ -357,6 +365,12 @@ public class KafkaIOTranslation {
           @Nullable Boolean offsetDeduplication = configRow.getValue("offset_deduplication");
           if (offsetDeduplication != null) {
             transform = transform.withOffsetDeduplication(offsetDeduplication);
+          }
+        }
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.69.0") >= 0) {
+          @Nullable Boolean byRecordKey = configRow.getValue("redistribute_by_record_key");
+          if (byRecordKey != null) {
+            transform = transform.withRedistributeByRecordKey(byRecordKey);
           }
         }
         Duration maxReadTime = configRow.getValue("max_read_time");

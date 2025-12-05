@@ -336,6 +336,9 @@ It is also possible to store the function logic in a file and point to the funct
       name: my_filter
 ```
 
+This allows the logic of the UDF itself to be more easily developed and tested
+using standard software engineering practices.
+
 Currently, in addition to Python, Java, SQL, and JavaScript (experimental)
 expressions are supported as well
 
@@ -508,3 +511,33 @@ a `{type: 'basic_type_name'}` nesting.
 
 This can be especially useful to resolve errors involving the inability to
 handle the `beam:logical:pythonsdk_any:v1` type.
+
+
+## Dependencies
+
+Often user defined functions need to rely on external dependencies.
+These can be provided with a `dependencies` attribute in the transform
+config. For example
+
+```
+- type: MapToFields
+  config:
+    language: python
+    dependencies:
+      - 'scipy>=1.15'
+    fields:
+      new_col:
+        callable: |
+          import scipy.special
+
+          def func(t):
+            return scipy.special.zeta(complex(1/2, t))
+```
+
+The dependencies are interpreted according to the language, e.g.
+for Java one provides a list of maven identifiers and/or jars,
+and for Python one provides a list of pypi package specifiers and/or sdist tarballs.
+See also the full examples using
+[java dependencies](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/elementwise/map_to_fields_with_java_deps.yaml)
+and
+[python dependencies](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/elementwise/map_to_fields_with_deps.yaml).

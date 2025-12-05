@@ -80,6 +80,27 @@ class CounterAggregator(MetricAggregator):
     return int(x)
 
 
+_IDENTITY_HISTOGRAM = object()
+
+
+class HistogramAggregator(MetricAggregator):
+  @staticmethod
+  def identity_element():
+    return _IDENTITY_HISTOGRAM
+
+  def combine(self, x, y):
+    if x is _IDENTITY_HISTOGRAM:
+      return y
+    if y is _IDENTITY_HISTOGRAM:
+      return x
+    return x.combine(y)
+
+  def result(self, x):
+    if x is _IDENTITY_HISTOGRAM:
+      raise TypeError
+    return x.get_result()
+
+
 class GenericAggregator(MetricAggregator):
   def __init__(self, data_class):
     self._data_class = data_class
@@ -105,6 +126,7 @@ class DirectMetrics(MetricResults):
         lambda: DirectMetric(GenericAggregator(StringSetData)))
     self._bounded_tries = defaultdict(
         lambda: DirectMetric(GenericAggregator(BoundedTrieData)))
+    self._histograms = defaultdict(lambda: DirectMetric(HistogramAggregator()))
 
   def _apply_operation(self, bundle, updates, op):
     for k, v in updates.counters.items():
@@ -121,6 +143,9 @@ class DirectMetrics(MetricResults):
 
     for k, v in updates.bounded_tries.items():
       op(self._bounded_tries[k], bundle, v)
+
+    for k, v in updates.histograms.items():
+      op(self._histograms[k], bundle, v)
 
   def commit_logical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.commit_logical(bundle, update)
@@ -139,36 +164,43 @@ class DirectMetrics(MetricResults):
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._counters.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._counters.items()
+        if self.matches(filter, k)
     ]
     distributions = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._distributions.items() if self.matches(filter, k)
+            v.extract_latest_attempted())
+        for k, v in self._distributions.items() if self.matches(filter, k)
     ]
     gauges = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._gauges.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._gauges.items()
+        if self.matches(filter, k)
     ]
     string_sets = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._string_sets.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._string_sets.items()
+        if self.matches(filter, k)
     ]
     bounded_tries = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._bounded_tries.items() if self.matches(filter, k)
+            v.extract_latest_attempted())
+        for k, v in self._bounded_tries.items() if self.matches(filter, k)
+    ]
+    histograms = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k, v in self._histograms.items()
+        if self.matches(filter, k)
     ]
 
     return {
@@ -177,6 +209,7 @@ class DirectMetrics(MetricResults):
         self.GAUGES: gauges,
         self.STRINGSETS: string_sets,
         self.BOUNDED_TRIES: bounded_tries,
+        self.HISTOGRAMS: histograms,
     }
 
 

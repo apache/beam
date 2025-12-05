@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -34,43 +35,87 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 public class RowJsonUtils {
 
+  // The maximum string length for the JSON parser, set to 100 MB.
+  public static final int MAX_STRING_LENGTH = 100 * 1024 * 1024;
+
   //
   private static int defaultBufferLimit;
+
+  private static final boolean STREAM_READ_CONSTRAINTS_AVAILABLE = streamReadConstraintsAvailable();
 
   /**
    * Increase the default jackson-databind stream read constraint.
    *
-   * <p>StreamReadConstraints was introduced in jackson 2.15 causing string > 20MB (5MB in 2.15.0)
-   * parsing failure. This has caused regressions in its dependencies include Beam. Here we
-   * overwrite the default buffer size limit to 100 MB, and exposes this interface for higher limit.
-   * If needed, call this method during pipeline run time, e.g. in DoFn.setup.
+   * <p>In Jackson 2.15, a new constraint is added on the max string length of JSON parsing, see
+   * https://github.com/FasterXML/jackson-core/issues/863. The default is 20M characters. This is
+   * too small for some of our users. This method allows users to increase this limit.
    */
-  public static void increaseDefaultStreamReadConstraints(int newLimit) {
-    if (newLimit <= defaultBufferLimit) {
+  public static synchronized void increaseDefaultStreamReadConstraints(int newLimit) {
+    if (!STREAM_READ_CONSTRAINTS_AVAILABLE) {
       return;
     }
-    try {
-      Class<?> unused = Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
-
+    if (newLimit > defaultBufferLimit) {
       com.fasterxml.jackson.core.StreamReadConstraints.overrideDefaultStreamReadConstraints(
           com.fasterxml.jackson.core.StreamReadConstraints.builder()
               .maxStringLength(newLimit)
               .build());
-    } catch (ClassNotFoundException e) {
-      // <2.15, do nothing
+      defaultBufferLimit = newLimit;
     }
-    defaultBufferLimit = newLimit;
   }
 
   static {
-    increaseDefaultStreamReadConstraints(100 * 1024 * 1024);
+    increaseDefaultStreamReadConstraints(MAX_STRING_LENGTH);
+  }
+
+  private static boolean streamReadConstraintsAvailable() {
+    try {
+      Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
+      return true;
+    } catch (ClassNotFoundException e) {
+      return false;
+    }
+  }
+
+  private static class StreamReadConstraintsHelper {
+    static void setStreamReadConstraints(JsonFactory jsonFactory, int sizeLimit) {
+      com.fasterxml.jackson.core.StreamReadConstraints streamReadConstraints =
+          com.fasterxml.jackson.core.StreamReadConstraints.builder()
+              .maxStringLength(sizeLimit)
+              .build();
+      jsonFactory.setStreamReadConstraints(streamReadConstraints);
+    }
+  }
+
+  /**
+   * Creates a thread-safe JsonFactory with custom stream read constraints.
+   *
+   * <p>This method encapsulates the logic to increase the default jackson-databind stream read
+   * constraint to 100MB. This functionality was introduced in Jackson 2.15 causing string > 20MB
+   * (5MB in <2.15.0) parsing failure. This has caused regressions in its dependencies including
+   * Beam. Here we create a streamReadConstraints minimum size limit set to 100MB and exposing the
+   * factory to higher limits. If needed, call this method during pipeline run time, e.g. in
+   * DoFn.setup. This avoids a data race caused by modifying the global default settings.
+   */
+  public static JsonFactory createJsonFactory(int sizeLimit) {
+    sizeLimit = Math.max(sizeLimit, MAX_STRING_LENGTH);
+    if (STREAM_READ_CONSTRAINTS_AVAILABLE) {
+      // Synchronize to avoid race condition with increaseDefaultStreamReadConstraints
+      // which modifies static defaults that builder() and new JsonFactory() may read.
+      synchronized (RowJsonUtils.class) {
+        JsonFactory jsonFactory = new JsonFactory();
+        StreamReadConstraintsHelper.setStreamReadConstraints(jsonFactory, sizeLimit);
+        return jsonFactory;
+      }
+    } else {
+      return new JsonFactory();
+    }
   }
 
   public static ObjectMapper newObjectMapperWith(RowJson.RowJsonDeserializer deserializer) {
     SimpleModule module = new SimpleModule("rowDeserializationModule");
     module.addDeserializer(Row.class, deserializer);
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectMapper objectMapper = new ObjectMapper(createJsonFactory(MAX_STRING_LENGTH));
     objectMapper.registerModule(module);
 
     return objectMapper;
@@ -80,7 +125,7 @@ public class RowJsonUtils {
     SimpleModule module = new SimpleModule("rowSerializationModule");
     module.addSerializer(Row.class, serializer);
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectMapper objectMapper = new ObjectMapper(createJsonFactory(MAX_STRING_LENGTH));
     objectMapper.registerModule(module);
 
     return objectMapper;

@@ -18,6 +18,7 @@
 from typing import Optional
 
 import torch
+
 from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.batch import N
@@ -136,7 +137,8 @@ class PytorchTypeHint():
         raise ValueError
     else:
       dtype = value
-      return self.PytorchTypeConstraint(dtype, shape=(N, ))
+      return self.PytorchTypeConstraint(
+          dtype, shape=(N, ))
 
 
 PytorchTensor = PytorchTypeHint()

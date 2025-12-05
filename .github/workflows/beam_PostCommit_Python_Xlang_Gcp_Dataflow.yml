@@ -57,7 +57,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python_Xlang_Gcp_Dataflow PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 180
+    timeout-minutes: 240
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
@@ -75,8 +75,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.9
-            3.12
+            3.10
+            3.13
       - name: run PostCommit Python Xlang Gcp Dataflow script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

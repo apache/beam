@@ -73,12 +73,4 @@ public class SqlQuery0Test {
       return SqlQuery0.calciteSqlQuery0();
     }
   }
-
-  @RunWith(JUnit4.class)
-  public static class SqlQuery0TestZetaSql extends SqlQuery0TestCases {
-    @Override
-    protected SqlQuery0 getQuery() {
-      return SqlQuery0.calciteSqlQuery0();
-    }
-  }
 }

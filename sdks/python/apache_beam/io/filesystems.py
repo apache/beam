@@ -125,7 +125,7 @@ class FileSystems(object):
 
   @staticmethod
   def get_filesystem(path):
-    # type: (str) -> FileSystems
+    # type: (str) -> FileSystem
 
     """Get the correct filesystem for the specified path
     """

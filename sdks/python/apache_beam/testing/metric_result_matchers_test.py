@@ -21,8 +21,8 @@
 
 import unittest
 
-from hamcrest import assert_that as hc_assert_that
 from hamcrest import anything
+from hamcrest import assert_that as hc_assert_that
 from hamcrest import equal_to
 from hamcrest.core.core.isnot import is_not
 from hamcrest.library.number.ordering_comparison import greater_than

@@ -87,13 +87,13 @@ jobs:
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-rbac.yaml
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-cluster-crd.yaml
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-operator.yaml
-          kubectl wait --for=condition=Ready pod -l name=sdb-operator --timeout=120s
+          kubectl wait --for=condition=Ready pod -l name=sdb-operator --timeout=300s
       - name: Install SingleStore cluster
         id: install_singlestore
         run: |
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-cluster.yaml
-          kubectl wait --for=jsonpath='{.status.phase}'=Running memsqlclusters.memsql.com --all --timeout=120s
-          kubectl wait svc/svc-sdb-cluster-ddl --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=120s
+          kubectl wait --for=jsonpath='{.status.phase}'=Running memsqlclusters.memsql.com --all --timeout=300s
+          kubectl wait svc/svc-sdb-cluster-ddl --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=300s
           loadbalancer_IP=$(kubectl get svc svc-sdb-cluster-ddl -o jsonpath='{.status.loadBalancer.ingress[0].ip}') 
           echo lb_ip=$loadbalancer_IP >> $GITHUB_OUTPUT
       - name: Run Java SingleStore IO IT

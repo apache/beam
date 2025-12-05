@@ -51,8 +51,8 @@ CATEGORIES = [
 
 
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     'Do not run this test on precommit suites.')
 class YamlJoinTest(unittest.TestCase):
   def test_basic_join(self):

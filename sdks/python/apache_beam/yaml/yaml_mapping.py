@@ -133,6 +133,7 @@ def validate_generic_expression(
   raise ValueError(
       "Missing language specification, unknown input fields, "
       f"or invalid generic expression: {expr}. "
+      f"The given input fields are {input_fields}. "
       "See https://beam.apache.org/documentation/sdks/yaml-udf/#generic")
 
 
@@ -322,6 +323,8 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
       return lambda x: isinstance(x, (int, float))
     elif beam_type.atomic_type == schema_pb2.STRING:
       return lambda x: isinstance(x, str)
+    elif beam_type.atomic_type == schema_pb2.BYTES:
+      return lambda x: isinstance(x, bytes)
     else:
       raise ValueError(
           f'Unknown or unsupported atomic type: {beam_type.atomic_type}')
@@ -484,7 +487,7 @@ class _StripErrorMetadata(beam.PTransform):
           typing_from_runner_api(existing_fields[fld]))
 
 
-class _Validate(beam.PTransform):
+class Validate(beam.PTransform):
   """Validates each element of a PCollection against a json schema.
 
   Args:
@@ -562,7 +565,10 @@ class _Explode(beam.PTransform):
         cross_product = True
     self._fields = fields
     self._cross_product = cross_product
-    # TODO(yaml): Support standard error handling argument.
+    # TODO(yaml):
+    # 1. Support standard error handling argument.
+    # 2. Supposedly error_handling parameter is not an accepted parameter when
+    #    executing.  Needs further investigation.
     self._exception_handling_args = exception_handling_args(error_handling)
 
   @maybe_with_exception_handling
@@ -597,9 +603,10 @@ class _Explode(beam.PTransform):
         pcoll
         | beam.FlatMap(
             lambda row:
-            (explode_cross_product if cross_product else explode_zip)
-            ({name: getattr(row, name)
-              for name in all_fields}, to_explode)))
+            (explode_cross_product if cross_product else explode_zip)({
+                name: getattr(row, name)
+                for name in all_fields
+            }, to_explode)))
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(
@@ -678,7 +685,8 @@ def _PyJsMapToFields(
     fields: Mapping[str, Union[str, Mapping[str, str]]],
     append: Optional[bool] = False,
     drop: Optional[Iterable[str]] = None,
-    language: Optional[str] = None):
+    language: Optional[str] = None,
+    dependencies: Optional[Iterable[str]] = None):
   """Creates records with new fields defined in terms of the input fields.
 
   See more complete documentation on
@@ -694,6 +702,8 @@ def _PyJsMapToFields(
       original record that should not be kept
     language: The language used to define (and execute) the
       expressions and/or callables in `fields`. Defaults to generic.
+    dependencies: An optional list of extra dependencies that are needed for
+      these UDFs.  The interpretation of these strings is language-dependent.
     error_handling: Whether and where to output records that throw errors when
       the above expressions are evaluated.
   """  # pylint: disable=line-too-long
@@ -715,7 +725,7 @@ def _PyJsMapToFields(
 @beam.ptransform.ptransform_fn
 def _SqlFilterTransform(pcoll, sql_transform_constructor, keep, language):
   return pcoll | sql_transform_constructor(
-      f'SELECT * FROM PCOLLECTION WHERE {keep}')
+      f"SELECT * FROM PCOLLECTION WHERE {keep.get('expression')}")
 
 
 @beam.ptransform.ptransform_fn
@@ -745,7 +755,7 @@ def _Partition(
     outputs: list[str],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
-    language: Optional[str] = 'generic'):
+    language: str = 'generic'):
   """Splits an input into several distinct outputs.
 
   Each input element will go to a distinct output based on the field or
@@ -762,7 +772,7 @@ def _Partition(
         parameter.
       error_handling: (Optional) Whether and how to handle errors during
         partitioning.
-      language: (Optional) The language of the `by` expression.
+      language: The language of the `by` expression.
   """
   split_fn = _as_callable_for_pcoll(pcoll, by, 'by', language)
   try:
@@ -811,6 +821,9 @@ def _Partition(
     mapping_transform = mapping_transform.with_outputs(*output_set)
   splits = pcoll | mapping_transform.with_input_types(T).with_output_types(T)
   result = {out: getattr(splits, out) for out in output_set}
+  for tag, out in result.items():
+    if tag != error_output:
+      out.element_type = pcoll.element_type
   if error_output:
     result[error_output] = result[error_output] | map_errors_to_standard_format(
         pcoll.element_type)
@@ -969,7 +982,7 @@ def create_mapping_providers():
           'Partition-javascript': _Partition,
           'Partition-generic': _Partition,
           'StripErrorMetadata': _StripErrorMetadata,
-          'ValidateWithSchema': _Validate,
+          'ValidateWithSchema': Validate,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,

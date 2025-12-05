@@ -20,6 +20,9 @@ package org.apache.beam.sdk.options;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -349,13 +352,15 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   }
 
   /**
-   * Open modules needed for reflection that access JDK internals with Java 9+
+   * Open modules needed for reflection that access JDK internals with Java 9+.
    *
    * <p>With JDK 16+, <a href="#{https://openjdk.java.net/jeps/403}">JDK internals are strongly
    * encapsulated</a> and can result in an InaccessibleObjectException being thrown if a tool or
    * library uses reflection that access JDK internals. If you see these errors in your worker logs,
-   * you can pass in modules to open using the format module/package=target-module(,target-module)*
-   * to allow access to the library. E.g. java.base/java.lang=jamm
+   * you can pass in modules to open using the format {@code
+   * module/package=target-module[,module2/package2=another-target-module]} to allow access to the
+   * library. E.g. {@code --jdkAddOpenModules=java.base/java.lang=jamm}. This will set {@code
+   * --add-opens} JVM flag in SDK Harness invocation.
    *
    * <p>You may see warnings that jamm, a library used to more accurately size objects, is unable to
    * make a private field accessible. To resolve the warning, open the specified module/package to
@@ -365,6 +370,17 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   List<String> getJdkAddOpenModules();
 
   void setJdkAddOpenModules(List<String> options);
+
+  /**
+   * Add modules to the default root set with Java 11+.
+   *
+   * <p>Set {@code --add-modules} JVM flag in SDK Harness invocation. E.g. {@code
+   * --jdkAddModules=module1,module2}.
+   */
+  @Description("Add modules to the default root set with Java 11+.")
+  List<String> getJdkAddRootModules();
+
+  void setJdkAddRootModules(List<String> options);
 
   /**
    * Configure log manager's default log level and log level overrides from the sdk harness options,
@@ -412,6 +428,56 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
       return options.as(StreamingOptions.class).isStreaming()
           ? Duration.ofHours(1)
           : Duration.ofMinutes(1);
+    }
+  }
+
+  /**
+   * The time limit (in minute) that an SDK worker allows for a PTransform operation before
+   * signaling the runner harness to restart the SDK worker.
+   */
+  @Description(
+      "The time limit (in minutes) for any PTransform to finish processing a single element."
+          + " If exceeded, the SDK worker process self-terminates and processing may be restarted by a runner."
+          + " There is no time limit if the value is set to 0.")
+  @NonNegative
+  int getElementProcessingTimeoutMinutes();
+
+  void setElementProcessingTimeoutMinutes(int value);
+
+  /**
+   * The Avro spec supports the `java-class` schema annotation, which allows fields to be serialized
+   * and deserialized via their toString/String constructor. As of Avro 1.11.4+, allowed Java
+   * classes must be explicitly specified via the jvm option. The comma-separated String value of
+   * this pipeline option will be passed to the Dataflow worker via the
+   * -Dorg.apache.avro.SERIALIZABLE_CLASSES jvm option.
+   */
+  @Description("Serializable classes required by java-class props in Avro 1.11.4+")
+  List<String> getAvroSerializableClasses();
+
+  void setAvroSerializableClasses(List<String> options);
+
+  /**
+   * The OpenTelemetry properties that will be appended to the set of system properties for SDK
+   * harness instances. Property names must be specified without the 'otel.' prefix.
+   */
+  @Description(
+      "The OpenTelemetry properties that will be appended to the set of system properties for SDK "
+          + "harness instances. Property names must be specified without the 'otel.' prefix.")
+  Map<String, String> getOpenTelemetryProperties();
+
+  void setOpenTelemetryProperties(Map<String, String> value);
+
+  @JsonIgnore
+  @Hidden
+  @Default.InstanceFactory(GlobalOpenTelemetryFactory.class)
+  OpenTelemetry getOpenTelemetry();
+
+  void setOpenTelemetry(OpenTelemetry value);
+
+  class GlobalOpenTelemetryFactory implements DefaultValueFactory<OpenTelemetry> {
+    @Override
+    public OpenTelemetry create(PipelineOptions options) {
+      return GlobalOpenTelemetry.get();
     }
   }
 }

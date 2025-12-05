@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
@@ -39,12 +40,14 @@ import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import net.bytebuddy.implementation.bytecode.Removal;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueHaver;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
@@ -54,9 +57,9 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.TypeDescriptorWithSchema;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -100,7 +103,8 @@ public class JavaBeanUtils {
 
     for (FieldValueTypeInformation type : getters) {
       FieldValueTypeInformation setterType = setterMap.get(type.getName());
-      Method m = Preconditions.checkNotNull(type.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
+      Method m =
+          Preconditions.checkArgumentNotNull(type.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
       if (setterType == null) {
         throw new RuntimeException(
             String.format(
@@ -171,7 +175,8 @@ public class JavaBeanUtils {
           FieldValueTypeInformation typeInformation,
           TypeConversionsFactory typeConversionsFactory) {
     final Method m =
-        Preconditions.checkNotNull(typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
+        Preconditions.checkArgumentNotNull(
+            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
     DynamicType.Builder<FieldValueGetter<ObjectT, ValueT>> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
@@ -238,7 +243,8 @@ public class JavaBeanUtils {
   public static <ObjectT, ValueT> FieldValueSetter<ObjectT, ValueT> createSetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     final Method m =
-        Preconditions.checkNotNull(typeInformation.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
+        Preconditions.checkArgumentNotNull(
+            typeInformation.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
     DynamicType.Builder<FieldValueSetter<ObjectT, ValueT>> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
@@ -274,6 +280,38 @@ public class JavaBeanUtils {
         .intercept(FixedValue.reference(fieldValueTypeInformation.getName()))
         .method(ElementMatchers.named("set"))
         .intercept(new InvokeSetterInstruction(fieldValueTypeInformation, typeConversionsFactory));
+  }
+
+  public static <ObjectT> FieldValueHaver<ObjectT> createHaver(
+      Class<ObjectT> clazz, Method hasMethod) {
+    DynamicType.Builder<FieldValueHaver<ObjectT>> builder =
+        ByteBuddyUtils.subclassHaverInterface(BYTE_BUDDY, clazz);
+    builder = implementHaverMethods(builder, hasMethod);
+    try {
+      return builder
+          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
+          .make()
+          .load(
+              ReflectHelpers.findClassLoader(clazz.getClassLoader()),
+              getClassLoadingStrategy(clazz))
+          .getLoaded()
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException
+        | NoSuchMethodException e) {
+      throw new RuntimeException("Unable to generate a have for hasMethod '" + hasMethod + "'", e);
+    }
+  }
+
+  private static <ObjectT> DynamicType.Builder<FieldValueHaver<ObjectT>> implementHaverMethods(
+      DynamicType.Builder<FieldValueHaver<ObjectT>> builder, Method hasMethod) {
+    return builder
+        .method(ElementMatchers.named("name"))
+        .intercept(FixedValue.reference(hasMethod.getName()))
+        .method(ElementMatchers.named("has"))
+        .intercept(new InvokeHaverInstruction(hasMethod));
   }
 
   // The list of constructors for a class is cached, so we only create the classes the first time
@@ -406,6 +444,14 @@ public class JavaBeanUtils {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
+        StackManipulation cast =
+            typeInformation
+                    .getRawType()
+                    .isAssignableFrom(
+                        Preconditions.checkStateNotNull(typeInformation.getMethod())
+                            .getReturnType())
+                ? StackManipulation.Trivial.INSTANCE
+                : TypeCasting.to(TypeDescription.ForLoadedType.of(typeInformation.getRawType()));
 
         // StackManipulation that will read the value from the class field.
         StackManipulation readValue =
@@ -415,8 +461,9 @@ public class JavaBeanUtils {
                 // Invoke the getter
                 MethodInvocation.invoke(
                     new ForLoadedMethod(
-                        Preconditions.checkNotNull(
-                            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR))));
+                        Preconditions.checkStateNotNull(
+                            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR))),
+                cast);
 
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
@@ -459,7 +506,7 @@ public class JavaBeanUtils {
         StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(2);
 
         Method method =
-            Preconditions.checkNotNull(
+            Preconditions.checkStateNotNull(
                 fieldValueTypeInformation.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
         boolean setterMethodReturnsVoid = method.getReturnType().equals(Void.TYPE);
         // Read the object onto the stack.
@@ -482,6 +529,37 @@ public class JavaBeanUtils {
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);
       };
+    }
+  }
+
+  // Implements a method to check a presence on an object.
+  private static class InvokeHaverInstruction implements Implementation {
+    private final Method hasMethod;
+
+    public InvokeHaverInstruction(Method hasMethod) {
+      this.hasMethod = hasMethod;
+    }
+
+    @Override
+    public ByteCodeAppender appender(Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        // this + method parameters.
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+        StackManipulation.Size size =
+            new StackManipulation.Compound(
+                    // Read the first argument
+                    MethodVariableAccess.REFERENCE.loadFrom(1),
+                    // Call hasMethod
+                    MethodInvocation.invoke(new ForLoadedMethod(hasMethod)),
+                    MethodReturn.INTEGER)
+                .apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), numLocals);
+      };
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
     }
   }
 }

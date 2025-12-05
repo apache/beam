@@ -269,6 +269,7 @@ createCrossLanguageValidatesRunnerTask(
     "--environmentCacheMillis=10000",
     "--experiments=beam_fn_api",
     "--parallelism=2",
+    "--customBeamRequirement=${project.project(":sdks:python").projectDir}/build/apache-beam.tar.gz",
   ],
   goScriptOptions: [
     "--runner flink",
@@ -276,6 +277,12 @@ createCrossLanguageValidatesRunnerTask(
     "--endpoint localhost:${jobPort}",
   ],
 )
+
+shadowJar {
+    manifest {
+        attributes(["Multi-Release": true])
+    }
+}
 
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.
 tasks.register("miniCluster", Jar) {

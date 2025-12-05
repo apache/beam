@@ -77,7 +77,8 @@ public class ActiveWorkRefresherTest {
         TimeUnit.SECONDS,
         1,
         10000000,
-        new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build());
+        new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
+        /*useFairMonitor=*/ false);
   }
 
   private static ComputationState createComputationState(int computationIdSuffix) {
@@ -132,6 +133,7 @@ public class ActiveWorkRefresherTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
+            false,
             A_LONG_TIME_AGO),
         processWork);
   }

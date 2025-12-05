@@ -72,12 +72,12 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   def __init__(self):
     self._jobs: Dict[str, AbstractBeamJob] = {}
 
-  def create_beam_job(self,
-                      preparation_id,  # stype: str
-                      job_name: str,
-                      pipeline: beam_runner_api_pb2.Pipeline,
-                      options: struct_pb2.Struct
-                     ) -> 'AbstractBeamJob':
+  def create_beam_job(
+      self,
+      preparation_id,  # stype: str
+      job_name: str,
+      pipeline: beam_runner_api_pb2.Pipeline,
+      options: struct_pb2.Struct) -> 'AbstractBeamJob':
     """Returns an instance of AbstractBeamJob specific to this servicer."""
     raise NotImplementedError(type(self))
 

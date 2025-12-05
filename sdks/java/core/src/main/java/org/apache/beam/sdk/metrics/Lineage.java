@@ -17,11 +17,17 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -32,12 +38,20 @@ public class Lineage {
   public static final String LINEAGE_NAMESPACE = "lineage";
   private static final Lineage SOURCES = new Lineage(Type.SOURCE);
   private static final Lineage SINKS = new Lineage(Type.SINK);
-  private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.]");
+  // Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
+  private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.`]");
 
-  private final StringSet metric;
+  private final Metric metric;
 
   private Lineage(Type type) {
-    this.metric = Metrics.stringSet(LINEAGE_NAMESPACE, type.toString());
+    if (MetricsFlag.lineageRollupEnabled()) {
+      this.metric =
+          Metrics.boundedTrie(
+              LINEAGE_NAMESPACE,
+              type == Type.SOURCE ? Type.SOURCEV2.toString() : Type.SINKV2.toString());
+    } else {
+      this.metric = Metrics.stringSet(LINEAGE_NAMESPACE, type.toString());
+    }
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
@@ -50,111 +64,151 @@ public class Lineage {
     return SINKS;
   }
 
-  /**
-   * Wrap segment to valid segment name.
-   *
-   * <p>Specifically, If there are reserved chars (colon, whitespace, dot), escape with backtick. If
-   * the segment is already wrapped, return the original.
-   *
-   * <p>This helper method is for internal and testing usage only.
-   */
-  @Internal
-  public static String wrapSegment(String value) {
-    if (value.startsWith("`") && value.endsWith("`")) {
-      return value;
-    }
-    if (RESERVED_CHARS.matcher(value).find()) {
-      return String.format("`%s`", value);
-    }
-    return value;
-  }
+  @VisibleForTesting
+  static Iterable<String> getFQNParts(
+      String system,
+      @Nullable String subtype,
+      Iterable<String> segments,
+      @Nullable String lastSegmentSep) {
 
-  /**
-   * Assemble fully qualified name (<a
-   * href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">FQN</a>). Format:
-   *
-   * <ul>
-   *   <li>{@code system:segment1.segment2}
-   *   <li>{@code system:subtype:segment1.segment2}
-   *   <li>{@code system:`segment1.with.dots:clons`.segment2}
-   * </ul>
-   *
-   * <p>This helper method is for internal and testing usage only.
-   */
-  @Internal
-  public static String getFqName(
-      String system, @Nullable String subtype, Iterable<String> segments) {
-    StringBuilder builder = new StringBuilder(system);
-    if (!Strings.isNullOrEmpty(subtype)) {
-      builder.append(":").append(subtype);
+    List<String> parts = new ArrayList<>();
+    parts.add(system + ":");
+    if (subtype != null) {
+      parts.add(subtype + ":");
     }
-    int idx = 0;
-    for (String segment : segments) {
-      if (idx == 0) {
-        builder.append(":");
-      } else {
-        builder.append(".");
+
+    if (segments != null) {
+      Iterator<String> iterator = segments.iterator();
+      String previousSegment = null;
+      while (iterator.hasNext()) {
+        if (previousSegment != null) {
+          parts.add(wrapSegment(previousSegment) + ".");
+        }
+        previousSegment = iterator.next();
       }
-      builder.append(wrapSegment(segment));
-      ++idx;
+
+      if (previousSegment != null) {
+        if (lastSegmentSep != null) {
+          List<String> subSegments =
+              Splitter.onPattern(lastSegmentSep).splitToList(wrapSegment(previousSegment));
+          for (int i = 0; i < subSegments.size() - 1; i++) {
+            parts.add(subSegments.get(i) + lastSegmentSep);
+          }
+          parts.add(subSegments.get(subSegments.size() - 1));
+        } else {
+          parts.add(wrapSegment(previousSegment));
+        }
+      }
     }
-    return builder.toString();
+    return parts;
   }
 
   /**
-   * Assemble the FQN of given system, and segments.
-   *
-   * <p>This helper method is for internal and testing usage only.
+   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link
+   * #getFQNParts}.
    */
-  @Internal
-  public static String getFqName(String system, Iterable<String> segments) {
-    return getFqName(system, null, segments);
+  public void add(
+      String system,
+      @Nullable String subtype,
+      Iterable<String> segments,
+      @Nullable String lastSegmentSep) {
+    add(getFQNParts(system, subtype, segments, lastSegmentSep));
   }
 
   /**
-   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link #getFqName}.
+   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link
+   * #getFQNParts}.
    */
-  public void add(String system, @Nullable String subtype, Iterable<String> segments) {
-    add(getFqName(system, subtype, segments));
+  public void add(String system, Iterable<String> segments, @Nullable String lastSegmentSep) {
+    add(system, null, segments, lastSegmentSep);
   }
 
   /**
-   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link #getFqName}.
+   * Add a FQN (fully-qualified name) to Lineage. Segments will be processed via {@link
+   * #getFQNParts}.
    */
   public void add(String system, Iterable<String> segments) {
-    add(system, null, segments);
+    add(system, segments, null);
   }
 
   /**
-   * Adds the given details as Lineage. For asset level lineage the resource location should be
-   * specified as Dataplex FQN https://cloud.google.com/data-catalog/docs/fully-qualified-names
+   * Adds the given fqn as lineage.
+   *
+   * @param rollupSegments should be an iterable of strings whose concatenation is a valid <a
+   *     href="https://cloud.google.com/data-catalog/docs/fully-qualified-names">Dataplex FQN </a>
+   *     which is already escaped.
+   *     <p>In particular, this means they will often have trailing delimiters.
    */
-  public void add(String details) {
-    metric.add(details);
+  public void add(Iterable<String> rollupSegments) {
+    ImmutableList<String> segments = ImmutableList.copyOf(rollupSegments);
+    if (MetricsFlag.lineageRollupEnabled()) {
+      ((BoundedTrie) this.metric).add(segments);
+    } else {
+      ((StringSet) this.metric).add(String.join("", segments));
+    }
   }
 
-  /** Query {@link StringSet} metrics from {@link MetricResults}. */
-  public static Set<String> query(MetricResults results, Type type) {
-    MetricsFilter filter =
-        MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.named(LINEAGE_NAMESPACE, type.toString()))
-            .build();
+  /**
+   * Query {@link BoundedTrie} metrics from {@link MetricResults}.
+   *
+   * @param results FQNs from the result.
+   * @param type sources or sinks.
+   * @param truncatedMarker the marker to use to represent truncated FQNs.
+   * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing
+   *     truncatedMarker.
+   */
+  public static Set<String> query(MetricResults results, Type type, String truncatedMarker) {
+    MetricQueryResults lineageQueryResults = getLineageQueryResults(results, type);
     Set<String> result = new HashSet<>();
-    for (MetricResult<StringSetResult> metrics : results.queryMetrics(filter).getStringSets()) {
+    truncatedMarker = truncatedMarker == null ? "*" : truncatedMarker;
+    for (MetricResult<BoundedTrieResult> metrics : lineageQueryResults.getBoundedTries()) {
       try {
-        result.addAll(metrics.getCommitted().getStringSet());
+        for (List<String> fqn : metrics.getCommitted().getResult()) {
+          String end = Boolean.parseBoolean(fqn.get(fqn.size() - 1)) ? truncatedMarker : "";
+          result.add(String.join("", fqn.subList(0, fqn.size() - 1)) + end);
+        }
       } catch (UnsupportedOperationException unused) {
         // MetricsResult.getCommitted throws this exception when runner support missing, just skip.
       }
-      result.addAll(metrics.getAttempted().getStringSet());
+      for (List<String> fqn : metrics.getAttempted().getResult()) {
+        String end = Boolean.parseBoolean(fqn.get(fqn.size() - 1)) ? truncatedMarker : "";
+        result.add(String.join("", fqn.subList(0, fqn.size() - 1)) + end);
+      }
     }
     return result;
   }
 
+  /**
+   * Query {@link BoundedTrie} metrics from {@link MetricResults}.
+   *
+   * @param results FQNs from the result
+   * @param type sources or sinks
+   * @return A flat representation of all FQNs. If the FQN was truncated then it has a trailing '*'.
+   */
+  public static Set<String> query(MetricResults results, Type type) {
+    if (MetricsFlag.lineageRollupEnabled()) {
+      // If user accidentally end up specifying V1 type then override it with V2.
+      if (type == Type.SOURCE) {
+        type = Type.SOURCEV2;
+      }
+      if (type == Type.SINK) {
+        type = Type.SINKV2;
+      }
+      return query(results, type, "*");
+    } else {
+      return queryLineageV1(results, type);
+    }
+  }
+
   /** Lineage metrics resource types. */
   public enum Type {
+    // Used by StringSet to report lineage metrics
     SOURCE("sources"),
-    SINK("sinks");
+    SINK("sinks"),
+
+    // Used by BoundedTrie to report lineage metrics
+    SOURCEV2("sources_v2"),
+    SINKV2("sinks_v2");
 
     private final String name;
 
@@ -166,5 +220,57 @@ public class Lineage {
     public String toString() {
       return name;
     }
+  }
+
+  /**
+   * Query {@link StringSet} metrics from {@link MetricResults}. This method is kept as-is from
+   * previous Beam release for removal once BoundedTrie is made default.
+   */
+  private static Set<String> queryLineageV1(MetricResults results, Type type) {
+    MetricQueryResults lineageQueryResults = getLineageQueryResults(results, type);
+    Set<String> result = new HashSet<>();
+    for (MetricResult<StringSetResult> metrics : lineageQueryResults.getStringSets()) {
+      try {
+        result.addAll(metrics.getCommitted().getStringSet());
+      } catch (UnsupportedOperationException unused) {
+        // MetricsResult.getCommitted throws this exception when runner support missing, just skip.
+      }
+      result.addAll(metrics.getAttempted().getStringSet());
+    }
+    return result;
+  }
+
+  /** @return {@link MetricQueryResults} containing lineage metrics. */
+  private static MetricQueryResults getLineageQueryResults(MetricResults results, Type type) {
+    MetricsFilter filter =
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named(LINEAGE_NAMESPACE, type.toString()))
+            .build();
+    return results.queryMetrics(filter);
+  }
+
+  /**
+   * Wrap segment to valid segment name.
+   *
+   * <p>It escapes reserved characters
+   *
+   * <ul>
+   *   <li>Reserved characters are backtick, colon, whitespace (space, \t, \n) and dot.
+   *   <li>Only segments containing reserved characters must be escaped.
+   *   <li>Segments cannot be escaped partially (i.e. “bigquery:com`.`google.test”).
+   *   <li>Segments must be escaped using backticks (a.k.a. graves).
+   *   <li>Backticks must be escaped using backtick (i.e. bigquery:`test``test`) and the segment
+   *       itself must be escaped as well.
+   * </ul>
+   */
+  @Internal
+  public static String wrapSegment(String value) {
+    value = value.replace("`", "``"); // Escape backticks
+    // the escaped backticks will not throw this off since escaping will
+    // happen if it contains ` in first place.
+    if (RESERVED_CHARS.matcher(value).find()) {
+      return String.format("`%s`", value);
+    }
+    return value;
   }
 }

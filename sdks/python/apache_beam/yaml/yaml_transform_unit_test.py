@@ -28,7 +28,9 @@ from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import ensure_errors_consumed
 from apache_beam.yaml.yaml_transform import ensure_transforms_have_types
 from apache_beam.yaml.yaml_transform import expand_composite_transform
+from apache_beam.yaml.yaml_transform import expand_pipeline
 from apache_beam.yaml.yaml_transform import extract_name
+from apache_beam.yaml.yaml_transform import get_main_output_key
 from apache_beam.yaml.yaml_transform import identify_object
 from apache_beam.yaml.yaml_transform import normalize_inputs_outputs
 from apache_beam.yaml.yaml_transform import normalize_source_sink
@@ -38,7 +40,13 @@ from apache_beam.yaml.yaml_transform import preprocess
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
 from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
+from apache_beam.yaml.yaml_transform import validate_against_schema
 from apache_beam.yaml.yaml_utils import SafeLineLoader
+
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
 
 
 def new_pipeline():
@@ -47,6 +55,7 @@ def new_pipeline():
           pickle_library='cloudpickle'))
 
 
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class MainTest(unittest.TestCase):
   def assertYaml(self, expected, result):
     result = SafeLineLoader.strip_metadata(result)
@@ -290,6 +299,23 @@ class MainTest(unittest.TestCase):
         r"Transform .* is part of a chain. "
         r"Cannot define explicit inputs on chain pipeline"):
       chain_as_composite(spec)
+
+  def test_validate_against_schema_with_transform_input(self):
+    spec = '''
+        pipeline:
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [1, 2, 3]
+            - type: LogForTesting
+              input: Create
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(jsonschema.ValidationError,
+                                r"'input' should not be used "
+                                r"along with 'chain' type transforms.*"):
+      validate_against_schema(spec, 'generic')
 
   def test_normalize_source_sink(self):
     spec = '''
@@ -927,6 +953,52 @@ class MainTest(unittest.TestCase):
   def test_only_element(self):
     self.assertEqual(only_element((1, )), 1)
 
+  def test_get_main_output_key(self):
+    spec = {'type': 'TestTransform'}
+    error_handling_spec = {'output': 'invalid_rows'}
+
+    # Case 1: 'output' key exists
+    outputs = {'output': 1, 'another': 2}
+    with self.assertLogs('apache_beam.yaml.yaml_transform',
+                         level='WARNING') as al:
+      self.assertEqual(
+          get_main_output_key(spec, outputs, error_handling_spec), 'output')
+      self.assertIn("Only the main output will be validated.", al.output[0])
+
+    # Case 2: 'good' key exists, 'output' does not
+    outputs = {'good': 1, 'another': 2}
+    with self.assertLogs('apache_beam.yaml.yaml_transform',
+                         level='WARNING') as al:
+      self.assertEqual(
+          get_main_output_key(spec, outputs, error_handling_spec), 'good')
+      self.assertIn("Only the main output will be validated.", al.output[0])
+
+    # Case 3: Only one output
+    outputs = {'single_output': 1}
+    self.assertEqual(
+        get_main_output_key(spec, outputs, error_handling_spec),
+        'single_output')
+
+    # Case 4: Multiple outputs, no 'output' or 'good'
+    outputs = {'another': 1, 'yet_another': 2}
+    with self.assertRaisesRegex(
+        ValueError, "Transform .* has outputs .* but none are named 'output'"):
+      get_main_output_key(spec, outputs, error_handling_spec)
+
+    # Case 5: Empty outputs
+    outputs = {}
+    with self.assertRaisesRegex(
+        ValueError, "Transform .* has outputs .* but none are named 'output'"):
+      get_main_output_key(spec, outputs, error_handling_spec)
+
+    # Case 6: More than two outputs with 'good' present
+    outputs = {'good': 1, 'bad': 2, 'something': 3}
+    with self.assertLogs('apache_beam.yaml.yaml_transform',
+                         level='WARNING') as al:
+      self.assertEqual(
+          get_main_output_key(spec, outputs, error_handling_spec), 'good')
+      self.assertIn("Only the main output will be validated.", al.output[0])
+
 
 class YamlTransformTest(unittest.TestCase):
   def test_init_with_string(self):
@@ -963,6 +1035,69 @@ class YamlTransformTest(unittest.TestCase):
     self.assertIn(
         'LogForTesting', result._providers)  # check for standard provider
     self.assertEqual(result._spec['type'], "composite")  # preprocessed spec
+
+
+class ExpandPipelineTest(unittest.TestCase):
+  def test_expand_pipeline_with_pipeline_key_only(self):
+    spec = '''
+      pipeline:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+    '''
+    with new_pipeline() as p:
+      expand_pipeline(p, spec, validate_schema=None)
+
+  def test_expand_pipeline_with_pipeline_and_option_keys(self):
+    spec = '''
+      pipeline:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+      options:
+        streaming: false
+    '''
+    with new_pipeline() as p:
+      expand_pipeline(p, spec, validate_schema=None)
+
+  def test_expand_pipeline_with_extra_top_level_keys(self):
+    spec = '''
+      template:
+        version: "1.0"
+        author: "test_user"
+
+      pipeline:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+
+      other_metadata: "This is an ignored comment."
+    '''
+    with new_pipeline() as p:
+      expand_pipeline(p, spec, validate_schema=None)
+
+  def test_expand_pipeline_with_incorrect_pipelines_key_fails(self):
+    spec = '''
+      pipelines:
+        type: chain
+        transforms:
+          - type: Create
+            config:
+              elements: [1,2,3]
+          - type: LogForTesting
+    '''
+    with new_pipeline() as p:
+      with self.assertRaises(KeyError):
+        expand_pipeline(p, spec, validate_schema=None)
 
 
 if __name__ == '__main__':

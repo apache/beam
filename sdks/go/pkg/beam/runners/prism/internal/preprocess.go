@@ -106,6 +106,15 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 
 			// If there's an unknown urn, and it's not composite, simply add it to the leaves.
 			if len(t.GetSubtransforms()) == 0 {
+				// However, if it is an empty transform with identical input/output pcollections,
+				// it will be discarded.
+				if len(t.GetInputs()) == 1 && len(t.GetOutputs()) == 1 {
+					inputID := getOnlyValue(t.GetInputs())
+					outputID := getOnlyValue(t.GetOutputs())
+					if inputID == outputID {
+						continue
+					}
+				}
 				leaves[tid] = struct{}{}
 			}
 			continue
@@ -173,6 +182,20 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 			return nil
 		}
 	}
+	var stageDetails []any
+	for i, stg := range stages {
+		var transformNames []string
+		for _, tid := range stg.transforms {
+			transformNames = append(transformNames, comps.GetTransforms()[tid].GetUniqueName())
+		}
+		stageDetails = append(stageDetails,
+			slog.Group(fmt.Sprintf("stage-%03d", i),
+				slog.String("environment", stg.envID),
+				slog.Any("transforms", transformNames),
+			),
+		)
+	}
+	slog.Debug("preProcessGraph: all stages and transforms", stageDetails...)
 	return stages
 }
 
@@ -483,6 +506,9 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 	}
 
 	stg.internalCols = internal
+	// Sort the keys of internal producers (from stageFacts.PcolProducers)
+	// to ensure deterministic order for stable tests.
+	sort.Strings(stg.internalCols)
 	stg.outputs = maps.Values(outputs)
 	stg.sideInputs = sideInputs
 

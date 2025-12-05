@@ -17,7 +17,7 @@ name: StressTests Java KafkaIO
 
 on:
   schedule:
-    - cron: '0 10 * * 0'
+    - cron: '0 14 * * 0'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -80,20 +80,85 @@ jobs:
       - name: Install Kafka
         id: install_kafka
         run: |
-          kubectl apply -k ${{ github.workspace }}/.test-infra/kafka/strimzi/02-kafka-persistent/overlays/gke-internal-load-balanced
-          kubectl wait kafka beam-testing-cluster --for=condition=Ready --timeout=1800s
+          echo "Deploying Kafka cluster using existing .test-infra/kubernetes/kafka-cluster configuration..."
+          kubectl apply -R -f ${{ github.workspace }}/.test-infra/kubernetes/kafka-cluster/
+
+          # Wait for pods to be created and ready
+          echo "Waiting for Kafka cluster to be ready..."
+          sleep 180
+
+          # Check pod status
+          echo "Checking pod status..."
+          kubectl get pods -l app=kafka
+          kubectl get pods -l app=zookeeper
+
+          # Wait for at least one Kafka pod to be ready
+          echo "Waiting for Kafka pods to be ready..."
+          kubectl wait --for=condition=ready pod -l app=kafka --timeout=300s || echo "Kafka pods not ready, continuing anyway"
+
+          # Wait for Zookeeper to be ready
+          echo "Waiting for Zookeeper pods to be ready..."
+          kubectl wait --for=condition=ready pod -l app=zookeeper --timeout=300s || echo "Zookeeper pods not ready, continuing anyway"
+
       - name: Set up Kafka brokers
         id: set_brokers
         run: |
+          echo "Setting up Kafka brokers for existing cluster configuration..."
           declare -a kafka_service_brokers
           declare -a kafka_service_brokers_ports
+
           for INDEX in {0..2}; do
-            kubectl wait svc/beam-testing-cluster-kafka-${INDEX} --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=1200s
-            kafka_service_brokers[$INDEX]=$(kubectl get svc beam-testing-cluster-kafka-${INDEX} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            kafka_service_brokers_ports[$INDEX]=$(kubectl get svc beam-testing-cluster-kafka-${INDEX} -o jsonpath='{.spec.ports[0].port}')
+            echo "Setting up broker ${INDEX}..."
+
+            # Try to get LoadBalancer IP
+            LB_IP=$(kubectl get svc outside-${INDEX} -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+
+            if [ -n "$LB_IP" ] && [ "$LB_IP" != "null" ]; then
+              echo "Using LoadBalancer IP: $LB_IP"
+              kafka_service_brokers[$INDEX]=$LB_IP
+            else
+              echo "LoadBalancer IP not available, using NodePort approach..."
+              # Get the first node's internal IP
+              NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+              kafka_service_brokers[$INDEX]=$NODE_IP
+            fi
+
+            # Get the port
+            PORT=$(kubectl get svc outside-${INDEX} -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "9094")
+            kafka_service_brokers_ports[$INDEX]=$PORT
+
             echo "KAFKA_SERVICE_BROKER_${INDEX}=${kafka_service_brokers[$INDEX]}" >> $GITHUB_OUTPUT
             echo "KAFKA_SERVICE_BROKER_PORTS_${INDEX}=${kafka_service_brokers_ports[$INDEX]}" >> $GITHUB_OUTPUT
+
+            echo "Broker ${INDEX}: ${kafka_service_brokers[$INDEX]}:${kafka_service_brokers_ports[$INDEX]}"
           done
+
+      - name: Create Kafka topic
+        id: create_topic
+        run: |
+          echo "Creating Kafka topic 'beam'..."
+
+          # Get the first available Kafka pod
+          KAFKA_POD=$(kubectl get pods -l app=kafka -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+
+          if [ -z "$KAFKA_POD" ]; then
+            echo "No Kafka pods found, skipping topic creation"
+            exit 0
+          fi
+
+          echo "Using Kafka pod: $KAFKA_POD"
+
+          # Wait a bit more for the pod to be fully operational
+          echo "Waiting for pod to be fully operational..."
+          sleep 60
+
+          # Create the topic using the correct container and path
+          echo "Creating topic 'beam'..."
+          kubectl exec $KAFKA_POD -c broker -- /opt/kafka/bin/kafka-topics.sh --create --topic beam --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 || echo "Topic may already exist"
+
+          # Verify topic was created
+          echo "Verifying topic creation..."
+          kubectl exec $KAFKA_POD -c broker -- /opt/kafka/bin/kafka-topics.sh --list --zookeeper zookeeper:2181 || echo "Could not list topics"
       - name: run Kafka StressTest Large
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

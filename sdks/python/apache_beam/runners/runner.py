@@ -32,12 +32,12 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.common import group_by_key_input_visitor
+from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
 from apache_beam.transforms import environments
 
 if TYPE_CHECKING:
-  from apache_beam import pvalue
   from apache_beam import PTransform
+  from apache_beam import pvalue
   from apache_beam.pipeline import Pipeline
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
@@ -136,8 +136,8 @@ class PipelineRunner(object):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import PTransform
-    from apache_beam.pvalue import PBegin
     from apache_beam.pipeline import Pipeline
+    from apache_beam.pvalue import PBegin
     p = Pipeline(runner=self, options=options)
     if isinstance(transform, PTransform):
       p | transform
@@ -224,6 +224,10 @@ class PipelineRunner(object):
               beam_runner_api_pb2.TimeDomain.EVENT_TIME,
               beam_runner_api_pb2.TimeDomain.PROCESSING_TIME):
             raise NotImplementedError(timer.time_domain)
+
+  def default_pickle_library_override(self):
+    """Default pickle library, can be overridden by runner implementation."""
+    return None
 
 
 # FIXME: replace with PipelineState(str, enum.Enum)

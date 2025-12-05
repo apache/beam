@@ -54,6 +54,15 @@ from apache_beam.typehints.typehints import Union
 # method on a C-implemented type will do.
 _MethodDescriptorType = type(str.upper)
 
+if sys.version_info >= (3, 11):
+  import opcode
+  _div_binop_args = frozenset([
+      ix for (ix, (argname, _)) in enumerate(opcode._nb_ops)
+      if 'TRUE_DIVIDE' in argname
+  ])
+else:
+  _div_binop_args = frozenset()
+
 
 def pop_one(state, unused_arg):
   del state.stack[-1:]
@@ -137,13 +146,32 @@ def get_iter(state, unused_arg):
   state.stack.append(Iterable[element_type(state.stack.pop())])
 
 
-def symmetric_binary_op(state, unused_arg):
+_NUMERIC_PROMOTION_LADDER = [bool, int, float, complex]
+
+
+def symmetric_binary_op(state, arg, is_true_div=None):
   # TODO(robertwb): This may not be entirely correct...
   b, a = Const.unwrap(state.stack.pop()), Const.unwrap(state.stack.pop())
   if a == b:
-    state.stack.append(a)
+    if a is int and b is int and (arg in _div_binop_args or is_true_div):
+      state.stack.append(float)
+    else:
+      state.stack.append(a)
   elif type(a) == type(b) and isinstance(a, typehints.SequenceTypeConstraint):
     state.stack.append(type(a)(union(element_type(a), element_type(b))))
+  # Technically these next two will be errors for anything but multiplication,
+  # but that's OK.
+  elif a is int and (b in (bytes, str) or
+                     isinstance(b, typehints.SequenceTypeConstraint)):
+    state.stack.append(b)
+  elif b is int and (a in (bytes, str) or
+                     isinstance(a, typehints.SequenceTypeConstraint)):
+    state.stack.append(a)
+  elif a in _NUMERIC_PROMOTION_LADDER and b in _NUMERIC_PROMOTION_LADDER:
+    state.stack.append(
+        _NUMERIC_PROMOTION_LADDER[max(
+            _NUMERIC_PROMOTION_LADDER.index(a),
+            _NUMERIC_PROMOTION_LADDER.index(b))])
   else:
     state.stack.append(Any)
 
@@ -155,12 +183,8 @@ binary_divide = inplace_divide = symmetric_binary_op
 binary_floor_divide = inplace_floor_divide = symmetric_binary_op
 
 
-def binary_true_divide(state, unused_arg):
-  u = union(state.stack.pop(), state.stack.pop)
-  if u == int:
-    state.stack.append(float)
-  else:
-    state.stack.append(u)
+def binary_true_divide(state, arg):
+  return symmetric_binary_op(state, arg, True)
 
 
 inplace_true_divide = binary_true_divide
@@ -466,6 +490,13 @@ def load_fast(state, arg):
   state.stack.append(state.vars[arg])
 
 
+def load_fast_load_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.stack.append(state.vars[arg1])
+  state.stack.append(state.vars[arg2])
+
+
 load_fast_check = load_fast
 
 
@@ -476,6 +507,20 @@ def load_fast_and_clear(state, arg):
 
 def store_fast(state, arg):
   state.vars[arg] = state.stack.pop()
+
+
+def store_fast_store_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.vars[arg1] = state.stack.pop()
+  state.vars[arg2] = state.stack.pop()
+
+
+def store_fast_load_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.vars[arg1] = state.stack.pop()
+  state.stack.append(state.vars[arg2])
 
 
 def delete_fast(state, arg):
@@ -531,23 +576,36 @@ def make_function(state, arg):
     pop_count = 2
     is_lambda = False
   closure = None
-  # arg contains flags, with corresponding stack values if positive.
-  # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
-  pop_count += bin(arg).count('1')
-  if arg & 0x08:
-    # Convert types in Tuple constraint to a tuple of CPython cells.
-    # https://stackoverflow.com/a/44670295
-    if is_lambda:
-      closureTuplePos = -2
-    else:
-      closureTuplePos = -3
-    closure = tuple((lambda _: lambda: _)(t).__closure__[0]
-                    for t in state.stack[closureTuplePos].tuple_types)
+  if (sys.version_info.major, sys.version_info.minor) < (3, 13):
+    # arg contains flags, with corresponding stack values if positive.
+    # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
+    pop_count += bin(arg).count('1')
+    if arg & 0x08:
+      # Convert types in Tuple constraint to a tuple of CPython cells.
+      # https://stackoverflow.com/a/44670295
+      if is_lambda:
+        closureTuplePos = -2
+      else:
+        closureTuplePos = -3
+      closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+                      for t in state.stack[closureTuplePos].tuple_types)
 
   func = types.FunctionType(func_code, globals, name=func_name, closure=closure)
 
   assert pop_count <= len(state.stack)
   state.stack[-pop_count:] = [Const(func)]
+
+
+def set_function_attribute(state, arg):
+  func = state.stack.pop().value
+  attr = state.stack.pop().value
+  closure = None
+  if arg & 0x08:
+    closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+                    for t in state.stack[attr].tuple_types)
+  new_func = types.FunctionType(
+      func.code, func.globals, name=func.name, closure=closure)
+  state.stack.append(Const(new_func))
 
 
 def make_closure(state, arg):
@@ -558,6 +616,10 @@ def build_slice(state, arg):
   state.stack[-arg:] = [slice]  # a slice object
 
 
+def to_bool(state, arg):
+  state.stack[-1] = bool
+
+
 def format_value(state, arg):
   if arg & 0x04:
     state.stack.pop()
@@ -565,12 +627,20 @@ def format_value(state, arg):
   state.stack.append(str)
 
 
+def convert_value(state, arg):
+  state.stack.pop()
+  state.stack.append(str)
+
+
 def format_simple(state, arg):
-  state.stack[-1:][str]
+  state.stack.pop()
+  state.stack.append(str)
 
 
 def format_with_spec(state, arg):
-  state.stack[-2:][str]
+  state.stack.pop()
+  state.stack.pop()
+  state.stack.append(str)
 
 
 def _unpack_lists(state, arg):

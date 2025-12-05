@@ -44,8 +44,8 @@ from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
+from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.util import GroupIntoBatches
 from apache_beam.transforms.window import GlobalWindows
 
 # Protect against environments where bigquery library is not available.
@@ -541,38 +541,13 @@ class TriggerCopyJobs(beam.DoFn):
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
 
-    copy_job_name = '%s_%s' % (
-        job_name_prefix,
-        _bq_uuid(
-            '%s:%s.%s' % (
-                copy_from_reference.projectId,
-                copy_from_reference.datasetId,
-                copy_from_reference.tableId)))
-
     _LOGGER.info(
         "Triggering copy job from %s to %s",
         copy_from_reference,
         copy_to_reference)
-    if copy_to_reference.tableId not in self._observed_tables:
-      # When the write_disposition for a job is WRITE_TRUNCATE,
-      # multiple copy jobs to the same destination can stump on
-      # each other, truncate data, and write to the BQ table over and
-      # over.
-      # Thus, the first copy job runs with the user's write_disposition,
-      # but afterwards, all jobs must always WRITE_APPEND to the table.
-      # If they do not, subsequent copy jobs will clear out data appended
-      # by previous jobs.
-      write_disposition = self.write_disposition
-      wait_for_job = True
-      self._observed_tables.add(copy_to_reference.tableId)
-      Lineage.sinks().add(
-          'bigquery',
-          copy_to_reference.projectId,
-          copy_to_reference.datasetId,
-          copy_to_reference.tableId)
-    else:
-      wait_for_job = False
-      write_disposition = 'WRITE_APPEND'
+
+    wait_for_job, write_disposition = (
+      self._determine_write_disposition(copy_to_reference))
 
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
@@ -580,6 +555,13 @@ class TriggerCopyJobs(beam.DoFn):
     project_id = (
         copy_to_reference.projectId
         if self.load_job_project_id is None else self.load_job_project_id)
+    copy_job_name = '%s_%s' % (
+        job_name_prefix,
+        _bq_uuid(
+            '%s:%s.%s' % (
+                copy_from_reference.projectId,
+                copy_from_reference.datasetId,
+                copy_from_reference.tableId)))
     job_reference = self.bq_wrapper._insert_copy_job(
         project_id,
         copy_job_name,
@@ -593,6 +575,43 @@ class TriggerCopyJobs(beam.DoFn):
       self.bq_wrapper.wait_for_bq_job(job_reference, sleep_duration_sec=10)
     self.pending_jobs.append(
         GlobalWindows.windowed_value((destination, job_reference)))
+
+  def _determine_write_disposition(self, copy_to_reference) -> tuple[bool, str]:
+    """
+    Determines the write disposition for a BigQuery copy job,
+     based on destination.
+
+    When the write_disposition for a job is WRITE_TRUNCATE, multiple copy jobs
+    to the same destination can interfere with each other, truncate data, and
+    write to the BigQuery table repeatedly. To prevent this, the first copy job
+    runs with the user's specified write_disposition, but subsequent jobs must
+    always use WRITE_APPEND. This ensures that subsequent copy jobs do not
+    clear out data appended by previous jobs.
+
+    Args:
+        copy_to_reference: The reference to the destination table.
+
+    Returns:
+        A tuple containing a boolean indicating whether to wait for the job to
+        complete and the write disposition to use for the job.
+    """
+    full_table_ref = '%s:%s.%s' % (
+        copy_to_reference.projectId,
+        copy_to_reference.datasetId,
+        copy_to_reference.tableId)
+    if full_table_ref not in self._observed_tables:
+      write_disposition = self.write_disposition
+      wait_for_job = True
+      self._observed_tables.add(full_table_ref)
+      Lineage.sinks().add(
+          'bigquery',
+          copy_to_reference.projectId,
+          copy_to_reference.datasetId,
+          copy_to_reference.tableId)
+    else:
+      wait_for_job = False
+      write_disposition = 'WRITE_APPEND'
+    return wait_for_job, write_disposition
 
   def finish_bundle(self):
     for windowed_value in self.pending_jobs:
@@ -1062,7 +1081,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         destination_data_kv_pc
         |
         'ToHashableTableRef' >> beam.Map(bigquery_tools.to_hashable_table_ref)
-        | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
+        | 'WithAutoSharding' >> util.GroupIntoBatches.WithShardedKey(
             batch_size=_FILE_TRIGGERING_RECORD_COUNT,
             max_buffering_duration_secs=_FILE_TRIGGERING_BATCHING_DURATION_SECS,
             clock=clock)
@@ -1101,6 +1120,18 @@ class BigQueryBatchFileLoads(beam.PTransform):
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
     """
+    self.reshuffle_before_load = not util.is_compat_version_prior_to(
+        p.options, "2.65.0")
+    if self.reshuffle_before_load:
+      # Ensure that TriggerLoadJob retry inputs are deterministic by breaking
+      # fusion for inputs.
+      partitions_using_temp_tables = (
+          partitions_using_temp_tables
+          | "ReshuffleBeforeLoadWithTempTables" >> beam.Reshuffle())
+      partitions_direct_to_destination = (
+          partitions_direct_to_destination
+          | "ReshuffleBeforeLoadWithoutTempTables" >> beam.Reshuffle())
+
     # Load data using temp tables
     trigger_loads_outputs = (
         partitions_using_temp_tables
@@ -1145,8 +1176,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       # https://github.com/apache/beam/issues/24535.
       finished_temp_tables_load_job_ids_list_pc = (
           finished_temp_tables_load_job_ids_pc | beam.MapTuple(
-              lambda destination,
-              job_reference: (
+              lambda destination, job_reference: (
                   bigquery_tools.parse_table_reference(destination).tableId,
                   (destination, job_reference)))
           | beam.GroupByKey()
@@ -1154,7 +1184,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
     else:
       # Loads can happen in parallel.
       finished_temp_tables_load_job_ids_list_pc = (
-          finished_temp_tables_load_job_ids_pc | beam.Map(lambda x: [x]))
+          finished_temp_tables_load_job_ids_pc
+          # This name is to ensure update compat.
+          | "Map(<lambda at bigquery_file_loads.py:1157>)" >>
+          beam.Map(lambda x: [x]))
 
     copy_job_outputs = (
         finished_temp_tables_load_job_ids_list_pc
@@ -1234,8 +1267,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "SchemaModJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name,
-                bigquery_tools.BigQueryJobTypes.LOAD,
+                job_name, bigquery_tools.BigQueryJobTypes.LOAD,
                 'SCHEMA_MOD_STEP')))
 
     copy_job_name_pcv = pvalue.AsSingleton(

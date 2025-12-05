@@ -85,8 +85,7 @@ class RowTypeConstraint(typehints.TypeConstraint):
     """
     # Recursively wrap row types in a RowTypeConstraint
     self._fields = tuple((name, RowTypeConstraint.from_user_type(typ) or typ)
-                         for name,
-                         typ in fields)
+                         for name, typ in fields)
 
     self._user_type = user_type
 
@@ -229,6 +228,7 @@ class GeneratedClassRowTypeConstraint(RowTypeConstraint):
         schema_id=schema_id,
         schema_options=schema_options,
         field_options=field_options,
+        field_descriptions=field_descriptions,
         **kwargs)
     user_type = named_tuple_from_schema(schema, **kwargs)
 

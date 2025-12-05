@@ -24,7 +24,6 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
-import os
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Mapping
@@ -35,15 +34,21 @@ import fastavro
 
 import apache_beam as beam
 import apache_beam.io as beam_io
+from apache_beam import coders
+from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io import ReadFromBigQuery
+from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
+from apache_beam.io import WriteToTFRecord
 from apache_beam.io import avroio
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_utils
 
 
 def read_from_text(path: str):
@@ -52,7 +57,7 @@ def read_from_text(path: str):
 
   """Reads lines from a text files.
 
-  The resulting PCollection consists of rows with a single string filed named
+  The resulting PCollection consists of rows with a single string field named
   "line."
 
   Args:
@@ -74,8 +79,8 @@ def write_to_text(pcoll, path: str):
   """
   try:
     field_names = [
-        name for name,
-        _ in schemas.named_fields_from_element_type(pcoll.element_type)
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
     ]
   except Exception as exn:
     raise ValueError(
@@ -224,6 +229,12 @@ def _create_parser(
     return (
         schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
         lambda payload: beam.Row(payload=payload))
+  if format == 'STRING':
+    if schema:
+      raise ValueError('STRING format does not take a schema')
+    return (
+        schema_pb2.Schema(fields=[schemas.schema_field('payload', str)]),
+        lambda payload: beam.Row(payload=payload.decode('utf-8')))
   elif format == 'JSON':
     _validate_schema()
     beam_schema = json_utils.json_schema_to_beam_schema(schema)
@@ -237,6 +248,10 @@ def _create_parser(
         beam_schema,
         lambda record: covert_to_row(
             fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
+  elif format == 'PROTO':
+    _validate_schema()
+    beam_schema = json_utils.json_schema_to_beam_schema(schema)
+    return beam_schema, RowCoder(beam_schema).decode
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -281,6 +296,8 @@ def _create_formatter(
       return buffer.read()
 
     return formatter
+  elif format == 'PROTO':
+    return RowCoder(beam_schema).encode
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -313,6 +330,7 @@ def read_from_pubsub(
 
         - RAW: Produces records with a single `payload` field whose contents
             are the raw bytes of the pubsub message.
+        - STRING: Like RAW, but the bytes are decoded as a UTF-8 string.
         - AVRO: Parses records with a given Avro schema.
         - JSON: Parses records with a given JSON schema.
 
@@ -405,7 +423,7 @@ def write_to_pubsub(
 
   Args:
     topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-    format: How to format the message payload.  Currently suported
+    format: How to format the message payload.  Currently supported
       formats are
 
         - RAW: Expects a message with a single field (excluding
@@ -415,6 +433,8 @@ def write_to_pubsub(
             from the input PCollection schema.
         - JSON: Formats records with a given JSON schema, which may be inferred
             from the input PCollection schema.
+        - PROTO: Encodes records with a given Protobuf schema, which may be
+            inferred from the input PCollection schema.
 
     schema: Schema specification for the given format.
     attributes: List of attribute keys whose values will be pulled out as
@@ -483,6 +503,9 @@ def write_to_pubsub(
 
 def read_from_iceberg(
     table: str,
+    filter: Optional[str] = None,
+    keep: Optional[list[str]] = None,
+    drop: Optional[list[str]] = None,
     catalog_name: Optional[str] = None,
     catalog_properties: Optional[Mapping[str, str]] = None,
     config_properties: Optional[Mapping[str, str]] = None,
@@ -498,6 +521,13 @@ def read_from_iceberg(
 
   Args:
     table: The identifier of the Apache Iceberg table. Example: "db.table1".
+    filter: SQL-like predicate to filter data at scan time.
+      Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax:
+      https://calcite.apache.org/docs/reference.html
+    keep: A subset of column names to read exclusively. If null or empty,
+      all columns will be read.
+    drop: A subset of column names to exclude from reading. If null or empty,
+      all columns will be read.
     catalog_name: The name of the catalog. Example: "local".
     catalog_properties: A map of configuration properties for the Apache Iceberg
       catalog.
@@ -511,6 +541,9 @@ def read_from_iceberg(
       config=dict(
           table=table,
           catalog_name=catalog_name,
+          filter=filter,
+          keep=keep,
+          drop=drop,
           catalog_properties=catalog_properties,
           config_properties=config_properties))
 
@@ -520,6 +553,8 @@ def write_to_iceberg(
     catalog_name: Optional[str] = None,
     catalog_properties: Optional[Mapping[str, str]] = None,
     config_properties: Optional[Mapping[str, str]] = None,
+    partition_fields: Optional[Iterable[str]] = None,
+    table_properties: Optional[Mapping[str, str]] = None,
     triggering_frequency_seconds: Optional[int] = None,
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
@@ -546,9 +581,25 @@ def write_to_iceberg(
       CatalogUtil in the Apache Iceberg documentation.
     config_properties: An optional set of Hadoop configuration properties.
       For more information, see CatalogUtil in the Apache Iceberg documentation.
+    partition_fields: Fields used to create a partition spec that is applied
+      when tables are created. For a field 'foo', the available partition
+      transforms are:
+
+        - foo
+        - truncate(foo, N)
+        - bucket(foo, N)
+        - hour(foo)
+        - day(foo)
+        - month(foo)
+        - year(foo)
+        - void(foo)
+      For more information on partition transforms, please visit
+      https://iceberg.apache.org/spec/#partition-transforms.
+    table_properties: Iceberg table properties to be set on the table when it
+      is created. For more information on table properties, please visit
+      https://iceberg.apache.org/docs/latest/configuration/#table-properties.
     triggering_frequency_seconds: For streaming write pipelines, the frequency
       at which the sink attempts to produce snapshots, in seconds.
-
     keep: An optional list of field names to keep when writing to the
       destination. Other fields are dropped. Mutually exclusive with drop
       and only.
@@ -565,6 +616,8 @@ def write_to_iceberg(
           catalog_name=catalog_name,
           catalog_properties=catalog_properties,
           config_properties=config_properties,
+          partition_fields=partition_fields,
+          table_properties=table_properties,
           triggering_frequency_seconds=triggering_frequency_seconds,
           keep=keep,
           drop=drop,
@@ -573,4 +626,84 @@ def write_to_iceberg(
 
 def io_providers():
   return yaml_provider.load_providers(
-      os.path.join(os.path.dirname(__file__), 'standard_io.yaml'))
+      yaml_utils.locate_data_file('standard_io.yaml'))
+
+
+def read_from_tfrecord(
+    file_pattern: str,
+    coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
+    compression_type: str = "AUTO",
+    validate: Optional[bool] = True):
+  """Reads data from TFRecord.
+
+  Args:
+    file_pattern (str): A file glob pattern to read TFRecords from.
+    coder (coders.BytesCoder): Coder used to decode each record.
+    compression_type (CompressionTypes): Used to handle compressed input files.
+      Default value is CompressionTypes.AUTO, in which case the file_path's
+      extension will be used to detect the compression.
+    validate (bool): Boolean flag to verify that the files exist during the
+      pipeline creation time.
+  """
+  return ReadFromTFRecord(
+      file_pattern=file_pattern,
+      compression_type=getattr(CompressionTypes, compression_type),
+      validate=validate) | beam.Map(lambda s: beam.Row(record=s))
+
+
+@beam.ptransform_fn
+def write_to_tfrecord(
+    pcoll,
+    file_path_prefix: str,
+    coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
+    file_name_suffix: Optional[str] = "",
+    num_shards: Optional[int] = 0,
+    shard_name_template: Optional[str] = None,
+    compression_type: str = "AUTO"):
+  """Writes data to TFRecord.
+
+  Args:
+    file_path_prefix: The file path to write to. The files written will begin
+      with this prefix, followed by a shard identifier (see num_shards), and
+      end in a common extension, if given by file_name_suffix.
+    coder: Coder used to encode each record.
+    file_name_suffix: Suffix for the files written.
+    num_shards: The number of files (shards) used for output. If not set, the
+      default value will be used.
+    shard_name_template: A template string containing placeholders for
+      the shard number and shard count. When constructing a filename for a
+      particular shard number, the upper-case letters 'S' and 'N' are
+      replaced with the 0-padded shard number and shard count respectively.
+      This argument can be '' in which case it behaves as if num_shards was
+      set to 1 and only one file will be generated. The default pattern used
+      is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+    compression_type: Used to handle compressed output files. Typical value
+      is CompressionTypes.AUTO, in which case the file_path's extension will
+      be used to detect the compression.
+
+  Returns:
+    A WriteToTFRecord transform object.
+  """
+  try:
+    field_names = [
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
+    ]
+  except Exception as exn:
+    raise ValueError(
+        "WriteToTFRecord requires an input schema with exactly one field."
+    ) from exn
+  if len(field_names) != 1:
+    raise ValueError(
+        "WriteToTFRecord requires an input schema with exactly one field,got %s"
+        % field_names)
+  sole_field_name, = field_names
+
+  return pcoll | beam.Map(
+      lambda x: getattr(x, sole_field_name)) | WriteToTFRecord(
+          file_path_prefix=file_path_prefix,
+          coder=coder,
+          file_name_suffix=file_name_suffix,
+          num_shards=num_shards,
+          shard_name_template=shard_name_template,
+          compression_type=getattr(CompressionTypes, compression_type))

@@ -78,5 +78,5 @@ export class InterruptKernelButton extends React.Component<
     return <Button label="stop" onClick={this.onClick} danger raised />;
   }
 
-  private _updateRenderTimerId: number;
+  private _updateRenderTimerId: ReturnType<typeof setInterval>;
 }

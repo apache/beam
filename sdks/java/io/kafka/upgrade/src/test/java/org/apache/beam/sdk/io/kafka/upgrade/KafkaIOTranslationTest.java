@@ -66,6 +66,7 @@ public class KafkaIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getStopReadTime", "stop_read_time");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getRedistributeNumKeys", "redistribute_num_keys");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getOffsetDeduplication", "offset_deduplication");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getRedistributeByRecordKey", "redistribute_by_record_key");
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "isCommitOffsetsInFinalizeEnabled", "is_commit_offset_finalize_enabled");
     READ_TRANSFORM_SCHEMA_MAPPING.put("isDynamicRead", "is_dynamic_read");
@@ -78,6 +79,7 @@ public class KafkaIOTranslationTest {
         "getValueDeserializerProvider", "value_deserializer_provider");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getCheckStopReadingFn", "check_stop_reading_fn");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getConsumerPollingTimeout", "consumer_polling_timeout");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getLogTopicVerification", "log_topic_verification");
   }
 
   // A mapping from Write transform builder methods to the corresponding schema fields in

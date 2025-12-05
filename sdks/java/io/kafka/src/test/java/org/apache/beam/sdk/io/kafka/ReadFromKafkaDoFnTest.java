@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.testing.TestOutputReceiver;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
@@ -266,12 +268,14 @@ public class ReadFromKafkaDoFnTest {
     @Override
     public synchronized void assign(Collection<TopicPartition> partitions) {
       assertTrue(Iterables.getOnlyElement(partitions).equals(this.topicPartition));
+      super.assign(partitions);
     }
 
     @Override
     public synchronized void seek(TopicPartition partition, long offset) {
       assertTrue(partition.equals(this.topicPartition));
       this.startOffset = offset;
+      super.seek(partition, offset);
     }
 
     @Override
@@ -334,10 +338,10 @@ public class ReadFromKafkaDoFnTest {
 
   private static class MockMultiOutputReceiver implements MultiOutputReceiver {
 
-    MockOutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> mockOutputReceiver =
-        new MockOutputReceiver<>();
+    TestOutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> mockOutputReceiver =
+        new TestOutputReceiver<>();
 
-    MockOutputReceiver<BadRecord> badOutputReceiver = new MockOutputReceiver<>();
+    TestOutputReceiver<BadRecord> badOutputReceiver = new TestOutputReceiver<>();
 
     @Override
     public @UnknownKeyFor @NonNull @Initialized <T> OutputReceiver<T> get(
@@ -364,26 +368,6 @@ public class ReadFromKafkaDoFnTest {
         OutputReceiver<@UnknownKeyFor @NonNull @Initialized Row> getRowReceiver(
             @UnknownKeyFor @NonNull @Initialized TupleTag<T> tag) {
       return null;
-    }
-  }
-
-  private static class MockOutputReceiver<T> implements OutputReceiver<T> {
-
-    private final List<T> records = new ArrayList<>();
-
-    @Override
-    public void output(T output) {
-      records.add(output);
-    }
-
-    @Override
-    public void outputWithTimestamp(
-        T output, @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
-      records.add(output);
-    }
-
-    public List<T> getOutputs() {
-      return this.records;
     }
   }
 
@@ -523,12 +507,9 @@ public class ReadFromKafkaDoFnTest {
         new OffsetRangeTracker(new OffsetRange(startOffset, startOffset + 3));
     KafkaSourceDescriptor descriptor =
         KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
-    ProcessContinuation result =
-        dofnInstanceWithBrokenSeek.processElement(descriptor, tracker, null, receiver);
-    assertEquals(ProcessContinuation.stop(), result);
-    assertEquals(
-        createExpectedRecords(descriptor, startOffset, 3, "key", "value"),
-        receiver.getGoodRecords());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dofnInstanceWithBrokenSeek.processElement(descriptor, tracker, null, receiver));
   }
 
   @Test
@@ -717,14 +698,14 @@ public class ReadFromKafkaDoFnTest {
   @Test
   public void testConstructorWithPollTimeout() {
     ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
-    // default poll timeout = 1 scond
+    // default poll timeout = 2 seconds
     ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(2L, dofnInstance.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(2L), dofnInstance.consumerPollingTimeout);
     // updated timeout = 5 seconds
     descriptors = descriptors.withConsumerPollingTimeout(5L);
     ReadFromKafkaDoFn<String, String> dofnInstanceNew =
         ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(5L, dofnInstanceNew.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(5L), dofnInstanceNew.consumerPollingTimeout);
   }
 
   private BoundednessVisitor testBoundedness(

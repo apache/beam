@@ -59,11 +59,13 @@ from google.protobuf import message
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.internal import cloudpickle_pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
+from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
   from apache_beam.coders.typecoders import CoderRegistry
@@ -83,15 +85,14 @@ try:
   # occurs.
   from apache_beam.internal.dill_pickler import dill
 except ImportError:
-  # We fall back to using the stock dill library in tests that don't use the
-  # full Python SDK.
-  import dill
+  dill = None
 
 __all__ = [
     'Coder',
     'AvroGenericCoder',
     'BooleanCoder',
     'BytesCoder',
+    'CloudpickleCoder',
     'DillCoder',
     'FastPrimitivesCoder',
     'FloatCoder',
@@ -113,7 +114,8 @@ __all__ = [
     'WindowedValueCoder',
     'ParamWindowedValueCoder',
     'BigIntegerCoder',
-    'DecimalCoder'
+    'DecimalCoder',
+    'PaneInfoCoder'
 ]
 
 T = TypeVar('T')
@@ -382,9 +384,8 @@ class Coder(object):
     """
     setattr(
         cls,
-        'to_runner_api_parameter',
-        lambda self,
-        unused_context: (urn, None, self._get_component_coders()))
+        'to_runner_api_parameter', lambda self, unused_context:
+        (urn, None, self._get_component_coders()))
 
     # pylint: disable=unused-variable
     @Coder.register_urn(urn, None)
@@ -393,6 +394,15 @@ class Coder(object):
         return cls(*components)
       else:
         return cls()
+
+  def version_tag(self) -> str:
+    """For internal use. Appends a version tag to the coder key in the pipeline
+    proto. Some runners (e.g. DataflowRunner) use coder key/id to verify if a
+    pipeline is update compatible. If the implementation of a coder changed
+    in an update incompatible way a version tag can be added to fail
+    compatibility checks.
+    """
+    return ""
 
 
 @Coder.register_urn(
@@ -629,7 +639,7 @@ Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 
 
 class VarIntCoder(FastCoder):
-  """Variable-length integer coder."""
+  """Variable-length integer coder  matches Java SDK's VarLongCoder."""
   def _create_impl(self):
     return coder_impl.VarIntCoderImpl()
 
@@ -648,6 +658,25 @@ class VarIntCoder(FastCoder):
 
 
 Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
+
+
+class VarInt32Coder(FastCoder):
+  """Variable-length integer coder matches Java SDK's VarIntCoder."""
+  def _create_impl(self):
+    return coder_impl.VarInt32CoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class BigEndianShortCoder(FastCoder):
@@ -878,20 +907,45 @@ class PickleCoder(_PickleCoderBase):
 
 class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
+  def __init__(self):
+    if not dill:
+      raise RuntimeError(
+          "This pipeline contains a DillCoder which requires "
+          "the dill package. Install the dill package with the dill extra "
+          "e.g. apache-beam[dill]")
+
   def _create_impl(self):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 
 
-class DeterministicFastPrimitivesCoder(FastCoder):
+class CloudpickleCoder(_PickleCoderBase):
+  """Coder using Apache Beam's vendored Cloudpickle pickler."""
+  def _create_impl(self):
+    return coder_impl.CallbackCoderImpl(
+        cloudpickle_pickler.dumps, cloudpickle_pickler.loads)
+
+
+class DeterministicFastPrimitivesCoderV2(FastCoder):
   """Throws runtime errors when encoding non-deterministic values."""
-  def __init__(self, coder, step_label):
+  def __init__(self, coder, step_label, update_compatibility_version=None):
     self._underlying_coder = coder
     self._step_label = step_label
+    self._use_relative_filepaths = True
+    self._version_tag = "v2_69"
+    from apache_beam.transforms.util import is_v1_prior_to_v2
+
+    # Versions prior to 2.69.0 did not use relative filepaths.
+    if update_compatibility_version and is_v1_prior_to_v2(
+        v1=update_compatibility_version, v2="2.69.0"):
+      self._version_tag = ""
+      self._use_relative_filepaths = False
 
   def _create_impl(self):
     return coder_impl.FastPrimitivesCoderImpl(
         self._underlying_coder.get_impl(),
-        requires_deterministic_step_label=self._step_label)
+        requires_deterministic_step_label=self._step_label,
+        force_use_dill=False,
+        use_relative_filepaths=self._use_relative_filepaths)
 
   def is_deterministic(self):
     # type: () -> bool
@@ -909,6 +963,92 @@ class DeterministicFastPrimitivesCoder(FastCoder):
 
   def to_type_hint(self):
     return Any
+
+  def to_runner_api_parameter(self, context):
+    # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
+    return (
+        python_urns.PICKLED_CODER,
+        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        ())
+
+  def version_tag(self):
+    return self._version_tag
+
+
+class DeterministicFastPrimitivesCoder(FastCoder):
+  """Throws runtime errors when encoding non-deterministic values."""
+  def __init__(self, coder, step_label):
+    self._underlying_coder = coder
+    self._step_label = step_label
+
+  def _create_impl(self):
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(),
+        requires_deterministic_step_label=self._step_label,
+        force_use_dill=True)
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def is_kv_coder(self):
+    # type: () -> bool
+    return True
+
+  def key_coder(self):
+    return self
+
+  def value_coder(self):
+    return self
+
+  def to_type_hint(self):
+    return Any
+
+
+def _should_force_use_dill(registry):
+  # force_dill_deterministic_coders is for testing purposes. If there is a
+  # DeterministicFastPrimitivesCoder in the pipeline graph but the dill
+  # encoding path is not really triggered dill does not have to be installed.
+  # and this check can be skipped.
+  if getattr(registry, 'force_dill_deterministic_coders', False):
+    return True
+
+  from apache_beam.transforms.util import is_v1_prior_to_v2
+  update_compat_version = registry.update_compatibility_version
+  if not update_compat_version:
+    return False
+
+  if not is_v1_prior_to_v2(v1=update_compat_version, v2="2.68.0"):
+    return False
+
+  try:
+    import dill
+    assert dill.__version__ == "0.3.1.1"
+  except Exception as e:
+    raise RuntimeError("This pipeline runs with the pipeline option " \
+    "--update_compatibility_version=2.67.0 or earlier. When running with " \
+    "this option on SDKs 2.68.0 or later, you must ensure dill==0.3.1.1 " \
+    f"is installed. Error {e}")
+  return True
+
+
+def _update_compatible_deterministic_fast_primitives_coder(coder, step_label):
+  """ Returns the update compatible version of DeterministicFastPrimitivesCoder
+   The differences are in how "special types" e.g. NamedTuples, Dataclasses are
+   deterministically encoded.
+
+   - In SDK version <= 2.67.0 dill is used to encode "special types"
+   - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+   absolute filepaths in code objects and dynamic functions.
+   - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
+   relative filepaths in code objects and dynamic functions.
+  """
+  from apache_beam.coders import typecoders
+
+  if _should_force_use_dill(typecoders.registry):
+    return DeterministicFastPrimitivesCoder(coder, step_label)
+  return DeterministicFastPrimitivesCoderV2(
+      coder, step_label, typecoders.registry.update_compatibility_version)
 
 
 class FastPrimitivesCoder(FastCoder):
@@ -931,7 +1071,8 @@ class FastPrimitivesCoder(FastCoder):
     if self.is_deterministic():
       return self
     else:
-      return DeterministicFastPrimitivesCoder(self, step_label)
+      return _update_compatible_deterministic_fast_primitives_coder(
+          self, step_label)
 
   def to_type_hint(self):
     return Any
@@ -1726,6 +1867,24 @@ class BigIntegerCoder(FastCoder):
 
   def to_type_hint(self):
     return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+class PaneInfoCoder(FastCoder):
+  def _create_impl(self):
+    return coder_impl.PaneInfoCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return windowed_value.PaneInfo
 
   def __eq__(self, other):
     return type(self) == type(other)

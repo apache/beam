@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -26,7 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -52,17 +52,24 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -78,11 +85,6 @@ import org.joda.time.format.PeriodFormat;
  * @param <InputT> the type of the {@link DoFn} (main) input elements
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
  */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness",
-  "keyfor"
-}) // TODO(https://github.com/apache/beam/issues/20497)
 public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   private final PipelineOptions options;
@@ -93,7 +95,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private final DoFnInvoker<InputT, OutputT> invoker;
 
   private final SideInputReader sideInputReader;
-  private final OutputManager outputManager;
+  private final WindowedValueMultiReceiver outputManager;
 
   private final TupleTag<OutputT> mainOutputTag;
   /** The set of known output tags. */
@@ -112,7 +114,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   final @Nullable SchemaCoder<OutputT> mainOutputSchemaCoder;
 
-  private @Nullable Map<TupleTag<?>, Coder<?>> outputCoders;
+  private final @Nullable Map<TupleTag<?>, Coder<?>> outputCoders;
 
   private final @Nullable DoFnSchemaInformation doFnSchemaInformation;
 
@@ -123,7 +125,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
-      OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
@@ -331,7 +333,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
       @Override
       public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-        outputWindowedValue(tag, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        outputWindowedValue(tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
       }
     }
 
@@ -365,6 +367,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
+    private final OutputBuilderSupplier builderSupplier;
+
     /**
      * The state namespace for this context.
      *
@@ -382,6 +386,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private DoFnProcessContext(WindowedValue<InputT> elem) {
       fn.super();
       this.elem = elem;
+      this.builderSupplier = OutputBuilderSuppliers.supplierForElement(elem);
     }
 
     @Override
@@ -404,7 +409,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public PaneInfo pane() {
-      return elem.getPane();
+      return elem.getPaneInfo();
     }
 
     @Override
@@ -436,7 +441,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
-      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPane());
+      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
     }
 
     @Override
@@ -446,13 +451,32 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+      builderSupplier
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(
+              wv -> {
+                checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
+                SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
+              })
+          .output();
     }
 
     @Override
     public Instant timestamp() {
       return elem.getTimestamp();
+    }
+
+    @Override
+    public @Nullable String currentRecordId() {
+      return elem.getRecordId();
+    }
+
+    @Override
+    public @Nullable Long currentRecordOffset() {
+      return elem.getRecordOffset();
     }
 
     public Collection<? extends BoundedWindow> windows() {
@@ -502,13 +526,21 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object sideInput(String tagId) {
-      return sideInput(sideInputMapping.get(tagId));
+    public @Nullable Object sideInput(String tagId) {
+      PCollectionView<?> view =
+          checkStateNotNull(sideInputMapping.get(tagId), "Side input tag %s not found", tagId);
+      return sideInput(view);
     }
 
     @Override
     public Object schemaElement(int index) {
-      SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
+      checkStateNotNull(
+          doFnSchemaInformation,
+          "attempt to access element via schema when no schema information provided");
+
+      SerializableFunction<InputT, Object> converter =
+          (SerializableFunction<InputT, Object>)
+              doFnSchemaInformation.getElementConverters().get(index);
       return converter.apply(element());
     }
 
@@ -531,17 +563,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, builderSupplier, mainOutputTag);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+      checkStateNotNull(mainOutputSchemaCoder, "cannot provide row receiver without schema coder");
+      return DoFnOutputReceivers.rowReceiver(
+          this, builderSupplier, mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier, outputCoders);
     }
 
     @Override
@@ -575,14 +609,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId, boolean alwaysFetched) {
       try {
+        DoFnSignature.StateDeclaration stateDeclaration =
+            checkStateNotNull(
+                signature.stateDeclarations().get(stateId), "state not found: %s", stateId);
+
         StateSpec<?> spec =
-            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
+            checkStateNotNull(
+                (StateSpec<?>) stateDeclaration.field().get(fn),
+                "Field %s corresponding to state id %s contained null",
+                stateDeclaration.field(),
+                stateId);
+
+        @NonNull
+        @Initialized // unclear why checkerframework needs this help
         State state =
             stepContext
                 .stateInternals()
-                .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+                .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec<?>) spec));
         if (alwaysFetched) {
-          return (State) ((ReadableState) state).readLater();
+          return (State) ((ReadableState<?>) state).readLater();
         } else {
           return state;
         }
@@ -594,7 +639,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Timer timer(String timerId) {
       try {
-        TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
+        DoFnSignature.TimerDeclaration timerDeclaration =
+            checkStateNotNull(
+                signature.timerDeclarations().get(timerId), "timer not found: %s", timerId);
+        TimerSpec spec =
+            (TimerSpec)
+                checkStateNotNull(
+                    timerDeclaration.field().get(fn),
+                    "Field %s corresponding to timer id %s contained null",
+                    timerDeclaration.field(),
+                    timerId);
         return new TimerInternalsTimer(
             window(), getNamespace(), timerId, spec, timestamp(), stepContext.timerInternals());
       } catch (IllegalAccessException e) {
@@ -605,8 +659,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public TimerMap timerFamily(String timerFamilyId) {
       try {
+        DoFnSignature.TimerFamilyDeclaration timerFamilyDeclaration =
+            checkStateNotNull(
+                signature.timerFamilyDeclarations().get(timerFamilyId),
+                "timer family not found: %s",
+                timerFamilyId);
+
         TimerSpec spec =
-            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
+            (TimerSpec)
+                checkStateNotNull(
+                    timerFamilyDeclaration.field().get(fn),
+                    "Field %s corresponding to timer family id %s contained null",
+                    timerFamilyDeclaration.field(),
+                    timerFamilyId);
         return new TimerInternalsTimerMap(
             timerFamilyId,
             window(),
@@ -637,6 +702,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final TimeDomain timeDomain;
     private final String timerId;
     private final KeyT key;
+    private final OutputBuilderSupplier builderSupplier;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
@@ -669,6 +735,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
       this.key = key;
+      this.builderSupplier =
+          OutputBuilderSuppliers.supplierForElement(
+              WindowedValues.builder()
+                  .setValue(null)
+                  .setTimestamp(timestamp)
+                  .setWindow(window)
+                  .setPaneInfo(PaneInfo.NO_FIRING));
     }
 
     @Override
@@ -755,17 +828,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, builderSupplier, mainOutputTag);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+      checkStateNotNull(mainOutputSchemaCoder, "cannot provide row receiver without schema coder");
+      return DoFnOutputReceivers.rowReceiver(
+          this, builderSupplier, mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      // ... what to doooo 0...
+      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier, outputCoders);
     }
 
     @Override
@@ -797,8 +873,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId, boolean alwaysFetched) {
       try {
+        DoFnSignature.StateDeclaration stateDeclaration =
+            checkStateNotNull(
+                signature.stateDeclarations().get(stateId), "state not found: %s", stateId);
+
         StateSpec<?> spec =
-            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
+            checkStateNotNull(
+                (StateSpec<?>) stateDeclaration.field().get(fn),
+                "Field %s corresponding to state id %s contained null",
+                stateDeclaration.field(),
+                stateId);
+
+        @NonNull
         State state =
             stepContext
                 .stateInternals()
@@ -816,7 +902,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Timer timer(String timerId) {
       try {
-        TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
+        DoFnSignature.TimerDeclaration timerDeclaration =
+            checkStateNotNull(
+                signature.timerDeclarations().get(timerId), "timer not found: %s", timerId);
+        TimerSpec spec =
+            (TimerSpec)
+                checkStateNotNull(
+                    timerDeclaration.field().get(fn),
+                    "Field %s corresponding to timer id %s contained null",
+                    timerDeclaration.field(),
+                    timerId);
         return new TimerInternalsTimer(
             window, getNamespace(), timerId, spec, timestamp(), stepContext.timerInternals());
       } catch (IllegalAccessException e) {
@@ -827,8 +922,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public TimerMap timerFamily(String timerFamilyId) {
       try {
+        DoFnSignature.TimerFamilyDeclaration timerFamilyDeclaration =
+            checkStateNotNull(
+                signature.timerFamilyDeclarations().get(timerFamilyId),
+                "timer family not found: %s",
+                timerFamilyId);
         TimerSpec spec =
-            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
+            (TimerSpec)
+                checkStateNotNull(
+                    timerFamilyDeclaration.field().get(fn),
+                    "Field %s corresponding to timer family id %s contained null",
+                    timerFamilyDeclaration.field(),
+                    timerFamilyId);
         return new TimerInternalsTimerMap(
             timerFamilyId,
             window(),
@@ -887,8 +992,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       checkTimestamp(timestamp(), timestamp);
-      SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+
+      builderSupplier
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override
@@ -908,6 +1019,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final Instant timestamp;
     private final KeyT key;
+    private final OutputBuilderSupplier builderSupplier;
+
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
@@ -930,6 +1043,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.window = window;
       this.timestamp = timestamp;
       this.key = key;
+      this.builderSupplier =
+          OutputBuilderSuppliers.supplierForElement(
+              WindowedValues.<Void>builder()
+                  .setValue(null)
+                  .setWindow(window)
+                  .setTimestamp(timestamp)
+                  .setPaneInfo(PaneInfo.NO_FIRING));
     }
 
     @Override
@@ -1002,17 +1122,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, builderSupplier, mainOutputTag);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+      checkStateNotNull(mainOutputSchemaCoder, "cannot provide row receiver without schema coder");
+      return DoFnOutputReceivers.rowReceiver(
+          this, builderSupplier, mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier, outputCoders);
     }
 
     @Override
@@ -1044,14 +1166,23 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId, boolean alwaysFetched) {
       try {
+        DoFnSignature.StateDeclaration stateDeclaration =
+            checkStateNotNull(
+                signature.stateDeclarations().get(stateId), "state not found: %s", stateId);
         StateSpec<?> spec =
-            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
+            checkStateNotNull(
+                (StateSpec<?>) stateDeclaration.field().get(fn),
+                "Field %s corresponding to state id %s contained null",
+                stateDeclaration.field(),
+                stateId);
+        @NonNull
+        @Initialized // unclear why checkerframework needs this help
         State state =
             stepContext
                 .stateInternals()
-                .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+                .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec<?>) spec));
         if (alwaysFetched) {
-          return (State) ((ReadableState) state).readLater();
+          return (State) ((ReadableState<?>) state).readLater();
         } else {
           return state;
         }
@@ -1116,8 +1247,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       checkTimestamp(this.timestamp, timestamp);
-      SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+      builderSupplier
+          .builder(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override
@@ -1138,7 +1274,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final String timerId;
     private final String timerFamilyId;
     private final TimerSpec spec;
-    private Instant target;
+    private @MonotonicNonNull Instant target;
     private @Nullable Instant outputTimestamp;
     private boolean noOutputTimestamp;
     private final Instant elementInputTimestamp;
@@ -1256,15 +1392,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      * <li>The current element timestamp for other time domains.
      */
     private void setAndVerifyOutputTimestamp() {
+      checkStateNotNull(target, "attempt to set outputTimestamp before setting target firing time");
       if (outputTimestamp != null) {
+        // setting to local var so checkerframework knows that method calls will not mutate it
+        Instant timestampToValidate = outputTimestamp;
         Instant lowerBound;
         try {
           lowerBound = elementInputTimestamp.minus(fn.getAllowedTimestampSkew());
         } catch (ArithmeticException e) {
           lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
         }
-        if (outputTimestamp.isBefore(lowerBound)
-            || outputTimestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        if (timestampToValidate.isBefore(lowerBound)
+            || timestampToValidate.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
           throw new IllegalArgumentException(
               String.format(
                   "Cannot output timer with output timestamp %s. Output timestamps must be no "
@@ -1272,7 +1411,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                       + "allowed skew (%s) and no later than %s. See the "
                       + "DoFn#getAllowedTimestampSkew() Javadoc for details on changing the "
                       + "allowed skew.",
-                  outputTimestamp,
+                  timestampToValidate,
                   elementInputTimestamp,
                   fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
                       ? fn.getAllowedTimestampSkew()
@@ -1289,6 +1428,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         // the element (or timer) setting this timer.
         outputTimestamp = elementInputTimestamp;
       }
+
+      // Now it has been set for all cases other than this.noOutputTimestamp == true, and there are
+      // further validations
       if (outputTimestamp != null) {
         Instant windowExpiry = LateDataUtils.garbageCollectionTime(window, allowedLateness);
         if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
@@ -1323,6 +1465,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      * user has no way to compute a good choice of time.
      */
     private void setUnderlyingTimer() {
+      checkStateNotNull(
+          outputTimestamp,
+          "internal error: null outputTimestamp: must be populated by setAndVerifyOutputTimestamp()");
+      checkStateNotNull(
+          target,
+          "internal error: attempt to set internal timer when target timestamp not yet set");
       timerInternals.setTimer(
           namespace, timerId, timerFamilyId, target, outputTimestamp, spec.getTimeDomain());
     }
@@ -1339,7 +1487,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         case PROCESSING_TIME:
           return timerInternals.currentProcessingTime();
         case SYNCHRONIZED_PROCESSING_TIME:
-          return timerInternals.currentSynchronizedProcessingTime();
+          return checkStateNotNull(
+              timerInternals.currentSynchronizedProcessingTime(),
+              "internal error: requested SYNCHRONIZED_PROCESSING_TIME but it was null");
         default:
           throw new IllegalStateException(
               String.format("Timer created for unknown time domain %s", spec.getTimeDomain()));
@@ -1389,19 +1539,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Timer get(String timerId) {
-      if (timers.get(timerId) == null) {
-        Timer timer =
-            new TimerInternalsTimer(
-                window,
-                namespace,
-                timerId,
-                timerFamilyId,
-                spec,
-                elementInputTimestamp,
-                timerInternals);
-        timers.put(timerId, timer);
-      }
-      return timers.get(timerId);
+      return timers.computeIfAbsent(
+          timerId,
+          id ->
+              new TimerInternalsTimer(
+                  window,
+                  namespace,
+                  id,
+                  timerFamilyId,
+                  spec,
+                  elementInputTimestamp,
+                  timerInternals));
     }
   }
 }

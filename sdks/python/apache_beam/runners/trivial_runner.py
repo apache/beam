@@ -278,10 +278,10 @@ class TrivialRunner(runner.PipelineRunner):
     windowing = components.windowing_strategies[
         components.pcollections[input_pcoll].windowing_strategy_id]
 
-    if (windowing.merge_status ==
-        beam_runner_api_pb2.MergeStatus.Enum.NON_MERGING and
-        windowing.output_time ==
-        beam_runner_api_pb2.OutputTime.Enum.END_OF_WINDOW):
+    if (windowing.merge_status
+        == beam_runner_api_pb2.MergeStatus.Enum.NON_MERGING and
+        windowing.output_time
+        == beam_runner_api_pb2.OutputTime.Enum.END_OF_WINDOW):
       # This is the "easy" case, show how to do it by hand.
       # Note that we're grouping by encoded key, and also by the window.
       grouped = collections.defaultdict(list)

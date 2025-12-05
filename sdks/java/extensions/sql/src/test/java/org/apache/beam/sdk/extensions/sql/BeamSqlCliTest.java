@@ -39,10 +39,34 @@ import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.values.Row;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** UnitTest for {@link BeamSqlCli}. */
 public class BeamSqlCliTest {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testExecute_createTextTable_invalidPartitioningError() {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    metaStore.registerProvider(new TextTableProvider());
+
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid use of 'PARTITIONED BY()': Table 'person' of type 'text' does not support partitioning.");
+    cli.execute(
+        "CREATE EXTERNAL TABLE person (\n"
+            + "id int COMMENT 'id', \n"
+            + "name varchar COMMENT 'name', \n"
+            + "age int COMMENT 'age') \n"
+            + "TYPE 'text' \n"
+            + "PARTITIONED BY ('id', 'name') \n"
+            + "COMMENT '' LOCATION '/home/admin/orders'");
+  }
+
   @Test
   public void testExecute_createTextTable() throws Exception {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
@@ -150,7 +174,7 @@ public class BeamSqlCliTest {
             + "  >, \n"
             + "isRobot BOOLEAN"
             + ") \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'teXt' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
@@ -191,7 +215,7 @@ public class BeamSqlCliTest {
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'TExt' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'");
     Table table = metaStore.getTables().get("person");
     assertNotNull(table);
@@ -212,7 +236,7 @@ public class BeamSqlCliTest {
             + "id int COMMENT 'id', \n"
             + "name varchar COMMENT 'name', \n"
             + "age int COMMENT 'age') \n"
-            + "TYPE 'text' \n"
+            + "TYPE 'TEXT' \n"
             + "COMMENT '' LOCATION '/home/admin/orders'");
     cli.execute("drop table person");
     cli.explainQuery("select * from person");

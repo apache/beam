@@ -92,6 +92,27 @@ class StreamTest(unittest.TestCase):
   def test_large_var_int64(self):
     self.run_read_write_var_int64([0, 2**63 - 1, -2**63, 2**63 - 3])
 
+  def run_read_write_var_int32(self, values):
+    out_s = self.OutputStream()
+    for v in values:
+      out_s.write_var_int32(v)
+    in_s = self.InputStream(out_s.get())
+    for v in values:
+      self.assertEqual(v, in_s.read_var_int32())
+
+  def test_small_var_int32(self):
+    self.run_read_write_var_int32(range(-10, 30))
+
+  def test_medium_var_int32(self):
+    base = -1.7
+    self.run_read_write_var_int32([
+        int(base**pow)
+        for pow in range(1, int(31 * math.log(2) / math.log(-base)))
+    ])
+
+  def test_large_var_int32(self):
+    self.run_read_write_var_int32([0, 2**31 - 1, -2**31, 2**31 - 3])
+
   def test_read_write_double(self):
     values = 0, 1, -1, 1e100, 1.0 / 3, math.pi, float('inf')
     out_s = self.OutputStream()

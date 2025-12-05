@@ -21,6 +21,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
@@ -31,18 +32,19 @@ type StateSampler struct {
 	transitionsAtLastSample   int64
 	nextLogTime               time.Duration
 	logInterval               time.Duration
+	restartLullTimeout        time.Duration
 }
 
 // NewSampler creates a new state sampler.
-func NewSampler(store *Store) StateSampler {
-	return StateSampler{store: store, nextLogTime: 5 * time.Minute, logInterval: 5 * time.Minute}
+func NewSampler(store *Store, elementProcessingTimeout time.Duration) StateSampler {
+	return StateSampler{store: store, nextLogTime: 5 * time.Minute, logInterval: 5 * time.Minute, restartLullTimeout: elementProcessingTimeout}
 }
 
 // Sample checks for state transition in processing a DoFn
-func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
+func (s *StateSampler) Sample(ctx context.Context, t time.Duration) error {
 	ps := loadCurrentState(s)
 	if ps.pid == "" {
-		return
+		return nil
 	}
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
@@ -61,10 +63,14 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 		}
 
 		if s.millisSinceLastTransition > s.nextLogTime {
-			log.Infof(ctx, "Operation ongoing in transform %v for at least %v ms without outputting or completing in state %v", ps.pid, s.millisSinceLastTransition, getState(ps.state))
+			log.Infof(ctx, "Operation ongoing in transform %v for at least %v without outputting or completing in state %v", ps.pid, s.millisSinceLastTransition, getState(ps.state))
 			s.nextLogTime += s.logInterval
 		}
+		if s.restartLullTimeout > 0 && s.millisSinceLastTransition > s.restartLullTimeout {
+			return errors.Errorf("Processing of an element in transform %v has exceeded the specified timeout of %v without outputting or completing in state %v, SDK harness will be terminated", ps.pid, s.restartLullTimeout, getState(ps.state))
+		}
 	}
+	return nil
 }
 
 // SetLogInterval sets the logging interval for lull reporting.

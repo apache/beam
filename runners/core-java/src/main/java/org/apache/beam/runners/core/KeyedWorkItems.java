@@ -20,7 +20,7 @@ package org.apache.beam.runners.core;
 import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;

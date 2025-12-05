@@ -136,8 +136,8 @@ class YamlUDFMappingTest(unittest.TestCase):
 
   @staticmethod
   @unittest.skipIf(
-      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-      None,
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+      is None,
       'Do not run this test on precommit suites.')
   def test_map_to_fields_sql_reserved_keyword():
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -168,8 +168,8 @@ class YamlUDFMappingTest(unittest.TestCase):
 
   @staticmethod
   @unittest.skipIf(
-      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-      None,
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+      is None,
       'Do not run this test on precommit suites.')
   def test_map_to_fields_sql_reserved_keyword_append():
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

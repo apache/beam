@@ -44,12 +44,13 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
@@ -74,22 +75,22 @@ public class AssignWindowsRunnerTest implements Serializable {
     AssignWindowsRunner<Integer, IntervalWindow> runner = AssignWindowsRunner.create(windowFn);
 
     assertThat(
-        runner.assignWindows(WindowedValue.valueInGlobalWindow(1)),
+        runner.assignWindows(WindowedValues.valueInGlobalWindow(1)),
         equalTo(
-            WindowedValue.of(
+            WindowedValues.of(
                 1,
                 BoundedWindow.TIMESTAMP_MIN_VALUE,
                 windowFn.assignWindow(BoundedWindow.TIMESTAMP_MIN_VALUE),
                 PaneInfo.NO_FIRING)));
     assertThat(
         runner.assignWindows(
-            WindowedValue.of(
+            WindowedValues.of(
                 2,
                 new Instant(-10L),
                 new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L)),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)),
         equalTo(
-            WindowedValue.of(
+            WindowedValues.of(
                 2,
                 new Instant(-10L),
                 windowFn.assignWindow(new Instant(-10L)),
@@ -112,17 +113,17 @@ public class AssignWindowsRunnerTest implements Serializable {
     IntervalWindow thirdWindow = new IntervalWindow(new Instant(0), Duration.standardMinutes(4L));
 
     WindowedValue<Integer> firstValue =
-        WindowedValue.timestampedValueInGlobalWindow(-3, new Instant(-12));
+        WindowedValues.timestampedValueInGlobalWindow(-3, new Instant(-12));
     assertThat(
         runner.assignWindows(firstValue),
         equalTo(
-            WindowedValue.of(
+            WindowedValues.of(
                 -3,
                 new Instant(-12),
                 ImmutableSet.of(firstWindow, secondWindow),
-                firstValue.getPane())));
+                firstValue.getPaneInfo())));
     WindowedValue<Integer> secondValue =
-        WindowedValue.of(
+        WindowedValues.of(
             3,
             new Instant(12),
             new IntervalWindow(new Instant(-12), Duration.standardMinutes(24)),
@@ -131,11 +132,11 @@ public class AssignWindowsRunnerTest implements Serializable {
     assertThat(
         runner.assignWindows(secondValue),
         equalTo(
-            WindowedValue.of(
+            WindowedValues.of(
                 3,
                 new Instant(12),
                 ImmutableSet.of(secondWindow, thirdWindow),
-                secondValue.getPane())));
+                secondValue.getPaneInfo())));
   }
 
   @Test
@@ -202,10 +203,10 @@ public class AssignWindowsRunnerTest implements Serializable {
     context.addPCollectionConsumer("output", outputs::add);
 
     MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     WindowedValue<Integer> value =
-        WindowedValue.of(
+        WindowedValues.of(
             2,
             new Instant(-10L),
             ImmutableList.of(
@@ -216,14 +217,14 @@ public class AssignWindowsRunnerTest implements Serializable {
     assertThat(
         outputs,
         containsInAnyOrder(
-            WindowedValue.of(
+            WindowedValues.of(
                 2,
                 new Instant(-10L),
                 ImmutableSet.of(
                     GlobalWindow.INSTANCE,
                     new IntervalWindow(new Instant(-500), Duration.standardMinutes(3))),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 2,
                 new Instant(-10L),
                 ImmutableSet.of(
@@ -265,7 +266,7 @@ public class AssignWindowsRunnerTest implements Serializable {
 
     thrown.expect(IllegalArgumentException.class);
     runner.assignWindows(
-        WindowedValue.of(
+        WindowedValues.of(
             2,
             new Instant(-10L),
             ImmutableList.of(
@@ -300,13 +301,13 @@ public class AssignWindowsRunnerTest implements Serializable {
 
     assertThat(
         fn.apply(
-            WindowedValue.of(
+            WindowedValues.of(
                 22L,
                 new Instant(5),
                 new IntervalWindow(new Instant(0L), new Instant(20027L)),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)),
         equalTo(
-            WindowedValue.of(
+            WindowedValues.of(
                 22L,
                 new Instant(5),
                 new TestWindowFn().assignWindow(new Instant(5)),
@@ -338,7 +339,7 @@ public class AssignWindowsRunnerTest implements Serializable {
         (ThrowingFunction) factory.forPTransform("transform", windowPTransform);
     WindowedValue<?> output =
         fn.apply(
-            WindowedValue.of(
+            WindowedValues.of(
                 22L,
                 new Instant(5),
                 new IntervalWindow(new Instant(0L), new Instant(20027L)),
@@ -347,7 +348,7 @@ public class AssignWindowsRunnerTest implements Serializable {
     assertThat(
         output,
         equalTo(
-            WindowedValue.of(
+            WindowedValues.of(
                 22L,
                 new Instant(5),
                 new IntervalWindow(new Instant(5L), Duration.standardMinutes(12L)),

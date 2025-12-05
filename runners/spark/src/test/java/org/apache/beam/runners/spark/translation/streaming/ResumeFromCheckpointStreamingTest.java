@@ -82,6 +82,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
@@ -144,6 +145,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
   @Test
   @Category(UsesCheckpointRecovery.class)
+  @Ignore("Very flaky: https://github.com/apache/beam/issues/34946")
   public void testWithResume() throws Exception {
     // write to Kafka
     produce(

@@ -99,18 +99,31 @@ fi
 function cleanup_container {
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Built container image was not removed. Possibly, it was not not saved locally."
-  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
-    do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
+
+  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH | grep -E "(beam_python_prebuilt_sdk|$TAG)")
+  do
+    echo "Deleting Docker image: $image"
+    docker rmi $image || echo "Failed to remove prebuilt sdk container image"
+    image_tag="${image##*:}"
+
+    digest=$(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk --filter="tags=$image_tag" --format="get(digest)")
+
+    echo "Looking for digest for tag '$image_tag', found: '$digest'"
+
+    if [[ -n "$digest" && "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+      echo "Deleting from GCloud an image with digest: $digest"
+      gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
+    else
+      echo "Skipping deletion of image with invalid or empty digest: '$digest'"
+    fi
   done
+
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
   # the associated container images can't be deleted because they are not tagged. However, multi-arch containers that are
   # older than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs daily.
   if [[ "$ARCH" == "x86" ]]; then
     gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   fi
-  for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk  --format="get(digest)")
-    do gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
-  done
 
   echo "Removed the container"
 }
@@ -120,6 +133,11 @@ echo ">>> Successfully built and push container $CONTAINER"
 
 cd sdks/python
 SDK_LOCATION=$2
+
+echo ">>> Configuring Docker authentication for GCR"
+gcloud --quiet auth configure-docker us.gcr.io
+gcloud --quiet auth configure-docker gcr.io
+gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://us.gcr.io
 
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \

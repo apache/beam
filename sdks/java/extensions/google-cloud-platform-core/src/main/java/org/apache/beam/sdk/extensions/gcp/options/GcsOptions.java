@@ -76,7 +76,6 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   void setExecutorService(ExecutorService value);
 
   /** GCS endpoint to use. If unspecified, uses the default endpoint. */
-  @JsonIgnore
   @Hidden
   @Description("The URL for the GCS API.")
   String getGcsEndpoint();
@@ -260,7 +259,10 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
                 value, MAX_VALUE_LENGTH));
       }
 
-      String oldValue = super.put(String.format(CUSTOM_AUDIT_ENTRY_TMPL, key), value);
+      String prefix = CUSTOM_AUDIT_ENTRY_TMPL.substring(0, CUSTOM_AUDIT_ENTRY_TMPL.indexOf('%'));
+      String formattedKey =
+          key.startsWith(prefix) ? key : String.format(CUSTOM_AUDIT_ENTRY_TMPL, key);
+      String oldValue = super.put(formattedKey, value);
 
       if (exceedsEntryLimit()) {
         throw new IllegalArgumentException(

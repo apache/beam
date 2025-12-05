@@ -6,5 +6,7 @@
   "https://github.com/apache/beam/pull/33267": "noting that PR #33267 should run this test",
   "https://github.com/apache/beam/pull/33322": "noting that PR #33322 should run this test",
   "https://github.com/apache/beam/pull/34080": "noting that PR #34080 should run this test",
-  "https://github.com/apache/beam/pull/34155": "noting that PR #34155 should run this test"
+  "https://github.com/apache/beam/pull/34155": "noting that PR #34155 should run this test",
+  "https://github.com/apache/beam/pull/34560": "noting that PR #34560 should run this test",
+  "https://github.com/apache/beam/pull/35316": "noting that PR #35316 should run this test"
 }

@@ -117,7 +117,7 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
         Chunk(id="1", content=Content(text="foo"), metadata={"a": "b"}),
         Chunk(id="2", content=Content(text="bar"), metadata={"c": "d"})
     ]
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(Exception, "must contain dense embedding"):
       with beam.Pipeline() as p:
         _ = (p | beam.Create(chunks) | config.create_write_transform())
 
@@ -139,8 +139,7 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
                        }]
         },
         chunk_to_dict_fn=lambda chunk: {
-            'id': chunk.id,
-            'embedding': chunk.embedding.dense_embedding,
+            'id': chunk.id, 'embedding': chunk.embedding.dense_embedding,
             'source': chunk.metadata.get('source')
         })
     config = BigQueryVectorWriterConfig(

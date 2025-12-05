@@ -176,6 +176,12 @@ async function processPull(
         issue_number: pull.number,
         name: SLOW_REVIEW_LABEL,
       });
+      await github.getGitHubClient().rest.issues.addLabels({
+        owner: REPO_OWNER,
+        repo: REPO,
+        issue_number: pull.number,
+        labels: ["reassigned-reviewers"],
+      });
     }
 
     return;

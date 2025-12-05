@@ -14,7 +14,7 @@
 # limitations under the License.
 categories:
   - name: core_infra
-    groupThreshold: 0.8
+    groupThreshold: 0.9
     tests:
     - "Release Nightly Snapshot Python" 
     - "Rotate Metrics Cluster Credentials" 
@@ -44,9 +44,11 @@ categories:
     - "pr-bot-pr-updates" 
     - "pr-bot-new-prs" 
     - "Republish Released Docker Images"
+    - "Flaky test detection"
   # Tests we want monitored more closely. Only add suites if you are willing to help keep them green :)
   # Usually will be postcommits since PreCommits are more likely to be noticed.
   - name: important_signals
+    groupThreshold: 0.9
     tests:
     - "PostCommit Python" 
     - "PostCommit Python Xlang Gcp Direct" 
@@ -62,7 +64,25 @@ categories:
     - "PostCommit Java ValidatesRunner Dataflow V2"
     - "PostCommit Python Arm" 
     - "PostCommit Python Examples Direct" 
-    - "PostCommit TransformService Direct" 
+    - "PostCommit TransformService Direct"
+    - "PreCommit YAML Xlang Direct"
+    - "PreCommit SQL"
+    - "PostCommit SQL"
+    - "PreCommit Go"
+    - "PostCommit Go"
+    - "Go tests"
+    - "Python tests"
+    - "PreCommit Python"
+    - "PostCommit Python ValidatesRunner Dataflow"
+    - "PostCommit Python ValidatesRunner Spark"
+    - "PostCommit Python ValidatesRunner Flink"
+    - "PostCommit Python ValidatesRunner Samza"
+    - "Build python source distribution and wheels"
+    - "Java Tests"
+    - "PostCommit Java"
+    - "PreCommit Java"
+    - "PostCommit Java ValidatesRunner Flink"
+    - "PostCommit Java ValidatesRunner Spark"
   - name: core_java
     tests:
     - "PreCommit SQL Java17"
@@ -71,17 +91,14 @@ categories:
     - "PreCommit Java Amazon-Web-Services IO Direct"
     - "PreCommit Java Amqp IO Direct"
     - "PreCommit Java Amazon-Web-Services2 IO Direct"
-    - "PreCommit Java"
     - "PreCommit Java Cassandra IO Direct"
     - "PreCommit Java Azure IO Direct"
     - "PreCommit Java Cdap IO Direct"
     - "PreCommit Java Clickhouse IO Direct"
     - "PreCommit Java Csv IO Direct"
-    - "Java Tests"
     - "PostCommit Java Avro Versions"
     - "PreCommit Java Debezium IO Direct"
     - "PreCommit Java File-schema-transform IO Direct"
-    - "PostCommit Java"
     - "PreCommit Java GCP IO Direct"
     - "PostCommit Java BigQueryEarlyRollout"
     - "PreCommit Java Google-ads IO Direct"
@@ -148,7 +165,6 @@ categories:
   - name: runners_java
     tests:
     - "PostCommit Java PVR Spark3 Streaming"
-    - "PostCommit Java ValidatesRunner Spark"
     - "PostCommit Java Examples Spark"
     - "PostCommit Java ValidatesRunner SparkStructuredStreaming"
     - "PostCommit Java ValidatesRunner Spark Java11"
@@ -166,7 +182,6 @@ categories:
     - "PreCommit Java PVR Flink Docker"
     - "PreCommit Java Flink Versions"
     - "PostCommit Java ValidatesRunner Flink Java11"
-    - "PostCommit Java ValidatesRunner Flink"
   - name: load_perf_java
     tests:
     - "LoadTests Java CoGBK Dataflow Batch"
@@ -218,18 +233,14 @@ categories:
     - "Python Dependency Tests" 
     - "PreCommit Python Dataframes" 
     - "PreCommit Python Examples" 
-    - "PreCommit Python Integration" 
-    - "PostCommit Python ValidatesRunner Samza" 
+    - "PreCommit Python Integration"
     - "LoadTests Python Smoke" 
     - "Update Python Depedencies" 
     - "PreCommit Python Runners" 
-    - "PreCommit Python Transforms" 
-    - "Build python source distribution and wheels" 
-    - "Python tests" 
+    - "PreCommit Python Transforms"
     - "PreCommit Portable Python" 
     - "PreCommit Python Coverage" 
-    - "PreCommit Python Docker" 
-    - "PreCommit Python" 
+    - "PreCommit Python Docker"
     - "PostCommit Python MongoDBIO IT" 
     - "PreCommit Python Docs" 
     - "PreCommit Python Formatter" 
@@ -237,16 +248,13 @@ categories:
     - "PreCommit Python Lint" 
   - name: runners_python
     tests:
-    - "PostCommit Python ValidatesRunner Dataflow" 
     - "Python ValidatesContainer Dataflow ARM" 
     - "PostCommit Python Xlang Gcp Dataflow" 
     - "PostCommit Python Xlang IO Dataflow" 
     - "PostCommit Python Examples Dataflow" 
     - "PostCommit Python ValidatesContainer Dataflow" 
-    - "PostCommit Python ValidatesContainer Dataflow With RC" 
-    - "PostCommit Python ValidatesRunner Spark" 
-    - "PostCommit Python Examples Spark" 
-    - "PostCommit Python ValidatesRunner Flink" 
+    - "PostCommit Python ValidatesContainer Dataflow With RC"
+    - "PostCommit Python Examples Spark"
     - "PreCommit Python PVR Flink" 
     - "PostCommit Python Examples Flink" 
   - name: load_perf_python
@@ -281,13 +289,10 @@ categories:
     - "LoadTests Python ParDo Flink Streaming" 
   - name: go
     tests:
-    - "PerformanceTests MongoDBIO IT" 
-    - "PreCommit Go" 
+    - "PerformanceTests MongoDBIO IT"
     - "PreCommit GoPortable" 
     - "PreCommit GoPrism" 
-    - "PostCommit Go VR Samza" 
-    - "Go tests" 
-    - "PostCommit Go" 
+    - "PostCommit Go VR Samza"
     - "PostCommit Go Dataflow ARM" 
     - "LoadTests Go CoGBK Dataflow Batch" 
     - "LoadTests Go Combine Dataflow Batch" 
@@ -309,8 +314,7 @@ categories:
     - "PostCommit XVR Spark3" 
     - "TypeScript Tests" 
     - "Playground Frontend Test" 
-    - "PostCommit PortableJar Flink" 
-    - "PostCommit SQL" 
+    - "PostCommit PortableJar Flink"
     - "Cancel" 
     - "PostCommit PortableJar Spark" 
     - "PreCommit Integration and Load Test Framework" 
@@ -323,8 +327,7 @@ categories:
     - "PostCommit XVR Flink" 
     - "IssueTagger" 
     - "Assign Milestone on issue close" 
-    - "Local environment tests" 
-    - "PreCommit SQL" 
+    - "Local environment tests"
     - "LabelPrs"
   - name: safe_to_ignore
     groupThreshold: 0

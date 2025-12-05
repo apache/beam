@@ -25,6 +25,7 @@ on:
       - 'sdks/java/expansion-service/**'
       - 'sdks/java/core/**'
       - 'sdks/java/io/**'
+      - 'sdks/java/managed/**'
       - 'sdks/java/extensions/sql/**'
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
@@ -36,6 +37,7 @@ on:
       - 'sdks/java/expansion-service/**'
       - 'sdks/java/core/**'
       - 'sdks/java/io/**'
+      - 'sdks/java/managed/**'
       - 'sdks/java/extensions/sql/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
@@ -82,7 +84,7 @@ jobs:
       matrix:
         job_name: ['beam_PreCommit_Xlang_Generated_Transforms']
         job_phrase: ['Run Xlang_Generated_Transforms PreCommit']
-        python_version: ['3.9']
+        python_version: ['3.10']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||

@@ -24,7 +24,8 @@ import java.util.logging.Logger;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Map to tuple function. */
@@ -33,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class ElemToBytesFunction<V> implements MapFunc<byte[], WindowedValue<V>> {
 
-  private transient WindowedValue.WindowedValueCoder<V> wvCoder;
+  private transient WindowedValues.WindowedValueCoder<V> wvCoder;
   private static final Logger LOG = Logger.getLogger(ElemToBytesFunction.class.getName());
 
   private transient boolean isInitialized = false;
@@ -44,7 +45,7 @@ public class ElemToBytesFunction<V> implements MapFunc<byte[], WindowedValue<V>>
     this.isInitialized = false;
   }
 
-  public ElemToBytesFunction(WindowedValue.WindowedValueCoder<V> wvCoder) {
+  public ElemToBytesFunction(WindowedValues.WindowedValueCoder<V> wvCoder) {
     this.wvCoder = wvCoder;
     wvCoderBytes = SerializableUtils.serializeToByteArray(wvCoder);
   }
@@ -73,7 +74,7 @@ public class ElemToBytesFunction<V> implements MapFunc<byte[], WindowedValue<V>>
       return;
     }
     wvCoder =
-        (WindowedValue.WindowedValueCoder<V>)
+        (WindowedValues.WindowedValueCoder<V>)
             SerializableUtils.deserializeFromByteArray(wvCoderBytes, "Coder");
     this.isInitialized = true;
   }

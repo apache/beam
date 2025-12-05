@@ -29,6 +29,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 /**
  * A coder for PubsubMessage treating the raw bytes being decoded as the message's payload, with the
  * message id from the PubSub server.
+ *
+ * <p>Maintainers should prefer {@link PubsubMessageSchemaCoder} over this coder when adding
+ * features to {@link PubsubIO}.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

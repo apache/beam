@@ -18,11 +18,14 @@
 import collections
 import math
 import statistics
+from collections.abc import Callable
+from collections.abc import Iterable
 from typing import Any
-from typing import Callable
-from typing import Iterable
 from typing import Optional
 
+from apache_beam.ml.anomaly.base import DEFAULT_MISSING_LABEL
+from apache_beam.ml.anomaly.base import DEFAULT_NORMAL_LABEL
+from apache_beam.ml.anomaly.base import DEFAULT_OUTLIER_LABEL
 from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.specifiable import specifiable
@@ -69,9 +72,13 @@ class LabelAggregation(AggregationFn, _AggModelIdMixin, _SourcePredictionMixin):
       agg_func: Callable[[Iterable[int]], int],
       agg_model_id: Optional[str] = None,
       include_source_predictions: bool = False,
-      missing_label: int = -2,
+      normal_label: int = DEFAULT_NORMAL_LABEL,
+      outlier_label: int = DEFAULT_OUTLIER_LABEL,
+      missing_label: int = DEFAULT_MISSING_LABEL,
   ):
     self._agg = agg_func
+    self._normal_label = normal_label
+    self._outlier_label = outlier_label
     self._missing_label = missing_label
     _AggModelIdMixin.__init__(self, agg_model_id)
     _SourcePredictionMixin.__init__(self, include_source_predictions)
@@ -208,10 +215,8 @@ class MajorityVote(LabelAggregation):
     **kwargs: Additional keyword arguments to pass to the base
       `LabelAggregation` class.
   """
-  def __init__(self, normal_label=0, outlier_label=1, tie_breaker=0, **kwargs):
+  def __init__(self, tie_breaker=DEFAULT_NORMAL_LABEL, **kwargs):
     self._tie_breaker = tie_breaker
-    self._normal_label = normal_label
-    self._outlier_label = outlier_label
 
     def inner(predictions: Iterable[int]) -> int:
       counters = collections.Counter(predictions)
@@ -248,10 +253,7 @@ class AllVote(LabelAggregation):
     **kwargs: Additional keyword arguments to pass to the base
       `LabelAggregation` class.
   """
-  def __init__(self, normal_label=0, outlier_label=1, **kwargs):
-    self._normal_label = normal_label
-    self._outlier_label = outlier_label
-
+  def __init__(self, **kwargs):
     def inner(predictions: Iterable[int]) -> int:
       return self._outlier_label if all(
           map(lambda p: p == self._outlier_label,
@@ -282,10 +284,7 @@ class AnyVote(LabelAggregation):
     **kwargs: Additional keyword arguments to pass to the base
       `LabelAggregation` class.
   """
-  def __init__(self, normal_label=0, outlier_label=1, **kwargs):
-    self._normal_label = normal_label
-    self._outlier_label = outlier_label
-
+  def __init__(self, **kwargs):
     def inner(predictions: Iterable[int]) -> int:
       return self._outlier_label if any(
           map(lambda p: p == self._outlier_label,

@@ -30,8 +30,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Param;
@@ -74,13 +75,13 @@ public class PrecombineGroupingTableBenchmark {
       case "uniform":
         for (int i = 0; i < TOTAL_VALUES; ++i) {
           int key = random.nextInt(KEY_SPACE);
-          elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
+          elements.add(WindowedValues.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
         }
         break;
       case "normal":
         for (int i = 0; i < TOTAL_VALUES; ++i) {
           int key = (int) (random.nextGaussian() * KEY_SPACE);
-          elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
+          elements.add(WindowedValues.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
         }
         break;
       case "hotKey":
@@ -91,12 +92,12 @@ public class PrecombineGroupingTableBenchmark {
           } else {
             key = random.nextInt(KEY_SPACE);
           }
-          elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
+          elements.add(WindowedValues.valueInGlobalWindow(KV.of(Integer.toString(key), key)));
         }
         break;
       case "uniqueKeys":
         for (int i = 0; i < TOTAL_VALUES; ++i) {
-          elements.add(WindowedValue.valueInGlobalWindow(KV.of(Integer.toString(i), i)));
+          elements.add(WindowedValues.valueInGlobalWindow(KV.of(Integer.toString(i), i)));
         }
         Collections.shuffle(elements, random);
         break;

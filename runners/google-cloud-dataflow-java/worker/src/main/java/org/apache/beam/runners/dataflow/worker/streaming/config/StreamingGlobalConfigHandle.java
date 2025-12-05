@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 
@@ -33,5 +32,5 @@ public interface StreamingGlobalConfigHandle {
    * Subscribe to config updates by registering a callback. Callback should be called the first time
    * with settings, if any. The callback could execute inline before the method returns.
    */
-  void registerConfigObserver(@Nonnull Consumer<StreamingGlobalConfig> callback);
+  void registerConfigObserver(Consumer<StreamingGlobalConfig> callback);
 }

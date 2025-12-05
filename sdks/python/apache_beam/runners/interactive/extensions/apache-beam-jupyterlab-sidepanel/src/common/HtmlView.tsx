@@ -88,7 +88,7 @@ export class HtmlView extends React.Component<IHtmlViewProps, IHtmlViewState> {
     );
   }
 
-  private _updateRenderTimerId: number;
+  private _updateRenderTimerId: ReturnType<typeof setInterval>;
 }
 
 /**

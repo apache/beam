@@ -34,6 +34,15 @@ LOOKS_TO_DOWNLOAD = [
     ("33", ["21", "70", "116", "69", "115"]),  # BigTableIO_Write
     ("34", ["22", "56", "96", "55", "95"]),    # TextIO_Read
     ("35", ["23", "64", "110", "63", "109"]),  # TextIO_Write
+    ("75", ["258", "259", "260", "261", "262"]),  # TensorFlow MNIST
+    ("76", ["233", "234", "235", "236", "237"]),  # PyTorch BERT base uncased
+    ("77", ["238", "239", "240", "241", "242"]),  # PyTorch BERT large uncased
+    ("78", ["243", "244", "245", "246", "247"]),  # PyTorch Resnet 101
+    ("79", ["248", "249", "250", "251", "252"]),  # PyTorch Resnet 152
+    ("80", ["253", "254", "255", "256", "257"]),  # PyTorch Resnet 152 Tesla T4
+    ("82", ["263", "264", "265", "266", "267"]),  # PyTorch Sentiment Streaming DistilBERT base uncased
+    ("85", ["268", "269", "270", "271", "272"]),  # PyTorch Sentiment Batch DistilBERT base uncased
+    ("86", ["284", "285", "286", "287", "288"]),  # VLLM Batch Gemma
 ]
 
 

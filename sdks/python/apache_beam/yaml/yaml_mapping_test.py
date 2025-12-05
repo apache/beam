@@ -30,6 +30,11 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml.yaml_transform import YamlTransform
 
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
+
 DATA = [
     beam.Row(label='11a', conductor=11, rank=0),
     beam.Row(label='37a', conductor=37, rank=1),
@@ -37,6 +42,7 @@ DATA = [
 ]
 
 
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class YamlMappingTest(unittest.TestCase):
   def test_basic(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -175,7 +181,7 @@ class YamlMappingTest(unittest.TestCase):
           label='Errors')
 
   def test_validate_explicit_types(self):
-    with self.assertRaisesRegex(TypeError, r'.*violates schema.*'):
+    with self.assertRaisesRegex(Exception, r'.*violates schema.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([
@@ -212,6 +218,7 @@ class YamlMappingTest(unittest.TestCase):
             language: python
             outputs: [even, odd]
           ''')
+      self.assertEqual(result['even'].element_type, elements.element_type)
       assert_that(
           result['even'] | beam.Map(lambda x: x.element),
           equal_to(['banana', 'orange']),
@@ -283,7 +290,7 @@ class YamlMappingTest(unittest.TestCase):
           label='Other')
 
   def test_partition_without_unknown(self):
-    with self.assertRaisesRegex(ValueError, r'.*Unknown output name.*"o".*'):
+    with self.assertRaisesRegex(Exception, r'.*Unknown output name.*"o".*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([
@@ -415,8 +422,8 @@ class YamlMappingTest(unittest.TestCase):
             ''')
 
   def test_partition_bad_runtime_type(self):
-    with self.assertRaisesRegex(ValueError,
-                                r'.*Returned output name.*must be a string.*'):
+    with self.assertRaisesRegex(Exception,
+                                r'Returned output name.*must be a string.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([

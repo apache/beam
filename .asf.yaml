@@ -51,6 +51,19 @@ github:
 
   protected_branches:
     master: {}
+    release-2.70: {}
+    release-2.69.0-postrelease: {}
+    release-2.69: {}
+    release-2.68.0-postrelease: {}
+    release-2.68: {}
+    release-2.67.0-postrelease: {}
+    release-2.67: {}
+    release-2.66.0-postrelease: {}
+    release-2.66: {}
+    release-2.65.0-postrelease: {}
+    release-2.65: {}
+    release-2.64.0-postrelease: {}
+    release-2.64: {}
     release-2.63.0-postrelease: {}
     release-2.63: {}
     release-2.62.0: {}

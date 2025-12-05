@@ -31,7 +31,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.ShardedKey;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -41,6 +40,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -64,8 +65,6 @@ class WriteUngroupedRowsToFiles
    */
   @VisibleForTesting static final int DEFAULT_MAX_WRITERS_PER_BUNDLE = 20;
 
-  private static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 29); // 512mb
-
   private static final TupleTag<FileWriteResult> WRITTEN_FILES_TAG = new TupleTag<>("writtenFiles");
   private static final TupleTag<Row> WRITTEN_ROWS_TAG = new TupleTag<Row>("writtenRows") {};
   private static final TupleTag<KV<ShardedKey<String>, Row>> SPILLED_ROWS_TAG =
@@ -74,14 +73,17 @@ class WriteUngroupedRowsToFiles
   private final String filePrefix;
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
+  private final long maxBytesPerFile;
 
   WriteUngroupedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
-      String filePrefix) {
+      String filePrefix,
+      long maxBytesPerFile) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
+    this.maxBytesPerFile = maxBytesPerFile;
   }
 
   @Override
@@ -95,7 +97,7 @@ class WriteUngroupedRowsToFiles
                         dynamicDestinations,
                         filePrefix,
                         DEFAULT_MAX_WRITERS_PER_BUNDLE,
-                        DEFAULT_MAX_BYTES_PER_FILE))
+                        maxBytesPerFile))
                 .withOutputTags(
                     WRITTEN_FILES_TAG,
                     TupleTagList.of(ImmutableList.of(WRITTEN_ROWS_TAG, SPILLED_ROWS_TAG))));
@@ -226,14 +228,14 @@ class WriteUngroupedRowsToFiles
     public void processElement(
         @Element KV<String, Row> element,
         BoundedWindow window,
-        PaneInfo pane,
+        PaneInfo paneInfo,
         MultiOutputReceiver out)
         throws Exception {
       String dest = element.getKey();
       Row data = element.getValue();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(dest);
       WindowedValue<IcebergDestination> windowedDestination =
-          WindowedValue.of(destination, window.maxTimestamp(), window, pane);
+          WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
 
       // Attempt to write record. If the writer is saturated and cannot accept
       // the record, spill it over to WriteGroupedRowsToFiles

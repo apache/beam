@@ -19,8 +19,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -32,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 )
 
 // This file retains the logic for the pardo handler
@@ -70,6 +73,7 @@ func (*runner) PrepareUrns() []string {
 		urns.TransformRedistributeArbitrarily,
 		urns.TransformRedistributeByKey,
 		urns.TransformFlatten,
+		urns.TransformTestStream,
 	}
 }
 
@@ -80,14 +84,15 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 		return h.handleFlatten(tid, t, comps)
 	case urns.TransformReshuffle, urns.TransformRedistributeArbitrarily, urns.TransformRedistributeByKey:
 		return h.handleReshuffle(tid, t, comps)
+	case urns.TransformTestStream:
+		return h.handleTestStream(tid, t, comps)
 	default:
 		panic("unknown urn to Prepare: " + t.GetSpec().GetUrn())
 	}
 }
 
 func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
-	if !h.config.SDKFlatten {
-		t.EnvironmentId = ""         // force the flatten to be a runner transform due to configuration.
+	if !h.config.SDKFlatten && !strings.HasPrefix(tid, "ft_") {
 		forcedRoots := []string{tid} // Have runner side transforms be roots.
 
 		// Force runner flatten consumers to be roots.
@@ -107,23 +112,48 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 		// they're written out to the runner in the same fashion.
 		// This may stop being necessary once Flatten Unzipping happens in the optimizer.
 		outPCol := comps.GetPcollections()[outColID]
-		outCoder := comps.GetCoders()[outPCol.GetCoderId()]
-		coderSubs := map[string]*pipepb.Coder{}
-		for _, p := range t.GetInputs() {
+		pcollSubs := map[string]*pipepb.PCollection{}
+		tSubs := map[string]*pipepb.PTransform{}
+
+		ts := proto.Clone(t).(*pipepb.PTransform)
+		ts.EnvironmentId = "" // force the flatten to be a runner transform due to configuration.
+		for localID, p := range t.GetInputs() {
 			inPCol := comps.GetPcollections()[p]
 			if inPCol.CoderId != outPCol.CoderId {
-				coderSubs[inPCol.CoderId] = outCoder
+				// TODO: do the following injection conditionally.
+				// Now we inject an SDK-side flatten between the upstream transform and
+				// the flatten.
+				//   Before: upstream -> [upstream out] -> runner flatten
+				//   After:  upstream -> [upstream out] -> SDK-side flatten -> [SDK-side flatten out] -> runner flatten
+				// Create a PCollection sub
+				fColID := "fc_" + p + "_to_" + outColID
+				fPCol := proto.Clone(outPCol).(*pipepb.PCollection)
+				fPCol.CoderId = outPCol.CoderId // same coder as runner flatten
+				pcollSubs[fColID] = fPCol
+
+				// Create a PTransform sub
+				ftID := "ft_" + p + "_to_" + outColID
+				ft := proto.Clone(t).(*pipepb.PTransform)
+				ft.EnvironmentId = t.EnvironmentId // Set environment to ensure it is a SDK-side transform
+				ft.Inputs = map[string]string{"0": p}
+				ft.Outputs = map[string]string{"0": fColID}
+				tSubs[ftID] = ft
+
+				// Replace the input of runner flatten with the output of SDK-side flatten
+				ts.Inputs[localID] = fColID
+
+				// Force sdk-side flattens to be roots
+				forcedRoots = append(forcedRoots, ftID)
 			}
 		}
+		tSubs[tid] = ts
 
 		// Return the new components which is the transforms consumer
 		return prepareResult{
 			// We sub this flatten with itself, to not drop it.
 			SubbedComps: &pipepb.Components{
-				Transforms: map[string]*pipepb.PTransform{
-					tid: t,
-				},
-				Coders: coderSubs,
+				Transforms:   tSubs,
+				Pcollections: pcollSubs,
 			},
 			RemovedLeaves: nil,
 			ForcedRoots:   forcedRoots,
@@ -188,6 +218,168 @@ func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb
 		RemovedLeaves: toRemove,
 		ForcedRoots:   forcedRoots,
 	}
+}
+
+func (h *runner) handleTestStream(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+	var pyld pipepb.TestStreamPayload
+	if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pyld); err != nil {
+		panic("Failed to decode TestStreamPayload: " + err.Error())
+	}
+	coders := map[string]*pipepb.Coder{}
+	// Ensure awareness of the coder used for the teststream.
+	ocID := pyld.GetCoderId()
+	cID, err := lpUnknownCoders(ocID, coders, comps.GetCoders())
+	if err != nil {
+		panic(err)
+	}
+
+	// If the TestStream coder needs to be LP'ed or if it is a coder that has different
+	// behaviors between nested context and outer context (in Java SDK), then we must
+	// LP this coder and the TestStream data elements.
+	forceLP := (cID != ocID && coders[ocID].GetSpec().GetUrn() != "beam:go:coder:custom:v1") ||
+		coders[ocID].GetSpec().GetUrn() == urns.CoderStringUTF8 ||
+		coders[ocID].GetSpec().GetUrn() == urns.CoderBytes ||
+		coders[ocID].GetSpec().GetUrn() == urns.CoderKV
+
+	if !forceLP {
+		return prepareResult{SubbedComps: &pipepb.Components{
+			Transforms: map[string]*pipepb.PTransform{tid: t},
+		}}
+	}
+
+	var mustLP func(v []byte) []byte
+	if coders[ocID].GetSpec().GetUrn() != urns.CoderKV {
+		// The coder needed length prefixing. For simplicity, add a length prefix to each
+		// encoded element, since we will be sending a length prefixed coder to consume
+		// this anyway. This is simpler than trying to find all the re-written coders after the fact.
+		// This also adds a LP-coder for the original coder in comps.
+		cID, err = forceLpCoder(pyld.GetCoderId(), coders, comps.GetCoders())
+		if err != nil {
+			panic(err)
+		}
+		slog.Debug("teststream: add coder", "coderId", cID)
+
+		mustLP = func(v []byte) []byte {
+			var buf bytes.Buffer
+			if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
+				panic(err)
+			}
+			if _, err := buf.Write(v); err != nil {
+				panic(err)
+			}
+			return buf.Bytes()
+		}
+	} else {
+		// For a KV coder, we only length-prefix the value coder because we need to
+		// preserve the original structure of the key coder. This allows the key
+		// coder to be easily extracted later to retrieve the KeyBytes from the
+		// encoded elements.
+
+		c := coders[ocID]
+		kcid := c.GetComponentCoderIds()[0]
+		vcid := c.GetComponentCoderIds()[1]
+
+		var lpvcid string
+		lpvcid, err = forceLpCoder(vcid, coders, comps.GetCoders())
+		if err != nil {
+			panic(err)
+		}
+
+		slog.Debug("teststream: add coder", "coderId", lpvcid)
+
+		kvc := &pipepb.Coder{
+			Spec: &pipepb.FunctionSpec{
+				Urn: urns.CoderKV,
+			},
+			ComponentCoderIds: []string{kcid, lpvcid},
+		}
+
+		kvcID := ocID + "_vlp"
+		coders[kvcID] = kvc
+
+		slog.Debug("teststream: add coder", "coderId", kvcID)
+
+		cID = kvcID
+
+		kd := collectionPullDecoder(kcid, coders, comps)
+		mustLP = func(v []byte) []byte {
+			elmBuf := bytes.NewBuffer(v)
+			keyBytes := kd(elmBuf)
+
+			var buf bytes.Buffer
+			if _, err := buf.Write(keyBytes); err != nil {
+				panic(err)
+			}
+
+			// put the length of the value
+			if err := coder.EncodeVarInt((int64)(len(v)-len(keyBytes)), &buf); err != nil {
+				panic(err)
+			}
+
+			// write the value aka. the remaining bytes from the buffer
+			if _, err := buf.Write(elmBuf.Bytes()); err != nil {
+				panic(err)
+			}
+			return buf.Bytes()
+		}
+	}
+
+	// We need to loop over the events.
+	// For element events, we need to apply the mayLP function to the encoded element.
+	// Then we construct a new payload with the modified events.
+	var newEvents []*pipepb.TestStreamPayload_Event
+	for _, event := range pyld.GetEvents() {
+		switch event.GetEvent().(type) {
+		case *pipepb.TestStreamPayload_Event_ElementEvent:
+			elms := event.GetElementEvent().GetElements()
+			var newElms []*pipepb.TestStreamPayload_TimestampedElement
+			for _, elm := range elms {
+				newElm := proto.Clone(elm).(*pipepb.TestStreamPayload_TimestampedElement)
+				newElm.EncodedElement = mustLP(elm.GetEncodedElement())
+				slog.Debug("handleTestStream: rewrite bytes",
+					"before:", string(elm.GetEncodedElement()),
+					"after:", string(newElm.GetEncodedElement()))
+				newElms = append(newElms, newElm)
+			}
+			newEvents = append(newEvents, &pipepb.TestStreamPayload_Event{
+				Event: &pipepb.TestStreamPayload_Event_ElementEvent{
+					ElementEvent: &pipepb.TestStreamPayload_Event_AddElements{
+						Elements: newElms,
+					},
+				},
+			})
+		default:
+			newEvents = append(newEvents, event)
+		}
+	}
+	newPyld := &pipepb.TestStreamPayload{
+		CoderId:  cID,
+		Events:   newEvents,
+		Endpoint: pyld.GetEndpoint(),
+	}
+	b, err := proto.Marshal(newPyld)
+	if err != nil {
+		panic(fmt.Sprintf("couldn't marshal new test stream payload: %v", err))
+	}
+
+	ts := proto.Clone(t).(*pipepb.PTransform)
+	ts.GetSpec().Payload = b
+
+	pcolSubs := map[string]*pipepb.PCollection{}
+	for _, gi := range ts.GetOutputs() {
+		pcol := comps.GetPcollections()[gi]
+		newPcol := proto.Clone(pcol).(*pipepb.PCollection)
+		newPcol.CoderId = cID
+		slog.Debug("handleTestStream: rewrite coder for output pcoll", "colId", gi, "oldId", pcol.CoderId, "newId", newPcol.CoderId)
+		pcolSubs[gi] = newPcol
+	}
+
+	tSubs := map[string]*pipepb.PTransform{tid: ts}
+	return prepareResult{SubbedComps: &pipepb.Components{
+		Transforms:   tSubs,
+		Pcollections: pcolSubs,
+		Coders:       coders,
+	}}
 }
 
 var _ transformExecuter = (*runner)(nil)

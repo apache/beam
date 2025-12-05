@@ -309,6 +309,36 @@ TODO: document Nemo on Gradle: https://github.com/apache/beam/issues/21503
 TODO: document Jet on Gradle: https://github.com/apache/beam/issues/21501
 {{< /runner >}}
 
+For Windows PowerShell:
+
+{{< runner direct>}}
+.\gradlew clean execute -D mainClass=org.apache.beam.examples.WordCount \
+--args="--inputFile=sample.txt --output=counts"
+{{< /runner >}}
+{{< runner flink>}}
+TODO: document Flink on Gradle: https://github.com/apache/beam/issues/21498
+{{< /runner >}}
+{{< runner flinkCluster>}}
+TODO: document FlinkCluster on Gradle: https://github.com/apache/beam/issues/21499
+{{< /runner >}}
+{{< runner spark >}}
+TODO: document Spark on Gradle: https://github.com/apache/beam/issues/21502
+{{< /runner >}}
+{{< runner dataflow >}}
+.\gradlew clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    --args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
+    --output=gs://<your-gcs-bucket>/counts --runner=DataflowRunner" -Pdataflow-runner
+{{< /runner >}}
+{{< runner samza>}}
+TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500
+{{< /runner >}}
+{{< runner nemo>}}
+TODO: document Nemo on Gradle: https://github.com/apache/beam/issues/21503
+{{< /runner >}}
+{{< runner jet>}}
+TODO: document Jet on Gradle: https://github.com/apache/beam/issues/21501
+{{< /runner >}}
+
 ## Inspect the results
 
 After the pipeline has completed, you can view the output. There might be

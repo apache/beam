@@ -16,6 +16,7 @@
 #
 
 import logging
+import subprocess
 import unittest
 
 from apache_beam.io.debezium import DriverClassName
@@ -24,6 +25,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import subprocess_server
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -34,12 +36,32 @@ except ImportError:
 NUM_RECORDS = 1
 
 
+def _disable_debezium_test():
+  # disable if run on <Java17
+  try:
+    java = subprocess_server.JavaHelper.get_java()
+    result = subprocess.run([java, '-version'],
+                            check=True,
+                            capture_output=True,
+                            text=True)
+    version_line = result.stderr.splitlines()[0]
+    # Example output: openjdk version "21.0.6" 2025-01-21
+    version = version_line.split()[2].strip('\"')
+    if int(version.split(".")[0]) < 17:
+      return True
+  except:  # pylint: disable=bare-except
+    return False
+
+
 @unittest.skipIf(
     PostgresContainer is None, 'testcontainers package is not installed')
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     'Do not run this test on precommit suites.')
+@unittest.skipIf(
+    _disable_debezium_test(),
+    'Debezium test requires Java17+ in PATH or JAVA_HOME')
 class CrossLanguageDebeziumIOTest(unittest.TestCase):
   def setUp(self):
     self.username = 'debezium'
@@ -52,7 +74,6 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
     self.connection_properties = [
         "database.dbname=inventory",
         "database.server.name=dbserver1",
-        "database.include.list=inventory",
         "include.schema.changes=false"
     ]
 
@@ -68,8 +89,8 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
     expected_response = [{
         "metadata": {
             "connector": "postgresql",
-            "version": "1.3.1.Final",
-            "name": "dbserver1",
+            "version": "3.1.1.Final",
+            "name": "beam-debezium-connector",
             "database": "inventory",
             "schema": "inventory",
             "table": "customers"
@@ -108,7 +129,7 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
       try:
         self.db = PostgresContainer(
             'quay.io/debezium/example-postgres:latest',
-            user=self.username,
+            username=self.username,
             password=self.password,
             dbname=self.database)
         self.db.start()

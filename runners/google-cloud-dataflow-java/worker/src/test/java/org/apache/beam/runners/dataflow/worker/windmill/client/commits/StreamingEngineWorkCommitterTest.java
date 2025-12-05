@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,6 +74,17 @@ public class StreamingEngineWorkCommitterTest {
   private FakeWindmillServer fakeWindmillServer;
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
+  private static void waitForExpectedSetSize(Set<?> s, int expectedSize) {
+    while (s.size() < expectedSize) {
+      try {
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    assertThat(s).hasSize(expectedSize);
+  }
+
   private static Work createMockWork(long workToken) {
     WorkItem workItem =
         WorkItem.newBuilder()
@@ -94,6 +104,7 @@ public class StreamingEngineWorkCommitterTest {
               throw new UnsupportedOperationException();
             },
             mock(HeartbeatSender.class)),
+        false,
         Instant::now);
   }
 
@@ -135,7 +146,7 @@ public class StreamingEngineWorkCommitterTest {
 
   @Test
   public void testCommit_sendsCommitsToStreamingEngine() {
-    Set<CompleteCommit> completeCommits = new HashSet<>();
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 5; i++) {
@@ -155,6 +166,7 @@ public class StreamingEngineWorkCommitterTest {
 
     Map<Long, WorkItemCommitRequest> committed =
         fakeWindmillServer.waitForAndGetCommits(commits.size());
+    waitForExpectedSetSize(completeCommits, 5);
 
     for (Commit commit : commits) {
       WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
@@ -168,7 +180,7 @@ public class StreamingEngineWorkCommitterTest {
 
   @Test
   public void testCommit_handlesFailedCommits() {
-    Set<CompleteCommit> completeCommits = new HashSet<>();
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 10; i++) {
@@ -192,6 +204,7 @@ public class StreamingEngineWorkCommitterTest {
 
     Map<Long, WorkItemCommitRequest> committed =
         fakeWindmillServer.waitForAndGetCommits(commits.size() / 2);
+    waitForExpectedSetSize(completeCommits, 10);
 
     for (Commit commit : commits) {
       if (commit.work().isFailed()) {
@@ -210,7 +223,7 @@ public class StreamingEngineWorkCommitterTest {
 
   @Test
   public void testCommit_handlesCompleteCommits_commitStatusNotOK() {
-    Set<CompleteCommit> completeCommits = new HashSet<>();
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter = createWorkCommitter(completeCommits::add);
     Map<WorkId, Windmill.CommitStatus> expectedCommitStatus = new HashMap<>();
     Random commitStatusSelector = new Random();
@@ -249,6 +262,7 @@ public class StreamingEngineWorkCommitterTest {
 
     Map<Long, WorkItemCommitRequest> committed =
         fakeWindmillServer.waitForAndGetCommits(commits.size());
+    waitForExpectedSetSize(completeCommits, commits.size());
 
     for (Commit commit : commits) {
       WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
@@ -257,7 +271,6 @@ public class StreamingEngineWorkCommitterTest {
       assertThat(completeCommits)
           .contains(asCompleteCommit(commit, expectedCommitStatus.get(commit.work().id())));
     }
-    assertThat(completeCommits.size()).isEqualTo(commits.size());
 
     workCommitter.stop();
   }
@@ -314,7 +327,7 @@ public class StreamingEngineWorkCommitterTest {
         WindmillStreamPool.create(1, Duration.standardMinutes(1), fakeCommitWorkStream)
             ::getCloseableStream;
 
-    Set<CompleteCommit> completeCommits = new HashSet<>();
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter = createWorkCommitter(completeCommits::add);
 
     List<Commit> commits = new ArrayList<>();
@@ -376,6 +389,7 @@ public class StreamingEngineWorkCommitterTest {
     commits.parallelStream().forEach(workCommitter::commit);
     Map<Long, WorkItemCommitRequest> committed =
         fakeWindmillServer.waitForAndGetCommits(commits.size());
+    waitForExpectedSetSize(completeCommits, commits.size());
 
     for (Commit commit : commits) {
       WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());

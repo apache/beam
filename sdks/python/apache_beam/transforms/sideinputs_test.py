@@ -19,13 +19,20 @@
 
 # pytype: skip-file
 
+import hashlib
 import itertools
 import logging
 import unittest
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import Tuple
+from typing import Union
 
 import pytest
 
 import apache_beam as beam
+from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -100,17 +107,17 @@ class SideInputsTest(unittest.TestCase):
         window.SlidingWindows(size=6, period=2),
         expected=[
             # Element 1 falls in three windows
-            (1, [1]),        # [-4, 2)
-            (1, [1, 2]),     # [-2, 4)
+            (1, [1]),  # [-4, 2)
+            (1, [1, 2]),  # [-2, 4)
             (1, [1, 2, 4]),  # [0, 6)
             # as does 2,
-            (2, [1, 2]),     # [-2, 4)
+            (2, [1, 2]),  # [-2, 4)
             (2, [1, 2, 4]),  # [0, 6)
-            (2, [2, 4]),     # [2, 8)
+            (2, [2, 4]),  # [2, 8)
             # and 4.
             (4, [1, 2, 4]),  # [0, 6)
-            (4, [2, 4]),     # [2, 8)
-            (4, [4]),        # [4, 10)
+            (4, [2, 4]),  # [2, 8)
+            (4, [4]),  # [4, 10)
         ])
 
   def test_windowed_iter(self):
@@ -228,9 +235,7 @@ class SideInputsTest(unittest.TestCase):
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     side_pairs = pipeline | 'side pairs' >> beam.Create(some_pairs)
     results = main_input | 'concatenate' >> beam.Map(
-        lambda x,
-        the_list,
-        the_dict: [x, the_list, the_dict],
+        lambda x, the_list, the_dict: [x, the_list, the_dict],
         beam.pvalue.AsList(side_list),
         beam.pvalue.AsDict(side_pairs))
 
@@ -256,9 +261,7 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x,
-        s1,
-        s2: [x, s1, s2],
+        lambda x, s1, s2: [x, s1, s2],
         beam.pvalue.AsSingleton(side_list),
         beam.pvalue.AsSingleton(side_list))
 
@@ -281,9 +284,7 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x,
-        s1,
-        s2: [x, s1, s2],
+        lambda x, s1, s2: [x, s1, s2],
         beam.pvalue.AsSingleton(side_list, default_value=2),
         beam.pvalue.AsSingleton(side_list, default_value=3))
 
@@ -308,9 +309,7 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x,
-        ls1,
-        ls2: [x, ls1, ls2],
+        lambda x, ls1, ls2: [x, ls1, ls2],
         beam.pvalue.AsList(side_list),
         beam.pvalue.AsList(side_list))
 
@@ -333,9 +332,7 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_kvs = pipeline | 'side kvs' >> beam.Create(some_kvs)
     results = main_input | beam.Map(
-        lambda x,
-        dct1,
-        dct2: [x, dct1, dct2],
+        lambda x, dct1, dct2: [x, dct1, dct2],
         beam.pvalue.AsDict(side_kvs),
         beam.pvalue.AsDict(side_kvs))
 
@@ -426,6 +423,71 @@ class SideInputsTest(unittest.TestCase):
           equal_to_per_window(expected_window_to_elements),
           use_global_window=False,
           label='assert per window')
+
+  @pytest.mark.it_validatesrunner
+  def test_side_input_with_sdf(self):
+    """Test a side input with SDF.
+
+    This test verifies consisency of side input when it is split due to
+    SDF (Splittable DoFns). The consistency is verified by checking the size
+    and fingerprint of the side input.
+
+    This test needs to run with at least 2 workers (--num_workers=2) and
+    autoscaling disabled (--autoscaling_algorithm=NONE). Otherwise it might
+    provide false positives (i.e. not fail on bad state).
+    """
+    initial_elements = 1000
+    num_records = 10000
+    key_size = 10
+    value_size = 100
+    expected_fingerprint = '00f7eeac8514721e2683d14a504b33d1'
+
+    class GetSyntheticSDFOptions(beam.DoFn):
+      """A DoFn that emits elements for genenrating SDF."""
+      def process(self, element: Any) -> Iterable[Dict[str, Union[int, str]]]:
+        yield {
+            'num_records': num_records // initial_elements,
+            'key_size': key_size,
+            'value_size': value_size,
+            'initial_splitting_num_bundles': 0,
+            'initial_splitting_desired_bundle_size': 0,
+            'sleep_per_input_record_sec': 0,
+            'initial_splitting': 'const',
+        }
+
+    class SideInputTrackingDoFn(beam.DoFn):
+      """A DoFn that emits the size and fingerprint of the side input.
+
+      In this context, the size is the number of elements and the fingerprint
+      is the hash of the sorted serialized elements.
+      """
+      def process(
+          self, element: Any,
+          side_input: Iterable[Tuple[bytes,
+                                     bytes]]) -> Iterable[Tuple[int, str]]:
+
+        # Sort for consistent hashing.
+        sorted_side_input = sorted(side_input)
+        size = len(sorted_side_input)
+        m = hashlib.md5()
+        for key, value in sorted_side_input:
+          m.update(key)
+          m.update(value)
+        yield (size, m.hexdigest())
+
+    pipeline = self.create_pipeline()
+    main_input = pipeline | 'Main input: Create' >> beam.Create([0])
+    side_input = pipeline | 'Side input: Create' >> beam.Create(
+        range(initial_elements))
+    side_input |= 'Side input: Get synthetic SDF options' >> beam.ParDo(
+        GetSyntheticSDFOptions())
+    side_input |= 'Side input: Process and split' >> beam.ParDo(
+        SyntheticSDFAsSource())
+    results = main_input | 'Emit side input' >> beam.ParDo(
+        SideInputTrackingDoFn(), beam.pvalue.AsIter(side_input))
+
+    assert_that(results, equal_to([(num_records, expected_fingerprint)]))
+    pipeline.run()
 
 
 if __name__ == '__main__':

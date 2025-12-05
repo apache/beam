@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -38,10 +38,11 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
@@ -133,26 +134,27 @@ public class BatchViewOverridesTest {
                     ImmutableList.of(
                         KV.of(
                             windowA,
-                            WindowedValue.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                            WindowedValues.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
                         KV.of(
                             windowA,
-                            WindowedValue.of(111L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                            WindowedValues.of(111L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
                         KV.of(
                             windowA,
-                            WindowedValue.of(112L, new Instant(4), windowA, PaneInfo.NO_FIRING)),
+                            WindowedValues.of(112L, new Instant(4), windowA, PaneInfo.NO_FIRING)),
                         KV.of(
                             windowB,
-                            WindowedValue.of(120L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+                            WindowedValues.of(120L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
                         KV.of(
                             windowB,
-                            WindowedValue.of(121L, new Instant(14), windowB, PaneInfo.NO_FIRING)))),
+                            WindowedValues.of(
+                                121L, new Instant(14), windowB, PaneInfo.NO_FIRING)))),
             KV.of(
                 2,
                 (Iterable<KV<IntervalWindow, WindowedValue<Long>>>)
                     ImmutableList.of(
                         KV.of(
                             windowC,
-                            WindowedValue.of(
+                            WindowedValues.of(
                                 210L, new Instant(25), windowC, PaneInfo.NO_FIRING)))));
 
     // The order of the output elements is important relative to processing order
@@ -161,22 +163,22 @@ public class BatchViewOverridesTest {
         contains(
             IsmRecord.of(
                 ImmutableList.of(windowA, 0L),
-                WindowedValue.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowA, 1L),
-                WindowedValue.of(111L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(111L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowA, 2L),
-                WindowedValue.of(112L, new Instant(4), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(112L, new Instant(4), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowB, 0L),
-                WindowedValue.of(120L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+                WindowedValues.of(120L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowB, 1L),
-                WindowedValue.of(121L, new Instant(14), windowB, PaneInfo.NO_FIRING)),
+                WindowedValues.of(121L, new Instant(14), windowB, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(windowC, 0L),
-                WindowedValue.of(210L, new Instant(25), windowC, PaneInfo.NO_FIRING))));
+                WindowedValues.of(210L, new Instant(25), windowC, PaneInfo.NO_FIRING))));
   }
 
   @Test
@@ -221,27 +223,27 @@ public class BatchViewOverridesTest {
                         ImmutableList.of(
                             KV.of(
                                 KV.of(1L, windowA),
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
                             // same window same key as to previous
                             KV.of(
                                 KV.of(1L, windowA),
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     111L, new Instant(2), windowA, PaneInfo.NO_FIRING)),
                             // same window different key as to previous
                             KV.of(
                                 KV.of(2L, windowA),
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     120L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
                             // different window same key as to previous
                             KV.of(
                                 KV.of(2L, windowB),
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     210L, new Instant(11), windowB, PaneInfo.NO_FIRING)),
                             // different window and different key as to previous
                             KV.of(
                                 KV.of(3L, windowB),
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     220L, new Instant(12), windowB, PaneInfo.NO_FIRING)))),
                 KV.of(
                     2,
@@ -250,7 +252,7 @@ public class BatchViewOverridesTest {
                             // different shard
                             KV.of(
                                 KV.of(4L, windowC),
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     330L, new Instant(21), windowC, PaneInfo.NO_FIRING)))));
 
     // The order of the output elements is important relative to processing order
@@ -259,22 +261,22 @@ public class BatchViewOverridesTest {
         contains(
             IsmRecord.of(
                 ImmutableList.of(1L, windowA, 0L),
-                WindowedValue.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(1L, windowA, 1L),
-                WindowedValue.of(111L, new Instant(2), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(111L, new Instant(2), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(2L, windowA, 0L),
-                WindowedValue.of(120L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                WindowedValues.of(120L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(2L, windowB, 0L),
-                WindowedValue.of(210L, new Instant(11), windowB, PaneInfo.NO_FIRING)),
+                WindowedValues.of(210L, new Instant(11), windowB, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(3L, windowB, 0L),
-                WindowedValue.of(220L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+                WindowedValues.of(220L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
             IsmRecord.of(
                 ImmutableList.of(4L, windowC, 0L),
-                WindowedValue.of(330L, new Instant(21), windowC, PaneInfo.NO_FIRING))));
+                WindowedValues.of(330L, new Instant(21), windowC, PaneInfo.NO_FIRING))));
 
     // Verify the number of unique keys per window.
     assertThat(
@@ -351,12 +353,12 @@ public class BatchViewOverridesTest {
                         ImmutableList.of(
                             KV.of(
                                 KV.of(1L, windowA),
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
                             // same window same key as to previous
                             KV.of(
                                 KV.of(1L, windowA),
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     111L, new Instant(2), windowA, PaneInfo.NO_FIRING)))));
 
     thrown.expect(IllegalStateException.class);
@@ -495,19 +497,19 @@ public class BatchViewOverridesTest {
                         ImmutableList.of(
                             KV.of(
                                 windowA,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowA,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(2L, 21L), new Instant(7), windowA, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowB,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(2L, 21L), new Instant(13), windowB, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowB,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(3L, 31L),
                                     new Instant(15),
                                     windowB,
@@ -518,7 +520,7 @@ public class BatchViewOverridesTest {
                         ImmutableList.of(
                             KV.of(
                                 windowC,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(4L, 41L),
                                     new Instant(25),
                                     windowC,
@@ -569,29 +571,29 @@ public class BatchViewOverridesTest {
                         ImmutableList.of(
                             KV.of(
                                 windowA,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
                             // [BEAM-5184] Specifically test with a duplicate value to ensure that
                             // duplicate key/values are not lost.
                             KV.of(
                                 windowA,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowA,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(1L, 12L), new Instant(5), windowA, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowA,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(2L, 21L), new Instant(7), windowA, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowB,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(2L, 21L), new Instant(13), windowB, PaneInfo.NO_FIRING)),
                             KV.of(
                                 windowB,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(3L, 31L),
                                     new Instant(15),
                                     windowB,
@@ -602,7 +604,7 @@ public class BatchViewOverridesTest {
                         ImmutableList.of(
                             KV.of(
                                 windowC,
-                                WindowedValue.of(
+                                WindowedValues.of(
                                     KV.of(4L, 41L),
                                     new Instant(25),
                                     windowC,

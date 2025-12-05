@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
-import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.IterableLikeCoder;
@@ -90,8 +89,7 @@ public class StateBackedIterable<T>
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.prefix = prefix;
     this.suffix =
-        StateFetchingIterators.readAllAndDecodeStartingFrom(
-            Caches.subCache(cache, stateKey), beamFnStateClient, request, elemCoder);
+        StateFetchingIterators.readAllAndDecodeStartingFrom(beamFnStateClient, request, elemCoder);
     this.elemCoder = elemCoder;
   }
 

@@ -120,12 +120,6 @@ public class WindmillServerBase extends WindmillServerStub {
   }
 
   @Override
-  public long getAndResetThrottleTime() {
-    // Windmill appliance does not have throttling.
-    return 0;
-  }
-
-  @Override
   public GetWorkStream getWorkStream(Windmill.GetWorkRequest request, WorkItemReceiver receiver) {
     throw new UnsupportedOperationException();
   }

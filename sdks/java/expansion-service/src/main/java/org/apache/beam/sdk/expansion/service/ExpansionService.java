@@ -396,7 +396,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     return configurationClass;
   }
 
-  static <ConfigT> Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
+  static Row decodeConfigObjectRow(SchemaApi.Schema schema, ByteString payload) {
     Schema payloadSchema = SchemaTranslation.schemaFromProto(schema);
 
     if (payloadSchema.getFieldCount() == 0) {
@@ -580,10 +580,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   @VisibleForTesting
   /*package*/ ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request) {
-    LOG.info(
-        "Expanding '{}' with URN '{}'",
-        request.getTransform().getUniqueName(),
-        request.getTransform().getSpec().getUrn());
+    final String urn = request.getTransform().getSpec().getUrn();
+    LOG.info("Expanding '{}' with URN '{}'", request.getTransform().getUniqueName(), urn);
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
 
@@ -625,8 +623,6 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                       }
                     }));
 
-    String urn = request.getTransform().getSpec().getUrn();
-
     TransformProvider transformProvider = getRegisteredTransforms().get(urn);
     if (transformProvider == null) {
       if (getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
@@ -649,9 +645,22 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 ? transformProvider
                 : ExpansionServiceSchemaTransformProvider.of();
       } else {
-        throw new UnsupportedOperationException(
-            "Unknown urn: " + request.getTransform().getSpec().getUrn());
+        throw new UnsupportedOperationException("Unknown urn: " + urn);
       }
+    }
+
+    // Use expansion config file provided in commandLineOptions if not available
+    // in the expansion request options.
+    String configFileFromPipelineOptions =
+        pipeline.getOptions().as(ExpansionServiceOptions.class).getExpansionServiceConfigFile();
+    String configFileFromCommandLineOptions =
+        commandLineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfigFile();
+
+    if (configFileFromPipelineOptions == null && configFileFromCommandLineOptions != null) {
+      pipeline
+          .getOptions()
+          .as(ExpansionServiceOptions.class)
+          .setExpansionServiceConfigFile(configFileFromCommandLineOptions);
     }
 
     List<String> classpathResources =
@@ -814,6 +823,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   public static void main(String[] args) throws Exception {
+    if (args.length < 1) {
+      printUsage();
+      System.exit(1);
+    }
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
 
@@ -872,6 +885,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     Server server = serverBuilder.build();
     server.start();
     server.awaitTermination();
+  }
+
+  private static void printUsage() {
+    System.err.println("Usage: java -jar <expansion-service-jar> port [pipeline-options]");
   }
 
   private static class NotRunnableRunner extends PipelineRunner<PipelineResult> {

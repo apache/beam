@@ -52,8 +52,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.joda.time.Instant;
 
 /**
@@ -275,6 +275,11 @@ public abstract class PTransformRunnerFactoryTestContext
       String timerFamilyId, Coder<Timer<T>> coder, FnDataReceiver<Timer<T>> receiver) {
     getIncomingTimerEndpoints()
         .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
+  }
+
+  @Override
+  public <T> void addChannelRoot(BeamFnDataReadRunner<T> beamFnDataReadRunner) {
+    // noop
   }
 
   public abstract Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();

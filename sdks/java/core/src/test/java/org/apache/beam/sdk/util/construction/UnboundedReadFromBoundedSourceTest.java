@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util.construction;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -262,7 +261,7 @@ public class UnboundedReadFromBoundedSourceTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<?> splits = unboundedCountingSource.split(100, options);
     assertEquals(1, splits.size());
-    assertNotEquals(splits.get(0), unboundedCountingSource);
+    assertEquals(splits.get(0), unboundedCountingSource);
   }
 
   @Test
@@ -272,7 +271,7 @@ public class UnboundedReadFromBoundedSourceTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<?> splits = unboundedCountingSource.split(100, options);
     assertEquals(1, splits.size());
-    assertNotEquals(splits.get(0), unboundedCountingSource);
+    assertEquals(splits.get(0), unboundedCountingSource);
   }
 
   @Test

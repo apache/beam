@@ -159,6 +159,55 @@ func (h minRAMHint) String() string {
 	return fmt.Sprintf("min_ram=%v", humanize.Bytes(uint64(h.value)))
 }
 
+// MaxActiveBundlesPerWorker hints that this scope should be worked by max this number of messages in parallel on the
+// same machine.
+//
+// Hints are advisory only and runners may not respect them.
+//
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
+// resource hints.
+func MaxActiveBundlesPerWorker(v int64) Hint {
+	return maxActiveBundlesPerWorkerHint{value: v}
+}
+
+type maxActiveBundlesPerWorkerHint struct {
+	value int64
+}
+
+func (h maxActiveBundlesPerWorkerHint) URN() string {
+	return "beam:resources:max_active_bundles_per_worker:v1"
+}
+
+func (h maxActiveBundlesPerWorkerHint) Payload() []byte {
+	// Go strings are utf8, and if the string is ascii,
+	// byte conversion handles that directly.
+	return []byte(strconv.FormatInt(h.value, 10))
+}
+
+func (h maxActiveBundlesPerWorkerHint) MergeWithOuter(outer Hint) Hint {
+	// Max active bundles merge should be summed instead of taking the max.
+	return MaxActiveBundlesPerWorker(outer.(maxActiveBundlesPerWorkerHint).value + h.value)
+}
+
+func (h maxActiveBundlesPerWorkerHint) String() string {
+	return fmt.Sprintf("max_active_bundles_per_worker=%v", uint64(h.value))
+}
+
+// ParseMaxActiveBundlesPerWorker converts an int in string form into a hint.
+// An invalid size format will cause ParseMaxActiveBundlesPerWorker to panic.
+//
+// Hints are advisory only and runners may not respect them.
+//
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
+// resource hints.
+func ParseMaxActiveBundlesPerWorker(v string) Hint {
+	b, err := strconv.Atoi(v)
+	if err != nil {
+		panic(fmt.Sprintf("resource.ParseMaxActiveBundlesPerWorker: unable to parse %q: %v", v, err))
+	}
+	return MaxActiveBundlesPerWorker(int64(b))
+}
+
 // Accelerator hints that this scope should be put in a machine with a given accelerator.
 //
 // Hints for accelerators will have formats that are runner specific.

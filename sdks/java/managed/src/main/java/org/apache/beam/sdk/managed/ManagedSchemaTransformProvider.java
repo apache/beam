@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.managed;
 
-import static org.apache.beam.sdk.managed.ManagedTransformConstants.MAPPINGS;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -165,7 +166,7 @@ public class ManagedSchemaTransformProvider
         underlyingRowConfig = getRowConfig(managedConfig, transformConfigSchema);
       } catch (Exception e) {
         throw new IllegalArgumentException(
-            "Encountered an error when retrieving a Row configuration", e);
+            "Encountered an error when retrieving a configuration", e);
       }
 
       this.underlyingRowConfig = underlyingRowConfig;
@@ -210,13 +211,14 @@ public class ManagedSchemaTransformProvider
     // Build a config Row that will be used to build the underlying SchemaTransform.
     // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
     // with the underlying SchemaTransform config schema
-    Map<String, String> mapping = MAPPINGS.get(config.getTransformIdentifier());
-    if (mapping != null && configMap != null) {
+    @Nullable Map<String, String> aliases = getAliases().get(config.getTransformIdentifier());
+    if (aliases != null && configMap != null) {
       Map<String, Object> remappedConfig = new HashMap<>();
       for (Map.Entry<String, Object> entry : configMap.entrySet()) {
         String paramName = entry.getKey();
-        if (mapping.containsKey(paramName)) {
-          paramName = mapping.get(paramName);
+        if (aliases.containsKey(paramName)) {
+          // replace alias with the actual field name
+          paramName = aliases.get(paramName);
         }
         remappedConfig.put(paramName, entry.getValue());
       }
@@ -224,6 +226,19 @@ public class ManagedSchemaTransformProvider
     }
 
     return YamlUtils.toBeamRow(configMap, transformSchema, false);
+  }
+
+  public static Map<String, Map<String, String>> getAliases() {
+    InputStream inputStream =
+        checkStateNotNull(
+            checkStateNotNull(ManagedSchemaTransformProvider.class.getClassLoader())
+                .getResourceAsStream("config_aliases.yaml"));
+
+    Map<String, Map<String, String>> aliases = new HashMap<>();
+    for (Map.Entry<String, Object> entry : YamlUtils.loadFromStream(inputStream).entrySet()) {
+      aliases.put(entry.getKey(), (Map<String, String>) entry.getValue());
+    }
+    return aliases;
   }
 
   // We load providers separately, after construction, to prevent the

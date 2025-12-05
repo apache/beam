@@ -78,23 +78,13 @@ jobs:
           java-version: |
             8
             11
-      - name: run jar Java8 script
-        run: |
-          ./gradlew :runners:spark:3:jar :runners:spark:3:testJar
       - name: run validatesRunner Java8 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:spark:3:validatesRunner
           arguments: |
-            -x shadowJar \
-            -x shadowTestJar \
-            -x compileJava \
-            -x compileTestJava \
-            -x jar \
-            -x testJar \
-            -x classes \
-            -x testClasses \
-            -Dorg.gradle.java.home=$JAVA_HOME_8_X64 \
+            -PtestJavaVersion=8 \
+            -Pjava8Home=$JAVA_HOME_8_X64 \
           max-workers: 12
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4

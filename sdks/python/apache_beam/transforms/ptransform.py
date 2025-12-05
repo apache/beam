@@ -88,9 +88,9 @@ from apache_beam.utils import python_callable
 if TYPE_CHECKING:
   from apache_beam import coders
   from apache_beam.pipeline import Pipeline
+  from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.transforms.core import Windowing
-  from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = [
     'PTransform',
@@ -228,6 +228,9 @@ class _AddMaterializationTransforms(_PValueishTransform):
     from apache_beam import ParDo
 
     class _MaterializeValuesDoFn(DoFn):
+      def __init__(self):
+        self.is_materialize_values_do_fn = True
+
       def process(self, element):
         result.elements.append(element)
 
@@ -564,6 +567,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     else:
       from apache_beam.transforms.core import Windowing
       from apache_beam.transforms.window import GlobalWindows
+
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
 
@@ -587,6 +591,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam import pipeline
       from apache_beam.options.pipeline_options import PipelineOptions
+
       # pylint: enable=wrong-import-order, wrong-import-position
       p = pipeline.Pipeline('DirectRunner', PipelineOptions(sys.argv))
     else:
@@ -607,6 +612,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
+
     # pylint: enable=wrong-import-order, wrong-import-position
     replacements = {
         id(v): p | 'CreatePInput%s' % ix >> Create(v, reshuffle=False)
@@ -636,6 +642,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     """
     # pylint: disable=wrong-import-order
     from apache_beam import pipeline
+
     # pylint: enable=wrong-import-order
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)
@@ -704,21 +711,23 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: type[T]
-                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: type[T]
+      constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
+  ):
     # type: (...) -> None
     pass
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: None
-                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: None
+      constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
+  ):
     # type: (...) -> None
     pass
 
@@ -742,6 +751,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
   def to_runner_api(self, context, has_parts=False, **extra_kwargs):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
+
     # typing: only ParDo supports extra_kwargs
     urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
@@ -754,10 +764,11 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         if isinstance(typed_param, str) else typed_param)
 
   @classmethod
-  def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
-                      context  # type: PipelineContext
-                     ):
+  def from_runner_api(
+      cls,
+      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
+      context  # type: PipelineContext
+  ):
     # type: (...) -> Optional[PTransform]
     if proto is None or proto.spec is None or not proto.spec.urn:
       return None
@@ -778,9 +789,18 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         python_urns.GENERIC_COMPOSITE_TRANSFORM,
         getattr(self, '_fn_api_payload', str(self)))
 
-  def to_runner_api_pickled(self, unused_context):
+  def to_runner_api_pickled(self, context):
     # type: (PipelineContext) -> tuple[str, bytes]
-    return (python_urns.PICKLED_TRANSFORM, pickler.dumps(self))
+    return (
+        python_urns.PICKLED_TRANSFORM,
+        pickler.dumps(
+            self,
+            enable_best_effort_determinism=context.
+            enable_best_effort_deterministic_pickling,
+            enable_stable_code_identifier_pickling=context.
+            enable_stable_code_identifier_pickling,
+        ),
+    )
 
   def runner_api_requires_keyed_input(self):
     return False
@@ -862,12 +882,12 @@ class PTransformWithSideInputs(PTransform):
 
     # Ensure fn and side inputs are picklable for remote execution.
     try:
-      self.fn = pickler.loads(pickler.dumps(self.fn))
+      self.fn = pickler.roundtrip(self.fn)
     except RuntimeError as e:
       raise RuntimeError('Unable to pickle fn %s: %s' % (self.fn, e))
 
-    self.args = pickler.loads(pickler.dumps(self.args))
-    self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
+    self.args = pickler.roundtrip(self.args)
+    self.kwargs = pickler.roundtrip(self.kwargs)
 
     # For type hints, because loads(dumps(class)) != class.
     self.fn = self._cached_fn
@@ -989,6 +1009,7 @@ class _PTransformFnPTransform(PTransform):
     self._fn = fn
     self._args = args
     self._kwargs = kwargs
+    self._use_backwards_compatible_label = True
 
   def display_data(self):
     res = {
@@ -1017,11 +1038,30 @@ class _PTransformFnPTransform(PTransform):
       pass
     return self._fn(pcoll, *args, **kwargs)
 
-  def default_label(self):
+  def set_options(self, options):
+    # Avoid circular import.
+    from apache_beam.transforms.util import is_compat_version_prior_to
+    self._use_backwards_compatible_label = is_compat_version_prior_to(
+        options, '2.68.0')
+
+  def default_label(self) -> str:
+    # Attempt to give a reasonable name to this transform.
+    # We want it to be reasonably unique, but also not sensitive to
+    # irrelevent parameters to minimize pipeline-to-pipeline variance.
+    # For now, use only the first argument (if any), iff it would not make
+    # the name unwieldy.
     if self._args:
-      return '%s(%s)' % (
-          label_from_callable(self._fn), label_from_callable(self._args[0]))
-    return label_from_callable(self._fn)
+      first_arg_string = label_from_callable(self._args[0])
+      if (self._use_backwards_compatible_label or
+          not isinstance(first_arg_string, str) or len(first_arg_string) <= 19):
+        suffix = '(%s)' % first_arg_string
+      else:
+        suffix = ('(%s...%s)' %
+                  (first_arg_string[:10], first_arg_string[-6:])).replace(
+                      '\n', ' ')
+    else:
+      suffix = ''
+    return label_from_callable(self._fn) + suffix
 
 
 def ptransform_fn(fn):
@@ -1131,6 +1171,10 @@ class _NamedPTransform(PTransform):
   def __rrshift__(self, label):
     return _NamedPTransform(self.transform, label)
 
+  def with_resource_hints(self, **kwargs):
+    self.transform.with_resource_hints(**kwargs)
+    return self
+
   def __getattr__(self, attr):
     transform_attr = getattr(self.transform, attr)
     if callable(transform_attr):
@@ -1195,8 +1239,7 @@ def annotate_yaml(constructor):
         # The outermost call is expected to be the most specific.
         'yaml_provider': 'python',
         'yaml_type': 'PyTransform',
-        'yaml_args': config,
-    }
+        'yaml_args': config, }
     return transform
 
   return wrapper

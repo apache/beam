@@ -26,9 +26,10 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link ParDoFnFactory} to create instances of {@link ReifyTimestampAndWindowsParDoFn}. */
@@ -69,27 +70,30 @@ class ReifyTimestampAndWindowsParDoFnFactory implements ParDoFnFactory {
     public void processElement(Object untypedElem) throws Exception {
       WindowedValue<KV<?, ?>> typedElem = (WindowedValue<KV<?, ?>>) untypedElem;
 
-      receiver.process(
-          WindowedValue.of(
+      WindowedValues.builder(typedElem)
+          .withValue(
               KV.of(
                   typedElem.getValue().getKey(),
-                  WindowedValue.of(
+                  WindowedValues.of(
                       typedElem.getValue().getValue(),
                       typedElem.getTimestamp(),
                       typedElem.getWindows(),
-                      typedElem.getPane())),
-              typedElem.getTimestamp(),
-              typedElem.getWindows(),
-              typedElem.getPane()));
+                      typedElem.getPaneInfo())))
+          .setReceiver(receiver::process)
+          .output();
     }
 
     @Override
     public void processTimers() {}
 
     @Override
-    public void finishBundle() throws Exception {}
+    public void finishBundle() throws Exception {
+      this.receiver = null;
+    }
 
     @Override
-    public void abort() throws Exception {}
+    public void abort() throws Exception {
+      this.receiver = null;
+    }
   }
 }

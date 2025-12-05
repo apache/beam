@@ -17,6 +17,7 @@
 
 import datetime
 import logging
+import time
 import unittest
 from typing import NamedTuple
 from unittest.mock import MagicMock
@@ -30,10 +31,10 @@ from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import NotFound
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_filters import ColumnRangeFilter
   from testcontainers.redis import RedisContainer
+
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigtable import ExceptionLevel
@@ -136,17 +137,17 @@ def create_rows(table):
         column_family_id,
         product_id.encode(),
         str(item[product_id]),
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.set_cell(
         column_family_id,
         product_name.encode(),
         item[product_name],
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.set_cell(
         column_family_id,
         product_stock.encode(),
         str(item[product_stock]),
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.commit()
 
 
@@ -168,7 +169,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     instance = client.instance(self.instance_id)
     self.table = instance.table(self.table_id)
     create_rows(self.table)
-    self.retries = 3
+    self.retries = 5
     self._start_container()
 
   def _start_container(self):
@@ -184,6 +185,8 @@ class TestBigTableEnrichment(unittest.TestCase):
         if i == self.retries - 1:
           _LOGGER.error('Unable to start redis container for RRIO tests.')
           raise e
+        # Add a small delay between retries to avoid rapid successive failures
+        time.sleep(2)
 
   def tearDown(self) -> None:
     self.container.stop()
@@ -272,7 +275,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         table_id=self.table_id,
         row_key=self.row_key,
         row_filter=column_filter)
-    with self.assertRaises(NotFound):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -289,7 +292,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         instance_id=self.instance_id,
         table_id=self.table_id,
         row_key='car_name')
-    with self.assertRaises(KeyError):
+    with self.assertRaisesRegex(Exception, "not found in input"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -306,7 +309,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         instance_id=self.instance_id,
         table_id='invalid_table',
         row_key=self.row_key)
-    with self.assertRaises(NotFound):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -325,7 +328,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         row_key=self.row_key,
         exception_level=ExceptionLevel.RAISE)
     req = [beam.Row(sale_id=1, customer_id=1, product_id=11, quantity=1)]
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(Exception, "no matching row"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline

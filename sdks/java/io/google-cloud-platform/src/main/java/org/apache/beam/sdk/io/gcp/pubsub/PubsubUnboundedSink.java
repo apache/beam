@@ -23,8 +23,11 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -69,7 +72,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -201,8 +206,17 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
           break;
       }
 
+      // TODO(sjvanrossum): https://github.com/apache/beam/issues/31828
+      // NOTE: Null and empty ordering keys are treated as equivalent.
       @Nullable String topic = dynamicTopicFn.apply(element);
-      K key = keyFunction.apply(ThreadLocalRandom.current().nextInt(numShards), topic);
+      @Nullable String orderingKey = message.getOrderingKey();
+      int shard =
+          Strings.isNullOrEmpty(orderingKey)
+              ? ThreadLocalRandom.current().nextInt(numShards)
+              : Hashing.consistentHash(
+                  Hashing.farmHashFingerprint64().hashString(orderingKey, StandardCharsets.UTF_8),
+                  numShards);
+      K key = keyFunction.apply(shard, topic);
       o.output(KV.of(key, OutgoingMessage.of(message, timestampMsSinceEpoch, recordId, topic)));
     }
 
@@ -220,11 +234,20 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   /** Publish messages to Pubsub in batches. */
   @VisibleForTesting
   static class WriterFn extends DoFn<Iterable<OutgoingMessage>, Void> {
+    private static class OutgoingData {
+      int bytes;
+      List<OutgoingMessage> messages;
+
+      OutgoingData() {
+        this.bytes = 0;
+        this.messages = new ArrayList<>();
+      }
+    }
+
     private final PubsubClientFactory pubsubFactory;
     private final @Nullable ValueProvider<TopicPath> topic;
     private final String timestampAttribute;
     private final String idAttribute;
-    private final int publishBatchSize;
     private final int publishBatchBytes;
 
     private final String pubsubRootUrl;
@@ -247,7 +270,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       this.topic = topic;
       this.timestampAttribute = timestampAttribute;
       this.idAttribute = idAttribute;
-      this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
       this.pubsubRootUrl = null;
     }
@@ -257,14 +279,12 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         @Nullable ValueProvider<TopicPath> topic,
         String timestampAttribute,
         String idAttribute,
-        int publishBatchSize,
         int publishBatchBytes,
         String pubsubRootUrl) {
       this.pubsubFactory = pubsubFactory;
       this.topic = topic;
       this.timestampAttribute = timestampAttribute;
       this.idAttribute = idAttribute;
-      this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
       this.pubsubRootUrl = pubsubRootUrl;
     }
@@ -316,27 +336,45 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @ProcessElement
+    @SuppressWarnings("ReferenceEquality")
     public void processElement(ProcessContext c) throws Exception {
-      List<OutgoingMessage> pubsubMessages = new ArrayList<>(publishBatchSize);
-      int bytes = 0;
+      // TODO(sjvanrossum): Refactor the write transform so this map can be indexed with topic +
+      // ordering key and have bundle scoped lifetime.
+      // NOTE: A single publish request may only write to one ordering key.
+      // See https://cloud.google.com/pubsub/docs/publisher#using-ordering-keys for details.
+      Map<String, OutgoingData> orderingKeyBatches = new HashMap<>();
+      @MonotonicNonNull String currentOrderingKey = null;
+      @Nullable OutgoingData currentBatch = null;
       for (OutgoingMessage message : c.element()) {
-        if (!pubsubMessages.isEmpty()
-            && bytes + message.getMessage().getData().size() > publishBatchBytes) {
+        String messageOrderingKey = message.getMessage().getOrderingKey();
+        if (currentOrderingKey == null || !currentOrderingKey.equals(messageOrderingKey)) {
+          currentOrderingKey = messageOrderingKey;
+          currentBatch = orderingKeyBatches.get(currentOrderingKey);
+        }
+        if (currentBatch == null) {
+          currentBatch = new OutgoingData();
+          orderingKeyBatches.put(currentOrderingKey, currentBatch);
+        } else if (currentBatch.bytes + message.getMessage().getData().size() > publishBatchBytes) {
+          // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+
           // Break large (in bytes) batches into smaller.
           // (We've already broken by batch size using the trigger below, though that may
           // run slightly over the actual PUBLISH_BATCH_SIZE. We'll consider that ok since
           // the hard limit from Pubsub is by bytes rather than number of messages.)
           // BLOCKS until published.
-          publishBatch(pubsubMessages, bytes);
-          pubsubMessages.clear();
-          bytes = 0;
+          publishBatch(currentBatch.messages, currentBatch.bytes);
+          currentBatch.messages.clear();
+          currentBatch.bytes = 0;
         }
-        pubsubMessages.add(message);
-        bytes += message.getMessage().getData().size();
+        currentBatch.messages.add(message);
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+        currentBatch.bytes += message.getMessage().getData().size();
       }
-      if (!pubsubMessages.isEmpty()) {
-        // BLOCKS until published.
-        publishBatch(pubsubMessages, bytes);
+      for (OutgoingData batch : orderingKeyBatches.values()) {
+        if (!batch.messages.isEmpty()) {
+          // BLOCKS until published.
+          publishBatch(batch.messages, batch.bytes);
+        }
       }
     }
 
@@ -389,6 +427,12 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
    */
   private final int numShards;
 
+  /**
+   * Publish messages with an ordering key. Currently unsupported with DataflowRunner's Pubsub sink
+   * override.
+   */
+  private final boolean publishBatchWithOrderingKey;
+
   /** Maximum number of messages per publish. */
   private final int publishBatchSize;
 
@@ -413,6 +457,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards,
+      boolean publishBatchWithOrderingKey,
       int publishBatchSize,
       int publishBatchBytes,
       Duration maxLatency,
@@ -423,6 +468,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     this.timestampAttribute = timestampAttribute;
     this.idAttribute = idAttribute;
     this.numShards = numShards;
+    this.publishBatchWithOrderingKey = publishBatchWithOrderingKey;
     this.publishBatchSize = publishBatchSize;
     this.publishBatchBytes = publishBatchBytes;
     this.maxLatency = maxLatency;
@@ -435,13 +481,15 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       ValueProvider<TopicPath> topic,
       String timestampAttribute,
       String idAttribute,
-      int numShards) {
+      int numShards,
+      boolean publishBatchWithOrderingKey) {
     this(
         pubsubFactory,
         topic,
         timestampAttribute,
         idAttribute,
         numShards,
+        publishBatchWithOrderingKey,
         DEFAULT_PUBLISH_BATCH_SIZE,
         DEFAULT_PUBLISH_BATCH_BYTES,
         DEFAULT_MAX_LATENCY,
@@ -455,6 +503,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards,
+      boolean publishBatchWithOrderingKey,
       String pubsubRootUrl) {
     this(
         pubsubFactory,
@@ -462,6 +511,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         timestampAttribute,
         idAttribute,
         numShards,
+        publishBatchWithOrderingKey,
         DEFAULT_PUBLISH_BATCH_SIZE,
         DEFAULT_PUBLISH_BATCH_BYTES,
         DEFAULT_MAX_LATENCY,
@@ -475,6 +525,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards,
+      boolean publishBatchWithOrderingKey,
       int publishBatchSize,
       int publishBatchBytes) {
     this(
@@ -483,6 +534,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         timestampAttribute,
         idAttribute,
         numShards,
+        publishBatchWithOrderingKey,
         publishBatchSize,
         publishBatchBytes,
         DEFAULT_MAX_LATENCY,
@@ -496,6 +548,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards,
+      boolean publishBatchWithOrderingKey,
       int publishBatchSize,
       int publishBatchBytes,
       String pubsubRootUrl) {
@@ -505,6 +558,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         timestampAttribute,
         idAttribute,
         numShards,
+        publishBatchWithOrderingKey,
         publishBatchSize,
         publishBatchBytes,
         DEFAULT_MAX_LATENCY,
@@ -529,6 +583,10 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   /** Get the id attribute. */
   public @Nullable String getIdAttribute() {
     return idAttribute;
+  }
+
+  public boolean getPublishBatchWithOrderingKey() {
+    return publishBatchWithOrderingKey;
   }
 
   @Override
@@ -601,7 +659,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                       outer.topic,
                       outer.timestampAttribute,
                       outer.idAttribute,
-                      outer.publishBatchSize,
                       outer.publishBatchBytes,
                       outer.pubsubRootUrl)));
       return PDone.in(input.getPipeline());
@@ -654,7 +711,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                       outer.topic,
                       outer.timestampAttribute,
                       outer.idAttribute,
-                      outer.publishBatchSize,
                       outer.publishBatchBytes,
                       outer.pubsubRootUrl)));
       return PDone.in(input.getPipeline());

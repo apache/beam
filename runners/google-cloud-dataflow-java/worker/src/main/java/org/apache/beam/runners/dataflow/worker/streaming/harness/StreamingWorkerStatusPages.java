@@ -44,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -79,6 +80,7 @@ public final class StreamingWorkerStatusPages {
   private final @Nullable GrpcWindmillStreamFactory windmillStreamFactory;
   private final DebugCapture.@Nullable Manager debugCapture;
   private final @Nullable ChannelzServlet channelzServlet;
+  private final @Nullable ChannelCache channelCache;
 
   private final AtomicReference<StreamingGlobalConfig> globalConfig = new AtomicReference<>();
 
@@ -96,7 +98,8 @@ public final class StreamingWorkerStatusPages {
       Consumer<PrintWriter> getDataStatusProvider,
       BoundedQueueExecutor workUnitExecutor,
       ScheduledExecutorService statusPageDumper,
-      StreamingGlobalConfigHandle globalConfigHandle) {
+      StreamingGlobalConfigHandle globalConfigHandle,
+      @Nullable ChannelCache channelCache) {
     this.clock = clock;
     this.clientId = clientId;
     this.isRunning = isRunning;
@@ -111,6 +114,7 @@ public final class StreamingWorkerStatusPages {
     this.workUnitExecutor = workUnitExecutor;
     this.statusPageDumper = statusPageDumper;
     globalConfigHandle.registerConfigObserver(globalConfig::set);
+    this.channelCache = channelCache;
   }
 
   public static StreamingWorkerStatusPages.Builder builder() {
@@ -168,6 +172,9 @@ public final class StreamingWorkerStatusPages {
           }
           writer.println(config.userWorkerJobSettings().toString());
         });
+    if (channelCache != null) {
+      statusPages.addStatusDataProvider("ChannelCache", "ChannelCache", channelCache);
+    }
   }
 
   private boolean isStreamingEngine() {
@@ -275,6 +282,8 @@ public final class StreamingWorkerStatusPages {
     Builder setStatusPageDumper(ScheduledExecutorService statusPageDumper);
 
     Builder setGlobalConfigHandle(StreamingGlobalConfigHandle globalConfigHandle);
+
+    Builder setChannelCache(@Nullable ChannelCache channelCache);
 
     StreamingWorkerStatusPages build();
   }

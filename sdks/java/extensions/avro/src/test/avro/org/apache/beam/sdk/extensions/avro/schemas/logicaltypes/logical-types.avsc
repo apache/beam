@@ -1,0 +1,123 @@
+{
+  "type": "record",
+  "name": "LogicalTypesExample",
+  "namespace": "org.apache.beam.sdk.extensions.avro.schemas.logicaltypes",
+  "fields": [
+    {
+      "name": "dateField",
+      "type": {
+        "type": "int",
+        "logicalType": "date"
+      }
+    },
+    {
+      "name": "timeMillisField",
+      "type": {
+        "type": "int",
+        "logicalType": "time-millis"
+      }
+    },
+    {
+      "name": "timeMicrosField",
+      "type": {
+        "type": "long",
+        "logicalType": "time-micros"
+      }
+    },
+    {
+      "name": "timestampMillisField",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "timestampMicrosField",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-micros"
+      }
+    },
+    {
+      "name": "localTimestampMillisField",
+      "type": {
+        "type": "long",
+        "logicalType": "local-timestamp-millis"
+      }
+    },
+    {
+      "name": "localTimestampMicrosField",
+      "type": {
+        "type": "long",
+        "logicalType": "local-timestamp-micros"
+      }
+    },
+    {
+      "name": "decimalSmall",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 5,
+        "scale": 2
+      }
+    },
+    {
+      "name": "decimalMedium",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 10,
+        "scale": 4
+      }
+    },
+    {
+      "name": "decimalLarge",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 20,
+        "scale": 6
+      }
+    },
+    {
+      "name": "fixedDecimalSmall",
+      "type": {
+        "type": "fixed",
+        "size": 4,
+        "logicalType": "decimal",
+        "precision": 6,
+        "scale": 2,
+        "name": "fixedDecimalSmall"
+      }
+    },
+    {
+      "name": "fixedDecimalMedium",
+      "type": {
+        "type": "fixed",
+        "size": 8,
+        "logicalType": "decimal",
+        "precision": 14,
+        "scale": 4,
+        "name": "fixedDecimalMedium"
+      }
+    },
+    {
+      "name": "fixedDecimalLarge",
+      "type": {
+        "type": "fixed",
+        "size": 12,
+        "logicalType": "decimal",
+        "precision": 22,
+        "scale": 6,
+        "name": "fixedDecimalLarge"
+      }
+    },
+    {
+      "name": "uuidField",
+      "type": {
+        "type": "string",
+        "logicalType": "uuid"
+      }
+    }
+  ]
+}

@@ -27,7 +27,8 @@ import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
@@ -73,11 +74,11 @@ public class AssignWindowP<T> extends AbstractProcessor {
                 throw new RuntimeException(e);
               }
               WindowedValue<T> outputValue =
-                  WindowedValue.of(
+                  WindowedValues.of(
                       inputValue.getValue(),
                       inputValue.getTimestamp(),
                       windows,
-                      inputValue.getPane());
+                      inputValue.getPaneInfo());
               traverser.accept(Utils.encode(outputValue, outputCoder));
               return traverser;
             });
@@ -110,7 +111,7 @@ public class AssignWindowP<T> extends AbstractProcessor {
         throw new IllegalArgumentException(
             String.format(
                 "%s passed to window assignment must be in a single window, but it was in %s: %s",
-                WindowedValue.class.getSimpleName(),
+                WindowedValues.class.getSimpleName(),
                 Iterables.size(value.getWindows()),
                 value.getWindows()));
       }

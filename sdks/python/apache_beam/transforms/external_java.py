@@ -32,6 +32,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
+from apache_beam.utils import subprocess_server
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -67,7 +68,8 @@ class JavaExternalTransformTest(object):
 
       # Start the java server and wait for it to be ready.
       if jar:
-        self._server = subprocess.Popen(['java', '-jar', jar, str(port)])
+        java = subprocess_server.JavaHelper.get_java()
+        self._server = subprocess.Popen([java, '-jar', jar, str(port)])
 
       address = 'localhost:%s' % str(port)
 
@@ -143,7 +145,12 @@ class JavaExternalTransformTest(object):
             ImplicitSchemaPayloadBuilder({'data': 'middle'}),
             expansion_service)
         | beam.ExternalTransform(TEST_COUNT_URN, None, expansion_service)
-        | beam.Map(lambda kv: '%s: %s' % kv))
+        # Map(lambda) produces a label formatted like this, but it cannot be
+        # changed without breaking update compat. Here, we pin to the transform
+        # name used in the 2.68 release to avoid breaking changes when the line
+        # number changes. Context: https://github.com/apache/beam/pull/36381
+        | "Map(<lambda at external_java.py:148>)" >>
+        beam.Map(lambda kv: '%s: %s' % kv))
 
     assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
 

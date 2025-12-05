@@ -197,8 +197,10 @@ class TriggerTest(unittest.TestCase):
         AfterWatermark(),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (2, 'b'), (13, 'c')],
-        {IntervalWindow(0, 10): [set('ab')],
-         IntervalWindow(10, 20): [set('c')]},
+        {
+            IntervalWindow(0, 10): [set('ab')],
+            IntervalWindow(10, 20): [set('c')]
+        },
         1,
         2,
         3,
@@ -225,36 +227,38 @@ class TriggerTest(unittest.TestCase):
   def test_fixed_watermark_with_early_late(self):
     self.run_trigger_simple(
         FixedWindows(100),  # pyformat break
-        AfterWatermark(early=AfterCount(3),
-                       late=AfterCount(2)),
+        AfterWatermark(early=AfterCount(3), late=AfterCount(2)),
         AccumulationMode.DISCARDING,
         zip(range(9), 'abcdefghi'),
-        {IntervalWindow(0, 100): [
-            set('abcd'), set('efgh'),  # early
-            set('i'),                  # on time
-            set('vw'), set('xy')       # late
-            ]},
+        {
+            IntervalWindow(0, 100): [
+                set('abcd'),
+                set('efgh'),  # early
+                set('i'),  # on time
+                set('vw'),
+                set('xy')  # late
+            ]
+        },
         2,
         late_data=zip(range(5), 'vwxyz'))
 
   def test_sessions_watermark_with_early_late(self):
     self.run_trigger_simple(
         Sessions(10),  # pyformat break
-        AfterWatermark(early=AfterCount(2),
-                       late=AfterCount(1)),
+        AfterWatermark(early=AfterCount(2), late=AfterCount(1)),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (15, 'b'), (7, 'c'), (30, 'd')],
         {
             IntervalWindow(1, 25): [
-                set('abc'),                # early
-                set('abc'),                # on time
-                set('abcxy')               # late
+                set('abc'),  # early
+                set('abc'),  # on time
+                set('abcxy')  # late
             ],
             IntervalWindow(30, 40): [
-                set('d'),                  # on time
+                set('d'),  # on time
             ],
             IntervalWindow(1, 40): [
-                set('abcdxyz')             # late
+                set('abcdxyz')  # late
             ],
         },
         2,
@@ -303,13 +307,16 @@ class TriggerTest(unittest.TestCase):
         Repeatedly(AfterAny(AfterCount(3), AfterWatermark())),
         AccumulationMode.ACCUMULATING,
         zip(range(7), 'abcdefg'),
-        {IntervalWindow(0, 100): [
-            set('abc'),
-            set('abcdef'),
-            set('abcdefg'),
-            set('abcdefgx'),
-            set('abcdefgxy'),
-            set('abcdefgxyz')]},
+        {
+            IntervalWindow(0, 100): [
+                set('abc'),
+                set('abcdef'),
+                set('abcdefg'),
+                set('abcdefgx'),
+                set('abcdefgxy'),
+                set('abcdefgxyz')
+            ]
+        },
         1,
         late_data=zip(range(3), 'xyz'))
 
@@ -350,8 +357,10 @@ class TriggerTest(unittest.TestCase):
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (2, 'b'), (15, 'c'), (16, 'd'), (30, 'z'), (9, 'e'),
          (10, 'f'), (30, 'y')],
-        {IntervalWindow(1, 26): [set('abcdef')],
-         IntervalWindow(30, 40): [set('yz')]},
+        {
+            IntervalWindow(1, 26): [set('abcdef')],
+            IntervalWindow(30, 40): [set('yz')]
+        },
         1,
         2,
         3,
@@ -381,9 +390,11 @@ class TriggerTest(unittest.TestCase):
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (15, 'b'), (6, 'c'), (30, 's'), (31, 't'), (50, 'z'),
          (50, 'y')],
-        {IntervalWindow(1, 25): [set('abc')],
-         IntervalWindow(30, 41): [set('st')],
-         IntervalWindow(50, 60): [set('yz')]},
+        {
+            IntervalWindow(1, 25): [set('abc')],
+            IntervalWindow(30, 41): [set('st')],
+            IntervalWindow(50, 60): [set('yz')]
+        },
         1,
         2,
         3)
@@ -412,8 +423,10 @@ class TriggerTest(unittest.TestCase):
         AfterEach(AfterCount(2), AfterCount(3)),
         AccumulationMode.ACCUMULATING,
         zip(range(10), 'abcdefghij'),
-        {IntervalWindow(0, 11): [set('ab')],
-         IntervalWindow(0, 15): [set('abcdef')]},
+        {
+            IntervalWindow(0, 11): [set('ab')],
+            IntervalWindow(0, 15): [set('abcdef')]
+        },
         2)
 
     self.run_trigger_simple(
@@ -421,9 +434,11 @@ class TriggerTest(unittest.TestCase):
         Repeatedly(AfterEach(AfterCount(2), AfterCount(3))),
         AccumulationMode.ACCUMULATING,
         zip(range(10), 'abcdefghij'),
-        {IntervalWindow(0, 11): [set('ab')],
-         IntervalWindow(0, 15): [set('abcdef')],
-         IntervalWindow(0, 17): [set('abcdefgh')]},
+        {
+            IntervalWindow(0, 11): [set('ab')],
+            IntervalWindow(0, 15): [set('abcdef')],
+            IntervalWindow(0, 17): [set('abcdefgh')]
+        },
         2)
 
   def test_picklable_output(self):
@@ -537,6 +552,56 @@ class RunnerApiTest(unittest.TestCase):
       self.assertEqual(
           trigger_fn,
           TriggerFn.from_runner_api(trigger_fn.to_runner_api(context), context))
+
+
+class ContinuationTriggerTest(unittest.TestCase):
+  def test_after_all(self):
+    self.assertEqual(
+        AfterAll(AfterCount(2), AfterCount(5)).get_continuation_trigger(),
+        AfterAll(AfterCount(1), AfterCount(1)))
+
+  def test_after_any(self):
+    self.assertEqual(
+        AfterAny(AfterCount(2), AfterCount(5)).get_continuation_trigger(),
+        AfterAny(AfterCount(1), AfterCount(1)))
+
+  def test_after_count(self):
+    self.assertEqual(AfterCount(1).get_continuation_trigger(), AfterCount(1))
+    self.assertEqual(AfterCount(100).get_continuation_trigger(), AfterCount(1))
+
+  def test_after_each(self):
+    self.assertEqual(
+        AfterEach(AfterCount(2), AfterCount(5)).get_continuation_trigger(),
+        Repeatedly(AfterAny(AfterCount(1), AfterCount(1))))
+
+  def test_after_processing_time(self):
+    from apache_beam.transforms.trigger import _AfterSynchronizedProcessingTime
+    self.assertEqual(
+        AfterProcessingTime(10).get_continuation_trigger(),
+        _AfterSynchronizedProcessingTime())
+
+  def test_after_watermark(self):
+    self.assertEqual(
+        AfterWatermark().get_continuation_trigger(), AfterWatermark())
+    self.assertEqual(
+        AfterWatermark(early=AfterCount(10),
+                       late=AfterCount(20)).get_continuation_trigger(),
+        AfterWatermark(early=AfterCount(1), late=AfterCount(1)))
+
+  def test_always(self):
+    self.assertEqual(Always().get_continuation_trigger(), Always())
+
+  def test_default(self):
+    self.assertEqual(
+        DefaultTrigger().get_continuation_trigger(), DefaultTrigger())
+
+  def test_never(self):
+    self.assertEqual(_Never().get_continuation_trigger(), _Never())
+
+  def test_repeatedly(self):
+    self.assertEqual(
+        Repeatedly(AfterCount(10)).get_continuation_trigger(),
+        Repeatedly(AfterCount(1)))
 
 
 class TriggerPipelineTest(unittest.TestCase):
@@ -678,12 +743,16 @@ class TriggerPipelineTest(unittest.TestCase):
 
       assert_that(
           results,
-          equal_to(list({
-            'A': [1, 2, 3], # 4 - 6 discarded because trigger finished
-            'B': [1, 2, 3]}.items())))
+          equal_to(
+              list({
+                  'A': [1, 2, 3],  # 4 - 6 discarded because trigger finished
+                  'B': [1, 2, 3]
+              }.items())))
 
   def test_always(self):
-    with TestPipeline() as p:
+    # Pin to FnApiRunner since portable runner could trigger differently if
+    # using bundle sizes of greater than 1.
+    with TestPipeline('FnApiRunner') as p:
 
       def construct_timestamped(k, t):
         return TimestampedValue((k, t), t)
@@ -706,12 +775,9 @@ class TriggerPipelineTest(unittest.TestCase):
           result,
           equal_to(
               list({
-                  'A-2': {10, 11},
-                  # Elements out of windows are also emitted.
-                  'A-6': {1, 2, 3, 4, 5},
-                  # A,1 is emitted twice.
-                  'B-5': {6, 7, 8, 9},
-                  # B,6 is emitted twice.
+                  'A-2': {10, 11},  # Elements out of windows are also emitted.
+                  'A-6': {1, 2, 3, 4, 5},  # A,1 is emitted twice.
+                  'B-5': {6, 7, 8, 9},  # B,6 is emitted twice.
                   'B-3': {10, 15, 16},
               }.items())))
 
@@ -900,6 +966,7 @@ class TranscriptTest(unittest.TestCase):
 
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms import window as window_module
+
     # pylint: enable=wrong-import-order, wrong-import-position
     window_fn_names = dict(window_module.__dict__)
     # yapf: disable
@@ -1336,7 +1403,12 @@ class BatchTranscriptTest(TranscriptTest):
           if IntervalWindow(*pane['window']) not in merged_away
       ]
 
-    with TestPipeline() as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # the correct error message being reported, but because of how it is
+    # structured Prism often fails on splitting at the same time as it fails
+    # on an element, leading to good logs but potentially inconsistent error
+    # messages. Its not a bug, but it does mess with regex matching.
+    with TestPipeline('FnApiRunner') as p:
       input_pc = (
           p
           | beam.Create(inputs)

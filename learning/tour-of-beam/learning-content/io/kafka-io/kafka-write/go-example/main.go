@@ -76,7 +76,7 @@ func main() {
 
 		// In the main function, the code creates a Beam pipeline, reads from the Pub/Sub source, transforms the data into a key-value pair, applies a windowing function to the data, and writes the windowed data to a Kafka topic.
 
-		data := pubsubio.Read(s, "pubsub-public-data", "taxirides-realtime", nil)
+		data := pubsubio.Read(s, "pubsub-public-data", pubsubio.ReadOptions{Topic: "taxirides-realtime"})
 		kvData := beam.ParDo(s, func(elm []byte) ([]byte, []byte) { return []byte(""), elm }, data)
 		windowed := beam.WindowInto(s, window.NewFixedWindows(15*time.Second), kvData)
 		kafkaio.Write(s, *expansionAddr, *bootstrapServers, *topic, windowed)

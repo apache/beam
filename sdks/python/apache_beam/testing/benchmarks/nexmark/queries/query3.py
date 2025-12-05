@@ -74,10 +74,8 @@ def load(events, metadata=None, pipeline_options=None):
               JoinFn(metadata.get('max_auction_waiting_time')))
           | 'query3_output' >> beam.Map(
               lambda t: {
-                  ResultNames.NAME: t[1].name,
-                  ResultNames.CITY: t[1].city,
-                  ResultNames.STATE: t[1].state,
-                  ResultNames.AUCTION_ID: t[0].id
+                  ResultNames.NAME: t[1].name, ResultNames.CITY: t[1].city,
+                  ResultNames.STATE: t[1].state, ResultNames.AUCTION_ID: t[0].id
               }))
 
 

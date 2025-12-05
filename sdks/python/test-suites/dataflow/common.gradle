@@ -459,7 +459,7 @@ def vllmTests = tasks.create("vllmTests") {
     // TODO(https://github.com/apache/beam/issues/22651): Build docker image for VLLM tests during Run time.
     // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
     // declaration for this project.
-    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile
+    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile.old
     "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
@@ -509,6 +509,33 @@ task vertexAIInferenceTest {
     }
 }
 
+// Vertex AI RunInference IT tests
+task geminiInferenceTest {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/gemini_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "GeminiTests-df-py${pythonVersionSuffix}",
+          "collect": "gemini_postcommit" ,
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
 
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
@@ -576,6 +603,7 @@ project.tasks.register("inferencePostCommitIT") {
   // model is fixed.
   // 'tensorRTtests',
   'vertexAIInferenceTest',
+  'geminiInferenceTest',
   'mockAPITests',
   ]
 }
@@ -601,7 +629,7 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--project=${gcpProject}",
         "--region=${gcpRegion}",
         "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
-        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
+        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest"
       ],
       pytestOptions: basicPytestOpts,
       additionalDeps: taskMetadata.additionalDeps,

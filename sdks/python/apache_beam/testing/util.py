@@ -23,28 +23,36 @@ import collections
 import glob
 import io
 import tempfile
+from typing import Any
 from typing import Iterable
+from typing import List
+from typing import NamedTuple
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import DoFn
+from apache_beam.transforms.core import Filter
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.util import CoGroupByKey
+from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
+from apache_beam.utils.windowed_value import PaneInfo
 
 __all__ = [
     'assert_that',
     'equal_to',
     'equal_to_per_window',
+    'has_at_least_one',
     'is_empty',
     'is_not_empty',
     'matches_all',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
+    'row_namedtuple_equals_fn',
     'TestWindowedValue',
 ]
 
@@ -56,8 +64,11 @@ class BeamAssertException(Exception):
 
 
 # Used for reifying timestamps and windows for assert_that matchers.
-TestWindowedValue = collections.namedtuple(
-    'TestWindowedValue', 'value timestamp windows')
+class TestWindowedValue(NamedTuple):
+  value: Any
+  timestamp: Any
+  windows: List
+  pane_info: PaneInfo = PANE_INFO_UNKNOWN
 
 
 def contains_in_any_order(iterable):
@@ -159,7 +170,7 @@ def equal_to(expected, equals_fn=None):
     # collection. It can also raise false negatives for types that don't have
     # a deterministic sort order, like pyarrow Tables as of 0.14.1
     if not equals_fn:
-      equals_fn = lambda e, a: e == a
+      equals_fn = row_namedtuple_equals_fn
       try:
         sorted_expected = sorted(expected)
         sorted_actual = sorted(actual)
@@ -192,6 +203,33 @@ def equal_to(expected, equals_fn=None):
       raise BeamAssertException(msg)
 
   return _equal
+
+
+def row_namedtuple_equals_fn(expected, actual, fallback_equals_fn=None):
+  """
+  equals_fn which can be used by equal_to which treats Rows and
+  NamedTuples as equivalent types. This can be useful since Beam converts
+  Rows to NamedTuples when they are sent across portability layers, so a Row
+  may be converted to a NamedTuple automatically by Beam.
+  """
+  if fallback_equals_fn is None:
+    fallback_equals_fn = lambda e, a: e == a
+  if type(expected) is not pvalue.Row and not _is_named_tuple(expected):
+    return fallback_equals_fn(expected, actual)
+  if type(actual) is not pvalue.Row and not _is_named_tuple(actual):
+    return fallback_equals_fn(expected, actual)
+
+  expected_dict = expected._asdict()
+  actual_dict = actual._asdict()
+  if len(expected_dict) != len(actual_dict):
+    return False
+  for k, v in expected_dict.items():
+    if k not in actual_dict:
+      return False
+    if not row_namedtuple_equals_fn(v, actual_dict[k]):
+      return False
+
+  return True
 
 
 def matches_all(expected):
@@ -290,11 +328,15 @@ def assert_that(
 
   class ReifyTimestampWindow(DoFn):
     def process(
-        self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
+        self,
+        element,
+        timestamp=DoFn.TimestampParam,
+        window=DoFn.WindowParam,
+        pane_info=DoFn.PaneInfoParam):
       # This returns TestWindowedValue instead of
       # beam.utils.windowed_value.WindowedValue because ParDo will extract
       # the timestamp and window out of the latter.
-      return [TestWindowedValue(element, timestamp, [window])]
+      return [TestWindowedValue(element, timestamp, [window], pane_info)]
 
   class AddWindow(DoFn):
     def process(self, element, window=DoFn.WindowParam):
@@ -337,6 +379,33 @@ def AssertThat(pcoll, *args, **kwargs):
   return assert_that(pcoll, *args, **kwargs)
 
 
+def has_at_least_one(input, criterion, label="has_at_least_one"):
+  pipeline = input.pipeline
+  # similar to assert_that, we choose a label if it already exists.
+  if label in pipeline.applied_labels:
+    label_idx = 2
+    while f"{label}_{label_idx}" in pipeline.applied_labels:
+      label_idx += 1
+    label = f"{label}_{label_idx}"
+
+  def _apply_criterion(
+      e=DoFn.ElementParam,
+      t=DoFn.TimestampParam,
+      w=DoFn.WindowParam,
+      p=DoFn.PaneInfoParam):
+    if criterion(e, t, w, p):
+      return e, t, w, p
+
+  def _not_empty(actual):
+    actual = list(actual)
+    if not actual:
+      raise BeamAssertException('Failed assert: nothing matches the criterion')
+
+  result = input | label >> Map(_apply_criterion) | label + "_filter" >> Filter(
+      lambda e: e is not None)
+  assert_that(result, _not_empty)
+
+
 def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
   """Returns a composite file of all shards matching the given glob pattern.
 
@@ -372,6 +441,12 @@ def _sort_lists(result):
     return sorted(result)
   else:
     return result
+
+
+def _is_named_tuple(obj) -> bool:
+  return (
+      isinstance(obj, tuple) and hasattr(obj, '_asdict') and
+      hasattr(obj, '_fields'))
 
 
 # A utility transform that recursively sorts lists for easier testing.

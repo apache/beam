@@ -39,9 +39,10 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
@@ -61,8 +62,8 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void rootBundleSucceedsIgnoresCoder() {
-    WindowedValue<Record> one = WindowedValue.valueInGlobalWindow(new Record());
-    WindowedValue<Record> two = WindowedValue.valueInGlobalWindow(new Record());
+    WindowedValue<Record> one = WindowedValues.valueInGlobalWindow(new Record());
+    WindowedValue<Record> two = WindowedValues.valueInGlobalWindow(new Record());
     CommittedBundle<Record> root =
         factory.<Record>createRootBundle().add(one).add(two).commit(Instant.now());
 
@@ -76,9 +77,9 @@ public class CloningBundleFactoryTest {
         created
             .apply(WithKeys.of("foo"))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
-    WindowedValue<KV<String, Integer>> fooOne = WindowedValue.valueInGlobalWindow(KV.of("foo", 1));
+    WindowedValue<KV<String, Integer>> fooOne = WindowedValues.valueInGlobalWindow(KV.of("foo", 1));
     WindowedValue<KV<String, Integer>> fooThree =
-        WindowedValue.valueInGlobalWindow(KV.of("foo", 3));
+        WindowedValues.valueInGlobalWindow(KV.of("foo", 3));
     CommittedBundle<KV<String, Integer>> bundle =
         factory.createBundle(kvs).add(fooOne).add(fooThree).commit(Instant.now());
 
@@ -103,7 +104,7 @@ public class CloningBundleFactoryTest {
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
             .apply(GroupByKey.create());
     WindowedValue<KV<String, Iterable<Integer>>> foos =
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             KV.<String, Iterable<Integer>>of("foo", ImmutableList.of(1, 3)));
     CommittedBundle<KV<String, Iterable<Integer>>> keyedBundle =
         factory
@@ -127,7 +128,7 @@ public class CloningBundleFactoryTest {
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Encode not allowed");
-    bundle.add(WindowedValue.valueInGlobalWindow(new Record()));
+    bundle.add(WindowedValues.valueInGlobalWindow(new Record()));
   }
 
   @Test
@@ -138,7 +139,7 @@ public class CloningBundleFactoryTest {
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Decode not allowed");
-    bundle.add(WindowedValue.valueInGlobalWindow(new Record()));
+    bundle.add(WindowedValues.valueInGlobalWindow(new Record()));
   }
 
   @Test
@@ -150,7 +151,7 @@ public class CloningBundleFactoryTest {
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Encode not allowed");
-    bundle.add(WindowedValue.valueInGlobalWindow(new Record()));
+    bundle.add(WindowedValues.valueInGlobalWindow(new Record()));
   }
 
   @Test
@@ -162,7 +163,7 @@ public class CloningBundleFactoryTest {
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Decode not allowed");
-    bundle.add(WindowedValue.valueInGlobalWindow(new Record()));
+    bundle.add(WindowedValues.valueInGlobalWindow(new Record()));
   }
 
   static class Record {}

@@ -221,13 +221,12 @@ class DisplayData(object):
 
     items = {
         k: (v if DisplayDataItem._get_value_type(v) is not None else str(v))
-        for k,
-        v in pipeline_options.display_data().items()
+        for k, v in pipeline_options.display_data().items()
     }
     return cls(pipeline_options._get_display_data_namespace(), items)
 
   @classmethod
-  def create_from(cls, has_display_data):
+  def create_from(cls, has_display_data, extra_items=None):
     """ Creates :class:`~apache_beam.transforms.display.DisplayData` from a
     :class:`HasDisplayData` instance.
 
@@ -244,9 +243,11 @@ class DisplayData(object):
       raise ValueError(
           'Element of class {}.{} does not subclass HasDisplayData'.format(
               has_display_data.__module__, has_display_data.__class__.__name__))
+    if extra_items is None:
+      extra_items = {}
     return cls(
         has_display_data._get_display_data_namespace(),
-        has_display_data.display_data())
+        dict(**has_display_data.display_data(), **extra_items))
 
 
 class DisplayDataItem(object):

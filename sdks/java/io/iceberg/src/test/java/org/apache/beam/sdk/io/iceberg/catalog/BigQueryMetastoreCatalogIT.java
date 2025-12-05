@@ -38,54 +38,28 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
-  private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryMetastoreCatalogIT");
   static final String BQMS_CATALOG = "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
-  static final String DATASET = "managed_iceberg_bqms_tests_" + System.nanoTime();;
-  static final long SALT = System.nanoTime();
-
-  @BeforeClass
-  public static void createDataset() throws IOException, InterruptedException {
-    BQ_CLIENT.createNewDataset(OPTIONS.getProject(), DATASET);
-  }
-
-  @AfterClass
-  public static void deleteDataset() {
-    BQ_CLIENT.deleteDataset(OPTIONS.getProject(), DATASET);
-  }
 
   @Override
-  public String tableId() {
-    return DATASET + "." + testName.getMethodName() + "_" + SALT;
+  public String type() {
+    return "bqms";
   }
 
   @Override
   public Catalog createCatalog() {
     return CatalogUtil.loadCatalog(
         BQMS_CATALOG,
-        "bqms_" + catalogName,
+        catalogName,
         ImmutableMap.<String, String>builder()
             .put("gcp_project", OPTIONS.getProject())
             .put("gcp_location", "us-central1")
             .put("warehouse", warehouse)
             .build(),
         new Configuration());
-  }
-
-  @Override
-  public void catalogCleanup() {
-    for (TableIdentifier tableIdentifier : catalog.listTables(Namespace.of(DATASET))) {
-      // only delete tables that were created in this test run
-      if (tableIdentifier.name().contains(String.valueOf(SALT))) {
-        catalog.dropTable(tableIdentifier);
-      }
-    }
   }
 
   @Override
@@ -107,25 +81,34 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   @Test
   public void testWriteToPartitionedAndValidateWithBQQuery()
       throws IOException, InterruptedException {
-    // For an example row where bool=true, modulo_5=3, str=value_303,
-    // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
+    // querying with the client seems to work only when the dataset
+    // is created by the client (not iceberg)
+    BigqueryClient bqClient = new BigqueryClient(getClass().getSimpleName());
+    String newNamespace = namespace() + "_new";
+    namespacesToCleanup.add(newNamespace);
+    bqClient.createNewDataset(OPTIONS.getProject(), newNamespace);
+    String tableId = newNamespace + ".test_table";
+
+    // For an example row where bool_field=true, modulo_5=3, str=value_303,
+    // this partition spec will create a partition like:
+    // /bool_field=true/modulo_5=3/str_trunc=value_3/
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA)
-            .identity("bool")
+            .identity("bool_field")
             .hour("datetime")
             .truncate("str", "value_x".length())
             .build();
-    catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
+    catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
 
     // Write with Beam
-    Map<String, Object> config = managedIcebergConfig(tableId());
+    Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
 
     // Fetch records using a BigQuery query and validate
-    BigqueryClient bqClient = new BigqueryClient(getClass().getSimpleName());
-    String query = String.format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableId());
+
+    String query = String.format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableId);
     List<TableRow> rows = bqClient.queryUnflattened(query, OPTIONS.getProject(), true, true);
     List<Row> beamRows =
         rows.stream()
@@ -135,9 +118,9 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
     assertThat(beamRows, containsInAnyOrder(inputRows.toArray()));
 
     String queryByPartition =
-        String.format("SELECT bool, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId());
+        String.format("SELECT bool_field, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId);
     rows = bqClient.queryUnflattened(queryByPartition, OPTIONS.getProject(), true, true);
-    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(Arrays.asList("bool", "datetime"));
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(Arrays.asList("bool_field", "datetime"));
     beamRows =
         rows.stream()
             .map(tr -> BigQueryUtils.toBeamRow(rowFilter.outputSchema(), tr))
