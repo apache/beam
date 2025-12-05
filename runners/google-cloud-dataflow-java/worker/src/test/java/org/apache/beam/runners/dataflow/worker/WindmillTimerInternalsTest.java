@@ -84,9 +84,13 @@ public class WindmillTimerInternalsTest {
             for (Instant timestamp : TEST_TIMESTAMPS) {
               List<TimerData> anonymousTimers =
                   ImmutableList.of(
-                      TimerData.of(namespace, timestamp, timestamp, timeDomain),
+                      TimerData.of(namespace, timestamp, timestamp, timeDomain, false),
                       TimerData.of(
-                          namespace, timestamp, timestamp.minus(Duration.millis(1)), timeDomain));
+                          namespace,
+                          timestamp,
+                          timestamp.minus(Duration.millis(1)),
+                          timeDomain,
+                          false));
               for (TimerData timer : anonymousTimers) {
                 Instant expectedTimestamp =
                     timer.getOutputTimestamp().isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
@@ -102,7 +106,11 @@ public class WindmillTimerInternalsTest {
                 // output, we expect it to be bounded
                 TimerData expected =
                     TimerData.of(
-                        timer.getNamespace(), timestamp, expectedTimestamp, timer.getDomain());
+                        timer.getNamespace(),
+                        timestamp,
+                        expectedTimestamp,
+                        timer.getDomain(),
+                        false);
 
                 assertThat(computed, equalTo(expected));
               }
@@ -110,7 +118,7 @@ public class WindmillTimerInternalsTest {
               for (String timerId : TEST_TIMER_IDS) {
                 List<TimerData> timers =
                     ImmutableList.of(
-                        TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain),
+                        TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain, false),
                         TimerData.of(
                             timerId, "family", namespace, timestamp, timestamp, timeDomain),
                         TimerData.of(
@@ -118,7 +126,8 @@ public class WindmillTimerInternalsTest {
                             namespace,
                             timestamp,
                             timestamp.minus(Duration.millis(1)),
-                            timeDomain),
+                            timeDomain,
+                            false),
                         TimerData.of(
                             timerId,
                             "family",
