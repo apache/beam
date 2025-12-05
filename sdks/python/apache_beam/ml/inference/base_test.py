@@ -1593,7 +1593,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeModelHandlerNoEnvVars())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_model_manager_loads_shared_model(self):
+  def test_model_handler_manager_loads_shared_model(self):
     mhs = {
         'key1': FakeModelHandler(state=1),
         'key2': FakeModelHandler(state=2),
@@ -1617,7 +1617,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(2, model2.predict(10))
     self.assertEqual(3, model3.predict(10))
 
-  def test_model_manager_evicts_models(self):
+  def test_model_handler_manager_evicts_models(self):
     mh1 = FakeModelHandler(state=1)
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
@@ -1661,7 +1661,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
-  def test_model_manager_evicts_models_after_update(self):
+  def test_model_handler_manager_evicts_models_after_update(self):
     mh1 = FakeModelHandler(state=1)
     mhs = {'key1': mh1}
     mm = base._ModelManager(mh_map=mhs)
@@ -1691,8 +1691,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(6, model1.predict(10))
     sh1.release(model1)
 
-  def test_model_manager_evicts_correct_num_of_models_after_being_incremented(
-      self):
+  def test_model_handler_manager_evicts_correctly_after_being_incremented(self):
     mh1 = FakeModelHandler(state=1)
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)

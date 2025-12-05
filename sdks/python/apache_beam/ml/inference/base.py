@@ -470,11 +470,12 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
     raise NotImplementedError(type(self))
 
 
-class _ModelManager:
+class _ModelHandlerManager:
   """
-  A class for efficiently managing copies of multiple models. Will load a
-  single copy of each model into a multi_process_shared object and then
-  return a lookup key for that object.
+  A class for efficiently managing copies of multiple model handlers.
+  Will load a single copy of each model from the model handler into a
+  multi_process_shared object and then return a lookup key for that
+  object. Used for KeyedModelHandler only.
   """
   def __init__(self, mh_map: dict[str, ModelHandler]):
     """
@@ -539,8 +540,9 @@ class _ModelManager:
 
   def increment_max_models(self, increment: int):
     """
-    Increments the number of models that this instance of a _ModelManager is
-    able to hold. If it is never called, no limit is imposed.
+    Increments the number of models that this instance of a
+    _ModelHandlerManager is able to hold. If it is never called,
+    no limit is imposed.
     Args:
       increment: the amount by which we are incrementing the number of models.
     """
@@ -593,7 +595,7 @@ class KeyModelMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[tuple[KeyT, ExampleT],
                                      tuple[KeyT, PredictionT],
-                                     Union[ModelT, _ModelManager]]):
+                                     Union[ModelT, _ModelHandlerManager]]):
   def __init__(
       self,
       unkeyed: Union[ModelHandler[ExampleT, PredictionT, ModelT],
@@ -746,15 +748,15 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
               'to exactly one model handler.')
         self._key_to_id_map[key] = keys[0]
 
-  def load_model(self) -> Union[ModelT, _ModelManager]:
+  def load_model(self) -> Union[ModelT, _ModelHandlerManager]:
     if self._single_model:
       return self._unkeyed.load_model()
-    return _ModelManager(self._id_to_mh_map)
+    return _ModelHandlerManager(self._id_to_mh_map)
 
   def run_inference(
       self,
       batch: Sequence[tuple[KeyT, ExampleT]],
-      model: Union[ModelT, _ModelManager],
+      model: Union[ModelT, _ModelHandlerManager],
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[tuple[KeyT, PredictionT]]:
     if self._single_model:
@@ -856,7 +858,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def update_model_paths(
       self,
-      model: Union[ModelT, _ModelManager],
+      model: Union[ModelT, _ModelHandlerManager],
       model_paths: list[KeyModelPathMapping[KeyT]] = None):
     # When there are many models, the keyed model handler is responsible for
     # reorganizing the model handlers into cohorts and telling the model
