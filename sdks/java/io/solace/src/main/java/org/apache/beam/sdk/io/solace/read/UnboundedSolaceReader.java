@@ -64,7 +64,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
    * Queue to place advanced messages before {@link #getCheckpointMark()} is called. CAUTION:
    * Accessed by both reader and checkpointing threads.
    */
-  private final Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
+  private Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
 
   /**
    * Queue for messages that were ingested in the {@link #advance()} method, but not sent yet to a
@@ -190,6 +190,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
+    safeToAckMessages = new ConcurrentLinkedQueue<>();
     safeToAckMessages.addAll(receivedMessages);
     receivedMessages.clear();
     return new SolaceCheckpointMark(safeToAckMessages);
