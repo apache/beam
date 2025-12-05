@@ -175,10 +175,10 @@ class ResourceEstimator:
 
   def _solve(self):
     """
-        Solves Ax=b using raw readings (no pre-averaging) and NNLS.
-        This creates a 'tall' matrix A where every memory reading is
-        a separate equation.
-        """
+    Solves Ax=b using raw readings (no pre-averaging) and NNLS.
+    This creates a 'tall' matrix A where every memory reading is
+    a separate equation.
+    """
     unique = sorted(list(self.known_models))
 
     # We need to build the matrix first to know if we have enough data points

@@ -10,9 +10,9 @@ from apache_beam.ml.inference.model_manager import ModelManager
 
 class MockGPUMonitor:
   """
-    Simulates GPU hardware with cumulative memory tracking.
-    Allows simulating specific allocation spikes and baseline usage.
-    """
+  Simulates GPU hardware with cumulative memory tracking.
+  Allows simulating specific allocation spikes and baseline usage.
+  """
   def __init__(self, total_memory=12000.0, peak_window: int = 5):
     self._current = 0.0
     self._peak = 0.0
@@ -79,9 +79,9 @@ class TestModelManager(unittest.TestCase):
 
   def test_model_manager_capacity_check(self):
     """
-        Test that the manager blocks when spawning models exceeds the limit,
-        and unblocks when resources become available (via reuse).
-        """
+    Test that the manager blocks when spawning models exceeds the limit,
+    and unblocks when resources become available (via reuse).
+    """
     model_name = "known_model"
     model_cost = 3000.0
     # Total Memory: 12000. Limit (15% slack) ~ 10200.
@@ -170,9 +170,9 @@ class TestModelManager(unittest.TestCase):
 
   def test_model_manager_concurrent_mixed_workload_convergence(self):
     """
-        Simulates a production environment with multiple model types running
-        concurrently. Verifies that the estimator converges.
-        """
+    Simulates a production environment with multiple model types running
+    concurrently. Verifies that the estimator converges.
+    """
     # --- Configuration ---
     TRUE_COSTS = {"model_small": 1500.0, "model_medium": 3000.0}
 
