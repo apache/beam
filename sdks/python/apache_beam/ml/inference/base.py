@@ -59,6 +59,7 @@ from apache_beam.io.components.adaptive_throttler import ReactiveThrottler
 from apache_beam.utils import multi_process_shared
 from apache_beam.utils import retry
 from apache_beam.utils import shared
+from apache_beam.ml.inference.model_manager import ModelManager
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -1748,15 +1749,30 @@ class _SharedModelWrapper():
     This allows us to round robin calls to models sitting in different
     processes so that we can more efficiently use resources (e.g. GPUs).
   """
-  def __init__(self, models: list[Any], model_tag: str):
+  def __init__(
+      self,
+      models: Union[list[Any], ModelManager],
+      model_tag: str,
+      loader_func: Callable[[], Any] = None):
     self.models = models
-    if len(models) > 1:
+    self.use_model_manager = isinstance(models, ModelManager)
+    self.model_tag = model_tag
+    self.loader_func = loader_func
+    if not self.use_model_manager and len(models) > 1:
       self.model_router = multi_process_shared.MultiProcessShared(
           lambda: _ModelRoutingStrategy(),
           tag=f'{model_tag}_counter',
           always_proxy=True).acquire()
 
   def next_model(self):
+    if self.use_model_manager:
+
+      def load():
+        unique_tag = self.model_tag + '_' + uuid.uuid4().hex
+        return multi_process_shared.MultiProcessShared(
+            self.loader_func, tag=unique_tag, always_proxy=True).acquire()
+
+      return self.models.acquire_model(self.model_tag, load)
     if len(self.models) == 1:
       # Short circuit if there's no routing strategy needed in order to
       # avoid the cross-process call
@@ -1765,6 +1781,8 @@ class _SharedModelWrapper():
     return self.models[self.model_router.next_model_index(len(self.models))]
 
   def all_models(self):
+    if self.use_model_manager:
+      return self.models.all_models()[self.model_tag]
     return self.models
 
 
@@ -1775,7 +1793,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       clock,
       metrics_namespace,
       load_model_at_runtime: bool = False,
-      model_tag: str = "RunInference"):
+      model_tag: str = "RunInference",
+      use_model_manager: bool = True):
     """A DoFn implementation generic to frameworks.
 
       Args:
@@ -1799,6 +1818,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # _cur_tag is the tag of the actually loaded model
     self._model_tag = model_tag
     self._cur_tag = model_tag
+    self.use_model_manager = use_model_manager
 
   def _load_model(
       self,
@@ -1833,7 +1853,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_tag = side_input_model_path
     # Ensure the tag we're loading is valid, if not replace it with a valid tag
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
-    if self._model_handler.share_model_across_processes():
+    if self.use_model_manager:
+      model_manager = multi_process_shared.MultiProcessShared(
+          lambda: ModelManager(), tag='model_manager',
+          always_proxy=True).acquire()
+      model_wrapper = _SharedModelWrapper(model_manager, self._cur_tag, load)
+    elif self._model_handler.share_model_across_processes():
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
                                            self._model_handler.model_copies()):

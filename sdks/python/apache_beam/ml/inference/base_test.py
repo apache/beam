@@ -1599,7 +1599,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         'key2': FakeModelHandler(state=2),
         'key3': FakeModelHandler(state=3)
     }
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     tag1 = mm.load('key1').model_tag
     # Use bad_mh's load function to make sure we're actually loading the
     # version already stored
@@ -1622,7 +1622,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     mm.increment_max_models(2)
     tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
@@ -1664,7 +1664,7 @@ class RunInferenceBaseTest(unittest.TestCase):
   def test_model_handler_manager_evicts_models_after_update(self):
     mh1 = FakeModelHandler(state=1)
     mhs = {'key1': mh1}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     tag1 = mm.load('key1').model_tag
     sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
     model1 = sh1.acquire()
@@ -1696,7 +1696,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     mh2 = FakeModelHandler(state=2)
     mh3 = FakeModelHandler(state=3)
     mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
-    mm = base._ModelManager(mh_map=mhs)
+    mm = base._ModelHandlerManager(mh_map=mhs)
     mm.increment_max_models(1)
     mm.increment_max_models(1)
     tag1 = mm.load('key1').model_tag

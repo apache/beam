@@ -38,19 +38,6 @@ from collections import defaultdict, deque, Counter
 from contextlib import contextmanager
 from typing import Dict, Any, Tuple, Optional, Callable
 
-_NANOSECOND_TO_MILLISECOND = 1_000_000
-_NANOSECOND_TO_MICROSECOND = 1_000
-_MILLISECOND_TO_SECOND = 1_000
-
-ModelT = TypeVar("ModelT")
-ExampleT = TypeVar("ExampleT")
-PreProcessT = TypeVar("PreProcessT")
-PredictionT = TypeVar("PredictionT")
-PostProcessT = TypeVar("PostProcessT")
-_INPUT_TYPE = TypeVar("_INPUT_TYPE")
-_OUTPUT_TYPE = TypeVar("_OUTPUT_TYPE")
-KeyT = TypeVar("KeyT")
-
 # Configure Logging
 logger = logging.getLogger(__name__)
 
@@ -243,6 +230,7 @@ class ModelManager:
     self.estimator = ResourceEstimator()
     self.monitor = monitor if monitor else GPUMonitor()
 
+    self.models = defaultdict(list)
     self.idle_pool = defaultdict(list)
     self.active_counts = Counter()
     self.total_active_jobs = 0
@@ -255,6 +243,9 @@ class ModelManager:
 
     self._cv = threading.Condition()
     self.monitor.start()
+
+  def all_models(self, tag) -> list[Any]:
+    return self.models[tag]
 
   def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
     should_spawn = False
@@ -332,6 +323,7 @@ class ModelManager:
           if not is_unknown:
             self.pending_reservations = max(
                 0.0, self.pending_reservations - est_cost)
+          self.models[tag].append(instance)
           return instance
 
         except Exception as e:
