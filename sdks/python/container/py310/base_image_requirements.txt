@@ -68,6 +68,7 @@ google-cloud-bigtable==2.34.0
 google-cloud-core==2.5.0
 google-cloud-datastore==2.21.0
 google-cloud-dlp==3.33.0
+google-cloud-kms==3.7.0
 google-cloud-language==2.18.0
 google-cloud-profiler==4.1.0
 google-cloud-pubsub==2.33.0
