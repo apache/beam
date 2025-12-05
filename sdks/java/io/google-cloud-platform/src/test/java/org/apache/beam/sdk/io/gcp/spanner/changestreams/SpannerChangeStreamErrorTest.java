@@ -70,6 +70,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -115,6 +116,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code UNAVAILABLE is retried repeatedly until the RPC times out.
   public void testUnavailableExceptionRetries() throws InterruptedException {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
@@ -155,6 +157,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code ABORTED is retried repeatedly until it times out.
   public void testAbortedExceptionRetries() throws InterruptedException {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
@@ -218,6 +221,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code RESOURCE_EXHAUSTED is retried repeatedly.
   public void testResourceExhaustedRetry() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
@@ -281,6 +285,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   public void testInvalidRecordReceived() {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp endTimestamp =
