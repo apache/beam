@@ -30,7 +30,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -279,6 +279,11 @@ class DynamicDestinationsHelpers {
     private final @Nullable ValueProvider<String> jsonTimePartitioning;
     private final @Nullable ValueProvider<String> jsonClustering;
 
+    // Lazily initialized and cached values.
+    private @Nullable String evaluatedPartitioning = null;
+    private @Nullable String evaluatedClustering = null;
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
+
     ConstantTimePartitioningClusteringDestinations(
         DynamicDestinations<T, TableDestination> inner,
         ValueProvider<String> jsonTimePartitioning,
@@ -299,19 +304,41 @@ class DynamicDestinationsHelpers {
       this.jsonClustering = jsonClustering;
     }
 
+    static boolean isJsonConfigPresent(ValueProvider<String> json) {
+      String jsonValue = json.get();
+      return jsonValue != null && !JsonParser.parseString(jsonValue).getAsJsonObject().isEmpty();
+    }
+
+    private synchronized void evaluateOncePartitioningAndClustering() {
+      if (initialized.get()) {
+        return;
+      }
+      if (jsonTimePartitioning != null) {
+        if (isJsonConfigPresent(jsonTimePartitioning)) {
+          this.evaluatedPartitioning = jsonTimePartitioning.get();
+        }
+      }
+      if (jsonClustering != null) {
+        if (isJsonConfigPresent(jsonClustering)) {
+          this.evaluatedClustering = jsonClustering.get();
+        }
+      }
+      initialized.set(true);
+    }
+
     @Override
     public TableDestination getDestination(@Nullable ValueInSingleWindow<T> element) {
+      if (!initialized.get()) {
+        evaluateOncePartitioningAndClustering();
+      }
       TableDestination destination = super.getDestination(element);
+
       String partitioning =
-          Optional.ofNullable(jsonTimePartitioning).map(ValueProvider::get).orElse(null);
-      if (partitioning == null
-          || JsonParser.parseString(partitioning).getAsJsonObject().isEmpty()) {
-        partitioning = destination.getJsonTimePartitioning();
-      }
-      String clustering = Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null);
-      if (clustering == null || JsonParser.parseString(clustering).getAsJsonObject().isEmpty()) {
-        clustering = destination.getJsonClustering();
-      }
+          evaluatedPartitioning != null
+              ? evaluatedPartitioning
+              : destination.getJsonTimePartitioning();
+      String clustering =
+          evaluatedClustering != null ? evaluatedClustering : destination.getJsonClustering();
 
       return new TableDestination(
           destination.getTableSpec(), destination.getTableDescription(), partitioning, clustering);
