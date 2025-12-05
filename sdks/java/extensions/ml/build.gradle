@@ -26,6 +26,7 @@ applyJavaNature(
 )
 
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
+ext.summary = """beam-sdks-java-extensions-ml provides Apache Beam Java SDK machine learning integration with Google Cloud AI Video Intelligence service. For machine learning run inference modules, see beam-sdks-java-ml-reference-* artifacts."""
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
