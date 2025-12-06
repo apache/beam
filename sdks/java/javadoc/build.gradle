@@ -77,6 +77,9 @@ task aggregateJavadoc(type: Javadoc) {
   options.with {
     title "Apache Beam " + project.version
     overview 'overview.html'
+    encoding 'UTF-8'
+    docEncoding 'UTF-8'
+    charSet 'UTF-8'
     for (dep in project.library.java.values()) {
       links createJavadocIOUrlForDependency(dep)
     }
