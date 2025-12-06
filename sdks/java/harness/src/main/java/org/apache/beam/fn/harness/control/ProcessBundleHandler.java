@@ -227,10 +227,10 @@ public class ProcessBundleHandler {
     CacheBuilder<Object, Object> topoBuilder = CacheBuilder.newBuilder();
     Duration topoTimeout = options.as(SdkHarnessOptions.class).getBundleProcessorCacheTimeout();
     if (topoTimeout.compareTo(Duration.ZERO) > 0) {
-     topoBuilder = topoBuilder.expireAfterAccess(topoTimeout);
+      topoBuilder = topoBuilder.expireAfterAccess(topoTimeout);
     }
     this.topologicalOrderCache =
-       topoBuilder.build(
+        topoBuilder.build(
             new CacheLoader<String, ImmutableList<String>>() {
               @Override
               public ImmutableList<String> load(String descriptorId) throws Exception {
@@ -239,6 +239,7 @@ public class ProcessBundleHandler {
                     RunnerApi.Components.newBuilder()
                         .putAllCoders(desc.getCodersMap())
                         .putAllPcollections(desc.getPcollectionsMap())
+                        .putAllTransforms(desc.getTransformsMap())
                         .putAllWindowingStrategies(desc.getWindowingStrategiesMap())
                         .build();
                 QueryablePipeline qp =
@@ -904,7 +905,7 @@ public class ProcessBundleHandler {
           continue;
         }
         addRunnerAndConsumersForPTransformRecursively(
-           beamFnStateClient,
+            beamFnStateClient,
             beamFnDataClient,
             transformId,
             pTransform,
@@ -918,7 +919,7 @@ public class ProcessBundleHandler {
             processedPTransformIds,
             startFunctionRegistry,
             finishFunctionRegistry,
-           resetFunctions::add,
+            resetFunctions::add,
             tearDownFunctions::add,
             (apiServiceDescriptor, dataEndpoint) -> {
               if (!bundleProcessor
