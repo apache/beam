@@ -206,7 +206,7 @@ class SwitchingDirectRunner(PipelineRunner):
     # Check whether all transforms used in the pipeline are supported by the
     # PrismRunner
     if _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
-      _LOGGER.info('Running pipeline with PrismRunner.')
+      _LOGGER.exception('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
       runner = prism_runner.PrismRunner()
 
@@ -216,7 +216,7 @@ class SwitchingDirectRunner(PipelineRunner):
         # probably failed on job submission.
         if (PipelineState.is_terminal(pr.state) and
             pr.state != PipelineState.DONE):
-          _LOGGER.info(
+          _LOGGER.exception(
               'Pipeline failed on PrismRunner, falling back to DirectRunner.')
           runner = BundleBasedDirectRunner()
         else:
@@ -225,8 +225,8 @@ class SwitchingDirectRunner(PipelineRunner):
         # If prism fails in Preparing the portable job, then the PortableRunner
         # code raises an exception. Catch it, log it, and use the Direct runner
         # instead.
-        _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
-        _LOGGER.info('Falling back to DirectRunner')
+        _LOGGER.exception('Exception with PrismRunner:\n %s\n' % (e))
+        _LOGGER.exception('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
 
     # Check whether all transforms used in the pipeline are supported by the
@@ -240,6 +240,7 @@ class SwitchingDirectRunner(PipelineRunner):
       provision_info = fn_runner.ExtendedProvisionInfo(
           beam_provision_api_pb2.ProvisionInfo(
               pipeline_options=encoded_options))
+      _LOGGER.exception("Use FnApiRunner")
       runner = fn_runner.FnApiRunner(provision_info=provision_info)
 
     return runner.run_pipeline(pipeline, options)
