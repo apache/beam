@@ -200,6 +200,12 @@ class _AutoProxyWrapper:
   def __getattr__(self, name):
     return getattr(self._proxyObject, name)
 
+  def __setstate__(self, state):
+    self.__dict__.update(state)
+
+  def __getstate__(self):
+    return self.__dict__
+
   def get_auto_proxy_object(self):
     return self._proxyObject
 

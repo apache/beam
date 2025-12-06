@@ -60,6 +60,7 @@ from apache_beam.utils import multi_process_shared
 from apache_beam.utils import retry
 from apache_beam.utils import shared
 from apache_beam.ml.inference.model_manager import ModelManager
+from apache_beam.ml.inference.model_manager import ModelManager
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -1743,6 +1744,20 @@ def load_model_status(
   return shared.Shared().acquire(lambda: _ModelStatus(False), tag=tag)
 
 
+class _ProxyLoader:
+  """
+  A helper callable to wrap the loader for MultiProcessShared.
+  """
+  def __init__(self, loader_func, model_tag):
+    self.loader_func = loader_func
+    self.model_tag = model_tag
+
+  def __call__(self):
+    unique_tag = self.model_tag + '_' + uuid.uuid4().hex
+    return multi_process_shared.MultiProcessShared(
+        self.loader_func, tag=unique_tag, always_proxy=True).acquire()
+
+
 class _SharedModelWrapper():
   """A router class to map incoming calls to the correct model.
 
@@ -1754,7 +1769,16 @@ class _SharedModelWrapper():
       models: Union[list[Any], ModelManager],
       model_tag: str,
       loader_func: Callable[[], Any] = None):
+  def __init__(
+      self,
+      models: Union[list[Any], ModelManager],
+      model_tag: str,
+      loader_func: Callable[[], Any] = None):
     self.models = models
+    self.use_model_manager = not isinstance(models, list)
+    self.model_tag = model_tag
+    self.loader_func = loader_func
+    if not self.use_model_manager and len(models) > 1:
     self.use_model_manager = not isinstance(models, list)
     self.model_tag = model_tag
     self.loader_func = loader_func
@@ -1771,7 +1795,8 @@ class _SharedModelWrapper():
 
   def next_model(self):
     if self.use_model_manager:
-      return self.models.acquire_model(self.model_tag, self._load_model)
+      loader_wrapper = _ProxyLoader(self.loader_func, self.model_tag)
+      return self.models.acquire_model(self.model_tag, loader_wrapper)
     if len(self.models) == 1:
       # Short circuit if there's no routing strategy needed in order to
       # avoid the cross-process call
@@ -1779,7 +1804,13 @@ class _SharedModelWrapper():
 
     return self.models[self.model_router.next_model_index(len(self.models))]
 
+  def release_model(self, model_tag: str, model: Any):
+    if self.use_model_manager:
+      self.models.release_model(model_tag, model)
+
   def all_models(self):
+    if self.use_model_manager:
+      return self.models.all_models()[self.model_tag]
     if self.use_model_manager:
       return self.models.all_models()[self.model_tag]
     return self.models
@@ -1792,6 +1823,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       clock,
       metrics_namespace,
       load_model_at_runtime: bool = False,
+      model_tag: str = "RunInference",
+      use_model_manager: bool = True):
       model_tag: str = "RunInference",
       use_model_manager: bool = True):
     """A DoFn implementation generic to frameworks.
@@ -1819,26 +1852,31 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._cur_tag = model_tag
     self.use_model_manager = use_model_manager
 
-  def _load(self):
-    """Function for constructing shared LoadedModel."""
-    memory_before = _get_current_process_memory_in_bytes()
-    start_time = _to_milliseconds(self._clock.time_ns())
-    if isinstance(side_input_model_path, str):
-      self._model_handler.update_model_path(side_input_model_path)
-    else:
-      if self._model is not None:
-        models = self._model.all_models()
-        for m in models:
-          self._model_handler.update_model_paths(m, side_input_model_path)
-    model = self._model_handler.load_model()
-    end_time = _to_milliseconds(self._clock.time_ns())
-    memory_after = _get_current_process_memory_in_bytes()
-    load_model_latency_ms = end_time - start_time
-    model_byte_size = memory_after - memory_before
-    if self._metrics_collector:
-      self._metrics_collector.cache_load_model_metrics(
-          load_model_latency_ms, model_byte_size)
-    return model
+  def _load_model(
+      self,
+      side_input_model_path: Optional[Union[str,
+                                            list[KeyModelPathMapping]]] = None
+  ) -> _SharedModelWrapper:
+    def load():
+      """Function for constructing shared LoadedModel."""
+      memory_before = _get_current_process_memory_in_bytes()
+      start_time = _to_milliseconds(self._clock.time_ns())
+      if isinstance(side_input_model_path, str):
+        self._model_handler.update_model_path(side_input_model_path)
+      else:
+        if self._model is not None:
+          models = self._model.all_models()
+          for m in models:
+            self._model_handler.update_model_paths(m, side_input_model_path)
+      model = self._model_handler.load_model()
+      end_time = _to_milliseconds(self._clock.time_ns())
+      memory_after = _get_current_process_memory_in_bytes()
+      load_model_latency_ms = end_time - start_time
+      model_byte_size = memory_after - memory_before
+      if self._metrics_collector:
+        self._metrics_collector.cache_load_model_metrics(
+            load_model_latency_ms, model_byte_size)
+      return model
 
   def _load_model(
       self,
@@ -1857,7 +1895,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           lambda: ModelManager(), tag='model_manager',
           always_proxy=True).acquire()
       model_wrapper = _SharedModelWrapper(
-          model_manager, self._cur_tag, self._load)
+          model_manager, self._cur_tag, self._model_handler.load_model)
     elif self._model_handler.share_model_across_processes():
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
@@ -1915,6 +1953,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model = self._model.next_model()
       result_generator = self._model_handler.run_inference(
           batch, model, inference_args)
+      if self.use_model_manager:
+        self._model.release_model(self._model_tag, model)
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()
