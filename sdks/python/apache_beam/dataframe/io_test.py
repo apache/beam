@@ -179,7 +179,6 @@ A     B
       requires=()):
     self._run_read_write_test(
         format, read_kwargs, write_kwargs, check_options, requires)
-    self.assertEqual(1, 2)
 
   # pylint: disable=dangerous-default-value
   def _run_read_write_test(
