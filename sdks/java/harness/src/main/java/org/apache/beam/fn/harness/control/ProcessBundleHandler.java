@@ -890,118 +890,71 @@ public class ProcessBundleHandler {
             .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
             .build();
 
+    Iterable<String> transformIds;
     // Use cached topological order when available. Fall back to descriptor order on error.
     try {
-      ImmutableList<String> topo = topologicalOrderCache.get(bundleId);
-      for (String transformId : topo) {
-        PTransform pTransform = bundleDescriptor.getTransformsMap().get(transformId);
-        if (pTransform == null) {
-          continue; // defensive
-        }
-        if (!DATA_INPUT_URN.equals(pTransform.getSpec().getUrn())
-            && !DATA_OUTPUT_URN.equals(pTransform.getSpec().getUrn())
-            && !JAVA_SOURCE_URN.equals(pTransform.getSpec().getUrn())
-            && !PTransformTranslation.READ_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())) {
-          continue;
-        }
-        addRunnerAndConsumersForPTransformRecursively(
-            beamFnStateClient,
-            beamFnDataClient,
-            transformId,
-            pTransform,
-            bundleProcessor::getInstructionId,
-            bundleProcessor::getCacheTokens,
-            bundleProcessor::getBundleCache,
-            bundleDescriptor,
-            components,
-            pCollectionIdsToConsumingPTransforms,
-            pCollectionConsumerRegistry,
-            processedPTransformIds,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            resetFunctions::add,
-            tearDownFunctions::add,
-            (apiServiceDescriptor, dataEndpoint) -> {
-              if (!bundleProcessor
-                  .getInboundEndpointApiServiceDescriptors()
-                  .contains(apiServiceDescriptor)) {
-                bundleProcessor.getInboundEndpointApiServiceDescriptors().add(apiServiceDescriptor);
-              }
-              bundleProcessor.getInboundDataEndpoints().add(dataEndpoint);
-            },
-            (timerEndpoint) -> {
-              if (!bundleDescriptor.hasTimerApiServiceDescriptor()) {
-                throw new IllegalStateException(
-                    String.format(
-                        "Timers are unsupported because the "
-                            + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
-                        bundleId));
-              }
-              bundleProcessor.getTimerEndpoints().add(timerEndpoint);
-            },
-            bundleProgressReporterAndRegistrar::register,
-            splitListener,
-            bundleFinalizer,
-            bundleProcessor.getChannelRoots(),
-            bundleProcessor.getOutboundAggregators(),
-            bundleProcessor.getRunnerCapabilities());
-      }
+      transformIds = topologicalOrderCache.get(bundleId);
     } catch (Exception e) {
       LOG.warn(
           "Topological ordering failed for descriptor {}. Falling back to descriptor order. Cause: {}",
           bundleId,
           e.toString());
-      // Fallback: previous descriptor-order iteration.
-      for (Map.Entry<String, PTransform> entry : bundleDescriptor.getTransformsMap().entrySet()) {
-        if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
-            && !DATA_OUTPUT_URN.equals(entry.getValue().getSpec().getUrn())
-            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
-            && !PTransformTranslation.READ_TRANSFORM_URN.equals(
-                entry.getValue().getSpec().getUrn())) {
-          continue;
-        }
-        addRunnerAndConsumersForPTransformRecursively(
-            beamFnStateClient,
-            beamFnDataClient,
-            entry.getKey(),
-            entry.getValue(),
-            bundleProcessor::getInstructionId,
-            bundleProcessor::getCacheTokens,
-            bundleProcessor::getBundleCache,
-            bundleDescriptor,
-            components,
-            pCollectionIdsToConsumingPTransforms,
-            pCollectionConsumerRegistry,
-            processedPTransformIds,
-            startFunctionRegistry,
-            finishFunctionRegistry,
-            resetFunctions::add,
-            tearDownFunctions::add,
-            (apiServiceDescriptor, dataEndpoint) -> {
-              if (!bundleProcessor
-                  .getInboundEndpointApiServiceDescriptors()
-                  .contains(apiServiceDescriptor)) {
-                bundleProcessor.getInboundEndpointApiServiceDescriptors().add(apiServiceDescriptor);
-              }
-              bundleProcessor.getInboundDataEndpoints().add(dataEndpoint);
-            },
-            (timerEndpoint) -> {
-              if (!bundleDescriptor.hasTimerApiServiceDescriptor()) {
-                throw new IllegalStateException(
-                    String.format(
-                        "Timers are unsupported because the "
-                            + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
-                        bundleId));
-              }
-              bundleProcessor.getTimerEndpoints().add(timerEndpoint);
-            },
-            bundleProgressReporterAndRegistrar::register,
-            splitListener,
-            bundleFinalizer,
-            bundleProcessor.getChannelRoots(),
-            bundleProcessor.getOutboundAggregators(),
-            bundleProcessor.getRunnerCapabilities());
+
+      transformIds = bundleDescriptor.getTransformsMap().keySet();
+    }
+
+    for (String transformId : transformIds) {
+      PTransform pTransform = bundleDescriptor.getTransformsMap().get(transformId);
+      if (pTransform == null) {
+        continue; // defensive
       }
+      if (!DATA_INPUT_URN.equals(pTransform.getSpec().getUrn())
+          && !DATA_OUTPUT_URN.equals(pTransform.getSpec().getUrn())
+          && !JAVA_SOURCE_URN.equals(pTransform.getSpec().getUrn())
+          && !PTransformTranslation.READ_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())) {
+        continue;
+      }
+      addRunnerAndConsumersForPTransformRecursively(
+          beamFnStateClient,
+          beamFnDataClient,
+          transformId,
+          pTransform,
+          bundleProcessor::getInstructionId,
+          bundleProcessor::getCacheTokens,
+          bundleProcessor::getBundleCache,
+          bundleDescriptor,
+          components,
+          pCollectionIdsToConsumingPTransforms,
+          pCollectionConsumerRegistry,
+          processedPTransformIds,
+          startFunctionRegistry,
+          finishFunctionRegistry,
+          resetFunctions::add,
+          tearDownFunctions::add,
+          (apiServiceDescriptor, dataEndpoint) -> {
+            if (!bundleProcessor
+                .getInboundEndpointApiServiceDescriptors()
+                .contains(apiServiceDescriptor)) {
+              bundleProcessor.getInboundEndpointApiServiceDescriptors().add(apiServiceDescriptor);
+            }
+            bundleProcessor.getInboundDataEndpoints().add(dataEndpoint);
+          },
+          (timerEndpoint) -> {
+            if (!bundleDescriptor.hasTimerApiServiceDescriptor()) {
+              throw new IllegalStateException(
+                  String.format(
+                      "Timers are unsupported because the "
+                          + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
+                      bundleId));
+            }
+            bundleProcessor.getTimerEndpoints().add(timerEndpoint);
+          },
+          bundleProgressReporterAndRegistrar::register,
+          splitListener,
+          bundleFinalizer,
+          bundleProcessor.getChannelRoots(),
+          bundleProcessor.getOutboundAggregators(),
+          bundleProcessor.getRunnerCapabilities());
     }
     bundleProcessor.finish();
 
