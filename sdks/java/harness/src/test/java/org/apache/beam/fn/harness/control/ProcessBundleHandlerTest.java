@@ -1931,6 +1931,7 @@ public class ProcessBundleHandlerTest {
     throw new IllegalStateException("TestException");
   }
 
+  @Test
   public void testTopologicalOrderRespectsDependency() throws Exception {
     // Build a descriptor A -> B -> C
     ProcessBundleDescriptor processBundleDescriptor =
