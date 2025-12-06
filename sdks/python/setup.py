@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# Modify setup.py to trigger more tests.
 
 """Apache Beam SDK for Python setup file."""
 import glob
