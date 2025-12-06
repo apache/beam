@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import io.opentelemetry.context.Context;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -48,6 +49,9 @@ public interface WindowedValue<T> {
 
   @Nullable
   String getRecordId();
+
+  @Nullable
+  Context getContext();
 
   @Nullable
   Long getRecordOffset();

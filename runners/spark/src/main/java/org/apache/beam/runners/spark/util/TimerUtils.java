@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.util;
 
+import io.opentelemetry.context.Context;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
@@ -112,6 +113,11 @@ public class TimerUtils {
 
     @Override
     public @Nullable String getRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Context getContext() {
       return null;
     }
 
