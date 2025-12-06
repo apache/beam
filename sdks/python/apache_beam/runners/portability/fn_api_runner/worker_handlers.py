@@ -475,7 +475,7 @@ class GrpcServer(object):
         ("grpc.http2.min_ping_interval_without_data_ms", 20_000),
     ]
 
-    _LOGGER.exception("Starting a few grpc server with options:" + str(options))
+    _LOGGER.error("Starting a few grpc server with options:" + str(options))
     self.state = state
     self.provision_info = provision_info
     self.control_server = grpc.server(

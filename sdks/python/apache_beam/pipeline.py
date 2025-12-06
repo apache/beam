@@ -561,11 +561,11 @@ class Pipeline(HasDisplayData):
     """Runs the pipeline. Returns whatever our runner returns after running."""
     # All pipeline options are finalized at this point.
     # Call get_all_options to print warnings on invalid options.
-    opts = self.options.get_all_options(
+    self.options.get_all_options(
         retain_unknown_options=True, display_warnings=True)
 
-    logging.exception("all_options:" + str(opts))
-    logging.exception('runner class:' + str(self.runner))
+    # logging.exception("all_options:" + str(opts))
+    logging.error('runner class:' + str(self.runner))
     for error_handler in self._error_handlers:
       error_handler.verify_closed()
 

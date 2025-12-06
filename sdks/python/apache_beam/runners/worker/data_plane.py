@@ -472,7 +472,7 @@ class _GrpcDataChannel(DataChannel):
     self._closed = False
     self._exception = None  # type: Optional[Exception]
 
-    _LOGGER.exception("start grpc data channel")
+    _LOGGER.error("start grpc data channel")
 
   def close(self):
     # type: () -> None

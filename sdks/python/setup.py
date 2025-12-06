@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Modify setup.py to trigger more tests.
 
 """Apache Beam SDK for Python setup file."""
 import glob
@@ -187,6 +186,7 @@ def find_by_ext(root_dir, ext):
 
 
 # We must generate protos after setup_requires are installed.
+# Add some comments here.
 def generate_protos_first():
   try:
     # Pyproject toml build happens in isolated environemnts. In those envs,
