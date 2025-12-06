@@ -196,7 +196,8 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     FlinkSource<?, ?> source =
         (FlinkSource<?, ?>)
-            ((SourceTransformation<?, ?, ?>) Iterables.getOnlyElement(oneInputTransform.getInputs()))
+            ((SourceTransformation<?, ?, ?>)
+                    Iterables.getOnlyElement(oneInputTransform.getInputs()))
                 .getSource();
 
     assertEquals(maxParallelism, source.getNumSplits());
@@ -208,7 +209,8 @@ public class FlinkStreamingTransformTranslatorsTest {
     final int parallelism = 2;
 
     SplittableParDo.PrimitiveBoundedRead<String> transform =
-        new SplittableParDo.PrimitiveBoundedRead<>(Read.from(new TestBoundedSource(maxParallelism)));
+        new SplittableParDo.PrimitiveBoundedRead<>(
+            Read.from(new TestBoundedSource(maxParallelism)));
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     env.setParallelism(parallelism);
     env.setMaxParallelism(maxParallelism);
@@ -288,8 +290,7 @@ public class FlinkStreamingTransformTranslatorsTest {
             Pipeline.create());
 
     ctx.setCurrentTransform(appliedTransform);
-    ((FlinkStreamingPipelineTranslator.StreamTransformTranslator<PTransform<?, ?>>)
-            translator)
+    ((FlinkStreamingPipelineTranslator.StreamTransformTranslator<PTransform<?, ?>>) translator)
         .translateNode(transform, ctx);
 
     return ctx.getInputDataStream(pc).getTransformation();
