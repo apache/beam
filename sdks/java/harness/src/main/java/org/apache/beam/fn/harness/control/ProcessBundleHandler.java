@@ -247,7 +247,7 @@ public class ProcessBundleHandler {
                     QueryablePipeline.forTransforms(desc.getTransformsMap().keySet(), comps);
                 ImmutableList.Builder<String> ids = ImmutableList.builder();
                 for (PipelineNode.PTransformNode node : qp.getTopologicallyOrderedTransforms()) {
-                  ids.add(node.getTransform().getId());
+                  ids.add(node.getId());
                 }
                 ImmutableList<String> topo = ids.build();
                 // Treat incomplete topo as a cycle/error so loader fails and caller falls back.
