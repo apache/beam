@@ -243,7 +243,7 @@ public class ProcessBundleHandler {
                         .putAllWindowingStrategies(desc.getWindowingStrategiesMap())
                         .build();
                 QueryablePipeline qp =
-                    QueryablePipeline.forTransforms(desc.getRootTransformIdsList(), comps);
+                    QueryablePipeline.forTransforms(desc.getTransformsMap().keySet(), comps);
                 ImmutableList.Builder<String> ids = ImmutableList.builder();
                 for (PipelineNode.PTransformNode node : qp.getTopologicallyOrderedTransforms()) {
                   ids.add(node.getTransform().getId());
