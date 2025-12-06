@@ -60,7 +60,6 @@ from apache_beam.utils import multi_process_shared
 from apache_beam.utils import retry
 from apache_beam.utils import shared
 from apache_beam.ml.inference.model_manager import ModelManager
-from apache_beam.ml.inference.model_manager import ModelManager
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -1769,16 +1768,7 @@ class _SharedModelWrapper():
       models: Union[list[Any], ModelManager],
       model_tag: str,
       loader_func: Callable[[], Any] = None):
-  def __init__(
-      self,
-      models: Union[list[Any], ModelManager],
-      model_tag: str,
-      loader_func: Callable[[], Any] = None):
     self.models = models
-    self.use_model_manager = not isinstance(models, list)
-    self.model_tag = model_tag
-    self.loader_func = loader_func
-    if not self.use_model_manager and len(models) > 1:
     self.use_model_manager = not isinstance(models, list)
     self.model_tag = model_tag
     self.loader_func = loader_func
@@ -1787,11 +1777,6 @@ class _SharedModelWrapper():
           lambda: _ModelRoutingStrategy(),
           tag=f'{model_tag}_counter',
           always_proxy=True).acquire()
-
-  def _load_model(self):
-    unique_tag = self.model_tag + '_' + uuid.uuid4().hex
-    return multi_process_shared.MultiProcessShared(
-        self.loader_func, tag=unique_tag, always_proxy=True).acquire()
 
   def next_model(self):
     if self.use_model_manager:
@@ -1811,8 +1796,6 @@ class _SharedModelWrapper():
   def all_models(self):
     if self.use_model_manager:
       return self.models.all_models()[self.model_tag]
-    if self.use_model_manager:
-      return self.models.all_models()[self.model_tag]
     return self.models
 
 
@@ -1823,8 +1806,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       clock,
       metrics_namespace,
       load_model_at_runtime: bool = False,
-      model_tag: str = "RunInference",
-      use_model_manager: bool = True):
       model_tag: str = "RunInference",
       use_model_manager: bool = True):
     """A DoFn implementation generic to frameworks.
@@ -1878,11 +1859,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
             load_model_latency_ms, model_byte_size)
       return model
 
-  def _load_model(
-      self,
-      side_input_model_path: Optional[Union[str,
-                                            list[KeyModelPathMapping]]] = None
-  ) -> _SharedModelWrapper:
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
     model_tag = self._model_tag
