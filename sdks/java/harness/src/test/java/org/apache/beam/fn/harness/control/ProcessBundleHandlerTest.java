@@ -66,6 +66,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.Cache;
@@ -1928,5 +1929,155 @@ public class ProcessBundleHandlerTest {
 
   private static void throwException() {
     throw new IllegalStateException("TestException");
+  }
+
+
+  @Test
+  public void testTopologicalCacheProducesAndCachesOrder() throws Exception {
+    // Build a tiny descriptor with two transforms connected by a PCollection.
+    ProcessBundleDescriptor processBundleDescriptor =
+        ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "2L",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .putOutputs("2L-output", "2L-output-pc")
+                    .build())
+            .putTransforms(
+                "3L",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_OUTPUT_URN).build())
+                    .putInputs("3L-input", "2L-output-pc")
+                    .build())
+            .putPcollections("2L-output-pc", PCollection.getDefaultInstance())
+            .build();
+
+    Map<String, ProcessBundleDescriptor> registry = ImmutableMap.of("1L", processBundleDescriptor);
+    final AtomicInteger calls = new AtomicInteger(0);
+    Function<String, ProcessBundleDescriptor> fnApiRegistry = id -> {
+      calls.incrementAndGet();
+      return registry.get(id);
+    };
+
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            Collections.emptySet(),
+            fnApiRegistry::apply,
+            beamFnDataClient,
+            null,
+            null,
+            new ShortIdMap(),
+            executionStateSampler,
+            ImmutableMap.of(DATA_INPUT_URN, (context) -> {}, DATA_OUTPUT_URN, (context) -> {}),
+            Caches.noop(),
+            new BundleProcessorCache(Duration.ZERO),
+            null);
+
+    java.lang.reflect.Field f =
+        ProcessBundleHandler.class.getDeclaredField("topologicalOrderCache");
+    f.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    com.google.common.cache.LoadingCache<String, com.google.common.collect.ImmutableList<String>>
+        cache =
+            (com.google.common.cache.LoadingCache<String,
+                com.google.common.collect.ImmutableList<String>>) f.get(handler);
+
+    com.google.common.collect.ImmutableList<String> topo1 = cache.get("1L");
+    // topo should cover all transforms in the descriptor
+    assertEquals(processBundleDescriptor.getTransformsMap().size(), topo1.size());
+
+    // Second get should hit the cache (loader not invoked again)
+    com.google.common.collect.ImmutableList<String> topo2 = cache.get("1L");
+    assertSame(topo1, topo2);
+    assertEquals(1, calls.get());
+  }
+
+  @Test
+  public void testTopologicalCacheThrowsOnCycleAndProcessBundleFallsBackToDescriptorOrder()
+      throws Exception {
+    // Create a cyclic descriptor: A depends on B and B depends on A.
+    ProcessBundleDescriptor cyclicDescriptor =
+        ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "A",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .putInputs("A-in", "B-out-pc")
+                    .putOutputs("A-out", "A-out-pc")
+                    .build())
+            .putTransforms(
+                "B",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_OUTPUT_URN).build())
+                    .putInputs("B-in", "A-out-pc")
+                    .putOutputs("B-out", "B-out-pc")
+                    .build())
+            .putPcollections("A-out-pc", PCollection.getDefaultInstance())
+            .putPcollections("B-out-pc", PCollection.getDefaultInstance())
+            .build();
+
+    Map<String, ProcessBundleDescriptor> registry = ImmutableMap.of("cyclic", cyclicDescriptor);
+    Function<String, ProcessBundleDescriptor> fnApiRegistry = registry::get;
+
+    // Use a PTransformRunnerFactory that records invocation to confirm fallback path executed.
+    final AtomicBoolean fallbackRunnerInvoked = new AtomicBoolean(false);
+    Map<String, PTransformRunnerFactory> urnToFactory =
+        ImmutableMap.of(
+            DATA_INPUT_URN,
+            (context) -> {
+              fallbackRunnerInvoked.set(true);
+            },
+            DATA_OUTPUT_URN,
+            (context) -> {
+              fallbackRunnerInvoked.set(true);
+            });
+
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            Collections.emptySet(),
+            fnApiRegistry::apply,
+            beamFnDataClient,
+            null,
+            null,
+            new ShortIdMap(),
+            executionStateSampler,
+            urnToFactory,
+            Caches.noop(),
+            new BundleProcessorCache(Duration.ZERO),
+            null);
+
+    java.lang.reflect.Field f =
+        ProcessBundleHandler.class.getDeclaredField("topologicalOrderCache");
+    f.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    com.google.common.cache.LoadingCache<String, com.google.common.collect.ImmutableList<String>>
+        cache =
+            (com.google.common.cache.LoadingCache<String,
+                com.google.common.collect.ImmutableList<String>>) f.get(handler);
+
+    // Loader should fail because topo size != transforms size -> ExecutionException wrapping IllegalStateException
+    assertThrows(
+        java.util.concurrent.ExecutionException.class,
+        () -> {
+          try {
+            cache.get("cyclic");
+          } catch (java.util.concurrent.ExecutionException ee) {
+            // assert cause is the IllegalStateException we throw for incomplete topo
+            assertTrue(ee.getCause() instanceof IllegalStateException);
+            throw ee;
+          }
+        });
+
+    // Now exercise processBundle which should catch the loader error and fall back to descriptor-order path.
+    handler.processBundle(
+        InstructionRequest.newBuilder()
+            .setInstructionId("instr-cyclic")
+            .setProcessBundle(
+                ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("cyclic"))
+            .build());
+
+    assertTrue("Fallback descriptor-order runner should have been invoked", fallbackRunnerInvoked.get());
   }
 }
