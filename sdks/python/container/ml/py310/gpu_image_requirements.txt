@@ -293,7 +293,7 @@ typing_extensions==4.15.0
 tzdata==2025.2
 ujson==5.11.0
 uritemplate==4.2.0
-urllib3==2.5.0
+urllib3==2.6.0
 uvicorn==0.38.0
 uvloop==0.22.1
 virtualenv-clone==0.5.7
